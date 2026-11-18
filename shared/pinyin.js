@@ -114,6 +114,8 @@
   '夯土':'hāngtǔ','版筑':'bǎnzhù','垛口':'duǒkǒu','垛墙':'duǒqiáng','烽燧长':'fēngsuìzhǎng','烽燧':'fēngsuì','戍卒':'shùzú',
   '界壕':'jièháo','关隘':'guān’ài','嘉峪关':'Jiāyù Guān','慕田峪':'Mùtiányù','临洮':'Líntáo','蒙恬':'Méng Tián','阿保机':'Ābǎojī',
   '燕云十六州':'Yān-Yún shíliù zhōu','郾城':'Yǎnchéng','颐和园':'Yíhé Yuán','尼布楚':'Níbùchǔ',
+  '佃农':'diànnóng','分成佃农':'fēnchéng diànnóng','赊账':'shēzhàng','赊购':'shēgòu','弹劾':'tánhé','砷酸钙':'shēnsuāngài','疏浚':'shūjùn',
+  '种地':'zhòngdì','种子':'zhǒngzi','查塔姆':'Chátǎmǔ','棉铃象甲':'miánlíng xiàngjiǎ',
   '第谷':'Dìgǔ','半长轴':'bàncháng zhóu','齐奥尔科夫斯基':'Qí’ào’ěrkēfūsījī','卡门线':'Kǎmén xiàn','推重比':'tuīzhòngbǐ',
   '液氢':'yèqīng','戈达德':'Gēdádé','曼加里安':'Mànjiālǐ’ān','灰背隼':'huībèisǔn','日行迹':'rìxíngjì','会合周期':'huìhé zhōuqī',
   '角动量':'jiǎodòngliàng','拱极':'gǒngjí','赤纬':'chìwěi','拉尼亚凯亚':'Lāníyàkǎiyà','猛犸象':'měngmǎxiàng','啁啾':'zhōujiū','铃宕':'língdàng','史瓦西':'Shǐwǎxī','吸积盘':'xījīpán','凌星':'língxīng',
