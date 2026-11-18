@@ -20,7 +20,7 @@
               src:{en:'source',zh:'来源'}, close:{en:'Close',zh:'关闭'}, zoom:{en:'Click to enlarge',zh:'点击放大'},
               ext:{en:'Open on Wikimedia Commons ↗',zh:'在维基共享资源打开 ↗'}, cant:{en:"This clip can't play here.",zh:'这个浏览器无法播放该片段。'},
               noimg:{en:"This photo didn't load.",zh:'图片没有加载出来。'},
-              yt:{en:'Watch on YouTube ↗',zh:'在 YouTube 观看 ↗'}, ytnote:{en:"If the video doesn't start here, open it on YouTube.",zh:'如果视频在这里无法播放，请在 YouTube 打开。'},
+              yt:{en:'Watch on YouTube ↗',zh:'在 YouTube 观看 ↗'}, sf:{en:'Open on Sketchfab ↗',zh:'在 Sketchfab 打开 ↗'}, load3d:{en:'▶ Load the 3D model',zh:'▶ 加载 3D 模型'}, m3d:{en:'3D model',zh:'3D 模型'}, drag3d:{en:'Drag to rotate · scroll to zoom · click the ⓘ hotspots',zh:'拖动旋转 · 滚轮缩放 · 点击 ⓘ 标注'}, ytnote:{en:"If the video doesn't start here, open it on YouTube.",zh:'如果视频在这里无法播放，请在 YouTube 打开。'},
               ytopen:{en:'Click the picture to watch it on YouTube (opens a new tab).',zh:'点击画面即可在 YouTube 观看（新标签页打开）。'} };
   const css = `
 .lp-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px}
@@ -38,7 +38,15 @@
 .lp-audio audio{position:absolute;left:8px;right:8px;bottom:8px;width:calc(100% - 16px);height:36px}
 .lp-note{position:absolute;inset:0 0 40px;display:grid;place-items:center;font-size:54px;color:#9fb0cc}
 .lp-view video{max-width:min(1200px,96vw);max-height:76vh;border-radius:10px;background:#000}
-.lp-yt{cursor:pointer}.lp-play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:58px;height:58px;border-radius:50%;background:rgba(10,15,30,.72);color:#fff;display:grid;place-items:center;font-size:22px;padding-left:4px;pointer-events:none}
+.lp-yt{cursor:pointer}
+.lp-3d{width:100%;height:100%;border:0;display:block;background:#0e1422}
+.lp-3dbox{position:relative;margin:0;border:1px solid var(--line,#d9e2ee);border-radius:16px;overflow:hidden;background:#0e1422}
+.lp-3dbox>img{width:100%;height:100%;object-fit:cover;opacity:.85}
+.lp-3dbox .lp-3d{height:calc(100% - 56px)}
+.lp-3dload{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);border:0;background:var(--brand,#0f9d8a);color:#fff;font:800 17px/1 Nunito,system-ui,sans-serif;padding:14px 22px;border-radius:999px;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.lp-3dbox figcaption{position:absolute;left:0;right:0;bottom:0;background:rgba(10,15,30,.82);color:#eef3fb;padding:8px 12px;display:flex;flex-direction:column;gap:2px;font-size:14px}
+.lp-3dbox figcaption .lp-credit,.lp-3dbox figcaption a{color:#c6d4ee}
+.lp-3dhint{position:absolute;bottom:66px;left:10px;background:rgba(10,15,30,.72);color:#fff;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;pointer-events:none}.lp-play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:58px;height:58px;border-radius:50%;background:rgba(10,15,30,.72);color:#fff;display:grid;place-items:center;font-size:22px;padding-left:4px;pointer-events:none}
 .lp-card:hover .lp-play{background:#c4302b}
 .lp-ytbox{width:min(1100px,94vw);aspect-ratio:16/9;max-height:72vh;background:#000;border-radius:10px;overflow:hidden}.lp-ytbox iframe{width:100%;height:100%;border:0}
 .lp-ytlocal{position:relative;display:block}.lp-ytlocal img{width:100%;height:100%;object-fit:cover;max-width:none;max-height:none;border-radius:0;box-shadow:none}.lp-ytlocal .lp-play{width:84px;height:84px;font-size:32px;background:#c4302b}
@@ -65,7 +73,11 @@
 
   const reg = []; // registry so markup can reference items by index
   const idOf = it => { let i = reg.indexOf(it); if (i < 0){ reg.push(it); i = reg.length - 1; } return i; };
-  const TL = { video:{en:'Video',zh:'视频'}, audio:{en:'Audio',zh:'音频'}, youtube:{en:'Video',zh:'视频'} };
+  const TL = { video:{en:'Video',zh:'视频'}, audio:{en:'Audio',zh:'音频'}, youtube:{en:'Video',zh:'视频'}, model3d:{en:'3D model',zh:'3D 模型'} };
+  // 3D models (Sketchfab embeds): { type:'model3d', sketchfab:'UID', src:'<thumbnail URL>', en, zh, credit:'Author (Sketchfab)', license:'CC BY 4.0', page:'https://sketchfab.com/3d-models/...' }
+  const sfId = it => String(it.sketchfab || '').replace(/[^\w]/g, '');
+  const sfEmbed = (it, auto) => 'https://sketchfab.com/models/' + sfId(it) + '/embed?ui_theme=dark&dnt=1' + (auto ? '&autostart=1&preload=1' : '');
+  const sfIframe = (it, auto) => `<iframe class="lp-3d" title="${esc(L(it))}" src="${sfEmbed(it, auto)}" allow="autoplay; fullscreen; xr-spatial-tracking" allowfullscreen loading="lazy"></iframe>`;
   // YouTube items: { type:'youtube', yt:'VIDEO_ID', start:30 (optional, seconds), en, zh, kind, credit:'NASA (YouTube)', license:'YouTube' }
   const ytId = it => String(it.yt || '').replace(/[^\w-]/g, '');
   const ytWatch = it => 'https://www.youtube.com/watch?v=' + ytId(it) + (it.start ? '&t=' + (+it.start) + 's' : '');
@@ -89,15 +101,23 @@
     const mime = { webm:'video/webm', ogv:'video/ogg', mp4:'video/mp4', ogg:'audio/ogg', oga:'audio/ogg', opus:'audio/ogg; codecs=opus', mp3:'audio/mpeg', wav:'audio/wav', flac:'audio/flac' }[ext.toLowerCase()];
     if (sources(it).length > 1) return it.type === 'audio' || el.canPlayType('video/webm') !== '';
     return !mime || !el.canPlayType || el.canPlayType(mime) !== ''; }
-  const extUrl = it => it.type === 'youtube' ? ytWatch(it) : (it.page || it.media || it.src || '');
-  const extLink = it => `<a class="lp-ext" href="${esc(extUrl(it))}" target="_blank" rel="noopener">${esc(L(it.type === 'youtube' ? T.yt : T.ext))}</a>`;
+  const extUrl = it => it.type === 'model3d' ? (it.page || 'https://sketchfab.com/3d-models/' + sfId(it)) : it.type === 'youtube' ? ytWatch(it) : (it.page || it.media || it.src || '');
+  const extLink = it => `<a class="lp-ext" href="${esc(extUrl(it))}" target="_blank" rel="noopener">${esc(L(it.type === 'youtube' ? T.yt : it.type === 'model3d' ? T.sf : T.ext))}</a>`;
+  // inline viewer for a lesson section: thumbnail + button; the heavy model loads only on click
+  LP.embed3d = (it, height) => { const id = idOf(it);
+    return `<figure class="lp-3dbox" data-lp3d="${id}" style="height:${height || 420}px"><img src="${esc(it.src || '')}" alt="${esc(L(it))}" referrerpolicy="no-referrer"><button type="button" class="lp-3dload">${esc(L(T.load3d))}</button>
+      <figcaption><b>${esc(L(it))}</b><span class="lp-credit">${credit(it)} · ${extLink(it)}</span></figcaption></figure>`; };
+  document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('.lp-3dload'); if (!b) return; const box = b.closest('[data-lp3d]'), it = reg[+box.dataset.lp3d];
+    box.querySelector('img').remove(); b.remove(); box.insertAdjacentHTML('afterbegin', sfIframe(it, true) + `<span class="lp-3dhint">${esc(L(T.drag3d))}</span>`); }, true);
   const fallback = it => `<div class="lp-off lp-fallback"><span>${esc(L(T.cant))}</span>${extLink(it)}</div>`;
   LP._mediaErr = el => { let s = []; try { s = JSON.parse(el.dataset.srcs || '[]'); } catch(e){}
     const i = +(el.dataset.si || 0) + 1;
     if (i < s.length){ el.dataset.si = i; const play = el.dataset.wanted || el.autoplay; el.src = s[i]; el.load(); if (play) el.play().catch(() => {}); return; }
     const box = el.parentNode; if (!box || box.querySelector('.lp-fallback')) return;
     el.style.display = 'none'; box.insertAdjacentHTML('beforeend', `<div class="lp-off lp-fallback"><span>${esc(L(T.cant))}</span><a class="lp-ext" href="${esc(el.dataset.page)}" target="_blank" rel="noopener">${esc(L(T.ext))}</a></div>`); };
-  const img = it => it.type === 'youtube'
+  const img = it => it.type === 'model3d'
+    ? `<div class="lp-imgwrap lp-yt"><span class="lp-kind">🧊 ${esc(L(it.kind || T.m3d))}</span><img loading="lazy" decoding="async" referrerpolicy="no-referrer" src="${esc(it.src || '')}" alt="${esc(L(it))}" data-page="${esc(extUrl(it))}" onerror="LabPhotos._err(this)"><span class="lp-play" aria-hidden="true">⟳</span></div>`
+    : it.type === 'youtube'
     ? `<div class="lp-imgwrap lp-yt">${it.kind ? `<span class="lp-kind">${esc(L(it.kind))}</span>` : ''}<img loading="lazy" decoding="async" referrerpolicy="no-referrer" src="https://i.ytimg.com/vi/${ytId(it)}/hqdefault.jpg" alt="${esc(L(it))}" data-page="${esc(extUrl(it))}" onerror="LabPhotos._err(this)"><span class="lp-play" aria-hidden="true">▶</span></div>`
     : (it.type === 'video' || it.type === 'audio') ? media(it) : `<div class="lp-imgwrap">${it.kind ? `<span class="lp-kind">${esc(L(it.kind))}</span>` : ''}<img loading="lazy" decoding="async" referrerpolicy="no-referrer" src="${esc(it.src)}" alt="${esc(L(it))}" data-page="${esc(extUrl(it))}" onerror="LabPhotos._err(this)"></div>`;
   // Commons sometimes throttles a burst of thumbnails: retry twice (2 s, 5 s) before showing the "needs internet" note
@@ -121,7 +141,7 @@
     const ids = r.items.map(idOf);
     r.el.innerHTML = (r.o.title ? `<div class="sec-head"><h2>${esc(L(r.o.title))}</h2>${r.o.sub ? `<p>${esc(L(r.o.sub))}</p>` : ''}</div>` : '') +
       `<div class="lp-gallery">${r.items.map((it, k) => `<div class="lp-card" data-lp-id="${ids[k]}" data-lp-set="${ids.join(',')}" title="${esc(L(T.zoom))}">${img(it)}
-        <div class="lp-cap"><b>${esc(L(it))}</b>${it.scale ? `<span class="lp-sc">${esc(L(it.scale))}</span>` : ''}<span class="lp-credit">${credit(it)}</span>${it.type === 'video' || it.type === 'audio' || it.type === 'youtube' ? extLink(it) : ''}</div></div>`).join('')}</div>`;
+        <div class="lp-cap"><b>${esc(L(it))}</b>${it.scale ? `<span class="lp-sc">${esc(L(it.scale))}</span>` : ''}<span class="lp-credit">${credit(it)}</span>${it.type === 'video' || it.type === 'audio' || it.type === 'youtube' || it.type === 'model3d' ? extLink(it) : ''}</div></div>`).join('')}</div>`;
   }
   LP.figure = (it, label) => { const id = idOf(it);
     return `<figure class="lp-fig" data-lp-id="${id}" title="${esc(L(T.zoom))}">${img(it)}<figcaption><b>${esc(L(label || T.real))}</b><span>${esc(L(it))}${it.scale ? ' · ' + esc(L(it.scale)) : ''}</span><span class="lp-credit">${credit(it)}</span></figcaption></figure>`; };
@@ -133,7 +153,7 @@
     if (!view){ view = document.createElement('div'); view.className = 'lp-view'; document.body.appendChild(view);
       view.addEventListener('click', e => { if (e.target === view) close(); }); }
     // YouTube refuses embedded playback on pages opened from disk (file://, "Error 153"): there, show a big thumbnail that opens YouTube
-    view.innerHTML = `${it.type === 'youtube' && location.protocol === 'file:' ? `<a class="lp-ytbox lp-ytlocal" href="${esc(extUrl(it))}" target="_blank" rel="noopener"><img src="https://i.ytimg.com/vi/${ytId(it)}/hqdefault.jpg" alt="${esc(L(it))}" referrerpolicy="no-referrer"><span class="lp-play">▶</span></a>` : ''}${it.type === 'youtube' && location.protocol !== 'file:' ? `<div class="lp-ytbox"><iframe src="https://www.youtube-nocookie.com/embed/${ytId(it)}?rel=0&amp;autoplay=1&amp;playsinline=1${it.start ? '&amp;start=' + (+it.start) : ''}" title="${esc(L(it))}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>` : ''}${it.type === 'youtube' ? '' : it.type === 'video' ? (canPlay(it) ? `<video controls autoplay playsinline ${srcAttr(it)} onerror="LabPhotos._mediaErr(this)" onplay="this.dataset.wanted=1" data-page="${esc(extUrl(it))}"></video>` : `<div style="position:relative;width:min(560px,90vw);height:220px">${fallback(it)}</div>`) : it.type === 'audio' ? (canPlay(it) ? `<audio controls autoplay ${srcAttr(it)} onerror="LabPhotos._mediaErr(this)" onplay="this.dataset.wanted=1" data-page="${esc(extUrl(it))}"></audio>` : `<div style="position:relative;width:min(560px,90vw);height:160px">${fallback(it)}</div>`) : `<img src="${esc(it.full || it.src)}" alt="${esc(L(it))}" referrerpolicy="no-referrer">`}
+    view.innerHTML = `${it.type === 'model3d' ? `<div class="lp-ytbox">${sfIframe(it, true)}</div>` : ''}${it.type === 'youtube' && location.protocol === 'file:' ? `<a class="lp-ytbox lp-ytlocal" href="${esc(extUrl(it))}" target="_blank" rel="noopener"><img src="https://i.ytimg.com/vi/${ytId(it)}/hqdefault.jpg" alt="${esc(L(it))}" referrerpolicy="no-referrer"><span class="lp-play">▶</span></a>` : ''}${it.type === 'youtube' && location.protocol !== 'file:' ? `<div class="lp-ytbox"><iframe src="https://www.youtube-nocookie.com/embed/${ytId(it)}?rel=0&amp;autoplay=1&amp;playsinline=1${it.start ? '&amp;start=' + (+it.start) : ''}" title="${esc(L(it))}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>` : ''}${it.type === 'youtube' ? '' : it.type === 'video' ? (canPlay(it) ? `<video controls autoplay playsinline ${srcAttr(it)} onerror="LabPhotos._mediaErr(this)" onplay="this.dataset.wanted=1" data-page="${esc(extUrl(it))}"></video>` : `<div style="position:relative;width:min(560px,90vw);height:220px">${fallback(it)}</div>`) : it.type === 'audio' ? (canPlay(it) ? `<audio controls autoplay ${srcAttr(it)} onerror="LabPhotos._mediaErr(this)" onplay="this.dataset.wanted=1" data-page="${esc(extUrl(it))}"></audio>` : `<div style="position:relative;width:min(560px,90vw);height:160px">${fallback(it)}</div>`) : `<img src="${esc(it.full || it.src)}" alt="${esc(L(it))}" referrerpolicy="no-referrer">`}
       <div class="cap"><b>${esc(L(it))}</b>${it.scale ? ` · ${esc(L(it.scale))}` : ''}${it.kind ? ` · ${esc(L(it.kind))}` : ''}<small>${credit(it)}</small>${it.type === 'youtube' ? `<a class="ytlink" href="${esc(extUrl(it))}" target="_blank" rel="noopener">${esc(L(T.yt))}</a><small>${esc(L(location.protocol === 'file:' ? T.ytopen : T.ytnote))}</small>` : ''}</div>
       <button class="x" aria-label="${esc(L(T.close))}">✕</button>${cur.length > 1 ? '<button class="pv" aria-label="prev">‹</button><button class="nx" aria-label="next">›</button>' : ''}`;
     view.querySelector('.x').onclick = close;

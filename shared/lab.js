@@ -64,9 +64,11 @@
       ${S ? `<div class="crumb">/ <a href="../index.html#${S.id}" data-lab-link>${S.icon} <span data-zh="${S.zh}">${S.en}</span></a>${T ? `<span class="t">/ <span data-zh="${T.zh}">${T.en}</span></span>` : ''}</div>` : ''}
       <div class="links">${navLinks}</div>
       <div class="seg lab-lang ${navLinks ? '' : 'spacer'}"><button data-lang="en">EN</button><button data-lang="zh">中文</button></div>
+      <button class="icon-btn lab-voice" title="Read-aloud voice / 朗读声音" aria-label="Read-aloud voice">🔊</button>
       <button class="icon-btn lab-theme" title="${UI.theme.en}" aria-label="${UI.theme.en}">🌓</button>
     </div></nav>`;
     $$('.lab-lang button').forEach(b => b.onclick = () => setLang(b.dataset.lang));
+    const vb = $('.lab-voice'); if (vb){ vb.onclick = () => Lab.voicePanel(); if (!window.speechSynthesis) vb.hidden = true; }
     $('.lab-theme').onclick = () => {
       const r = document.documentElement, dark = r.dataset.theme ? r.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
       r.dataset.theme = dark ? 'light' : 'dark'; store.set('labTheme', r.dataset.theme);
@@ -105,10 +107,51 @@
   Lab.setLang = setLang;
 
   /* ---------- speech ---------- */
-  Lab.speak = text => {
-    if (!window.speechSynthesis) return;
+  /* Picks the most natural voice the browser has (Edge "Natural"/neural voices, Google voices, macOS premium voices)
+     instead of the robotic system default. The 🔊 button in the nav lets the reader choose a voice and speed (remembered). */
+  const allVoices = () => (window.speechSynthesis ? speechSynthesis.getVoices() : []);
+  const vScore = (v, lang) => {
+    const n = v.name, L2 = (v.lang || '').toLowerCase().replace('_', '-');
+    if (!L2.startsWith(lang === 'zh' ? 'zh' : 'en')) return -1e9;
+    let s = 0;
+    if (lang === 'zh'){ if (/zh-(cn|hans)/.test(L2)) s += 30; if (/hk|tw|yue|mo/.test(L2) || /Cantonese|粤/.test(n)) s -= 60; }
+    else { if (L2 === 'en-us') s += 20; else if (/en-(gb|au|ca)/.test(L2)) s += 8; }
+    if (/Natural/i.test(n)) s += 100; if (/Neural/i.test(n)) s += 90; if (/Premium|Enhanced/i.test(n)) s += 70;
+    if (/Google/i.test(n)) s += 60; if (/Online/i.test(n)) s += 30; if (v.localService === false) s += 5;
+    if (/Xiaoxiao|Yunxi|Xiaoyi|Yunjian|Aria|Jenny|Guy|Ava|Andrew|Emma|Brian|Samantha|Tingting|Ting-Ting/i.test(n)) s += 15;
+    if (/Huihui|Kangkang|Yaoyao|David|Zira|Mark/i.test(n)) s -= 25;
+    return s;
+  };
+  Lab.voices = lang => allVoices().filter(v => vScore(v, lang) > -1e8).sort((a, b) => vScore(b, lang) - vScore(a, lang));
+  Lab.voiceFor = lang => { const saved = store.get('labVoice_' + lang), vs = Lab.voices(lang); return (saved && vs.find(v => v.name === saved)) || vs[0] || null; };
+  Lab.speakRate = () => +(store.get('labRate') || 1);
+  Lab.speak = (text, o = {}) => {
+    if (!window.speechSynthesis || !text) return null;
     speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text); u.lang = Lab.lang === 'zh' ? 'zh-CN' : 'en-US'; u.rate = .95; speechSynthesis.speak(u);
+    const lang = o.lang || Lab.lang, u = new SpeechSynthesisUtterance(String(text).replace(/<[^>]+>/g, ''));
+    u.lang = lang === 'zh' ? 'zh-CN' : 'en-US';
+    const v = Lab.voiceFor(lang); if (v){ u.voice = v; u.lang = v.lang; }
+    u.rate = Math.max(.5, Math.min(1.6, (o.rate || .95) * Lab.speakRate()));
+    speechSynthesis.speak(u); return u;
+  };
+  if (window.speechSynthesis){ allVoices(); speechSynthesis.addEventListener && speechSynthesis.addEventListener('voiceschanged', () => {}); }
+  // voice settings popover (opened from the 🔊 nav button)
+  Lab.voicePanel = () => {
+    let p = $('.lab-vpanel'); if (p){ p.remove(); return; }
+    const lang = Lab.lang, vs = Lab.voices(lang), cur = Lab.voiceFor(lang);
+    const T = { h:{en:'Read-aloud voice',zh:'朗读声音'}, rate:{en:'Speed',zh:'语速'}, test:{en:'▶ Test',zh:'▶ 试听'}, none:{en:'This browser has no voice for this language.',zh:'这个浏览器没有该语言的声音。'},
+      tip:{en:'Tip: Microsoft Edge has the most natural voices (names with “Natural”). Chrome’s “Google” voices are good too.',zh:'提示：Microsoft Edge 浏览器的声音最自然（名字带 “Natural” 的）；Chrome 的 “Google” 声音也不错。'},
+      sample:{en:'Hello! This is how I will read the lessons to you.',zh:'你好！我会用这个声音为你朗读课文。'} };
+    p = document.createElement('div'); p.className = 'lab-vpanel card';
+    p.innerHTML = `<b>${Lab.L(T.h)}</b>${vs.length ? `<select class="lab-vsel">${vs.map(v => `<option value="${v.name.replace(/"/g, '&quot;')}" ${cur && v.name === cur.name ? 'selected' : ''}>${v.name}</option>`).join('')}</select>` : `<p>${Lab.L(T.none)}</p>`}
+      <label>${Lab.L(T.rate)} <input type="range" class="lab-vrate" min=".6" max="1.4" step=".05" value="${Lab.speakRate()}"><output>${Lab.speakRate().toFixed(2)}×</output></label>
+      <button type="button" class="btn lab-vtest">${Lab.L(T.test)}</button><small>${Lab.L(T.tip)}</small>`;
+    document.body.appendChild(p);
+    const sel = $('.lab-vsel', p), rate = $('.lab-vrate', p);
+    if (sel) sel.onchange = () => { store.set('labVoice_' + lang, sel.value); Lab.speak(Lab.L(T.sample)); };
+    rate.oninput = () => { store.set('labRate', rate.value); $('output', p).textContent = (+rate.value).toFixed(2) + '×'; };
+    $('.lab-vtest', p).onclick = () => Lab.speak(Lab.L(T.sample));
+    setTimeout(() => document.addEventListener('click', function off(e){ if (!e.target.closest('.lab-vpanel,.lab-voice')){ p.remove(); document.removeEventListener('click', off); } }), 0);
   };
 
   /* ---------- quiz ----------

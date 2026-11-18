@@ -251,6 +251,7 @@
     }
     function speak(){ if (!st.voice || !window.speechSynthesis || st.i < 0) return; speechSynthesis.cancel();
       const txt = L(steps[st.i]).replace(/\$\$?([^$]+)\$\$?/g, (m, t) => t.replace(/\\(frac|cdot|times)/g, m2 => ({ '\\frac':' over ', '\\cdot':' times ', '\\times':' times ' }[m2])).replace(/[{}\\^_]/g, ' '));
+      if (window.Lab && Lab.speak){ Lab.speak(txt, { lang: zh() ? 'zh' : 'en', rate: .95 * Math.min(1.3, S.speed) }); return; }   // best available voice
       const u = new SpeechSynthesisUtterance(txt); u.lang = zh() ? 'zh-CN' : 'en-US'; u.rate = .95 * Math.min(1.3, S.speed); speechSynthesis.speak(u); }
     async function go(i){
       i = Math.max(0, Math.min(steps.length - 1, i));
