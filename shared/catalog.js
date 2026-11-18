@@ -192,5 +192,120 @@ window.LAB_CATALOG = [
    {id:'americas', std:'SS6G', en:'Latin America & Canada', zh:'拉丁美洲与加拿大', d:{en:'Physical features, countries and environment.',zh:'自然特征、国家与环境。'}},
    {id:'europe-oceania', std:'SS6G', en:'Europe & Australia', zh:'欧洲与澳大利亚', d:{en:'Physical features, countries and environment.',zh:'自然特征、国家与环境。'}},
    {id:'africa-asia', std:'SS7G', en:'Africa & Asia', zh:'非洲与亚洲', d:{en:'Africa, Southwest Asia, and Southern & Eastern Asia.',zh:'非洲、西南亚以及南亚和东亚。'}}
+ ]},
+ { id:'ela', icon:'📖', color:'#7a4cc2', en:'English Language Arts', zh:'英语语言艺术',
+   blurb:{en:'Reading stories and nonfiction, writing arguments and narratives, grammar, vocabulary and media literacy (Georgia ELA, grades 6–8).',zh:'阅读文学与非虚构文本，写议论文和记叙文，语法、词汇与媒介素养（佐治亚州 ELA，6–8 年级）。'},
+   topics:[
+   {id:'theme-plot', std:'ELA 6–8 · Reading Literature', en:'Plot, Conflict & Theme', zh:'情节、冲突与主题', d:{en:'Map a story’s plot and find the message under it.',zh:'画出故事情节图，找到故事背后的主题。'}},
+   {id:'character-pov', std:'ELA 6–8 · Reading Literature', en:'Characters & Point of View', zh:'人物与叙述视角', d:{en:'How characters change, and who is telling the story.',zh:'人物如何变化，故事由谁来讲述。'}},
+   {id:'figurative-language', std:'ELA 6–8 · Reading Literature', en:'Figurative Language & Poetry', zh:'修辞语言与诗歌', d:{en:'Similes, metaphors, imagery, rhyme and rhythm.',zh:'明喻、暗喻、意象、押韵与节奏。'}},
+   {id:'central-idea', std:'ELA 6–8 · Reading Informational', en:'Central Idea & Summary', zh:'中心思想与概括', d:{en:'Find the main idea and write a short, objective summary.',zh:'找出中心思想，写出简短客观的概括。'}},
+   {id:'text-structure', std:'ELA 6–8 · Reading Informational', en:'Text Structures', zh:'文本结构', d:{en:'Cause/effect, compare/contrast, problem/solution and more.',zh:'因果、比较对照、问题与解决等结构。'}},
+   {id:'argument-evidence', std:'ELA 6–8 · Reading Informational', en:'Claims, Evidence & Reasoning', zh:'论点、论据与推理', d:{en:'Judge an argument: is the evidence strong and relevant?',zh:'评价一个论证：论据是否有力、相关？'}},
+   {id:'argument-writing', std:'ELA 6–8 · Writing', en:'Write an Argument', zh:'写议论文', d:{en:'Build a claim, back it with evidence and answer the other side.',zh:'提出论点，用论据支持，并回应反方观点。'}},
+   {id:'narrative-writing', std:'ELA 6–8 · Writing', en:'Write a Story', zh:'写记叙文', d:{en:'Hook, dialogue, pacing and a strong ending.',zh:'开头吸引人、对话、节奏与有力的结尾。'}},
+   {id:'grammar-sentences', std:'ELA 6–8 · Language', en:'Sentences, Clauses & Punctuation', zh:'句子、从句与标点', d:{en:'Phrases, clauses, sentence types and comma rules.',zh:'短语、从句、句子类型和逗号用法。'}},
+   {id:'vocabulary-roots', std:'ELA 6–8 · Language', en:'Word Roots & Context Clues', zh:'词根与上下文线索', d:{en:'Crack big words with Greek and Latin roots and context.',zh:'用希腊、拉丁词根和上下文猜出难词。'}},
+   {id:'research-media', std:'ELA 6–8 · Research & Media', en:'Research & Media Literacy', zh:'研究与媒介素养', d:{en:'Find reliable sources and spot misinformation.',zh:'找到可靠信息来源，识别虚假信息。'}}
+ ]},
+ { id:'georgia', icon:'🍑', color:'#c2410c', en:'Georgia Studies', zh:'佐治亚州研究',
+   blurb:{en:'Georgia’s geography, history, government and economy (Georgia Social Studies, grade 8).',zh:'佐治亚州的地理、历史、政府与经济（佐治亚州社会研究，8 年级）。'},
+   topics:[
+   {id:'ga-geography', soon:1, std:'SS8G1', en:'Georgia’s Geography & Regions', zh:'佐治亚州的地理与五大地区', d:{en:'Five regions from the mountains to the coast, rivers and the Fall Line.',zh:'从山区到海岸的五大地区、河流与瀑布线。'}},
+   {id:'ga-native', soon:1, std:'SS8H1', en:'Native Americans of Georgia', zh:'佐治亚州的美洲原住民', d:{en:'Paleo to Mississippian cultures, the Creek and the Cherokee.',zh:'从古印第安时期到密西西比文化，克里克人与切罗基人。'}},
+   {id:'ga-colony', soon:1, std:'SS8H1–2', en:'Founding the Georgia Colony', zh:'佐治亚殖民地的建立', d:{en:'Oglethorpe, Savannah 1733, the Trustees and the royal colony.',zh:'奥格尔索普、1733 年萨凡纳、托管人时期与皇家殖民地。'}},
+   {id:'ga-revolution', soon:1, std:'SS8H3', en:'Revolution & Early Statehood', zh:'独立战争与早期州政', d:{en:'Georgia in the American Revolution and the new nation.',zh:'独立战争中的佐治亚与新国家的建立。'}},
+   {id:'ga-removal', soon:1, std:'SS8H4', en:'Land, Gold & Cherokee Removal', zh:'土地、黄金与切罗基人迁移', d:{en:'Land lotteries, the Dahlonega gold rush and the Trail of Tears.',zh:'土地抽签、达洛尼加淘金热与“血泪之路”。'}},
+   {id:'ga-civilwar', soon:1, std:'SS8H5', en:'Georgia in the Civil War', zh:'南北战争中的佐治亚', d:{en:'Secession, Andersonville, Chickamauga and Sherman’s March.',zh:'脱离联邦、安德森维尔、奇克莫加之战与谢尔曼进军。'}},
+   {id:'ga-reconstruction', std:'SS8H6–7', en:'Reconstruction & the New South', zh:'重建时期与“新南方”', d:{en:'Freedom, sharecropping, Jim Crow laws and the New South.',zh:'获得自由、分成制、吉姆·克劳法与“新南方”。'}},
+   {id:'ga-20th', std:'SS8H8–9', en:'Wars, Depression & the New Deal', zh:'世界大战、大萧条与新政', d:{en:'World War I, the boll weevil, the Great Depression, the New Deal and WWII in Georgia.',zh:'一战、棉铃象甲、大萧条、新政与二战中的佐治亚。'}},
+   {id:'ga-civilrights', std:'SS8H10–11', en:'The Civil Rights Movement in Georgia', zh:'佐治亚州的民权运动', d:{en:'Martin Luther King Jr., the Albany Movement, SNCC and Atlanta.',zh:'马丁·路德·金、奥尔巴尼运动、SNCC 与亚特兰大。'}},
+   {id:'ga-modern', std:'SS8H12', en:'Modern Georgia', zh:'现代佐治亚州', d:{en:'Atlanta’s growth, the 1996 Olympics and Georgia’s economy today.',zh:'亚特兰大的发展、1996 年奥运会与今天的佐治亚经济。'}},
+   {id:'ga-government', std:'SS8CG1–6', en:'Georgia Government & Citizenship', zh:'佐治亚州政府与公民', d:{en:'The state constitution, three branches, local government and juvenile justice.',zh:'州宪法、三权分立、地方政府与未成年人司法。'}}
+ ]},
+ { id:'ushistory', icon:'🗽', color:'#1d4ed8', en:'U.S. History', zh:'美国历史',
+   blurb:{en:'From the thirteen colonies to today: how the United States was built and changed.',zh:'从十三个殖民地到今天：美国是如何建立和变化的。'},
+   topics:[
+   {id:'us-colonies', soon:1, std:'SS4H / SS5H · U.S. History', en:'Colonies & the American Revolution', zh:'殖民地与美国独立战争', d:{en:'Thirteen colonies, taxes, the Declaration of Independence and the war.',zh:'十三个殖民地、税收、《独立宣言》与独立战争。'}},
+   {id:'us-constitution', soon:1, std:'SS4CG · U.S. History', en:'The Constitution & Bill of Rights', zh:'美国宪法与《权利法案》', d:{en:'Three branches, checks and balances and your rights.',zh:'三权分立、制衡与公民权利。'}},
+   {id:'us-expansion', std:'SS4H · U.S. History', en:'Westward Expansion', zh:'西进运动', d:{en:'The Louisiana Purchase, Lewis & Clark, the Oregon Trail and the gold rush.',zh:'路易斯安那购地、刘易斯与克拉克探险、俄勒冈小道与淘金热。'}},
+   {id:'us-civilwar', std:'SS5H1 · U.S. History', en:'Civil War & Reconstruction', zh:'南北战争与重建', d:{en:'Slavery, secession, the war, Lincoln and Reconstruction.',zh:'奴隶制、南方脱离联邦、战争、林肯与重建。'}},
+   {id:'us-industrial', std:'SS5H2 · U.S. History', en:'Inventions, Industry & Immigration', zh:'发明、工业与移民', d:{en:'Railroads, factories, Edison, the Wright brothers and Ellis Island.',zh:'铁路、工厂、爱迪生、莱特兄弟与埃利斯岛。'}},
+   {id:'us-worldwars', std:'SS5H3–4 · U.S. History', en:'World Wars & the Great Depression', zh:'两次世界大战与大萧条', d:{en:'World War I, the Roaring Twenties, the Depression and World War II.',zh:'一战、“咆哮的二十年代”、大萧条与二战。'}},
+   {id:'us-civilrights', std:'SS5H5 · U.S. History', en:'The Civil Rights Movement', zh:'民权运动', d:{en:'Brown v. Board, Montgomery, Birmingham and the March on Washington.',zh:'布朗诉教育委员会案、蒙哥马利、伯明翰与向华盛顿进军。'}},
+   {id:'us-modern', std:'SS5H6 · U.S. History', en:'From the Cold War to Today', zh:'从冷战到今天', d:{en:'The space race, the end of the Cold War, 9/11 and the digital age.',zh:'太空竞赛、冷战结束、“9·11”事件与数字时代。'}}
+ ]},
+ { id:'worldhistory', icon:'🏛️', color:'#a16207', en:'World History', zh:'世界历史',
+   blurb:{en:'Big turning points of world history, from the first cities to today’s global world.',zh:'世界历史的重大转折：从最早的城市到今天的全球化世界。'},
+   topics:[
+   {id:'wh-first-civilizations', soon:1, std:'World History', en:'First Civilizations: Mesopotamia & Egypt', zh:'最早的文明：美索不达米亚与古埃及', d:{en:'Rivers, writing, laws and pyramids.',zh:'大河、文字、法典与金字塔。'}},
+   {id:'wh-greece-rome', soon:1, std:'World History', en:'Ancient Greece & Rome', zh:'古希腊与古罗马', d:{en:'Democracy, the Olympics, the Roman Republic and Empire.',zh:'民主、奥运会、罗马共和国与罗马帝国。'}},
+   {id:'wh-india-persia', soon:1, std:'World History', en:'Ancient India & Persia', zh:'古印度与古波斯', d:{en:'The Indus cities, Buddhism, Hinduism and the Persian Empire.',zh:'印度河城市、佛教、印度教与波斯帝国。'}},
+   {id:'wh-middle-ages', soon:1, std:'World History', en:'The Middle Ages & the Islamic Golden Age', zh:'中世纪与伊斯兰黄金时代', d:{en:'Castles and knights, Byzantium and scholars of Baghdad.',zh:'城堡与骑士、拜占庭和巴格达的学者。'}},
+   {id:'wh-renaissance', soon:1, std:'World History', en:'Renaissance & Reformation', zh:'文艺复兴与宗教改革', d:{en:'Leonardo, the printing press and a changing Europe.',zh:'达·芬奇、印刷机与变化中的欧洲。'}},
+   {id:'wh-exploration', soon:1, std:'SS6H / World History', en:'The Age of Exploration', zh:'大航海时代', d:{en:'Ships, routes and the Columbian Exchange.',zh:'船只、航线与“哥伦布大交换”。'}},
+   {id:'wh-revolutions', soon:1, std:'World History', en:'Revolutions: Science, Politics & Industry', zh:'革命：科学、政治与工业', d:{en:'The Scientific Revolution, the French Revolution and steam power.',zh:'科学革命、法国大革命与蒸汽动力。'}},
+   {id:'wh-world-wars', soon:1, std:'SS6H6–7', en:'The World Wars & the Holocaust', zh:'两次世界大战与大屠杀', d:{en:'Causes, turning points and consequences of both world wars.',zh:'两次世界大战的起因、转折点和影响。'}},
+   {id:'wh-cold-war', soon:1, std:'SS6H / SS7H', en:'The Cold War & Independence Movements', zh:'冷战与民族独立运动', d:{en:'Two superpowers, a divided Europe and new nations in Africa and Asia.',zh:'两个超级大国、分裂的欧洲与亚非新国家。'}},
+   {id:'wh-today', soon:1, std:'SS6H / SS7H', en:'Our Connected World', zh:'相互联系的世界', d:{en:'The UN, the European Union and globalization today.',zh:'联合国、欧盟与今天的全球化。'}}
+ ]},
+ { id:'economics', icon:'💰', color:'#15803d', en:'Economics & Personal Finance', zh:'经济与个人理财',
+   blurb:{en:'Choices, markets, trade and money skills (Georgia SS6E / SS7E).',zh:'选择、市场、贸易与理财技能（佐治亚州 SS6E / SS7E）。'},
+   topics:[
+   {id:'econ-scarcity', soon:1, std:'SS6E / SS7E', en:'Scarcity & Opportunity Cost', zh:'稀缺性与机会成本', d:{en:'Every choice costs something: what do you give up?',zh:'每个选择都有代价：你放弃了什么？'}},
+   {id:'econ-systems', soon:1, std:'SS6E1 / SS7E1', en:'Economic Systems', zh:'经济体制', d:{en:'Traditional, command, market and mixed economies.',zh:'传统经济、计划经济、市场经济与混合经济。'}},
+   {id:'econ-supply-demand', soon:1, std:'SS6E / SS7E', en:'Supply, Demand & Prices', zh:'供给、需求与价格', d:{en:'Run a market stand and watch prices move.',zh:'经营一个小摊，看价格如何变化。'}},
+   {id:'econ-trade', soon:1, std:'SS6E2 / SS7E2', en:'Trade, Tariffs & Currency', zh:'贸易、关税与货币', d:{en:'Why countries trade, trade barriers and exchange rates.',zh:'国家为什么要贸易、贸易壁垒与汇率。'}},
+   {id:'econ-growth', soon:1, std:'SS6E3 / SS7E3', en:'What Makes Economies Grow', zh:'经济增长的动力', d:{en:'Human capital, capital goods, natural resources and entrepreneurs.',zh:'人力资本、资本品、自然资源与企业家精神。'}},
+   {id:'econ-personal-finance', soon:1, std:'SS6E4 / SS7E4', en:'Personal Finance', zh:'个人理财', d:{en:'Budgeting, saving, interest, credit and smart spending.',zh:'预算、储蓄、利息、信用与理性消费。'}}
+ ]},
+ { id:'yuwen', icon:'🖌️', color:'#9f1239', en:'Chinese Language Arts (语文)', zh:'初中语文',
+   blurb:{en:'Mainland China’s middle-school Chinese (统编版 七—九年级): characters, classical poems and prose, reading and writing.',zh:'依据统编版初中语文（七—九年级）：汉字、古诗词、文言文、现代文阅读与写作。'},
+   topics:[
+   {id:'yw-hanzi', std:'语文 · 汉字与书法', en:'Chinese Characters & Calligraphy', zh:'汉字的演变与书法', d:{en:'From oracle bones to regular script; how characters are built.',zh:'从甲骨文到楷书；汉字的造字方法。'}},
+   {id:'yw-tang-poems', std:'语文 · 古诗词', en:'Tang Poems: Images & Feelings', zh:'唐诗鉴赏：意象与意境', d:{en:'Read, hear and picture famous Tang poems.',zh:'诵读、聆听并想象唐诗名篇的画面。'}},
+   {id:'yw-song-ci', std:'语文 · 古诗词', en:'Song Ci Poetry & Classical Verse Forms', zh:'宋词与古诗词格律', d:{en:'Ci tunes, tones and rhyme in classical poetry.',zh:'词牌、平仄与押韵。'}},
+   {id:'yw-wenyan-basics', std:'语文 · 文言文', en:'Classical Chinese: First Steps', zh:'文言文入门', d:{en:'Key words, translation tricks and 《论语》.',zh:'实词虚词、翻译方法与《论语》。'}},
+   {id:'yw-wenyan-classics', soon:1, std:'语文 · 文言文', en:'Classical Prose Masterpieces', zh:'文言名篇', d:{en:'《桃花源记》《岳阳楼记》《醉翁亭记》 and more.',zh:'《桃花源记》《岳阳楼记》《醉翁亭记》等。'}},
+   {id:'yw-narrative', soon:1, std:'语文 · 现代文阅读', en:'Reading Narratives', zh:'记叙文阅读', d:{en:'Six elements, plot clues, point of view and description.',zh:'六要素、线索、人称与描写方法。'}},
+   {id:'yw-expository', soon:1, std:'语文 · 现代文阅读', en:'Reading Expository Texts', zh:'说明文阅读', d:{en:'What is explained, in what order and with which methods.',zh:'说明对象、说明顺序与说明方法。'}},
+   {id:'yw-argumentative', soon:1, std:'语文 · 现代文阅读', en:'Reading Argumentative Essays', zh:'议论文阅读', d:{en:'Thesis, evidence and methods of argument.',zh:'论点、论据与论证方法。'}},
+   {id:'yw-rhetoric', soon:1, std:'语文 · 修辞', en:'Rhetorical Devices', zh:'修辞手法', d:{en:'Metaphor, personification, parallelism, exaggeration and more.',zh:'比喻、拟人、排比、夸张等。'}},
+   {id:'yw-classics', soon:1, std:'语文 · 名著导读', en:'Great Books (名著导读)', zh:'名著导读', d:{en:'Journey to the West, Dawn Blossoms Plucked at Dusk and other set books.',zh:'《西游记》《朝花夕拾》等必读名著。'}},
+   {id:'yw-idioms', soon:1, std:'语文 · 积累与运用', en:'Idioms, Couplets & Traditional Culture', zh:'成语、对联与传统文化', d:{en:'Chengyu stories, couplets and festival customs.',zh:'成语故事、对联与节日习俗。'}},
+   {id:'yw-writing', soon:1, std:'语文 · 写作', en:'Writing in Chinese', zh:'写作', d:{en:'Choosing a topic, details that show, and structure.',zh:'审题立意、细节描写与文章结构。'}}
+ ]},
+ { id:'cs', icon:'💻', color:'#0e7490', en:'Computer Science', zh:'计算机科学',
+   blurb:{en:'How computers, code, the internet and AI work (Georgia Computer Science, grades 6–8).',zh:'计算机、编程、互联网和人工智能是如何工作的（佐治亚州计算机科学，6–8 年级）。'},
+   topics:[
+   {id:'cs-computers', soon:1, std:'CS 6–8 · Computing Systems', en:'How Computers Work', zh:'计算机是怎样工作的', d:{en:'Binary, bits and bytes, CPU and memory.',zh:'二进制、位与字节、CPU 与内存。'}},
+   {id:'cs-algorithms', soon:1, std:'CS 6–8 · Algorithms', en:'Algorithms: Sorting & Searching', zh:'算法：排序与查找', d:{en:'Race sorting algorithms and find things fast.',zh:'比赛不同的排序算法，快速查找。'}},
+   {id:'cs-coding', soon:1, std:'CS 6–8 · Programming', en:'Coding: Loops & Conditions', zh:'编程：循环与条件', d:{en:'Program a robot through mazes with blocks and code.',zh:'用积木和代码让机器人走出迷宫。'}},
+   {id:'cs-internet', soon:1, std:'CS 6–8 · Networks', en:'How the Internet Works', zh:'互联网是怎样工作的', d:{en:'Packets, IP addresses, routers and DNS.',zh:'数据包、IP 地址、路由器与域名系统。'}},
+   {id:'cs-data-crypto', soon:1, std:'CS 6–8 · Data', en:'Data, Codes & Encryption', zh:'数据、编码与加密', d:{en:'Text and images as numbers, ciphers and keeping secrets.',zh:'文字和图像变成数字、密码与保密。'}},
+   {id:'cs-ai', soon:1, std:'CS 6–8 · Impacts of Computing', en:'Artificial Intelligence & Machine Learning', zh:'人工智能与机器学习', d:{en:'Train a classifier and see how AI learns — and fails.',zh:'训练一个分类器，看 AI 如何学习，又会在哪里出错。'}},
+   {id:'cs-safety', soon:1, std:'CS 6–8 · Cybersecurity', en:'Cybersecurity & Digital Citizenship', zh:'网络安全与数字公民', d:{en:'Strong passwords, phishing and staying safe online.',zh:'强密码、网络钓鱼与网络安全。'}}
+ ]},
+ { id:'music', icon:'🎵', color:'#be185d', en:'Music', zh:'音乐',
+   blurb:{en:'Rhythm, pitch, instruments and composing — hear it, play it, make it.',zh:'节奏、音高、乐器与作曲：听一听、弹一弹、编一编。'},
+   topics:[
+   {id:'music-rhythm', soon:1, std:'Fine Arts · Music', en:'Rhythm & Beat', zh:'节奏与节拍', d:{en:'Build beats on a drum machine.',zh:'在鼓机上编出节奏。'}},
+   {id:'music-pitch', soon:1, std:'Fine Arts · Music', en:'Pitch, Notes & Scales', zh:'音高、音符与音阶', d:{en:'Play a keyboard, read notes and hear scales.',zh:'弹键盘、读音符、听音阶。'}},
+   {id:'music-instruments', soon:1, std:'Fine Arts · Music', en:'Instruments of the World', zh:'世界各地的乐器', d:{en:'The orchestra and Chinese instruments like the erhu and pipa.',zh:'管弦乐队与二胡、琵琶等中国乐器。'}},
+   {id:'music-compose', soon:1, std:'Fine Arts · Music', en:'Compose a Melody', zh:'创作一段旋律', d:{en:'Write and play your own tune.',zh:'写出并演奏你自己的曲调。'}},
+   {id:'music-history', soon:1, std:'Fine Arts · Music', en:'Music Through Time & Cultures', zh:'穿越时空与文化的音乐', d:{en:'From Bach to jazz to Chinese folk songs.',zh:'从巴赫到爵士乐，再到中国民歌。'}}
+ ]},
+ { id:'art', icon:'🎨', color:'#ea580c', en:'Visual Art', zh:'美术',
+   blurb:{en:'Color, perspective, design and great art from around the world.',zh:'色彩、透视、设计与世界各地的经典艺术。'},
+   topics:[
+   {id:'art-color', soon:1, std:'Fine Arts · Visual Art', en:'Color Theory', zh:'色彩原理', d:{en:'Mix colors and build palettes.',zh:'调色并搭配色彩。'}},
+   {id:'art-perspective', soon:1, std:'Fine Arts · Visual Art', en:'Perspective & Space', zh:'透视与空间', d:{en:'Draw depth with vanishing points.',zh:'用消失点画出纵深感。'}},
+   {id:'art-design', soon:1, std:'Fine Arts · Visual Art', en:'Elements & Principles of Design', zh:'设计的元素与原则', d:{en:'Line, shape, balance, contrast and rhythm.',zh:'线条、形状、平衡、对比与节奏。'}},
+   {id:'art-history', soon:1, std:'Fine Arts · Visual Art', en:'Art Through History', zh:'艺术史之旅', d:{en:'Cave paintings to modern art — explore real masterpieces.',zh:'从洞穴壁画到现代艺术，欣赏真实名作。'}},
+   {id:'art-chinese', soon:1, std:'Fine Arts · Visual Art', en:'Chinese Painting & Calligraphy', zh:'中国画与书法', d:{en:'Ink, brush and the art of empty space.',zh:'笔墨、毛笔与留白的艺术。'}}
  ]}
 ];
+/* Topics flagged soon:1 are not built yet: the hub shows them as greyed "coming soon" cards,
+   and they are kept out of .topics so lesson prev/next links never point at a missing page.
+   Flags are maintained by tools/soon.ps1 (run before publishing). */
+window.LAB_CATALOG.forEach(s => { s.all = s.topics; s.soon = s.topics.filter(t => t.soon); s.topics = s.topics.filter(t => !t.soon); });

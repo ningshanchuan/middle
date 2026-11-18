@@ -1,0 +1,19 @@
+# New subjects — shared brief for builders
+
+The site is called **Genius Classroom (天才课堂)** (live at https://shanchuan.org/middle/). Never call it "Science Lab" in new text.
+
+The site (F:\Shanchuan\Biology_study\science-lab, static bilingual EN/中文 HTML, no build step) teaches **both US (Georgia) and mainland-China middle-school content** to a 12-year-old in the US. New subjects in `shared/catalog.js`: `ela`, `georgia`, `ushistory`, `worldhistory`, `economics`, `yuwen`, `cs`, `music`, `art`. Your topics are listed there; file = `<subject>/<id>.html`, `<body data-subject="<subject>" data-topic="<id>">`.
+
+**Follow `shared/CHINA_DEEP_BRIEF.md` for everything general** — audience & tone (missions, ranks, how-it-works, strategy, concrete numbers, short punchy text, no gore), page structure (hero + hook + "Your mission", ≥2 interactive sims/activities with live feedback, a main game with score/stars/rank, Lab.quiz 12, Lab.sort, ≥1 data figure where it fits, "See the real thing" gallery with Commons photos + 1–3 verified YouTube videos, 4–8 checked "Go further" links, info panel with memory hint & common mix-up & read-aloud, teacher notes), media/link rules (commons.ps1, ytcheck.ps1, linkcheck.ps1), Chinese punctuation, verification with shot.ps1 (`ERRORS: []` in EN and `?lang=zh`, one 420px and one dark shot), and the final report format. Read `shared/README.md` too. Lessons are a bit lighter than the deep dives: aim for 500–800 lines.
+
+## Subject-specific rules
+- **Standards:** put the real standard in the teacher notes. Georgia: ELA — the Georgia K-12 ELA Standards (2023/2025) for grades 6–8; Social Studies — Georgia Standards of Excellence (SS8G/SS8H/SS8CG/SS8E for Georgia Studies; SS6/SS7 for world regions & economics); CS — Georgia K-12 Computer Science standards (6–8); Fine Arts — Georgia Fine Arts standards (Music, Visual Art, 6–8). China: 统编版/人教版 unit names. **Where a topic is also in the other country's curriculum, say so** (e.g. World History lessons: also 统编版《世界历史》九年级上/下 unit; Economics: 道德与法治 links; CS: 信息科技 课程标准 2022).
+- **Bilingual:** for US subjects English is primary and Chinese is complete; for **语文 (yuwen)** Chinese is primary (the student learns Chinese) and English explains/supports — give pinyin help (pinyin.js adds it automatically for listed words; list new hard words in your report) and short English glosses for classical words.
+- **Texts & copyright:** only reproduce full texts that are **public domain** (classical Chinese poems and prose; English works published before 1930, e.g. Poe, Twain, Frost’s early poems, Aesop, Dickinson). For modern copyrighted works (most 20th-century Chinese novels, modern YA books) use your own short summaries and at most a brief quote. Original example passages you write yourself are fine and often best.
+- **History & civics topics:** be accurate and balanced, age-appropriate; Georgia Studies and US History follow the Georgia standards’ framing; Holocaust/war/slavery/Cherokee removal handled respectfully and factually.
+- **ELA activities** should be genuinely interactive: highlight evidence in a passage, drag sentences into plot diagrams, sentence builders, comma-fixer games, root-word combiners, source-reliability detective, argument builder with instant feedback.
+- **CS:** real working mini-tools in the page (binary converter, sorting visualizers with step/speed controls, a block/JS robot maze interpreter, packet-routing sim, Caesar/Vigenère cipher, a tiny trainable classifier) — no external code execution services.
+- **Music:** use WebAudio for sound (user-initiated only): drum machine, keyboard, step sequencer; recordings via Commons audio / YouTube.
+- **Art:** canvas tools (color mixer RGB/RYB, perspective drawing grid), public-domain artworks from Commons.
+
+Do not edit `shared/` (report what's needed), do not git commit. Use only your assigned screenshot ports.

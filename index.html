@@ -49,6 +49,9 @@
 .stab.on{border-color:var(--c);box-shadow:0 0 0 2px var(--c) inset;color:var(--ink)}
 .results-note{color:var(--ink-2);font-weight:700;margin:22px 0 0}
 .soon{color:var(--ink-2);font-weight:700;padding:30px 0}
+.topic.is-soon{opacity:.55;border-left-style:dashed;cursor:default;background:color-mix(in srgb,var(--surface) 70%,transparent)}
+.topic.is-soon:hover{border-color:var(--line);box-shadow:none}
+.topic .n i.cs{color:var(--ink-2);font-weight:800;font-size:12px;letter-spacing:0}
 </style>
 </head>
 <body>
@@ -87,7 +90,7 @@ let curSub = (location.hash || '').slice(1);
 if (!BYID[curSub]) curSub = store.get('hubSub') || groups()[0].list[0].id;
 if (!BYID[curSub]) curSub = groups()[0].list[0].id;
 
-const card = (s, t, i) => `<a class="topic card" style="--c:${s.color}" href="${s.id}/${t.id}.html?lang=${Lab.lang}">
+const card = (s, t, i) => t.soon ? `<div class="topic card is-soon" style="--c:${s.color}" aria-disabled="true"><span class="n">${String(i + 1).padStart(2, '0')}<i class="cs">${Lab.L({en:'Coming soon',zh:'即将推出'})}</i></span><h3>${Lab.L(t)}</h3><p>${Lab.L(t.d)}</p></div>` : `<a class="topic card" style="--c:${s.color}" href="${s.id}/${t.id}.html?lang=${Lab.lang}">
   <span class="n">${String(i + 1).padStart(2, '0')}${seen.has(s.id + '/' + t.id) ? `<i title="${Lab.L({en:'visited',zh:'已学过'})}">✓</i>` : ''}</span>${t.deep ? `<span class="deep">${Lab.L({en:'Deep dive',zh:'深入探索'})}</span>` : ''}<h3>${Lab.L(t)}</h3><p>${Lab.L(t.d)}</p><span class="std">${/[\u4e00-\u9fff]/.test(t.std) || /^(ELA|SS|CS)/.test(t.std) ? '' : 'GSE '}${t.std}</span></a>`;
 const section = (s, list) => `<section class="subj" id="sec-${s.id}" style="--c:${s.color}">
   <div class="subj-head"><div class="ic" style="background:color-mix(in srgb,${s.color} 16%,transparent)">${s.icon}</div>
@@ -104,14 +107,14 @@ function render(){
   Lab.$('#gtabs').querySelectorAll('.gtab').forEach(b => b.onclick = () => { Lab.$('#q').value = ''; const gg = groups().find(x => x.id === b.dataset.g);
     const last = store.get('hubSub_' + gg.id); select(gg.list.some(s => s.id === last) ? last : gg.list[0].id); });
   if (q){   // search: all subjects
-    const parts = CAT.map(s => { const list = s.topics.map((t, i) => ({t, i})).filter(({t}) => [t.en, t.zh, t.d.en, t.d.zh, t.std].join(' ').toLowerCase().includes(q)); return list.length ? section(s, list) : ''; }).filter(Boolean);
+    const parts = CAT.map(s => { const list = (s.all || s.topics).map((t, i) => ({t, i})).filter(({t}) => [t.en, t.zh, t.d.en, t.d.zh, t.std].join(' ').toLowerCase().includes(q)); return list.length ? section(s, list) : ''; }).filter(Boolean);
     Lab.$('#subjects').innerHTML = `<p class="results-note">${parts.length ? Lab.L({en:'Search results in all subjects',zh:'所有学科中的搜索结果'}) : Lab.L({en:'No lessons match your search.',zh:'没有找到相关课程。'})}</p>` + parts.join('');
     return;
   }
   store.set('hubSub_' + g.id, curSub);
   const s = BYID[curSub];
   const stabs = g.list.length > 1 ? `<div class="stabs" role="tablist">${g.list.map(x => `<button class="stab ${x.id === curSub ? 'on' : ''}" style="--c:${x.color}" data-s="${x.id}">${x.icon} ${Lab.L(x)} <small>${x.topics.length}</small></button>`).join('')}</div>` : '';
-  Lab.$('#subjects').innerHTML = stabs + section(s, s.topics.map((t, i) => ({t, i})));
+  Lab.$('#subjects').innerHTML = stabs + section(s, (s.all || s.topics).map((t, i) => ({t, i})));
   Lab.$('#subjects').querySelectorAll('.stab').forEach(b => b.onclick = () => select(b.dataset.s));
 }
 window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (BYID[h] && h !== curSub){ curSub = h; render(); } });Lab.$('#q').addEventListener('input', render);

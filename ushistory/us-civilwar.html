@@ -1,0 +1,602 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Civil War & Reconstruction: A House Divided</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/photos.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-array@3.2.4/dist/d3-array.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-geo@3.1.0/dist/d3-geo.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<style>
+#mapCv{cursor:pointer;touch-action:pan-y}
+#map .explorer{align-items:start}#mapStage{min-height:600px}
+@media (max-width:560px){#mapStage{min-height:480px}}
+.info .date{font-family:Fredoka;font-weight:700;font-size:19px;color:var(--brand);margin-top:-8px}
+.info .kh{font-size:13px;letter-spacing:.06em;color:var(--brand);margin-bottom:-6px}
+.legend2{display:flex;flex-wrap:wrap;gap:10px;font-size:14px;font-weight:700;margin-top:10px}
+.legend2 i{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:5px;border:1px solid var(--line)}
+.yc{padding:18px 20px;margin-top:14px;display:flex;flex-direction:column;gap:12px}
+.yc-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.yc-head b.big{font-family:Fredoka;font-size:36px;line-height:1;color:var(--brand)}
+.yc-ev{border-left:5px solid var(--brand);padding:2px 0 2px 12px}
+.yc-ev h4{margin:0 0 2px;font-size:19px}
+.yc-ev p{margin:0;font-size:15.5px}
+.cn{border-left:5px solid #c0392b;padding:2px 0 2px 12px;font-size:15px}
+.cn small{display:block;font-weight:800;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:#c0392b}
+.readout{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.speech{padding:20px 22px;margin-top:14px;display:flex;flex-direction:column;gap:10px}
+.speech blockquote{margin:0;font-size:18px;line-height:1.65;border-left:5px solid var(--brand);padding-left:14px;font-style:italic}
+.og{padding:20px;display:flex;flex-direction:column;gap:14px}
+.og .counters{grid-template-columns:repeat(4,minmax(0,1fr))}
+.og-bar{height:10px;border-radius:999px;background:var(--surface-2);overflow:hidden}
+.og-bar i{display:block;height:100%;background:var(--brand);border-radius:999px;transition:width .3s}
+.og-lane{display:flex;flex-direction:column;gap:8px;min-height:60px;padding:10px;border:2px dashed var(--line);border-radius:16px}
+.og-lane:empty::before{content:attr(data-hint);color:var(--ink-2);font-weight:700;font-size:14px}
+.og-pool{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.ev{border:2px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:14px;padding:12px;font-weight:800;text-align:left;min-height:58px}
+.ev:hover{border-color:var(--brand)}
+.ev.bad{border-color:var(--bad);animation:labshake .35s}
+.placed{border:2px solid var(--good);background:color-mix(in srgb,var(--good) 11%,var(--surface));border-radius:14px;padding:10px 12px}
+.placed b{font-family:Fredoka;color:var(--good);margin-right:8px}
+.placed p{margin:4px 0 0;font-size:14.5px;color:var(--ink-2)}
+.stars{font-size:28px;letter-spacing:4px;color:var(--warn)}
+.ranks{display:inline-flex;flex-wrap:wrap;gap:6px}
+.ranks span{border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:13px;font-weight:800;color:var(--ink-2)}
+.ranks span.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.res{padding:20px;display:flex;flex-direction:column;gap:12px}
+.rrow{display:grid;grid-template-columns:170px minmax(0,1fr) auto;gap:12px;align-items:center;border-bottom:1px solid var(--line);padding-bottom:10px}
+.rrow .rb{display:flex;flex-direction:column;gap:5px}
+.rrow .rb div{display:grid;grid-template-columns:28px minmax(0,1fr) 92px;gap:6px;align-items:center;font-size:13.5px;font-weight:700}
+.rrow .rb .t{height:16px;border-radius:999px;background:var(--surface-2);overflow:hidden}.rrow .rb .t i{display:block;height:100%;border-radius:999px;transition:width .6s}
+.rrow .guess{display:flex;gap:6px}
+.rrow .guess button{border:2px solid var(--line);background:var(--surface-2);border-radius:999px;padding:5px 10px;font-weight:800;font-size:13.5px}
+.rrow .guess button.right{border-color:var(--good)}.rrow .guess button.wrong{border-color:var(--bad)}
+.amd{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.amd .slot{border:2px dashed var(--line);border-radius:16px;padding:12px;min-height:120px;display:flex;flex-direction:column;gap:6px;cursor:pointer}
+.amd .slot.ready{border-color:var(--brand);background:color-mix(in srgb,var(--brand) 7%,var(--surface))}
+.amd .slot h4{margin:0;font-size:18px}
+.amd .slot small{color:var(--ink-2);font-weight:700}
+.amd .slot .got{font-size:13.5px;background:color-mix(in srgb,var(--good) 13%,var(--surface));border:1px solid var(--good);border-radius:10px;padding:5px 8px}
+.cards{display:flex;flex-wrap:wrap;gap:8px}
+.cards button{border:2px solid var(--line);background:var(--surface-2);border-radius:12px;padding:8px 12px;font-weight:700;text-align:left;font-size:14.5px}
+.cards button.sel{border-color:var(--brand);box-shadow:0 0 0 2px var(--brand) inset}
+.cards button.bad{border-color:var(--bad);animation:labshake .35s}
+@media (max-width:760px){.og-pool{grid-template-columns:1fr 1fr}.readout{grid-template-columns:1fr 1fr}.rrow{grid-template-columns:1fr}.amd{grid-template-columns:1fr}.og .counters{grid-template-columns:1fr 1fr}.yc-head b.big{font-size:30px}}
+</style>
+</head>
+<body data-subject="ushistory" data-topic="us-civilwar">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="美国历史 · 佐治亚州标准 SS4H4–SS4H6 · 南北战争与重建">U.S. History · Georgia GSE SS4H4–SS4H6 · Civil War &amp; Reconstruction</span>
+  <h1 data-zh-html="南北战争与重建：<em>分裂之家</em>">Civil War &amp; Reconstruction: <em>a house divided</em></h1>
+  <p class="lead" data-zh-html="1860年，美国有33个州；到1861年夏天，其中11个州宣布脱离联邦。美国是怎样挺过这场本国历史上死亡人数最多的战争的？战争结束后，“自由”对400万获得解放的人又意味着什么？<br><b>你的任务：</b>在地图上一个月一个月地看南方各州脱离联邦和战局变化；把战争的转折点排出顺序；比较南北双方的实力；最后用三条宪法修正案“重建”联邦。">In 1860 the United States had 33 states. By the summer of 1861, eleven of them had declared they were leaving. How did the country survive the deadliest war in its history — and what did freedom mean afterwards for 4 million people who had been enslaved?<br><b>Your mission:</b> watch secession and the war unfold month by month on the map, put the war’s turning points in order, compare the two sides’ strengths, then rebuild the Union with three amendments.</p>
+</header>
+
+<section class="wrap" id="map" data-nav="Map & months" data-nav-zh="地图与时间">
+  <div class="sec-head">
+    <h2 data-zh="互动地图：分裂、战争与重建（1860—1877年）">Interactive map: secession, war and Reconstruction, 1860–1877</h2>
+    <p data-zh="拖动时间滑块或按 ▶ 播放：南方各州依次脱离联邦，战役在地图上亮起，战后各州又一个个重新加入联邦。点击一个州或一场战役看详情。">Drag the time slider or press ▶: Southern states secede one by one, battles light up, and after the war the states rejoin the Union. Click a state or a battle for details.</p>
+  </div>
+  <div class="explorer">
+    <div class="stage card" id="mapStage">
+      <canvas id="mapCv"></canvas>
+      <div class="toolbar">
+        <button class="tbtn on" id="btnBattles" data-zh="⚔️ 战役">⚔️ Battles</button>
+        <button class="tbtn on" id="btnSherman" data-zh="➡️ 谢尔曼进军">➡️ Sherman’s March</button>
+        <button class="tbtn" id="btnBlockade" data-zh="⚓ 海上封锁">⚓ Blockade</button>
+      </div>
+      <div class="bottombar"><div class="tip" id="mapTip"></div></div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="timebar" style="margin-top:12px"><button id="playBtn" aria-label="Play">▶</button><input id="tm" type="range" min="0" max="197" step="1" value="0" aria-label="Month"><output id="tmOut">Nov 1860</output></div>
+  <div class="legend2" id="legend"></div>
+  <div class="chips" id="batChips"></div>
+  <div class="card yc" aria-live="polite">
+    <div class="readout">
+      <div class="counter"><b id="roU">–</b><span data-zh="联邦（北方）州">Union states</span></div>
+      <div class="counter"><b id="roC">–</b><span id="roCl">Confederate states</span></div>
+      <div class="counter"><b id="roB">–</b><span data-zh="边境蓄奴州">border slave states</span></div>
+      <div class="counter"><b id="roR">–</b><span data-zh="已重新加入联邦">readmitted</span></div>
+    </div>
+    <div class="yc-head"><b class="big" id="ycDate">–</b><div class="btnrow" style="margin-left:auto"><button class="btn ghost" id="evPrev" data-zh="◀ 上一件大事">◀ Previous event</button><button class="btn" id="evNext" data-zh="下一件大事 ▶">Next event ▶</button></div></div>
+    <div id="ycList" style="display:flex;flex-direction:column;gap:10px"></div>
+    <div class="cn" id="cnBox"></div>
+  </div>
+  <div class="card speech">
+    <h3 data-zh="📜 原始资料：葛底斯堡演说（1863年11月19日，节选）">📜 Primary source: the Gettysburg Address (19 November 1863, excerpt)</h3>
+    <blockquote data-zh="“八十七年前，我们的先辈在这个大陆上创立了一个新国家，它孕育于自由之中，奉行一切人生来平等的原则……我们要使这个国家在上帝保佑下得到自由的新生，要使这个民有、民治、民享的政府永世长存。”（中文为通行译文）">“Four score and seven years ago our fathers brought forth on this continent, a new nation, conceived in Liberty, and dedicated to the proposition that all men are created equal. … that this nation, under God, shall have a new birth of freedom — and that government of the people, by the people, for the people, shall not perish from the earth.”</blockquote>
+    <p class="muted" style="margin:0" data-zh="林肯只讲了大约两分钟、272个英文单词。“八十七年前”指1776年《独立宣言》。他把这场战争说成是为了让“人人生而平等”成为现实。">Lincoln spoke for only about two minutes — 272 words. “Four score and seven” = 87 years before 1863: 1776, the Declaration of Independence. He described the war as a test of whether “all men are created equal” could really work.</p>
+    <div><button class="speak" id="speakGA">🔊 Read aloud</button></div>
+  </div>
+  <div class="mix" style="margin-top:14px"><b data-zh="⚠️ 易错点：">⚠️ Don’t mix up:</b><span data-zh="《解放黑人奴隶宣言》（1863年）只宣布叛乱各州的奴隶获得自由，并没有在全国废除奴隶制；真正在全美国废除奴隶制的是宪法第十三条修正案（1865年）。另外，边境州（如马里兰、肯塔基）是蓄奴州，却留在了联邦。">The Emancipation Proclamation (1863) declared enslaved people free only in the states in rebellion — it did not end slavery everywhere. The 13th Amendment (1865) did that. And the border states (like Maryland and Kentucky) allowed slavery but stayed in the Union.</span></div>
+</section>
+
+<section class="wrap" id="mission" data-nav="Turning points" data-nav-zh="转折点任务">
+  <div class="sec-head">
+    <h2 data-zh="主任务：战争的转折点">Main mission: turning points of the war</h2>
+    <p data-zh="每轮出现6件大事。从最早的开始依次点击，把它们放上时间线——每放对一件，就会告诉你它为什么重要。一次都不点错得3颗星。">Each round shows 6 events. Click them from earliest to latest to build the timeline — each correct pick tells you why it mattered. No wrong clicks = 3 stars.</p>
+  </div>
+  <div class="card og">
+    <div class="counters">
+      <div class="counter"><b id="ogScore">0</b><span data-zh="得分">score</span></div>
+      <div class="counter"><b id="ogDone">0/6</b><span data-zh="本轮进度">this round</span></div>
+      <div class="counter"><b id="ogRound">1</b><span data-zh="轮次">round</span></div>
+      <div class="counter"><b id="ogStars">☆☆☆</b><span data-zh="本轮星级">round stars</span></div>
+    </div>
+    <div class="og-bar"><i id="ogBar" style="width:0"></i></div>
+    <div><b data-zh="军衔：">Rank:</b> <span class="ranks" id="ranks"></span></div>
+    <div class="og-lane" id="ogLane"></div>
+    <div class="result" id="ogMsg"></div>
+    <div class="og-pool" id="ogPool"></div>
+    <div class="btnrow"><button class="btn" id="ogNext" data-zh="下一轮">Next round</button></div>
+  </div>
+</section>
+
+<section class="wrap" id="strength" data-nav="North vs South" data-nav-zh="南北实力">
+  <div class="sec-head">
+    <h2 data-zh="数据任务：北方和南方，谁更强？">Data mission: North vs South — who was stronger?</h2>
+    <p data-zh="先猜一猜每一项是哪一方领先，再看真实数据。想一想：为什么南方虽然在早期赢了很多仗，最后还是输了？">First guess which side led in each category, then see the real numbers. Think: why did the South win many early battles but still lose the war?</p>
+  </div>
+  <div class="card res">
+    <div id="resRows" style="display:flex;flex-direction:column;gap:10px"></div>
+    <div class="result" id="resMsg"></div>
+    <p class="cap muted" style="font-size:12.5px;margin:0" data-zh="数据来源：根据1860年美国人口普查，参照美国国家公园管理局和历史学家常用的汇总数字；均为近似值（南方人口中约350万人是被奴役者）。">Source: based on the 1860 U.S. Census, as commonly summarised by the National Park Service and historians; all values approximate (about 3.5 million of the South’s 9 million people were enslaved).</p>
+  </div>
+  <div class="sec-head" style="margin-top:26px">
+    <h2 data-zh="重建任务：三条宪法修正案">Reconstruction mission: the three amendments</h2>
+    <p data-zh="战后的“重建”（1865—1877年）试图把南方各州带回联邦，并保障被解放者的权利。先点一张卡片，再点它所属的修正案。">Reconstruction (1865–1877) tried to bring the Southern states back and protect the rights of freed people. Tap a card, then tap the amendment it belongs to.</p>
+  </div>
+  <div class="card res">
+    <div class="amd" id="amd"></div>
+    <div class="cards" id="amdCards"></div>
+    <div class="result" id="amdMsg"></div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real media" data-nav-zh="真实影像">
+  <div id="gallery"></div>
+  <div class="sec-head" style="margin-top:22px"><h2 data-zh="走得更远：官方网站">Go further</h2></div>
+  <div class="linkgrid">
+    <a class="linkcard" href="https://www.nps.gov/gett/index.htm" target="_blank" rel="noopener"><b data-zh="葛底斯堡国家军事公园（美国国家公园管理局）">Gettysburg National Military Park (NPS)</b><span data-zh="战场地图、虚拟游览，以及林肯发表演说的地方。">Battlefield maps, virtual tours and the place where Lincoln spoke.</span><small>nps.gov ↗</small></a>
+    <a class="linkcard" href="https://www.loc.gov/exhibits/gettysburg-address/" target="_blank" rel="noopener"><b data-zh="国会图书馆：葛底斯堡演说">Library of Congress: the Gettysburg Address</b><span data-zh="看林肯亲笔写的演说稿。">See Lincoln’s own handwritten copies of the speech.</span><small>loc.gov ↗</small></a>
+    <a class="linkcard" href="https://www.archives.gov/milestone-documents/emancipation-proclamation" target="_blank" rel="noopener"><b data-zh="国家档案馆：《解放黑人奴隶宣言》">National Archives: the Emancipation Proclamation</b><span data-zh="放大看原件，读一读全文。">Zoom into the original document and read the full text.</span><small>archives.gov ↗</small></a>
+    <a class="linkcard" href="https://www.archives.gov/milestone-documents/13th-amendment" target="_blank" rel="noopener"><b data-zh="国家档案馆：第十三条修正案">National Archives: the 13th Amendment</b><span data-zh="废除奴隶制的那一页纸。">The page that ended slavery in the United States.</span><small>archives.gov ↗</small></a>
+    <a class="linkcard" href="https://www.nps.gov/frdo/index.htm" target="_blank" rel="noopener"><b data-zh="弗雷德里克·道格拉斯国家历史遗址">Frederick Douglass National Historic Site</b><span data-zh="道格拉斯在华盛顿的家，以及他的生平故事。">Douglass’s home in Washington and the story of his life.</span><small>nps.gov ↗</small></a>
+    <a class="linkcard" href="https://www.nps.gov/apco/index.htm" target="_blank" rel="noopener"><b data-zh="阿波马托克斯法院国家历史公园">Appomattox Court House National Historical Park</b><span data-zh="李向格兰特投降的村庄和麦克莱恩之家。">The village and McLean House where Lee surrendered to Grant.</span><small>nps.gov ↗</small></a>
+    <a class="linkcard" href="https://www.battlefields.org/learn/videos/in4" target="_blank" rel="noopener"><b data-zh="美国战场信托：“四分钟讲南北战争”">American Battlefield Trust: Civil War in 4 Minutes</b><span data-zh="几十段四分钟短片，每段讲一个主题。">Dozens of four-minute videos, one topic each.</span><small>battlefields.org ↗</small></a>
+    <a class="linkcard" href="https://www.docsteach.org/" target="_blank" rel="noopener"><b data-zh="DocsTeach（国家档案馆）">DocsTeach (National Archives)</b><span data-zh="搜索“Civil War”或“Reconstruction”，用真实档案做小活动。">Search “Civil War” or “Reconstruction” for activities with real documents.</span><small>docsteach.org ↗</small></a>
+
+  </div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 小测验（12题）">🧠 Quiz (12 questions)</h3><p class="sub" data-zh="选出正确答案，看看解析。">Pick the best answer and read the explanation.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分一分：联邦还是南部同盟？">🗂️ Sort it: Union or Confederacy?</h3><p class="sub" data-zh="把每个人物、地点或事实拖到（或先点再点方框）正确的一方。">Drag each person, place or fact (or tap it, then tap a box) to the right side.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="课程标准：佐治亚州社会科卓越标准（GSE，2016年版；已对照2026年科布县四年级教学框架）四年级 SS4H4（废奴运动与妇女选举权运动：道格拉斯、塔布曼等）、SS4H5（南北战争的起因、重大事件和结果：州权与奴隶制、林肯、戴维斯、格兰特、李、谢尔曼；萨姆特堡、葛底斯堡、维克斯堡、亚特兰大战役、向海洋进军、阿波马托克斯；定位葛底斯堡）、SS4H6（重建对美国生活的影响：第十三、十四、十五条修正案，自由民局，重建结束与吉姆·克劳法）；SS4E1（价格激励、专业化与技术创新如何影响南北经济——见“南北实力”数据图）。八年级佐治亚州研究 SS8H5 涉及佐治亚在内战与重建中的经历（亚特兰大战役、向海洋进军）。注意：catalog.js 中本课标注为 SS5H1，按现行标准应为 SS4H4—SS4H6。">Standards: Georgia Standards of Excellence (GSE) for Social Studies (2016; checked against Cobb County’s 2026 Grade 4 framework), Grade 4: SS4H4 (abolitionist and suffrage movements — Douglass, Tubman), SS4H5 (causes, major events and consequences of the Civil War — slavery and states’ rights; Lincoln, Davis, Grant, Lee, Sherman; Fort Sumter, Gettysburg, Vicksburg, Atlanta, the March to the Sea, Appomattox; locate Gettysburg), SS4H6 (effects of Reconstruction — 13th, 14th, 15th Amendments, Freedmen’s Bureau, end of Reconstruction and Jim Crow); SS4E1 (how price incentives, specialization and technology shaped the Northern and Southern economies — see the data mission). Grade 8 Georgia Studies SS8H5 covers Georgia in the Civil War and Reconstruction. Note: catalog.js lists this lesson as SS5H1; under the current standards it is SS4H4–SS4H6.</p>
+    <p data-zh="与中国课程的联系：统编版《世界历史》九年级下册第一单元“殖民地人民的反抗与资本主义制度的扩展”中的《美国内战》一课（课次以所用版次为准）。教材强调：内战的根本原因是南北两种经济制度的矛盾；《宅地法》和《解放黑人奴隶宣言》扭转了战局；内战维护了国家统一，废除了奴隶制，为资本主义发展扫清了道路。本课的“同一时期的中国”对应《中国历史》八年级上册（第二次鸦片战争、太平天国运动、洋务运动）。">China link: Chinese textbook World History, Grade 9 Vol. 2, Unit 1, lesson “The American Civil War” (lesson number varies by printing). The Chinese textbook stresses that the root cause was the conflict between two economic systems, that the Homestead Act and the Emancipation Proclamation turned the war, and that the war preserved national unity, abolished slavery and cleared the way for capitalist growth. “Meanwhile in China” matches Chinese History Grade 8 Vol. 1 (Second Opium War, Taiping movement, Self-Strengthening Movement).</p>
+    <p data-zh="说明：地图为示意图，使用现代州界；西弗吉尼亚1863年前按弗吉尼亚处理。死亡人数（62万—75万）、伤亡数字和南北实力数据均为常用的近似值，不同资料略有出入。本课以事实和人物为主，不描写战斗细节。讨论建议：比较《解放黑人奴隶宣言》与第十三条修正案的区别；思考重建为何在1877年中断。">Notes: the map is schematic with modern borders; West Virginia is shown as part of Virginia before 1863. Death tolls (620,000–750,000), casualty figures and the North–South data are commonly cited approximations that vary between sources. The lesson focuses on facts, people and consequences, not on combat detail. Discussion ideas: how is the Emancipation Proclamation different from the 13th Amendment? Why did Reconstruction stop in 1877?</p>
+
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+/* ===== USMap: small canvas US map (us-atlas@3.0.1 states + d3-geo), inlined in each ushistory lesson =====
+   const M = USMap.create('#stageId', '#canvasId', { lower48:true, top:56, bottom:62,
+     fill: f => '#hex' | null,            // f = { id:'13', ab:'GA', en, zh }   null = plain land
+     overlay: (g, M) => {...},            // draw extras after states (M.xy([lon,lat]) -> [x,y], M.text, M.clipLand, M.poly)
+     click: (f, lonlat, e) => {...}, hover: f => text|null });
+   M.draw() after any state change. Map is schematic (modern state borders). */
+const USMap = (() => {
+  const ST = {'01':['AL','Alabama','亚拉巴马'],'02':['AK','Alaska','阿拉斯加'],'04':['AZ','Arizona','亚利桑那'],'05':['AR','Arkansas','阿肯色'],'06':['CA','California','加利福尼亚'],'08':['CO','Colorado','科罗拉多'],'09':['CT','Connecticut','康涅狄格'],'10':['DE','Delaware','特拉华'],'11':['DC','Washington, D.C.','华盛顿特区'],'12':['FL','Florida','佛罗里达'],'13':['GA','Georgia','佐治亚'],'15':['HI','Hawaii','夏威夷'],'16':['ID','Idaho','爱达荷'],'17':['IL','Illinois','伊利诺伊'],'18':['IN','Indiana','印第安纳'],'19':['IA','Iowa','艾奥瓦'],'20':['KS','Kansas','堪萨斯'],'21':['KY','Kentucky','肯塔基'],'22':['LA','Louisiana','路易斯安那'],'23':['ME','Maine','缅因'],'24':['MD','Maryland','马里兰'],'25':['MA','Massachusetts','马萨诸塞'],'26':['MI','Michigan','密歇根'],'27':['MN','Minnesota','明尼苏达'],'28':['MS','Mississippi','密西西比'],'29':['MO','Missouri','密苏里'],'30':['MT','Montana','蒙大拿'],'31':['NE','Nebraska','内布拉斯加'],'32':['NV','Nevada','内华达'],'33':['NH','New Hampshire','新罕布什尔'],'34':['NJ','New Jersey','新泽西'],'35':['NM','New Mexico','新墨西哥'],'36':['NY','New York','纽约'],'37':['NC','North Carolina','北卡罗来纳'],'38':['ND','North Dakota','北达科他'],'39':['OH','Ohio','俄亥俄'],'40':['OK','Oklahoma','俄克拉何马'],'41':['OR','Oregon','俄勒冈'],'42':['PA','Pennsylvania','宾夕法尼亚'],'44':['RI','Rhode Island','罗得岛'],'45':['SC','South Carolina','南卡罗来纳'],'46':['SD','South Dakota','南达科他'],'47':['TN','Tennessee','田纳西'],'48':['TX','Texas','得克萨斯'],'49':['UT','Utah','犹他'],'50':['VT','Vermont','佛蒙特'],'51':['VA','Virginia','弗吉尼亚'],'53':['WA','Washington','华盛顿州'],'54':['WV','West Virginia','西弗吉尼亚'],'55':['WI','Wisconsin','威斯康星'],'56':['WY','Wyoming','怀俄明']};
+  const AB = {}; Object.keys(ST).forEach(id => AB[ST[id][0]] = id);
+  let P = null;
+  const load = () => P || (P = fetch('https://cdn.jsdelivr.net/npm/us-atlas@3.0.1/states-10m.json').then(r => r.json()).then(t =>
+    topojson.feature(t, t.objects.states).features.filter(f => ST[f.id]).map(f => { const s = ST[f.id]; f.info = { id:f.id, ab:s[0], en:s[1], zh:s[2] }; return f; })));
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  function create(stageSel, cvSel, opt = {}){
+    const stage = document.querySelector(stageSel), cv = document.querySelector(cvSel), g = cv.getContext('2d');
+    const M = { g, opt, feats:null, failed:false, hoverF:null, W:0, H:0, small:false };
+    let proj = null, path = null, landFeats = null;
+    function layout(){
+      const r = stage.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!r.width || !M.feats) return false;
+      cv.width = r.width * d; cv.height = r.height * d; M.W = r.width; M.H = r.height; M.d = d; M.small = r.width < 560;
+      const top = (M.small ? (opt.topS ?? 100) : (opt.top ?? 56)), bot = (M.small ? (opt.bottomS ?? 96) : (opt.bottom ?? 60));
+      landFeats = opt.lower48 ? M.feats.filter(f => f.id !== '02' && f.id !== '15') : M.feats;
+      const fc = { type:'FeatureCollection', features:landFeats };
+      proj = (opt.lower48 ? d3.geoAlbers().parallels([29.5, 45.5]).rotate([96, 0]).center([0, 38.7]) : d3.geoAlbersUsa())
+        .fitExtent([[10, top], [r.width - 10, r.height - bot]], opt.extent ? { type:'MultiPoint', coordinates:opt.extent } : fc);
+      path = d3.geoPath(proj, g); M.proj = proj; M.path = path; return true;
+    }
+    M.xy = ll => proj ? proj(ll) : null;
+    M.inv = (x, y) => proj && proj.invert ? proj.invert([x, y]) : null;
+    M.clipLand = () => { g.beginPath(); landFeats.forEach(f => path(f)); g.clip(); };
+    M.poly = (pts, fill, stroke, lw = 1.5, dash) => { g.beginPath(); path({ type:'Polygon', coordinates:[[...pts, pts[0]]] }); if (fill){ g.fillStyle = fill; g.fill(); } if (stroke){ g.setLineDash(dash || []); g.strokeStyle = stroke; g.lineWidth = lw; g.stroke(); g.setLineDash([]); } };
+    M.line = (pts, stroke, lw = 2, dash) => { const p = pts.map(M.xy).filter(Boolean); if (p.length < 2) return; g.beginPath(); g.moveTo(...p[0]); p.slice(1).forEach(q => g.lineTo(...q)); g.setLineDash(dash || []); g.strokeStyle = stroke; g.lineWidth = lw; g.lineJoin = g.lineCap = 'round'; g.stroke(); g.setLineDash([]); };
+    M.dot = (ll, r, fill, stroke) => { const p = M.xy(ll); if (!p) return; g.beginPath(); g.arc(p[0], p[1], r, 0, 7); g.fillStyle = fill; g.fill(); if (stroke){ g.lineWidth = 2; g.strokeStyle = stroke; g.stroke(); } return p; };
+    M.text = (t, x, y, o = {}) => { g.font = `${o.w || 800} ${o.s || 12}px Nunito, "PingFang SC", "Microsoft YaHei", sans-serif`; g.textAlign = o.a || 'center'; g.textBaseline = 'middle';
+      g.lineWidth = 3.2; g.strokeStyle = o.halo || css('--surface') || '#fff'; g.lineJoin = 'round'; g.strokeText(t, x, y); g.fillStyle = o.c || css('--ink'); g.fillText(t, x, y); };
+    M.centroid = f => path.centroid(f);
+    M.byAb = ab => M.feats && M.feats.find(f => f.id === AB[ab]);
+    M.draw = () => {
+      if (!M.feats){ const r = stage.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); cv.width = r.width * d; cv.height = r.height * d; g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, r.width, r.height);
+        M.W = r.width; M.H = r.height; M.text(Lab.L(M.failed ? {en:'The map needs an internet connection.', zh:'地图需要联网才能加载。'} : {en:'Loading map…', zh:'地图加载中…'}), r.width / 2, r.height / 2, { s:15, c:css('--ink-2') }); return; }
+      if (!proj && !layout()) return;
+      g.setTransform(M.d, 0, 0, M.d, 0, 0); g.clearRect(0, 0, M.W, M.H);
+      const land = css('--surface') || '#fff', ink2 = css('--ink-2') || '#4a5878';
+      g.lineJoin = 'round';
+      landFeats.forEach(f => { g.beginPath(); path(f); g.fillStyle = (opt.fill && opt.fill(f.info)) || land; g.fill(); });
+      g.beginPath(); landFeats.forEach(f => path(f)); g.strokeStyle = ink2; g.lineWidth = .6; g.globalAlpha = .75; g.stroke(); g.globalAlpha = 1;
+      if (M.hoverF){ g.beginPath(); path(M.hoverF); g.strokeStyle = css('--ink'); g.lineWidth = 2; g.stroke(); }
+      if (opt.overlay){ g.save(); opt.overlay(g, M); g.restore(); }
+      M.text(Lab.L({en:'Schematic map · modern state borders', zh:'示意图 · 现代州界'}), 12, M.H - (M.small ? (opt.bottomS ?? 96) : (opt.bottom ?? 60)) + 4, { s:10, a:'left', c:ink2, w:700 });
+    };
+    M.hit = e => { const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, ll = M.inv(x, y); if (!ll || !landFeats) return { x, y };
+      return { x, y, ll, f:landFeats.find(f => d3.geoContains(f, ll)) || null }; };
+    cv.addEventListener('click', e => { if (!M.feats || !opt.click) return; const h = M.hit(e); opt.click(h.f ? h.f.info : null, h, e); });
+    cv.addEventListener('pointermove', e => { if (e.pointerType === 'touch' || !M.feats) return; const h = M.hit(e), f = h.f || null; if (f !== M.hoverF){ M.hoverF = f; M.draw(); }
+      if (opt.hover){ const t = opt.hover(f && f.info, h); cv.title = t || ''; } });
+    cv.addEventListener('pointerleave', () => { if (M.hoverF){ M.hoverF = null; M.draw(); } });
+    new ResizeObserver(() => requestAnimationFrame(() => { proj = null; M.draw(); })).observe(stage);
+    const redraw = () => setTimeout(M.draw, 60);
+    new MutationObserver(redraw).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme', 'lang'] });
+    if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redraw);
+    load().then(f => { M.feats = f; proj = null; M.draw(); if (opt.ready) opt.ready(M); }).catch(err => { console.warn(err); M.failed = true; M.draw(); });
+    M.draw();
+    return M;
+  }
+  return { create, ST, AB, load, css };
+})();
+
+</script>
+<script>
+const o = (en, zh) => ({en, zh});
+const MI = (y, m) => (y - 1860) * 12 + (m - 11);          // month index: Nov 1860 = 0 … Apr 1877 = 197
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const mlabel = (i, lg) => { const t = i + 10, y = 1860 + Math.floor(t / 12), m = t % 12; return (lg || Lab.lang) === "zh" ? `${y}年${m + 1}月` : `${MON[m]} ${y}`; };
+const COL = { u:'#4f7fc6', c:'#c98b5a', b:'#9b7fc9', r:'#5fae8a' };
+/* secession and readmission dates */
+const SEC = { SC:MI(1860,12), MS:MI(1861,1), FL:MI(1861,1), AL:MI(1861,1), GA:MI(1861,1), LA:MI(1861,1), TX:MI(1861,2), VA:MI(1861,4), AR:MI(1861,5), NC:MI(1861,5), TN:MI(1861,6) };
+const SECD = { SC:o('20 December 1860','1860年12月20日'), MS:o('9 January 1861','1861年1月9日'), FL:o('10 January 1861','1861年1月10日'), AL:o('11 January 1861','1861年1月11日'), GA:o('19 January 1861','1861年1月19日'), LA:o('26 January 1861','1861年1月26日'), TX:o('1 February 1861','1861年2月1日'), VA:o('17 April 1861','1861年4月17日'), AR:o('6 May 1861','1861年5月6日'), NC:o('20 May 1861','1861年5月20日'), TN:o('8 June 1861','1861年6月8日') };
+const READ = { TN:MI(1866,7), AR:MI(1868,6), FL:MI(1868,6), NC:MI(1868,7), SC:MI(1868,7), LA:MI(1868,7), AL:MI(1868,7), VA:MI(1870,1), MS:MI(1870,2), TX:MI(1870,3), GA:MI(1870,7) };
+const BORDER = ['DE','MD','KY','MO'];
+const FREE = { ME:0,NH:0,VT:0,MA:0,RI:0,CT:0,NY:0,NJ:0,PA:0,OH:0,IN:0,IL:0,MI:0,WI:0,MN:0,IA:0,CA:0,OR:0, KS:MI(1861,1), NV:MI(1864,10), NE:MI(1867,3), CO:MI(1876,8) };
+const WV = MI(1863,6), WAR_END = MI(1865,4);
+/* battles and places */
+const BAT = {
+  fs:{ m:MI(1861,4), ll:[-79.87,32.75], w:'c', n:o('Fort Sumter','萨姆特堡'), d:o('12–13 April 1861 · South Carolina','1861年4月12—13日 · 南卡罗来纳'), r:o('Confederate victory — the war begins','南部同盟获胜——战争爆发'),
+    f:{ en:['Confederate cannons fired on a US Army fort in Charleston Harbor. Nobody was killed in the bombardment, but the fort surrendered.','Lincoln called for 75,000 volunteers. Four more states (Virginia, Arkansas, North Carolina, Tennessee) then seceded.'], zh:['南部同盟的大炮轰击查尔斯顿港内的联邦军队要塞。炮击中无人死亡，但要塞投降了。','林肯号召7.5万名志愿兵参军。随后，弗吉尼亚、阿肯色、北卡罗来纳、田纳西四个州也脱离了联邦。'] } },
+  br:{ m:MI(1861,7), ll:[-77.52,38.81], w:'c', n:o('First Bull Run (Manassas)','第一次布尔河战役（马纳萨斯）'), d:o('21 July 1861 · Virginia','1861年7月21日 · 弗吉尼亚'), r:o('Confederate victory','南部同盟获胜'),
+    f:{ en:['Picnickers from Washington came out to watch what they expected to be a quick Union win. The Union army retreated in confusion.','General Thomas Jackson earned the nickname “Stonewall”. Both sides realised the war would be long.'], zh:['华盛顿的市民带着野餐来“观战”，以为联邦军会速胜，结果联邦军队混乱撤退。','托马斯·杰克逊将军因坚守阵地得到“石墙”的绰号。双方都意识到战争将会很漫长。'] } },
+  sh:{ m:MI(1862,4), ll:[-88.32,35.15], w:'u', n:o('Shiloh','夏伊洛战役'), d:o('6–7 April 1862 · Tennessee','1862年4月6—7日 · 田纳西'), r:o('Union victory','联邦获胜'),
+    f:{ en:['A surprise attack on General Ulysses S. Grant’s army; Grant held on and won on the second day.','About 23,000 soldiers were killed, wounded or missing — a shock to both sides about the cost of the war.'], zh:['南军突袭格兰特将军的部队；格兰特坚持下来，第二天取得胜利。','约2.3万名士兵伤亡或失踪，双方都被战争的代价震惊。'] } },
+  an:{ m:MI(1862,9), ll:[-77.74,39.47], w:'u', n:o('Antietam','安蒂特姆战役'), d:o('17 September 1862 · Maryland','1862年9月17日 · 马里兰'), r:o('Union strategic victory','联邦取得战略胜利'),
+    f:{ en:['The bloodiest single day in American history: about 23,000 casualties.','Lee’s first invasion of the North was stopped. Five days later Lincoln announced the Emancipation Proclamation.','Britain and France, which had thought about recognising the Confederacy, held back.'], zh:['美国历史上伤亡最惨重的一天：约2.3万人伤亡。','李将军第一次北侵被阻止。五天后，林肯宣布了《解放黑人奴隶宣言》（预备宣言）。','原本考虑承认南部同盟的英国和法国从此作罢。'] } },
+  gb:{ m:MI(1863,7), ll:[-77.23,39.81], w:'u', n:o('Gettysburg','葛底斯堡战役'), d:o('1–3 July 1863 · Pennsylvania','1863年7月1—3日 · 宾夕法尼亚'), r:o('Union victory — a turning point','联邦获胜——战争的转折点'),
+    f:{ en:['The largest battle ever fought in North America: about 160,000 soldiers and some 51,000 casualties.','Lee’s second and last invasion of the North failed; Pickett’s Charge on day 3 was thrown back.','In November, Lincoln gave the Gettysburg Address at the new soldiers’ cemetery here.'], zh:['北美大陆上规模最大的战役：约16万名士兵参战，伤亡约5.1万人。','李将军第二次、也是最后一次北侵失败；第三天的“皮克特冲锋”被击退。','同年11月，林肯在这里新建的士兵公墓发表了葛底斯堡演说。'] } },
+  vb:{ m:MI(1863,7), ll:[-90.88,32.35], w:'u', n:o('Vicksburg','维克斯堡战役'), d:o('Siege May–July; surrender 4 July 1863 · Mississippi','5—7月围城；1863年7月4日投降 · 密西西比'), r:o('Union victory — a turning point','联邦获胜——战争的转折点'),
+    f:{ en:['After a 47-day siege, the city surrendered to Grant on the Fourth of July.','The Union now controlled the whole Mississippi River and split the Confederacy in two — part of the “Anaconda Plan” to squeeze the South.'], zh:['经过47天的围困，维克斯堡在7月4日向格兰特投降。','联邦从此控制了整条密西西比河，把南部同盟切成两半——这正是围困南方的“蟒蛇计划”的一部分。'] } },
+  at:{ m:MI(1864,9), ll:[-84.39,33.75], w:'u', n:o('Atlanta','亚特兰大战役'), d:o('Captured 2 September 1864 · Georgia','1864年9月2日攻占 · 佐治亚'), r:o('Union victory','联邦获胜'),
+    f:{ en:['General William T. Sherman captured Atlanta, a key railroad hub and factory city of the Confederacy.','The good news helped Lincoln win re-election in November 1864. Before leaving, Union troops burned much of the city’s industry and railroads.'], zh:['谢尔曼将军攻占了亚特兰大——南部同盟重要的铁路枢纽和工业城市。','这一捷报帮助林肯在1864年11月赢得连任。撤离前，联邦军队烧毁了城里大部分工厂和铁路。'] } },
+  sv:{ m:MI(1864,12), ll:[-81.09,32.08], w:'u', s:o('Savannah','萨凡纳'), n:o('Sherman’s March to the Sea → Savannah','谢尔曼“向海洋进军” → 萨凡纳'), d:o('15 November – 21 December 1864 · Georgia','1864年11月15日—12月21日 · 佐治亚'), r:o('Union campaign','联邦战役'),
+    f:{ en:['Sherman’s 60,000 soldiers marched about 285 miles (460 km) from Atlanta to Savannah, wrecking railroads, farms and supplies in a path up to 60 miles wide.','The goal was to break the South’s ability — and will — to keep fighting. Thousands of enslaved people followed the army to freedom.','Sherman telegraphed Lincoln, offering Savannah as a “Christmas gift”.'], zh:['谢尔曼率6万大军从亚特兰大向萨凡纳进军约460千米（285英里），在宽达约96千米（60英里）的地带破坏铁路、农场和物资。','目的是摧毁南方继续作战的能力和意志。成千上万被奴役的黑人跟随军队走向自由。','谢尔曼给林肯发电报，把萨凡纳作为“圣诞礼物”献给他。'] } },
+  ap:{ m:MI(1865,4), ll:[-78.8,37.38], w:'u', n:o('Appomattox Court House','阿波马托克斯法院'), d:o('9 April 1865 · Virginia','1865年4月9日 · 弗吉尼亚'), r:o('Lee surrenders to Grant','李向格兰特投降'),
+    f:{ en:['Robert E. Lee surrendered the Army of Northern Virginia to Ulysses S. Grant in the parlour of Wilmer McLean’s house.','Grant let Lee’s soldiers go home and keep their horses for spring planting. Other Confederate armies surrendered in the following weeks.'], zh:['罗伯特·李在威尔默·麦克莱恩家的客厅里，率北弗吉尼亚军团向格兰特投降。','格兰特允许南军士兵回家，并带走马匹去春耕。其余南军部队在随后几周内陆续投降。'] } },
+  ft:{ m:MI(1865,4), ll:[-77.03,38.9], w:'n', s:o('Ford’s Theatre','福特剧院'), n:o('Ford’s Theatre, Washington','华盛顿福特剧院'), d:o('14 April 1865','1865年4月14日'), r:o('President Lincoln assassinated','林肯总统遇刺'),
+    f:{ en:['Five days after Appomattox, actor John Wilkes Booth shot Lincoln at a play. Lincoln died the next morning.','Vice President Andrew Johnson became president and led the first years of Reconstruction.'], zh:['阿波马托克斯投降五天后，演员约翰·威尔克斯·布斯在剧院里枪击林肯，林肯次日清晨去世。','副总统安德鲁·约翰逊继任总统，主持了重建最初的几年。'] } }
+};
+const BORDER_ORDER = ['fs','br','sh','an','gb','vb','at','sv','ap','ft'];
+const SHERMAN1 = [[-84.39,33.75],[-83.23,33.08],[-81.95,32.8],[-81.09,32.08]], SHERMAN2 = [[-81.09,32.08],[-81.03,34],[-78.88,35.05],[-78.32,35.3],[-78.9,36]];
+const BLOCKADE = [[-75.3,37.6],[-75,35.2],[-77.3,33.6],[-79.3,32.3],[-80.6,31],[-79.8,27],[-80.4,24.6],[-82.5,24.3],[-83.6,27.5],[-84.6,29.4],[-88,29.7],[-89.2,28.8],[-92,29.2],[-94.5,29.1],[-97,27.5]];
+/* events on the slider */
+const EV = [
+  { m:MI(1860,11), t:o('Lincoln is elected president','林肯当选总统'), b:o('Abraham Lincoln (林肯) of the new Republican Party wins without a single Southern electoral vote. He opposed spreading slavery into the western territories; many white Southerners feared he would end it altogether.','新成立的共和党人亚伯拉罕·林肯当选总统，却没有得到南方任何一张选举人票。他反对把奴隶制扩展到西部领地；南方许多白人担心他会彻底废除奴隶制。') },
+  { m:MI(1860,12), s:'SC', t:o('South Carolina secedes','南卡罗来纳脱离联邦'), b:o('On 20 December, South Carolina declares it is leaving the Union. Secession (脱离联邦) means a state claiming the right to quit the United States.','12月20日，南卡罗来纳宣布脱离联邦。“脱离联邦”（secession）指一个州声称有权退出美国。') },
+  { m:MI(1861,1), t:o('Five more states leave','又有五个州脱离'), b:o('Mississippi, Florida, Alabama, Georgia (19 January) and Louisiana secede. Kansas joins the Union as a free state.','密西西比、佛罗里达、亚拉巴马、佐治亚（1月19日）和路易斯安那相继脱离联邦。堪萨斯作为自由州加入联邦。') },
+  { m:MI(1861,2), t:o('The Confederate States of America','“美利坚联盟国”（南部同盟）成立'), b:o('Texas secedes. In Montgomery, Alabama, the seceded states form the Confederacy (南部同盟) and choose Jefferson Davis as president.','得克萨斯脱离联邦。脱离的各州在亚拉巴马州蒙哥马利成立南部同盟（Confederacy），推选杰斐逊·戴维斯为总统。') },
+  { m:MI(1861,4), k:'fs', t:o('Fort Sumter: the war begins','萨姆特堡：战争爆发'), b:o('Confederate guns fire on Fort Sumter on 12 April. Virginia secedes on 17 April; Richmond becomes the Confederate capital.','4月12日，南军炮轰萨姆特堡。4月17日弗吉尼亚脱离联邦，里士满后来成为南部同盟的首都。') },
+  { m:MI(1861,5), t:o('Arkansas and North Carolina secede','阿肯色和北卡罗来纳脱离'), b:o('The four border slave states — Delaware, Maryland, Kentucky and Missouri — stay in the Union.','而特拉华、马里兰、肯塔基、密苏里这四个边境蓄奴州留在了联邦。') },
+  { m:MI(1861,6), t:o('Tennessee: the 11th and last','田纳西：第11个、也是最后一个'), b:o('Eleven states now form the Confederacy. Western Virginia refuses to leave the Union.','南部同盟至此共11个州。弗吉尼亚西部地区拒绝脱离联邦。') },
+  { m:MI(1861,7), k:'br', t:o('First Battle of Bull Run','第一次布尔河战役'), b:o('A Confederate victory near Washington. Nobody expects a short war any more.','南军在华盛顿附近获胜，再也没有人认为战争会很快结束。') },
+  { m:MI(1862,4), k:'sh', t:o('Shiloh; New Orleans captured','夏伊洛战役；联邦攻占新奥尔良'), b:o('A costly Union win in Tennessee. At the end of April the US Navy captures New Orleans, the South’s largest city.','联邦在田纳西付出惨重代价取胜。4月底，美国海军攻占南方最大的城市新奥尔良。') },
+  { m:MI(1862,9), k:'an', t:o('Antietam — and a promise of freedom','安蒂特姆战役——自由的承诺'), b:o('The bloodiest day in US history stops Lee in Maryland. On 22 September Lincoln announces that enslaved people in rebelling states will be free on 1 January.','美国历史上最惨烈的一天，李将军在马里兰被阻止。9月22日林肯宣布：明年1月1日起，叛乱各州的奴隶将获得自由。') },
+  { m:MI(1863,1), t:o('The Emancipation Proclamation','《解放黑人奴隶宣言》'), b:o('On 1 January 1863 the proclamation takes effect in the Confederate states. The war is now also a war against slavery, and Black men can join the Union army — about 180,000 served (one well-known regiment: the 54th Massachusetts).','1863年1月1日，《解放黑人奴隶宣言》（Emancipation Proclamation）在南部同盟各州生效。战争从此也成为一场反对奴隶制的战争，黑人可以加入联邦军队——约18万人参军（著名的有马萨诸塞第54团）。') },
+  { m:MI(1863,6), t:o('West Virginia becomes a state','西弗吉尼亚建州'), b:o('The western counties that refused to secede become the state of West Virginia on 20 June.','拒绝脱离联邦的弗吉尼亚西部各县，于6月20日成立西弗吉尼亚州。') },
+  { m:MI(1863,7), k:'gb', t:o('Gettysburg and Vicksburg','葛底斯堡与维克斯堡'), b:o('In the same week: Lee is beaten at Gettysburg (1–3 July) and Vicksburg surrenders to Grant (4 July). Many historians call this the turning point of the war.','同一个星期里：李将军在葛底斯堡战败（7月1—3日），维克斯堡向格兰特投降（7月4日）。许多历史学家认为这是战争的转折点。') },
+  { m:MI(1863,11), t:o('The Gettysburg Address','葛底斯堡演说'), b:o('On 19 November Lincoln dedicates the soldiers’ cemetery with a 272-word speech about “a new birth of freedom”.','11月19日，林肯在士兵公墓落成典礼上发表了只有272个英文单词的演说，呼吁“自由的新生”。') },
+  { m:MI(1864,3), t:o('Grant takes command','格兰特出任联邦军总司令'), b:o('Lincoln puts Ulysses S. Grant (格兰特) in charge of all Union armies. Grant presses Lee in Virginia while Sherman drives toward Atlanta.','林肯任命格兰特统率全部联邦军队。格兰特在弗吉尼亚紧逼李将军，谢尔曼则向亚特兰大推进。') },
+  { m:MI(1864,9), k:'at', t:o('Atlanta falls','亚特兰大陷落'), b:o('Sherman captures Atlanta on 2 September — just in time to lift Northern spirits before the election.','9月2日谢尔曼攻占亚特兰大——正好在大选前鼓舞了北方的士气。') },
+  { m:MI(1864,11), t:o('Lincoln re-elected; the March to the Sea','林肯连任；“向海洋进军”'), b:o('Lincoln wins a second term on 8 November. A week later Sherman leaves Atlanta for the coast. (Nevada had joined the Union on 31 October.)','11月8日林肯赢得连任。一周后，谢尔曼离开亚特兰大向海岸进军。（内华达已于10月31日加入联邦。）') },
+  { m:MI(1864,12), k:'sv', t:o('Savannah: a “Christmas gift”','萨凡纳：“圣诞礼物”'), b:o('Sherman reaches Savannah on 21 December after cutting a path of destruction across Georgia.','谢尔曼一路破坏、横穿佐治亚，于12月21日到达萨凡纳。') },
+  { m:MI(1865,1), t:o('Congress passes the 13th Amendment','国会通过第十三条修正案'), b:o('On 31 January 1865 Congress votes to abolish slavery in the whole country. (It is ratified by the states in December.)','1865年1月31日，国会表决通过在全国废除奴隶制的修正案（12月由各州批准生效）。') },
+  { m:MI(1865,3), t:o('The Freedmen’s Bureau','自由民局成立'), b:o('A new federal agency to help formerly enslaved people with food, schools, work contracts and finding family members.','一个新的联邦机构，为获得自由的黑人提供食物、学校、劳动合同和寻找亲人等帮助。') },
+  { m:MI(1865,4), k:'ap', t:o('Appomattox — and Ford’s Theatre','阿波马托克斯——福特剧院'), b:o('Lee surrenders to Grant on 9 April. Five days later Lincoln is shot at Ford’s Theatre; he dies on 15 April. About 620,000–750,000 soldiers died in the war, two-thirds of them from disease.','4月9日李向格兰特投降。五天后林肯在福特剧院遇刺，于4月15日去世。整场战争约有62万至75万名士兵死亡，其中约三分之二死于疾病。') },
+  { m:MI(1865,6), t:o('Juneteenth','“六月节”（Juneteenth）'), b:o('On 19 June 1865 Union General Gordon Granger arrives in Galveston, Texas, and announces that all enslaved people there are free. Juneteenth has been a federal holiday since 2021.','1865年6月19日，联邦将军戈登·格兰杰抵达得克萨斯的加尔维斯顿，宣布当地所有奴隶获得自由。2021年起，“六月节”成为联邦法定假日。') },
+  { m:MI(1865,12), t:o('Slavery ends: the 13th Amendment','奴隶制终结：第十三条修正案'), b:o('Ratified on 6 December 1865. About 4 million people are free.','第十三条修正案（13th Amendment）于1865年12月6日批准生效，约400万人获得自由。') },
+  { m:MI(1866,7), t:o('Tennessee readmitted','田纳西重新加入联邦'), b:o('The first former Confederate state to be readmitted, after accepting the 14th Amendment.','田纳西接受第十四条修正案后，成为第一个重新加入联邦的前南部同盟州。') },
+  { m:MI(1867,3), t:o('The Reconstruction Acts','《重建法》'), b:o('Congress divides the South into five military districts. To rejoin, states must write new constitutions letting Black men vote and must ratify the 14th Amendment.','在“重建”（Reconstruction）时期，国会把南方划分为五个军区。各州要重新加入联邦，必须制定允许黑人男子投票的新宪法，并批准第十四条修正案。') },
+  { m:MI(1868,7), t:o('The 14th Amendment; six states return','第十四条修正案；六个州重新加入'), b:o('Citizenship and “equal protection of the laws” for everyone born in the US. Arkansas, Florida, North Carolina, South Carolina, Louisiana and Alabama are readmitted in June–July.','凡在美国出生的人都是公民，享有“法律的平等保护”。6—7月，阿肯色、佛罗里达、北卡罗来纳、南卡罗来纳、路易斯安那和亚拉巴马重新加入联邦。') },
+  { m:MI(1870,2), t:o('The 15th Amendment; Hiram Revels','第十五条修正案；海勒姆·雷维尔斯'), b:o('The right to vote cannot be denied because of race. Hiram Revels of Mississippi becomes the first Black US senator. Hundreds of Black Americans serve in state governments and Congress during Reconstruction.','选举权不得因种族而被剥夺。密西西比的海勒姆·雷维尔斯成为第一位黑人联邦参议员。重建时期，数以百计的非裔美国人进入州政府和国会任职。') },
+  { m:MI(1870,7), t:o('Georgia readmitted — the last','佐治亚最后一个重新加入'), b:o('Georgia rejoins on 15 July 1870, completing the return of all eleven states.','1870年7月15日佐治亚重新加入联邦，11个州至此全部回归。') },
+  { m:MI(1877,4), t:o('Reconstruction ends','重建结束'), b:o('After the disputed election of 1876, the Compromise of 1877 makes Rutherford B. Hayes president and federal troops leave the South. Southern states soon pass “Jim Crow” segregation laws and take away most Black citizens’ votes — rights not fully restored until the Civil Rights Movement.','1876年大选结果有争议，“1877年妥协”让海斯当上总统，联邦军队撤出南方。南方各州很快通过“吉姆·克劳”种族隔离法，剥夺了大多数黑人的选举权——这些权利直到民权运动时期才真正恢复。') }
+];
+const EMS = [...new Set(EV.map(e => e.m))];
+const CN = [
+  { m:MI(1860,11), t:o('October 1860: British and French troops burn the Old Summer Palace (圆明园) near Beijing. The Second Opium War ends with the Convention of Peking (《北京条约》).','1860年10月：英法联军火烧圆明园。第二次鸦片战争以《北京条约》告终。') },
+  { m:MI(1861,11), t:o('1861: the child Tongzhi Emperor (同治) takes the throne; Empress Dowager Cixi (慈禧太后) takes power. The Self-Strengthening Movement (洋务运动) begins — China starts building modern arsenals and ships.','1861年：同治皇帝年幼即位，慈禧太后掌握实权。洋务运动开始，中国开始创办近代军工厂和船厂。') },
+  { m:MI(1864,7), t:o('July 1864: Qing forces take Tianjing (Nanjing), ending the Taiping Rebellion (太平天国运动, 1851–1864) — a war that cost tens of millions of lives, far more than the US Civil War.','1864年7月：清军攻破天京（南京），太平天国运动（1851—1864年）失败。这场战争造成数千万人死亡，远远超过美国内战。') },
+  { m:MI(1865,9), t:o('1865: the Jiangnan Arsenal (江南制造总局) opens in Shanghai — one of the largest modern factories in Asia.','1865年：江南制造总局在上海创办，是当时亚洲规模最大的近代工厂之一。') },
+  { m:MI(1868,7), t:o('1868: the US and China sign the Burlingame Treaty (《蒲安臣条约》), welcoming Chinese workers to America. By 1869 some 12,000 Chinese workers helped finish the first transcontinental railroad.','1868年：中美签订《蒲安臣条约》，鼓励华工赴美。到1869年，约1.2万名华工参与修成了美国第一条横贯大陆铁路。') },
+  { m:MI(1872,8), t:o('1872: the first 30 of 120 Chinese boys (留美幼童) arrive in the US to study, led by Yung Wing (容闳), the first Chinese graduate of Yale.','1872年：首批30名“留美幼童”（共120名）赴美留学，由第一位毕业于耶鲁大学的中国人容闳带领。') },
+  { m:MI(1875,1), t:o('1875: the Guangxu Emperor (光绪) takes the throne as a small child.','1875年：光绪皇帝年幼即位。') }
+];
+const PEOPLE = [
+  { n:o('Abraham Lincoln','亚伯拉罕·林肯'), r:o('16th president (Union)','第16任总统（联邦）'), t:o('Kept the Union together, issued the Emancipation Proclamation and pushed the 13th Amendment through Congress.','维护了联邦的统一，发布《解放黑人奴隶宣言》，推动国会通过第十三条修正案。') },
+  { n:o('Jefferson Davis','杰斐逊·戴维斯'), r:o('President of the Confederacy','南部同盟总统'), t:o('A Mississippi senator and planter who led the Confederate government in Richmond.','密西西比州参议员、种植园主，领导设在里士满的南部同盟政府。') },
+  { n:o('Ulysses S. Grant','尤利塞斯·格兰特'), r:o('Union general, later 18th president','联邦将军，后任第18任总统'), t:o('Won at Vicksburg, commanded all Union armies from 1864 and accepted Lee’s surrender.','赢得维克斯堡战役，1864年起统率全部联邦军队，接受了李将军的投降。') },
+  { n:o('Robert E. Lee','罗伯特·李'), r:o('Confederate general','南部同盟将军'), t:o('Led the Army of Northern Virginia; won many early battles but lost at Gettysburg and surrendered at Appomattox.','率领北弗吉尼亚军团，战争前期多次获胜，但在葛底斯堡失利，最后在阿波马托克斯投降。') },
+  { n:o('Frederick Douglass','弗雷德里克·道格拉斯'), r:o('Abolitionist writer and speaker','废奴主义作家、演说家'), t:o('Escaped slavery in 1838, became a famous speaker, urged Lincoln to free enslaved people and recruited Black soldiers.','1838年逃离奴隶制，成为著名演说家；敦促林肯解放奴隶，并为联邦招募黑人士兵。') },
+  { n:o('Harriet Tubman','哈丽雅特·塔布曼'), r:o('Underground Railroad leader, Union scout','“地下铁路”领袖、联邦侦察员'), t:o('Guided about 70 people to freedom before the war; in 1863 she helped lead the Combahee River Raid, which freed more than 700 people.','战前带领约70人逃向自由；1863年参与领导康巴希河突袭，解救了700多人。') }
+];
+/* turning-points game */
+const TP = [
+  { k:18601106, d:o('Nov 1860','1860年11月'), t:o('Lincoln elected president','林肯当选总统'), w:o('Within six weeks, South Carolina seceded.','六周之内，南卡罗来纳就脱离了联邦。') },
+  { k:18601220, d:o('Dec 1860','1860年12月'), t:o('South Carolina secedes','南卡罗来纳脱离联邦'), w:o('The first of eleven states to leave.','11个脱离联邦的州中的第一个。') },
+  { k:18610412, d:o('Apr 1861','1861年4月'), t:o('Attack on Fort Sumter','萨姆特堡遭炮击'), w:o('The first shots: the war had begun.','第一枪打响，战争开始了。') },
+  { k:18610721, d:o('Jul 1861','1861年7月'), t:o('First Battle of Bull Run','第一次布尔河战役'), w:o('Showed both sides the war would be long and hard.','让双方都明白战争将会漫长而艰苦。') },
+  { k:18620917, d:o('Sep 1862','1862年9月'), t:o('Battle of Antietam','安蒂特姆战役'), w:o('Stopped Lee’s invasion and gave Lincoln the moment to announce emancipation.','阻止了李将军的进攻，让林肯有机会宣布解放奴隶。') },
+  { k:18630101, d:o('Jan 1863','1863年1月'), t:o('Emancipation Proclamation takes effect','《解放黑人奴隶宣言》生效'), w:o('Made ending slavery a war aim; Black soldiers joined the Union army.','废除奴隶制成为战争目标，黑人士兵加入联邦军队。') },
+  { k:18630701, d:o('Jul 1863','1863年7月'), t:o('Battle of Gettysburg','葛底斯堡战役'), w:o('Lee’s last invasion of the North failed.','李将军最后一次北侵失败。') },
+  { k:18630704, d:o('4 Jul 1863','1863年7月4日'), t:o('Vicksburg surrenders','维克斯堡投降'), w:o('The Union controlled the Mississippi; the Confederacy was cut in two.','联邦控制了密西西比河，南部同盟被一分为二。') },
+  { k:18631119, d:o('Nov 1863','1863年11月'), t:o('Gettysburg Address','葛底斯堡演说'), w:o('Lincoln explained the war as a fight for “a new birth of freedom”.','林肯把战争阐释为争取“自由的新生”的斗争。') },
+  { k:18640902, d:o('Sep 1864','1864年9月'), t:o('Sherman captures Atlanta','谢尔曼攻占亚特兰大'), w:o('Boosted the North and helped Lincoln win re-election.','鼓舞了北方士气，帮助林肯赢得连任。') },
+  { k:18641115, d:o('Nov 1864','1864年11月'), t:o('March to the Sea begins','“向海洋进军”开始'), w:o('Destroyed the South’s railroads and supplies across Georgia.','摧毁了佐治亚境内南方的铁路和物资。') },
+  { k:18650131, d:o('Jan 1865','1865年1月'), t:o('Congress passes the 13th Amendment','国会通过第十三条修正案'), w:o('Slavery would end everywhere in the US.','奴隶制将在全美国被废除。') },
+  { k:18650409, d:o('Apr 1865','1865年4月'), t:o('Lee surrenders at Appomattox','李在阿波马托克斯投降'), w:o('The main Confederate army gave up; the war was effectively over.','南军主力投降，战争基本结束。') },
+  { k:18650414, d:o('14 Apr 1865','1865年4月14日'), t:o('Lincoln is assassinated','林肯遇刺'), w:o('Andrew Johnson, far softer on former Confederates, led early Reconstruction.','对前南部同盟人士宽容得多的安德鲁·约翰逊主持了早期重建。') }
+];
+const RANKS = [ { s:0, n:o('Private','列兵') }, { s:10, n:o('Sergeant','中士') }, { s:22, n:o('Captain','上尉') }, { s:36, n:o('Colonel','上校') }, { s:52, n:o('General','将军') } ];
+/* North vs South (approximate, 1860–61) */
+const RES = [
+  { n:o('Population','人口'), u:22, c:9, unit:o('million','百万'), a:'u', why:o('The North had about 2.5 times as many people — more soldiers and workers. About 3.5 million of the South’s 9 million were enslaved.','北方人口约是南方的2.5倍——兵源和劳动力更多。南方900万人口中约350万是被奴役者。') },
+  { n:o('Railroad miles','铁路里程'), u:22000, c:9000, unit:o('miles','英里'), a:'u', why:o('More railroads moved troops and supplies faster. Southern lines often used different track widths.','更多的铁路能更快运送军队和物资。南方的铁路轨距还常常不统一。') },
+  { n:o('Factories','工厂数量'), u:110000, c:18000, unit:o('factories','家'), a:'u', why:o('The North could make its own guns, uniforms, ships and locomotives.','北方能自己生产枪支、军装、军舰和火车头。') },
+  { n:o('Share of US iron made','钢铁产量占全国比例'), u:94, c:6, unit:o('%','%'), a:'u', why:o('Iron meant cannons, rails and ironclad ships.','钢铁意味着大炮、铁轨和铁甲舰。') },
+  { n:o('Cotton grown','棉花产量'), u:1, c:99, unit:o('% of US crop','% 占全国'), a:'c', why:o('The South grew almost all of America’s cotton — mostly by enslaved labour — and hoped Britain would help it to get cotton. Britain found other sources (Egypt, India).','南方种植了美国几乎全部的棉花（大多靠奴隶劳动），本想以此换取英国支持；但英国从埃及、印度找到了别的棉花来源。') }
+];
+/* amendments */
+const AMD = [
+  { k:'13', n:o('13th Amendment (1865)','第十三条修正案（1865年）'), s:o('Freedom','自由') },
+  { k:'14', n:o('14th Amendment (1868)','第十四条修正案（1868年）'), s:o('Citizenship & equal protection','公民身份与平等保护') },
+  { k:'15', n:o('15th Amendment (1870)','第十五条修正案（1870年）'), s:o('Voting rights','选举权') }
+];
+const AMDC = [
+  { a:'13', t:o('Abolished slavery in the whole United States','在全美国废除奴隶制') }, { a:'13', t:o('Went further than the Emancipation Proclamation','比《解放黑人奴隶宣言》更进一步') }, { a:'13', t:o('Ratified in December 1865, after Lincoln’s death','林肯去世后，于1865年12月批准生效') },
+  { a:'14', t:o('Everyone born in the US is a citizen','凡在美国出生的人都是公民') }, { a:'14', t:o('States must give all people “equal protection of the laws”','各州必须给予所有人“法律的平等保护”') }, { a:'14', t:o('Used in 1954 to end school segregation (Brown v. Board)','1954年被用来结束学校种族隔离（布朗案）') },
+  { a:'15', t:o('The vote cannot be denied because of race','不得因种族剥夺选举权') }, { a:'15', t:o('Did NOT give women the vote (that came in 1920)','并没有给妇女选举权（妇女1920年才获得）') }, { a:'15', t:o('Southern states later got around it with poll taxes and literacy tests','南方各州后来用人头税和识字测验规避它') }
+];
+/* quiz */
+const QUIZ = [
+  {q:o('Which state was the first to secede, in December 1860?','1860年12月第一个脱离联邦的是哪个州？'), options:[o('South Carolina','南卡罗来纳'),o('Georgia','佐治亚'),o('Virginia','弗吉尼亚'),o('Texas','得克萨斯')], answer:0},
+  {q:o('Where were the first shots of the Civil War fired?','南北战争的第一枪在哪里打响？'), options:[o('Fort Sumter, South Carolina','南卡罗来纳的萨姆特堡'),o('Gettysburg, Pennsylvania','宾夕法尼亚的葛底斯堡'),o('Atlanta, Georgia','佐治亚的亚特兰大'),o('Appomattox, Virginia','弗吉尼亚的阿波马托克斯')], answer:0},
+  {q:o('Map reading: on the map in July 1861, how many states are in the Confederacy?','读图：1861年7月的地图上，南部同盟有几个州？'), options:[o('11','11个'),o('7','7个'),o('4','4个'),o('15','15个')], answer:0, explain:o('7 seceded before Fort Sumter and 4 more after it.','萨姆特堡事件前7个州脱离，之后又有4个。')},
+  {q:o('The border states (Delaware, Maryland, Kentucky, Missouri) were slave states that…','边境州（特拉华、马里兰、肯塔基、密苏里）是蓄奴州，它们'), options:[o('Stayed in the Union','留在了联邦'),o('Joined the Confederacy','加入了南部同盟'),o('Became independent countries','成为独立国家'),o('Were part of Mexico','属于墨西哥')], answer:0},
+  {q:o('What did the Emancipation Proclamation (1863) do?','《解放黑人奴隶宣言》（1863年）的作用是'), options:[o('Declared enslaved people in the rebelling states free','宣布叛乱各州的奴隶获得自由'),o('Ended slavery in every state','在所有州废除奴隶制'),o('Gave women the right to vote','给予妇女选举权'),o('Ended the war','结束了战争')], answer:0, explain:o('Ending slavery everywhere took the 13th Amendment (1865).','在全国废除奴隶制要靠第十三条修正案（1865年）。')},
+  {q:o('Which two Union victories in July 1863 are often called the turning point of the war?','1863年7月联邦的哪两场胜利常被称为战争的转折点？'), options:[o('Gettysburg and Vicksburg','葛底斯堡和维克斯堡'),o('Fort Sumter and Bull Run','萨姆特堡和布尔河'),o('Shiloh and Antietam','夏伊洛和安蒂特姆'),o('Atlanta and Savannah','亚特兰大和萨凡纳')], answer:0},
+  {q:o('Why did capturing Vicksburg matter so much?','攻占维克斯堡为什么如此重要？'), options:[o('The Union controlled the Mississippi River and split the Confederacy','联邦控制了密西西比河，把南部同盟一分为二'),o('It was the Confederate capital','它是南部同盟的首都'),o('Lincoln was born there','林肯出生在那里'),o('It ended slavery','它结束了奴隶制')], answer:0},
+  {q:o('Sherman’s March to the Sea went from Atlanta to…','谢尔曼“向海洋进军”从亚特兰大到'), options:[o('Savannah, Georgia','佐治亚州萨凡纳'),o('Richmond, Virginia','弗吉尼亚州里士满'),o('New Orleans, Louisiana','路易斯安那州新奥尔良'),o('Charleston, South Carolina','南卡罗来纳州查尔斯顿')], answer:0},
+  {q:o('Where did Robert E. Lee surrender to Ulysses S. Grant in April 1865?','1865年4月，罗伯特·李在哪里向格兰特投降？'), options:[o('Appomattox Court House, Virginia','弗吉尼亚的阿波马托克斯法院'),o('Gettysburg, Pennsylvania','宾夕法尼亚的葛底斯堡'),o('Washington, D.C.','华盛顿特区'),o('Fort Sumter','萨姆特堡')], answer:0},
+  {q:o('Which amendment made everyone born in the US a citizen with “equal protection of the laws”?','哪一条修正案规定凡在美国出生者都是公民、享有“法律的平等保护”？'), options:[o('14th','第十四条'),o('13th','第十三条'),o('15th','第十五条'),o('19th','第十九条')], answer:0},
+  {q:o('Figure reading: the North had about how many times the South’s railroad miles?','读图：北方的铁路里程大约是南方的几倍？'), options:[o('About 2.5 times','约2.5倍'),o('About the same','差不多'),o('About 10 times','约10倍'),o('Half as much','只有一半')], answer:0, explain:o('About 22,000 miles vs 9,000 miles.','约2.2万英里对9000英里。')},
+  {q:o('Reconstruction ended in 1877 when…','1877年重建结束，原因是'), options:[o('Federal troops were withdrawn from the South','联邦军队撤出了南方'),o('The 13th Amendment passed','第十三条修正案通过'),o('Lincoln was re-elected','林肯连任'),o('Georgia seceded again','佐治亚再次脱离联邦')], answer:0, explain:o('After that, Jim Crow laws took away many of the rights Black Americans had gained.','此后，“吉姆·克劳”法剥夺了非裔美国人刚刚获得的许多权利。')}
+];
+const SORT = {
+  bins:[{id:'u',en:'Union (North)',zh:'联邦（北方）'},{id:'c',en:'Confederacy (South)',zh:'南部同盟（南方）'}],
+  items:[
+    {en:'Abraham Lincoln',zh:'亚伯拉罕·林肯',bin:'u'},{en:'Ulysses S. Grant',zh:'尤利塞斯·格兰特',bin:'u'},{en:'William T. Sherman',zh:'威廉·谢尔曼',bin:'u'},{en:'54th Massachusetts Regiment',zh:'马萨诸塞第54团',bin:'u'},{en:'Capital: Washington, D.C.',zh:'首都：华盛顿特区',bin:'u'},{en:'More factories and railroads',zh:'工厂和铁路更多',bin:'u'},
+    {en:'Jefferson Davis',zh:'杰斐逊·戴维斯',bin:'c'},{en:'Robert E. Lee',zh:'罗伯特·李',bin:'c'},{en:'“Stonewall” Jackson',zh:'“石墙”杰克逊',bin:'c'},{en:'Capital: Richmond, Virginia',zh:'首都：弗吉尼亚州里士满',bin:'c'},{en:'First capital: Montgomery, Alabama',zh:'最初的首都：亚拉巴马州蒙哥马利',bin:'c'},{en:'Grew almost all the cotton',zh:'种植了几乎全部的棉花',bin:'c'}
+  ]
+};
+const mixHex = (a, b, t) => { const h = s => { s = s.replace('#', ''); if (s.length === 3) s = s.replace(/./g, '$&$&'); return [0, 2, 4].map(i => parseInt(s.substr(i, 2), 16)); }; try { const x = h(a), y = h(b); return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join(''); } catch (e) { return a; } };
+
+</script>
+<script>
+/* ================= Map + month slider ================= */
+const App = { t:0, sel:null, timer:null, battles:true, sherman:true, blockade:false };
+function status(ab, t){
+  if (SEC[ab] != null){ if (t < SEC[ab]) return 'slave'; if (READ[ab] != null && t >= READ[ab]) return 'r'; return 'c'; }
+  if (ab === 'WV') return t >= WV ? 'b' : (t >= SEC.VA ? 'c' : 'slave');
+  if (BORDER.includes(ab)) return 'b';
+  if (FREE[ab] != null) return t >= FREE[ab] ? 'u' : 't';
+  return 't';
+}
+const STLAB = { u:o('Union (free state)','联邦（自由州）'), c:o('Confederate state','南部同盟州'), b:o('Border slave state (stayed in the Union)','边境蓄奴州（留在联邦）'), r:o('Readmitted to the Union','已重新加入联邦'), slave:o('Slave state (has not seceded yet)','蓄奴州（尚未脱离）'), t:o('Territory (not yet a state)','领地（尚未建州）') };
+const M = USMap.create('#mapStage', '#mapCv', { lower48:true,
+  fill: f => { const s = status(f.ab, App.t); if (s === 'c' && App.t >= WAR_END) return mixHex(COL.c, USMap.css('--surface') || '#ffffff', .35);
+    return s === 'slave' ? '#e8cfa8' : s === 't' ? null : COL[s]; },
+  overlay: (g, M) => {
+    const ink = USMap.css('--ink'), ink2 = USMap.css('--ink-2'), surf = USMap.css('--surface'), small = M.small, t = App.t;
+    if (App.blockade && t >= MI(1861,4) && t <= WAR_END){ M.line(BLOCKADE, '#2b5aa0', 2.5, [2,6]); const p = M.xy([-79.5,28.5]); if (p && !small) M.text(Lab.L(o('Union naval blockade','联邦海上封锁')), p[0] + 10, p[1], { s:11, a:'left', c:'#2b5aa0' }); }
+    if (App.sherman){ if (t >= MI(1864,11)) M.line(SHERMAN1, '#2b4f8f', 4); if (t >= MI(1865,2)) M.line(SHERMAN2, '#2b4f8f', 3, [7,5]);
+      if (t >= MI(1864,11) && !small){ const p = M.xy([-83.2,32.6]); if (p) M.text(Lab.L(o('March to the Sea','向海洋进军')), p[0], p[1] + 12, { s:11, c:'#2b4f8f' }); } }
+    [['Richmond', [-77.44,37.54], o('Richmond (CSA capital)','里士满（南部同盟首都）'), MI(1861,5)], ['DC', [-77.04,38.9], o('Washington','华盛顿'), 0]].forEach(([k, ll, n, from]) => {
+      if (t < from && k === 'Richmond') return; const p = M.xy(ll); if (!p) return; g.beginPath(); g.moveTo(p[0], p[1] - 6); for (let i = 1; i < 10; i++){ const a = i * Math.PI / 5 - Math.PI / 2, r = i % 2 ? 2.6 : 6; g.lineTo(p[0] + r * Math.cos(a), p[1] + r * Math.sin(a)); } g.closePath(); g.fillStyle = ink; g.fill();
+      if (!small) M.text(Lab.L(n), p[0] + (k === 'DC' ? 9 : -9), p[1] + (k === 'DC' ? -8 : 9), { s:11, a:k === 'DC' ? 'left' : 'right', c:ink }); });
+    if (App.battles) BORDER_ORDER.forEach(k => { const b = BAT[k]; if (t < b.m || t > MI(1866,1) && k !== App.sel) return; const sel = App.sel === k, r = sel ? 9 : 6.5;
+      const c = b.w === 'u' ? '#1f4f9a' : b.w === 'c' ? '#9a4a1f' : ink;
+      const p = M.dot(b.ll, r, c, surf); if (!p) return; if (sel){ g.beginPath(); g.arc(p[0], p[1], r + 4, 0, 7); g.strokeStyle = ink; g.lineWidth = 2; g.stroke(); }
+      if (sel || (!small && t - b.m <= 4)) M.text(b.s ? Lab.L(b.s) : Lab.L(b.n).replace(/ \(.*\)|（.*）/, ''), p[0] + r + 4, p[1], { s:11, a:'left', c:ink, w:800 }); });
+  },
+  click: (f, h) => {
+    if (App.battles){ for (const k of BORDER_ORDER){ const b = BAT[k]; if (App.t < b.m) continue; const p = M.xy(b.ll); if (p && Math.hypot(p[0] - h.x, p[1] - h.y) < 14){ selectBattle(k); return; } } }
+    if (f) selectState(f);
+  },
+  hover: f => f ? Lab.L(o(f.en, f.zh)) + ' · ' + Lab.L(STLAB[status(f.ab, App.t)]) : ''
+});
+const tip = m => Lab.$('#mapTip').textContent = Lab.L(m || o('Click a state or a battle · drag the time','点击州或战役 · 拖动时间'));
+function selectBattle(k){ App.sel = k; App.state = null; renderInfo(); renderChips(); M.draw(); }
+function selectState(f){ App.sel = null; App.state = f; renderInfo(); renderChips(); M.draw(); }
+function renderInfo(){
+  const box = Lab.$('#info');
+  if (App.sel){ const b = BAT[App.sel], i = BORDER_ORDER.indexOf(App.sel);
+    box.innerHTML = `<span class="tag">${Lab.L(o('Battle & event','战役与事件'))}</span><h3><span class="dot" style="background:${b.w === 'u' ? '#1f4f9a' : b.w === 'c' ? '#9a4a1f' : 'var(--ink)'}"></span>${Lab.L(b.n)}</h3>
+      <div class="date">${Lab.L(b.d)}</div><div class="job">${Lab.L(b.r)}</div><b class="kh">${Lab.L(o('📌 KEY FACTS','📌 重要史实'))}</b><ul>${Lab.L(b.f).map(x => `<li>${x}</li>`).join('')}</ul>
+      <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(o('“Sumter starts it, Gettysburg + Vicksburg turn it, Atlanta + the March break it, Appomattox ends it.”','萨姆特堡开战，葛底斯堡、维克斯堡转折，亚特兰大、向海洋进军击垮南方，阿波马托克斯结束。'))}</div>
+      <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+      <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
+    Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(b.n), Lab.L(b.d), Lab.L(b.r), ...Lab.L(b.f)].join(Lab.lang === 'zh' ? '。' : '. '));
+    const go = j => { const k = BORDER_ORDER[(j + BORDER_ORDER.length) % BORDER_ORDER.length]; if (App.t < BAT[k].m) setT(BAT[k].m); selectBattle(k); };
+    Lab.$('#pPrev').onclick = () => go(i - 1); Lab.$('#pNext').onclick = () => go(i + 1); return; }
+  if (App.state){ const f = App.state, s = status(f.ab, App.t), lines = [];
+    if (SEC[f.ab] != null) lines.push(o(`Seceded ${SECD[f.ab].en}.`, `${SECD[f.ab].zh}脱离联邦。`));
+    if (READ[f.ab] != null) lines.push(o(`Readmitted to the Union in ${mlabelEn(READ[f.ab])}.`, `${mlabelZh(READ[f.ab])}重新加入联邦。`));
+    if (BORDER.includes(f.ab)) lines.push(o('A slave state that stayed in the Union. Lincoln worked hard to keep it — Kentucky and Maryland were next to the capital and the Ohio River.','这是一个留在联邦的蓄奴州。林肯竭力把它留住——肯塔基和马里兰紧挨首都和俄亥俄河。'));
+    if (f.ab === 'WV') lines.push(o('Its western counties refused to secede with Virginia and became a new state on 20 June 1863.','这里的西部各县拒绝随弗吉尼亚脱离联邦，于1863年6月20日成立新州。'));
+    if (f.ab === 'GA') lines.push(o('Georgia: Sherman captured Atlanta and marched to Savannah in 1864. It was the last state readmitted, in July 1870.','佐治亚：1864年谢尔曼攻占亚特兰大并进军萨凡纳。它是最后一个重新加入联邦的州（1870年7月）。'));
+    if (FREE[f.ab] != null && FREE[f.ab] > 0) lines.push(o(`Became a state in ${mlabelEn(FREE[f.ab])}.`, `${mlabelZh(FREE[f.ab])}建州。`));
+    box.innerHTML = `<span class="tag">${Lab.L(o('State','州'))} · ${mlabel(App.t)}</span><h3><span class="dot" style="background:${COL[s] || 'var(--surface-2)'}"></span>${Lab.L(o(f.en, f.zh))}</h3>
+      <div class="job">${Lab.L(STLAB[s])}</div><ul>${lines.map(x => `<li>${Lab.L(x)}</li>`).join('') || `<li>${Lab.L(o('Not a state during the war years.','战争期间尚未建州。'))}</li>`}</ul>
+      <div class="mix"><b>${Lab.L(o('⚠️ Don’t mix up:','⚠️ 易错点：'))}</b><span>${Lab.L(o('“Border states” allowed slavery but fought for the Union. Not every slave state joined the Confederacy.','“边境州”允许奴隶制，却站在联邦一边。并不是所有蓄奴州都加入了南部同盟。'))}</span></div>
+      <div class="nav"><button id="backBtn">${Lab.L(o('◀ Map guide','◀ 地图说明'))}</button></div>`;
+    Lab.$('#backBtn').onclick = () => { App.state = null; renderInfo(); }; return; }
+  box.innerHTML = `<span class="tag">${Lab.L(o('How to read the map','怎样看这张地图'))}</span><h3>${Lab.L(o('One nation, split in two','一个国家，一分为二'))}</h3>
+    <p class="muted" style="margin:0">${Lab.L(o('The Civil War (南北战争, 1861–1865) was fought between the Union (the United States) and the Confederacy, eleven Southern states that seceded to protect slavery.','南北战争（Civil War，1861—1865年，又称美国内战）是联邦（Union，即美国）与南部同盟（Confederacy）之间的战争。南部同盟由为维护奴隶制而脱离联邦的11个南方州组成。'))}</p>
+    <ul><li>${Lab.L(o('<b>Blue</b> = Union states · <b>tan</b> = Confederate · <b>purple</b> = border slave states that stayed · <b>green</b> = readmitted after the war.','<b>蓝色</b>＝联邦州 · <b>棕黄色</b>＝南部同盟 · <b>紫色</b>＝留在联邦的边境蓄奴州 · <b>绿色</b>＝战后重新加入。'))}</li>
+    <li>${Lab.L(o('<b>Dots</b> = battles (blue = Union win, brown = Confederate win). <b>Stars</b> = the two capitals, only about 100 miles apart.','<b>圆点</b>＝战役（蓝色为联邦获胜，棕色为南军获胜）。<b>星号</b>＝双方首都，相距只有约160千米（100英里）。'))}</li></ul>
+    <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(o('“7 before Sumter, 4 after” — 11 Confederate states.','“萨姆特堡前7个，之后4个”——南部同盟共11个州。'))}</div>
+    <div class="grid2" style="gap:8px">${PEOPLE.map(p => `<details class="peek"><summary>${Lab.L(p.n)}</summary><p><b>${Lab.L(p.r)}</b> — ${Lab.L(p.t)}</p></details>`).join('')}</div>
+    <div class="nav"><button id="startBtn">${Lab.L(o('Start at Fort Sumter ▶','从萨姆特堡开始 ▶'))}</button></div>`;
+  Lab.$('#startBtn').onclick = () => { setT(BAT.fs.m); selectBattle('fs'); };
+}
+const mlabelEn = i => mlabel(i, "en");
+const mlabelZh = i => mlabel(i, "zh");
+function renderChips(){
+  Lab.$('#batChips').innerHTML = BORDER_ORDER.map(k => `<button class="chip ${App.sel === k ? 'on' : ''} ${App.t >= BAT[k].m ? '' : 'off'}" data-k="${k}"><i style="background:${BAT[k].w === 'u' ? '#1f4f9a' : BAT[k].w === 'c' ? '#9a4a1f' : 'var(--ink)'}"></i>${Lab.L(BAT[k].n).replace(/ \(.*\)|（.*）/, '')}</button>`).join('');
+  Lab.$$('#batChips .chip').forEach(b => b.onclick = () => { const k = b.dataset.k; if (App.t < BAT[k].m) setT(BAT[k].m); selectBattle(k); });
+  Lab.$('#legend').innerHTML = [['u'],['c'],['b'],['r']].map(([k]) => `<span><i style="background:${COL[k]}"></i>${Lab.L(STLAB[k])}</span>`).join('') + `<span><i style="background:#e8cfa8"></i>${Lab.L(o('Slave state, before seceding','脱离联邦前的蓄奴州'))}</span>`;
+}
+const curM = () => { let c = EMS[0]; EMS.forEach(m => { if (m <= App.t) c = m; }); return c; };
+function renderT(){
+  const t = App.t, c = curM();
+  Lab.$('#tm').value = t; Lab.$('#tmOut').textContent = mlabel(t); Lab.$('#ycDate').textContent = mlabel(c);
+  Lab.$('#ycList').innerHTML = EV.filter(e => e.m === c).map(e => `<div class="yc-ev"><h4>${Lab.L(e.t)}</h4><p>${Lab.L(e.b)}</p></div>`).join('');
+  const cn = CN.filter(x => x.m <= t).pop(); Lab.$('#cnBox').innerHTML = `<small>${Lab.L(o('🇨🇳 Meanwhile in China','🇨🇳 同一时期的中国'))}</small>${Lab.L(cn.t)}`;
+  const all = Object.keys(USMap.ST).filter(id => id !== '11' && id !== '02' && id !== '15').map(id => USMap.ST[id][0]), cnt = s => all.filter(a => status(a, t) === s).length;
+  Lab.$('#roU').textContent = cnt('u'); Lab.$('#roC').textContent = cnt('c'); Lab.$('#roB').textContent = cnt('b'); Lab.$('#roR').textContent = cnt('r'); Lab.$("#roCl").textContent = Lab.L(t >= WAR_END ? o("former Confederate, not yet readmitted","尚未重新加入的前南部同盟州") : o("Confederate states","南部同盟州"));
+  Lab.$('#playBtn').textContent = App.timer ? '⏸' : '▶';
+  renderChips(); M.draw();
+}
+function setT(t){ App.t = Math.max(0, Math.min(197, t)); renderT(); }
+function stop(){ if (App.timer){ clearInterval(App.timer); App.timer = null; } }
+const stepM = d => { const c = curM(), i = EMS.indexOf(c); return d > 0 ? EMS[Math.min(EMS.length - 1, i + 1)] : (App.t > c ? c : EMS[Math.max(0, i - 1)]); };
+const evGo = m => { stop(); setT(m); const e = EV.filter(e => e.m === curM() && e.k).pop(); if (e) selectBattle(e.k); };
+Lab.$('#tm').oninput = e => { stop(); setT(+e.target.value); };
+Lab.$('#evPrev').onclick = () => evGo(stepM(-1)); Lab.$('#evNext').onclick = () => evGo(stepM(1));
+Lab.$('#playBtn').onclick = () => { if (App.timer){ stop(); renderT(); return; } if (App.t >= 197) setT(0);
+  App.timer = setInterval(() => { if (App.t >= 197){ stop(); renderT(); } else { const m = stepM(1); setT(m); const e = EV.filter(e => e.m === m && e.k).pop(); if (e){ App.sel = e.k; App.state = null; renderInfo(); renderChips(); M.draw(); } } }, 2000); renderT(); };
+[['btnBattles','battles'],['btnSherman','sherman'],['btnBlockade','blockade']].forEach(([id, k]) => Lab.$('#' + id).onclick = () => { App[k] = !App[k]; Lab.$('#' + id).classList.toggle('on', App[k]); M.draw(); });
+Lab.$('#speakGA').onclick = () => Lab.speak(Lab.$('.speech blockquote').textContent);
+Lab.onLang(() => { tip(); renderInfo(); renderT(); Lab.$('#speakGA').textContent = Lab.L(Lab.UI.listen); });
+
+/* ================= Turning points game ================= */
+(function(){
+  const G = { round:1, score:0, set:[], placed:[], msg:null, badK:null, tried:false, miss:0, stars:0 };
+  function newRound(){ G.set = Lab.shuffle(TP).slice(0, 6); G.placed = []; G.msg = null; G.badK = null; G.tried = false; G.miss = 0; G.stars = 0; render(); }
+  function render(){
+    const lane = Lab.$('#ogLane'); lane.dataset.hint = Lab.L(o('Earliest event first ↓','从最早的事件开始 ↓'));
+    lane.innerHTML = G.placed.map(e => `<div class="placed"><b>${Lab.L(e.d)}</b>${Lab.L(e.t)}<p>💡 ${Lab.L(e.w)}</p></div>`).join('');
+    const left = G.set.filter(e => !G.placed.includes(e));
+    Lab.$('#ogPool').innerHTML = left.map(e => `<button class="ev ${G.badK === e.k ? 'bad' : ''}" data-k="${e.k}">${Lab.L(e.t)}</button>`).join('');
+    Lab.$$('#ogPool .ev').forEach(b => b.onclick = () => pick(+b.dataset.k));
+    Lab.$('#ogScore').textContent = G.score; Lab.$('#ogDone').textContent = G.placed.length + '/' + G.set.length; Lab.$('#ogRound').textContent = G.round;
+    Lab.$('#ogStars').textContent = G.placed.length === G.set.length ? '★'.repeat(G.stars) + '☆'.repeat(3 - G.stars) : '☆☆☆';
+    Lab.$('#ogBar').style.width = (G.placed.length / G.set.length * 100) + '%';
+    Lab.$('#ranks').innerHTML = RANKS.map(x => `<span class="${G.score >= x.s ? 'on' : ''}">${Lab.L(x.n)}</span>`).join('');
+    const m = Lab.$('#ogMsg'); m.textContent = G.msg ? Lab.L(G.msg.t) : ''; m.className = 'result ' + (G.msg ? G.msg.c : '');
+  }
+  function pick(k){
+    const left = G.set.filter(e => !G.placed.includes(e)), next = left.reduce((a, b) => a.k < b.k ? a : b), ev = G.set.find(e => e.k === k);
+    if (k === next.k){ G.placed.push(ev); if (!G.tried) G.score += 2; G.tried = false; G.badK = null;
+      if (G.placed.length === G.set.length){ G.stars = G.miss === 0 ? 3 : G.miss <= 2 ? 2 : 1; G.score += G.stars; const rk = RANKS.filter(x => G.score >= x.s).pop();
+        G.msg = { c:'good', t:o(`🎉 Round complete: ${G.stars} star${G.stars > 1 ? 's' : ''}! Total ${G.score} points — rank: ${rk.n.en}.`, `🎉 本轮完成：${G.stars}颗星！总分${G.score}——军衔：${rk.n.zh}。`) }; }
+      else G.msg = { c:'good', t:o(`✅ ${ev.t.en} — ${ev.d.en}.`, `✅ ${ev.t.zh}——${ev.d.zh}。`) };
+    } else { G.tried = true; G.miss++; G.badK = k; G.msg = { c:'bad', t:o(`❌ “${ev.t.en}” happened in ${ev.d.en}. Something earlier is still waiting.`, `❌ “${ev.t.zh}”发生在${ev.d.zh}，还有更早的事件。`) }; }
+    render();
+  }
+  Lab.$('#ogNext').onclick = () => { G.round++; newRound(); };
+  Lab.onLang(() => { if (G.set.length) render(); });
+  newRound();
+})();
+
+/* ================= North vs South data figure ================= */
+(function(){
+  const S = { g:{} };
+  function render(){
+    Lab.$('#resRows').innerHTML = RES.map((r, i) => { const g = S.g[i], max = Math.max(r.u, r.c), fmt = v => v.toLocaleString('en-US') + (r.unit.en === '%' || r.unit.en.startsWith('%') ? '%' : '');
+      const lab = v => r.unit.en.startsWith('%') ? v + '%' : (r.unit.en === 'million' ? (Lab.lang === 'zh' ? v * 100 + '万' : v + ' million') : v.toLocaleString('en-US'));
+      return `<div class="rrow"><b>${Lab.L(r.n)}</b><div class="rb">
+        <div><span>🔵</span><span class="t"><i style="width:${g ? r.u / max * 100 : 0}%;background:${COL.u}"></i></span><span>${g ? lab(r.u) : '?'}</span></div>
+        <div><span>🟤</span><span class="t"><i style="width:${g ? r.c / max * 100 : 0}%;background:${COL.c}"></i></span><span>${g ? lab(r.c) : '?'}</span></div>
+        ${g ? `<small class="muted">${g === r.a ? '✅' : '💡'} ${Lab.L(r.why)}</small>` : ''}</div>
+        <div class="guess">${['u','c'].map(v => `<button data-i="${i}" data-v="${v}" class="${g ? (v === r.a ? 'right' : v === g ? 'wrong' : '') : ''}" ${g ? 'disabled' : ''}>${v === 'u' ? Lab.L(o('🔵 Union','🔵 联邦')) : Lab.L(o('🟤 Confederacy','🟤 南部同盟'))}</button>`).join('')}</div></div>`; }).join('');
+    Lab.$$('#resRows .guess button').forEach(b => b.onclick = () => { S.g[b.dataset.i] = b.dataset.v; render(); });
+    const n = Object.keys(S.g).length, right = Object.entries(S.g).filter(([i, v]) => RES[i].a === v).length, m = Lab.$('#resMsg');
+    m.className = 'result good'; m.textContent = n ? Lab.L(o(`${right} of ${n} guesses right. ${n === RES.length ? 'The North’s factories, railroads and people mattered more in a long war — but the South had skilled generals and fought mostly on home ground.' : ''}`, `猜对${right}／${n}项。${n === RES.length ? '在持久战中，北方的工厂、铁路和人口更起作用；不过南方将领善战，又大多在本土作战。' : ''}`)) : '';
+  }
+  Lab.onLang(render);
+})();
+
+/* ================= Amendments matcher ================= */
+(function(){
+  const S = { sel:null, done:{}, bad:null, miss:0, cards:Lab.shuffle(AMDC.map((c, i) => ({ ...c, i }))) };
+  function render(){
+    Lab.$('#amd').innerHTML = AMD.map(a => `<div class="slot ${S.sel != null ? 'ready' : ''}" data-a="${a.k}"><h4>${Lab.L(a.n)}</h4><small>${Lab.L(a.s)}</small>${S.cards.filter(c => S.done[c.i] && c.a === a.k).map(c => `<div class="got">✓ ${Lab.L(c.t)}</div>`).join('')}</div>`).join('');
+    Lab.$('#amdCards').innerHTML = S.cards.filter(c => !S.done[c.i]).map(c => `<button data-i="${c.i}" class="${S.sel === c.i ? 'sel' : ''} ${S.bad === c.i ? 'bad' : ''}">${Lab.L(c.t)}</button>`).join('');
+    Lab.$$('#amdCards button').forEach(b => b.onclick = () => { S.sel = +b.dataset.i; S.bad = null; render(); });
+    Lab.$$('#amd .slot').forEach(s => s.onclick = () => { if (S.sel == null) return; const c = AMDC[S.sel];
+      if (c.a === s.dataset.a){ S.done[S.sel] = 1; S.sel = null; S.bad = null; } else { S.bad = S.sel; S.miss++; } render(); });
+    const n = Object.keys(S.done).length, m = Lab.$('#amdMsg');
+    m.className = 'result ' + (S.bad != null ? 'bad' : 'good');
+    m.textContent = n === AMDC.length ? Lab.L(o(`🎉 All 9 placed with ${S.miss} mistake${S.miss === 1 ? '' : 's'}. Memory hook: 13 = free, 14 = citizen, 15 = vote.`, `🎉 9张卡片全部放对，失误${S.miss}次。记忆口诀：十三自由，十四公民，十五投票。`))
+      : S.bad != null ? Lab.L(o('Not that one — try another amendment.','不对哦——换一条修正案试试。')) : Lab.L(o(`${n} of 9 placed.`, `已放对${n}／9张。`));
+  }
+  Lab.onLang(render);
+})();
+
+Lab.quiz(Lab.$('#quiz'), QUIZ, { count:12 });
+Lab.sort(Lab.$('#sort'), SORT);
+const CQ = '?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', CT = 'https://thumb.wikimedia.org/wikipedia/commons/thumb/', CU = 'https://upload.wikimedia.org/wikipedia/commons/', CP = 'https://commons.wikimedia.org/wiki/File:';
+const VID = o('Video','视频'), HP = o('Historic photo','历史照片'), DOC = o('Document','原始文件');
+const PHOTOS = [
+  { src:CU + 'a/a8/Fort_sumter_1861.jpg', en:'Fort Sumter in 1861, with the Confederate flag flying over it after the surrender (detail from a stereoscopic photograph).', zh:'1861年的萨姆特堡，要塞投降后上空飘着南部同盟的旗帜（立体照片局部）。', kind:HP, credit:'Alma A. Pelot', license:'Public domain', page:CP + 'Fort_sumter_1861.jpg' },
+  { src:CT + '1/1b/Abraham_Lincoln_November_1863.jpg/960px-Abraham_Lincoln_November_1863.jpg' + CQ, en:'Abraham Lincoln in November 1863, photographed by Alexander Gardner — less than two weeks before the Gettysburg Address.', zh:'1863年11月的亚伯拉罕·林肯，亚历山大·加德纳拍摄——距葛底斯堡演说不到两周。', kind:HP, credit:'Alexander Gardner', license:'Public domain', page:CP + 'Abraham_Lincoln_November_1863.jpg' },
+  { src:CT + '5/54/Emancipation_Proclamation%2C_01-01-1863_%28Page_1_of_5%29_%283695343876%29.jpg/960px-Emancipation_Proclamation%2C_01-01-1863_%28Page_1_of_5%29_%283695343876%29.jpg' + CQ, en:'Page 1 of the Emancipation Proclamation, 1 January 1863 (National Archives).', zh:'《解放黑人奴隶宣言》第一页，1863年1月1日（美国国家档案馆藏）。', kind:DOC, credit:'The U.S. National Archives', license:'Public domain', page:CP + 'Emancipation_Proclamation,_01-01-1863_(Page_1_of_5)_(3695343876).jpg' },
+  { src:CT + 'c/c5/Frederick_Douglass_%28circa_1879%29.jpg/960px-Frederick_Douglass_%28circa_1879%29.jpg' + CQ, en:'Frederick Douglass, about 1879. He escaped slavery and became the most famous abolitionist speaker in America.', zh:'弗雷德里克·道格拉斯（约1879年）。他逃离奴隶制，成为美国最著名的废奴主义演说家。', kind:HP, credit:'George Kendall Warren', license:'Public domain', page:CP + 'Frederick_Douglass_(circa_1879).jpg' },
+  { src:CT + '9/96/Harriet_Tubman_by_Squyer%2C_NPG%2C_c1885.jpg/960px-Harriet_Tubman_by_Squyer%2C_NPG%2C_c1885.jpg' + CQ, en:'Harriet Tubman, about 1885 (National Portrait Gallery). She led people out of slavery on the Underground Railroad and served the Union as a scout.', zh:'哈丽雅特·塔布曼（约1885年，美国国家肖像馆藏）。她通过“地下铁路”带领奴隶逃向自由，还为联邦军担任侦察员。', kind:HP, credit:'Horatio Seymour Squyer', license:'Public domain', page:CP + 'Harriet_Tubman_by_Squyer,_NPG,_c1885.jpg' },
+  { src:CT + '3/3f/Memorial_to_Robert_Gould_Shaw_and_the_54th_Massachusetts_Volunteer_Infantry_Regiment%2C_Boston.JPG/960px-Memorial_to_Robert_Gould_Shaw_and_the_54th_Massachusetts_Volunteer_Infantry_Regiment%2C_Boston.JPG' + CQ, en:'The memorial to Colonel Robert Gould Shaw and the 54th Massachusetts, one of the first Black regiments in the Union army (Boston Common).', zh:'波士顿公园里纪念罗伯特·古尔德·肖上校和马萨诸塞第54团的浮雕——这是联邦军中最早的黑人团之一。', kind:o('Memorial','纪念碑'), credit:'Daderot', license:'Public domain', page:CP + 'Memorial_to_Robert_Gould_Shaw_and_the_54th_Massachusetts_Volunteer_Infantry_Regiment,_Boston.JPG' },
+  { src:CU + '4/4f/Atlanta%2C_Ga._Ruins_of_depot%2C_blown_up_on_Sherman%27s_departure_LOC_cwpb.02225.jpg', en:'Atlanta, Georgia, 1864: ruins of the railroad depot, blown up when Sherman’s army left the city (George N. Barnard, Library of Congress).', zh:'1864年佐治亚州亚特兰大：谢尔曼部队离开时炸毁的火车站废墟（乔治·巴纳德摄，美国国会图书馆藏）。', kind:HP, credit:'George N. Barnard (Library of Congress)', license:'Public domain', page:CP + 'Atlanta,_Ga._Ruins_of_depot,_blown_up_on_Sherman%27s_departure_LOC_cwpb.02225.jpg' },
+  { src:CT + '1/1f/13th_Amendment_signed_by_Abraham_Lincoln.jpg/960px-13th_Amendment_signed_by_Abraham_Lincoln.jpg' + CQ, en:'A copy of the 13th Amendment signed by Abraham Lincoln and members of Congress in 1865.', zh:'一份由林肯和国会议员签名的第十三条修正案副本（1865年）。', kind:DOC, credit:'Abraham Lincoln and members of Congress', license:'Public domain', page:CP + '13th_Amendment_signed_by_Abraham_Lincoln.jpg' },
+  { src:CT + 'c/c4/View_from_Little_Round_Top%2C_looking_West.jpg/960px-View_from_Little_Round_Top%2C_looking_West.jpg' + CQ, en:'Gettysburg battlefield today: the view west from Little Round Top, a hill the Union army held on the battle’s second day.', zh:'今天的葛底斯堡战场：从小圆顶山向西眺望。战役第二天，联邦军守住了这座小山。', kind:o('Photo','照片'), credit:'Northern-Virginia-Photographer', license:'CC BY-SA 4.0', page:CP + 'View_from_Little_Round_Top,_looking_West.jpg' },
+  { src:CU + '8/8d/McLean_house_1865_April.jpg', en:'The McLean House at Appomattox Court House, photographed in April 1865 — where Lee surrendered to Grant.', zh:'1865年4月拍摄的阿波马托克斯法院村麦克莱恩之家——李就是在这里向格兰特投降的。', kind:o('Historic photo','历史照片'), credit:'Timothy H. O’Sullivan', license:'Public domain', page:CP + 'McLean_house_1865_April.jpg' },
+  { type:'youtube', yt:'7ALyq3seK2g', en:'Video: The Battle of Gettysburg — the Civil War in four minutes.', zh:'视频：四分钟讲葛底斯堡战役（英文）。', kind:VID, credit:'American Battlefield Trust (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'v9pjvo1_oto', en:'Video: The Emancipation Proclamation — the Civil War in four minutes.', zh:'视频：四分钟讲《解放黑人奴隶宣言》（英文）。', kind:VID, credit:'American Battlefield Trust (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'KK2K6P2RDpA', en:'Video: the Emancipation Proclamation and General Order No. 3 (the Juneteenth order).', zh:'视频：《解放黑人奴隶宣言》与“第3号命令”（“六月节”命令）（英文）。', kind:VID, credit:'US National Archives (YouTube)', license:'YouTube' }
+];
+LabPhotos.render('#gallery', PHOTOS, { title:o('See the real thing','看看真实的历史'), sub:o('Real photographs, documents and videos from the National Archives, the Library of Congress and the American Battlefield Trust. Click to enlarge; videos open on YouTube.','来自美国国家档案馆、国会图书馆和美国战场信托的真实照片、文件和视频。点击可放大；视频在 YouTube 打开。') });
+
+
+</script>
+</body>
+</html>
