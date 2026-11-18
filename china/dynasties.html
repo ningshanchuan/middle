@@ -1,0 +1,848 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dynasty Challenge: 4,000 Years on One Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/chinamap.js"></script>
+<script src="../shared/photos.js"></script>
+<style>
+.mtrack{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:18px}
+.mt{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border:2px solid var(--line);border-radius:14px;background:var(--surface);text-decoration:none;color:var(--ink)}
+.mt b{font-size:15px}.mt span{font-size:12.5px;color:var(--ink-2);font-weight:700}
+.mt .st{color:var(--warn);font-size:17px;letter-spacing:2px;font-weight:800}
+.mt.done{border-color:var(--good)}
+.mbar{height:10px;border-radius:999px;background:var(--surface-2);overflow:hidden;margin-top:10px}
+.mbar i{display:block;height:100%;width:0;background:var(--brand);transition:width .4s}
+#mapStage{min-height:600px}
+#mapCv{cursor:default}
+.stage .eraname{position:absolute;left:14px;top:60px;z-index:3;pointer-events:none;font-family:Fredoka;font-weight:600;font-size:30px;line-height:1.05;color:var(--ink);text-shadow:0 0 6px var(--surface),0 0 3px var(--surface)}
+.stage .eraname small{display:block;font-family:Nunito,sans-serif;font-size:14px;font-weight:800;color:var(--ink-2)}
+.tbwrap{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+.timebar .yr{display:flex;flex-direction:column;align-items:center;min-width:120px}
+.timebar .yr output{min-width:0;font-size:21px;line-height:1.1}
+.timebar .yr small{font-size:12px;font-weight:800;color:var(--ink-2)}
+.erastrip{display:flex;height:30px;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:var(--surface-2)}
+.erastrip button{border:0;padding:0;min-width:3px;position:relative;opacity:.55;font-size:11px;font-weight:800;color:#fff;overflow:hidden;white-space:nowrap;text-overflow:clip}
+.erastrip button.on{opacity:1;box-shadow:inset 0 0 0 3px var(--ink)}
+.erastrip button.seen{opacity:.85}
+.eraticks{position:relative;height:16px;margin:0 1px}
+.eraticks span{position:absolute;transform:translateX(-50%);font-size:11.5px;font-weight:700;color:var(--ink-2);white-space:nowrap}
+.erabtns{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.erabtns .note{font-size:14px;font-weight:800;color:var(--ink-2)}
+.info .kv{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:15px}
+.info .kv b{color:var(--ink-2);font-size:13px;letter-spacing:.04em;text-transform:uppercase;align-self:center}
+.info .date{font-family:Fredoka;font-weight:600;font-size:19px;color:var(--brand);margin-top:-8px}
+.bm{border-left:5px solid var(--brand);background:var(--surface-2);border-radius:0 14px 14px 0;padding:10px 14px}
+.bm small{display:block;font-weight:800;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--brand)}
+.bm h4{margin:2px 0 4px;font-size:18px}
+.bm p{margin:0;font-size:15px}
+.bm a{font-weight:800;font-size:14px;display:inline-block;margin-top:6px}
+.mw{font-size:14.5px;color:var(--ink-2)}
+.mw b{color:var(--ink)}
+.ctxrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+/* length chart */
+.lc{padding:20px;display:flex;flex-direction:column;gap:12px}
+.lc-rows{display:flex;flex-direction:column;gap:5px;position:relative}
+.lr{display:grid;grid-template-columns:150px minmax(0,1fr) 74px;gap:10px;align-items:center;border:0;background:none;padding:2px 0;text-align:left;font:inherit;color:inherit}
+.lr .ln{font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lr .lt{position:relative;height:18px;background:var(--surface-2);border-radius:6px}
+.lr .lt i{position:absolute;left:0;top:0;bottom:0;border-radius:6px;transition:width .5s}
+.lr .lv{font-family:Fredoka;font-weight:600;font-size:15px;text-align:right}
+.lr.par .ln{font-weight:700;color:var(--ink-2);font-style:italic}
+.lr.us .ln{color:var(--accent)}
+.lr.hid .lt i{width:0 !important}.lr.hid .lv{color:transparent}
+.lr.pick .lt{outline:3px solid var(--brand);outline-offset:1px}
+.lc-line{position:absolute;top:-6px;bottom:-6px;width:0;border-left:2px dashed var(--accent);pointer-events:none}
+.lc-line span{position:absolute;top:-18px;left:-30px;width:60px;text-align:center;font-size:11px;font-weight:800;color:var(--accent)}
+.lc-axis{display:grid;grid-template-columns:150px minmax(0,1fr) 74px;gap:10px}
+.lc-axis div{position:relative;height:16px}
+.lc-axis span{position:absolute;transform:translateX(-50%);font-size:11.5px;color:var(--ink-2);font-weight:700}
+.lc-say{font-weight:800;min-height:26px}
+.guess{padding:20px;display:flex;flex-direction:column;gap:12px}
+.guess .gq{font-family:Fredoka;font-size:24px}
+.guess .gv{font-family:Fredoka;font-size:30px;color:var(--brand)}
+/* song game */
+.song{padding:20px;display:flex;flex-direction:column;gap:14px}
+.sl{display:flex;flex-direction:column;gap:2px;padding:8px 12px;border-radius:12px;border:1px solid transparent}
+.sl.now{border-color:var(--line);background:var(--surface-2)}
+.sl .zhl{font-size:26px;font-weight:800;letter-spacing:.08em;line-height:1.5}
+.sl .enl{font-size:14px;color:var(--ink-2);font-weight:700}
+.sl .ch{display:inline-block;transition:color .1s,transform .1s}
+.sl .ch.beat{color:var(--brand);transform:translateY(-3px)}
+.sl .tok{display:inline-block;border-bottom:3px solid transparent}
+.sl .tok.blank{min-width:1.6em;border-bottom-color:var(--ink-2);color:transparent;text-align:center}
+.sl .tok.blank.now{border-bottom-color:var(--brand);background:color-mix(in srgb,var(--brand) 12%,transparent)}
+.sl .tok.got{color:var(--good)}
+.sl .tok.miss{color:var(--bad)}
+.sopts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;min-height:54px}
+.sopts button{border:2px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:14px;padding:10px;font-weight:800;font-size:18px}
+.sopts button:hover{border-color:var(--brand)}
+.sbeat{height:8px;border-radius:999px;background:var(--surface-2);overflow:hidden}
+.sbeat i{display:block;height:100%;width:0;background:var(--accent)}
+/* timeline challenge */
+.tc{padding:22px;display:flex;flex-direction:column;gap:14px}
+.tc .counters{grid-template-columns:repeat(4,minmax(0,1fr))}
+.tc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px;touch-action:none}
+.tcard{position:relative;border:2px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:10px 8px 8px 26px;font-weight:800;font-size:16px;text-align:left;user-select:none;-webkit-user-select:none;min-height:52px;cursor:grab}
+.tcard small{position:absolute;left:7px;top:6px;font-family:Fredoka;font-size:13px;color:var(--ink-2)}
+.tcard span{display:block;font-size:12px;color:var(--ink-2);font-weight:700}
+.tcard.sel{border-color:var(--brand);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 30%,transparent)}
+.tcard.ok{border-color:var(--good);background:color-mix(in srgb,var(--good) 12%,var(--surface))}
+.tcard.bad{border-color:var(--bad);animation:labshake .35s}
+.tcard.drag{opacity:.35}
+.tc-ghost{position:fixed;z-index:999;pointer-events:none;transform:translate(-50%,-50%) rotate(-3deg);box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.clue{border:2px solid var(--line);border-radius:16px;padding:16px;background:var(--surface-2)}
+.clue small{font-weight:800;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--brand)}
+.clue b{display:block;font-size:20px;margin-top:4px}
+.copts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.copts button{border:2px solid var(--line);background:var(--surface);color:var(--ink);border-radius:14px;padding:12px 8px;font-weight:800;font-size:16px}
+.copts button.right{border-color:var(--good);background:color-mix(in srgb,var(--good) 15%,var(--surface))}
+.copts button.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 13%,var(--surface))}
+.rankbox{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:14px 16px;border-radius:16px;border:1px dashed var(--brand);background:color-mix(in srgb,var(--brand) 7%,var(--surface))}
+.rankbox .big{font-family:Fredoka;font-size:36px;color:var(--brand);line-height:1}
+.ranks{display:flex;gap:6px;flex-wrap:wrap;font-size:13px;font-weight:800;color:var(--ink-2)}
+.ranks span{border:1px solid var(--line);border-radius:999px;padding:2px 9px}
+.ranks span.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) :is(.rankbox .big,.guess .gv,.bm small,.info .date){color:color-mix(in srgb,var(--brand) 58%,#fff)}}
+:root[data-theme="dark"] :is(.rankbox .big,.guess .gv,.bm small,.info .date){color:color-mix(in srgb,var(--brand) 58%,#fff)}
+@media (max-width:980px){.mtrack{grid-template-columns:1fr 1fr}}
+@media (max-width:560px){
+  #mapStage{min-height:400px}
+  .eraticks span:nth-child(even){display:none}
+  .stage .eraname{font-size:22px;top:96px}
+  .lr,.lc-axis{grid-template-columns:96px minmax(0,1fr) 54px;gap:6px}
+  .lr .ln{font-size:12.5px}
+  .sl .zhl{font-size:21px}
+  .sopts,.copts{grid-template-columns:1fr 1fr}
+  .tc .counters{grid-template-columns:1fr 1fr}
+  .timebar .yr{min-width:92px}
+  .timebar .yr output{font-size:17px}
+}
+</style>
+</head>
+<body data-subject="china" data-topic="dynasties">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="历史 · 七年级上下册综合 · 朝代更替">History · Grades 7 · All the dynasties</span>
+  <h1 data-zh-html="朝代大挑战：<em>一张地图看四千年</em>">Dynasty Challenge: <em>4,000 years on one map</em></h1>
+  <p class="lead" data-zh="美国建国大约250年。中国光是一个唐朝就延续了290年——而从夏朝到清朝，一共将近四千年！这么多朝代，你能按顺序排出来吗？">The USA is about 250 years old. China’s Tang dynasty alone lasted 290 years — and from the first dynasty to the last is almost 4,000 years. Could you put them all in order?</p>
+  <p class="lead" style="margin-top:8px" data-zh-html="<b>你的任务：</b>拖动时间轴看版图怎样变化，测一测每个朝代有多长，唱会《朝代歌》，最后挑战“朝代时间轴”，争取考中“状元”！"><b>Your mission:</b> scrub 4,000 years of maps, measure every dynasty, learn the Dynasty Song — then beat the Timeline Challenge and earn the top exam rank, <i>zhuàngyuan</i> (状元).</p>
+  <div class="mtrack" id="mtrack"></div>
+  <div class="mbar"><i id="mbar"></i></div>
+</header>
+
+<section class="wrap" id="map" data-nav="Time map" data-nav-zh="时间地图">
+  <div class="sec-head">
+    <h2 data-zh="任务 1：四千年，一张地图">Mission 1: 4,000 years, one map</h2>
+    <p data-zh="拖动年份（公元前2070年—1912年）或按“下一个朝代”。版图会变形，星号是都城，右边卡片告诉你这个朝代的“大事”。看完全部19个时期就完成任务。">Drag the year (2070 BCE → 1912 CE) or press “Next dynasty”. The territory morphs, the star marks the capital, and the card tells you each era’s big moment. Visit all 19 eras to finish the mission.</p>
+  </div>
+  <div class="explorer">
+    <div>
+      <div class="stage card" id="mapStage">
+        <canvas id="mapCv"></canvas>
+        <div class="eraname" id="eraName"></div>
+        <div class="toolbar">
+          <button class="tbtn on" data-layer="today" data-zh="🗺 今天的中国">🗺 Today’s China</button>
+          <button class="tbtn on" data-layer="cap" data-zh="⭐ 都城">⭐ Capitals</button>
+          <button class="tbtn on" data-layer="lab" data-zh="🏷 名称">🏷 Names</button>
+        </div>
+        
+      </div>
+      <div class="tbwrap">
+        <div class="timebar"><button id="playBtn" aria-label="Play">▶</button><input id="yr" type="range" min="-2070" max="1911" step="1" value="-2070" aria-label="Year"><div class="yr"><output id="yrOut"></output><small id="yrEra"></small></div></div>
+        <div class="erastrip" id="eraStrip"></div>
+        <div class="eraticks" id="eraTicks"></div>
+        <div class="erabtns"><button class="btn ghost" id="eraPrev" data-zh="◀ 上一个朝代">◀ Previous dynasty</button><button class="btn" id="eraNext" data-zh="下一个朝代 ▶">Next dynasty ▶</button><span class="note" id="seenNote"></span></div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="grid2" style="margin-top:16px">
+    <details class="peek"><summary data-zh="为什么条带里秦朝那么细？">Why is Qin just a sliver on the strip?</summary><p data-zh="时间条是按真实比例画的：秦朝只有15年，而商朝约有550年。短命的朝代在四千年里就像一根细线——试试点一下它。">The strip is drawn to scale. Qin lasted 15 years; Shang about 550. In 4,000 years a short dynasty is a hair-thin line — tap it to jump there.</p></details>
+    <details class="peek"><summary data-zh="这些地图有多准确？">How exact are these maps?</summary><p data-zh="这是示意图：边界经过简化，每个朝代只画了一个时间点的大致范围（如唐朝约669年、元朝约1330年、明朝约1433年、清朝约1820年），细节以教材地图为准。">They are schematic (示意图): simplified borders, each showing roughly one moment (Tang about 669, Yuan about 1330, Ming about 1433, Qing about 1820). Your textbook’s maps have the details.</p></details>
+  </div>
+</section>
+
+<section class="wrap" id="lengths" data-nav="How long?" data-nav-zh="有多长">
+  <div class="sec-head">
+    <h2 data-zh="任务 2：每个朝代有多长？">Mission 2: how long did each one last?</h2>
+    <p data-zh="每根条都按真实比例画。橙色虚线是美国从1776年到今天的长度（约250年）。先玩“猜长度”：条被藏起来，你来猜它有多少年！">Every bar is to scale. The orange dashed line is the whole history of the USA (1776 → today, about 250 years). First play “Guess the length”: a bar is hidden — you guess how many years.</p>
+  </div>
+  <div class="sim">
+    <div class="card lc">
+      <div class="btnrow"><button class="tbtn on" id="lcChron" data-zh="按时间">In time order</button><button class="tbtn" id="lcLong" data-zh="按长短">Longest first</button><button class="tbtn" id="lcPar" data-zh="＋同时并立的政权（辽、西夏、金）">+ Regimes alongside (Liao, Western Xia, Jin)</button></div>
+      <div class="lc-rows" id="lcRows"></div>
+      <div class="lc-axis" id="lcAxis"></div>
+      <div class="lc-say" id="lcSay"></div>
+      <p class="muted" style="margin:0;font-size:13px" data-zh="数据：统编版《中国历史》七年级上、下册及《中国历史朝代公元对照简表》。夏、商的年代为约数（夏商周断代工程）；清朝从1644年入关算起；“约”表示近似值。">Data: China’s national history textbooks (Grade 7) and the standard “Chinese dynasties and Western years” table. Xia and Shang dates are approximate (from the Xia–Shang–Zhou Chronology Project); Qing counted from 1644. “≈” marks approximate values.</p>
+    </div>
+    <div class="card guess">
+      <h3 data-zh="🎯 猜长度">🎯 Guess the length</h3>
+      <p class="muted" style="margin:0" data-zh="5轮。拖动滑块猜这个朝代延续了多少年，然后锁定。平均误差越小，星星越多。">5 rounds. Drag to guess how many years the dynasty lasted, then lock it in. The smaller your average miss, the more stars.</p>
+      <div class="counters"><div class="counter"><b id="gRound">1/5</b><span data-zh="轮次">round</span></div><div class="counter"><b id="gErr">–</b><span data-zh="平均误差">average miss</span></div></div>
+      <div class="gq" id="gQ"></div>
+      <label class="ctl"><span data-zh="你的猜测">Your guess</span><input type="range" id="gIn" min="0" max="600" step="5" value="200"><b class="gv" id="gV">200</b></label>
+      <div class="btnrow"><button class="btn" id="gGo" data-zh="锁定！">Lock it in!</button><button class="btn ghost" id="gNext" data-zh="下一轮 ▶">Next ▶</button></div>
+      <div class="result" id="gMsg"></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="song" data-nav="Dynasty song" data-nav-zh="朝代歌">
+  <div class="sec-head">
+    <h2 data-zh="任务 3：《朝代歌》节奏挑战">Mission 3: the Dynasty Song rhythm challenge</h2>
+    <p data-zh="中国学生用这首五言《朝代歌》记朝代顺序。按“开始”，跟着节拍读；节拍走到空格时，在4拍之内选出缺少的朝代。越快越高分，连对有加成！">Chinese students memorise the dynasties with this five-beat rhyme, the Cháodài Gē (朝代歌). Press Start and follow the beat; when it reaches a gap, pick the missing dynasty within 4 beats. Faster = more points; streaks give a bonus.</p>
+  </div>
+  <div class="card song">
+    <div class="btnrow"><button class="tbtn on" data-lv="1" data-zh="第1关：5个空">Level 1: 5 gaps</button><button class="tbtn" data-lv="2" data-zh="第2关：10个空">Level 2: 10 gaps</button><button class="tbtn" data-lv="3" data-zh="第3关：全部18个">Level 3: all 18</button><button class="tbtn on" id="sSound" data-zh="🔊 节拍声">🔊 Beat sound</button></div>
+    <div class="counters" style="grid-template-columns:repeat(4,minmax(0,1fr))"><div class="counter"><b id="sScore">0</b><span data-zh="得分">score</span></div><div class="counter"><b id="sStreak">0</b><span data-zh="连对">streak</span></div><div class="counter"><b id="sLeft">–</b><span data-zh="剩余空格">gaps left</span></div><div class="counter"><b id="sStars">☆☆☆</b><span data-zh="星级">stars</span></div></div>
+    <div id="sLines"></div>
+    <div class="sbeat"><i id="sBeat"></i></div>
+    <div class="sopts" id="sOpts"></div>
+    <div class="btnrow"><button class="btn" id="sStart" data-zh="▶ 开始">▶ Start</button><button class="btn ghost" id="sRead" data-zh="🔊 听一遍">🔊 Hear it read</button></div>
+    <div class="result" id="sMsg"></div>
+  </div>
+</section>
+
+<section class="wrap" id="mission" data-nav="Challenge" data-nav-zh="挑战">
+  <div class="sec-head">
+    <h2 data-zh="主任务：朝代时间轴挑战 ⏱">Main mission: the Timeline Challenge ⏱</h2>
+    <p data-zh="第一关：把朝代卡片拖成正确顺序（也可以点一张、再点另一张来交换），按“检查”。每次检查有错加罚5秒。第二关：把都城、人物和发明与朝代配对，答错加罚5秒。总用时决定你的“科举”名次！">Round 1: drag the dynasty cards into the right order (or tap one card, then another, to swap them) and press Check — every check with mistakes adds a 5-second penalty. Round 2: match capitals, people and inventions to their dynasty (+5 s per wrong answer). Your total time decides your rank in the imperial exam!</p>
+  </div>
+  <div class="card tc">
+    <div class="btnrow"><button class="tbtn on" data-tl="rookie" data-zh="新手：11张卡">Rookie: 11 cards</button><button class="tbtn" data-tl="expert" data-zh="高手：全部19张">Expert: all 19 cards</button></div>
+    <div class="counters"><div class="counter"><b id="tTime">0.0</b><span data-zh="用时（秒）">time (s)</span></div><div class="counter"><b id="tPen">0</b><span data-zh="罚时（秒）">penalty (s)</span></div><div class="counter"><b id="tStage">1/2</b><span data-zh="关卡">round</span></div><div class="counter"><b id="tBest">–</b><span data-zh="最佳成绩">best total</span></div></div>
+    <div id="tcBody"></div>
+    <div class="result" id="tMsg"></div>
+    <div class="btnrow"><button class="btn" id="tStart" data-zh="▶ 开始挑战">▶ Start the challenge</button><button class="btn alt" id="tCheck" data-zh="✔ 检查顺序">✔ Check order</button></div>
+    <div class="ranks" id="tRanks"></div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real things" data-nav-zh="真实文物">
+  <div id="gallery"></div>
+  <div class="sec-head" style="margin-top:28px"><h2 data-zh="继续探索">Go further</h2><p data-zh="这些网站都会在新标签页打开。">These open in a new tab.</p></div>
+  <div class="linkgrid" id="links"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 中考模拟题">🧠 Exam-style quiz</h3><p class="sub" data-zh="选出正确答案，看看解析。">Pick the best answer and read the explanation.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分一分：统一还是分立？">🗂️ Sort it: united or divided?</h3><p class="sub" data-zh="把每个时期拖到（或先点再点方框）它所属的类别。">Drag each period (or tap it, then tap a box) into the right group.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="课标依据：《义务教育历史课程标准（2022年版）》“中国古代史”要求学生了解中国历史发展的基本线索，知道重要朝代的更替顺序和基本史实，能运用时间轴、历史地图获取信息。本课是统编版《中国历史》七年级上册（第二—四单元）与七年级下册（第一—三单元）的综合复习课。">Curriculum: the 2022 national history standard (ancient China) asks students to know the order of the major dynasties and their key facts, and to read timelines and historical maps. This lesson reviews Grade 7 Book 1 (Units 2–4) and Book 2 (Units 1–3) of the national textbook.</p>
+    <p data-zh="年代说明：采用教材通行年代。夏约前2070—前1600年、商约前1600—前1046年为约数；西汉写作前202—公元8年（公元9年王莽建“新”，25年刘秀建东汉；对照简表也有把西汉记为前206—公元25年的）；东周止于前256年，战国止于前221年；南宋1276年都城临安陷落，1279年残余势力被消灭；清朝1636年改国号，1644年入关，本课时间轴从1644年算起。地图为示意图，疆域线依据教材地图大致描绘。">Dates follow the textbook. Xia and Shang dates are approximate. Western Han is given as 202 BCE–8 CE (Wang Mang’s Xin began in 9 CE; Eastern Han in 25; some reference tables count Western Han as 206 BCE–25 CE). Eastern Zhou ended in 256 BCE, the Warring States period in 221 BCE. Lin’an fell in 1276, the last Song resistance in 1279. Qing took its name in 1636 and entered Beijing in 1644; the slider counts from 1644. Maps are schematic, traced roughly from textbook maps.</p>
+    <p data-zh="教材以外的补充（供英文学习者参照）：“与此同时”栏目的世界史对照（金字塔、奥运会、罗马、哥伦布、美国独立等）以及美国历史长度的比较，均为帮助美国学生建立时间感而补充。">Beyond the textbook: the “Meanwhile…” world-history comparisons (pyramids, Olympics, Rome, Columbus, US independence) and the USA-length benchmark are added to give US students a time anchor.</p>
+    <p data-zh="教学建议：①先让学生不看提示完成一次“时间轴挑战”，记下用时；②用地图和长度图讲清“统一—分裂—再统一”的大线索（秦汉统一→三国两晋南北朝分立→隋唐统一→五代辽宋夏金并立→元明清统一）；③最后再挑战一次，比较进步。">Suggested use: (1) students try the Timeline Challenge cold and note their time; (2) use the map and length chart to draw out the big pattern — unity (Qin–Han) → division (Three Kingdoms to Northern & Southern) → unity (Sui–Tang) → coexisting regimes (Five Dynasties, Liao–Song–Xia–Jin) → unity (Yuan–Ming–Qing); (3) retry the challenge and compare.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+const o = (en, zh) => ({en, zh});
+/* ===== Schematic territory outlines (lon, lat) — traced roughly from textbook maps (示意图) ===== */
+const SC = [[120.4,35.6],[120.9,32.4],[121.8,31.0],[121.9,29.8],[120.6,27.9],[119.6,26.0],[117.8,24.0],[115.0,22.6],[113.0,22.0],[110.5,20.8],[108.2,21.6]];   // south-east coast, north → south-west
+const NC = [[121.4,39.0],[118.4,39.0],[119.4,37.4],[122.5,37.3]];                                                                           // Bohai + Shandong coast
+const HAINAN = [[108.6,19.1],[109.6,18.2],[110.5,18.6],[111.0,19.6],[110.6,20.1],[109.6,20.0],[108.7,19.7]];
+const TAIWAN = [[120.1,23.0],[120.7,22.0],[121.0,22.0],[121.5,23.4],[121.9,24.9],[121.5,25.3],[120.9,24.8],[120.2,23.8]];
+const SH = {
+  xia:[[110.5,35.6],[112.0,36.3],[113.8,35.7],[114.5,34.6],[113.8,33.5],[112.2,33.3],[110.8,34.0]],
+  shang:[[110.5,35.0],[111.8,37.2],[114.0,38.5],[116.0,37.8],[117.6,36.8],[118.6,35.2],[117.4,33.6],[115.6,32.4],[113.6,31.4],[111.8,32.2],[110.6,33.6]],
+  wzhou:[[104.8,35.0],[106.5,36.4],[109.0,37.0],[112.0,38.6],[114.6,40.4],[117.0,40.6],[119.4,40.0],[118.8,38.4],[119.4,37.4],[122.4,37.0],[120.2,35.2],[119.2,33.4],[117.6,31.8],[115.0,30.4],[112.2,30.0],[109.8,31.6],[107.4,32.8],[105.4,33.6]],
+  ezhou:[[103.6,35.2],[105.4,37.6],[107.5,40.2],[110,41],[113.5,41],[117,41.4],[120.5,41.6],[124,40.6],...NC,[120.4,35.6],[120.9,32.4],[121.6,31.0],[121.8,29.6],[120.4,27.8],[117.2,28.0],[114.2,26.0],[111.0,25.6],[109.0,27.6],[106.2,28.6],[103.2,29.2],[102.6,31.2],[103.6,33.2]],
+  qin:[[103.6,35.3],[105.2,37.4],[106.8,40.0],[108.4,41.4],[110.5,41.6],[113.5,41.3],[117,41.6],[120.5,42.0],[124.2,41.0],[124.6,40.0],...NC,...SC,[106.4,20.4],[105.4,21.4],[104.2,23.0],[103.4,25.0],[102.6,27.6],[103.0,30.0],[102.4,32.0],[103.2,33.8]],
+  han:[[73.5,39.5],[74.8,42.5],[79,44.2],[84,44.5],[89,43.6],[92.5,43.2],[95.5,41.6],[99,40.6],[102.5,39.6],[105.8,40.4],[108,41.6],[111,41.8],[114.5,42.0],[118,42.6],[121.5,43.0],[125,42.4],[127.5,40.4],[126.8,38.0],[125.2,37.8],[124.6,40.0],...NC,...SC,[106.6,18.0],[105.8,17.0],[104.6,18.5],[104.6,21.4],[102.0,22.4],[99.0,24.0],[98.6,25.6],[101.6,28.6],[102.4,31.0],[101.0,33.4],[99.0,35.6],[96.2,37.4],[93,38.8],[88,38.0],[82,36.4],[77,36.8]],
+  core:[[94.5,40.4],[99,40.8],[103,39.6],[106.6,40.0],[108.4,41.0],[111.5,41.0],[115,41.6],[118.8,41.8],[122.8,42.4],[125.8,41.4],[126.2,39.4],[124.6,40.0],...NC,...SC,[106.4,20.4],[105.6,21.6],[105.2,23.2],[102.8,22.6],[100.0,23.2],[98.6,25.0],[99.6,27.4],[101.0,29.6],[101.6,32.4],[101.6,36.0],[99.4,37.8],[96.4,39.2]],
+  wei:[[94.5,40.4],[99,40.8],[103,39.6],[106.6,40.0],[108.4,41.0],[111.5,41.0],[115,41.6],[118.8,41.8],[122.8,42.4],[125.8,41.4],[126.2,39.4],[124.6,40.0],...NC,[120.4,35.6],[120.9,33.4],[119.6,32.6],[117,31.6],[114.6,31.8],[112.6,31.6],[111.2,32.6],[109.4,33.3],[106.8,33.6],[105.0,34.0],[103.6,34.8],[101.6,36.0],[99.4,37.8],[96.4,39.2]],
+  shu:[[101.6,36.0],[103.6,34.8],[105.0,34.0],[106.8,33.6],[109.4,33.3],[110.0,31.4],[109.2,29.4],[108.4,27.6],[106.2,25.6],[105.2,23.2],[102.8,22.6],[100.0,23.2],[98.6,25.0],[99.6,27.4],[101.0,29.6],[101.6,32.4]],
+  wu:[[109.4,33.3],[111.2,32.6],[112.6,31.6],[114.6,31.8],[117,31.6],[119.6,32.6],[120.9,32.4],[121.8,31.0],[121.9,29.8],[120.6,27.9],[119.6,26.0],[117.8,24.0],[115.0,22.6],[113.0,22.0],[110.5,20.8],[108.2,21.6],[106.4,20.4],[105.6,21.6],[105.2,23.2],[106.2,25.6],[108.4,27.6],[109.2,29.4],[110.0,31.4]],
+  south:[[101.6,32.4],[103.0,33.4],[106.8,33.4],[109.4,33.3],[112.6,33.0],[115.0,33.2],[117.4,33.8],[119.8,34.6],...SC,[106.4,20.4],[105.6,21.6],[105.2,23.2],[102.8,22.6],[100.0,23.2],[98.6,25.0],[99.6,27.4],[101.0,29.6]],
+  north:[[94.5,40.4],[99,40.8],[103,39.6],[106.6,40.0],[108.4,41.0],[111.5,41.0],[115,41.6],[118.8,41.8],[122.8,42.4],[125.8,41.4],[124.6,40.0],...NC,[120.4,35.6],[119.8,34.6],[117.4,33.8],[115.0,33.2],[112.6,33.0],[109.4,33.3],[106.8,33.4],[103.0,33.4],[101.6,36.0],[99.4,37.8],[96.4,39.2]],
+  nbsouth:[[101.6,32.0],[103.0,32.8],[106.8,32.8],[109.4,32.6],[112.6,32.2],[115.0,32.4],[117.4,32.8],[119.8,33.4],[120.9,32.4],[121.8,31.0],[121.9,29.8],[120.6,27.9],[119.6,26.0],[117.8,24.0],[115.0,22.6],[113.0,22.0],[110.5,20.8],[108.2,21.6],[106.4,20.4],[105.6,21.6],[105.2,23.2],[102.8,22.6],[100.0,23.2],[98.6,25.0],[99.6,27.4],[101.0,29.6]],
+  nbnorth:[[94.5,40.4],[99,40.8],[103,39.6],[106.6,40.0],[108.4,41.4],[111.5,41.6],[115,42.2],[118.8,42.2],[122.8,42.4],[125.8,41.4],[124.6,40.0],...NC,[120.4,35.6],[119.8,33.4],[117.4,32.8],[115.0,32.4],[112.6,32.2],[109.4,32.6],[106.8,32.8],[103.0,32.8],[101.6,36.0],[99.4,37.8],[96.4,39.2]],
+  sui:[[92.6,43.0],[95,42.4],[99,40.8],[103,39.6],[106.6,40.4],[108.4,41.2],[111.5,41.2],[115,41.6],[118.8,41.8],[122.8,42.4],[125.0,41.4],[124.6,40.0],...NC,...SC,[106.4,20.4],[105.6,21.6],[105.2,23.2],[102.8,22.6],[100.0,23.2],[98.6,25.0],[99.6,27.4],[101.0,29.6],[101.6,32.4],[101.6,36.0],[99.4,37.8],[96.4,39.2],[93.4,40.6]],
+  tang:[[60,44],[64,47],[72,48.5],[80,49],[86,50.5],[94,52],[102,54],[110,54.5],[118,52],[122,50],[128,48],[132,45.5],[131,42.5],[129.5,40.8],[127.5,38.8],[126,37.6],[124.6,39.6],...NC,...SC,[106.6,18.0],[105.4,17.0],[104.6,18.6],[104.6,21.4],[103.4,23.2],[103.8,26.0],[102.6,27.8],[102.8,30.4],[103.4,32.6],[102.0,34.6],[100.4,36.4],[97,37.6],[93,38.2],[88,37.4],[82,36.2],[77,36.6],[72,37.4],[66,38],[62,40]],
+  tubo:[[78,36],[82,36.2],[88,37.4],[93,38.2],[97,37.6],[100.4,36.4],[102,34.6],[103.4,32.6],[102.8,30.4],[100,28.5],[97.5,28],[95,27.6],[92,26.8],[88.5,27.4],[85,28.4],[81,30.2],[78.5,32.5]],
+  nanzhao:[[102.6,27.8],[103.8,26.0],[103.4,23.2],[101.8,21.6],[100,21.6],[98.6,24],[98.4,25.8],[99.6,27.6],[100,28.5],[102.8,30.4]],
+  wudai:[[103,35.4],[105,37.6],[108,39.4],[111,39.8],[113.5,39.4],[115.5,39.0],[117.4,38.6],[118.5,38.4],[119.4,37.4],[122.5,37.3],[120.4,35.6],[120.9,33.4],[119.6,32.6],[117,31.6],[114.6,31.8],[112.6,31.0],[110.2,31.6],[109.0,32.8],[106.6,33.2],[104.6,34.0]],
+  tenk:[[104.6,34.0],[106.6,33.2],[109.0,32.8],[110.2,31.6],[112.6,31.0],[114.6,31.8],[117,31.6],[119.6,32.6],[120.9,32.4],[121.8,31.0],[121.9,29.8],[120.6,27.9],[119.6,26.0],[117.8,24.0],[115.0,22.6],[113.0,22.0],[110.5,20.8],[108.2,21.6],[106.6,22.2],[105.6,23.2],[104.4,26.2],[103.2,28.4],[102.6,30.6],[103.2,32.6]],
+  liao:[[96,44.5],[97,48],[102,50.4],[108,51.6],[114,51],[120,52.4],[124,53.2],[128,51],[132,48.4],[134.5,47.6],[133,45],[130.6,42.6],[128.4,41.6],[125.4,40.2],[124.4,39.8],[121.6,39.2],[121.2,40.6],[119.8,40],[118.5,39.2],[117.4,38.6],[115.5,39.0],[113.5,39.4],[111,39.8],[108.6,41.2],[104,41.8],[100,42.4]],
+  nsong:[[103.6,34.6],[105.6,35.8],[106.8,36.6],[108.6,37.6],[110.6,38.9],[112.2,39.2],[113.8,39.0],[115.5,39.0],[117.4,38.8],[118.5,38.4],[119.4,37.4],[122.5,37.3],...SC,[106.6,22.2],[105.6,23.4],[104.6,25.8],[104.2,27.8],[103,29],[102.4,31],[103,33]],
+  wxia:[[95.8,40.2],[97.2,42.0],[101,42.2],[105,42.6],[108.6,41.2],[110.6,39.8],[110.6,38.9],[108.6,37.6],[106.8,36.6],[105.6,35.8],[103.6,34.6],[102,36.4],[99.6,37.6],[97.6,38.8]],
+  dali:[[104.2,27.8],[104.6,25.8],[105.6,23.4],[104,22.6],[101.8,21.4],[100,21.6],[98.4,24],[97.8,25.8],[98.8,28.2],[101,28.8],[103,29]],
+  ssong:[[104.6,33.0],[106.8,34.2],[107.4,33.6],[109.6,33.2],[111.4,32.8],[113.6,32.2],[115.4,32.4],[117.4,33.0],[119.4,33.6],[120.4,33.6],[120.9,32.4],[121.8,31.0],[121.9,29.8],[120.6,27.9],[119.6,26.0],[117.8,24.0],[115.0,22.6],[113.0,22.0],[110.5,20.8],[108.2,21.6],[106.6,22.2],[105.6,23.4],[104.6,25.8],[104.2,27.8],[103,29],[102.4,31],[103,32.6]],
+  jin:[[103.6,34.6],[105.6,35.8],[106.8,36.6],[108.6,37.6],[110.6,38.9],[110.6,39.8],[108.6,41.2],[111,42.6],[114,44.4],[117.6,46.6],[120,48.6],[122.6,50.4],[126,51.6],[130.4,49.4],[134.6,48.2],[135,45],[131.4,42.6],[128.6,41.8],[125.4,40.2],[124.4,39.8],[121.6,39.2],[121.2,40.6],[119.8,40],[118.5,39.2],[118,38.6],[119.4,37.4],[122.5,37.3],[120.4,35.6],[120.4,33.6],[119.4,33.6],[117.4,33.0],[115.4,32.4],[113.6,32.2],[111.4,32.8],[109.6,33.2],[107.4,33.6],[106.8,34.2],[104.6,33.0]],
+  mongol:[[86,45],[88,49],[94,51.5],[102,52.5],[110,53],[118,52],[120,48.6],[117.6,46.6],[114,44.4],[111,42.6],[108.6,41.2],[105,42.6],[101,42.2],[97.2,42.0],[92,43.6]],
+  yuan:[[84,42],[86,47],[88,50],[92,53],[100,55.5],[110,56],[120,56],[130,55],[138,54.5],[141,52],[140,48],[136,45],[131.4,42.6],[129.8,42.0],[128.6,41.6],[125.4,40.2],[124.4,39.8],[121.6,39.2],[121.2,40.6],[119.8,40],[118.5,39.2],[118,38.6],[119.4,37.4],[122.5,37.3],...SC,[106.6,22.2],[105.4,22.8],[103.6,22.6],[101.8,21.2],[99.6,21.6],[98,23.6],[97.4,25.4],[95.6,27.6],[92,26.8],[88.6,27.4],[85,28.4],[81,30.2],[78.6,32.6],[78,35.6],[80,36.4],[84,37.0],[88,39],[89,41.6]],
+  ming:[[93.6,42.8],[96,41.6],[99,40.4],[102.6,39.4],[105.6,39.0],[107.6,39.6],[110.4,40.2],[112.6,40.6],[114.6,41.0],[116.4,41.2],[118.6,41.6],[120.6,42.8],[121.6,45.6],[121.4,48.4],[122.6,50.8],[126,53.4],[131,55],[137,55],[140.5,53.4],[139.6,50],[138.6,47],[135.6,43.6],[131.4,42.6],[129.8,42.0],[128.6,41.6],[125.4,40.2],[124.4,39.8],[121.6,39.2],[121.2,40.6],[119.8,40],[118.5,39.2],[118,38.6],[119.4,37.4],[122.5,37.3],...SC,[106.6,22.2],[105.4,22.8],[103.6,22.6],[101.8,21.2],[99.6,21.6],[98,23.6],[97.4,25.4],[95.6,27.6],[92,26.8],[88.6,27.4],[85,28.4],[81,30.2],[78.6,32.6],[78,35.6],[82,36.0],[87,37.4],[90.6,38.6],[92,40.6]],
+  qing:[[73.6,39.4],[74.6,43],[77,45.6],[79.6,46.6],[81.6,49],[85.6,50.2],[88,51],[90.6,52.6],[95,52.6],[98,52.8],[102,51.6],[106,51.4],[110,50.4],[114,50.2],[116.6,50.4],[119,52.6],[121,54.6],[126,55.6],[131,56],[136,56],[140.6,54.4],[141.6,51.6],[138.6,47],[135.6,43.6],[131.4,42.6],[129.8,42.0],[128.6,41.6],[125.4,40.2],[124.4,39.8],[121.6,39.2],[121.2,40.6],[119.8,40],[118.5,39.2],[118,38.6],[119.4,37.4],[122.5,37.3],...SC,[106.6,22.2],[105.4,22.8],[103.6,22.6],[101.8,21.2],[99.6,21.6],[98,23.6],[97.4,25.4],[95.6,27.6],[92,26.8],[88.6,27.4],[85,28.4],[81,30.2],[78.6,32.6],[78,35.6],[75.6,36.6]]
+};
+/* capitals (lon, lat) */
+const C = { erlitou:[112.7,34.7], yin:[114.3,36.1], hao:[108.8,34.2], luoyi:[112.45,34.62], xianyang:[108.7,34.35], changan:[108.9,34.27], chengdu:[104.06,30.67],
+  jianye:[118.8,32.06], pingcheng:[113.3,40.1], kaifeng:[114.3,34.8], shangjing:[119.2,43.95], xingqing:[106.27,38.47], linan:[120.15,30.28], huining:[126.95,45.5],
+  zhongdu:[116.35,39.87], dadu:[116.4,39.9], karakorum:[102.8,47.2], dali:[100.2,25.6], lhasa:[91.1,29.65] };
+const COL = { xia:'#b5835a', shang:'#a9743e', wzhou:'#7f8f3e', ezhou:'#8c9b4a', qin:'#4f5d6e', whan:'#c0392b', ehan:'#c8553d', wei:'#3f7fc4', shu:'#3f9a6b', wu:'#d0672f',
+  xijin:'#6b5fb5', dongjin:'#7a68c7', n16:'#8a8f99', nan:'#cf7a3a', bei:'#4f86a8', sui:'#9b4f96', tang:'#d4a017', tubo:'#7d6b9e', nanzhao:'#5e9c8a', wudai:'#8f6a4a', tenk:'#a0866b',
+  liao:'#5b7fa6', song:'#2a9d8f', wxia:'#b08a3e', dali:'#6c9a5a', jin:'#7c6aa8', mongol:'#8a8f99', yuan:'#3a6ea5', ming:'#c4452f', qing:'#b5862a', roc:'#7a8699', prc:'#c8312e' };
+
+/* ===== The eras (slider segments start at seg) ===== */
+const P = (n, c, r, x = {}) => ({ n, c, r, ...x });
+const K = (n, ll, x = {}) => ({ n, ll, ...x });
+const ERAS = [
+ { k:'xia', seg:-2070, len:470, c:COL.xia, name:o('Xia','夏'), dates:o('c. 2070–1600 BCE','约公元前2070—前1600年'), cap:o('Western Henan (the Erlitou site may be a Xia capital)','今河南西部一带（二里头遗址可能是夏朝都城）'), who:o('Yu (禹 Yǔ); his son Qi (启)','禹；其子启'),
+   polys:[P(o('Xia','夏'), COL.xia, [SH.xia])], caps:[K(o('Erlitou (Yanshi)','二里头（今偃师）'), C.erlitou)], mapnote:o('Map: the Xia heartland','示意：夏朝统治的中心区域'),
+   facts:{en:['Around 2070 BCE Yu founded Xia — the textbook’s first dynasty.','Before Xia, leaders were chosen by merit (“abdication”, 禅让 shànràng). After Yu, his son Qi took the throne, and power stayed in the family.'], zh:['约公元前2070年，禹建立夏朝，这是我国历史上第一个王朝。','夏朝以前实行禅让制；禹死后，他的儿子启继承王位，王位世袭制代替了禅让制。']},
+   big:{t:o('Father to son: the first hereditary throne','“家天下”：王位世袭制开始'), b:o('When Yu’s son Qi inherited the throne, “all under heaven” became one family’s business. That rule — the throne stays in the family — lasted 4,000 years.','启继承王位，“公天下”变成了“家天下”。王位世袭制此后沿用了几千年。')},
+   deep:['xia-shang-zhou.html#timemap', o('Xia, Shang & Zhou','夏商周')], mw:o('Egypt’s Great Pyramid of Giza was already about 500 years old.','埃及吉萨大金字塔这时已有约500年历史。') },
+ { k:'shang', seg:-1600, len:554, c:COL.shang, name:o('Shang','商'), dates:o('c. 1600–1046 BCE','约公元前1600—前1046年'), cap:o('Bo (亳), then Yin (today’s Anyang, Henan; 殷)','亳，后迁殷（今河南安阳）'), who:o('Tang of Shang (汤)','商汤'),
+   polys:[P(o('Shang','商'), COL.shang, [SH.shang])], caps:[K(o('Yin (Anyang)','殷（今安阳）'), C.yin)], mapnote:o('Map: the Shang realm, middle and lower Yellow River','示意：商朝统治范围（黄河中下游）'),
+   facts:{en:['Shang kings asked their ancestors questions by cracking turtle shells and ox bones. The answers were carved on them: oracle-bone script (甲骨文), the oldest mature Chinese writing.','The Houmuwu ding (后母戊鼎) weighs 832.84 kg (1,836 lb) — more than a grand piano. It is the heaviest ancient bronze vessel found in China.'], zh:['商朝人用龟甲和兽骨占卜，并把卜辞刻在上面，这就是甲骨文——目前已知我国最早的成熟文字。','后母戊鼎重832.84千克，是目前已知我国古代最重的青铜器。']},
+   big:{t:o('Pan Geng moves the capital to Yin','盘庚迁殷'), b:o('Around 1300 BCE King Pan Geng moved the capital to Yin. Shang settled down there for the rest of the dynasty — and Yin’s ruins (殷墟) later gave up thousands of oracle bones.','约公元前1300年，商王盘庚迁都到殷，商朝从此稳定下来。殷墟出土了大量甲骨文和青铜器。')},
+   deep:['xia-shang-zhou.html#explore', o('3D bronzes & oracle bones','3D青铜器与甲骨文')], mw:o('Tutankhamun ruled Egypt (c. 1332–1323 BCE).','埃及法老图坦卡蒙在位（约公元前1332—前1323年）。') },
+ { k:'wzhou', seg:-1046, len:275, c:COL.wzhou, name:o('Western Zhou','西周'), dates:o('1046–771 BCE','公元前1046—前771年'), cap:o('Haojing (near today’s Xi’an; 镐京)','镐京（今陕西西安附近）'), who:o('King Wu of Zhou (周武王)','周武王'),
+   polys:[P(o('Western Zhou','西周'), COL.wzhou, [SH.wzhou])], caps:[K(o('Haojing (Xi’an)','镐京（今西安）'), C.hao)], mapnote:o('Map: Western Zhou and its vassal states','示意：西周及其分封的诸侯国'),
+   facts:{en:['In 1046 BCE King Wu beat the Shang army at the Battle of Muye (牧野之战).','In 771 BCE the Quanrong (犬戎) captured Haojing and Western Zhou ended.'], zh:['公元前1046年，周武王在牧野之战中打败商军，商朝灭亡，西周建立。','公元前771年，犬戎攻破镐京，西周灭亡。']},
+   big:{t:o('The enfeoffment system (分封制)','实行分封制'), b:o('The Zhou king gave land and people to relatives and heroes, making them lords (诸侯 zhūhóu) who guarded the realm and sent tribute — a bit like medieval Europe’s lords and vassals.','周王把土地和人民分封给王族、功臣等，让他们做诸侯，建立诸侯国，诸侯要服从周王、定期朝贡，这巩固了西周的统治。')},
+   deep:['xia-shang-zhou.html#timemap', o('Xia, Shang & Zhou','夏商周')], mw:o('776 BCE: the first recorded Olympic Games in Greece.','公元前776年，古希腊举行了有记载的第一届奥运会。') },
+ { k:'ezhou', seg:-770, len:515, c:COL.ezhou, name:o('Eastern Zhou','东周'), dates:o('770–256 BCE (Spring & Autumn 770–476 · Warring States 475–221)','公元前770—前256年（春秋前770—前476年，战国前475—前221年）'), cap:o('Luoyi (today’s Luoyang; 洛邑)','洛邑（今河南洛阳）'), who:o('King Ping of Zhou moved east (周平王)','周平王东迁'),
+   polys:[P(o('Zhou states','东周诸侯国'), COL.ezhou, [SH.ezhou])], caps:[K(o('Luoyi (Luoyang)','洛邑（今洛阳）'), C.luoyi)],
+   states:[[108.7,34.35,o('Qin','秦')],[112.2,30.4,o('Chu','楚')],[118.3,36.8,o('Qi','齐')],[116.4,39.9,o('Yan','燕')],[113.7,34.4,o('Han','韩')],[114.5,36.6,o('Zhao','赵')],[114.3,34.8,o('Wei','魏')]],
+   mapnote:o('Map: the lands of the Zhou states; dots = the seven Warring States','示意：东周诸侯国范围；圆点为“战国七雄”'),
+   facts:{en:['Spring & Autumn (770–476 BCE): strong lords competed to be “hegemon”. Confucius (孔子) taught.','Warring States (475–221 BCE): seven big states. Shang Yang’s reforms (商鞅变法) made Qin the strongest; Li Bing (李冰) built the Dujiangyan irrigation system.'], zh:['春秋时期（前770—前476年）：诸侯争霸；孔子创立儒家学派。','战国时期（前475—前221年）：齐、楚、燕、韩、赵、魏、秦并称“战国七雄”；商鞅变法使秦国逐渐强大；李冰主持修建都江堰。']},
+   big:{t:o('Seven states, a hundred schools of thought','战国七雄与百家争鸣'), b:o('War pushed change: iron tools, new laws, and thinkers like Confucius, Mozi, Laozi and Han Fei arguing about how to run a country — the “Hundred Schools of Thought”.','社会大变革推动了思想繁荣：儒家、道家、墨家、法家等学派相互争辩，形成“百家争鸣”的局面。')},
+   mix:o('Eastern Zhou ended in 256 BCE (Qin conquered it), but the Warring States period runs to 221 BCE, when Qin unified China.','东周在前256年被秦所灭，但战国时期到前221年秦统一六国才结束。'),
+   deep:['spring-warring.html#timemap', o('Spring & Autumn and Warring States','春秋战国')], mw:o('Rome was founded (traditional date 753 BCE); Socrates taught in Athens.','古罗马建城（传说在公元前753年）；苏格拉底在雅典讲学。') },
+ { k:'qin', seg:-221, len:15, c:COL.qin, name:o('Qin','秦'), dates:o('221–207 BCE','公元前221—前207年'), cap:o('Xianyang (咸阳)','咸阳'), who:o('Qin Shi Huang — Ying Zheng (嬴政)','秦始皇嬴政'),
+   polys:[P(o('Qin','秦'), COL.qin, [SH.qin])], caps:[K(o('Xianyang','咸阳'), C.xianyang)], mapnote:o('Map: the Qin empire (from the sea to Longxi, south to the South China Sea)','示意：秦朝疆域（东至东海，西到陇西，南到南海）'),
+   facts:{en:['He called himself the “First Emperor” (始皇帝) and ran the country through commanderies and counties (郡县制 jùnxiànzhì) led by officials he appointed.','One script (small seal 小篆), one round coin with a square hole, one set of weights and measures — and the Great Wall joined up.'], zh:['嬴政自称“始皇帝”，在地方推行郡县制，官员由皇帝任免。','统一文字（小篆）、货币（圆形方孔钱）和度量衡；修筑长城，开凿灵渠。']},
+   big:{t:o('221 BCE: China is unified','前221年：秦统一六国'), b:o('Qin conquered the other six states in ten years and created China’s first unified, centralised state ruled by an emperor. Qin itself lasted only 15 years — but its systems lasted 2,000.','秦用十年时间灭掉六国，建立起我国历史上第一个统一的多民族的中央集权国家。秦朝只存在了15年，但它的制度影响了两千多年。')},
+   mix:o('Qin was the first unified empire — not the first dynasty (that was Xia).','秦朝是第一个统一的中央集权国家，但不是第一个王朝（第一个王朝是夏）。'),
+   deep:['qin-han.html#timemap', o('Qin & Han','秦汉')], deep2:['great-wall.html', o('The Great Wall','长城')], mw:o('Hannibal crossed the Alps with elephants to attack Rome (218 BCE).','汉尼拔率领战象翻越阿尔卑斯山进攻罗马（前218年）。') },
+ { k:'whan', seg:-202, len:210, c:COL.whan, name:o('Western Han','西汉'), dates:o('202 BCE – 8 CE','公元前202—公元8年'), cap:o('Chang’an (today’s Xi’an; 长安)','长安（今陕西西安）'), who:o('Liu Bang (刘邦, Emperor Gaozu)','刘邦（汉高祖）'),
+   polys:[P(o('Western Han','西汉'), COL.whan, [SH.han, HAINAN])], caps:[K(o('Chang’an (Xi’an)','长安（今西安）'), C.changan)], mapnote:o('Map: Western Han after 60 BCE, incl. the Western Regions','示意：公元前60年以后的西汉疆域（含西域都护管辖地区）'),
+   facts:{en:['Emperor Wu (汉武帝) made Han strongest and made Confucianism the official teaching (罢黜百家，尊崇儒术).','In 60 BCE Han set up the Protector-General of the Western Regions (西域都护) — today’s Xinjiang came under the central government from then on.'], zh:['汉武帝时国力强盛，“罢黜百家，尊崇儒术”。','公元前60年，西汉设立西域都护，标志着今新疆地区开始隶属于中央政权。']},
+   big:{t:o('Zhang Qian opens the Silk Road','张骞通西域，开辟丝绸之路'), b:o('In 138 BCE Zhang Qian (张骞) set off west — and was captured for over ten years before getting home. His trips opened the Silk Road, linking Chang’an to Central Asia and on towards Rome.','前138年，张骞出使西域，途中被匈奴扣留十多年。他两次出使，打通了从长安经河西走廊、西域通往西亚、欧洲的丝绸之路。')},
+   mix:o('Western Han’s capital was Chang’an (west); Eastern Han’s was Luoyang (east) — that’s where the names come from.','西汉都长安，东汉都洛阳；“西”“东”就是由都城位置而来的。'),
+   deep:['qin-han.html#game', o('Silk Road game','丝路游戏')], mw:o('Julius Caesar ruled Rome (killed 44 BCE).','恺撒统治罗马（前44年遇刺）。') },
+ { k:'ehan', seg:25, len:196, c:COL.ehan, name:o('Eastern Han','东汉'), dates:o('25–220','公元25—220年'), cap:o('Luoyang (洛阳)','洛阳'), who:o('Liu Xiu (刘秀, Emperor Guangwu)','刘秀（光武帝）'),
+   polys:[P(o('Eastern Han','东汉'), COL.ehan, [SH.han, HAINAN])], caps:[K(o('Luoyang','洛阳'), C.luoyi)], mapnote:o('Map: Eastern Han (schematic)','示意：东汉疆域'),
+   facts:{en:['Zhang Heng (张衡) built a seismoscope (地动仪) that showed the direction of distant earthquakes.','Ban Chao (班超) restored Han control in the Western Regions; Buddhism arrived from India.'], zh:['张衡发明了地动仪，可以测知地震发生的方位。','班超经营西域；佛教从印度传入中原。']},
+   big:{t:o('Cai Lun improves paper (105 CE)','蔡伦改进造纸术（105年）'), b:o('Cai Lun (蔡伦) made paper from bark, hemp, rags and old fishing nets — cheap and light. Paper became one of China’s Four Great Inventions.','蔡伦用树皮、麻头、破布和旧渔网造纸，原料易找、价格便宜，“蔡侯纸”逐渐推广。造纸术是我国古代四大发明之一。')},
+   deep:['inventions.html#lesson', o('Four Great Inventions','四大发明')], mw:o('The Roman Empire reached its largest size (117 CE).','罗马帝国达到最大版图（117年）。') },
+ { k:'sanguo', seg:220, len:60, c:COL.wei, name:o('Three Kingdoms','三国'), dates:o('220–280','公元220—280年'), cap:o('Wei: Luoyang · Shu: Chengdu · Wu: Jianye (today’s Nanjing)','魏：洛阳；蜀：成都；吴：建业（今南京）'), who:o('Cao Pi (曹丕), Liu Bei (刘备), Sun Quan (孙权)','曹丕、刘备、孙权'),
+   polys:[P(o('Wei','魏'), COL.wei, [SH.wei]), P(o('Shu','蜀'), COL.shu, [SH.shu], {to:263}), P(o('Wei','魏'), COL.wei, [SH.shu], {from:263, nolab:1}), P(o('Wu','吴'), COL.wu, [SH.wu, HAINAN])],
+   caps:[K(o('Luoyang','洛阳'), C.luoyi), K(o('Chengdu','成都'), C.chengdu, {to:263}), K(o('Jianye (Nanjing)','建业（今南京）'), C.jianye)], mapnote:o('Map: the Three Kingdoms (Wei conquered Shu in 263)','示意：三国鼎立（263年魏灭蜀）'),
+   facts:{en:['Wei was founded in 220, Shu in 221, Wu in 222 — “three legs of a cauldron” (三国鼎立).','Zhuge Liang (诸葛亮) ran Shu. In 230 Wu’s ruler Sun Quan sent a fleet to Yizhou (today’s Taiwan; 夷洲).'], zh:['220年曹丕建魏，221年刘备建蜀，222年孙权建吴，形成三国鼎立局面。','诸葛亮辅佐蜀汉；230年，孙权派卫温率船队到达夷洲（今台湾）。']},
+   big:{t:o('After Red Cliffs: a three-way split','赤壁之战后三国鼎立'), b:o('In 208 Sun Quan and Liu Bei together beat Cao Cao’s bigger army at Red Cliffs (赤壁) — with fire ships and smart use of wind and river. It set up the three-way split.','208年，孙权、刘备联军在赤壁以少胜多，大败曹操，奠定了三国鼎立的基础。')},
+   deep:['division-integration.html#timemap', o('Three Kingdoms to Northern & Southern','三国两晋南北朝')], mw:o('Rome had its “Crisis of the Third Century” — over 20 emperors in 50 years.','罗马帝国陷入“三世纪危机”，50年里换了20多个皇帝。') },
+ { k:'xijin', seg:266, len:51, c:COL.xijin, name:o('Western Jin','西晋'), dates:o('266–316','公元266—316年'), cap:o('Luoyang (洛阳)','洛阳'), who:o('Sima Yan (司马炎)','司马炎'),
+   polys:[P(o('Western Jin','西晋'), COL.xijin, [SH.core, HAINAN]), P(o('Wu','吴'), COL.wu, [SH.wu], {to:280})], caps:[K(o('Luoyang','洛阳'), C.luoyi), K(o('Jianye (Nanjing)','建业（今南京）'), C.jianye, {to:280})], mapnote:o('Map: Western Jin (it conquered Wu in 280)','示意：西晋（280年灭吴）'),
+   facts:{en:['In 266 Sima Yan took the throne from Wei and founded Jin.','The unity was short: princes fought each other, rebellions broke out, and Western Jin fell in 316.'], zh:['266年，司马炎夺取曹魏政权，建立晋朝，定都洛阳，史称西晋。','西晋统治集团腐朽，爆发内乱，316年西晋灭亡。']},
+   big:{t:o('280: China reunited — for a while','280年西晋灭吴，统一全国'), b:o('Jin conquered Wu in 280 and ended 60 years of division. It lasted about 35 years before the north broke apart again.','280年，西晋灭吴，结束了分裂局面。但统一只维持了三十多年。')},
+   deep:['division-integration.html#timemap', o('Three Kingdoms to Northern & Southern','三国两晋南北朝')], mw:o('Rome’s emperor Diocletian split the empire’s government into East and West (from 285).','罗马皇帝戴克里先把帝国分为东、西两部分治理（285年起）。') },
+ { k:'dongjin', seg:317, len:104, c:COL.dongjin, name:o('Eastern Jin & Sixteen Kingdoms','东晋十六国'), dates:o('Eastern Jin 317–420','东晋317—420年'), cap:o('Jiankang (today’s Nanjing; 建康)','建康（今南京）'), who:o('Sima Rui (司马睿)','司马睿'),
+   polys:[P(o('Eastern Jin','东晋'), COL.dongjin, [SH.south, HAINAN]), P(o('Sixteen Kingdoms (north)','十六国（北方）'), COL.n16, [SH.north])], caps:[K(o('Jiankang (Nanjing)','建康（今南京）'), C.jianye)], mapnote:o('Map: Eastern Jin in the south; many short-lived kingdoms in the north','示意：南方东晋，北方十六国'),
+   facts:{en:['In the north many regimes rose and fell — the “Sixteen Kingdoms” (十六国).','Huge numbers of northerners moved south, bringing farming skills; the Jiangnan region (south of the Yangtze) began to boom.'], zh:['北方先后出现了许多政权，史称“十六国”。','北方人口大量南迁，带去了先进的生产技术，江南地区得到开发。']},
+   big:{t:o('Battle of the Fei River (383)','淝水之战（383年）'), b:o('Former Qin (前秦), which had united the north, attacked with a huge army. The smaller Eastern Jin army won — and gave Chinese the idiom “every tree and blade of grass looks like a soldier” (草木皆兵).','统一北方的前秦大举南下，东晋以少胜多。这场战役留下了“草木皆兵”“风声鹤唳”等成语。')},
+   deep:['division-integration.html#explore', o('3D map: north and south','3D地图：北方与南方')], mw:o('410: the Visigoths sacked the city of Rome.','410年，西哥特人攻陷罗马城。') },
+ { k:'nanbei', seg:420, len:170, c:COL.nan, name:o('Northern & Southern Dynasties','南北朝'), dates:o('420–589','公元420—589年'), cap:o('South: Jiankang · North (Northern Wei): Pingcheng, then Luoyang from 494','南朝：建康；北魏：平城，494年迁洛阳'), who:o('South: Song, Qi, Liang, Chen · North: Northern Wei and its successors','南朝：宋、齐、梁、陈；北朝：北魏及其后继政权'),
+   polys:[P(o('Southern Dynasties','南朝'), COL.nan, [SH.nbsouth, HAINAN]), P(o('Northern Dynasties','北朝'), COL.bei, [SH.nbnorth])], caps:[K(o('Jiankang (Nanjing)','建康（今南京）'), C.jianye), K(o('Pingcheng (Datong)','平城（今大同）'), C.pingcheng, {to:494}), K(o('Luoyang','洛阳'), C.luoyi, {from:494})],
+   mapnote:o('Map: south and north side by side','示意：南北对峙'),
+   facts:{en:['The south had four dynasties in a row — Song, Qi, Liang, Chen — all ruling from Jiankang.','Zu Chongzhi (祖冲之) calculated π to between 3.1415926 and 3.1415927 — the world’s best for about 1,000 years.'], zh:['南朝先后经历宋、齐、梁、陈四个朝代，都以建康为都城。','祖冲之把圆周率精确到3.1415926和3.1415927之间，领先世界近千年。']},
+   big:{t:o('Emperor Xiaowen’s reforms','北魏孝文帝改革'), b:o('In 494 Emperor Xiaowen of Northern Wei (a Xianbei 鲜卑 ruler) moved his capital to Luoyang and had his court adopt Han clothes, language and surnames — a big step in the blending of peoples.','494年，北魏孝文帝迁都洛阳，推行汉化改革：穿汉服、说汉语、改汉姓、与汉族通婚，促进了民族交融。')},
+   deep:['division-integration.html#game', o('Reform game','改革游戏')], mw:o('476: the Western Roman Empire fell.','476年，西罗马帝国灭亡。') },
+ { k:'sui', seg:581, len:38, c:COL.sui, name:o('Sui','隋'), dates:o('581–618','公元581—618年'), cap:o('Daxing (大兴, in today’s Xi’an); eastern capital Luoyang','大兴城（今陕西西安），东都洛阳'), who:o('Yang Jian (杨坚, Emperor Wen)','杨坚（隋文帝）'),
+   polys:[P(o('Sui','隋'), COL.sui, [SH.sui, HAINAN]), P(o('Chen','陈'), COL.nan, [SH.nbsouth], {to:589})], caps:[K(o('Daxing (Xi’an)','大兴（今西安）'), C.changan), K(o('Jiankang (Nanjing)','建康（今南京）'), C.jianye, {to:589})], mapnote:o('Map: Sui (it conquered Chen in 589)','示意：隋朝（589年灭陈）'),
+   facts:{en:['589: Sui conquered Chen and reunited China after almost 300 years of division.','The Grand Canal ran 2,000+ km (1,240+ mi) from Zhuojun (today’s Beijing) to Yuhang (today’s Hangzhou), centred on Luoyang — about New York to Miami.'], zh:['589年，隋灭陈，结束了长期分裂的局面。','大运河以洛阳为中心，北达涿郡，南至余杭，全长2000多千米。']},
+   big:{t:o('The Grand Canal and the imperial exams','开通大运河，创立科举制'), b:o('Sui dug the Grand Canal to move grain from the rich south to the north, and began choosing officials by exam instead of by family — the imperial examinations (科举 kējǔ).','隋炀帝开通大运河，加强了南北交通；隋朝开始用分科考试选拔官员，科举制正式诞生。')},
+   mix:o('The exams began under Sui; Tang perfected them.','科举制创立于隋朝，完善于唐朝。'),
+   deep:['sui-tang.html#game', o('Grand Canal game','运河游戏')], mw:o('Muhammad began preaching Islam in Arabia (c. 610).','穆罕默德在阿拉伯半岛开始传播伊斯兰教（约610年）。') },
+ { k:'tang', seg:618, len:290, c:COL.tang, name:o('Tang','唐'), dates:o('618–907','公元618—907年'), cap:o('Chang’an (长安)','长安'), who:o('Li Yuan (李渊)','李渊'),
+   polys:[P(o('Tang','唐'), COL.tang, [SH.tang, HAINAN]), P(o('Tubo (Tibet)','吐蕃'), COL.tubo, [SH.tubo]), P(o('Nanzhao','南诏'), COL.nanzhao, [SH.nanzhao], {from:738})], caps:[K(o('Chang’an (Xi’an)','长安（今西安）'), C.changan), K(o('Luoxie (Lhasa)','逻些（今拉萨）'), C.lhasa)],
+   mapnote:o('Map: Tang about 669, reaching to the Aral Sea','示意：唐朝疆域（约669年，西到咸海）'),
+   facts:{en:['641: Princess Wencheng (文成公主) travelled to Tibet to marry the Tubo king Songtsen Gampo (松赞干布).','755: the An–Shi Rebellion (安史之乱) began — the turning point from glory to decline.'], zh:['641年，文成公主入藏，与吐蕃赞普松赞干布联姻。','755年，安史之乱爆发，唐朝由盛转衰。']},
+   big:{t:o('A golden age: Chang’an, world city','“贞观之治”“开元盛世”'), b:o('Under Emperor Taizong (the “Zhenguan reign”) and Emperor Xuanzong (the “Kaiyuan golden age”), Chang’an held about a million people — merchants, monks and students from across Asia.','唐太宗时出现“贞观之治”，唐玄宗前期出现“开元盛世”。长安城人口约百万，是当时世界上著名的国际性大都市。')},
+   deep:['sui-tang.html#explore', o('3D Chang’an','3D长安城')], mw:o('800: Charlemagne was crowned emperor in Rome.','800年，查理曼在罗马加冕称帝。') },
+ { k:'wudai', seg:907, len:54, c:COL.wudai, name:o('Five Dynasties & Ten Kingdoms','五代十国'), dates:o('907–960 (Five Dynasties)','公元907—960年'), cap:o('Mostly Kaifeng (开封)','多以开封为都'), who:o('Zhu Wen (朱温) founded Later Liang','朱温建立后梁'),
+   polys:[P(o('Five Dynasties','五代'), COL.wudai, [SH.wudai]), P(o('Ten Kingdoms','十国'), COL.tenk, [SH.tenk, HAINAN]), P(o('Liao (Khitan)','辽（契丹）'), COL.liao, [SH.liao], {from:916})], caps:[K(o('Kaifeng','开封'), C.kaifeng), K(o('Shangjing (Bairin Left Banner)','上京（今巴林左旗）'), C.shangjing, {from:918})],
+   mapnote:o('Map: five dynasties in the north, ten kingdoms mainly in the south','示意：北方五代更替，南方等地十国并立'),
+   facts:{en:['In the north, Later Liang, Later Tang, Later Jin, Later Han and Later Zhou followed one another in just 53 years.','916: the Khitan (契丹 Qìdān) leader Abaoji founded the state later called Liao; in 938 it gained the Sixteen Prefectures of Yan–Yun, including today’s Beijing.'], zh:['北方先后出现后梁、后唐、后晋、后汉、后周五个政权，只有53年。','916年，契丹首领阿保机建立契丹国（后改称辽）；938年，后晋把燕云十六州割给契丹。']},
+   big:{t:o('Five dynasties in 53 years','“五代”与“十国”'), b:o('The north changed hands five times while about ten smaller kingdoms ruled the south. The south saw less war, so its farms and towns kept growing.','北方政权更替频繁，南方等地先后出现十个割据政权。南方战乱较少，经济继续发展。')},
+   deep:['song-yuan.html#years', o('Liao, Song, Xia, Jin & Yuan','辽宋夏金元')], mw:o('927: Æthelstan became the first king of all England.','927年，埃塞尔斯坦成为全英格兰的第一位国王。') },
+ { k:'nsong', seg:960, len:168, c:COL.song, name:o('Northern Song · Liao · Western Xia','北宋 · 辽 · 西夏'), dates:o('Northern Song 960–1127','北宋960—1127年'), cap:o('Dongjing (today’s Kaifeng; 东京)','东京（今河南开封）'), who:o('Zhao Kuangyin (赵匡胤)','赵匡胤'),
+   polys:[P(o('Northern Song','北宋'), COL.song, [SH.nsong, HAINAN]), P(o('Liao','辽'), COL.liao, [SH.liao], {to:1125}), P(o('Jin','金'), COL.jin, [SH.liao], {from:1125}), P(o('Western Xia','西夏'), COL.wxia, [SH.wxia], {from:1038}), P(o('Dali','大理'), COL.dali, [SH.dali])],
+   caps:[K(o('Dongjing (Kaifeng)','东京（今开封）'), C.kaifeng), K(o('Shangjing (Bairin Left Banner)','上京（今巴林左旗）'), C.shangjing, {to:1125}), K(o('Xingqing (Yinchuan)','兴庆（今银川）'), C.xingqing, {from:1038}), K(o('Huining (Acheng, Harbin)','会宁（今哈尔滨阿城）'), C.huining, {from:1125})], mapnote:o('Map: Northern Song, Liao and Western Xia side by side','示意：北宋与辽、西夏并立'),
+   facts:{en:['Bi Sheng (毕昇) invented movable-type printing.','In Sichuan, merchants began using jiaozi (交子), the world’s earliest paper money.'], zh:['北宋毕昇发明活字印刷术。','北宋前期，四川地区出现了世界上最早的纸币“交子”。']},
+   big:{t:o('The Chanyuan Treaty (1005)','澶渊之盟（1005年）'), b:o('After a war, Song and Liao made peace: Song paid silver and silk each year, and the two sides traded peacefully for over 100 years.','宋辽议和，宋每年给辽银、绢。此后宋辽之间维持了长期和平，双方贸易往来频繁。')},
+   mix:o('Song was NOT a unified dynasty — Liao, Western Xia and later Jin ruled alongside it.','北宋并不是统一全国的王朝，它与辽、西夏（后来是金）并立。'),
+   deep:['song-yuan.html#years', o('Liao, Song, Xia, Jin & Yuan','辽宋夏金元')], mw:o('1066: William the Conqueror invaded England.','1066年，诺曼底公爵威廉征服英格兰。') },
+ { k:'ssong', seg:1127, len:153, c:COL.song, name:o('Southern Song · Jin','南宋 · 金'), dates:o('Southern Song 1127–1279','南宋1127—1279年'), cap:o('Lin’an (today’s Hangzhou; 临安)','临安（今浙江杭州）'), who:o('Zhao Gou (赵构)','赵构'),
+   polys:[P(o('Southern Song','南宋'), COL.song, [SH.ssong, HAINAN]), P(o('Jin','金'), COL.jin, [SH.jin], {to:1234}), P(o('Western Xia','西夏'), COL.wxia, [SH.wxia], {to:1227}), P(o('Dali','大理'), COL.dali, [SH.dali], {to:1253}),
+     P(o('Mongols','蒙古'), COL.mongol, [SH.mongol], {from:1206}), P(o('Mongols','蒙古'), COL.mongol, [SH.wxia], {from:1227, nolab:1}), P(o('Mongols','蒙古'), COL.mongol, [SH.jin], {from:1234, nolab:1}), P(o('Mongols','蒙古'), COL.mongol, [SH.dali], {from:1253, nolab:1})],
+   caps:[K(o('Lin’an (Hangzhou)','临安（今杭州）'), C.linan), K(o('Huining (Acheng, Harbin)','会宁（今哈尔滨阿城）'), C.huining, {to:1153}), K(o('Zhongdu (Beijing)','中都（今北京）'), C.zhongdu, {from:1153, to:1215}), K(o('Karakorum (Mongolia)','和林（今蒙古国境内）'), C.karakorum, {from:1235})],
+   mapnote:o('Map: Southern Song and Jin; Mongol conquests after 1206','示意：南宋与金对峙；1206年后蒙古兴起'),
+   facts:{en:['1142: Song and Jin made peace, with a border along the Huai River and Dasan Pass (大散关).','“When Suzhou and Huzhou have a good harvest, the whole country has enough” (苏湖熟，天下足).'], zh:['1142年宋金议和，双方东以淮水、西以大散关为界。','“苏湖熟，天下足”：江南成为全国最重要的粮仓。']},
+   big:{t:o('Yue Fei fights Jin; the economy moves south','岳飞抗金；经济重心南移完成'), b:o('General Yue Fei (岳飞) won big victories against Jin. Meanwhile the south grew richer than the north — by Southern Song, China’s economic centre had moved south for good.','岳飞率领岳家军抗金，取得郾城大捷。南宋时期，我国古代经济重心南移完成。')},
+   deep:['song-yuan.html#explore', o('3D Quanzhou port','3D泉州港')], mw:o('1215: King John sealed the Magna Carta in England.','1215年，英国国王约翰签署《大宪章》。') },
+ { k:'yuan', seg:1271, len:98, c:COL.yuan, name:o('Yuan','元'), dates:o('1271–1368','公元1271—1368年'), cap:o('Dadu (today’s Beijing; 大都)','大都（今北京）'), who:o('Kublai Khan (忽必烈)','忽必烈'),
+   polys:[P(o('Yuan','元'), COL.yuan, [SH.yuan, HAINAN]), P(o('Southern Song','南宋'), COL.song, [SH.ssong], {to:1279})], caps:[K(o('Dadu (Beijing)','大都（今北京）'), C.dadu), K(o('Lin’an (Hangzhou)','临安（今杭州）'), C.linan, {to:1276})], mapnote:o('Map: Yuan about 1330 (its north ran far into Siberia)','示意：元朝疆域（约1330年，北部远达西伯利亚）'),
+   facts:{en:['Kublai Khan named his dynasty Yuan in 1271. Yuan took Lin’an in 1276 and finished off the last Song resistance in 1279.','The Xuanzheng Yuan (宣政院) governed Tibet; a Penghu inspectorate (澎湖巡检司) managed Penghu and Liuqiu (today’s Taiwan).'], zh:['1271年，忽必烈定国号为元。1276年，元军攻占临安；1279年，元消灭南宋残余势力，完成统一。','元朝设宣政院管辖西藏；设澎湖巡检司，管辖澎湖和琉球（今台湾）。']},
+   big:{t:o('The province system (行省制度)','实行行省制度'), b:o('Yuan divided its huge empire into provinces (行省 xíngshěng). It was the start of China’s province system — the “provinces” on today’s map come from it.','元朝在中央设中书省，在地方设行中书省，简称“行省”。行省制度是我国省制的开端。')},
+   deep:['song-yuan.html#game', o('Province game','行省游戏')], mw:o('Marco Polo of Venice travelled in China and wrote a famous book about it.','意大利威尼斯人马可·波罗来到中国，后来写成《马可·波罗行纪》。') },
+ { k:'ming', seg:1368, len:277, c:COL.ming, name:o('Ming','明'), dates:o('1368–1644','公元1368—1644年'), cap:o('Yingtian (today’s Nanjing), then Beijing from 1421','应天府（今江苏南京），1421年迁都北京'), who:o('Zhu Yuanzhang (朱元璋)','朱元璋'),
+   polys:[P(o('Ming','明'), COL.ming, [SH.ming, HAINAN])], caps:[K(o('Nanjing','南京'), C.jianye, {to:1421}), K(o('Beijing','北京'), C.dadu, {from:1421})], mapnote:o('Map: Ming about 1433','示意：明朝疆域（约1433年）'),
+   facts:{en:['Emperor Yongle moved the capital to Beijing in 1421 and built the Forbidden City.','Ming rebuilt the Great Wall in brick and stone, from the Yalu River to Jiayu Pass.'], zh:['明成祖迁都北京（1421年），修建紫禁城。','明朝大规模修筑长城，东起鸭绿江，西至嘉峪关。']},
+   big:{t:o('Zheng He sails seven times (1405–1433)','郑和七次下西洋（1405—1433年）'), b:o('Admiral Zheng He (郑和) led fleets of up to 200+ ships as far as East Africa — decades before Columbus.','郑和率领庞大船队七次远航，最远到达非洲东海岸和红海沿岸，比哥伦布航海早半个多世纪。')},
+   deep:['ming-qing.html#game', o('Voyage game','航线游戏')], deep2:['great-wall.html', o('The Great Wall','长城')], mw:o('1492: Columbus reached the Americas.','1492年，哥伦布到达美洲。') },
+ { k:'qing', seg:1644, len:268, c:COL.qing, name:o('Qing','清'), dates:o('1644–1912 (name Qing from 1636)','公元1644—1912年（1636年改国号为清）'), cap:o('Beijing (北京)','北京'), who:o('Hong Taiji named it Qing; Shunzhi entered Beijing','皇太极改国号清；顺治帝时入关'),
+   polys:[P(o('Qing','清'), COL.qing, [SH.qing, HAINAN]), P(o('Taiwan','台湾'), COL.qing, [TAIWAN], {from:1683, nolab:1})], caps:[K(o('Beijing','北京'), C.dadu)], mapnote:o('Map: Qing about 1820','示意：清朝疆域（约1820年）'),
+   facts:{en:['Emperor Qianlong put down revolts in Xinjiang in the 1750s and secured Qing rule there.','1840: the Opium War — the start of modern Chinese history. 1912: the last emperor abdicated.'], zh:['乾隆帝平定准噶尔和大小和卓叛乱，巩固了对新疆的管辖。','1840年鸦片战争爆发，中国近代史开始；1912年清帝退位。']},
+   big:{t:o('Kangxi: Taiwan and the Russian border','康熙帝统一台湾、抗击沙俄'), b:o('In 1683 Qing brought Taiwan under its rule and in 1684 set up Taiwan Prefecture. In 1689 the Treaty of Nerchinsk (尼布楚条约) with Russia set the northeast border.','1683年清军进入台湾，1684年设台湾府；1689年中俄签订《尼布楚条约》，从法律上确定了中俄东段边界。')},
+   mix:o('Qing didn’t start in 1644: Hong Taiji renamed his state Qing in 1636; in 1644 Qing armies entered Beijing.','清朝不是1644年才建立：1636年皇太极改国号为清，1644年清军入关并迁都北京。'),
+   deep:['ming-qing.html#lesson', o('Ming & Qing maps','明清地图')], mw:o('1776: the United States declared independence — during the Qianlong reign.','1776年美国发表《独立宣言》——这时是清朝乾隆年间。') },
+ /* for context, after the slider */
+ { k:'roc', ctx:1, seg:1912, len:37, c:COL.roc, name:o('Republic of China (1912–1949)','中华民国（1912—1949年）'), dates:o('1912–1949','1912—1949年'), cap:o('Nanjing (南京)','南京'), who:o('Sun Yat-sen (孙中山), provisional president','孙中山（临时大总统）'),
+   polys:[], caps:[K(o('Nanjing','南京'), C.jianye)], mapnote:o('For context — see the Modern China lessons','仅作背景——详见近代史课程'),
+   facts:{en:['The 1911 Revolution (辛亥革命) overthrew Qing and ended over 2,000 years of rule by emperors.','The period was full of struggle: warlords, the War of Resistance against Japanese Aggression (1931–1945) and civil war.'], zh:['辛亥革命推翻了清王朝，结束了统治中国两千多年的君主专制制度。','这一时期经历了军阀割据、抗日战争（1931—1945年）和解放战争。']},
+   big:{t:o('1912: no more emperors','1912年：中华民国成立'), b:o('On 1 January 1912 the Republic of China was founded in Nanjing, with Sun Yat-sen as provisional president.','1912年1月1日，中华民国在南京成立，孙中山就任临时大总统。')},
+   deep:['modern-china.html#ports', o('Modern China 1840–1919','近代中国')], deep2:['revolution.html#years', o('1919–1949','新民主主义革命')], mw:o('World War I and World War II.','第一次和第二次世界大战。') },
+ { k:'prc', ctx:1, seg:1949, len:77, c:COL.prc, name:o('People’s Republic of China (1949–)','中华人民共和国（1949年—）'), dates:o('1949 – today','1949年至今'), cap:o('Beijing (北京)','北京'), who:o('Founded 1 October 1949','1949年10月1日成立'),
+   polys:[], modern:1, caps:[K(o('Beijing','北京'), C.dadu)], mapnote:o('Today’s standard map of China','今天的中国（标准地图）'),
+   facts:{en:['On 1 October 1949 Mao Zedong proclaimed the founding of the People’s Republic of China in Tiananmen Square.','At 77 years old, the PRC is younger than the USA (250).'], zh:['1949年10月1日，毛泽东在天安门城楼宣告中华人民共和国中央人民政府成立。','中华人民共和国成立至今77年。']},
+   big:{t:o('1949: New China','1949年：新中国成立'), b:o('The founding of the PRC opened a new era in Chinese history.','中华人民共和国的成立开辟了中国历史的新纪元。')},
+   deep:['prc-founding.html#map', o('New China 1949–1976','新中国的成立与建设')], mw:o('Today — you are here!','今天——就是你现在！') }
+];
+const MAIN = ERAS.filter(e => !e.ctx);                 // the 19 eras on the slider
+const PARALLEL = [ { k:'liao', len:210, c:COL.liao, name:o('Liao','辽'), dates:o('916–1125','916—1125年') }, { k:'wxia', len:190, c:COL.wxia, name:o('Western Xia','西夏'), dates:o('1038–1227','1038—1227年') }, { k:'jin', len:120, c:COL.jin, name:o('Jin','金'), dates:o('1115–1234','1115—1234年') } ];
+const USA = { k:'usa', len:250, c:'var(--accent)', name:o('USA (so far)','美国（至今）'), dates:o('1776–today','1776年至今') };
+const RHYME = ['夏商与西周，东周分两段；','春秋和战国，一统秦两汉；','三分魏蜀吴，二晋前后延；','南北朝并立，隋唐五代传；','宋元明清后，皇朝至此完。'];
+const RHYME_OF = { xia:0, shang:0, wzhou:0, ezhou:0, qin:1, whan:1, ehan:1, sanguo:2, xijin:2, dongjin:2, nanbei:3, sui:3, tang:3, wudai:3, nsong:4, ssong:4, yuan:4, ming:4, qing:4 };
+</script>
+<script>
+/* ================= Mission tracker ================= */
+const MS = { map:0, len:0, song:0, tl:null };
+function renderTrack(){
+  const st = n => '★'.repeat(n) + '☆'.repeat(3 - n);
+  const items = [
+    ['#map', o('① Time map','① 时间地图'), MS.map ? o('All 19 eras visited ✓','19个时期全部看过 ✓') : o(`Eras visited: ${App.seen.size}/19`, `已看：${App.seen.size}/19`), MS.map ? 3 : 0, MS.map],
+    ['#lengths', o('② How long?','② 有多长'), o('Guess 5 lengths','猜5个长度'), MS.len, MS.len > 0],
+    ['#song', o('③ Dynasty song','③ 朝代歌'), o('Fill the gaps on the beat','跟着节拍填空'), MS.song, MS.song > 0],
+    ['#mission', o('④ Timeline Challenge','④ 时间轴挑战'), MS.tl ? o(`Rank: ${MS.tl.en}`, `名次：${MS.tl.zh}`) : o('Beat the clock','和时间赛跑'), MS.tl ? MS.tl.stars : 0, !!MS.tl]];
+  Lab.$('#mtrack').innerHTML = items.map(([h, t, s, n, d]) => `<a class="mt ${d ? 'done' : ''}" href="${h}"><b>${Lab.L(t)}</b><span>${Lab.L(s)}</span><span class="st">${st(n)}</span></a>`).join('');
+  Lab.$('#mbar').style.width = (items.filter(x => x[4]).length / 4 * 100) + '%';
+}
+
+/* ================= Time map ================= */
+const App = { i:0, year:-2070, layers:{ today:true, cap:true, lab:true }, seen:new Set(), timer:null, shape:null, anim:null, fade0:0 };
+const fmtY = y => { y = Math.round(y); if (y === 0) y = 1; return y < 0 ? o(`${-y} BCE`, `公元前${-y}年`) : o(`${y} CE`, `公元${y}年`); };
+const eraAt = y => { let i = 0; MAIN.forEach((e, k) => { if (e.seg <= y) i = k; }); return i; };
+const inWin = (x, y) => (x.from == null || y >= x.from) && (x.to == null || y < x.to);
+(function(){
+  const stage = Lab.$('#mapStage'), cv = Lab.$('#mapCv'), g = cv.getContext('2d');
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const LON0 = 62, LON1 = 141, LAT0 = 16.5, LAT1 = 56, CL = Math.cos(36 * Math.PI / 180), CI = Math.cos(13 * Math.PI / 180), V = {}, NP = 140;
+  let GEO = null, failed = false, raf = 0;
+  const simp = r => { const out = [r[0]]; for (let i = 1; i < r.length; i++){ const p = r[i], q = out[out.length - 1]; if (Math.abs(p[0] - q[0]) + Math.abs(p[1] - q[1]) > .05 || i === r.length - 1) out.push(p); } return out.length < 4 ? r : out; };
+  ChinaMap.load().then(geo => {
+    GEO = { features:geo.features.map(f => { const t = f.geometry.type, c = f.geometry.coordinates;
+      return { properties:f.properties, geometry:{ type:t, coordinates:t === 'Polygon' || t === 'MultiLineString' ? c.map(simp) : c.map(p => p.map(simp)) } }; }) };
+    draw();
+  }).catch(() => { failed = true; draw(); });
+  /* --- shape morphing: resample every outline to NP points, starting at its northernmost vertex, same winding --- */
+  const area = r => { let a = 0; for (let i = 0; i < r.length; i++){ const p = r[i], q = r[(i + 1) % r.length]; a += p[0] * q[1] - q[0] * p[1]; } return a / 2; };
+  function resample(ring){
+    let r = ring.slice(); if (area(r) < 0) r.reverse();
+    let s = 0; r.forEach((p, i) => { if (p[1] - p[0] * .15 > r[s][1] - r[s][0] * .15) s = i; });
+    r = r.slice(s).concat(r.slice(0, s)); r.push(r[0]);
+    const L = [0]; for (let i = 1; i < r.length; i++) L.push(L[i - 1] + Math.hypot(r[i][0] - r[i - 1][0], r[i][1] - r[i - 1][1]));
+    const T = L[L.length - 1], out = []; let j = 1;
+    for (let k = 0; k < NP; k++){ const d = k / NP * T; while (L[j] < d && j < L.length - 1) j++; const u = (d - L[j - 1]) / ((L[j] - L[j - 1]) || 1); out.push([r[j - 1][0] + (r[j][0] - r[j - 1][0]) * u, r[j - 1][1] + (r[j][1] - r[j - 1][1]) * u]); }
+    return out;
+  }
+  const centroid = r => { let a = 0, x = 0, y = 0; for (let i = 0; i < r.length; i++){ const p = r[i], q = r[(i + 1) % r.length], c = p[0] * q[1] - q[0] * p[1]; a += c; x += (p[0] + q[0]) * c; y += (p[1] + q[1]) * c; } return a ? [x / (3 * a), y / (3 * a)] : r[0]; };
+  const cache = new Map(); const RS = ring => { if (!cache.has(ring)) cache.set(ring, resample(ring)); return cache.get(ring); };
+  App.morphTo = (era) => {
+    const tgt = era.polys.length ? RS(era.polys[0].r[0]) : null, now = curShape();
+    App.anim = { from:now || tgt, to:tgt, t0:performance.now(), a0:now ? 1 : 0 }; App.fade0 = performance.now(); loop();
+  };
+  function curShape(){ const A = App.anim; if (!A) return null; const u = Math.min(1, (performance.now() - A.t0) / 750), e = u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+    if (!A.to) return A.from; if (!A.from) return A.to; return A.to.map((p, k) => [A.from[k][0] + (p[0] - A.from[k][0]) * e, A.from[k][1] + (p[1] - A.from[k][1]) * e]); }
+  function loop(){ cancelAnimationFrame(raf); const go = () => { draw(); if (performance.now() - App.anim.t0 < 800) raf = requestAnimationFrame(go); }; raf = requestAnimationFrame(go); }
+
+  function layout(){
+    const r = stage.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!r.width) return;
+    cv.width = r.width * d; cv.height = r.height * d; Object.assign(V, { W:r.width, H:r.height, d, small:r.width < 560 });
+    const top = V.small ? 92 : 56, bot = V.small ? 24 : 40, w = (LON1 - LON0) * CL, h = LAT1 - LAT0, k = Math.min((r.width - 12) / w, (r.height - top - bot) / h);
+    V.k = k; V.ox = (r.width - w * k) / 2; V.oy = top + (r.height - top - bot - h * k) / 2; V.mw = w * k; V.mh = h * k;
+    V.toS = ([lon, lat]) => [V.ox + (lon - LON0) * CL * k, V.oy + (LAT1 - lat) * k];
+    const iw = Math.max(46, k * 7.2), ih = iw * 1.36, ik = ih / 21.5; V.ins = { x:V.ox + V.mw - iw - 4, y:V.oy + V.mh - ih - 4, w:iw, h:ih };
+    V.toI = ([lon, lat]) => [V.ins.x + iw / 2 + (lon - 114.5) * CI * ik, V.ins.y + (24 - lat) * ik];
+  }
+  function text(t, x, y, o2 = {}){ g.font = `${o2.w || 800} ${o2.s || 12}px Nunito, "PingFang SC", "Microsoft YaHei", sans-serif`; g.textAlign = o2.a || 'center'; g.textBaseline = 'middle';
+    g.lineWidth = 3.2; g.strokeStyle = css('--surface') || '#fff'; g.lineJoin = 'round'; g.strokeText(t, x, y); g.fillStyle = o2.c || css('--ink'); g.fillText(t, x, y); }
+  const path = (ring, f = V.toS) => { g.beginPath(); ring.forEach((p, i) => { const [x, y] = f(p); i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.closePath(); };
+  function star(x, y, r, fill, line){ g.beginPath(); for (let i = 0; i < 10; i++){ const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * .45 : r; g.lineTo(x + rr * Math.cos(a), y + rr * Math.sin(a)); } g.closePath(); g.fillStyle = fill; g.fill(); g.lineWidth = 1.5; g.strokeStyle = line; g.stroke(); }
+  function draw(){
+    if (!V.W) layout(); if (!V.W) return;
+    g.setTransform(V.d, 0, 0, V.d, 0, 0); g.clearRect(0, 0, V.W, V.H);
+    const ink = css('--ink') || '#14213d', ink2 = css('--ink-2') || '#4a5878', land = css('--surface') || '#fff', line = css('--line') || '#d9e2ee', fs = V.small ? 10 : 12.5;
+    const era = ERAS[App.i], y = App.year, fa = Math.min(1, (performance.now() - App.fade0) / 600);
+    g.save(); g.beginPath(); g.rect(V.ox, V.oy, V.mw, V.mh); g.clip();
+    g.fillStyle = css('--surface-2'); g.globalAlpha = .55; g.fillRect(V.ox, V.oy, V.mw, V.mh); g.globalAlpha = 1;
+    if (GEO){ g.save(); g.beginPath(); g.rect(0, 0, V.W, V.toS([0, 17.5])[1]); g.clip();
+      ChinaMap.draw2D(g, GEO, V.toS, { fill:f => era.modern ? era.c : App.layers.today ? land : null, stroke:App.layers.today || era.modern ? ink2 : line, lineWidth:era.modern ? .7 : .45 }); g.restore(); }
+    else text(Lab.L(failed ? o('The base map needs an internet connection — the dynasty outlines still work.','底图需要联网；朝代轮廓仍可显示。') : o('Loading map…','地图加载中…')), V.ox + V.mw / 2, V.oy + 20, { s:13, c:ink2 });
+    /* polities */
+    const vis = era.polys.map((p, k) => ({ p, k })).filter(x => inWin(x.p, y));
+    g.lineJoin = 'round';
+    vis.slice().reverse().forEach(({ p, k }) => {
+      const main = k === 0, al = main ? 1 : fa;
+      p.r.forEach((ring, ri) => { const rr = main && ri === 0 ? (curShape() || RS(ring)) : ring; path(rr);
+        g.globalAlpha = .42 * al; g.fillStyle = p.c; g.fill(); g.globalAlpha = .95 * al; g.strokeStyle = p.c; g.lineWidth = main ? 2.2 : 1.6; g.stroke(); });
+      g.globalAlpha = 1; });
+    if (App.anim && !App.anim.to && App.anim.from){ const u = Math.max(0, 1 - (performance.now() - App.anim.t0) / 600); if (u > 0){ path(App.anim.from); g.globalAlpha = .35 * u; g.fillStyle = ink2; g.fill(); g.globalAlpha = 1; } }
+    if (App.layers.lab) vis.forEach(({ p, k }) => { if (p.nolab) return; const c = p.lab || centroid(p.r[0]), [x, yy] = V.toS(c); text(Lab.L(p.n), x, yy, { s:k === 0 ? fs + 3 : fs, c:ink, w:k === 0 ? 800 : 700 }); });
+    if (era.states && y >= -475) era.states.forEach(([lo, la, n]) => { const [x, yy] = V.toS([lo, la]); g.beginPath(); g.arc(x, yy, 4.5, 0, 7); g.fillStyle = era.c; g.fill(); g.lineWidth = 1.5; g.strokeStyle = ink; g.stroke(); if (App.layers.lab) text(Lab.L(n), x + 8, yy - 6, { s:fs - 1, a:'left' }); });
+    if (App.layers.cap) era.caps.filter(c => inWin(c, y)).forEach((c, i) => { const [x, yy] = V.toS(c.ll); star(x, yy, i === 0 ? 8 : 6, i === 0 ? '#f4b400' : '#ffd969', ink); text(Lab.L(c.n), x, yy + (i === 0 ? 15 : 13), { s:fs - .5, c:ink, w:800 }); });
+    g.restore();
+    /* inset: South China Sea Islands */
+    const I = V.ins; g.save(); g.beginPath(); g.rect(I.x, I.y, I.w, I.h); g.fillStyle = css('--surface') || '#fff'; g.fill(); g.clip();
+    if (GEO) ChinaMap.draw2D(g, GEO, V.toI, { fill:() => era.modern ? era.c : land, stroke:ink2, lineWidth:.5 }); g.restore();
+    g.strokeStyle = ink2; g.lineWidth = 1; g.strokeRect(I.x, I.y, I.w, I.h);
+    text(Lab.L(o('South China Sea Islands','南海诸岛')), I.x + I.w / 2, I.y + I.h - 7, { s:V.small ? 7.5 : 9, c:ink2, w:700 });
+    g.strokeStyle = line; g.strokeRect(V.ox, V.oy, V.mw, V.mh);
+    text(Lab.L(o('Schematic map · ','示意图 · ')) + Lab.L(era.mapnote), V.ox + 8, V.oy + V.mh - 10, { s:V.small ? 9 : 11, a:'left', c:ink2, w:700 });
+  }
+  App.draw = draw;
+  new ResizeObserver(() => requestAnimationFrame(() => { layout(); draw(); })).observe(stage);
+  new MutationObserver(() => setTimeout(draw, 60)).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme'] });
+  window.addEventListener('labtheme', () => setTimeout(draw, 60));
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => setTimeout(draw, 60));
+})();
+
+/* ---------- slider, era strip, info panel ---------- */
+(function(){
+  const Y0 = -2070, Y1 = 1912, SPAN = Y1 - Y0;
+  const strip = Lab.$('#eraStrip');
+  strip.innerHTML = MAIN.map((e, k) => { const nx = k < MAIN.length - 1 ? MAIN[k + 1].seg : Y1; return `<button data-k="${k}" style="flex:${nx - e.seg} 0 0;background:${e.c}" title=""></button>`; }).join('');
+  Lab.$('#eraTicks').innerHTML = [-2000, -1500, -1000, -500, 1, 500, 1000, 1500].map(y => `<span style="left:${((y - Y0) / SPAN * 100).toFixed(2)}%" data-y="${y}"></span>`).join('');
+  Lab.$$('#eraStrip button').forEach(b => b.onclick = () => goEra(+b.dataset.k));
+  function goEra(k, keep){ if (!keep) stop(); const e = ERAS[k]; App.year = e.ctx ? Y1 : e.seg; setEra(k); }
+  function setEra(k){ const ch = k !== App.i || !App.shapeInit; App.i = k; App.shapeInit = true; if (!ERAS[k].ctx){ App.seen.add(ERAS[k].k); if (App.seen.size >= 19 && !MS.map){ MS.map = 1; } }
+    if (ch) App.morphTo(ERAS[k]); render(); renderTrack(); }
+  function render(){
+    const e = ERAS[App.i], y = App.year;
+    Lab.$('#yr').value = Math.min(1911, y); Lab.$('#yrOut').textContent = e.ctx ? (e.k === 'roc' ? '1912' : '1949') : Lab.L(fmtY(y));
+    let sub = Lab.L(e.name); if (e.k === 'ezhou') sub += Lab.L(y <= -476 ? o(' · Spring & Autumn',' · 春秋') : o(' · Warring States',' · 战国'));
+    if (e.k === 'whan' && y >= 9) sub = Lab.L(o('Xin (Wang Mang, 9–23)','新（王莽，9—23年）'));
+    Lab.$('#yrEra').textContent = sub;
+    Lab.$('#eraName').innerHTML = `${Lab.L(e.name)}<small>${Lab.L(e.dates)}</small>`;
+    Lab.$$('#eraStrip button').forEach((b, k) => { b.classList.toggle('on', k === App.i); b.classList.toggle('seen', App.seen.has(MAIN[k].k)); b.title = Lab.L(MAIN[k].name); });
+    Lab.$$('#eraTicks span').forEach(s => s.textContent = Lab.L(fmtY(+s.dataset.y)).replace(' CE', '').replace('公元', '').replace('1年', '1'));
+    Lab.$('#seenNote').textContent = Lab.L(o(`Eras visited: ${App.seen.size}/19`, `已看：${App.seen.size}/19个时期`)) + (MS.map ? ' ✓' : '');
+    Lab.$('#playBtn').textContent = App.timer ? '⏸' : '▶';
+
+    renderInfo(); App.draw();
+  }
+  App.render = render;
+  function renderInfo(){
+    const e = ERAS[App.i], box = Lab.$('#info'), k = App.i, rl = RHYME_OF[e.k];
+    const link = d => d ? `<a href="${d[0]}" data-lab-link>${Lab.L(o('Go deeper: ','深入学习：'))}${Lab.L(d[1])} →</a>` : '';
+    box.innerHTML = `<span class="tag">${e.ctx ? Lab.L(o('For context','背景')) : Lab.L(o(`Era ${k + 1} of 19`, `第${k + 1}个时期 / 共19个`))}</span>
+      <h3><span class="dot" style="background:${e.c}"></span>${Lab.L(e.name)}</h3>
+      <div class="date">${Lab.L(e.dates)} · ${Lab.L(o(`≈ ${e.len} years`, `约${e.len}年`))}</div>
+      <div class="kv"><b>${Lab.L(o('Capital','都城'))}</b><span>${Lab.L(e.cap)}</span><b>${Lab.L(o('Founder','建立者'))}</b><span>${Lab.L(e.who)}</span></div>
+      <div class="bm"><small>${Lab.L(o('⚡ Big moment','⚡ 大事'))}</small><h4>${Lab.L(e.big.t)}</h4><p>${Lab.L(e.big.b)}</p>${link(e.deep)}${e.deep2 ? '<br>' + link(e.deep2) : ''}</div>
+      <ul>${Lab.L(e.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+      <div class="mw"><b>${Lab.L(o('🌍 Meanwhile: ','🌍 与此同时：'))}</b>${Lab.L(e.mw)}</div>
+      ${rl != null ? `<div class="memory"><b>${Lab.L(o('🎵 Memory hook — Dynasty Song','🎵 记忆口诀·朝代歌'))}</b>${RHYME[rl]}</div>` : ''}
+      ${e.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Don’t mix up:','⚠️ 易错点：'))}</b><span>${Lab.L(e.mix)}</span></div>` : ''}
+      <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+      <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
+    Lab.translate(box);
+    Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(e.name), Lab.L(e.dates), Lab.L(e.big.t), Lab.L(e.big.b), ...Lab.L(e.facts)].join(Lab.lang === 'zh' ? '。' : '. '));
+    Lab.$('#pPrev').onclick = () => goEra(Math.max(0, App.i - 1)); Lab.$('#pNext').onclick = () => goEra(Math.min(ERAS.length - 1, App.i + 1));
+  }
+  function stop(){ if (App.timer){ clearInterval(App.timer); App.timer = null; } }
+  Lab.$('#yr').oninput = ev => { stop(); App.year = +ev.target.value || 1; setEra(eraAt(App.year)); };
+  Lab.$('#eraPrev').onclick = () => goEra(Math.max(0, App.i - 1));
+  Lab.$('#eraNext').onclick = () => goEra(Math.min(ERAS.length - 1, App.i + 1));
+  Lab.$('#playBtn').onclick = () => { if (App.timer){ stop(); render(); return; } if (App.i >= MAIN.length - 1) goEra(0, true);
+    App.timer = setInterval(() => { if (App.i >= MAIN.length - 1){ stop(); render(); } else goEra(App.i + 1, true); }, 3200); render(); };
+  Lab.$$('[data-layer]').forEach(b => b.onclick = () => { const l = b.dataset.layer; App.layers[l] = !App.layers[l]; b.classList.toggle('on', App.layers[l]); App.draw(); });
+  App.goEra = goEra;
+  Lab.onLang(() => { render(); renderTrack(); });
+  setEra(0);
+})();
+</script>
+<script>
+/* ================= Mission 2: length chart + guessing game ================= */
+(function(){
+  const MAXL = 600, S = { sort:'chron', par:false, pick:null, hide:null, say:null };
+  const pct = v => (v / MAXL * 100).toFixed(2) + '%';
+  function rows(){
+    let r = MAIN.map(e => ({ ...e }));
+    if (S.par){ const at = r.findIndex(e => e.k === 'nsong'); r.splice(at + 1, 0, ...PARALLEL.map(p => ({ ...p, par:1 }))); }
+    r.push(...ERAS.filter(e => e.ctx).map(e => ({ ...e, name:e.k === 'roc' ? o('Rep. of China','中华民国') : o('PRC (so far)','中华人民共和国（至今）') })), { ...USA, us:1 });
+    if (S.sort === 'long') r.sort((a, b) => b.len - a.len);
+    return r;
+  }
+  function render(){
+    Lab.$('#lcRows').innerHTML = rows().map(e => `<button class="lr ${e.par ? 'par' : ''} ${e.us ? 'us' : ''} ${S.hide === e.k ? 'hid' : ''} ${S.pick === e.k ? 'pick' : ''}" data-k="${e.k}"><span class="ln">${Lab.L(e.name)}</span><span class="lt"><i style="width:${pct(e.len)};background:${e.c}"></i><b style="position:absolute;top:-3px;bottom:-3px;left:${pct(250)};border-left:2px dashed var(--accent)"></b></span><span class="lv">${e.k === 'qin' || e.len < 100 ? '' : '≈'}${e.len}</span></button>`).join('');
+    Lab.$('#lcAxis').innerHTML = `<div></div><div>${[0, 100, 200, 300, 400, 500, 600].map(v => `<span style="left:${pct(v)}">${v}</span>`).join('')}</div><div style="font-size:12px;color:var(--ink-2);font-weight:700;padding-left:8px">${Lab.L(o('years','年'))}</div>`;
+    Lab.$$('#lcRows .lr').forEach(b => b.onclick = () => { if (S.hide) return; S.pick = b.dataset.k; const e = rows().find(x => x.k === S.pick), r = e.len / 250;
+      S.say = e.us ? o('The USA: 1776 to today — about 250 years.','美国：从1776年到今天，约250年。') :
+        o(`${e.name.en}: about ${e.len} years — ${r >= 1 ? r.toFixed(1) + '× as long as' : Math.round(r * 100) + '% of'} the USA’s whole history so far.`, `${e.name.zh}：约${e.len}年，相当于美国历史的${r >= 1 ? r.toFixed(1) + '倍' : Math.round(r * 100) + '%'}。`); render(); });
+    Lab.$('#lcSay').textContent = S.say ? Lab.L(S.say) : Lab.L(o('Tap any bar to compare it with the USA.','点任意一根条，和美国比一比。'));
+    Lab.$('#lcChron').classList.toggle('on', S.sort === 'chron'); Lab.$('#lcLong').classList.toggle('on', S.sort === 'long'); Lab.$('#lcPar').classList.toggle('on', S.par);
+  }
+  Lab.$('#lcChron').onclick = () => { S.sort = 'chron'; render(); }; Lab.$('#lcLong').onclick = () => { S.sort = 'long'; render(); }; Lab.$('#lcPar').onclick = () => { S.par = !S.par; render(); };
+  /* guessing */
+  const G = { list:[], i:0, errs:[], locked:false };
+  const POOL = MAIN.filter(e => e.k !== 'xia');
+  function newGame(){ G.list = Lab.shuffle(POOL).slice(0, 5); G.i = 0; G.errs = []; G.locked = false; Lab.$('#gIn').value = 200; ask(); }
+  function ask(){ const e = G.list[G.i]; S.hide = e.k; S.pick = e.k; S.say = null; G.locked = false; render(); gRender(); }
+  function gRender(){
+    const e = G.list[G.i], v = +Lab.$('#gIn').value;
+    Lab.$('#gRound').textContent = Math.min(G.i + 1, 5) + '/5'; Lab.$('#gV').textContent = v + Lab.L(o(' years',' 年'));
+    Lab.$('#gErr').textContent = G.errs.length ? Math.round(G.errs.reduce((a, b) => a + b, 0) / G.errs.length * 100) + '%' : '–';
+    Lab.$('#gQ').innerHTML = e ? Lab.L(o(`How long did <b>${e.name.en}</b> last?`, `<b>${e.name.zh}</b>延续了多少年？`)) : '';
+    Lab.$('#gGo').disabled = G.locked || G.i >= 5; Lab.$('#gNext').textContent = Lab.L(G.i >= 4 && G.locked ? o('New game ↺','再玩一次 ↺') : o('Next ▶','下一轮 ▶')); Lab.$('#gNext').disabled = !G.locked;
+  }
+  Lab.$('#gIn').oninput = gRender;
+  Lab.$('#gGo').onclick = () => { const e = G.list[G.i], v = +Lab.$('#gIn').value, err = Math.abs(v - e.len) / e.len; G.errs.push(Math.min(err, 2)); G.locked = true; S.hide = null;
+    const m = Lab.$('#gMsg'), good = err <= .15;
+    m.className = 'result ' + (err <= .35 ? 'good' : 'bad');
+    let t = o(`${good ? '🎯 Great guess!' : err <= .35 ? '👍 Close!' : '😮 Way off!'} ${e.name.en} lasted about ${e.len} years (you said ${v}).`, `${good ? '🎯 猜得真准！' : err <= .35 ? '👍 很接近！' : '😮 差得有点远！'}${e.name.zh}约${e.len}年（你猜${v}年）。`);
+    if (G.i === 4){ const avg = G.errs.reduce((a, b) => a + b, 0) / 5, st = avg <= .15 ? 3 : avg <= .35 ? 2 : 1; MS.len = Math.max(MS.len, st); renderTrack();
+      t = o(`${t.en} Game over — average miss ${Math.round(avg * 100)}%: ${'★'.repeat(st)}${'☆'.repeat(3 - st)} (3★ ≤ 15%, 2★ ≤ 35%).`, `${t.zh}本局结束——平均误差${Math.round(avg * 100)}%：${'★'.repeat(st)}${'☆'.repeat(3 - st)}（误差≤15%得3星，≤35%得2星）。`); }
+    G.msgT = t; m.textContent = Lab.L(t); render(); gRender(); };
+  Lab.$('#gNext').onclick = () => { Lab.$('#gMsg').textContent = ''; G.msgT = null; if (G.i >= 4) newGame(); else { G.i++; ask(); } };
+  Lab.onLang(() => { render(); gRender(); if (G.msgT) Lab.$('#gMsg').textContent = Lab.L(G.msgT); });
+  newGame();
+})();
+
+/* ================= Mission 3: Dynasty Song rhythm game ================= */
+const SONG = [
+  { t:[['夏','xia'],['商','shang'],['与'],['西周','wzhou'],['，'],['东周','ezhou'],['分两段；']], en:'Xia, Shang and Western Zhou; Eastern Zhou comes in two parts:' },
+  { t:[['春秋','cq'],['和'],['战国','zg'],['，一统'],['秦','qin'],['两汉','han'],['；']], en:'Spring & Autumn and Warring States; Qin unites it all, then the two Hans.' },
+  { t:[['三分'],['魏蜀吴','sg'],['，'],['二晋','jin'],['前后延；']], en:'Split three ways: Wei, Shu, Wu; then the two Jins, Western and Eastern.' },
+  { t:[['南北朝','nb'],['并立，'],['隋','sui'],['唐','tang'],['五代','wd'],['传；']], en:'Northern and Southern Dynasties side by side; Sui, Tang and the Five Dynasties pass it on.' },
+  { t:[['宋','song'],['元','yuan'],['明','ming'],['清','qing'],['后，皇朝至此完。']], en:'Song, Yuan, Ming and Qing — and there the age of emperors ends.' }];
+const TOK_EN = { xia:'Xia', shang:'Shang', wzhou:'W. Zhou', ezhou:'E. Zhou', cq:'Spring & Autumn', zg:'Warring States', qin:'Qin', han:'two Hans', sg:'Wei · Shu · Wu', jin:'two Jins', nb:'North & South', sui:'Sui', tang:'Tang', wd:'Five Dynasties', song:'Song', yuan:'Yuan', ming:'Ming', qing:'Qing' };
+(function(){
+  const TOKS = []; SONG.forEach((l, li) => l.t.forEach((t, ti) => { if (t[1]) TOKS.push({ li, ti, s:t[0], k:t[1] }); }));
+  const Sg = { lv:1, blanks:new Set(), state:{}, run:false, seq:[], pos:-1, timer:null, wait:null, score:0, streak:0, ok:0, n:0, sound:true, ac:null, msg:null };
+  const BEAT = 430, WAITB = 4, WAITMS = 650;
+  function tick(hi){ if (!Sg.sound || !Sg.ac) return; try { const t = Sg.ac.currentTime, os = Sg.ac.createOscillator(), gn = Sg.ac.createGain(); os.frequency.value = hi ? 1250 : 820; gn.gain.setValueAtTime(.12, t); gn.gain.exponentialRampToValueAtTime(.001, t + .06); os.connect(gn).connect(Sg.ac.destination); os.start(t); os.stop(t + .07); } catch(e){} }
+  function pickBlanks(){ const n = Sg.lv === 1 ? 5 : Sg.lv === 2 ? 10 : 18; Sg.blanks = new Set(Lab.shuffle(TOKS.map((_, i) => i)).slice(0, n)); Sg.state = {}; }
+  function draw(){
+    let ti = 0;
+    Lab.$('#sLines').innerHTML = SONG.map((l, li) => `<div class="sl ${Sg.cur && Sg.cur.li === li ? 'now' : ''}"><div class="zhl" data-nopy>${l.t.map(t => {
+      if (!t[1]) return [...t[0]].map(c => `<span class="ch">${c}</span>`).join('');
+      const i = ti++, b = Sg.blanks.has(i), st = Sg.state[i];
+      return `<span class="tok ${b && !st ? 'blank' : ''} ${st === 'got' ? 'got' : st === 'miss' ? 'miss' : ''} ${Sg.wait && Sg.wait.i === i ? 'now' : ''}" data-i="${i}">${[...t[0]].map(c => `<span class="ch">${b && !st ? '　' : c}</span>`).join('')}</span>`; }).join('')}</div>${Lab.lang === 'zh' ? '' : `<div class="enl">${l.en}</div>`}</div>`).join('');
+    Lab.$('#sScore').textContent = Sg.score; Lab.$('#sStreak').textContent = Sg.streak; Lab.$('#sLeft').textContent = [...Sg.blanks].filter(i => !Sg.state[i]).length;
+    Lab.$('#sStart').textContent = Lab.L(Sg.run ? o('■ Stop','■ 停止') : o('▶ Start','▶ 开始'));
+    Lab.$$('[data-lv]').forEach(b => b.classList.toggle('on', +b.dataset.lv === Sg.lv)); Lab.$('#sSound').classList.toggle('on', Sg.sound);
+    const m = Lab.$('#sMsg'); m.textContent = Sg.msg ? Lab.L(Sg.msg.t) : Lab.L(o('Press Start. Read along with the beat!','按“开始”，跟着节拍读！')); m.className = 'result ' + (Sg.msg ? Sg.msg.c : '');
+    if (Sg.pos >= 0){ const chs = Lab.$$('#sLines .ch'); if (chs[Sg.pos]) chs[Sg.pos].classList.add('beat'); }
+  }
+  function buildSeq(){ Sg.seq = []; let ti = 0; SONG.forEach((l, li) => l.t.forEach(t => { const i = t[1] ? ti++ : null; [...t[0]].forEach((c, ci) => { if (!'，；。'.includes(c)) Sg.seq.push({ li, ch:Sg.seq.length, tok:i, first:ci === 0 }); else Sg.seq.push({ li, rest:1, tok:i }); }); })); }
+  function stop(msg){ clearInterval(Sg.timer); clearInterval(Sg.waitT); Sg.timer = null; Sg.wait = null; Sg.run = false; Sg.cur = null; Sg.pos = -1; Lab.$('#sOpts').innerHTML = ''; Lab.$('#sBeat').style.width = '0'; if (msg) Sg.msg = msg; draw(); }
+  function start(){
+    if (Sg.run){ stop(); return; }
+    try { Sg.ac = Sg.ac || new (window.AudioContext || window.webkitAudioContext)(); } catch(e){}
+    pickBlanks(); buildSeq(); Sg.score = 0; Sg.streak = 0; Sg.ok = 0; Sg.n = Sg.blanks.size; Sg.pos = -1; Sg.run = true; Sg.msg = null; draw();
+    Sg.timer = setInterval(step, BEAT);
+  }
+  function step(){
+    Sg.pos++; if (Sg.pos >= Sg.seq.length){ finish(); return; }
+    const s = Sg.seq[Sg.pos]; Sg.cur = { li:s.li };
+    if (s.tok != null && s.first && Sg.blanks.has(s.tok) && !Sg.state[s.tok]){ clearInterval(Sg.timer); ask(s.tok); return; }
+    tick(s.tok != null); draw();
+  }
+  function ask(i){
+    const t = TOKS[i], near = TOKS.map((x, j) => ({ x, d:Math.abs(j - i) })).filter(z => z.x.k !== t.k && z.d <= 5);
+    const opts = Lab.shuffle([t, ...Lab.shuffle(near).slice(0, 3).map(z => z.x)]);
+    Sg.wait = { i, t0:performance.now() }; draw(); tick(true);
+    Lab.$('#sOpts').innerHTML = opts.map(x => `<button data-k="${x.k}">${x.s}${Lab.lang === 'zh' ? '' : `<br><small style="font-size:12px">${TOK_EN[x.k]}</small>`}</button>`).join('');
+    Lab.$$('#sOpts button').forEach(b => b.onclick = () => answer(b.dataset.k === t.k));
+    let beats = 0; Lab.$('#sBeat').style.width = '0';
+    Sg.waitT = setInterval(() => { beats++; Lab.$('#sBeat').style.width = (beats / WAITB * 100) + '%'; tick(false); if (beats >= WAITB) answer(false, true); }, WAITMS);
+  }
+  function answer(ok, late){
+    if (!Sg.wait) return; clearInterval(Sg.waitT); const i = Sg.wait.i, t = TOKS[i], used = (performance.now() - Sg.wait.t0) / (WAITB * WAITMS);
+    Sg.state[i] = ok ? 'got' : 'miss';
+    if (ok){ Sg.ok++; Sg.streak++; const pts = 100 + Math.round((1 - Math.min(1, used)) * 100) + (Sg.streak - 1) * 20; Sg.score += pts; Sg.msg = { c:'good', t:o(`✅ ${t.s} (${TOK_EN[t.k]}) +${pts}`, `✅ ${t.s} +${pts}`) }; }
+    else { Sg.streak = 0; Sg.msg = { c:'bad', t:late ? o(`⏰ Too slow! It was ${t.s} (${TOK_EN[t.k]}).`, `⏰ 慢了！应该是“${t.s}”。`) : o(`❌ It was ${t.s} (${TOK_EN[t.k]}).`, `❌ 应该是“${t.s}”。`) }; }
+    Sg.wait = null; Lab.$('#sOpts').innerHTML = ''; Lab.$('#sBeat').style.width = '0'; draw();
+    Sg.timer = setInterval(step, BEAT);
+  }
+  function finish(){
+    const acc = Sg.ok / Sg.n, st = (acc >= .5) + (acc >= .8) + (acc === 1 && Sg.lv >= 2);
+    MS.song = Math.max(MS.song, st); renderTrack(); Lab.$('#sStars').textContent = '★'.repeat(st) + '☆'.repeat(3 - st);
+    stop({ c:st ? 'good' : 'bad', t:o(`🎵 Song finished! ${Sg.ok}/${Sg.n} gaps, ${Sg.score} points. ${st === 3 ? 'Perfect!' : Sg.lv < 3 ? 'Try the next level for more stars (3★ = perfect on level 2 or 3).' : ''}`, `🎵 唱完了！填对${Sg.ok}/${Sg.n}个空，得${Sg.score}分。${st === 3 ? '满分！' : Sg.lv < 3 ? '挑战下一关可以拿更多星（第2、3关全对得3星）。' : ''}`) });
+  }
+  Lab.$('#sStart').onclick = start;
+  Lab.$$('[data-lv]').forEach(b => b.onclick = () => { stop(); Sg.lv = +b.dataset.lv; pickBlanks(); draw(); });
+  Lab.$('#sSound').onclick = () => { Sg.sound = !Sg.sound; draw(); };
+  Lab.$('#sRead').onclick = () => { if (!window.speechSynthesis) return; speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(RHYME.join('')); u.lang = 'zh-CN'; u.rate = .8; speechSynthesis.speak(u); };
+  Lab.onLang(draw);
+  pickBlanks(); draw();
+})();
+
+/* ================= Main mission: Timeline Challenge ================= */
+const ROOKIE = [['xia',o('Xia','夏')],['shang',o('Shang','商')],['zhou',o('Zhou','周')],['qin',o('Qin','秦')],['han',o('Han','汉')],['sui',o('Sui','隋')],['tang',o('Tang','唐')],['song',o('Song','宋')],['yuan',o('Yuan','元')],['ming',o('Ming','明')],['qing',o('Qing','清')]];
+const RK = { xia:'xia', shang:'shang', wzhou:'zhou', ezhou:'zhou', qin:'qin', whan:'han', ehan:'han', sui:'sui', tang:'tang', nsong:'song', ssong:'song', yuan:'yuan', ming:'ming', qing:'qing' };
+const CLUES = [
+  ['cap',o('Capital: Xianyang','都城：咸阳'),'qin'], ['cap',o('Capital: Lin’an (today’s Hangzhou)','都城：临安（今杭州）'),'ssong'], ['cap',o('Capital: Dadu (today’s Beijing)','都城：大都（今北京）'),'yuan'],
+  ['cap',o('Capital: Dongjing (today’s Kaifeng), painted in “Along the River During the Qingming Festival”','都城：东京开封，《清明上河图》描绘的就是它'),'nsong'], ['cap',o('Pan Geng moves the capital to Yin','盘庚迁殷'),'shang'], ['cap',o('Capital: Haojing','都城：镐京'),'wzhou'],
+  ['cap',o('Capital: Daxing city; a Grand Canal centred on Luoyang','都城大兴城；大运河以洛阳为中心'),'sui'], ['cap',o('Capital: Chang’an, a world city of about a million people','都城长安，人口约百万的国际性大都市'),'tang'], ['cap',o('Capital moved from Nanjing to Beijing in 1421','1421年从南京迁都北京'),'ming'],
+  ['cap',o('Liu Xiu makes Luoyang his capital','刘秀定都洛阳'),'ehan'], ['cap',o('A court refounded at Jiankang in 317','317年在建康重建的晋政权'),'dongjin'],
+  ['per',o('Zhang Qian travels to the Western Regions','张骞出使西域'),'whan'], ['inv',o('Cai Lun improves papermaking','蔡伦改进造纸术'),'ehan'], ['inv',o('Zhang Heng’s seismoscope','张衡发明地动仪'),'ehan'],
+  ['per',o('One script, one coin, one set of weights for the whole country','统一文字、货币和度量衡'),'qin'], ['per',o('Confucius teaches his students','孔子兴办私学，教授弟子'),'ezhou'], ['per',o('Shang Yang’s reforms','商鞅变法'),'ezhou'], ['inv',o('Li Bing builds Dujiangyan','李冰修建都江堰'),'ezhou'],
+  ['inv',o('Oracle-bone script and the Houmuwu ding','甲骨文与后母戊鼎'),'shang'], ['per',o('Yu’s son Qi inherits the throne','禹的儿子启继承王位'),'xia'], ['per',o('The enfeoffment system: land for the king’s relatives','实行分封制'),'wzhou'],
+  ['per',o('Zhuge Liang serves Shu','诸葛亮辅佐蜀汉'),'sanguo'], ['per',o('Sima Yan reunites the country in 280','280年司马炎统一全国'),'xijin'], ['per',o('Wang Xizhi, the “sage of calligraphy”','“书圣”王羲之'),'dongjin'],
+  ['per',o('Emperor Xiaowen’s reforms','北魏孝文帝改革'),'nanbei'], ['inv',o('Zu Chongzhi calculates π','祖冲之计算圆周率'),'nanbei'], ['inv',o('The imperial exams are created','创立科举制'),'sui'],
+  ['per',o('Princess Wencheng goes to Tibet','文成公主入藏'),'tang'], ['per',o('Jianzhen sails to Japan','鉴真东渡日本'),'tang'], ['per',o('The An–Shi Rebellion','安史之乱'),'tang'],
+  ['inv',o('Bi Sheng’s movable type','毕昇发明活字印刷术'),'nsong'], ['inv',o('Jiaozi, the first paper money','世界上最早的纸币“交子”'),'nsong'], ['per',o('The Chanyuan Treaty with Liao','宋辽澶渊之盟'),'nsong'],
+  ['per',o('Yue Fei fights the Jin','岳飞抗金'),'ssong'], ['per',o('The province system begins','实行行省制度'),'yuan'], ['per',o('Zheng He’s voyages','郑和下西洋'),'ming'], ['per',o('Qi Jiguang fights the wokou pirates','戚继光抗倭'),'ming'],
+  ['per',o('Treaty of Nerchinsk with Russia','中俄《尼布楚条约》'),'qing'], ['per',o('Taiwan Prefecture is set up','设置台湾府'),'qing'], ['per',o('Five regimes in 53 years in the north','北方53年里换了五个政权'),'wudai']];
+const TY = { cap:o('🏛 Capital','🏛 都城'), per:o('👤 Person / event','👤 人物与事件'), inv:o('💡 Invention / work','💡 发明与成就') };
+const RANKS = [ { en:'Tongsheng (beginner)', zh:'童生', stars:1 }, { en:'Xiucai', zh:'秀才', stars:1 }, { en:'Juren', zh:'举人', stars:2 }, { en:'Jinshi', zh:'进士', stars:2 }, { en:'Zhuangyuan (top scholar!)', zh:'状元', stars:3 } ];
+(function(){
+  const T = { lvl:'rookie', stage:0, cards:[], t0:0, pen:0, clues:[], ci:0, tick:null, sel:null, marks:{}, msg:null, end:null, lock:false };
+  const store = { get:k => { try { return localStorage.getItem(k); } catch(e){ return null; } }, set:(k, v) => { try { localStorage.setItem(k, v); } catch(e){} } };
+  const deck = () => T.lvl === 'rookie' ? ROOKIE.map(([k, n]) => ({ k, n })) : MAIN.map(e => ({ k:e.k, n:e.name }));
+  const elapsed = () => T.stage === 3 ? T.end : T.stage ? (performance.now() - T.t0) / 1000 : 0;
+  const LIM = { rookie:[180, 130, 90, 60], expert:[300, 220, 160, 110] };
+  const rankOf = s => { const L = LIM[T.lvl]; let r = 0; L.forEach((v, i) => { if (s <= v) r = i + 1; }); return r; };
+  function counters(){ Lab.$('#tTime').textContent = elapsed().toFixed(1); Lab.$('#tPen').textContent = T.pen; Lab.$('#tStage').textContent = (T.stage >= 2 ? 2 : 1) + '/2';
+    const b = store.get('dyBest_' + T.lvl); Lab.$('#tBest').textContent = b ? (+b).toFixed(1) + Lab.L(o(' s',' 秒')) : '–'; }
+  function render(){
+    counters(); const body = Lab.$('#tcBody');
+    Lab.$('#tCheck').style.display = T.stage === 1 ? '' : 'none'; Lab.$('#tStart').textContent = Lab.L(T.stage === 0 ? o('▶ Start the challenge','▶ 开始挑战') : T.stage === 3 ? o('↺ Try again','↺ 再挑战一次') : o('↺ Restart','↺ 重新开始'));
+    Lab.$$('[data-tl]').forEach(b => b.classList.toggle('on', b.dataset.tl === T.lvl));
+    if (T.stage === 0) body.innerHTML = `<p class="muted" style="margin:0">${Lab.L(o('Round 1 shows the cards shuffled. Earliest goes first (top-left). The clock starts when you press Start.','第一关：卡片是打乱的，最早的朝代放在第一个（左上角）。按“开始”后计时。'))}</p>`;
+    if (T.stage === 1){
+      body.innerHTML = `<div class="tc-grid" id="tcGrid">${T.cards.map((c, i) => `<div class="tcard ${T.sel === i ? 'sel' : ''} ${T.marks[c.k] || ''}" data-i="${i}"><small>${i + 1}</small>${Lab.L(c.n)}${Lab.lang === 'zh' ? '' : `<span>${c.n.zh}</span>`}</div>`).join('')}</div>`;
+      wireDrag();
+    }
+    if (T.stage === 2){ const c = T.clues[T.ci];
+      body.innerHTML = `<div class="clue"><small>${Lab.L(TY[c.ty])} · ${T.ci + 1}/10</small><b>${Lab.L(c.t)}</b></div><div class="copts">${c.opts.map(x => `<button data-k="${x.k}" class="${T.lock && x.k === c.a ? 'right' : T.lock && x.k === T.lock ? 'wrong' : ''}">${Lab.L(x.n)}</button>`).join('')}</div>`;
+      Lab.$$('.copts button').forEach(b => b.onclick = () => pick(b.dataset.k)); }
+    if (T.stage === 3){ const r = RANKS[T.rank];
+      body.innerHTML = `<div class="rankbox"><div class="big">${r.zh}</div><div><b>${Lab.L(o('Your rank: ','你的名次：'))}${Lab.L(r)} ${'★'.repeat(r.stars)}${'☆'.repeat(3 - r.stars)}</b><br>${Lab.L(o(`Total ${T.end.toFixed(1)} s (incl. ${T.pen} s penalty).`, `总用时${T.end.toFixed(1)}秒（含罚时${T.pen}秒）。`))}${T.best ? ' 🏆 ' + Lab.L(o('New best!','新纪录！')) : ''}</div></div>`; }
+    const lim = LIM[T.lvl];
+    Lab.$('#tRanks').innerHTML = RANKS.map((r, i) => `<span class="${T.stage === 3 && T.rank === i ? 'on' : ''}">${r.zh}${Lab.lang === 'zh' ? '' : ' ' + r.en.split(' ')[0]} ${i === 0 ? `> ${lim[0]}s` : `≤ ${lim[i - 1]}s`}</span>`).join('');
+    const m = Lab.$('#tMsg'); m.textContent = T.msg ? Lab.L(T.msg.t) : ''; m.className = 'result ' + (T.msg ? T.msg.c : '');
+  }
+  function start(){
+    clearInterval(T.tick); T.cards = Lab.shuffle(deck()); T.stage = 1; T.t0 = performance.now(); T.pen = 0; T.sel = null; T.marks = {}; T.msg = { c:'', t:o('Drag the cards into order — earliest first.','把卡片拖成正确顺序——最早的在前。') };
+    T.tick = setInterval(counters, 100); render();
+  }
+  function check(){
+    const want = deck().map(c => c.k); let bad = 0; T.marks = {};
+    T.cards.forEach((c, i) => { const ok = c.k === want[i]; T.marks[c.k] = ok ? 'ok' : 'bad'; if (!ok) bad++; });
+    if (!bad){ T.msg = { c:'good', t:o('✅ Perfect order! Round 2: match each clue to its dynasty.','✅ 顺序全对！第二关：把线索和朝代配对。') }; render(); setTimeout(round2, 900); return; }
+    T.pen += 5; T.msg = { c:'bad', t:o(`❌ ${bad} card${bad > 1 ? 's are' : ' is'} in the wrong place (+5 s). Green ones are right.`, `❌ 有${bad}张卡位置不对（罚时5秒）。绿色的是对的。`) }; render();
+  }
+  function round2(){
+    const keys = deck().map(c => c.k), names = Object.fromEntries(deck().map(c => [c.k, c.n]));
+    const pool = CLUES.map(([ty, t, a]) => ({ ty, t, a:T.lvl === 'rookie' ? RK[a] : a })).filter(c => keys.includes(c.a));
+    T.clues = Lab.shuffle(pool).slice(0, 10).map(c => ({ ...c, opts:Lab.shuffle([c.a, ...Lab.shuffle(keys.filter(k => k !== c.a)).slice(0, 3)]).map(k => ({ k, n:names[k] })) }));
+    T.ci = 0; T.stage = 2; T.lock = false; T.msg = null; render();
+  }
+  function pick(k){
+    if (T.lock) return; const c = T.clues[T.ci], ok = k === c.a; T.lock = ok ? c.a : k;
+    if (!ok) T.pen += 5; T.msg = ok ? { c:'good', t:o('✅ Correct!','✅ 正确！') } : { c:'bad', t:o('❌ +5 s — the right answer is in green.','❌ 罚时5秒——绿色的是正确答案。') }; render();
+    setTimeout(() => { T.lock = false; T.ci++; if (T.ci >= T.clues.length) finish(); else { T.msg = null; render(); } }, ok ? 450 : 1300);
+  }
+  function finish(){
+    clearInterval(T.tick); T.end = (performance.now() - T.t0) / 1000 + T.pen; T.stage = 3; T.rank = rankOf(T.end);
+    const k = 'dyBest_' + T.lvl, b = store.get(k); T.best = !b || T.end < +b; if (T.best) store.set(k, T.end.toFixed(1));
+    const r = RANKS[T.rank]; if (!MS.tl || r.stars >= MS.tl.stars) MS.tl = r; renderTrack();
+    T.msg = { c:'good', t:o('🎉 Challenge complete! Can you beat your time?','🎉 挑战完成！能刷新你的纪录吗？') }; render();
+  }
+  /* drag to reorder (pointer events) + tap-to-swap */
+  function wireDrag(){
+    const grid = Lab.$('#tcGrid'); let d = null;
+    grid.querySelectorAll('.tcard').forEach(el => {
+      el.onpointerdown = e => { d = { i:+el.dataset.i, x:e.clientX, y:e.clientY, el, moved:false }; try { el.setPointerCapture(e.pointerId); } catch(_){} };
+      el.onpointermove = e => { if (!d || d.el !== el) return;
+        if (!d.moved && Math.hypot(e.clientX - d.x, e.clientY - d.y) > 8){ d.moved = true; d.g = el.cloneNode(true); d.g.classList.add('tc-ghost'); d.g.style.width = el.offsetWidth + 'px'; document.body.appendChild(d.g); el.classList.add('drag'); }
+        if (d.moved){ d.g.style.left = e.clientX + 'px'; d.g.style.top = e.clientY + 'px'; } };
+      el.onpointerup = e => { if (!d || d.el !== el) return; const dd = d; d = null;
+        if (dd.moved){ dd.g.remove(); el.classList.remove('drag'); const t = document.elementFromPoint(e.clientX, e.clientY), tc = t && t.closest('.tcard');
+          if (tc && tc.parentNode === grid){ const j = +tc.dataset.i; const [c] = T.cards.splice(dd.i, 1); T.cards.splice(j, 0, c); T.marks = {}; } T.sel = null; render(); return; }
+        if (T.sel == null){ T.sel = dd.i; render(); } else { const a = T.sel; T.sel = null; if (a !== dd.i){ [T.cards[a], T.cards[dd.i]] = [T.cards[dd.i], T.cards[a]]; T.marks = {}; } render(); } };
+      el.onpointercancel = () => { if (d && d.g) d.g.remove(); d = null; render(); };
+    });
+  }
+  Lab.$('#tStart').onclick = start; Lab.$('#tCheck').onclick = () => T.stage === 1 && check();
+  Lab.$$('[data-tl]').forEach(b => b.onclick = () => { clearInterval(T.tick); T.lvl = b.dataset.tl; T.stage = 0; T.msg = null; render(); });
+  Lab.onLang(render);
+  render();
+})();
+
+/* ================= Quiz, sort, gallery, links ================= */
+const QUIZ = [
+  { q:o('China’s first dynasty, according to the textbook, was…','我国历史上第一个王朝是'), options:[o('Xia','夏朝'),o('Shang','商朝'),o('Western Zhou','西周'),o('Qin','秦朝')], answer:0, explain:o('Yu founded Xia around 2070 BCE. Qin was the first UNIFIED empire.','约公元前2070年禹建立夏朝。秦朝是第一个统一的中央集权国家。') },
+  { q:o('Oracle-bone script, the oldest mature Chinese writing, comes from the…','甲骨文是哪个朝代的文字？'), options:[o('Shang dynasty','商朝'),o('Xia dynasty','夏朝'),o('Qin dynasty','秦朝'),o('Han dynasty','汉朝')], answer:0 },
+  { q:o('China’s first unified, centralised state ruled by an emperor was…','我国历史上第一个统一的中央集权国家是'), options:[o('Qin','秦朝'),o('Xia','夏朝'),o('Western Han','西汉'),o('Sui','隋朝')], answer:0 },
+  { q:o('Map reading: on the map for 1142, the border runs along the Huai River and Dasan Pass. Which regime lies SOUTH of that line?','读图：1142年的示意图上，边界线东起淮水、西至大散关。这条线以南的政权是'), options:[o('Southern Song','南宋'),o('Jin','金'),o('Western Xia','西夏'),o('Liao','辽')], answer:0, explain:o('After the 1142 peace, Jin held the north and Southern Song the south.','1142年宋金议和后，金在北，南宋在南。') },
+  { q:o('Chart reading: the USA is about 250 years old. Which dynasty lasted LESS time than that?','读图：美国建国约250年。下列朝代中，延续时间比美国历史短的是'), options:[o('Yuan (≈98 years)','元朝（约98年）'),o('Tang (≈290 years)','唐朝（约290年）'),o('Ming (≈277 years)','明朝（约277年）'),o('Shang (≈550 years)','商朝（约550年）')], answer:0 },
+  { q:o('In the Dynasty Song line “三分魏蜀吴，二晋前后延”, the “two Jins” are…','《朝代歌》“三分魏蜀吴，二晋前后延”中的“二晋”指'), options:[o('Western Jin and Eastern Jin','西晋和东晋'),o('Later Jin and Jin (Jurchen)','后晋和金'),o('Jin state of the Spring & Autumn period and Western Jin','春秋晋国和西晋'),o('Sui and Tang','隋和唐')], answer:0 },
+  { q:o('Sui ended almost 300 years of division and reunited China in…','隋朝灭陈、重新统一全国是在'), options:[o('589','589年'),o('581','581年'),o('618','618年'),o('280','280年')], answer:0, explain:o('Sui was founded in 581 and conquered Chen in 589.','隋朝建立于581年，589年灭陈完成统一。') },
+  { q:o('The Yuan dynasty’s capital was…','元朝的都城是'), options:[o('Dadu (Beijing)','大都（今北京）'),o('Lin’an (Hangzhou)','临安（今杭州）'),o('Kaifeng','开封'),o('Chang’an','长安')], answer:0 },
+  { q:o('Which order is correct? ① Tang ② Qin ③ Yuan ④ Sui','下列朝代按时间先后排列正确的是：①唐 ②秦 ③元 ④隋'), options:[o('② ④ ① ③','②④①③'),o('④ ② ① ③','④②①③'),o('② ① ④ ③','②①④③'),o('① ② ④ ③','①②④③')], answer:0 },
+  { q:o('Which regimes ruled alongside Northern Song?','与北宋并立的政权有'), options:[o('Liao and Western Xia','辽、西夏'),o('Wei and Shu','魏、蜀'),o('Tubo and Nanzhao','吐蕃、南诏'),o('Yuan and Ming','元、明')], answer:0 },
+  { q:o('Which group of dynasties ALL had their capital near today’s Xi’an?','下列各组朝代，都城都在今西安一带的是'), options:[o('Qin, Western Han, Tang','秦、西汉、唐'),o('Eastern Han, Northern Song, Ming','东汉、北宋、明'),o('Southern Song, Yuan, Qing','南宋、元、清'),o('Eastern Jin, Southern Dynasties, Ming','东晋、南朝、明')], answer:0, explain:o('Xianyang, Chang’an (Han) and Chang’an (Tang) are all near Xi’an.','咸阳、西汉长安、唐长安都在今西安一带。') },
+  { q:o('China’s province system began with…','我国省制的开端是'), options:[o('Yuan’s xingsheng (行省) system','元朝的行省制度'),o('Qin’s commanderies and counties','秦朝的郡县制'),o('Western Zhou’s enfeoffment','西周的分封制'),o('Tang’s imperial exams','唐朝的科举制')], answer:0 },
+  { q:o('The imperial examination system was created under the…','科举制创立于'), options:[o('Sui','隋朝'),o('Tang','唐朝'),o('Han','汉朝'),o('Song','宋朝')], answer:0, explain:o('Sui created it; Tang perfected it.','科举制创立于隋朝，完善于唐朝。') }
+];
+const SORT = { bins:[{id:'e',en:'Early states (before 221 BCE)',zh:'早期国家（前221年以前）'},{id:'u',en:'Unified empire',zh:'大一统时期'},{id:'d',en:'Divided / regimes side by side',zh:'分裂或政权并立'}],
+  items:[{en:'Xia',zh:'夏',bin:'e'},{en:'Shang',zh:'商',bin:'e'},{en:'Western Zhou',zh:'西周',bin:'e'},{en:'Qin',zh:'秦',bin:'u'},{en:'Western Han',zh:'西汉',bin:'u'},{en:'Sui',zh:'隋',bin:'u'},{en:'Tang',zh:'唐',bin:'u'},{en:'Yuan',zh:'元',bin:'u'},{en:'Qing',zh:'清',bin:'u'},
+    {en:'Three Kingdoms',zh:'三国',bin:'d'},{en:'Eastern Jin & Sixteen Kingdoms',zh:'东晋十六国',bin:'d'},{en:'Northern & Southern Dynasties',zh:'南北朝',bin:'d'},{en:'Five Dynasties & Ten Kingdoms',zh:'五代十国',bin:'d'},{en:'Northern Song, Liao, Western Xia',zh:'北宋、辽、西夏',bin:'d'}] };
+const CQ = '?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', CT = 'https://thumb.wikimedia.org/wikipedia/commons/thumb/', CP = 'https://commons.wikimedia.org/wiki/File:', PH = o('Photo','照片');
+const PHOTOS = [
+  { src:CT + 'c/c2/HouMuWuDingFullView.jpg/960px-HouMuWuDingFullView.jpg' + CQ, en:'Shang: the Houmuwu ding, a bronze cauldron made in late Shang at Anyang — 832.84 kg, the heaviest ancient bronze found in China.', zh:'商：后母戊鼎，商朝晚期在安阳铸造，重832.84千克，是目前已知我国古代最重的青铜器。', kind:o('Bronze · Shang','青铜器 · 商'), credit:'Mlogic', license:'CC BY-SA 3.0', page:CP + 'HouMuWuDingFullView.jpg' },
+  { src:CT + '5/52/Xian_China_Terracotta-Army-Museum-02.jpg/960px-Xian_China_Terracotta-Army-Museum-02.jpg' + CQ, en:'Qin: Pit No. 1 of the Terracotta Army near Xi’an, made for the tomb of the First Emperor.', zh:'秦：西安秦始皇兵马俑一号坑。', kind:o('Photo · Qin','照片 · 秦'), credit:'CEphoto, Uwe Aranas', license:'CC BY-SA 3.0', page:CP + 'Xian_China_Terracotta-Army-Museum-02.jpg' },
+  { src:CT + 'e/e2/Western_Han_Mawangdui_Silk_Map.JPG/960px-Western_Han_Mawangdui_Silk_Map.JPG' + CQ, en:'Western Han: a map painted on silk (183–168 BCE) from the Mawangdui tombs, Changsha. South is at the top!', zh:'西汉：长沙马王堆汉墓出土的帛书地图（前183—前168年），上南下北。', kind:o('Silk map · Western Han','帛地图 · 西汉'), credit:'Anonymous ancient Chinese cartographer', license:'Public domain', page:CP + 'Western_Han_Mawangdui_Silk_Map.JPG' },
+  { src:CT + '2/29/Xian_Giant_Wild_Goose_Pagoda_02.jpg/960px-Xian_Giant_Wild_Goose_Pagoda_02.jpg' + CQ, en:'Tang: the Giant Wild Goose Pagoda at Daci’en Temple, Xi’an (Tang Chang’an).', zh:'唐：西安大慈恩寺大雁塔（唐长安城）。', kind:o('Photo · Tang','照片 · 唐'), credit:'KQuhen', license:'CC BY-SA 4.0', page:CP + 'Xian_Giant_Wild_Goose_Pagoda_02.jpg' },
+  { src:CT + '0/0a/Tang_Sancai_Camel.jpg/960px-Tang_Sancai_Camel.jpg' + CQ, en:'Tang: a three-colour glazed (sancai 三彩) camel, 723 CE, found in Xi’an — camels carried Silk Road trade.', zh:'唐：唐三彩骆驼（723年，西安出土）。骆驼是丝绸之路上的“沙漠之舟”。', kind:o('Pottery · Tang','陶器 · 唐'), credit:'Gary Todd', license:'CC0', page:CP + 'Tang_Sancai_Camel.jpg' },
+  { src:CT + '4/43/Along_the_River_During_the_Qingming_Festival_%28detail_of_original%29.jpg/960px-Along_the_River_During_the_Qingming_Festival_%28detail_of_original%29.jpg' + CQ, en:'Northern Song: the wooden bridge from Zhang Zeduan’s scroll “Along the River During the Qingming Festival”, showing life in Kaifeng.', zh:'北宋：张择端《清明上河图》中的虹桥（局部），描绘了东京开封的繁华。', kind:o('Painting · Northern Song','绘画 · 北宋'), credit:'Zhang Zeduan', license:'Public domain', page:CP + 'Along_the_River_During_the_Qingming_Festival_(detail_of_original).jpg' },
+  { src:CT + '1/1b/YuanEmperorAlbumKhubilaiPortrait.jpg/960px-YuanEmperorAlbumKhubilaiPortrait.jpg' + CQ, en:'Yuan: a portrait of Kublai Khan (忽必烈), founder of the Yuan dynasty.', zh:'元：元世祖忽必烈像。', kind:o('Portrait · Yuan','画像 · 元'), credit:'Araniko', license:'Public domain', page:CP + 'YuanEmperorAlbumKhubilaiPortrait.jpg' },
+  { src:CT + 'b/bf/China_%28Beijing%29_Aerial_view_of_Forbidden_City_%2838884882275%29.jpg/960px-China_%28Beijing%29_Aerial_view_of_Forbidden_City_%2838884882275%29.jpg' + CQ, en:'Ming: the Forbidden City in Beijing from above — built after Yongle moved the capital to Beijing.', zh:'明：俯瞰北京紫禁城（故宫），明成祖迁都北京后修建。', kind:o('Photo · Ming','照片 · 明'), credit:'Güldem Üstün', license:'CC BY 2.0', page:CP + 'China_(Beijing)_Aerial_view_of_Forbidden_City_(38884882275).jpg' },
+  { src:CT + 'd/db/Longevity_Hill_of_the_Summer_Palace.jpg/960px-Longevity_Hill_of_the_Summer_Palace.jpg' + CQ, en:'Qing: Longevity Hill at the Summer Palace (颐和园), Beijing, an imperial garden.', zh:'清：北京颐和园万寿山。', kind:o('Photo · Qing','照片 · 清'), credit:'xiquinhosilva', license:'CC BY 2.0', page:CP + 'Longevity_Hill_of_the_Summer_Palace.jpg' },
+  { type:'youtube', yt:'mP5p4QbvPtc', en:'TED-Ed: “The incredible history of China’s terracotta warriors” — the First Emperor’s clay army (about 5 minutes, English).', zh:'TED-Ed：秦始皇兵马俑的故事（约5分钟，英语）。', kind:o('Video','视频'), credit:'TED-Ed (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'RsUE-ZtcUFg', en:'National Geographic: “The Terra-Cotta Warriors” — how archaeologists study the Qin army (English).', zh:'美国国家地理：《兵马俑》——考古学家怎样研究秦俑（英语）。', kind:o('Video','视频'), credit:'National Geographic (YouTube)', license:'YouTube' }
+];
+const LINKS = [
+  ['https://digicol.dpm.org.cn/', o('Palace Museum digital collection','故宫博物院数字文物库'), o('Zoom into tens of thousands of Ming and Qing treasures from the Forbidden City.','放大观看故宫收藏的大量明清文物。'), 'digicol.dpm.org.cn'],
+  ['https://pano.dpm.org.cn/', o('Panoramic Forbidden City','全景故宫'), o('Walk through the Ming–Qing palace in 360°.','在360°全景中漫步明清皇宫。'), 'pano.dpm.org.cn'],
+  ['https://artsandculture.google.com/partner/the-palace-museum', o('Palace Museum on Google Arts & Culture','谷歌艺术与文化：故宫博物院'), o('Stories and high-resolution objects from the Forbidden City (English).','故宫的专题故事与高清文物（英文）。'), 'artsandculture.google.com'],
+  ['https://en.chnmuseum.cn/', o('National Museum of China','中国国家博物馆'), o('Its “Ancient China” exhibition walks through every dynasty.','“古代中国”陈列按朝代展示中华文明。'), 'en.chnmuseum.cn'],
+  ['https://www.bmy.com.cn/index.html', o('Emperor Qinshihuang’s Mausoleum Site Museum','秦始皇帝陵博物院'), o('The official home of the Terracotta Army.','兵马俑所在的官方博物院网站。'), 'bmy.com.cn'],
+  ['https://www.sxhm.com/index.html', o('Shaanxi History Museum','陕西历史博物馆'), o('Treasures from Zhou, Qin, Han and Tang capitals around Xi’an.','西安一带周秦汉唐都城的珍贵文物。'), 'sxhm.com'],
+  ['https://artsandculture.google.com/entity/m0131pq', o('Terracotta Army on Google Arts & Culture','谷歌艺术与文化：兵马俑'), o('Close-up photos and stories about the Qin warriors.','秦俑的近距离图片和故事。'), 'artsandculture.google.com'],
+  ['https://education.nationalgeographic.org/resource/imperial-chinas-dynasties/', o('National Geographic Education: imperial dynasties','美国国家地理教育：中国古代王朝'), o('A short English reading on China’s dynasties — compare it with this page.','一篇关于中国王朝的英文短文，可与本课对照阅读。'), 'education.nationalgeographic.org']
+];
+Lab.$('#links').innerHTML = LINKS.map(([h, t, s, d]) => `<a class="linkcard" href="${h}" target="_blank" rel="noopener"><b data-zh="${t.zh}">${t.en}</b><span data-zh="${s.zh}">${s.en}</span><small>${d} ↗</small></a>`).join('');
+LabPhotos.render('#gallery', PHOTOS, { title:o('See the real thing','看看真实的文物'), sub:o('One real object or place for many of the dynasties — plus two short videos about the Qin army. Click a picture to enlarge it; videos open on YouTube.','许多朝代各有一件真实的文物或一处古迹，还有两段关于秦兵马俑的短视频。点击图片放大；视频在 YouTube 打开。') });
+Lab.quiz(Lab.$('#quiz'), QUIZ, { count:12 });
+Lab.sort(Lab.$('#sort'), SORT);
+renderTrack();
+</script>
+</body>
+</html>

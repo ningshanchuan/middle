@@ -1,0 +1,929 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solar &amp; Lunar Eclipses</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/lab3d.js"></script>
+<script src="../shared/photos.js"></script>
+<style>
+/* page-specific styles */
+#stage{min-height:620px}
+.stage .inset{position:absolute;right:12px;top:110px;z-index:5;width:200px;background:rgba(8,12,32,.86);color:#eaf0fb;border:1px solid rgba(255,255,255,.16);border-radius:14px;padding:8px 10px 10px;font-size:12.5px;line-height:1.35;text-align:center}
+.stage .inset b.t{display:block;font-family:Fredoka;font-weight:600;font-size:14px;margin-bottom:4px}
+.stage .inset canvas{position:static;display:block;width:176px;height:176px;inset:auto;margin:0 auto;border-radius:12px}
+.stage .inset .etype{font-family:Fredoka;font-weight:600;font-size:16px;margin-top:6px}
+.stage .inset .emeta{color:#a9b8dc}
+#stage .lab-caption{left:12px;top:110px;transform:none;max-width:calc(100% - 240px);text-align:left}
+.stage .pill{padding:5px 12px;gap:8px}
+.stage .pill input[type=range]{width:96px}
+.stage .pill b{min-width:44px;font-family:Fredoka;font-weight:600;font-size:13px}
+.stage .bottombar .tip{display:none}
+.e-good{color:#7dffb5}.e-warn{color:#ffd36b}.e-none{color:#a9b8dc}.e-red{color:#ff9a7d}
+/* eclipse viewer */
+#viewer .simbox{min-height:420px}
+.challenges{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.challenges div{background:var(--surface-2);border-radius:10px;padding:6px 10px;font-weight:700;font-size:14px;color:var(--ink-2)}
+.challenges div.done{color:var(--good);background:color-mix(in srgb,var(--good) 14%,var(--surface))}
+.typecard .ico{font-size:30px}
+.typecard svg{width:64px;height:64px;display:block;margin-bottom:6px}
+@media (max-width:560px){ .stage .inset{display:none} #stage .lab-caption{left:50%;top:64px;transform:translateX(-50%);max-width:90%;text-align:center} .stage .pill input[type=range]{width:70px} .challenges{grid-template-columns:1fr} }
+@media (max-width:560px){ .stage .tbtn{font-size:12px;padding:5px 9px} #stage .lab-caption{top:auto;bottom:66px;font-size:14px} .stage:has(.storybar.show) .bottombar{display:none} #stage .storybar{bottom:12px} #stage .storybar button{padding:6px 10px;white-space:nowrap;font-size:13px} }
+</style>
+</head>
+<body data-subject="astronomy" data-topic="eclipses">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="天文 · 日地月系统">Astronomy · Sun–Earth–Moon</span>
+  <h1 data-zh-html="日食与<em>月食</em>">Solar &amp; Lunar <em>Eclipses</em></h1>
+  <p class="lead" data-zh="小小的月球怎么能把巨大的太阳挡住？地球和月球都会在太空中投下长长的影子。当太阳、地球、月球恰好排成一条直线时，一个天体的影子就会落到另一个天体上——这就是日食或月食。移动月球，看看影子落在哪里！">How can the small Moon hide the giant Sun? Earth and the Moon both cast long shadows into space. When the Sun, Earth and Moon line up exactly, one body’s shadow falls on the other: that is an eclipse. Move the Moon and see where the shadows land!</p>
+</header>
+
+<section class="wrap" id="explore" data-nav="3D Shadows" data-nav-zh="3D 影子">
+  <div class="explorer">
+    <div class="stage card space" id="stage" data-3d>
+      <div class="toolbar">
+        <button class="tbtn" id="playBtn">▶ Play</button>
+        <button class="tbtn" id="solarBtn" data-zh="🌑 日食">🌑 Solar eclipse</button>
+        <button class="tbtn" id="lunarBtn" data-zh="🌕 月食">🌕 Lunar eclipse</button>
+        <button class="tbtn on" id="tiltBtn" data-zh="📐 轨道倾斜">📐 Tilted orbit</button>
+        <button class="tbtn on" id="shadowBtn" data-zh="🟣 影锥">🟣 Shadow cones</button>
+        <button class="tbtn" id="storyBtn" data-zh="📖 日食和月食（故事）">📖 Eclipse story</button>
+        <button class="tbtn" id="labelBtn" data-zh="🏷 标签">🏷 Labels</button>
+        <button class="tbtn" id="resetBtn" data-zh="⌂ 重置">⌂ Reset</button>
+      </div>
+      <div class="inset" id="viewBox">
+        <b class="t" id="vTitle"></b>
+        <div class="etype" id="eType"></div>
+        <div class="emeta" id="eMeta"></div>
+      </div>
+      <div class="bottombar">
+        <div class="pill"><span data-zh="🌙 月龄">🌙 Moon</span><input id="age" type="range" min="0" max="29.5" step="0.05" value="0" aria-label="Moon position"><b id="ageLbl"></b></div>
+        <div class="pill"><span data-zh="📅 月份">📅 Month</span><input id="month" type="range" min="0" max="12" step="0.1" value="0" aria-label="month of year"><b id="monLbl"></b></div>
+        <div class="pill"><span data-zh="↔ 月地距离">↔ Distance</span><input id="dist" type="range" min="0" max="1" step="0.01" value="0" aria-label="Moon distance"><b id="distLbl"></b></div>
+        <div class="tip"></div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="chips" id="chips"></div>
+</section>
+
+<section class="wrap" id="types" data-nav="Eclipse types" data-nav-zh="食的种类">
+  <div class="sec-head">
+    <h2 data-zh="六种食">Six kinds of eclipse</h2>
+    <p data-zh="日食发生在新月，是月球挡住太阳；月食发生在满月，是地球的影子落到月球上。你站在影子的哪一部分，决定了你看到哪一种食。">A solar eclipse happens at new Moon, when the Moon blocks the Sun. A lunar eclipse happens at full Moon, when Earth’s shadow falls on the Moon. Which part of the shadow you are in decides what you see.</p>
+  </div>
+  <div class="grid3" id="typeCards"></div>
+  <div class="card table-wrap" style="margin-top:18px">
+    <table class="lab">
+      <thead><tr><th></th><th data-zh="日食 🌑">Solar eclipse 🌑</th><th data-zh="月食 🌕">Lunar eclipse 🌕</th></tr></thead>
+      <tbody>
+        <tr><td data-zh="排列顺序">Line-up</td><td data-zh="太阳 – 月球 – 地球">Sun – Moon – Earth</td><td data-zh="太阳 – 地球 – 月球">Sun – Earth – Moon</td></tr>
+        <tr><td data-zh="月相">Moon phase</td><td data-zh="新月">New Moon</td><td data-zh="满月">Full Moon</td></tr>
+        <tr><td data-zh="谁的影子落在谁身上">Whose shadow on whom</td><td data-zh="月球的影子落在地球上">Moon’s shadow on Earth</td><td data-zh="地球的影子落在月球上">Earth’s shadow on the Moon</td></tr>
+        <tr><td data-zh="在哪里能看到">Who can see it</td><td data-zh="只有影子扫过的狭窄地带">Only people in the shadow’s narrow path</td><td data-zh="地球上所有处于夜晚的地方">Everyone on Earth’s night side</td></tr>
+        <tr><td data-zh="全食持续时间">Totality lasts</td><td data-zh="最多约 7 分半钟">At most about 7½ minutes</td><td data-zh="最长约 1 小时 40 分钟">Up to about 1 hour 40 minutes</td></tr>
+        <tr><td data-zh="能直接看吗？">Safe to look?</td><td data-zh="❌ 不能！必须戴专用日食眼镜">❌ No! Use certified eclipse glasses</td><td data-zh="✅ 可以，用肉眼看很安全">✅ Yes, safe with your eyes</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="mix" style="margin-top:16px"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="月食不是一种月相。月相每个月都会出现，是我们看到月球亮面多少的变化；月食只有在地球影子真正落到满月上时才发生。同样，月相也不是地球的影子造成的。">A lunar eclipse is not a Moon phase. Phases happen every month and come from how much of the lit half we see. A lunar eclipse happens only when Earth’s shadow actually falls on a full Moon. And phases are never caused by Earth’s shadow.</span></div>
+</section>
+
+<section class="wrap" id="viewer" data-nav="Eclipse viewer" data-nav-zh="食的模拟器">
+  <div class="sec-head">
+    <h2 data-zh="模拟器：从地球上看食">Simulator: watch an eclipse from Earth</h2>
+    <p data-zh="拖动时间滑块，让月球从天空中经过。调整月球路径的高低（轨道倾斜造成的偏离）和月球的远近，完成右边的挑战。">Drag the time slider to move the Moon across the sky. Change how far above or below center its path runs (caused by the tilted orbit) and how near or far the Moon is, then complete the challenges.</p>
+  </div>
+  <div class="sim">
+    <div class="card simbox" id="vBox"><canvas id="vCv"></canvas></div>
+    <div class="card simside">
+      <div class="seg" id="vMode"><button data-m="solar" class="on" data-zh="🌑 日食">🌑 Solar</button><button data-m="lunar" data-zh="🌕 月食">🌕 Lunar</button></div>
+      <label class="ctl"><span data-zh="⏱ 时间（月球的位置）">⏱ Time (Moon’s position)</span><input id="vT" type="range" min="0" max="1" step="0.002" value="0.12"></label>
+      <label class="ctl"><span data-zh="↕ 月球路径的高低">↕ Moon’s path: above / below center</span><input id="vOff" type="range" min="-1.3" max="1.3" step="0.01" value="0"></label>
+      <label class="ctl" id="vSizeRow"><span data-zh="↔ 月球的远近（大小）">↔ Moon near ↔ far (apparent size)</span><input id="vSize" type="range" min="0" max="1" step="0.01" value="0.2"></label>
+      <div class="counters">
+        <div class="counter"><b id="vCov">0%</b><span id="vCovLbl"></span></div>
+        <div class="counter"><b id="vType" style="font-size:19px">—</b><span data-zh="现在看到的">what you see now</span></div>
+      </div>
+      <div class="result" id="vMsg"></div>
+      <h3 style="font-size:18px" data-zh="🏆 挑战">🏆 Challenges</h3>
+      <div class="challenges" id="vChal"></div>
+      <div class="btnrow"><button class="btn ghost" id="vPlay" data-zh="▶ 播放">▶ Play</button></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="nodes">
+  <div class="sec-head">
+    <h2 data-zh="为什么不是每个月都有日食？">Why isn’t there an eclipse every month?</h2>
+    <p data-zh="月球的轨道和地球绕太阳的轨道（黄道面）之间有大约 5.1° 的夹角（黄白交角）。月球只在两个点穿过黄道面，这两个点叫交点。只有当新月或满月恰好发生在交点附近时，才会出现日食或月食。拖动时间条走过真实的一年，看看“食季”在什么时候出现。">The Moon’s orbit is tilted about 5.1° to the plane of Earth’s orbit (the ecliptic). The Moon crosses that plane at only two points, called the nodes. An eclipse can happen only when a new or full Moon falls close to a node. Scrub through a real year and watch the “eclipse seasons” appear.</p>
+  </div>
+  <div class="sim">
+    <div class="card simbox" id="ndBox" style="min-height:470px"><canvas id="ndCv"></canvas></div>
+    <div class="card simside">
+      <div class="seg" id="ndYear" aria-label="year"></div>
+      <div class="timebar"><button id="ndPlay" aria-label="play">▶</button><input id="ndDay" type="range" min="0" max="365" step="0.05" value="0" aria-label="day of the year"><output id="ndOut">–</output></div>
+      <div class="counters">
+        <div class="counter"><b id="ndPhase" style="font-size:19px">–</b><span data-zh="月相">Moon phase</span></div>
+        <div class="counter"><b id="ndLat" style="font-size:19px">–</b><span data-zh="月球在黄道面上方/下方">Moon above / below the ecliptic</span></div>
+        <div class="counter"><b id="ndNode" style="font-size:19px">–</b><span data-zh="太阳离最近交点的角度">Sun’s angle from the nearest node</span></div>
+        <div class="counter"><b id="ndCount" style="font-size:19px">–</b><span data-zh="今年模型找到的食">eclipses the model finds this year</span></div>
+      </div>
+      <div class="result" id="ndMsg"></div>
+      <div class="btnrow"><button class="btn ghost" id="ndNew" data-zh="⏭ 下一次新月">⏭ Next new Moon</button><button class="btn ghost" id="ndFull" data-zh="⏭ 下一次满月">⏭ Next full Moon</button></div>
+      <div class="chips" id="ndList" style="margin-top:0"></div>
+      <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="交点连线必须“指向”太阳，才有食季。每年大约有两个食季，相隔约 173 天；交点连线每年向后转约 19°，所以食季每年提前大约 19 天。">The line of nodes has to point at the Sun to make an eclipse season. There are about two seasons a year, about 173 days apart. The line of nodes turns backward about 19° a year, so eclipse seasons come about 19 days earlier each year.</span></div>
+    </div>
+  </div>
+  <p class="muted" style="font-size:13px;margin:6px 0 0" data-zh="模型：用月球和太阳的平均轨道根数加上几个最大的修正项（参考 Meeus《天文算法》）计算位置，日期可能相差约一天。日食的界限取月球纬度小于约 1.5°，本影月食取小于约 1.0°（近似值）。俯视图中月球轨道的大小没有按比例画。">Model: positions from the mean orbits of the Moon and Sun plus their largest correction terms (after Meeus, “Astronomical Algorithms”); dates can be off by about a day. Eclipse limits used: Moon within about 1.5° of the ecliptic for a solar eclipse, about 1.0° for an umbral lunar eclipse (approximate values). The top view is not to scale.</p>
+</section>
+
+<section class="wrap" id="finder">
+  <div class="sec-head">
+    <h2 data-zh="日食月食查找器：接下来能看到哪一次？">Eclipse finder: which ones are coming up?</h2>
+    <p data-zh="这里列出一些真实的、已经精确预报的日食和月食。离今天最近的一次会被高亮。具体路线和时刻请到 NASA 或 timeanddate 网站上查你所在城市的信息。">A list of real, already-predicted eclipses. The next one after today is highlighted. Check the exact paths and times for your own city on NASA or timeanddate (links below).</p>
+  </div>
+  <div class="card simside">
+    <div class="seg" id="efSeg"><button data-f="all" class="on" data-zh="全部">All</button><button data-f="solar" data-zh="🌑 日食">🌑 Solar</button><button data-f="lunar" data-zh="🌕 月食">🌕 Lunar</button><button data-f="usa" data-zh="美国可见">Seen from the USA</button></div>
+    <div class="result" id="efNext"></div>
+    <div class="table-wrap"><table class="lab" id="efTbl" style="min-width:600px"></table></div>
+    <p class="muted" style="font-size:13px;margin:0" data-zh="日期为世界时（UTC），美洲的观测者看到的有时是前一天晚上。可见地区为简要概括。数据：NASA 戈达德航天中心日月食预报（F. Espenak）。">Dates are in Universal Time (UTC); in the Americas a lunar eclipse may fall on the evening before. Visibility regions are short summaries. Data: NASA Goddard eclipse predictions (F. Espenak).</p>
+  </div>
+  <div class="grid2" style="margin-top:18px">
+    <div class="card simside">
+      <h3 data-zh="⏱ 日全食能持续多久？">⏱ How long does totality last?</h3>
+      <p data-zh="几次日全食在最佳地点的全食时长。月球离地球越近、观测点越靠近赤道，全食就越长；理论上最长约 7 分半钟。">Longest totality (at the best spot) for some total solar eclipses. A closer Moon and a spot near the equator give a longer totality; the theoretical maximum is about 7½ minutes.</p>
+      <div id="efBars" style="display:flex;flex-direction:column;gap:7px"></div>
+      <p class="muted" style="font-size:13px;margin:0" data-zh="数据：NASA 戈达德航天中心日食预报，取整到秒（近似值）。">Data: NASA Goddard eclipse predictions, rounded (approximate values).</p>
+    </div>
+    <div class="card simside">
+      <h3 data-zh="🔁 沙罗周期：日食的“回放”">🔁 The saros: eclipses on repeat</h3>
+      <p data-zh="古巴比伦人就发现，每过大约 18 年 11 天 8 小时（一个沙罗周期 = 223 个朔望月），几乎同样的日食会再来一次。多出来的 8 小时让地球多转了三分之一圈，所以下一次食会出现在往西约 120° 的地方。">Ancient Babylonian astronomers noticed that almost the same eclipse returns every 18 years 11 days 8 hours (one saros = 223 lunar months). The extra 8 hours let Earth turn one third of a turn, so the repeat happens about 120° farther west.</p>
+      <details class="peek"><summary data-zh="例子：2027 年和 2045 年">Example: 2027 → 2045</summary><p data-zh="2027 年 8 月 2 日的日全食属于沙罗 136 号序列；再过一个沙罗周期，就是 2045 年 8 月 12 日横穿美国的日全食。">The total solar eclipse of 2 August 2027 belongs to saros series 136. One saros later comes the total eclipse of 12 August 2045, which crosses the USA from coast to coast.</p></details>
+      <details class="peek"><summary data-zh="为什么是 223 个月？">Why 223 months?</summary><p data-zh="223 个朔望月（约 6585.3 天）几乎正好等于 242 个“交点月”（月球两次经过同一交点的时间）和 239 个“近点月”。于是月相、交点和月地距离几乎同时回到原样。">223 lunar months (about 6,585.3 days) almost exactly equals 242 “draconic months” (the time for the Moon to return to the same node) and 239 “anomalistic months” (perigee to perigee). So the phase, the node and the Moon’s distance all repeat together.</p></details>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real photos" data-nav-zh="真实影像">
+  <div id="gallery"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 日食与月食测验">🧠 Eclipse quiz</h3><p class="sub" data-zh="选出正确答案。">Pick the best answer.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分一分：日食还是月食？">🗂️ Sort it: solar or lunar?</h3><p class="sub" data-zh="把每一项拖到（或先点再点方框）正确的组里。">Drag each fact (or tap it, then tap a box) into the right group.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="对应佐治亚州标准 S6E2b：构建解释，说明日食和月食的成因（并联系 S6E2a 的月相）。">Supports GSE S6E2b: construct an explanation of the cause of solar and lunar eclipses (connects to S6E2a, Moon phases).</p>
+    <p data-zh="关键问题：“每个月都有新月和满月，为什么不是每个月都有日食和月食？”先关闭“轨道倾斜”，让学生发现每次新月都会发生日食；再打开倾斜，拖动“月份”滑块，找出两个“食季”（相隔约 6 个月）。模型中月球轨道倾角画成了真实值（约 5°）的 3 倍，便于观察。">Key question: “There is a new and full Moon every month, so why not an eclipse every month?” Turn the tilt OFF so students see an eclipse at every new Moon; then turn it ON and drag the Month slider to find the two eclipse seasons (about 6 months apart). The orbit tilt is drawn 3× larger than the real 5° so it is visible.</p>
+    <p data-zh="影锥用颜色画出，便于在黑色太空背景中看到；真实的影子是看不见的，只有落到物体表面时才能看到。安全提示：观看日食（包括日偏食和日环食）必须使用符合 ISO 12312-2 标准的日食眼镜。">Shadow cones are drawn in color so they show against black space; real shadows are invisible until they land on a surface. Safety: viewing any partial or annular solar eclipse requires ISO 12312-2 certified eclipse glasses.</p>
+  </details>
+</section>
+
+<section class="wrap" id="further" data-nav="Go further" data-nav-zh="延伸探索">
+  <div class="sec-head"><h2 data-zh="走得更远：真实的天文工具">Go further: real astronomy tools</h2><p data-zh="下面是航天机构和科学家公开分享的真实网站，每个都会在新标签页中打开。">Real tools shared by space agencies and scientists. Each opens in a new tab.</p></div>
+  <div class="linkgrid">
+    <a class="linkcard" href="https://science.nasa.gov/eclipses/" target="_blank" rel="noopener"><b data-zh="NASA 日食与月食">NASA Eclipses</b><span data-zh="阅读最新日食的报道，学习怎样安全地观看日食，看真实的照片和视频。">Read about the latest eclipses, learn how to watch one safely, and see real photos and videos.</span><small>science.nasa.gov ↗</small></a>
+    <a class="linkcard" href="https://www.timeanddate.com/eclipse/list.html" target="_blank" rel="noopener"><b data-zh="timeanddate 日月食列表">timeanddate eclipse list</b><span data-zh="点开任意一次食，看动画地图，并查出你所在城市能看到多少、几点开始。">Open any eclipse to see an animated map and find out how much your own city will see, and when.</span><small>timeanddate.com ↗</small></a>
+    <a class="linkcard" href="https://eclipse.gsfc.nasa.gov/SEdecade/SEdecade2021.html" target="_blank" rel="noopener"><b data-zh="NASA 日食表 2021–2030">NASA solar eclipses 2021–2030</b><span data-zh="科学家用的预报表：每次日食的类型、沙罗序列号、全食时长和路线图。">The table scientists use: type, saros number, totality length and a path map for every solar eclipse.</span><small>eclipse.gsfc.nasa.gov ↗</small></a>
+    <a class="linkcard" href="https://eclipse.gsfc.nasa.gov/LEdecade/LEdecade2021.html" target="_blank" rel="noopener"><b data-zh="NASA 月食表 2021–2030">NASA lunar eclipses 2021–2030</b><span data-zh="查每次月食是半影食、偏食还是全食，持续多久，地球上哪些地方能看到。">Check whether each lunar eclipse is penumbral, partial or total, how long it lasts and where it can be seen.</span><small>eclipse.gsfc.nasa.gov ↗</small></a>
+    <a class="linkcard" href="https://eclipse.gsfc.nasa.gov/eclipse.html" target="_blank" rel="noopener"><b data-zh="NASA 日月食网站">NASA Eclipse Web Site</b><span data-zh="浏览五千年的日月食目录，还能看到沙罗周期序列的完整列表。">Browse eclipse catalogs covering 5,000 years, including the full lists of saros series.</span><small>eclipse.gsfc.nasa.gov ↗</small></a>
+  </div>
+  <h3 style="margin:26px 0 12px" data-zh="🔭 在本实验室继续深入">🔭 Go deeper in this lab</h3>
+  <div class="linkgrid" id="deeper" data-deeper="sky-tonight,kepler-laws,planets-moons"></div>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+const o = (en, zh) => ({en, zh});
+/* ===== Real photos (Wikimedia Commons, free licences; rendered by shared/photos.js) ===== */
+const RP_KIND = { earth:o('Photo from Earth','从地球上拍的照片'), crew:o('Astronaut photo','宇航员拍摄的照片'), vid:o('Time-lapse video','延时视频') };
+const RP = {
+  total:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cd/Total_Solar_Eclipse_8-21-17.jpg/960px-Total_Solar_Eclipse_8-21-17.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Total_Solar_Eclipse_8-21-17.jpg', credit:'Michael S Adler', kind:RP_KIND.earth,
+    en:'Total solar eclipse of August 21, 2017, through a telescope. The Moon covers the Sun completely, and the Sun’s glowing outer layer, the corona, appears.', zh:'2017 年 8 月 21 日的日全食（用望远镜拍摄）。月球把太阳完全挡住，太阳外层发光的日冕就露出来了。',
+    scale:o('Totality lasts only a few minutes','全食只持续几分钟') },
+  partial:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/79/Partial_solar_eclipse_over_Quebec_City.jpg/960px-Partial_solar_eclipse_over_Quebec_City.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Partial_solar_eclipse_over_Quebec_City.jpg', credit:'Wilfredor', kind:RP_KIND.earth,
+    en:'A partial solar eclipse over Quebec City, Canada. From inside the Moon’s lighter shadow (penumbra), the Moon covers only part of the Sun.', zh:'加拿大魁北克城上空的日偏食。在月球较淡的半影里，月球只挡住太阳的一部分。' },
+  annular:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/37/Annular_Eclipse._Taken_from_Middlegate%2C_Nevada_on_May_20%2C_2012.jpg/960px-Annular_Eclipse._Taken_from_Middlegate%2C_Nevada_on_May_20%2C_2012.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Annular_Eclipse._Taken_from_Middlegate,_Nevada_on_May_20,_2012.jpg', credit:'Smrgeog', kind:RP_KIND.earth,
+    en:'Annular eclipse from Middlegate, Nevada, May 20, 2012 (through a solar filter). The Moon was far from Earth, so it looked too small to cover the Sun: a “ring of fire” is left.', zh:'2012 年 5 月 20 日在美国内华达州米德尔盖特拍的日环食（加了太阳滤镜）。月球离地球较远，看起来太小，挡不住整个太阳，留下一圈“火环”。' },
+  space:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d7/Solar_eclipse_from_space_29_Mar_2006.jpg/960px-Solar_eclipse_from_space_29_Mar_2006.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Solar_eclipse_from_space_29_Mar_2006.jpg', credit:'NASA', kind:RP_KIND.crew,
+    en:'The Moon’s shadow falling on Earth during a total solar eclipse (March 29, 2006), photographed from the International Space Station, 230 miles up.', zh:'2006 年 3 月 29 日日全食时，从 370 千米（230 英里）高的国际空间站拍到的月球落在地球上的影子。',
+    scale:o('Only people inside the dark spot see a total eclipse','只有在暗斑里的人才能看到日全食') },
+  lunar:{ src:'https://upload.wikimedia.org/wikipedia/commons/0/0f/Lunar_eclipse_April_15_2014_California_Alfredo_Garcia_Jr1.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', license:'CC BY-SA 2.0', page:'https://commons.wikimedia.org/wiki/File:Lunar_eclipse_April_15_2014_California_Alfredo_Garcia_Jr1.jpg', credit:'Alfredo Garcia, Jr', kind:RP_KIND.earth,
+    en:'Total lunar eclipse of April 15, 2014, seen from Lomita, California. The Moon is inside Earth’s umbra and turns red: only sunlight bent through Earth’s air reaches it.', zh:'2014 年 4 月 15 日在美国加利福尼亚州洛米塔看到的月全食。月球进入地球的本影变成红色：只有穿过地球大气、被折射的阳光才能照到它。' },
+  lpart:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0a/2019-01-20-Partial_lunar_eclipse.jpg/960px-2019-01-20-Partial_lunar_eclipse.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:2019-01-20-Partial_lunar_eclipse.jpg', credit:'O’Dea', kind:RP_KIND.earth,
+    en:'January 20, 2019: Earth’s curved shadow creeping across the full Moon, one hour before totality. The round edge shows that Earth is round.', zh:'2019 年 1 月 20 日：全食前一小时，地球弯弯的影子正慢慢爬过满月。影子的圆边说明地球是圆的。' },
+  video:{ type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/8/80/Total_solar_eclipse_ESA422762.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/80/Total_solar_eclipse_ESA422762.webm/960px--Total_solar_eclipse_ESA422762.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', license:'CC BY-SA 3.0 igo', page:'https://commons.wikimedia.org/wiki/File:Total_solar_eclipse_ESA422762.webm', credit:'European Space Agency', kind:RP_KIND.vid,
+    en:'Time-lapse video of the total solar eclipse seen from Casper, Wyoming on August 21, 2017, filmed by a team of ESA astronomers.', zh:'欧洲航天局天文学家在美国怀俄明州卡斯珀拍摄的 2017 年 8 月 21 日日全食延时视频。' }
+};
+const RP_PANEL = { sun:'total', mumbra:'space', mpen:'partial', eumbra:'lunar', epen:'lpart' };
+const realFig = k => RP[RP_PANEL[k]] ? LabPhotos.figure(RP[RP_PANEL[k]]) : '';
+LabPhotos.render('#gallery', ['total','partial','annular','space','lunar','lpart','video'].map(k => RP[k]), { title:o('See the real thing','看看真实的样子'),
+  sub:o('Real eclipses photographed from Earth and from space. Never look at the Sun without proper eclipse glasses! Click a picture to enlarge it; the video plays only when you press play.','从地球上和太空中拍到的真实日食与月食。没有合格的日食眼镜千万不要直视太阳！点击图片可以放大；视频要你按下播放键才会播放。') });
+const P = 29.530588;
+/* fraction of a disk (radius a) covered by a disk (radius b) whose centres are d apart */
+function overlap(a, b, d){
+  if (d >= a + b) return 0;
+  if (d <= Math.abs(b - a)) return b >= a ? 1 : (b * b) / (a * a);
+  const x = (d * d + a * a - b * b) / (2 * d), y = d - x;
+  const A = a * a * Math.acos(Math.max(-1, Math.min(1, x / a))) - x * Math.sqrt(Math.max(0, a * a - x * x)) + b * b * Math.acos(Math.max(-1, Math.min(1, y / b))) - y * Math.sqrt(Math.max(0, b * b - y * y));
+  return A / (Math.PI * a * a);
+}
+/* eclipse type names */
+const ET = {
+  'solar-total':{n:o('Total solar eclipse!','日全食！'), c:'e-good', d:o('The Sun is completely covered; the corona glows around the black Moon.','太阳被完全遮住，黑色月球周围闪耀着日冕。')},
+  'solar-annular':{n:o('Annular eclipse: ring of fire!','日环食：“火环”！'), c:'e-warn', d:o('The Moon is too far away to cover the whole Sun.','月球太远，遮不住整个太阳。')},
+  'solar-partial':{n:o('Partial solar eclipse','日偏食'), c:'e-warn', d:o('Part of the Sun is covered. Never look without eclipse glasses!','太阳的一部分被遮住。没有日食眼镜千万不要直视！')},
+  'solar-none':{n:o('No solar eclipse','没有日食'), c:'e-none', d:o('The Moon’s shadow misses Earth.','月球的影子没有落到地球上。')},
+  'lunar-total':{n:o('Total lunar eclipse!','月全食！'), c:'e-red', d:o('The whole Moon is in Earth’s umbra and glows coppery red.','整个月球进入地球的本影，呈现古铜色的红光。')},
+  'lunar-partial':{n:o('Partial lunar eclipse','月偏食'), c:'e-warn', d:o('Part of the Moon is in Earth’s dark umbra.','月球的一部分进入了地球黑暗的本影。')},
+  'lunar-penumbral':{n:o('Penumbral lunar eclipse','半影月食'), c:'e-none', d:o('The Moon is only in the penumbra; it dims a little, hard to notice.','月球只进入半影，只是稍稍变暗，不容易察觉。')},
+  'lunar-none':{n:o('No lunar eclipse','没有月食'), c:'e-none', d:o('The Moon passes above or below Earth’s shadow.','月球从地球影子的上方或下方经过。')}
+};
+
+/* ===== Parts of the 3D model ===== */
+const PARTS = {
+  sun:{color:'#ffc93c', name:o('The Sun','太阳'), job:o('400× wider than the Moon, 400× farther away','比月球宽约 400 倍，也远约 400 倍'),
+    facts:{en:['The Sun is about 400 times wider than the Moon, but also about 400 times farther away, so both look almost the same size in our sky.','That lucky match is why the Moon can just barely cover the Sun in a total solar eclipse.','Never look straight at the Sun, even during a partial eclipse. Use certified eclipse glasses.'],zh:['太阳的直径约是月球的 400 倍，但距离也远约 400 倍，所以两者在天空中看起来几乎一样大。','正是这个巧合，月球才恰好能在日全食时遮住整个太阳。','千万不要直视太阳，日偏食时也不行，必须使用合格的日食眼镜。']},
+    hint:o('400× bigger, 400× farther = the same size in the sky.','大 400 倍、远 400 倍 = 看起来一样大。'),
+    mix:o('During a partial or annular eclipse the uncovered part of the Sun is still bright enough to hurt your eyes.','日偏食或日环食时，没被遮住的太阳仍然亮得足以伤害眼睛。')},
+  earth:{color:'#3f8ae0', name:o('Earth','地球'), job:o('Casts the shadow in a lunar eclipse','月食时投下影子的天体'),
+    facts:{en:['Like anything in sunlight, Earth casts a long shadow pointing away from the Sun.','When a full Moon moves into this shadow, we see a lunar eclipse.','During a solar eclipse, the Moon’s small shadow sweeps across Earth’s surface.'],zh:['和阳光下的任何物体一样，地球也会投下一条背向太阳的长影子。','满月进入这条影子时，我们就看到月食。','日食时，月球的小影子会扫过地球表面。']},
+    hint:o('Lunar eclipse: Earth is in the middle.','月食：地球在中间。')},
+  moon:{color:'#cfd3dc', name:o('The Moon','月球'), job:o('Blocks the Sun, or moves into Earth’s shadow','遮住太阳，或进入地球的影子'),
+    facts:{en:['A solar eclipse can only happen at new Moon; a lunar eclipse only at full Moon.','In a total lunar eclipse the Moon turns coppery red, because Earth’s atmosphere bends reddish sunlight into the shadow (like all the world’s sunsets at once).','The Moon is about 400 times closer than the Sun.'],zh:['日食只能发生在新月，月食只能发生在满月。','月全食时，月球会变成古铜色，因为地球大气把偏红的阳光折射进了影子（就像全世界的日出日落同时照在月球上）。','月球离我们比太阳近约 400 倍。']},
+    hint:o('Solar = new Moon. Lunar = full Moon.','日食 = 新月，月食 = 满月。'),
+    mix:o('A lunar eclipse is not the same as a Moon phase, and phases are never caused by Earth’s shadow.','月食不是月相，月相也从来不是地球影子造成的。')},
+  orbit:{color:'#8f9cff', name:o('Moon’s tilted orbit','倾斜的月球轨道'), job:o('Tilted about 5° (drawn 3× larger)','倾斜约 5°（图中放大了 3 倍）'),
+    facts:{en:['The Moon’s orbit is tilted about 5° compared with Earth’s orbit around the Sun.','So in most months the new Moon passes a little above or below the Sun, and the full Moon passes above or below Earth’s shadow.','That is why we don’t get a solar and a lunar eclipse every month.'],zh:['月球轨道与地球绕太阳的轨道面之间有约 5° 的夹角。','所以大多数月份，新月从太阳的上方或下方经过，满月也从地球影子的上方或下方经过。','这就是为什么不是每个月都有日食和月食。']},
+    hint:o('Tilt → the shadows miss most months.','有倾斜 → 大多数月份影子都会错过。'),
+    mix:o('It is the Moon’s 5° orbit tilt, not Earth’s 23.5° axis tilt, that prevents monthly eclipses.','阻止每月发生食的是月球轨道约 5° 的倾斜，而不是地轴 23.5° 的倾斜。')},
+  nodes:{color:'#7dffb5', name:o('Nodes & eclipse seasons','交点与食季'), job:o('Where the two orbits cross','两个轨道面相交的地方'),
+    facts:{en:['The two points where the Moon’s orbit crosses the plane of Earth’s orbit are called nodes.','An eclipse can only happen when a new or full Moon happens near a node.','The nodes line up with the Sun about every 6 months, in “eclipse seasons”. Every year has at least two solar eclipses (most are partial).'],zh:['月球轨道穿过地球公转轨道面的两个点叫做交点。','只有当新月或满月发生在交点附近时，才会出现食。','交点大约每 6 个月与太阳排成一线一次，这段时间叫“食季”。每年至少发生两次日食（大多是日偏食）。']},
+    hint:o('Eclipse = new/full Moon + near a node.','食 = 新月或满月 + 靠近交点。')},
+  eumbra:{color:'#a07cff', name:o('Earth’s umbra','地球的本影'), job:o('Darkest part of Earth’s shadow','地球影子中最暗的部分'),
+    facts:{en:['Inside the umbra the Sun is completely hidden by Earth.','If the whole Moon is inside it: total lunar eclipse. If only part: partial lunar eclipse.','Earth’s umbra is wide enough to hold the whole Moon, so totality can last up to about 1 hour 40 minutes.'],zh:['在本影里，太阳被地球完全挡住。','整个月球进入本影：月全食；只有一部分进入：月偏食。','地球的本影足够宽，能容下整个月球，所以月全食可持续约 1 小时 40 分钟。']},
+    hint:o('UMbra = the dark, UMbrella-like core.','本影 = 影子最黑的核心部分。')},
+  epen:{color:'#9fb3ff', name:o('Earth’s penumbra','地球的半影'), job:o('Lighter outer shadow','较淡的外围影子'),
+    facts:{en:['In the penumbra the Sun is only partly blocked.','When the Moon passes through only the penumbra, it dims slightly: a penumbral eclipse that most people don’t notice.'],zh:['在半影里，太阳只被挡住一部分。','月球只经过半影时，只是稍稍变暗，叫半影月食，大多数人都察觉不到。']},
+    hint:o('PENumbra = “almost” shadow (paene = almost).','半影 = “一半”的影子。')},
+  mumbra:{color:'#ff7a9a', name:o('Moon’s umbra','月球的本影'), job:o('Where people see a TOTAL solar eclipse','能看到日全食的地方'),
+    facts:{en:['The Moon’s umbra is small: on Earth it makes a dark spot at most about 270 km wide.','As the Moon moves and Earth turns, the spot sweeps a narrow “path of totality”. Totality lasts at most about 7½ minutes.','When the Moon is far from Earth, the umbra ends before reaching Earth: people see an annular (ring) eclipse instead.'],zh:['月球的本影很小，落到地球上最多形成一个约 270 千米宽的黑斑。','随着月球运动和地球自转，黑斑扫出一条狭窄的“全食带”。全食最多持续约 7 分半钟。','月球离地球较远时，本影到不了地面，人们看到的是日环食。']},
+    hint:o('Small umbra spot = total eclipse for only a few people.','本影斑很小，只有少数地方能看到日全食。')},
+  mpen:{color:'#ffb37a', name:o('Moon’s penumbra','月球的半影'), job:o('Where people see a PARTIAL solar eclipse','能看到日偏食的地方'),
+    facts:{en:['The Moon’s penumbra covers a huge area, thousands of kilometers across.','People there see the Moon take a “bite” out of the Sun: a partial solar eclipse.','The closer you are to the umbra, the more of the Sun is covered.'],zh:['月球的半影覆盖的范围很大，宽达几千千米。','那里的人看到太阳被月球“咬”掉一块：日偏食。','离本影越近，太阳被遮住的部分越多。']},
+    hint:o('Penumbra = partial.','半影 = 偏食。')}
+};
+const ORDER = ['sun','earth','moon','orbit','nodes','mumbra','mpen','eumbra','epen'];
+
+/* ===== Story ===== */
+const STORY = [
+  {en:'1 · Shadows in space: sunlight comes from the left. Earth and the Moon each cast a long shadow pointing away from the Sun. (The shadows are colored so you can see them.)',zh:'1 · 太空中的影子：阳光从左边射来，地球和月球都投下一条背向太阳的长影子。（影子涂上了颜色，方便观察。）'},
+  {en:'2 · Solar eclipse: at new Moon the Moon passes exactly between the Sun and Earth, and its shadow lands on Earth.',zh:'2 · 日食：新月时，月球正好从太阳和地球之间经过，它的影子落到了地球上。'},
+  {en:'3 · Inside the tiny dark umbra, people see a total solar eclipse. In the wide penumbra around it, people see a partial eclipse.',zh:'3 · 在小小的本影里，人们看到日全食；在周围宽阔的半影里，人们看到日偏食。'},
+  {en:'4 · When the Moon is farther away, its umbra ends before reaching Earth. The Moon looks a little smaller than the Sun: an annular “ring of fire” eclipse.',zh:'4 · 月球离地球较远时，本影到不了地面。月球看起来比太阳略小：形成日环食，像一个“火环”。'},
+  {en:'5 · Lunar eclipse: at full Moon, Earth is exactly between the Sun and the Moon, and the Moon glides into Earth’s shadow.',zh:'5 · 月食：满月时，地球正好位于太阳和月球之间，月球滑进了地球的影子。'},
+  {en:'6 · Deep in Earth’s umbra the Moon turns coppery red: Earth’s atmosphere bends red sunlight into the shadow. Everyone on the night side can see it.',zh:'6 · 在地球本影深处，月球变成古铜色：地球大气把红色的阳光折射进了影子。夜晚一侧的所有人都能看到。'},
+  {en:'7 · Why not every month? The Moon’s orbit is tilted (about 5°, drawn 3× bigger). Here the new Moon passes above the Sun–Earth line and its shadow misses.',zh:'7 · 为什么不是每个月都有？月球轨道是倾斜的（约 5°，图中放大 3 倍）。这里新月从日地连线上方经过，影子错过了地球。'},
+  {en:'8 · Eclipses happen only when a new or full Moon is near a node, where the orbits cross. This lines up in “eclipse seasons” about every 6 months.',zh:'8 · 只有新月或满月发生在交点（两轨道相交处）附近时才会出现食。这种排列大约每 6 个月出现一次，叫做“食季”。'}
+];
+
+/* ===== Info panel / selection ===== */
+const App = window.ECL = { sel:null, three:null };
+App.select = (k, from3D) => { App.sel = k; renderInfo(); renderChips(); if (!from3D && App.three) App.three.focus(k); };
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel;
+  if (!k){
+    box.innerHTML = `<span class="tag">${Lab.L(o('Big question','核心问题'))}</span>
+      <h3>${Lab.L(o('What makes an eclipse?','食是怎样形成的？'))}</h3>
+      <p class="muted" style="margin:0">${Lab.L(o('Use the Moon slider to move the Moon around Earth. The window at the top right shows the sky from the spot on Earth where the view is best. Try the Solar and Lunar buttons, then turn the tilted orbit on and off.','用“月龄”滑块让月球绕地球运动。右上角的小窗显示从地球上最佳位置看到的天空。试试“日食”和“月食”按钮，再打开或关闭“轨道倾斜”。'))}</p>
+      <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(o('Solar eclipse: Sun – Moon – Earth (the Moon’s shadow hits Earth). Lunar eclipse: Sun – Earth – Moon (Earth’s shadow hits the Moon).','日食：太阳 – 月球 – 地球（月影落到地球上）。月食：太阳 – 地球 – 月球（地影落到月球上）。'))}</div>
+      <div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(o('Eclipses don’t happen every month, because the Moon’s orbit is tilted.','食并不是每个月都发生，因为月球轨道是倾斜的。'))}</span></div>
+      <div class="nav"><button id="startBtn">${Lab.L(o('Start with the Sun ▶','从太阳开始 ▶'))}</button></div>`;
+    Lab.$('#startBtn').onclick = () => App.select('sun');
+    return;
+  }
+  const p = PARTS[k], i = ORDER.indexOf(k);
+  box.innerHTML = `<span class="tag">${Lab.L(['mumbra','mpen','eumbra','epen'].includes(k) ? o('Shadow','影子') : o('Part of the model','模型的组成'))}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>${realFig(k)}
+    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts), Lab.L(p.hint)].join('. '));
+  Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
+  Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
+}
+function renderChips(){
+  Lab.$('#chips').innerHTML = ORDER.map(k => `<button class="chip ${App.sel===k?'on':''}" data-k="${k}"><i style="background:${PARTS[k].color}"></i>${Lab.L(PARTS[k].name)}</button>`).join('');
+  Lab.$$('#chips .chip').forEach(c => c.onclick = () => App.select(c.dataset.k));
+}
+Lab.onLang(() => { renderInfo(); renderChips(); });
+
+/* ===== Eclipse type cards ===== */
+(function(){
+  const sunI = inner => `<svg viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#2d5fae"/>${inner}</svg>`, nightI = inner => `<svg viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#0b1028"/>${inner}</svg>`;
+  const CARDS = [
+    {svg:nightI('<circle cx="32" cy="32" r="22" fill="#fff6d0" opacity=".35"/><circle cx="32" cy="32" r="17" fill="#fff6d0" opacity=".5"/><circle cx="32" cy="32" r="14" fill="#0b0d16"/>'), n:ET['solar-total'].n, d:o('You are inside the Moon’s umbra. The sky turns dark, stars come out, and the Sun’s glowing corona appears.','你在月球的本影里。天空变暗、星星出现，太阳的日冕闪耀。')},
+    {svg:sunI('<circle cx="32" cy="32" r="15" fill="#ffc93c"/><circle cx="40" cy="27" r="15" fill="#2d5fae"/>'), n:ET['solar-partial'].n, d:o('You are in the Moon’s penumbra. The Moon covers only part of the Sun, like a bite out of a cookie.','你在月球的半影里。月球只遮住太阳的一部分，像饼干被咬了一口。')},
+    {svg:nightI('<circle cx="32" cy="32" r="16" fill="#ffb52e"/><circle cx="32" cy="32" r="13.2" fill="#1a1d2a"/>'), n:ET['solar-annular'].n, d:o('The Moon is near the far point of its orbit, so it looks smaller than the Sun and leaves a bright ring.','月球位于轨道上离地球较远的地方，看起来比太阳小，留下一圈明亮的光环。')},
+    {svg:nightI('<circle cx="32" cy="32" r="15" fill="#b5462a"/><circle cx="27" cy="27" r="4" fill="#8e3420"/>'), n:ET['lunar-total'].n, d:o('The whole Moon is inside Earth’s umbra. It turns coppery red from sunlight bent through Earth’s atmosphere.','整个月球都在地球的本影里。经地球大气折射的阳光把它染成古铜色。')},
+    {svg:nightI('<circle cx="32" cy="32" r="15" fill="#ece6d2"/><circle cx="14" cy="20" r="20" fill="#5a2216" opacity=".92"/>'), n:ET['lunar-partial'].n, d:o('Only part of the Moon enters Earth’s umbra, so a dark, curved bite appears. The curved edge shows Earth is round!','月球只有一部分进入地球的本影，出现一块弧形的暗区。弧形的边缘说明地球是圆的！')},
+    {svg:nightI('<circle cx="32" cy="32" r="15" fill="#c9c3b0"/><circle cx="32" cy="32" r="15" fill="url(#pg)"/><defs><radialGradient id="pg" cx=".1" cy=".3" r="1"><stop offset="0" stop-color="#000" stop-opacity=".35"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient></defs>'), n:ET['lunar-penumbral'].n, d:o('The Moon passes only through Earth’s penumbra. It dims just a little, so most people never notice.','月球只经过地球的半影，只是稍稍变暗，大多数人都不会注意到。')}
+  ];
+  function render(){ Lab.$('#typeCards').innerHTML = CARDS.map(c => `<div class="box card typecard">${c.svg}<h3>${Lab.L(c.n)}</h3><p>${Lab.L(c.d)}</p></div>`).join(''); }
+  Lab.onLang(render);
+})();
+
+/* ===== Eclipse viewer (2D) ===== */
+(function(){
+  const cv = Lab.$('#vCv'), box = Lab.$('#vBox'), tIn = Lab.$('#vT'), offIn = Lab.$('#vOff'), sizeIn = Lab.$('#vSize');
+  const V = { mode:'solar', done:{ solar:{}, lunar:{} }, playing:false, type:'solar-none', cov:0 };
+  const CH = {
+    solar:[['solar-total',o('Make a total eclipse','做出日全食')],['solar-annular',o('Make a ring of fire','做出日环食')],['solar-partial',o('Make a partial eclipse','做出日偏食')],['miss',o('Make the Moon miss the Sun','让月球错过太阳')]],
+    lunar:[['lunar-total',o('Make a total lunar eclipse','做出月全食')],['lunar-partial',o('Make a partial lunar eclipse','做出月偏食')],['lunar-penumbral',o('Make a penumbral eclipse','做出半影月食')],['miss',o('Make the Moon miss the shadow','让月球错过地影')]]
+  };
+  const stars = Array.from({ length:90 }, (_, i) => [((i * 97.13) % 1), ((i * 61.7 + i * i * .37) % 1), .6 + (i % 3) * .4]);
+  function draw(){
+    const r = box.getBoundingClientRect(), k = Math.min(devicePixelRatio || 1, 2); if (!r.width) return;
+    if (cv.width !== Math.round(r.width * k) || cv.height !== Math.round(r.height * k)){ cv.width = Math.round(r.width * k); cv.height = Math.round(r.height * k); }
+    const g = cv.getContext('2d'), W = r.width, H = r.height, cx = W / 2, cy = H / 2, t = +tIn.value, off = +offIn.value;
+    g.setTransform(k, 0, 0, k, 0, 0);
+    let type, cov;
+    if (V.mode === 'solar'){
+      const rs = Math.min(W, H) * .2, rm = rs * (1.07 - .14 * +sizeIn.value);
+      const mx = cx + (t - .5) * 2 * (rs + rm + 40), my = cy + off * rs, d = Math.hypot(mx - cx, my - cy);
+      cov = overlap(rs, rm, d);
+      type = d + rs <= rm ? 'solar-total' : d + rm <= rs ? 'solar-annular' : d < rs + rm ? 'solar-partial' : 'solar-none';
+      const dark = type === 'solar-total' ? 1 : Math.pow(cov, 4) * .85;
+      const sky = g.createLinearGradient(0, 0, 0, H);
+      sky.addColorStop(0, `rgb(${Math.round(60 * (1 - dark) + 5)},${Math.round(130 * (1 - dark) + 8)},${Math.round(220 * (1 - dark) + 20)})`);
+      sky.addColorStop(1, `rgb(${Math.round(170 * (1 - dark) + 15)},${Math.round(210 * (1 - dark) + 18)},${Math.round(250 * (1 - dark) + 40)})`);
+      g.fillStyle = sky; g.fillRect(0, 0, W, H);
+      if (dark > .6){ g.fillStyle = `rgba(255,255,255,${(dark - .6) * 2})`; stars.forEach(([x, y, s]) => g.fillRect(x * W, y * H * .7, s, s)); }
+      if (type === 'solar-total'){
+        const cg = g.createRadialGradient(cx, cy, rs * .9, cx, cy, rs * 2.6); cg.addColorStop(0, 'rgba(255,250,230,.95)'); cg.addColorStop(.3, 'rgba(220,230,255,.4)'); cg.addColorStop(1, 'rgba(200,210,255,0)');
+        g.fillStyle = cg; g.beginPath(); g.arc(cx, cy, rs * 2.6, 0, 7); g.fill();
+        g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 1.5;
+        for (let a = 0; a < 24; a++){ const an = a / 24 * Math.PI * 2, L = rs * (1.5 + .7 * Math.sin(a * 7.3)); g.beginPath(); g.moveTo(cx + Math.cos(an) * rs, cy + Math.sin(an) * rs); g.lineTo(cx + Math.cos(an) * L, cy + Math.sin(an) * L); g.stroke(); }
+      } else {
+        const gl = g.createRadialGradient(cx, cy, rs, cx, cy, rs * 1.8); gl.addColorStop(0, `rgba(255,230,150,${.55 * (1 - cov)})`); gl.addColorStop(1, 'rgba(255,230,150,0)');
+        g.fillStyle = gl; g.beginPath(); g.arc(cx, cy, rs * 1.8, 0, 7); g.fill();
+      }
+      const sg = g.createRadialGradient(cx - rs * .2, cy - rs * .2, rs * .1, cx, cy, rs); sg.addColorStop(0, '#fff6c8'); sg.addColorStop(1, '#ffb52e');
+      g.fillStyle = sg; g.beginPath(); g.arc(cx, cy, rs, 0, 7); g.fill();
+      g.fillStyle = '#12141d'; g.beginPath(); g.arc(mx, my, rm, 0, 7); g.fill();
+      if (cov === 0){ g.setLineDash([5, 5]); g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 1.5; g.beginPath(); g.arc(mx, my, rm, 0, 7); g.stroke(); g.setLineDash([]);
+        g.fillStyle = 'rgba(255,255,255,.8)'; g.font = '700 12px Nunito, sans-serif'; g.textAlign = 'center'; g.fillText(Lab.L(o('new Moon (invisible)','新月（看不见）')), mx, my + rm + 16); }
+      g.fillStyle = dark > .5 ? '#eaf0fb' : '#14213d'; g.font = '800 13px Nunito, sans-serif'; g.textAlign = 'left';
+      g.fillText(Lab.L(o('⚠️ Model only: never look at the real Sun without eclipse glasses','⚠️ 仅为模型：观看真实太阳必须戴日食眼镜')), 12, H - 12);
+      Lab.$('#vCovLbl').textContent = Lab.L(o('of the Sun covered','太阳被遮住的比例'));
+    } else {
+      const Ru = Math.min(W, H) * .2, Rp = Ru * 1.9, rm = Ru / 2.6;
+      const mx = cx + (t - .5) * 2 * (Rp + rm + 30), my = cy + off * Rp * .85, d = Math.hypot(mx - cx, my - cy);
+      cov = overlap(rm, Ru, d);
+      type = d + rm <= Ru ? 'lunar-total' : d < Ru + rm ? 'lunar-partial' : d < Rp + rm ? 'lunar-penumbral' : 'lunar-none';
+      g.fillStyle = '#05070f'; g.fillRect(0, 0, W, H);
+      g.fillStyle = 'rgba(255,255,255,.75)'; stars.forEach(([x, y, s]) => g.fillRect(x * W, y * H, s, s));
+      g.setLineDash([6, 6]); g.lineWidth = 1.5;
+      g.strokeStyle = 'rgba(160,180,255,.5)'; g.beginPath(); g.arc(cx, cy, Rp, 0, 7); g.stroke();
+      g.strokeStyle = 'rgba(255,120,90,.6)'; g.beginPath(); g.arc(cx, cy, Ru, 0, 7); g.stroke(); g.setLineDash([]);
+      g.font = '800 12px Nunito, sans-serif'; g.textAlign = 'center';
+      g.fillStyle = 'rgba(160,180,255,.85)'; g.fillText(Lab.L(o('Earth’s penumbra','地球的半影')), cx, cy - Rp - 8);
+      g.fillStyle = 'rgba(255,150,120,.9)'; g.fillText(Lab.L(o('Earth’s umbra','地球的本影')), cx, cy - Ru + 16);
+      g.save(); g.beginPath(); g.arc(mx, my, rm, 0, 7); g.clip();
+      const mg = g.createRadialGradient(mx - rm * .3, my - rm * .3, rm * .1, mx, my, rm); mg.addColorStop(0, '#fbf7ea'); mg.addColorStop(1, '#d9d2bd');
+      g.fillStyle = mg; g.fillRect(mx - rm, my - rm, rm * 2, rm * 2);
+      g.fillStyle = 'rgba(120,115,100,.35)'; [[-.3, -.2, .25], [.25, .1, .18], [-.05, .4, .15]].forEach(([a, b, s]) => { g.beginPath(); g.arc(mx + a * rm, my + b * rm, s * rm, 0, 7); g.fill(); });
+      const pg = g.createRadialGradient(cx, cy, Ru, cx, cy, Rp); pg.addColorStop(0, 'rgba(0,0,0,.5)'); pg.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = pg; g.beginPath(); g.arc(cx, cy, Rp, 0, 7); g.fill();
+      g.fillStyle = 'rgba(120,30,10,.86)'; g.beginPath(); g.arc(cx, cy, Ru, 0, 7); g.fill();
+      g.restore();
+      Lab.$('#vCovLbl').textContent = Lab.L(o('of the Moon in the umbra','月球进入本影的比例'));
+    }
+    V.type = type; V.cov = cov;
+    Lab.$('#vCov').textContent = Math.round(cov * 100) + '%';
+    Lab.$('#vType').textContent = Lab.L(ET[type].n).replace(/[!!]$/, '');
+    const m = Lab.$('#vMsg'); m.textContent = Lab.L(ET[type].d); m.className = 'result ' + (type.endsWith('none') ? '' : 'good');
+    // challenges
+    const dn = V.done[V.mode];
+    if (!type.endsWith('none')) dn[type] = true;
+    else if (Math.abs(t - .5) < .04) dn.miss = true;
+    Lab.$('#vChal').innerHTML = CH[V.mode].map(([key, n]) => `<div class="${dn[key] ? 'done' : ''}">${dn[key] ? '✅' : '⬜'} ${Lab.L(n)}</div>`).join('');
+  }
+  function setMode(m){ V.mode = m; Lab.$$('#vMode button').forEach(b => b.classList.toggle('on', b.dataset.m === m)); Lab.$('#vSizeRow').style.display = m === 'solar' ? '' : 'none'; draw(); }
+  Lab.$$('#vMode button').forEach(b => b.onclick = () => setMode(b.dataset.m));
+  tIn.oninput = offIn.oninput = sizeIn.oninput = draw;
+  const playLbl = () => Lab.$('#vPlay').textContent = Lab.L(V.playing ? o('⏸ Pause','⏸ 暂停') : o('▶ Play','▶ 播放'));
+  let last = 0;
+  function tick(now){ if (!V.playing) return; const dt = Math.min(.05, (now - last) / 1000); last = now; let t = +tIn.value + dt / 7; if (t >= 1){ t = 1; V.playing = false; playLbl(); } tIn.value = t; draw(); requestAnimationFrame(tick); }
+  Lab.$('#vPlay').onclick = () => { V.playing = !V.playing; playLbl(); if (V.playing){ if (+tIn.value >= 1) tIn.value = 0; last = performance.now(); requestAnimationFrame(tick); } };
+  new ResizeObserver(() => requestAnimationFrame(draw)).observe(box);
+  Lab.onLang(() => { playLbl(); draw(); });
+})();
+
+/* ===== Quiz ===== */
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('A solar eclipse happens when…','日食发生在什么时候？'), options:[o('The Moon is between the Sun and Earth','月球位于太阳和地球之间'),o('Earth is between the Sun and the Moon','地球位于太阳和月球之间'),o('The Sun is between Earth and the Moon','太阳位于地球和月球之间'),o('The Moon is hidden behind the Sun','月球躲在太阳后面')], answer:0, explain:o('Line-up Sun – Moon – Earth: the Moon’s shadow falls on Earth.','排列顺序为太阳 – 月球 – 地球：月影落到地球上。')},
+  {q:o('A lunar eclipse happens when…','月食发生在什么时候？'), options:[o('Earth is between the Sun and the Moon','地球位于太阳和月球之间'),o('The Moon is between the Sun and Earth','月球位于太阳和地球之间'),o('The Moon is closest to the Sun','月球离太阳最近时'),o('Clouds cover the Moon','云遮住月亮时')], answer:0},
+  {q:o('During which Moon phase can a solar eclipse happen?','日食可能发生在哪种月相？'), options:[o('New Moon','新月'),o('Full Moon','满月'),o('First quarter','上弦月'),o('Waning gibbous','亏凸月')], answer:0},
+  {q:o('During which Moon phase can a lunar eclipse happen?','月食可能发生在哪种月相？'), options:[o('Full Moon','满月'),o('New Moon','新月'),o('Third quarter','下弦月'),o('Waxing crescent','蛾眉月')], answer:0},
+  {q:o('What is the darkest, central part of a shadow called?','影子中心最暗的部分叫什么？'), options:[o('Umbra','本影'),o('Penumbra','半影'),o('Corona','日冕'),o('Node','交点')], answer:0},
+  {q:o('People standing in the Moon’s penumbra see…','站在月球半影里的人会看到……'), options:[o('A partial solar eclipse','日偏食'),o('A total solar eclipse','日全食'),o('A total lunar eclipse','月全食'),o('Nothing unusual','什么特别的都看不到')], answer:0},
+  {q:o('Why don’t eclipses happen every month?','为什么不是每个月都发生日食和月食？'), options:[o('The Moon’s orbit is tilted about 5°, so its shadow usually misses','月球轨道倾斜约 5°，影子通常会错过'),o('Earth’s axis is tilted 23.5°','地轴倾斜 23.5°'),o('The Moon is too small to cast a shadow','月球太小，投不下影子'),o('The Sun is too bright most months','大多数月份太阳太亮')], answer:0, explain:o('Most months the new and full Moon pass above or below the Sun–Earth line.','大多数月份，新月和满月从日地连线的上方或下方经过。')},
+  {q:o('What causes an annular (“ring of fire”) eclipse?','日环食（“火环”）是怎样形成的？'), options:[o('The Moon is farther away and looks a bit smaller than the Sun','月球较远，看起来比太阳略小'),o('The Moon is at its closest point','月球离地球最近'),o('Earth’s shadow turns red','地球的影子变红了'),o('The Sun gets bigger','太阳变大了')], answer:0},
+  {q:o('Why does the Moon look red in a total lunar eclipse?','月全食时月亮为什么看起来是红色的？'), options:[o('Earth’s atmosphere bends reddish sunlight into the shadow','地球大气把偏红的阳光折射进影子里'),o('The Moon gets very hot','月球变得非常热'),o('Light from Mars reflects off it','火星的光照到了月球上'),o('The Sun turns red','太阳变成了红色')], answer:0},
+  {q:o('Which kind of eclipse can more people see at the same time?','哪种食能同时被更多的人看到？'), options:[o('A lunar eclipse: the whole night side can see it','月食：整个夜半球都能看到'),o('A solar eclipse','日食'),o('Both are seen by the same number of people','两者看到的人一样多'),o('Neither can be seen from Earth','在地球上都看不到')], answer:0, explain:o('The Moon’s shadow on Earth is small, but anyone who can see the Moon can see a lunar eclipse.','月球落在地球上的影子很小，但只要能看到月亮的人，都能看到月食。')},
+  {q:o('Is it safe to look straight at a partial solar eclipse?','直接用眼睛看日偏食安全吗？'), options:[o('No, use certified eclipse glasses','不安全，要戴合格的日食眼镜'),o('Yes, the Moon blocks the harmful light','安全，月球挡住了有害的光'),o('Yes, with ordinary sunglasses','安全，戴普通墨镜就行'),o('Yes, if you look only for a minute','安全，只要看一分钟以内')], answer:0},
+  {q:o('How can the small Moon cover the huge Sun?','小小的月球怎么能遮住巨大的太阳？'), options:[o('The Sun is ~400× wider but also ~400× farther away','太阳宽约 400 倍，但也远约 400 倍'),o('The Moon is actually bigger than the Sun','月球其实比太阳大'),o('The Sun shrinks during an eclipse','食发生时太阳会缩小'),o('Earth’s air makes the Moon look bigger','地球的空气让月球看起来更大')], answer:0}
+], { count:10 });
+
+/* ===== Sort game ===== */
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'sol',en:'Solar eclipse 🌑',zh:'日食 🌑'},{id:'lun',en:'Lunar eclipse 🌕',zh:'月食 🌕'}],
+  items:[
+    {en:'Happens at new Moon',zh:'发生在新月',bin:'sol'},{en:'Happens at full Moon',zh:'发生在满月',bin:'lun'},
+    {en:'The Moon blocks the Sun',zh:'月球挡住太阳',bin:'sol'},{en:'Earth’s shadow falls on the Moon',zh:'地球的影子落到月球上',bin:'lun'},
+    {en:'Sun – Moon – Earth',zh:'太阳 – 月球 – 地球',bin:'sol'},{en:'Sun – Earth – Moon',zh:'太阳 – 地球 – 月球',bin:'lun'},
+    {en:'Can be a “ring of fire”',zh:'可能出现“火环”',bin:'sol',color:'#ffb52e'},{en:'The Moon can turn red',zh:'月亮会变红',bin:'lun',color:'#b5462a'},
+    {en:'Seen only along a narrow path',zh:'只在狭窄的地带能看到',bin:'sol'},{en:'Seen from Earth’s whole night side',zh:'整个夜半球都能看到',bin:'lun'},
+    {en:'Never look without eclipse glasses',zh:'不戴日食眼镜绝不能看',bin:'sol'},{en:'Safe to watch with your eyes',zh:'用肉眼观看很安全',bin:'lun'}
+  ]
+});
+</script>
+<script>
+/* ===== Why not every month? (nodes + eclipse seasons) and eclipse finder =====
+   Positions: mean orbital elements + largest periodic terms (after Meeus, Astronomical Algorithms). Good to about a day. */
+(function(){
+const o = (en, zh) => ({en, zh});
+const zh = () => Lab.lang === 'zh';
+const $ = s => document.querySelector(s), $$ = s => Array.from(document.querySelectorAll(s));
+const R = Math.PI / 180, DAY = 864e5, J2000 = Date.UTC(2000, 0, 1, 12);
+const nrm = a => ((a % 360) + 360) % 360, s180 = a => { a = nrm(a); return a > 180 ? a - 360 : a; }, sn = x => Math.sin(x * R);
+function eph(ms){
+  const t = (ms - J2000) / DAY / 36525;
+  const D = 297.8501921 + 445267.1114034 * t, M = 357.5291092 + 35999.0502909 * t, Mp = 134.9633964 + 477198.8675055 * t,
+        F = 93.2720950 + 483202.0175233 * t, Lp = 218.3164477 + 481267.88123421 * t, Ls = 280.46646 + 36000.76983 * t;
+  const lonM = Lp + 6.289 * sn(Mp) + 1.274 * sn(2 * D - Mp) + 0.658 * sn(2 * D) + 0.214 * sn(2 * Mp) - 0.186 * sn(M) - 0.114 * sn(2 * F);
+  const lonS = Ls + 1.915 * sn(M) + 0.020 * sn(2 * M);
+  const lat = 5.128 * sn(F) + 0.281 * sn(Mp + F) + 0.278 * sn(Mp - F) + 0.173 * sn(2 * D - F);
+  const km = 385000.56 - 20905.355 * Math.cos(Mp * R) - 3699.111 * Math.cos((2 * D - Mp) * R) - 2955.968 * Math.cos(2 * D * R);
+  return { lonM:nrm(lonM), lonS:nrm(lonS), lat, km, node:nrm(125.0445479 - 1934.1362891 * t), el:nrm(lonM - lonS) };
+}
+const LIM_S = 1.5, LIM_L = 1.0, LIM_P = 1.6, SEASON = 17;
+const cache = {};
+function year(y){
+  if (cache[y]) return cache[y];
+  const a = Date.UTC(y, 0, 1), b = Date.UTC(y + 1, 0, 1), syz = [], curve = [];
+  for (const [kind, tg] of [['new', 0], ['full', 180]]){
+    let t0 = a - 2 * DAY, f0 = s180(eph(t0).el - tg);
+    for (let t1 = t0 + DAY; t1 <= b + 2 * DAY; t1 += DAY){
+      const f1 = s180(eph(t1).el - tg);
+      if (f0 < 0 && f1 >= 0 && f1 - f0 < 90){
+        let lo = t0, hi = t1; for (let k = 0; k < 30; k++){ const m = (lo + hi) / 2; s180(eph(m).el - tg) < 0 ? lo = m : hi = m; }
+        const tm = (lo + hi) / 2;
+        if (tm >= a && tm < b){ const E = eph(tm), lat = E.lat, al = Math.abs(lat) * .9956, px = Math.asin(6378.14 / E.km) / R, sm = .2725 * px; let ecl = null;   // px = Moon parallax, sm = Moon radius (degrees)
+          if (kind === "new" && al < px - .00244 + .2666 + sm) ecl = "solar";
+          if (kind === "full") ecl = al < 1.02 * (px + .00244 - .2666) + sm ? "lunar" : al < 1.02 * (px + .00244 + .2666) + sm ? "pen" : null;
+          syz.push({ ms:tm, day:(tm - a) / DAY, kind, lat, ecl }); }
+      }
+      t0 = t1; f0 = f1;
+    }
+  }
+  syz.sort((p, q) => p.ms - q.ms);
+  const n = Math.round((b - a) / DAY);
+  for (let d = 0; d <= n; d += .5) curve.push(eph(a + d * DAY).lat);
+  return cache[y] = { a, n, syz, curve };
+}
+const MON_EN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const fmtD = (ms, yr) => { const d = new Date(ms), m = d.getUTCMonth(), dd = d.getUTCDate(), y = d.getUTCFullYear();
+  return zh() ? (yr ? `${y} 年 ` : '') + `${m + 1} 月 ${dd} 日` : `${MON_EN[m]} ${dd}` + (yr ? `, ${y}` : ''); };
+const PH = [o('New Moon','新月'),o('Waxing crescent','蛾眉月'),o('First quarter','上弦月'),o('Waxing gibbous','盈凸月'),o('Full Moon','满月'),o('Waning gibbous','亏凸月'),o('Third quarter','下弦月'),o('Waning crescent','残月')];
+const phaseName = el => { const k = [0, 90, 180, 270].findIndex(t => Math.abs(nrm(el - t + 180) - 180) < 12); return Lab.L(k >= 0 ? PH[k * 2] : PH[el < 90 ? 1 : el < 180 ? 3 : el < 270 ? 5 : 7]); };
+const YEARS = [2026, 2027, 2028, 2029, 2030];
+const st = { y:2026, day:0, play:false };
+{ const now = new Date(), y = now.getUTCFullYear(); if (YEARS.includes(y)){ st.y = y; st.day = (now - Date.UTC(y, 0, 1)) / DAY; } }
+
+function renderYears(){
+  $('#ndYear').innerHTML = YEARS.map(y => `<button data-y="${y}" class="${y === st.y ? 'on' : ''}">${y}</button>`).join('');
+  $$('#ndYear button').forEach(b => b.onclick = () => { stop(); setYear(+b.dataset.y); });
+}
+function setYear(y, day){ st.y = y; const Y = year(y); $('#ndDay').max = Y.n; st.day = Math.min(day ?? st.day, Y.n); renderYears(); renderList(); update(); }
+function setDay(d){ st.day = Math.max(0, Math.min(year(st.y).n, d)); update(); }
+function renderList(){
+  const Y = year(st.y), ev = Y.syz.filter(s => s.ecl);
+  const lab = s => s.ecl === 'solar' ? o('🌑 solar','🌑 日食') : s.ecl === 'lunar' ? o('🌕 lunar','🌕 月食') : o('◐ faint penumbral','◐ 半影月食');
+  $('#ndList').innerHTML = ev.map(s => `<button class="chip" data-d="${s.day}">${fmtD(s.ms)} · ${Lab.L(lab(s))}</button>`).join('');
+  $$('#ndList .chip').forEach(c => c.onclick = () => { stop(); setDay(+c.dataset.d); });
+  const ns = ev.filter(s => s.ecl === 'solar').length, nl = ev.filter(s => s.ecl === 'lunar').length, np = ev.filter(s => s.ecl === 'pen').length;
+  $('#ndCount').textContent = zh() ? `日食 ${ns} · 月食 ${nl}` + (np ? ` · 半影 ${np}` : '') : `${ns} solar · ${nl} lunar` + (np ? ` · ${np} pen.` : '');
+}
+function update(){
+  const Y = year(st.y), ms = Y.a + st.day * DAY, e = eph(ms);
+  $('#ndDay').value = st.day; $('#ndOut').textContent = fmtD(ms);
+  $('#ndPhase').textContent = phaseName(e.el);
+  const lat = e.lat;
+  $('#ndLat').textContent = zh() ? `${lat >= 0 ? '上方' : '下方'} ${Math.abs(lat).toFixed(1)}°` : `${Math.abs(lat).toFixed(1)}° ${lat >= 0 ? 'above' : 'below'}`;
+  const dn = Math.min(Math.abs(s180(e.lonS - e.node)), Math.abs(s180(e.lonS - e.node - 180)));
+  $('#ndNode').textContent = `${dn.toFixed(0)}°`;
+  const near = Y.syz.find(s => Math.abs(s.day - st.day) < 1.2), msg = $('#ndMsg');
+  if (near && near.ecl === 'solar'){ msg.className = 'result good'; msg.textContent = zh() ? `🌑 ${fmtD(near.ms)}：新月时月球离黄道面只有 ${Math.abs(near.lat).toFixed(2)}°，月球的影子落到地球上——日食！` : `🌑 ${fmtD(near.ms)}: at new Moon the Moon is only ${Math.abs(near.lat).toFixed(2)}° from the ecliptic, so its shadow hits Earth: a solar eclipse!`; }
+  else if (near && near.ecl === 'lunar'){ msg.className = 'result good'; msg.textContent = zh() ? `🌕 ${fmtD(near.ms)}：满月时月球离黄道面只有 ${Math.abs(near.lat).toFixed(2)}°，它进入了地球的本影——月食！` : `🌕 ${fmtD(near.ms)}: at full Moon the Moon is only ${Math.abs(near.lat).toFixed(2)}° from the ecliptic, so it passes into Earth’s dark umbra: a lunar eclipse!`; }
+  else if (near && near.ecl === 'pen'){ msg.className = 'result'; msg.textContent = zh() ? `◐ ${fmtD(near.ms)}：满月只擦过地球较淡的半影，月亮只是稍微变暗，很难察觉。` : `◐ ${fmtD(near.ms)}: the full Moon only grazes Earth’s pale penumbra. It dims so slightly that most people never notice.`; }
+  else if (near){ msg.className = 'result bad'; msg.textContent = zh() ? `${near.kind === 'new' ? '新月' : '满月'}时月球在黄道面${near.lat >= 0 ? '上方' : '下方'} ${Math.abs(near.lat).toFixed(1)}°（约 ${Math.round(Math.abs(near.lat) / .52)} 个月球宽），错过了${near.kind === 'new' ? '太阳' : '地球的影子'}：没有食。` : `At this ${near.kind === 'new' ? 'new' : 'full'} Moon the Moon is ${Math.abs(near.lat).toFixed(1)}° ${near.lat >= 0 ? 'above' : 'below'} the ecliptic (about ${Math.round(Math.abs(near.lat) / .52)} Moon-widths), so it misses ${near.kind === 'new' ? 'the Sun' : 'Earth’s shadow'}: no eclipse.`; }
+  else if (dn < SEASON){ msg.className = 'result good'; msg.textContent = Lab.L(o('🟢 Eclipse season: the line of nodes points almost at the Sun. A new or full Moon now can line up exactly.','🟢 食季：交点连线几乎正对太阳，这时的新月或满月可以排成一直线。')); }
+  else { msg.className = 'result'; msg.textContent = zh() ? `⚪ 不是食季：交点连线偏离太阳方向 ${dn.toFixed(0)}°，新月从太阳上方或下方经过。` : `⚪ Not eclipse season: the line of nodes points ${dn.toFixed(0)}° away from the Sun, so new Moons pass above or below it.`; }
+  draw(e, Y);
+}
+function draw(e, Y){
+  Y = Y || year(st.y); e = e || eph(Y.a + st.day * DAY);
+  const cv = $('#ndCv'), box = $('#ndBox'), dpr = Math.min(devicePixelRatio || 1, 2), W = box.clientWidth, H = box.clientHeight;
+  if (!W || !H) return;
+  cv.width = W * dpr; cv.height = H * dpr; const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const cs = getComputedStyle(document.documentElement), v = n => cs.getPropertyValue(n).trim();
+  const C = { ink:v('--ink'), ink2:v('--ink-2'), line:v('--line'), surf:v('--surface'), good:v('--good'), bad:v('--bad'), brand:v('--brand'), warn:v('--warn') };
+  const topH = Math.round(H * .58);
+  /* --- top view (geocentric, from above the ecliptic) --- */
+  g.fillStyle = '#070b18'; g.fillRect(0, 0, W, topH);
+  for (let i = 0; i < 60; i++){ g.fillStyle = `rgba(255,255,255,${.15 + (i * 37 % 10) / 20})`; g.fillRect((i * 97.3) % W, (i * 53.7) % topH, 1.2, 1.2); }
+  const cx = W / 2, cy = topH / 2 + 22, rS = Math.min(W / 2 - 30, topH / 2 - 30), rM = rS * .55;
+  const P = (lam, r) => [cx + r * Math.cos(lam * R), cy - r * Math.sin(lam * R)];
+  const dn = Math.min(Math.abs(s180(e.lonS - e.node)), Math.abs(s180(e.lonS - e.node - 180))), season = dn < SEASON;
+  [e.node, e.node + 180].forEach(n => { g.fillStyle = season ? 'rgba(125,255,181,.22)' : 'rgba(125,255,181,.08)'; g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, rS + 12, -(n + SEASON) * R, -(n - SEASON) * R); g.closePath(); g.fill(); });
+  g.strokeStyle = 'rgba(255,211,107,.35)'; g.setLineDash([2, 4]); g.lineWidth = 1; g.beginPath(); g.arc(cx, cy, rS, 0, 7); g.stroke();
+  g.setLineDash([6, 5]); g.strokeStyle = '#7dffb5'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(...P(e.node, rS + 10)); g.lineTo(...P(e.node + 180, rS + 10)); g.stroke(); g.setLineDash([]);
+  g.lineWidth = 2.5; g.strokeStyle = '#9fb3ff'; g.beginPath(); g.arc(cx, cy, rM, -e.node * R, -(e.node + 180) * R, true); g.stroke();
+  g.setLineDash([5, 5]); g.strokeStyle = 'rgba(159,179,255,.55)'; g.beginPath(); g.arc(cx, cy, rM, -(e.node + 180) * R, -(e.node + 360) * R, true); g.stroke(); g.setLineDash([]);
+  g.font = '800 12px Nunito, sans-serif'; g.textAlign = 'center'; g.fillStyle = '#7dffb5';
+  const [ax, ay] = P(e.node + 8, rM + 18), [dx, dy] = P(e.node + 188, rM + 18);
+  g.fillText('☊ ' + Lab.L(o('node','升交点')), ax, ay); g.fillText('☋ ' + Lab.L(o('node','降交点')), dx, dy);
+  const [sx, sy] = P(e.lonS, rS); const gl = g.createRadialGradient(sx, sy, 0, sx, sy, 22); gl.addColorStop(0, 'rgba(255,220,120,.9)'); gl.addColorStop(1, 'rgba(255,170,40,0)');
+  g.fillStyle = gl; g.beginPath(); g.arc(sx, sy, 22, 0, 7); g.fill(); g.fillStyle = '#ffc94a'; g.beginPath(); g.arc(sx, sy, 9, 0, 7); g.fill();
+  const [hx, hy] = P(e.lonS + 180, rS); const shg = g.createLinearGradient(cx, cy, hx, hy); shg.addColorStop(0, 'rgba(160,124,255,.6)'); shg.addColorStop(1, 'rgba(160,124,255,0)');
+  g.strokeStyle = shg; g.lineWidth = 6; g.beginPath(); g.moveTo(cx, cy); g.lineTo(hx, hy); g.stroke();
+  g.fillStyle = '#3f8ae0'; g.beginPath(); g.arc(cx, cy, 8, 0, 7); g.fill();
+  const [mx, my] = P(e.lonM, rM); g.fillStyle = '#3a3f4f'; g.beginPath(); g.arc(mx, my, 6.5, 0, 7); g.fill();
+  const sa = Math.atan2(sy - my, sx - mx); g.fillStyle = '#e8e8e2'; g.beginPath(); g.arc(mx, my, 6.5, sa - Math.PI / 2, sa + Math.PI / 2); g.fill();
+  g.textAlign = 'left'; g.font = '800 13px Nunito, sans-serif'; g.fillStyle = '#eaf0fb'; g.fillText(Lab.L(o('Top view: looking down on the ecliptic','俯视图：从黄道面上方往下看')), 10, 18);
+  g.font = '700 11.5px Nunito, sans-serif'; g.fillStyle = '#a9b8dc';
+  g.fillText(Lab.L(o('solid orbit = Moon above the ecliptic · dashed = below','实线：月球在黄道面上方 · 虚线：在下方')), 10, 34);
+  g.fillText(Lab.L(o('green wedges = eclipse zone around the nodes','绿色扇形：交点附近的“食区”')), 10, 48);
+  g.textAlign = 'center'; g.font = '800 12px Nunito, sans-serif'; g.fillStyle = '#ffd36b'; g.fillText(Lab.L(o('Sun','太阳')), sx, sy + (sy > cy ? 26 : -16));
+  g.fillStyle = '#c8b6ff'; g.fillText(Lab.L(o("Earth’s shadow","地球的影子")), Math.min(W - 50, Math.max(50, hx)), Math.min(topH - 6, Math.max(62, hy + (hy > cy ? 16 : -8))));
+  /* --- side view over the year: the Moon’s latitude --- */
+  const y0 = topH, L = 40, Rm = 12, T = y0 + 44, B = H - 24, W2 = W - L - Rm;
+  g.fillStyle = C.surf; g.fillRect(0, y0, W, H - y0);
+  const X = d => L + d / Y.n * W2, Yv = b => (T + B) / 2 - b / 6 * (B - T) / 2;
+  g.fillStyle = C.good; g.globalAlpha = .16; g.fillRect(L, Yv(LIM_S), W2, Yv(-LIM_S) - Yv(LIM_S)); g.globalAlpha = 1;
+  g.strokeStyle = C.line; g.lineWidth = 1; [-5, 5].forEach(b => { g.beginPath(); g.moveTo(L, Yv(b)); g.lineTo(L + W2, Yv(b)); g.stroke(); });
+  g.strokeStyle = C.warn; g.lineWidth = 1.5; g.beginPath(); g.moveTo(L, Yv(0)); g.lineTo(L + W2, Yv(0)); g.stroke();
+  g.fillStyle = C.ink2; g.font = '700 11px Nunito, sans-serif'; g.textAlign = 'right'; g.fillText('+5°', L - 4, Yv(5) + 4); g.fillText('0°', L - 4, Yv(0) + 4); g.fillText('−5°', L - 4, Yv(-5) + 4);
+  g.textAlign = 'left'; g.font = '800 12.5px Nunito, sans-serif'; g.fillStyle = C.ink;
+  g.fillText(Lab.L(o('Side view: the Moon above or below the Sun’s path, all year','侧视图：一整年里月球在太阳路径（黄道）上方或下方多远')), 10, y0 + 17);
+  g.fillStyle = C.ink2; g.font = '700 11px Nunito, sans-serif';
+  g.fillText(Lab.L(o('● new Moon   ○ full Moon   red ring = eclipse   green band = within ±1.5°','● 新月   ○ 满月   红圈 = 食   绿带 = ±1.5° 以内')), 10, y0 + 33);
+  g.strokeStyle = C.brand; g.lineWidth = 2; g.beginPath(); Y.curve.forEach((b, i) => { const x = X(i * .5), yy = Yv(b); i ? g.lineTo(x, yy) : g.moveTo(x, yy); }); g.stroke();
+  g.fillStyle = C.ink2; g.font = '700 10.5px Nunito, sans-serif'; g.textAlign = 'center';
+  for (let m = 0; m < 12; m++){ const d = (Date.UTC(st.y, m, 1) - Y.a) / DAY; if (W2 > 330 || m % 2 === 0) g.fillText(zh() ? `${m + 1}月` : MON_EN[m], X(d + 15), B + 16); }
+  Y.syz.forEach(s => { const x = X(s.day), yy = Yv(s.lat), big = s.ecl === 'solar' || s.ecl === 'lunar'; g.lineWidth = big ? 2.5 : 1.5;
+    g.fillStyle = s.kind === 'new' ? '#3a3f4f' : '#f4f4ef'; g.strokeStyle = big ? C.bad : C.ink2;
+    g.beginPath(); g.arc(x, yy, big ? 6 : 3.5, 0, 7); g.fill(); g.stroke(); });
+  const xc = X(st.day); g.strokeStyle = C.ink; g.globalAlpha = .7; g.lineWidth = 1.5; g.beginPath(); g.moveTo(xc, T - 4); g.lineTo(xc, B); g.stroke(); g.globalAlpha = 1;
+}
+let raf = 0, last = 0;
+function stop(){ st.play = false; $('#ndPlay').textContent = '▶'; cancelAnimationFrame(raf); }
+function loop(t){ if (!st.play) return; const dt = last ? Math.min(.1, (t - last) / 1000) : 0; last = t; st.day += dt * 8;
+  if (st.day >= year(st.y).n){ st.day = year(st.y).n; update(); stop(); return; } update(); raf = requestAnimationFrame(loop); }
+$('#ndPlay').onclick = () => { if (st.play) return stop(); if (st.day >= year(st.y).n - .5) st.day = 0; st.play = true; last = 0; $('#ndPlay').textContent = '⏸'; raf = requestAnimationFrame(loop); };
+$('#ndDay').oninput = e => { stop(); setDay(+e.target.value); };
+const jump = kind => { stop(); const Y = year(st.y), nx = Y.syz.find(s => s.kind === kind && s.day > st.day + .3); if (nx) return setDay(nx.day);
+  if (st.y < YEARS[YEARS.length - 1]){ setYear(st.y + 1, 0); const n2 = year(st.y).syz.find(s => s.kind === kind); if (n2) setDay(n2.day); } };
+$('#ndNew').onclick = () => jump('new'); $('#ndFull').onclick = () => jump('full');
+new ResizeObserver(() => draw()).observe($('#ndBox'));
+if (document.fonts) document.fonts.ready.then(() => draw());
+addEventListener('labtheme', () => draw());
+
+/* ----- eclipse finder ----- */
+const T_TS = o('Total solar eclipse','日全食'), T_AS = o('Annular solar eclipse','日环食'), T_TL = o('Total lunar eclipse','月全食');
+const EF = [
+  {d:'2026-03-03', k:'lunar', t:T_TL, usa:true, w:o('North America, the Pacific, Australia and East Asia','北美洲、太平洋、澳大利亚和东亚')},
+  {d:'2026-08-12', k:'solar', t:T_TS, len:'2 min 18 s', w:o('Greenland, Iceland and northern Spain','格陵兰岛、冰岛和西班牙北部')},
+  {d:'2027-02-06', k:'solar', t:T_AS, len:'≈ 7 min 51 s', w:o('Chile, Argentina, the South Atlantic and West Africa','智利、阿根廷、南大西洋和西非')},
+  {d:'2027-08-02', k:'solar', t:T_TS, len:'6 min 23 s', w:o('Southern tip of Spain, North Africa (Morocco to Egypt, incl. Luxor), Saudi Arabia, Yemen, Somalia','西班牙南端、北非（从摩洛哥到埃及，包括卢克索）、沙特阿拉伯、也门、索马里')},
+  {d:'2028-01-26', k:'solar', t:T_AS, len:'≈ 10 min 27 s', w:o('Ecuador, Peru and Brazil; Spain and Portugal near sunset','厄瓜多尔、秘鲁和巴西；日落前后的西班牙和葡萄牙')},
+  {d:'2028-07-22', k:'solar', t:T_TS, len:'5 min 10 s', w:o('Australia (including Sydney) and New Zealand','澳大利亚（包括悉尼）和新西兰')},
+  {d:'2028-12-31', k:'lunar', t:T_TL, w:o('Mainly Asia and Australia; Europe and Africa at moonrise','主要是亚洲和澳大利亚；欧洲和非洲在月出时')},
+  {d:'2029-06-26', k:'lunar', t:T_TL, usa:true, w:o('The Americas (evening of June 25 in the USA); Europe and Africa at moonset','美洲（美国是 6 月 25 日晚上）；欧洲和非洲在月落时')},
+  {d:'2029-12-20', k:'lunar', t:T_TL, w:o('Mainly Europe, Africa and Asia; the Americas at moonrise','主要是欧洲、非洲和亚洲；美洲在月出时')},
+  {d:'2030-06-01', k:'solar', t:T_AS, len:'≈ 5 min 21 s', w:o('North Africa, Greece, Turkey, Russia and northern Japan','北非、希腊、土耳其、俄罗斯和日本北部')},
+  {d:'2030-11-25', k:'solar', t:T_TS, len:'3 min 44 s', w:o('Southern Africa (Namibia, Botswana, South Africa) and Australia','非洲南部（纳米比亚、博茨瓦纳、南非）和澳大利亚')},
+  {d:'2033-03-30', k:'solar', t:T_TS, len:'2 min 37 s', usa:true, w:o('Alaska and far-eastern Russia','美国阿拉斯加和俄罗斯远东')},
+  {d:'2035-09-02', k:'solar', t:T_TS, len:'2 min 54 s', usa:false, w:o('Northern China (right over Beijing, about 1½ min there, ~8:33 am), North Korea and Japan','中国北方（经过北京，北京约 1 分半钟，上午 8:33 左右）、朝鲜和日本')},
+  {d:'2044-08-23', k:'solar', t:T_TS, len:'2 min 04 s', usa:true, w:o('Greenland, Canada, Montana and North Dakota','格陵兰岛、加拿大、美国蒙大拿州和北达科他州')},
+  {d:'2045-08-12', k:'solar', t:T_TS, len:'6 min 06 s', usa:true, w:o('USA coast to coast (California to Florida), the Caribbean and northern South America','横穿美国（从加利福尼亚到佛罗里达）、加勒比海和南美洲北部')}
+].map(x => ({ ...x, ms:Date.parse(x.d + 'T12:00:00Z') }));
+let ef = 'all';
+const lenTxt = s => zh() ? s.replace(' min ', ' 分 ').replace(/ s$/, ' 秒') : s;
+function renderFinder(){
+  const now = Date.now(), next = EF.find(x => x.ms > now - DAY / 2), rows = EF.filter(x => ef === 'all' || (ef === 'usa' ? x.usa : x.k === ef));
+  $('#efTbl').innerHTML = `<tr><th>${Lab.L(o('Date (UTC)','日期（UTC）'))}</th><th>${Lab.L(o('Type','类型'))}</th><th>${Lab.L(o('Where to see it','在哪里能看到'))}</th><th>${Lab.L(o('Longest','最长'))}</th><th></th></tr>` +
+    rows.map(x => { const past = x.ms < now - DAY / 2, isNext = x === next, days = Math.ceil((x.ms - now) / DAY);
+      const when = past ? Lab.L(o('past','已发生')) : zh() ? `还有 ${days} 天` : `in ${days.toLocaleString('en-US')} days`;
+      const yr = +x.d.slice(0, 4), btn = YEARS.includes(yr) ? `<button class="btn ghost" style="padding:5px 10px;font-size:13px;white-space:nowrap" data-show="${x.ms}">${Lab.L(o('Show in model','在模型中看'))}</button>` : '';
+      return `<tr style="${past ? 'opacity:.55;' : ''}${isNext ? 'background:color-mix(in srgb,var(--brand) 13%,transparent);' : ''}"><td style="white-space:nowrap"><b>${fmtD(x.ms, true)}</b><br><small class="muted">${isNext ? '⭐ ' + Lab.L(o('NEXT','下一次')) + ' · ' : ''}${when}</small></td><td>${x.k === 'solar' ? '🌑' : '🌕'} ${Lab.L(x.t)}${x.usa ? ` <span class="tag" style="font-size:10.5px;padding:2px 7px">${Lab.L(o('USA','美国可见'))}</span>` : ''}</td><td style="font-size:14.5px">${Lab.L(x.w)}</td><td style="white-space:nowrap">${x.len ? lenTxt(x.len) : '–'}</td><td>${btn}</td></tr>`; }).join('');
+  $$('#efTbl [data-show]').forEach(b => b.onclick = () => { const ms = +b.dataset.show, y = new Date(ms).getUTCFullYear(); stop(); setYear(y, (ms - Date.UTC(y, 0, 1)) / DAY); $('#nodes').scrollIntoView({ behavior:'smooth' }); });
+  const r = $('#efNext');
+  if (next){ const days = Math.ceil((next.ms - now) / DAY); r.className = 'result good';
+    r.textContent = zh() ? `⭐ 下一次：${fmtD(next.ms, true)}的${Lab.L(next.t)}，还有 ${days} 天。观看日食一定要戴合格的日食眼镜！` : `⭐ Next up: ${Lab.L(next.t).toLowerCase()} on ${fmtD(next.ms, true)}, in ${days} days. Always use certified eclipse glasses for a solar eclipse!`; }
+  else r.textContent = '';
+  const BAR = [['2024-04-08', 268], ['2026-08-12', 138], ['2027-08-02', 383], ['2028-07-22', 310], ['2030-11-25', 224], ['2033-03-30', 157], ['2035-09-02', 174], ['2044-08-23', 124], ['2045-08-12', 366]];
+  const mmss = s => zh() ? `${Math.floor(s / 60)} 分 ${String(s % 60).padStart(2, '0')} 秒` : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s`;
+  const row = 'display:grid;grid-template-columns:92px minmax(0,1fr) 82px;gap:8px;align-items:center;font-size:14px;font-weight:700';
+  $('#efBars').innerHTML = BAR.map(([d, s]) => `<div style="${row}"><span>${zh() ? d.slice(0, 4) + ' 年 ' + +d.slice(5, 7) + ' 月' : MON_EN[+d.slice(5, 7) - 1] + ' ' + d.slice(0, 4)}</span><div style="height:14px;border-radius:999px;background:var(--surface-2);overflow:hidden"><div style="height:100%;width:${s / 450 * 100}%;background:var(--brand);border-radius:999px"></div></div><b style="text-align:right;font-variant-numeric:tabular-nums">${mmss(s)}</b></div>`).join('') +
+    `<div style="${row};color:var(--ink-2)"><span>${Lab.L(o('Max possible','理论最长'))}</span><div style="height:14px;border-radius:999px;border:1px dashed var(--ink-2)"></div><b style="text-align:right">≈ 7½ ${zh() ? '分' : 'min'}</b></div>`;
+}
+$$('#efSeg button').forEach(b => b.onclick = () => { ef = b.dataset.f; $$('#efSeg button').forEach(x => x.classList.toggle('on', x === b)); renderFinder(); });
+
+/* ----- go deeper links (from the catalog) ----- */
+const dp = document.getElementById('deeper'), AST = (window.LAB_CATALOG || []).find(s => s.id === 'astronomy');
+if (dp && AST) dp.innerHTML = dp.dataset.deeper.split(',').map(id => { const t = AST.topics.find(x => x.id === id); return t ? `<a class="linkcard" href="${id}.html" data-lab-link><b data-zh="${t.zh}">${t.en}</b><span data-zh="${t.d.zh}">${t.d.en}</span><small data-zh="深入专题 →">Deep dive →</small></a>` : ''; }).join('');
+
+Lab.onLang(() => { setYear(st.y, st.day); renderFinder(); });
+window.EclNodes = { setYear, setDay, year, eph, state:st,
+  list:() => YEARS.map(y => y + ': ' + year(y).syz.filter(s => s.ecl).map(s => new Date(s.ms).toISOString().slice(5, 10) + (s.ecl === 'solar' ? 'S' : s.ecl === 'lunar' ? 'L' : 'p') + Math.abs(s.lat).toFixed(2)).join(' ')).join(' | ') };
+})();
+</script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const App = window.ECL, V = THREE.Vector3, UP = new V(0, 1, 0), D2R = Math.PI / 180;
+const ctx = Lab3D.stage('#stage', { THREE, OrbitControls, camera:[1, 8, 19], target:[-1.5, 0, 0], minDistance:2, maxDistance:90, lights:false });
+const { scene } = ctx;
+const RE = 1.5, RM = .45, RS = 2.7, S = new V(-30, 0, 0), INC = 15 * D2R, RNEAR = 5.6, RFAR = 6.8;
+
+/* ---------- light: parallel sunlight from the Sun (x = -30) + faint fill ---------- */
+scene.add(new THREE.AmbientLight(0x8090c0, .14));
+const sunLight = new THREE.DirectionalLight(0xffffff, 3.6); sunLight.position.copy(S); scene.add(sunLight);
+
+/* ---------- helpers ---------- */
+function canvasTex(w, h, draw){ const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; }
+const PM = {};
+const mk = (key, c, ei = .6, extra = {}) => { const m = new THREE.MeshStandardMaterial({ color:c, emissive:c, emissiveIntensity:ei, roughness:.6, ...extra }); m.userData.ei = ei; (PM[key] = PM[key] || []).push(m); return m; };
+
+/* ---------- starfield ---------- */
+const stars = (function(){
+  const n = 2400, p = new Float32Array(n * 3), c = new Float32Array(n * 3), v = new V();
+  for (let i = 0; i < n; i++){ v.randomDirection().multiplyScalar(300 + Math.random() * 200); p.set([v.x, v.y, v.z], i * 3); const w = .45 + Math.random() * .55, r = Math.random(); c.set([w * (r < .15 ? 1 : .86), w * .9, w * (r > .85 ? 1 : .9)], i * 3); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(p, 3)); g.setAttribute('color', new THREE.BufferAttribute(c, 3));
+  const pts = new THREE.Points(g, new THREE.PointsMaterial({ size:1.7, sizeAttenuation:false, vertexColors:true, transparent:true, opacity:.95, depthWrite:false })); scene.add(pts); return pts;
+})();
+
+/* ---------- Sun (+ glow for the main view, corona only for the inset during totality) ---------- */
+const sunTex = canvasTex(256, 128, (g, w, h) => { g.fillStyle = '#ffb52e'; g.fillRect(0, 0, w, h); for (let i = 0; i < 600; i++){ g.fillStyle = `rgba(255,${200 + Math.random() * 55 | 0},${70 + Math.random() * 90 | 0},${Math.random() * .55})`; g.beginPath(); g.arc(Math.random() * w, Math.random() * h, 1 + Math.random() * 5, 0, 7); g.fill(); } });
+const radTex = (stops) => canvasTex(256, 256, g => { const r = g.createRadialGradient(128, 128, 0, 128, 128, 128); stops.forEach(([o, c]) => r.addColorStop(o, c)); g.fillStyle = r; g.fillRect(0, 0, 256, 256); });
+const sun = new THREE.Mesh(new THREE.SphereGeometry(RS, 48, 32), new THREE.MeshBasicMaterial({ map:sunTex })); sun.position.copy(S); scene.add(sun); ctx.pickable(sun, 'sun');
+const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map:radTex([[0, 'rgba(255,240,180,1)'], [.22, 'rgba(255,200,90,.65)'], [.5, 'rgba(255,150,40,.16)'], [1, 'rgba(255,120,0,0)']]), blending:THREE.AdditiveBlending, depthWrite:false, transparent:true }));
+glow.scale.set(16, 16, 1); sun.add(glow);
+const corona = new THREE.Sprite(new THREE.SpriteMaterial({ map:radTex([[0, 'rgba(255,255,255,1)'], [.36, 'rgba(240,245,255,.9)'], [.5, 'rgba(200,215,255,.35)'], [1, 'rgba(180,200,255,0)']]), depthWrite:false, transparent:true }));
+corona.scale.set(RS * 3.4, RS * 3.4, 1); corona.visible = false; sun.add(corona);
+
+/* ---------- sunlight arrows ---------- */
+const rays = new THREE.Group(); scene.add(rays);
+const rayMat = mk('sun', '#ffd75a', .9, { transparent:true, opacity:.75 });
+for (const z of [-4.5, -2.25, 0, 2.25, 4.5]){
+  const sh = new THREE.Mesh(new THREE.CylinderGeometry(.03, .03, 3.6, 6), rayMat); sh.rotation.z = Math.PI / 2; sh.position.set(-11.6, 2.2, z); rays.add(sh);
+  const hd = new THREE.Mesh(new THREE.ConeGeometry(.14, .4, 12), rayMat); hd.rotation.z = -Math.PI / 2; hd.position.set(-9.6, 2.2, z); rays.add(hd);
+}
+
+/* ---------- eclipse shading: fraction of the Sun's disk hidden, computed for every pixel ---------- */
+const shadeMat = (occR, tint, maxA) => new THREE.ShaderMaterial({
+  uniforms:{ sunPos:{ value:S.clone() }, sunR:{ value:RS }, occPos:{ value:new V() }, occR:{ value:occR }, tint:{ value:new THREE.Color(tint) }, maxA:{ value:maxA } },
+  vertexShader:`varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
+  fragmentShader:`uniform vec3 sunPos; uniform float sunR; uniform vec3 occPos; uniform float occR; uniform vec3 tint; uniform float maxA; varying vec3 vW;
+    float ov(float a, float b, float d){
+      if (d >= a + b) return 0.0;
+      if (d <= abs(b - a)) return b >= a ? 1.0 : (b * b) / (a * a);
+      float x = (d * d + a * a - b * b) / (2.0 * d); float y = d - x;
+      float A = a * a * acos(clamp(x / a, -1.0, 1.0)) - x * sqrt(max(a * a - x * x, 0.0)) + b * b * acos(clamp(y / b, -1.0, 1.0)) - y * sqrt(max(b * b - y * y, 0.0));
+      return A / (3.14159265 * a * a);
+    }
+    void main(){
+      vec3 ts = sunPos - vW, to = occPos - vW; float ds = length(ts), dd = length(to); vec3 us = ts / ds, uo = to / dd;
+      float c = dot(us, uo); if (c <= 0.0) discard;
+      float f = ov(asin(min(sunR / ds, 1.0)), asin(min(occR / dd, 1.0)), atan(length(cross(us, uo)), c));
+      if (f < 0.004) discard;
+      gl_FragColor = vec4(mix(vec3(0.0), tint, smoothstep(0.96, 1.0, f)), f * maxA);
+    }`,
+  transparent:true, depthWrite:false
+});
+
+/* ---------- Earth ---------- */
+const earthFallback = canvasTex(512, 256, (g, w, h) => {
+  g.fillStyle = '#2a64b8'; g.fillRect(0, 0, w, h);
+  for (const [x, y, rx, ry] of [[80,80,60,40],[120,150,35,55],[250,70,70,35],[270,150,40,50],[370,80,80,40],[420,170,40,25]]){ g.fillStyle = '#4f9a45'; g.beginPath(); g.ellipse(x, y, rx, ry, .3, 0, 7); g.fill(); }
+  g.fillStyle = '#f2f6fb'; g.fillRect(0, 0, w, 14); g.fillRect(0, h - 18, w, 18);
+});
+const earthMat = new THREE.MeshStandardMaterial({ map:earthFallback, roughness:.9, emissive:'#3f8ae0', emissiveIntensity:0 }); earthMat.userData.ei = 0; PM.earth = [earthMat];
+const earth = new THREE.Mesh(new THREE.SphereGeometry(RE, 64, 48), earthMat); earth.rotation.z = -23.44 * D2R; scene.add(earth); ctx.pickable(earth, 'earth');
+Lab3D.texture(THREE, Lab3D.TEX + 'planets/earth_atmos_2048.jpg', t => { if (t){ earthMat.map = t; earthMat.needsUpdate = true; } });
+const earthShade = new THREE.Mesh(new THREE.SphereGeometry(RE * 1.005, 96, 64), shadeMat(RM, '#000000', .93)); scene.add(earthShade);
+
+/* ---------- Moon ---------- */
+const moonFallback = canvasTex(256, 128, (g, w, h) => { g.fillStyle = '#b9b9b4'; g.fillRect(0, 0, w, h); for (let i = 0; i < 160; i++){ g.fillStyle = `rgba(${90 + Math.random() * 60 | 0},${90 + Math.random() * 60 | 0},${90 + Math.random() * 60 | 0},.5)`; g.beginPath(); g.arc(Math.random() * w, Math.random() * h, 1 + Math.random() * 9, 0, 7); g.fill(); } });
+const moonMatl = new THREE.MeshStandardMaterial({ map:moonFallback, roughness:1, emissive:'#ffffff', emissiveIntensity:0 }); moonMatl.userData.ei = 0; PM.moon = [moonMatl];
+Lab3D.texture(THREE, Lab3D.TEX + 'planets/moon_1024.jpg', t => { if (t){ moonMatl.map = t; moonMatl.needsUpdate = true; } });
+const moon = new THREE.Mesh(new THREE.SphereGeometry(RM, 48, 32), moonMatl); scene.add(moon); ctx.pickable(moon, 'moon');
+const moonShade = new THREE.Mesh(new THREE.SphereGeometry(RM * 1.012, 64, 40), shadeMat(RE, '#8a2a10', .9)); moon.add(moonShade);
+
+/* ---------- Moon's tilted orbit, Earth's orbital plane, nodes ---------- */
+const orbitG = new THREE.Group(); scene.add(orbitG);
+const orbitRing = new THREE.Mesh(new THREE.TorusGeometry(1, .005, 8, 220), mk('orbit', '#8f9cff', .8, { transparent:true, opacity:.6 })); orbitRing.rotation.x = Math.PI / 2; orbitG.add(orbitRing); ctx.pickable(orbitRing, 'orbit');
+const plane = new THREE.Group(); scene.add(plane);
+const planeDisk = new THREE.Mesh(new THREE.CircleGeometry(9, 96), new THREE.MeshBasicMaterial({ color:'#8fa0ff', transparent:true, opacity:.05, side:THREE.DoubleSide, depthWrite:false })); planeDisk.rotation.x = -Math.PI / 2; plane.add(planeDisk);
+const planeEdge = new THREE.Mesh(new THREE.TorusGeometry(9, .02, 6, 200), new THREE.MeshBasicMaterial({ color:'#8fa0ff', transparent:true, opacity:.3 })); planeEdge.rotation.x = Math.PI / 2; plane.add(planeEdge);
+const nodeMat = mk('nodes', '#7dffb5', .9);
+const nodeA = new THREE.Mesh(new THREE.SphereGeometry(.15, 16, 12), nodeMat), nodeB = nodeA.clone(); scene.add(nodeA, nodeB); ctx.pickable(nodeA, 'nodes'); ctx.pickable(nodeB, 'nodes');
+
+/* ---------- shadow cones (frustums whose two end radii we set every frame) ---------- */
+const cones = new THREE.Group(); scene.add(cones);
+function frustum(key, color, op){
+  const g = new THREE.CylinderGeometry(1, 1, 1, 56, 1, true), m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color, transparent:true, opacity:op, side:THREE.DoubleSide, depthWrite:false }));
+  m.userData.base = g.attributes.position.array.slice(); m.userData.op = op; m.userData.key = key; m.frustumCulled = false; cones.add(m); return m;
+}
+function setFrustum(m, start, dir, r0, r1, len){
+  const p = m.geometry.attributes.position, b = m.userData.base;
+  for (let i = 0; i < p.count; i++){ const y = b[i * 3 + 1], s = y > 0 ? r1 : r0; p.setXYZ(i, b[i * 3] * s, y, b[i * 3 + 2] * s); }
+  p.needsUpdate = true; m.position.copy(start).addScaledVector(dir, len / 2); m.quaternion.setFromUnitVectors(UP, dir); m.scale.set(1, len, 1);
+}
+const ePen = frustum('epen', '#9fb3ff', .09), eUmb = frustum('eumbra', '#a07cff', .3), mPen = frustum('mpen', '#ffb37a', .14), mUmb = frustum('mumbra', '#ff7a9a', .5), mAnt = frustum('mumbra', '#ffd36b', .22);
+
+/* ---------- labels ---------- */
+const anchors = { eU:new THREE.Object3D(), eP:new THREE.Object3D(), mU:new THREE.Object3D(), mP:new THREE.Object3D() };
+Object.values(anchors).forEach(a => scene.add(a));
+anchors.eU.position.set(10, 0, 0); anchors.eP.position.set(8.5, 2.6, 0);
+const labels = []; let labelsOn = true;
+const lab = (t, at, off) => { const L = ctx.label(t, at, off ? { offset:off } : {}); labels.push(L); return L; };
+lab(PARTS.earth.name, earth, [0, -RE - .45, 0]); lab(PARTS.moon.name, moon, [0, RM + .4, 0]);
+lab(PARTS.eumbra.name, anchors.eU); lab(PARTS.epen.name, anchors.eP); const mUL = lab(PARTS.mumbra.name, anchors.mU), mPL = lab(PARTS.mpen.name, anchors.mP);
+lab({ en:'Node', zh:'交点' }, nodeA, [0, -.45, 0]); lab({ en:'Node', zh:'交点' }, nodeB, [0, -.45, 0]);
+lab({ en:'Sunlight →', zh:'阳光 →' }, new V(-11.6, 2.65, -4.5));
+function setLabels(on){ labelsOn = on; labels.forEach(L => L.visible = on); Lab.$('#labelBtn').classList.toggle('on', on); }
+Lab.$('#labelBtn').onclick = () => setLabels(!labelsOn);
+
+/* ---------- state + geometry ---------- */
+const st = { age:0, month:0, dist:0, inc:INC, incT:INC, shadows:true, playing:false };
+const ageSl = Lab.$('#age'), monSl = Lab.$('#month'), distSl = Lab.$('#dist');
+const moonR = () => RNEAR + (RFAR - RNEAR) * st.dist;
+const nodeAxis = () => { const om = 2 * Math.PI * st.month / 12; return new V(Math.cos(om), 0, -Math.sin(om)); };
+const moonPos = () => { const R = moonR(), th = Math.PI + 2 * Math.PI * st.age / P; return new V(R * Math.cos(th), 0, -R * Math.sin(th)).applyAxisAngle(nodeAxis(), st.inc); };
+function classify(M){
+  const uM = M.clone().sub(S).normalize(), D = M.distanceTo(S);
+  if (M.x < 0){
+    const w = M.clone().negate(), t0 = w.dot(uM), dist = w.clone().addScaledVector(uM, -t0).length();
+    const thU = (RS - RM) / D, thP = (RS + RM) / D;
+    if (t0 <= 0) return 'solar-none';
+    if (dist < RE){ const ts = t0 - Math.sqrt(RE * RE - dist * dist); return RM - ts * thU > 0 ? 'solar-total' : 'solar-annular'; }
+    return dist < RE + RM + t0 * thP ? 'solar-partial' : 'solar-none';
+  }
+  const t = M.x, dist = Math.hypot(M.y, M.z), Ru = RE - t * (RS - RE) / 30, Rp = RE + t * (RS + RE) / 30;
+  return dist + RM <= Ru ? 'lunar-total' : dist - RM < Ru ? 'lunar-partial' : dist - RM < Rp ? 'lunar-penumbral' : 'lunar-none';
+}
+function update(){
+  const M = moonPos(), n = nodeAxis(), R = moonR();
+  moon.position.copy(M); moon.rotation.y = Math.PI + 2 * Math.PI * st.age / P + Math.PI;
+  orbitG.quaternion.setFromAxisAngle(n, st.inc); orbitG.scale.setScalar(R);
+  nodeA.position.copy(n).multiplyScalar(R); nodeB.position.copy(n).multiplyScalar(-R);
+  earthShade.material.uniforms.occPos.value.copy(M);
+  // Earth's shadow (points straight away from the Sun)
+  const uE = new V(1, 0, 0), thUE = (RS - RE) / 30, thPE = (RS + RE) / 30;
+  const e0 = new V(.3, 0, 0); setFrustum(eUmb, e0, uE, RE - .3 * thUE, RE - 14 * thUE, 13.7); setFrustum(ePen, e0, uE, RE + .3 * thPE, RE + 10 * thPE, 9.7);
+  // Moon's shadow
+  const uM = M.clone().sub(S).normalize(), D = M.distanceTo(S), thU = (RS - RM) / D, thP = (RS + RM) / D, Lm = RM / thU;
+  const m0 = M.clone().addScaledVector(uM, .1); setFrustum(mUmb, m0, uM, RM - .1 * thU, 0, Lm - .1); setFrustum(mPen, m0, uM, RM + .1 * thP, RM + 8 * thP, 7.9);
+  setFrustum(mAnt, M.clone().addScaledVector(uM, Lm), uM, 0, 3 * thU, 3);
+  const sunSide = M.x < 0; mUmb.visible = mPen.visible = mAnt.visible = sunSide && st.shadows; eUmb.visible = ePen.visible = st.shadows;
+  anchors.mU.position.copy(M).addScaledVector(uM, Lm * .55).add(new V(0, -.55, 0)); anchors.mP.position.copy(M).addScaledVector(uM, 5).add(new V(0, 1.3, 0));
+  mUL.visible = mPL.visible = labelsOn && sunSide && st.shadows;
+  ageSl.value = st.age.toFixed(2); monSl.value = st.month.toFixed(1); distSl.value = st.dist;
+  const zh = Lab.lang === 'zh';
+  Lab.$('#ageLbl').textContent = st.age.toFixed(1) + (zh ? ' 天' : ' d');
+  Lab.$('#monLbl').textContent = (zh ? '+' : '+') + st.month.toFixed(1) + (zh ? ' 月' : ' mo');
+  const km = 363 + 42.2 * st.dist; Lab.$('#distLbl').textContent = zh ? (km / 10).toFixed(1) + '万千米' : km.toFixed(0) + 'k km';
+  return M;
+}
+
+/* ---------- inset: view from the best spot on Earth ---------- */
+const iR = new THREE.WebGLRenderer({ antialias:true, alpha:false }); iR.setPixelRatio(Math.min(devicePixelRatio, 2)); iR.setSize(176, 176, false);
+Lab.$('#viewBox').insertBefore(iR.domElement, Lab.$('#eType'));
+const iCam = new THREE.PerspectiveCamera(20, 1, .01, 2000);
+const sky = new THREE.Color(), SKY_DAY = new THREE.Color('#4a86d8'), SKY_NIGHT = new THREE.Color('#04060d');
+const hideIn = [rays, cones, orbitG, plane, nodeA, nodeB, glow];
+let lastKey = '';
+function renderInset(M, key){
+  const vis = hideIn.map(o => o.visible); hideIn.forEach(o => o.visible = false);
+  const starVis = stars.visible;
+  if (M.x < 0){
+    const uM = M.clone().sub(S).normalize(), w = M.clone().negate(), t0 = w.dot(uM), c = M.clone().addScaledVector(uM, t0), dist = c.length();
+    const Pp = dist < RE ? M.clone().addScaledVector(uM, t0 - Math.sqrt(RE * RE - dist * dist)) : (dist > 1e-6 ? c.clone().setLength(RE) : new V(-RE, 0, 0));
+    if (Pp.x > -.2) Pp.set(-RE, 0, 0).lerp(Pp, .5).setLength(RE);
+    iCam.position.copy(Pp).multiplyScalar(1.02); iCam.up.set(0, 1, 0); iCam.fov = 22; iCam.updateProjectionMatrix(); iCam.lookAt(S);
+    const aS = RS / iCam.position.distanceTo(S), aM = RM / iCam.position.distanceTo(M), sep = iCam.position.clone().sub(S).normalize().angleTo(iCam.position.clone().sub(M).normalize());
+    const cov = overlap(aS, aM, sep);
+    sky.copy(SKY_DAY).lerp(SKY_NIGHT, key === 'solar-total' ? 1 : Math.pow(cov, 3) * .85); iR.setClearColor(sky, 1);
+    stars.visible = key === 'solar-total'; corona.visible = key === 'solar-total';
+  } else {
+    iCam.position.copy(M).setLength(RE * 1.03); iCam.up.set(0, 1, 0);
+    iCam.fov = 2 * Math.atan(RM / iCam.position.distanceTo(M)) / D2R * 1.9; iCam.updateProjectionMatrix(); iCam.lookAt(M);
+    iR.setClearColor(SKY_NIGHT, 1); stars.visible = true;
+  }
+  iR.render(scene, iCam);
+  corona.visible = false; stars.visible = starVis; hideIn.forEach((o, i) => o.visible = vis[i]);
+}
+function readout(key, M, force){
+  const season = Math.abs(Math.sin(2 * Math.PI * st.month / 12)) < .3, zh = Lab.lang === 'zh';
+  const k2 = key + season + (st.incT > 0) + Lab.lang + (M.x < 0);
+  if (!force && k2 === lastKey) return; lastKey = k2;
+  Lab.$('#vTitle').textContent = Lab.L(M.x < 0 ? { en:'☀️ The Sun seen from Earth', zh:'☀️ 从地球上看太阳' } : { en:'🌕 The Moon seen from Earth', zh:'🌕 从地球上看月亮' });
+  const e = Lab.$('#eType'); e.textContent = Lab.L(ET[key].n); e.className = 'etype ' + ET[key].c;
+  Lab.$('#eMeta').textContent = st.incT === 0 ? Lab.L({ en:'Orbit tilt OFF: lined up every month', zh:'轨道倾斜已关闭：每个月都会排成一线' }) : Lab.L(season ? { en:'✓ Eclipse season: nodes line up with the Sun', zh:'✓ 食季：交点与太阳排成一线' } : { en:'Not an eclipse season: the Moon passes above or below', zh:'不是食季：月球从上方或下方经过' });
+}
+
+/* ---------- selection / camera ---------- */
+const SIDE = [[-1, 1.1, 17], [-1, 0, 0]];
+function focus(k){
+  if (!k) return ctx.home();
+  if (['mumbra', 'mpen', 'eumbra', 'epen'].includes(k)) setShadows(true);
+  const M = moon.position;
+  if (k === 'sun') return ctx.flyToPose([S.x + 11, 4, 10], S.toArray());
+  if (k === 'earth') return ctx.flyTo([0, 0, 0], 6);
+  if (k === 'moon') return ctx.flyTo(M.clone(), 3.5);
+  if (k === 'orbit') return ctx.flyToPose(...SIDE);
+  if (k === 'nodes') return ctx.flyToPose([2, 13, 13], [0, 0, 0]);
+  if (k === 'mumbra' || k === 'mpen'){ const mid = M.clone().multiplyScalar(.5); return ctx.flyToPose([mid.x + 1.5, 3.2, 8.5], mid.toArray()); }
+  return ctx.flyToPose([5, 5.5, 13], [5, 0, 0]);
+}
+App.three = { focus };
+ctx.hoverText(k => Lab.L(PARTS[k].name));
+ctx.onPick(k => { if (k && k !== App.sel) App.select(k); });
+
+/* ---------- controls ---------- */
+function setPlay(p){ st.playing = p; const b = Lab.$('#playBtn'); b.classList.toggle('on', p); b.textContent = Lab.L(p ? { en:'⏸ Pause', zh:'⏸ 暂停' } : { en:'▶ Play', zh:'▶ 播放' }); }
+function setTilt(on){ st.incT = on ? INC : 0; Lab.$('#tiltBtn').classList.toggle('on', on); }
+function setShadows(on){ st.shadows = on; Lab.$('#shadowBtn').classList.toggle('on', on); }
+function setAll(age, month, dist){ if (age != null) st.age = age; if (month != null) st.month = month; if (dist != null) st.dist = dist; }
+Lab.onLang(() => { setPlay(st.playing); lastKey = ''; });
+Lab.$('#playBtn').onclick = () => { if (story.active) story.stop(); setPlay(!st.playing); };
+Lab.$('#tiltBtn').onclick = () => setTilt(st.incT === 0);
+Lab.$('#shadowBtn').onclick = () => setShadows(!st.shadows);
+Lab.$('#solarBtn').onclick = () => { story.stop(); setPlay(false); setAll(0, 0, 0); App.select('mumbra'); };
+Lab.$('#lunarBtn').onclick = () => { story.stop(); setPlay(false); setAll(P / 2, 0, 0); App.select('eumbra'); };
+Lab.$('#resetBtn').onclick = () => { story.stop(); setPlay(false); setTilt(true); setShadows(true); setLabels(true); setAll(0, 0, 0); App.select(null); };
+ageSl.oninput = () => { if (story.active) story.stop(); setPlay(false); st.age = +ageSl.value; };
+monSl.oninput = () => { if (story.active) story.stop(); setPlay(false); st.month = +monSl.value; };
+distSl.oninput = () => { if (story.active) story.stop(); st.dist = +distSl.value; };
+
+/* ---------- story ---------- */
+const story = Lab3D.story('#stage', STORY, i => {
+  setPlay(false); setShadows(i !== 5); setTilt(true);
+  const go = (age, month, dist, sel, pose) => { setAll(age, month, dist); update(); App.select(sel, true); if (pose) ctx.flyToPose(...pose); };
+  if (i === 0) go(5, 0, 0, 'earth', [[1, 8, 19], [-1.5, 0, 0]]);
+  if (i === 1) go(0, 0, 0, 'moon', [[-1.3, 3.2, 8.5], [-2.8, 0, 0]]);
+  if (i === 2) go(0, 0, 0, 'mumbra', [[-4.6, 1.6, 3.6], [-1.3, 0, 0]]);
+  if (i === 3) go(0, 0, 1, 'mumbra', [[-4.9, 1.8, 4.2], [-1.6, 0, 0]]);
+  if (i === 4) go(P / 2, 0, 0, 'eumbra', [[5, 5.5, 13], [5, 0, 0]]);
+  if (i === 5) go(P / 2, 0, 0, 'moon', [[3.4, 1.2, 3.2], [5.6, 0, 0]]);
+  if (i === 6) go(0, 3, 0, 'orbit', SIDE);
+  if (i === 7) go(0, 0, 0, 'nodes', [[2, 13, 13], [0, 0, 0]]);
+}, () => {});
+Lab.$('#storyBtn').onclick = () => story.start();
+
+/* ---------- per-frame ---------- */
+ctx.onFrame((dt, t) => {
+  if (st.playing){ st.age = (st.age + dt * 1.6) % P; st.month = (st.month + dt * 1.6 / P) % 12; }
+  st.inc += (st.incT - st.inc) * Math.min(1, dt * 3);
+  const M = update(), key = classify(M);
+  earth.rotation.y += dt * .25;
+  sun.rotation.y += dt * .05;
+  const sel = App.sel, pulse = .4 + .3 * Math.sin(t * 5);
+  for (const k in PM) for (const m of PM[k]) m.emissiveIntensity = m.userData.ei + (sel === k ? (k === 'earth' || k === 'moon' ? pulse * .5 : pulse) : 0);
+  for (const c of cones.children) c.material.opacity = c.userData.op * (sel === c.userData.key ? 1.7 + .5 * Math.sin(t * 5) : 1);
+  nodeA.scale.setScalar(sel === 'nodes' ? 1.4 : 1); nodeB.scale.copy(nodeA.scale);
+  renderInset(M, key); readout(key, M);
+});
+setLabels(true); renderInfo(); renderChips();
+</script>
+</body>
+</html>

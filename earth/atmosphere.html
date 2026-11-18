@@ -1,0 +1,721 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Atmosphere: Earth's Blanket of Air</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/lab3d.js"></script>
+<script src="../shared/photos.js"></script>
+<style>
+/* page-specific styles */
+.probe{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:18px;margin-top:18px}
+.gbox{position:relative;min-height:340px}
+.gbox canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.readout{padding:20px;display:flex;flex-direction:column;gap:12px}
+.readout .big{font-family:Fredoka;font-size:46px;font-weight:700;line-height:1}
+.readout .layer{display:flex;align-items:center;gap:9px;font-weight:800;font-size:20px}
+.readout .layer i{width:16px;height:16px;border-radius:50%;flex:none}
+.readout .here{font-size:15px;color:var(--ink-2);margin:0}
+.meter{height:10px;border-radius:999px;background:var(--surface-2);overflow:hidden}
+.meter div{height:100%;background:var(--brand);width:100%;transition:width .3s}
+.gasrow{display:grid;grid-template-columns:20px 1fr auto;gap:8px;align-items:center;font-weight:700;font-size:15px}
+.gasrow i{width:14px;height:14px;border-radius:50%}
+.gasbar{grid-column:2/4;height:8px;border-radius:999px;background:var(--surface-2);overflow:hidden;margin-top:-4px}
+.gasbar div{height:100%}
+.ctlrow{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.wind-ind{font-family:Fredoka;font-size:22px;font-weight:700}
+@media (max-width:980px){.probe{grid-template-columns:1fr}}
+</style>
+</head>
+<body data-subject="earth" data-topic="atmosphere">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="地球科学 · 天气与气候">Earth Science · Weather &amp; Climate</span>
+  <h1 data-zh-html="大气层：<em>地球的空气外衣</em>">The Atmosphere: <em>Earth’s Blanket of Air</em></h1>
+  <p class="lead" data-zh="为什么薯片袋到了高山上会鼓起来？坐飞机时耳朵为什么会“嘭”地响一下？我们生活在一片“空气海洋”的底部。剖开下面的大气层，看看它的五个圈层；拖动探测器一路升到太空，观察温度和气压怎样变化；再看看太阳的不均匀受热怎样产生风。">Why does a bag of chips puff up on a mountain road, and why do your ears pop in an airplane? We live at the bottom of an ocean of air. Slice open the atmosphere below to see its five layers, ride a probe all the way up to space to watch temperature and pressure change, then discover how uneven heating by the Sun makes the wind.</p>
+</header>
+
+<section class="wrap" id="explore" data-nav="3D Atmosphere" data-nav-zh="3D 大气层">
+  <div class="explorer">
+    <div class="stage card space" id="stage" data-3d>
+      <div class="toolbar">
+        <button class="tbtn on" id="spinBtn" data-zh="⟳ 自转">⟳ Spin</button>
+        <button class="tbtn" id="resetBtn" data-zh="⌂ 重置">⌂ Reset</button>
+        <button class="tbtn" id="tourBtn" data-zh="🚀 飞向太空（故事）">🚀 Trip to space (story)</button>
+        <button class="tbtn" id="labelBtn" data-zh="🏷 标签">🏷 Labels</button>
+        <button class="tbtn" id="windBtn" data-zh="🌬 全球风带">🌬 Global winds</button>
+        <button class="tbtn" id="scaleBtn" data-zh="📏 真实厚度">📏 True thickness</button>
+      </div>
+      <div class="bottombar">
+        <div class="pill"><span data-zh="🎈 高度">🎈 Altitude</span><input id="alt" type="range" min="0" max="100" step="0.1" value="0"><b id="altVal">0 km</b></div>
+        <div class="tip" data-zh="拖动旋转 · 滚轮缩放 · 点击剖面或物体">Drag to rotate · Scroll to zoom · Click a layer or object</div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="chips" id="chips"></div>
+
+  <div class="probe">
+    <div class="card gbox"><canvas id="tgraph" aria-label="Temperature vs altitude graph"></canvas></div>
+    <div class="card readout">
+      <h3 data-zh="📡 探测器读数">📡 Probe readings</h3>
+      <div class="big" id="rAlt">0 km</div>
+      <div class="layer" id="rLayer"></div>
+      <div class="counters">
+        <div class="counter"><b id="rTemp">15 °C</b><span data-zh="气温">temperature</span></div>
+        <div class="counter"><b id="rPres">100%</b><span data-zh="气压（占海平面的百分比）">air pressure (% of sea level)</span></div>
+      </div>
+      <div class="meter" title="pressure"><div id="rBar"></div></div>
+      <p class="here" id="rHere"></p>
+    </div>
+  </div>
+  <div class="mix" style="margin-top:16px"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="“越高越冷”只在对流层和中间层成立。在平流层（臭氧吸收紫外线）和热层（稀薄气体吸收太阳的高能辐射），温度反而随高度升高。看看上面的温度曲线是怎样“之”字形弯折的！">“Higher means colder” is only true in the troposphere and mesosphere. In the stratosphere (ozone absorbs UV) and the thermosphere (thin gas absorbs high-energy sunlight), temperature actually rises with height. Look how the graph above zig-zags!</span></div>
+</section>
+
+<section class="wrap" id="air" data-nav="What is air?" data-nav-zh="空气成分">
+  <div class="sec-head">
+    <h2 data-zh="空气是由什么组成的？">What is air made of?</h2>
+    <p data-zh="空气是多种气体的混合物。这个罐子里装着 100 个空气分子，点一点它们，看看各是什么。">Air is a mixture of gases. This jar holds 100 molecules of air. Click them to find out what they are.</p>
+  </div>
+  <div class="sim">
+    <div class="card simbox"><canvas id="jar"></canvas></div>
+    <div class="card simside">
+      <h3 data-zh="干燥空气的成分">Dry air recipe</h3>
+      <div id="gasList" style="display:flex;flex-direction:column;gap:10px"></div>
+      <label class="ctl"><span><span data-zh="💧 水汽（湿度）">💧 Water vapor (humidity)</span>: <b id="humVal">1</b></span><input id="hum" type="range" min="0" max="4" step="1" value="1"></label>
+      <div class="btnrow"><button class="btn" id="co2Btn" data-zh="🔍 找一找 CO₂">🔍 Find the CO₂</button></div>
+      <div class="result" id="jarMsg"></div>
+      <div class="memory"><b data-zh="💡 温室气体">💡 Greenhouse gases</b><span data-zh="二氧化碳、水汽和甲烷虽然含量很少，却能吸收地面放出的热（红外线），让地球保持温暖。它们增多会使地球变暖。">Carbon dioxide, water vapor and methane are tiny parts of air, but they absorb heat (infrared) given off by the ground and keep Earth warm. Adding more of them warms the planet.</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="convection" data-nav="Uneven heating" data-nav-zh="不均匀受热">
+  <div class="sec-head">
+    <h2 data-zh="模拟：海风与陆风">Simulation: sea breeze &amp; land breeze</h2>
+    <p data-zh="太阳同时照射陆地和海洋，但陆地升温快、降温也快，海水升温慢、降温也慢。温差造成气压差，空气就流动起来形成了风。拖动时间滑块或点“播放”看一整天。">The Sun shines on land and sea alike, but land heats up fast and cools down fast, while water heats and cools slowly. The temperature difference makes a pressure difference, and air moves: that is wind. Drag the time slider or press Play to watch a whole day.</p>
+  </div>
+  <div class="sim">
+    <div class="card simbox" style="min-height:420px"><canvas id="conv"></canvas></div>
+    <div class="card simside">
+      <h3 data-zh="海岸观测站">Coastal weather station</h3>
+      <label class="ctl"><span><span data-zh="🕒 时间">🕒 Time of day</span>: <b id="tVal">14:00</b></span><input id="time" type="range" min="0" max="24" step="0.1" value="14"></label>
+      <label class="ctl"><span><span data-zh="☀️ 阳光强度">☀️ Sunshine</span>: <b id="sunVal">100%</b></span><input id="sun" type="range" min="0" max="100" value="100"></label>
+      <div class="btnrow"><button class="btn" id="playBtn" data-zh="▶ 播放一天">▶ Play a day</button></div>
+      <div class="counters">
+        <div class="counter"><b id="cLand">–</b><span data-zh="陆地气温">land air temp</span></div>
+        <div class="counter"><b id="cSea">–</b><span data-zh="海面气温">sea air temp</span></div>
+      </div>
+      <div class="wind-ind" id="cWind"></div>
+      <p id="cWhy"></p>
+      <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="风从高压吹向低压。热的地方空气上升形成低压（L），冷的地方空气下沉形成高压（H）。风以它“吹来的方向”命名：海风从海上吹来。">Wind blows from High to Low pressure. Warm air rises → Low (L); cool air sinks → High (H). Winds are named for where they come FROM: a sea breeze comes from the sea.</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real Photos" data-nav-zh="真实照片">
+  <div class="sec-head">
+    <h2 data-zh="看看真实的样子">See the real thing</h2>
+    <p data-zh="空气看不见，但每一层大气都留下了能拍到的线索。点击照片可以放大；影片不会自动播放。">Air is invisible, but each layer leaves clues you can photograph. Click a photo to enlarge it; the video never starts by itself.</p>
+  </div>
+  <div id="gallery"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 大气层测验">🧠 Atmosphere quiz</h3><p class="sub" data-zh="选出正确答案。">Pick the best answer.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 它在哪一层？">🗂️ Which layer?</h3><p class="sub" data-zh="把每个现象拖到（或先点再点方框）它所在的大气层。">Drag each item (or tap it, then tap a box) into the layer where it happens.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="对应佐治亚州标准 S6E4a（分析大气各层的组成与特点，包括臭氧层和温室气体）、S6E4b（太阳能以不同速率加热空气、陆地和水）和 S6E4c（不均匀受热与地球自转共同形成局地风和全球风带）。建议：先让学生预测“越高越冷吗？”，再用探测器滑块和温度曲线验证；用“真实厚度”按钮讨论模型的夸大；在海陆风模拟中让学生解释为什么风向在一天中会反转。">Supports GSE S6E4a (composition and characteristics of atmospheric layers, including the ozone layer and greenhouse gases), S6E4b (the Sun heats air, land and water at different rates) and S6E4c (unequal heating plus Earth’s rotation cause local and global winds). Try: have students predict “Is it always colder higher up?”, then test with the probe slider and temperature graph; use the True-thickness button to discuss how the model exaggerates; in the breeze sim, ask why the wind reverses between day and night.</p>
+    <p data-zh="数据说明：温度曲线采用标准大气的近似值；热层温度随太阳活动在约 500–2000 °C 之间变化。气压按每升高约 5.5 千米减半估算。">Data notes: the temperature curve uses approximate standard-atmosphere values; thermosphere temperatures vary from about 500 to 2,000 °C with solar activity. Pressure is estimated as halving roughly every 5.5 km.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+/* ===== helpers ===== */
+const o = (en, zh) => ({en, zh});
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function fit(cv){ const r = cv.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); cv.width = Math.max(1, r.width * d); cv.height = Math.max(1, r.height * d); const g = cv.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0); return [g, r.width, r.height]; }
+
+/* ===== Layers & parts (bilingual) ===== */
+const PARTS = {
+  troposphere:{color:'#4fa3ff', name:o('Troposphere','对流层'), job:o('0–12 km · where weather happens','0–12 千米 · 天气现象发生在这里'), mid:6,
+    facts:o(['The lowest layer: about 8 km thick over the poles and 16–18 km thick over the equator.','It holds about 75–80% of all the air and almost all the water vapor, so nearly all clouds, rain and storms form here.','Temperature drops about 6.5 °C for every kilometer you climb, because this layer is heated from the ground below.','Air here keeps mixing by convection: warm air rises and cool air sinks.'],
+            ['最低的一层：两极上空约 8 千米厚，赤道上空约 16–18 千米厚。','它集中了大约 75–80% 的空气和几乎全部的水汽，所以云、雨和风暴几乎都在这里形成。','每升高 1 千米，气温大约下降 6.5 °C，因为这一层主要靠地面加热。','这里的空气不断进行对流：热空气上升，冷空气下沉。']),
+    hint:o('“Tropo” means turning: the air keeps turning over, so the weather keeps changing.','“对流”层：空气上下翻滚对流，天气变化多端。'),
+    mix:o('Clouds do not float in space! Almost all clouds are in the troposphere, only a few kilometers above you.','云并不飘在太空中！几乎所有的云都在对流层里，离你只有几千米。')},
+  stratosphere:{color:'#7c6cf0', name:o('Stratosphere','平流层'), job:o('12–50 km · calm layered air','12–50 千米 · 平稳的层状大气'), mid:30,
+    facts:o(['Air moves mostly sideways in calm layers with little up-and-down mixing, so the ride is smooth.','Temperature RISES with height here, because ozone absorbs ultraviolet (UV) energy from the Sun.','Weather balloons rise to about 30–35 km before they burst. Big jets cruise near the bottom of this layer.','It contains the ozone layer.'],
+            ['空气以水平运动为主，很少上下对流，所以比较平稳。','这里的气温随高度升高而升高，因为臭氧吸收了太阳的紫外线。','气象气球能升到约 30–35 千米才会胀破；大型客机常在这一层的底部附近巡航。','臭氧层就在平流层里。']),
+    hint:o('“Strato” = layered, like a stack of flat sheets: smooth, layered air.','“平流”：空气像一层层薄片一样平稳地水平流动。')},
+  ozone:{color:'#c08cff', name:o('Ozone layer','臭氧层'), job:o('Earth’s sunscreen, ~15–35 km','地球的“防晒霜”，约 15–35 千米'), mid:25,
+    facts:o(['A zone inside the stratosphere where ozone gas (O₃) is most concentrated.','Ozone absorbs most of the Sun’s harmful ultraviolet (UV) rays, protecting living things from sunburn, skin cancer and eye damage.','Chemicals called CFCs (once used in spray cans and refrigerators) thinned it, causing the “ozone hole” over Antarctica. A 1987 treaty (the Montreal Protocol) began phasing them out; they are now banned almost everywhere, and the layer is slowly healing.'],
+            ['平流层中臭氧（O₃）最集中的区域。','臭氧吸收了太阳的大部分有害紫外线，保护生物免受晒伤、皮肤癌和眼睛损伤。','氟利昂（CFCs，过去用于喷雾罐和冰箱）曾使它变薄，在南极上空形成“臭氧空洞”。1987 年签订的《蒙特利尔议定书》开始逐步淘汰这类物质，如今它们几乎在全世界都已被禁用，臭氧层正在慢慢恢复。']),
+    hint:o('O₂ (two O’s) is the oxygen we breathe; O₃ (three O’s) is the ozone that shields us.','O₂（两个氧原子）是我们呼吸的氧气；O₃（三个氧原子）是保护我们的臭氧。'),
+    mix:o('The ozone hole is not what causes global warming. Losing ozone lets in more UV; global warming is caused mainly by extra greenhouse gases such as CO₂.','臭氧空洞并不是全球变暖的原因。臭氧减少会让更多紫外线进来；全球变暖主要是二氧化碳等温室气体增多造成的。')},
+  mesosphere:{color:'#2fb3a0', name:o('Mesosphere','中间层'), job:o('50–85 km · meteors burn up here','50–85 千米 · 流星在这里燃烧'), mid:70,
+    facts:o(['The coldest layer: about −90 °C near its top.','Most meteors (“shooting stars”) burn up here as they rub against air molecules at high speed.','Too high for planes and balloons, too low for satellites, so it is the least explored layer.'],
+            ['最冷的一层：顶部附近约 −90 °C。','大多数流星以极高速度与空气分子摩擦，在这里燃烧殆尽。','对飞机和气球来说太高，对卫星来说又太低，所以它是人类了解最少的一层。']),
+    hint:o('“Meso” = middle. Meteors meet the Mesosphere (M + M).','“中间”层夹在中间；流星在这里燃尽。')},
+  thermosphere:{color:'#ff8a3d', name:o('Thermosphere','热层'), job:o('85–600 km · auroras and the ISS','85–600 千米 · 极光和国际空间站'), mid:400,
+    facts:o(['The air is extremely thin. Its few particles absorb X-rays and UV light and can reach 500–2,000 °C.','It would not feel hot to you: there are so few particles that very little heat would reach your skin.','Auroras (the northern and southern lights) glow here when charged particles from the Sun hit gas atoms.','The International Space Station orbits in the thermosphere, about 400 km up. Its lower part (the ionosphere) bounces radio waves around Earth.'],
+            ['空气极其稀薄。少量气体粒子吸收 X 射线和紫外线，温度可达 500–2000 °C。','但你并不会觉得热：粒子太少，传到皮肤上的热量非常少。','来自太阳的带电粒子撞击气体原子时，会在这里发出极光。','国际空间站在约 400 千米高的热层中运行。热层下部的电离层能反射无线电波，让它绕地球传播。']),
+    hint:o('“Thermo” = heat, like a thermometer or thermos.','“热”层：温度很高（但空气极稀薄）。'),
+    mix:o('High temperature ≠ feels hot. Temperature tells how fast particles move, not how many there are to bump into you.','温度高 ≠ 感觉热。温度表示粒子运动的快慢，而不是有多少粒子撞到你身上。')},
+  exosphere:{color:'#9aa7bf', name:o('Exosphere','散逸层（外层）'), job:o('Above ~600 km · fades into space','约 600 千米以上 · 逐渐过渡到太空'), mid:800,
+    facts:o(['The outermost layer, made mostly of very thin hydrogen and helium.','Particles are so far apart they rarely collide, and some escape into space.','Many satellites orbit here. The layer slowly fades into outer space about 10,000 km up.'],
+            ['最外面的一层，主要是极稀薄的氢和氦。','粒子相距很远，很少相互碰撞，有些会逃逸到太空中。','许多人造卫星在这里运行。它在大约 10000 千米高处逐渐过渡为太空。']),
+    hint:o('“Exo” = outside, like an EXit to space.','“散逸”：气体粒子从这里散逸到太空。')},
+  winds:{color:'#ff5d73', name:o('Global winds','全球风带'), job:o('Uneven heating + Earth’s spin','不均匀受热 + 地球自转'),
+    facts:o(['The Sun heats the equator more than the poles. Warm air rises at the equator and cooler air flows in to replace it, forming giant convection loops.','Earth’s rotation bends moving air (the Coriolis effect), so winds blow at an angle instead of straight north–south.','Trade winds (0–30°) blow from the east toward the equator; prevailing westerlies (30–60°) blow from the west; polar easterlies (60–90°) blow from the east.','The westerlies carry most weather across the United States from west to east.'],
+            ['太阳对赤道的加热比对两极多。赤道的热空气上升，较冷的空气流过来补充，形成巨大的对流环流。','地球自转使运动的空气发生偏转（地转偏向力，即科里奥利效应），所以风是斜着吹的，而不是正南正北。','信风（0–30°）从东边吹向赤道；盛行西风（30–60°）从西边吹来；极地东风（60–90°）从东边吹来。','盛行西风把美国大部分地区的天气从西向东推进。']),
+    hint:o('From equator to pole: trades (east) → westerlies (west) → polar easterlies (east): “East–West–East”.','从赤道到两极：信风（东）→ 盛行西风（西）→ 极地东风（东）：“东-西-东”。'),
+    mix:o('Winds are named for where they come FROM. A westerly blows from the west toward the east.','风是按“吹来的方向”命名的。西风是从西边吹向东边的风。')}
+};
+const ORDER = ['troposphere','stratosphere','ozone','mesosphere','thermosphere','exosphere','winds'];
+const LAYER_OF = h => h < 12 ? 'troposphere' : h < 50 ? 'stratosphere' : h < 85 ? 'mesosphere' : h < 600 ? 'thermosphere' : 'exosphere';
+
+/* ===== Altitude model ===== */
+const SL = [0, 30, 50, 65, 85, 100], AB = [0, 12, 50, 85, 600, 1000];
+const lerpSeg = (x, xs, ys) => { for (let i = 0; i < xs.length - 1; i++) if (x <= xs[i + 1]) return ys[i] + (ys[i + 1] - ys[i]) * (x - xs[i]) / (xs[i + 1] - xs[i]); return ys[ys.length - 1]; };
+const TEMP = [[0,15],[11,-56.5],[20,-56.5],[32,-44.5],[47,-2.5],[51,-2.5],[71,-58],[86,-88],[95,-88],[105,-60],[115,0],[130,200],[150,420],[200,700],[300,900],[400,960],[600,1000],[1000,1000]];
+const temp = h => lerpSeg(h, TEMP.map(p => p[0]), TEMP.map(p => p[1]));
+const pres = h => 100 * Math.exp(-h / 7.9);
+const HERE = [
+  [0, o('Sea level: you are breathing the densest air, pressed down by all the air above.','海平面：你呼吸的是最稠密的空气，上面所有的空气都压在这里。')],
+  [3, o('Low clouds and mountain towns. Air pressure is already about one-third lower.','低云和高山小镇。气压已经降低了约三分之一。')],
+  [7.5, o('Near Mount Everest’s summit (8.8 km): only about one-third of sea-level pressure. Climbers need bottled oxygen.','接近珠穆朗玛峰顶（8.8 千米）：气压只有海平面的约三分之一，登山者需要氧气瓶。')],
+  [9.5, o('Jet airliners cruise here, near the top of the troposphere, around −50 °C outside.','喷气式客机在这里巡航，接近对流层顶部，机外约 −50 °C。')],
+  [12, o('The tropopause: the boundary where temperature stops falling. Weather stays below.','对流层顶：气温停止下降的分界线，天气现象基本都在它下面。')],
+  [15, o('Inside the ozone layer: ozone soaks up UV, warming the air.','进入臭氧层：臭氧吸收紫外线，使空气变暖。')],
+  [28, o('Weather balloons swell and burst around here as the outside pressure drops.','外面的气压越来越低，气象气球在这附近胀大并破裂。')],
+  [36, o('Above most of the ozone. The air keeps warming toward the stratopause.','已经在大部分臭氧之上，空气一直升温到平流层顶。')],
+  [50, o('The mesosphere: the air gets colder again as you rise.','中间层：越往上，空气又越来越冷。')],
+  [70, o('Shooting stars! Meteors burn up from friction with the air.','流星！流星体与空气摩擦而燃烧。')],
+  [85, o('The mesopause: about −90 °C, the coldest place in the atmosphere.','中间层顶：约 −90 °C，是整个大气层最冷的地方。')],
+  [100, o('The Kármán line (100 km): the usual “edge of space”. Auroras glow from here up to about 300 km.','卡门线（100 千米）：通常被认为是“太空的边界”。从这里到约 300 千米高处可见极光。')],
+  [330, o('The International Space Station orbits around 400 km. Temperature is high, but the air is almost a vacuum.','国际空间站在约 400 千米高处运行。温度很高，但空气几乎是真空。')],
+  [600, o('The exosphere: hydrogen and helium leak away into space. Many satellites orbit here.','散逸层：氢和氦逐渐散逸到太空中。许多卫星在这里运行。')]
+];
+
+/* ===== App state ===== */
+const App = window.ATM = { sel:null, three:null, u:0 };
+App.toAlt = u => lerpSeg(u, SL, AB);
+App.toU = h => lerpSeg(h, AB, SL);
+App.fmtAlt = h => h < 1 ? Math.round(h * 1000) + ' m' : (h < 100 ? h.toFixed(1) : Math.round(h)) + ' km';
+App.setU = (u, fromSlider) => { App.u = Math.max(0, Math.min(100, u)); if (!fromSlider) Lab.$('#alt').value = App.u; renderProbe(); };
+App.select = (k, from3D) => {
+  App.sel = k; renderInfo(); renderChips();
+  if (k && PARTS[k].mid != null) App.setU(App.toU(PARTS[k].mid));
+  if (App.three) App.three.focus(k, from3D);
+};
+Lab.$('#alt').oninput = e => { if (App.three) App.three.stopStory(); App.setU(+e.target.value, true); };
+
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel;
+  if (!k){
+    box.innerHTML = `<span class="tag">${Lab.L(o('Layers of air','大气的分层'))}</span>
+      <h3>${Lab.L(o('Five layers of air','大气的五个圈层'))}</h3>
+      <p class="muted" style="margin:0">${Lab.L(o('Scientists divide the atmosphere into layers by how temperature changes with height. The model is sliced open so you can see each layer. Click a colored slice, an object, or a chip below.','科学家根据气温随高度的变化把大气分成几层。模型被切开了一角，你可以看到每一层。点击彩色的剖面、物体或下面的标签。'))}</p>
+      <ul><li>${Lab.L(o('Air is a mixture: 78% nitrogen, 21% oxygen, about 1% argon and other gases.','空气是混合物：78% 氮气、21% 氧气，约 1% 氩气和其他气体。'))}</li>
+      <li>${Lab.L(o('Air pressure and density drop quickly with height: half of all air is below about 5.5 km.','气压和空气密度随高度迅速降低：一半的空气都在约 5.5 千米以下。'))}</li></ul>
+      <div class="memory"><b>${Lab.L(o('💡 Layer order (bottom → top)','💡 从下到上的顺序'))}</b>${Lab.L(o('“The Strong Man’s Triceps Explode”: Troposphere, Stratosphere, Mesosphere, Thermosphere, Exosphere.','“对-平-中-热-散”：对流层、平流层、中间层、热层、散逸层。'))}</div>
+      <div class="nav"><button id="startBtn">${Lab.L(o('Start at the bottom ▶','从最底层开始 ▶'))}</button></div>`;
+    Lab.$('#startBtn').onclick = () => App.select('troposphere');
+    return;
+  }
+  const p = PARTS[k], i = ORDER.indexOf(k);
+  box.innerHTML = `<span class="tag">${Lab.L(k === 'winds' ? o('Moving air','流动的空气') : k === 'ozone' ? o('Inside the stratosphere','平流层中') : o('Layer of the atmosphere','大气层的一层'))}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    ${p.photo ? LabPhotos.figure(p.photo) : ''}
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. '));
+  Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
+  Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
+}
+function renderChips(){
+  Lab.$('#chips').innerHTML = ORDER.map(k => `<button class="chip ${App.sel===k?'on':''}" data-k="${k}"><i style="background:${PARTS[k].color}"></i>${Lab.L(PARTS[k].name)}</button>`).join('');
+  Lab.$$('#chips .chip').forEach(c => c.onclick = () => App.select(c.dataset.k));
+}
+
+/* ===== Probe readout + temperature graph ===== */
+function renderProbe(){
+  const h = App.toAlt(App.u), k = LAYER_OF(h), t = temp(h), p = pres(h);
+  Lab.$('#altVal').textContent = App.fmtAlt(h); Lab.$('#rAlt').textContent = App.fmtAlt(h);
+  Lab.$('#rLayer').innerHTML = `<i style="background:${PARTS[k].color}"></i>${Lab.L(PARTS[k].name)}${h >= 15 && h <= 35 ? ' · ' + Lab.L(PARTS.ozone.name) : ''}`;
+  Lab.$('#rTemp').textContent = Math.round(t) + ' °C';
+  Lab.$('#rPres').textContent = p >= 10 ? Math.round(p) + '%' : p >= 0.01 ? p.toFixed(p >= 1 ? 1 : 2) + '%' : (Lab.lang === 'zh' ? '≈0(近乎真空)' : '≈0 (near vacuum)');
+  Lab.$('#rBar').style.width = Math.max(0, p) + '%';
+  let here = HERE[0][1]; for (const [a, txt] of HERE) if (h >= a) here = txt;
+  Lab.$('#rHere').textContent = Lab.L(here);
+  drawGraph(h);
+}
+function drawGraph(h){
+  const cv = Lab.$('#tgraph'), [g, W, H] = fit(cv), ink = css('--ink'), ink2 = css('--ink-2'), line = css('--line');
+  const P = { l:52, r:16, t:18, b:40 }, X = t => P.l + (t + 100) / 145 * (W - P.l - P.r), Y = a => H - P.b - a / 120 * (H - P.t - P.b);
+  g.clearRect(0, 0, W, H);
+  [['troposphere',0,12,5],['stratosphere',12,50,46],['mesosphere',50,85,78],['thermosphere',85,120,95]].forEach(([k, a, b, la]) => {
+    g.fillStyle = PARTS[k].color + '26'; g.fillRect(P.l, Y(b), W - P.l - P.r, Y(a) - Y(b));
+    g.fillStyle = PARTS[k].color; g.font = '800 12px Nunito, sans-serif'; g.textAlign = 'right'; g.fillText(Lab.L(PARTS[k].name), W - P.r - 6, Y(la));
+  });
+  g.setLineDash([4, 4]); g.strokeStyle = PARTS.ozone.color; g.lineWidth = 2; g.strokeRect(P.l + 2, Y(35), W - P.l - P.r - 4, Y(15) - Y(35)); g.setLineDash([]);
+  g.fillStyle = PARTS.ozone.color; g.textAlign = 'right'; g.fillText(Lab.L(PARTS.ozone.name), W - P.r - 6, Y(15) - 6);
+  g.strokeStyle = line; g.lineWidth = 1; g.fillStyle = ink2; g.font = '700 12px Nunito, sans-serif';
+  for (let a = 0; a <= 120; a += 20){ g.beginPath(); g.moveTo(P.l, Y(a)); g.lineTo(W - P.r, Y(a)); g.stroke(); g.textAlign = 'right'; g.fillText(a, P.l - 6, Y(a) + 4); }
+  for (let t = -100; t <= 40; t += 20){ g.beginPath(); g.moveTo(X(t), P.t); g.lineTo(X(t), H - P.b); g.stroke(); g.textAlign = 'center'; g.fillText(t, X(t), H - P.b + 16); }
+  g.fillStyle = ink; g.font = '800 13px Nunito, sans-serif'; g.textAlign = 'center';
+  g.fillText(Lab.L(o('Temperature (°C)','气温（°C）')), (P.l + W - P.r) / 2, H - 6);
+  g.save(); g.translate(14, (P.t + H - P.b) / 2); g.rotate(-Math.PI / 2); g.fillText(Lab.L(o('Altitude (km)','高度（千米）')), 0, 0); g.restore();
+  g.strokeStyle = ink; g.lineWidth = 3; g.beginPath(); let exitY = null;
+  for (let a = 0; a <= 120; a += .5){ const t = temp(a); if (t > 45){ exitY = a; break; } a === 0 ? g.moveTo(X(t), Y(a)) : g.lineTo(X(t), Y(a)); }
+  g.stroke();
+  if (exitY != null){ g.fillStyle = PARTS.thermosphere.color; g.font = '800 12px Nunito, sans-serif'; g.textAlign = 'left'; g.fillText(Lab.L(o('→ heats to 1,000 °C+ higher up','→ 再往上可达 1000 °C 以上')), X(-6), Y(exitY - 9)); }
+  const tc = temp(h);
+  if (h <= 120 && tc <= 45){
+    g.setLineDash([5, 4]); g.strokeStyle = '#ffb703'; g.lineWidth = 2; g.beginPath(); g.moveTo(P.l, Y(h)); g.lineTo(X(tc), Y(h)); g.stroke(); g.setLineDash([]);
+    g.fillStyle = '#ffb703'; g.beginPath(); g.arc(X(tc), Y(h), 8, 0, 7); g.fill(); g.strokeStyle = ink; g.lineWidth = 2; g.stroke();
+  } else {
+    g.fillStyle = '#ffb703'; g.font = '800 13px Nunito, sans-serif'; g.textAlign = 'left';
+    g.fillText('▲ ' + App.fmtAlt(h) + ' · ' + Math.round(tc) + ' °C', P.l + 8, P.t + 14);
+  }
+}
+addEventListener('resize', () => renderProbe());
+addEventListener('labtheme', () => renderProbe());
+Lab.onLang(() => { renderInfo(); renderChips(); renderProbe(); });
+
+/* ===== Air composition jar ===== */
+(function(){
+  const GASES = [
+    {k:'n2', n:78, color:'#4f8ff0', name:o('Nitrogen (N₂)','氮气（N₂）'), pct:'78%', note:o('Most of the air. Living things need nitrogen, but we can’t use it straight from the air.','空气的主要成分。生物需要氮，但不能直接利用空气中的氮气。')},
+    {k:'o2', n:21, color:'#e5484d', name:o('Oxygen (O₂)','氧气（O₂）'), pct:'21%', note:o('The gas we breathe; also needed for burning. Plants release it during photosynthesis.','我们呼吸的气体，燃烧也需要它。植物在光合作用中释放氧气。')},
+    {k:'ar', n:1, color:'#a874e8', name:o('Argon (Ar)','氩气（Ar）'), pct:'0.93%', note:o('An unreactive “noble” gas, used inside light bulbs.','一种不活泼的稀有气体，可用于灯泡中。')},
+    {k:'co2', n:0, color:'#6b7280', name:o('Carbon dioxide (CO₂)','二氧化碳（CO₂）'), pct:'0.04%', note:o('A greenhouse gas. Plants use it for photosynthesis; burning fuels adds more.','一种温室气体。植物用它进行光合作用；燃烧燃料会增加它的含量。')},
+    {k:'h2o', n:0, color:'#38c6d9', name:o('Water vapor (H₂O)','水汽（H₂O）'), pct:'0–4%', note:o('Varies with place and weather. It forms clouds and is also a greenhouse gas.','含量随地点和天气变化。它会形成云，也是一种温室气体。')}
+  ];
+  const G = Object.fromEntries(GASES.map(x => [x.k, x]));
+  const cv = Lab.$('#jar'); let mols = [], zoom = false, hum = 1, W = 600, H = 380, picked = null;
+  function make(){
+    mols = [];
+    const add = (k, n) => { for (let i = 0; i < n; i++) mols.push({ k, x:Math.random() * W, y:Math.random() * H, vx:(Math.random() - .5) * 90, vy:(Math.random() - .5) * 90, a:Math.random() * 6, va:(Math.random() - .5) * 4 }); };
+    add('n2', 78); add('o2', 21); add('ar', 1); add('h2o', hum);
+  }
+  function list(){
+    Lab.$('#gasList').innerHTML = GASES.map(x => {
+      const w = x.k === 'n2' ? 78 : x.k === 'o2' ? 21 : x.k === 'ar' ? 0.93 : x.k === 'co2' ? 0.04 : hum;
+      return `<div class="gasrow"><i style="background:${x.color}"></i><span>${Lab.L(x.name)}</span><b>${x.k === 'h2o' ? hum + '%' : x.pct}</b><div class="gasbar"><div style="width:${Math.max(.6, w)}%;background:${x.color}"></div></div></div>`;
+    }).join('');
+    Lab.$('#humVal').textContent = hum + '%';
+  }
+  function drawMol(g, m, s = 1){
+    const c = G[m.k].color, r = 7 * s;
+    g.fillStyle = c; g.strokeStyle = 'rgba(0,0,0,.25)'; g.lineWidth = 1;
+    const dot = (x, y, rr) => { g.beginPath(); g.arc(x, y, rr, 0, 7); g.fill(); g.stroke(); };
+    if (m.k === 'ar') dot(m.x, m.y, r * 1.15);
+    else if (m.k === 'h2o'){ dot(m.x, m.y, r); g.fillStyle = '#ffffff'; dot(m.x + Math.cos(m.a) * r * 1.1, m.y + Math.sin(m.a) * r * 1.1, r * .55); dot(m.x + Math.cos(m.a + 1.8) * r * 1.1, m.y + Math.sin(m.a + 1.8) * r * 1.1, r * .55); }
+    else if (m.k === 'co2'){ g.fillStyle = '#374151'; dot(m.x, m.y, r); g.fillStyle = '#e5484d'; dot(m.x + Math.cos(m.a) * r * 1.5, m.y + Math.sin(m.a) * r * 1.5, r * .8); dot(m.x - Math.cos(m.a) * r * 1.5, m.y - Math.sin(m.a) * r * 1.5, r * .8); }
+    else { dot(m.x + Math.cos(m.a) * r * .6, m.y + Math.sin(m.a) * r * .6, r); dot(m.x - Math.cos(m.a) * r * .6, m.y - Math.sin(m.a) * r * .6, r); }
+  }
+  let zoomDots = [];
+  function frame(dt){
+    const [g, w, h] = fit(cv);
+    if (Math.abs(w - W) > 2 || Math.abs(h - H) > 2){ const sx = w / W, sy = h / H; mols.forEach(m => { m.x *= sx; m.y *= sy; }); W = w; H = h; zoomDots = []; }
+    g.clearRect(0, 0, W, H);
+    g.fillStyle = css('--surface-2'); g.fillRect(0, 0, W, H);
+    if (zoom){
+      if (!zoomDots.length) for (let i = 0; i < 2500; i++){ const r = Math.random(); zoomDots.push({ x:8 + Math.random() * (W - 16), y:8 + Math.random() * (H - 16), c: r < .78 ? '#4f8ff0' : r < .99 ? '#e5484d' : '#a874e8' }); }
+      zoomDots.forEach(d => { g.fillStyle = d.c; g.fillRect(d.x, d.y, 2.4, 2.4); });
+      const t = performance.now() / 1000, cx = W * .62, cy = H * .42;
+      g.strokeStyle = '#ffb703'; g.lineWidth = 3; g.beginPath(); g.arc(cx, cy, 16 + 4 * Math.sin(t * 4), 0, 7); g.stroke();
+      drawMol(g, { k:'co2', x:cx, y:cy, a:t }, .8);
+      g.fillStyle = css('--ink'); g.font = '800 14px Nunito, sans-serif'; g.textAlign = 'left';
+      g.fillText(Lab.L(o('2,500 molecules → only 1 is CO₂!','2500 个分子 → 只有 1 个是 CO₂!')), 12, H - 14);
+      return;
+    }
+    for (const m of mols){
+      m.x += m.vx * dt; m.y += m.vy * dt; m.a += m.va * dt;
+      if (m.x < 10 || m.x > W - 10){ m.vx *= -1; m.x = Math.max(10, Math.min(W - 10, m.x)); }
+      if (m.y < 10 || m.y > H - 10){ m.vy *= -1; m.y = Math.max(10, Math.min(H - 10, m.y)); }
+      drawMol(g, m);
+    }
+    if (picked){ g.strokeStyle = css('--ink'); g.lineWidth = 2.5; g.beginPath(); g.arc(picked.x, picked.y, 16, 0, 7); g.stroke(); }
+    g.fillStyle = css('--ink-2'); g.font = '800 13px Nunito, sans-serif'; g.textAlign = 'left';
+    g.fillText(Lab.L(o('100 molecules of dry air','100 个干燥空气分子')) + (hum ? ' + ' + hum + ' H₂O' : ''), 12, H - 12);
+  }
+  let last = performance.now();
+  (function loop(){ requestAnimationFrame(loop); const now = performance.now(), dt = Math.min(.05, (now - last) / 1000); last = now; const r = cv.getBoundingClientRect(); if (r.bottom > 0 && r.top < innerHeight) frame(dt); })();
+  cv.addEventListener('click', e => {
+    if (zoom) return;
+    const b = cv.getBoundingClientRect(), x = e.clientX - b.left, y = e.clientY - b.top;
+    let best = null, bd = 22; for (const m of mols){ const d = Math.hypot(m.x - x, m.y - y); if (d < bd){ bd = d; best = m; } }
+    picked = best; const msg = Lab.$('#jarMsg');
+    if (best){ const gx = G[best.k]; msg.textContent = `${Lab.L(gx.name)} · ${best.k === 'h2o' ? hum + '%' : gx.pct}: ${Lab.L(gx.note)}`; msg.className = 'result'; }
+  });
+  Lab.$('#hum').oninput = e => { hum = +e.target.value; mols = mols.filter(m => m.k !== 'h2o'); for (let i = 0; i < hum; i++) mols.push({ k:'h2o', x:Math.random() * W, y:Math.random() * H, vx:(Math.random() - .5) * 90, vy:(Math.random() - .5) * 90, a:0, va:2 }); picked = null; list(); };
+  Lab.$('#co2Btn').onclick = () => {
+    zoom = !zoom; picked = null; const msg = Lab.$('#jarMsg');
+    Lab.$('#co2Btn').textContent = Lab.L(zoom ? o('↩ Back to 100 molecules','↩ 回到 100 个分子') : o('🔍 Find the CO₂','🔍 找一找 CO₂'));
+    msg.textContent = zoom ? Lab.L(o('In 100 molecules there isn’t even one CO₂. You need about 2,500 molecules to find a single one (0.04%). Tiny amount, big effect: CO₂ traps heat.','100 个分子里连一个 CO₂ 都没有。大约 2500 个分子里才有 1 个（0.04%）。含量虽少，作用很大：CO₂ 能留住热量。')) : '';
+    msg.className = 'result';
+  };
+  Lab.onLang(() => { list(); Lab.$('#co2Btn').textContent = Lab.L(zoom ? o('↩ Back to 100 molecules','↩ 回到 100 个分子') : o('🔍 Find the CO₂','🔍 找一找 CO₂')); if (picked){ const gx = G[picked.k]; Lab.$('#jarMsg').textContent = `${Lab.L(gx.name)}: ${Lab.L(gx.note)}`; } });
+  make(); list();
+})();
+
+/* ===== Sea breeze / land breeze convection sim ===== */
+(function(){
+  const cv = Lab.$('#conv'); let hour = 14, sun = 1, playing = false, parts = [];
+  for (let i = 0; i < 230; i++) parts.push({ u:Math.random(), v:Math.random() });
+  const TL = () => 20 + 9 * sun * Math.sin(2 * Math.PI * (hour - 9) / 24);
+  const TS = () => 20 + 1.6 * sun * Math.sin(2 * Math.PI * (hour - 12) / 24);
+  const mixC = (a, b, t) => { const p = x => [parseInt(x.slice(1, 3), 16), parseInt(x.slice(3, 5), 16), parseInt(x.slice(5, 7), 16)], A = p(a), B = p(b); return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(',')})`; };
+  function arrow(g, x0, y0, x1, y1, col, w){ g.strokeStyle = col; g.fillStyle = col; g.lineWidth = w; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); const a = Math.atan2(y1 - y0, x1 - x0); g.beginPath(); g.moveTo(x1, y1); g.lineTo(x1 - 14 * Math.cos(a - .45), y1 - 14 * Math.sin(a - .45)); g.lineTo(x1 - 14 * Math.cos(a + .45), y1 - 14 * Math.sin(a + .45)); g.closePath(); g.fill(); }
+  function side(){
+    const tl = TL(), ts = TS(), d = tl - ts;
+    Lab.$('#tVal').textContent = String(Math.floor(hour) % 24).padStart(2, '0') + ':' + String(Math.floor((hour % 1) * 60)).padStart(2, '0');
+    Lab.$('#sunVal').textContent = Math.round(sun * 100) + '%';
+    Lab.$('#cLand').textContent = tl.toFixed(1) + ' °C'; Lab.$('#cSea').textContent = ts.toFixed(1) + ' °C';
+    const w = Lab.$('#cWind'), why = Lab.$('#cWhy');
+    if (Math.abs(d) < 0.8){ w.textContent = Lab.L(o('😐 Almost calm','😐 几乎无风')); why.textContent = Lab.L(o('Land and sea are nearly the same temperature, so there is almost no pressure difference to push the air.','陆地和海面温度几乎相同，几乎没有气压差推动空气。')); }
+    else if (d > 0){ w.textContent = Lab.L(o('🌊➜🏝️ Sea breeze (from the sea)','🌊➜🏝️ 海风（从海上吹来）')); why.textContent = Lab.L(o('Land is warmer. Air over the land heats, expands and rises, leaving low pressure. Cooler, denser air from the sea (high pressure) flows in to replace it.','陆地更热。陆地上方的空气受热膨胀上升，形成低压；海面上较冷、较密的空气（高压）流过来补充。')); }
+    else { w.textContent = Lab.L(o('🏝️➜🌊 Land breeze (from the land)','🏝️➜🌊 陆风（从陆地吹来）')); why.textContent = Lab.L(o('Now the land has cooled faster than the water. Warmer air over the sea rises (low pressure) and cooler air from the land flows out to sea.','这时陆地比海水降温更快。海面上较暖的空气上升（低压），陆地上较冷的空气吹向海洋。')); }
+  }
+  function draw(dt){
+    const [g, W, H] = fit(cv), gy = H * .78, top = H * .14, coast = W * .5;
+    const tl = TL(), ts = TS(), d = tl - ts, A = Math.max(-1, Math.min(1, d / 8));
+    const day = Math.max(0, Math.sin(Math.PI * (hour - 6) / 12));
+    const sky = g.createLinearGradient(0, 0, 0, gy);
+    sky.addColorStop(0, mixC('#0b1530', '#4aa3ff', day)); sky.addColorStop(1, mixC('#26365c', '#bfe3ff', day));
+    g.fillStyle = sky; g.fillRect(0, 0, W, gy);
+    if (hour > 6 && hour < 18){ const a = Math.PI * (hour - 6) / 12, sx = W * .5 - Math.cos(a) * W * .42, sy = gy - Math.sin(a) * (gy - 40) * .9; g.fillStyle = '#ffd54a'; g.beginPath(); g.arc(sx, sy, 20, 0, 7); g.fill(); g.globalAlpha = .25 * sun; g.beginPath(); g.arc(sx, sy, 34, 0, 7); g.fill(); g.globalAlpha = 1; }
+    else { const hh = hour < 6 ? hour + 24 : hour, a = Math.PI * (hh - 18) / 12, mx = W * .5 - Math.cos(a) * W * .42, my = gy - Math.sin(a) * (gy - 40) * .9; g.fillStyle = '#e8ecf5'; g.beginPath(); g.arc(mx, my, 15, 0, 7); g.fill(); g.fillStyle = mixC('#0b1530', '#4aa3ff', day); g.beginPath(); g.arc(mx + 6, my - 4, 13, 0, 7); g.fill(); }
+    // sea & land
+    const t = performance.now() / 1000;
+    g.fillStyle = mixC('#0d3b66', '#1f7fc4', day * .8 + .2); g.beginPath(); g.moveTo(0, gy); for (let x = 0; x <= coast; x += 10) g.lineTo(x, gy + 3 * Math.sin(x / 22 + t * 2)); g.lineTo(coast, H); g.lineTo(0, H); g.fill();
+    g.fillStyle = mixC('#3d2b1a', '#8a6a3b', day * .8 + .2); g.beginPath(); g.moveTo(coast - 20, H); g.lineTo(coast, gy - 4); g.lineTo(W, gy - 10); g.lineTo(W, H); g.fill();
+    g.fillStyle = mixC('#1f4d2a', '#4caf50', day * .8 + .2); g.fillRect(coast, gy - 12, W - coast, 6);
+    for (const x of [.62, .74, .9]){ const px = W * x; g.fillStyle = '#5d4037'; g.fillRect(px - 3, gy - 40, 6, 30); g.fillStyle = mixC('#1b5e20', '#43a047', day * .7 + .3); g.beginPath(); g.arc(px, gy - 46, 15, 0, 7); g.fill(); }
+    g.fillStyle = '#eceff1'; g.fillRect(W * .8, gy - 34, 34, 24); g.fillStyle = '#c62828'; g.beginPath(); g.moveTo(W * .8 - 4, gy - 34); g.lineTo(W * .8 + 17, gy - 50); g.lineTo(W * .8 + 38, gy - 34); g.fill();
+    // particles following one convection loop
+    const sp = .16 * A;
+    for (const p of parts){
+      const du = Math.PI * Math.sin(Math.PI * p.u) * Math.cos(Math.PI * p.v), dv = -Math.PI * Math.cos(Math.PI * p.u) * Math.sin(Math.PI * p.v);
+      p.u += (du * sp + (Math.random() - .5) * .03) * dt; p.v += (dv * sp * .9 + (Math.random() - .5) * .03) * dt;
+      if (p.u < .01 || p.u > .99 || p.v < .01 || p.v > .99){ p.u = Math.random(); p.v = Math.random(); }
+      const x = p.u * W, y = gy - 14 - p.v * (gy - 14 - top);
+      const surfT = ts + (tl - ts) * p.u, localT = surfT - p.v * 8, k = Math.max(0, Math.min(1, (localT - 10) / 20));
+      g.fillStyle = mixC('#4f8ff0', '#ff5d3a', k); g.globalAlpha = .85; g.beginPath(); g.arc(x, y, 3.2, 0, 7); g.fill(); g.globalAlpha = 1;
+    }
+    // H / L and big arrows
+    if (Math.abs(d) >= .8){
+      const warmX = d > 0 ? W * .78 : W * .22, coolX = d > 0 ? W * .22 : W * .78;
+      g.font = '800 34px Fredoka, sans-serif'; g.textAlign = 'center';
+      g.fillStyle = '#e0475b'; g.fillText('L', warmX, gy - 60); g.fillStyle = '#2f6fd0'; g.fillText('H', coolX, gy - 60);
+      const dir = d > 0 ? 1 : -1, len = 60 + 60 * Math.abs(A);
+      arrow(g, W * .5 - dir * len / 2, gy - 24, W * .5 + dir * len / 2, gy - 24, '#ffffff', 6);
+      arrow(g, W * .5 + dir * len / 3, top + 18, W * .5 - dir * len / 3, top + 18, 'rgba(255,255,255,.7)', 3);
+      g.font = '800 13px Nunito, sans-serif'; g.fillStyle = '#ffffff';
+      g.fillText(Lab.L(o('warm air rises','暖空气上升')), warmX, top + 44); g.fillText(Lab.L(o('cool air sinks','冷空气下沉')), coolX, top + 44);
+    }
+    g.font = '800 15px Nunito, sans-serif'; g.textAlign = 'left'; g.fillStyle = '#ffffff';
+    g.fillText(Lab.L(o('Sea','海洋')) + ' ' + ts.toFixed(1) + ' °C', 12, H - 14); g.textAlign = 'right'; g.fillText(Lab.L(o('Land','陆地')) + ' ' + tl.toFixed(1) + ' °C', W - 12, H - 14);
+  }
+  let last = performance.now();
+  (function loop(){
+    requestAnimationFrame(loop); const now = performance.now(), dt = Math.min(.05, (now - last) / 1000); last = now;
+    const r = cv.getBoundingClientRect(); if (!(r.bottom > 0 && r.top < innerHeight)) return;
+    if (playing){ hour = (hour + dt * 1.6) % 24; Lab.$('#time').value = hour; side(); }
+    draw(dt);
+  })();
+  Lab.$('#time').oninput = e => { hour = +e.target.value; side(); };
+  Lab.$('#sun').oninput = e => { sun = e.target.value / 100; side(); };
+  const playLbl = () => Lab.$('#playBtn').textContent = Lab.L(playing ? o('⏸ Pause','⏸ 暂停') : o('▶ Play a day','▶ 播放一天'));
+  Lab.$('#playBtn').onclick = () => { playing = !playing; playLbl(); };
+  Lab.onLang(() => { side(); playLbl(); });
+})();
+
+/* ===== Quiz ===== */
+/* ===== Real photos (Wikimedia Commons; licences checked with the Commons API helper, URLs exactly as returned) ===== */
+const PHOTOS = [
+  { part:'troposphere', kind:{en:'Astronaut photo',zh:'宇航员拍摄'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/13/Sunset_from_the_ISS.JPG/960px-Sunset_from_the_ISS.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Earth’s atmosphere seen edge-on from the International Space Station at sunset. The whole “ocean of air” is just this thin glowing band; the weather happens in the lowest, orange layer.', zh:'日落时从国际空间站侧看地球大气层。整片“空气海洋”只是这样薄薄的一条光带，天气现象发生在最下面橙色的那一层。', scale:{en:'seen from about 400 km (250 miles) up',zh:'从约 400 千米高空拍摄'}, credit:'ISS Expedition 23 crew', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Sunset_from_the_ISS.JPG' },
+  { part:'stratosphere', kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8b/2024-07-02_Weather_Balloon_Launch_025_%281%29.jpg/960px-2024-07-02_Weather_Balloon_Launch_025_%281%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Letting go of a weather balloon in Indiana. Balloons like this carry instruments up through the troposphere and into the stratosphere.', zh:'在美国印第安纳州放飞探空气球。这样的气球带着仪器穿过对流层，一直升到平流层。', scale:{en:'Indiana, USA · 2024',zh:'美国印第安纳州 · 2024 年'}, credit:'Photouploadforscience', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:2024-07-02_Weather_Balloon_Launch_025_(1).jpg' },
+  { part:'ozone', kind:{en:'Satellite data image',zh:'卫星数据图'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b6/Hole_in_the_Ozone_Layer_Over_Antarctica_-_GPN-2002-000117.jpg/960px-Hole_in_the_Ozone_Layer_Over_Antarctica_-_GPN-2002-000117.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The “ozone hole” over Antarctica, mapped by NASA from satellite measurements. It is a thin spot in the ozone layer, not a real hole, and the colors are added by computer.', zh:'美国国家航空航天局根据卫星测量绘制的南极上空“臭氧洞”。它是臭氧层变薄的区域，并不是真的破了个洞；颜色是电脑加上去的。', scale:{en:'over Antarctica',zh:'南极洲上空'}, credit:'NASA', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Hole_in_the_Ozone_Layer_Over_Antarctica_-_GPN-2002-000117.jpg' },
+  { part:'mesosphere', kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0a/Noctilucent_clouds_over_Slovakia_in_21st_of_June%2C_2019_%281%29.jpg/960px-Noctilucent_clouds_over_Slovakia_in_21st_of_June%2C_2019_%281%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Noctilucent (“night-shining”) clouds over Slovakia. These are the highest clouds on Earth, far up in the mesosphere, so they still catch sunlight after dark.', zh:'斯洛伐克上空的夜光云。它是地球上最高的云，远在中间层，所以天黑以后还能被阳光照亮。', scale:{en:'about 80 km (50 miles) high',zh:'高度约 80 千米'}, credit:'Chmee2', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Noctilucent_clouds_over_Slovakia_in_21st_of_June,_2019_(1).jpg' },
+  { part:'thermosphere', kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d3/Aurora_borealis_over_Eielson_Air_Force_Base%2C_Alaska.jpg/960px-Aurora_borealis_over_Eielson_Air_Force_Base%2C_Alaska.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The northern lights (aurora borealis) over Bear Lake, Alaska. Particles from the Sun make the thin gas of the thermosphere glow.', zh:'美国阿拉斯加州贝尔湖上空的北极光。来自太阳的粒子让热层里稀薄的气体发出了光。', scale:{en:'Alaska, USA',zh:'美国阿拉斯加州'}, credit:'U.S. Air Force, Senior Airman Joshua Strang', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Aurora_borealis_over_Eielson_Air_Force_Base,_Alaska.jpg' },
+  { kind:{en:'Astronaut photo',zh:'宇航员拍摄'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/31/Aurora_Seen_From_Space_by_NASA.jpg/960px-Aurora_Seen_From_Space_by_NASA.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A green and red aurora seen from the International Space Station. From up here you can see that auroras glow far above the clouds and the weather.', zh:'从国际空间站看到的绿色和红色极光。从这里能看出，极光发光的地方远在云层和天气现象的上方。', credit:'NASA', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Aurora_Seen_From_Space_by_NASA.jpg' },
+  { type:'video', kind:{en:'Video',zh:'影片'}, media:'https://upload.wikimedia.org/wikipedia/commons/b/b7/Weather_balloon_launch.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b7/Weather_balloon_launch.webm/500px--Weather_balloon_launch.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b7/Weather_balloon_launch.webm/500px--Weather_balloon_launch.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Watch: a weather balloon is launched in Kyiv, Ukraine. As it climbs, the air pressure outside drops, so the balloon swells until it finally bursts.', zh:'看一看：在乌克兰基辅放飞探空气球。气球越升越高，外面的气压越来越低，它就越胀越大，最后会胀破。', credit:'Alex long', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Weather_balloon_launch.webm' }
+];
+PHOTOS.forEach(it => { if (it.part && PARTS[it.part]) PARTS[it.part].photo = it; });
+LabPhotos.render(Lab.$('#gallery'), PHOTOS);
+
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('Which gas makes up most of Earth’s air?','地球空气中含量最多的气体是什么？'), options:[o('Nitrogen (about 78%)','氮气（约 78%）'),o('Oxygen','氧气'),o('Carbon dioxide','二氧化碳'),o('Argon','氩气')], answer:0, explain:o('Air is about 78% nitrogen, 21% oxygen and 1% argon and other gases.','空气中约 78% 是氮气，21% 是氧气，约 1% 是氩气和其他气体。')},
+  {q:o('In which layer does almost all weather happen?','几乎所有的天气现象发生在哪一层？'), options:[o('Troposphere','对流层'),o('Stratosphere','平流层'),o('Mesosphere','中间层'),o('Thermosphere','热层')], answer:0, explain:o('The troposphere holds almost all the water vapor, so clouds and storms form there.','对流层几乎集中了全部水汽，所以云和风暴都在那里形成。')},
+  {q:o('The ozone layer is found in the…','臭氧层位于……'), options:[o('Stratosphere','平流层'),o('Troposphere','对流层'),o('Mesosphere','中间层'),o('Exosphere','散逸层')], answer:0},
+  {q:o('Why does temperature rise with height in the stratosphere?','为什么平流层的气温随高度升高？'), options:[o('Ozone absorbs ultraviolet energy from the Sun','臭氧吸收了太阳的紫外线'),o('It is closer to the Sun','它离太阳更近'),o('Hot air from volcanoes collects there','火山的热空气聚集在那里'),o('Clouds trap heat there','云在那里留住了热量')], answer:0, explain:o('Being a few kilometers closer to the Sun makes no difference. Ozone absorbing UV heats the air.','离太阳近几千米没有任何影响。是臭氧吸收紫外线使空气升温。')},
+  {q:o('Most meteors burn up in which layer?','大多数流星在哪一层燃烧殆尽？'), options:[o('Mesosphere','中间层'),o('Troposphere','对流层'),o('Stratosphere','平流层'),o('Exosphere','散逸层')], answer:0},
+  {q:o('Auroras and the International Space Station are found in the…','极光和国际空间站位于……'), options:[o('Thermosphere','热层'),o('Stratosphere','平流层'),o('Troposphere','对流层'),o('Mesosphere','中间层')], answer:0},
+  {q:o('As you climb a tall mountain, air pressure…','当你登上高山时，气压会……'), options:[o('Decreases, because there is less air above you','降低，因为你上方的空气变少了'),o('Increases','升高'),o('Stays the same','保持不变'),o('Drops to zero at the top','在山顶降为零')], answer:0, explain:o('Air pressure is the weight of the air above you. Higher up, there is less air pushing down.','气压是你上方空气的重量造成的。越往高处，压在上面的空气越少。')},
+  {q:o('On a sunny day, compared with the ocean, land…','晴天里，与海洋相比，陆地……'), options:[o('Heats up faster (and cools faster at night)','升温更快（夜里降温也更快）'),o('Heats up more slowly','升温更慢'),o('Heats up at exactly the same rate','升温速度完全相同'),o('Does not absorb sunlight','不吸收阳光')], answer:0, explain:o('Water needs much more energy to change temperature than land, so land warms and cools faster.','水改变温度需要的能量比陆地多得多，所以陆地升温和降温都更快。')},
+  {q:o('A sea breeze on a sunny afternoon blows…','晴天下午的海风是……'), options:[o('From the sea toward the land','从海洋吹向陆地'),o('From the land toward the sea','从陆地吹向海洋'),o('Straight up','垂直向上吹'),o('Only at night','只在夜里吹')], answer:0, explain:o('Warm air rises over the hot land (low pressure); cooler air from the sea (high pressure) moves in.','热陆地上方的暖空气上升（低压），海上较冷的空气（高压）流过来。')},
+  {q:o('Warm air rises because it is…','暖空气上升是因为它……'), options:[o('Less dense than the cooler air around it','比周围的冷空气密度小'),o('Heavier than cool air','比冷空气重'),o('Made of different gases','由不同的气体组成'),o('Pulled up by the Sun','被太阳吸上去')], answer:0},
+  {q:o('Which TWO things together cause Earth’s global wind belts?','哪两个因素共同形成了全球风带？'), options:[o('Uneven heating by the Sun and Earth’s rotation','太阳的不均匀加热和地球自转'),o('The Moon and the tides','月球和潮汐'),o('Mountains and forests','山脉和森林'),o('Volcanoes and earthquakes','火山和地震')], answer:0, explain:o('Uneven heating starts air moving; Earth’s rotation (the Coriolis effect) curves it into belts like the trade winds and westerlies.','不均匀受热让空气流动起来；地球自转（地转偏向力）使它偏转，形成信风带和西风带等风带。')},
+  {q:o('Which gas in air is a greenhouse gas that traps heat?','空气中哪种气体是能留住热量的温室气体？'), options:[o('Carbon dioxide','二氧化碳'),o('Nitrogen','氮气'),o('Argon','氩气'),o('Oxygen','氧气')], answer:0, explain:o('CO₂, water vapor and methane absorb infrared heat given off by Earth’s surface.','二氧化碳、水汽和甲烷能吸收地面放出的红外线（热量）。')}
+], { count:10 });
+
+/* ===== Sort game ===== */
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'tro',en:'Troposphere',zh:'对流层'},{id:'str',en:'Stratosphere',zh:'平流层'},{id:'mes',en:'Mesosphere',zh:'中间层'},{id:'the',en:'Thermosphere',zh:'热层'}],
+  items:[
+    {en:'Clouds, rain and snow',zh:'云、雨和雪',bin:'tro',color:PARTS.troposphere.color},{en:'Mount Everest’s summit',zh:'珠穆朗玛峰顶',bin:'tro',color:PARTS.troposphere.color},{en:'The air you breathe',zh:'你呼吸的空气',bin:'tro',color:PARTS.troposphere.color},
+    {en:'The ozone layer',zh:'臭氧层',bin:'str',color:PARTS.stratosphere.color},{en:'Weather balloons burst (~30 km)',zh:'气象气球胀破（约 30 千米）',bin:'str',color:PARTS.stratosphere.color},{en:'Warms because ozone absorbs UV',zh:'臭氧吸收紫外线而升温',bin:'str',color:PARTS.stratosphere.color},
+    {en:'Meteors burn up',zh:'流星燃尽',bin:'mes',color:PARTS.mesosphere.color},{en:'Coldest layer (about −90 °C)',zh:'最冷的一层（约 −90 °C）',bin:'mes',color:PARTS.mesosphere.color},
+    {en:'Northern lights (aurora)',zh:'北极光（极光）',bin:'the',color:PARTS.thermosphere.color},{en:'International Space Station',zh:'国际空间站',bin:'the',color:PARTS.thermosphere.color},{en:'1,000 °C but would feel cold',zh:'1000 °C 但感觉很冷',bin:'the',color:PARTS.thermosphere.color}
+  ]
+});
+</script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const App = window.ATM, V = THREE.Vector3, UP = new V(0, 1, 0);
+const ctx = Lab3D.stage('#stage', { THREE, OrbitControls, camera:[9, 5.5, 21], target:[0, .4, 0], minDistance:5, maxDistance:45 });
+const { scene, camera } = ctx;
+
+/* ---------- starfield ---------- */
+{ const n = 1400, pos = new Float32Array(n * 3); for (let i = 0; i < n; i++){ const v = new V().randomDirection().multiplyScalar(140 + Math.random() * 90); pos.set([v.x, v.y, v.z], i * 3); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color:0xffffff, size:.7, transparent:true, opacity:.8 }))); }
+
+/* ---------- altitude → radius (exaggerated ↔ true scale) ---------- */
+const RE = 4, RB = [4, 4.55, 5.15, 5.6, 6.35, 7.1], AB = [0, 12, 50, 85, 600, 1000];
+const exag = h => h >= 1000 ? 7.1 + (h - 1000) * .0004 : lerpSeg(h, AB, RB);
+let S = 0, St = 0;                                    // 0 = exaggerated, 1 = true thickness
+const R = h => { const e = exag(h), t = RE * (1 + h / 6371); return e + (t - e) * S; };
+function altAtR(r){ let lo = 0, hi = 1000; if (r >= R(1000)) return 1000; for (let i = 0; i < 40; i++){ const m = (lo + hi) / 2; R(m) < r ? lo = m : hi = m; } return lo; }
+
+/* ---------- Earth ---------- */
+const spinG = new THREE.Group(); scene.add(spinG);
+const earthMat = new THREE.MeshStandardMaterial({ color:'#2a6fd6', roughness:.85 });
+const earth = new THREE.Mesh(new THREE.SphereGeometry(RE, 96, 64), earthMat); spinG.add(earth); ctx.pickable(earth, 'earth');
+Lab3D.texture(THREE, Lab3D.TEX + 'planets/earth_atmos_2048.jpg', t => { if (t){ earthMat.map = t; earthMat.color.set('#ffffff'); earthMat.needsUpdate = true; } });
+const cloudMat = new THREE.MeshStandardMaterial({ color:'#ffffff', transparent:true, opacity:0, depthWrite:false });
+const cloudSphere = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 48), cloudMat); spinG.add(cloudSphere);
+Lab3D.texture(THREE, Lab3D.TEX + 'planets/earth_clouds_1024.png', t => { if (t){ cloudMat.map = t; cloudMat.opacity = .75; cloudMat.needsUpdate = true; } });
+
+/* ---------- layered shells, sliced open with a 90° wedge facing the viewer ---------- */
+const WEDGE = Math.PI * .5, PHI0 = Math.PI / 2 + WEDGE / 2, PHI1 = Math.PI / 2 - WEDGE / 2;
+const unitShell = new THREE.SphereGeometry(1, 96, 64, PHI0, Math.PI * 2 - WEDGE);
+const dirPhi = p => new V(-Math.cos(p), 0, Math.sin(p));
+const SH = {};
+[['troposphere', 0, 12], ['stratosphere', 12, 50], ['mesosphere', 50, 85], ['thermosphere', 85, 600], ['exosphere', 600, 1000], ['ozone', 15, 35]].forEach(([k, a, b], i) => {
+  const c = new THREE.Color(PARTS[k].color), oz = k === 'ozone', base = oz ? .07 : .1;
+  const shellMat = new THREE.MeshStandardMaterial({ color:c, emissive:c, emissiveIntensity:.4, transparent:true, opacity:base, depthWrite:false, roughness:1 });
+  const shell = new THREE.Mesh(unitShell, shellMat); shell.renderOrder = 10 + i; scene.add(shell);
+  const faceMat = new THREE.MeshStandardMaterial({ color:c, emissive:c, emissiveIntensity:.4, transparent:true, opacity:.6, side:THREE.DoubleSide, depthWrite:false, roughness:.8 });
+  const faces = [PHI0 - (oz ? .006 : 0), PHI1 + (oz ? .006 : 0)].map(p => { const m = new THREE.Mesh(new THREE.BufferGeometry(), faceMat); m.rotation.y = Math.PI + p; m.renderOrder = oz ? 6 : 5; scene.add(m); ctx.pickable(m, k); return m; });
+  SH[k] = { a, b, shell, faces, shellMat, faceMat, base };
+});
+
+/* ---------- probe column ---------- */
+const PN = dirPhi(PHI1 + .015).multiplyScalar(Math.cos(.5)).add(new V(0, Math.sin(.5), 0)).normalize(), PT = new V().crossVectors(UP, PN).normalize(), PB = new V().crossVectors(PN, PT).normalize();
+const dirOff = (s, u = 0) => PN.clone().addScaledVector(PT, s).addScaledVector(PB, u).normalize();
+const pline = new THREE.Mesh(new THREE.CylinderGeometry(.022, .022, 1, 8), new THREE.MeshBasicMaterial({ color:'#ffd54a', transparent:true, opacity:.5 }));
+pline.quaternion.setFromUnitVectors(UP, PN); scene.add(pline);
+const marker = new THREE.Group(); scene.add(marker);
+marker.add(new THREE.Mesh(new THREE.SphereGeometry(.13, 24, 16), new THREE.MeshBasicMaterial({ color:'#ffd54a' })));
+const halo = new THREE.Mesh(new THREE.SphereGeometry(.3, 24, 16), new THREE.MeshBasicMaterial({ color:'#ffd54a', transparent:true, opacity:.22, depthWrite:false })); marker.add(halo);
+let curU = 0;
+const probeLbl = ctx.label(() => '📡 ' + App.fmtAlt(App.toAlt(curU)), marker, { offset:[0, .5, 0] });
+
+/* ---------- objects at their real altitudes ---------- */
+const OBJ = {
+  cloud:{ name:o('Clouds (3–8 km)','云（3–8 千米）'), layer:'troposphere' },
+  plane:{ name:o('Jet airliner (~10 km)','喷气式客机（约 10 千米）'), layer:'troposphere' },
+  balloon:{ name:o('Weather balloon (~30 km)','气象气球（约 30 千米）'), layer:'stratosphere' },
+  meteor:{ name:o('Meteor (~80 km)','流星（约 80 千米）'), layer:'mesosphere' },
+  aurora:{ name:o('Aurora (100–300 km)','极光（100–300 千米）'), layer:'thermosphere' },
+  iss:{ name:o('Space station (~400 km)','国际空间站（约 400 千米）'), layer:'thermosphere' },
+  sat:{ name:o('Satellite (~800 km)','人造卫星（约 800 千米）'), layer:'exosphere' }
+};
+const white = ctx.mat('#ffffff'), grey = ctx.mat('#9aa3b5'), dark = ctx.mat('#3b4252'), gold = ctx.mat('#e0b04a'), panel = ctx.mat('#2d5bd3', 1, { metalness:.4, roughness:.3 });
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const cloudG = new THREE.Group(); scene.add(cloudG);
+const puffs = [[.08, -.1, 3], [.2, -.05, 5], [.3, .02, 7], [.13, .08, 4]].map(([s, u, h]) => { const g = new THREE.Group(); for (let i = 0; i < 4; i++){ const m = new THREE.Mesh(new THREE.SphereGeometry(.07 + Math.random() * .05, 14, 10), white); m.position.set((i - 1.5) * .07, Math.random() * .04, Math.random() * .05); g.add(m); } cloudG.add(g); return { g, s, u, h }; });
+const plane = new THREE.Group(); scene.add(plane);
+{ const f = new THREE.Mesh(new THREE.CylinderGeometry(.035, .03, .4, 12), white); f.rotation.x = Math.PI / 2; plane.add(f);
+  const n = new THREE.Mesh(new THREE.SphereGeometry(.035, 12, 8), white); n.position.z = .2; plane.add(n);
+  plane.add(box(.42, .012, .07, grey)); const t = box(.14, .01, .05, grey); t.position.z = -.17; plane.add(t); const fin = box(.01, .08, .05, ctx.mat('#e5484d')); fin.position.set(0, .04, -.17); plane.add(fin); }
+const balloon = new THREE.Group(); scene.add(balloon);
+{ const b = new THREE.Mesh(new THREE.SphereGeometry(.12, 20, 16), ctx.mat('#ffffff', .95)); b.scale.y = 1.15; b.position.y = .2; balloon.add(b);
+  const str = new THREE.Mesh(new THREE.CylinderGeometry(.004, .004, .12, 4), dark); str.position.y = .03; balloon.add(str); const pk = box(.05, .04, .05, ctx.mat('#ff9f1c')); pk.position.y = -.04; balloon.add(pk); }
+const meteor = new THREE.Group(); scene.add(meteor);
+const metHead = new THREE.Mesh(new THREE.SphereGeometry(.05, 12, 8), new THREE.MeshBasicMaterial({ color:'#fff1a8' })); meteor.add(metHead);
+const metTail = new THREE.Mesh(new THREE.ConeGeometry(.045, .7, 10, 1, true), new THREE.MeshBasicMaterial({ color:'#ff9f40', transparent:true, opacity:.7, blending:THREE.AdditiveBlending, depthWrite:false })); meteor.add(metTail);
+const iss = new THREE.Group(); scene.add(iss);
+{ iss.add(box(.5, .025, .025, grey)); const mod = new THREE.Mesh(new THREE.CylinderGeometry(.03, .03, .18, 10), white); mod.rotation.x = Math.PI / 2; iss.add(mod);
+  for (const x of [-.22, -.13, .13, .22]) for (const z of [-1, 1]){ const p = box(.07, .005, .16, gold); p.position.set(x, 0, z * .1); iss.add(p); } }
+const sat = new THREE.Group(); scene.add(sat);
+{ sat.add(box(.08, .08, .1, gold)); for (const x of [-1, 1]){ const p = box(.2, .005, .07, panel); p.position.x = x * .14; sat.add(p); } const d = new THREE.Mesh(new THREE.ConeGeometry(.04, .05, 12, 1, true), white); d.position.y = .06; sat.add(d); }
+/* aurora curtains near both poles (glowing, wavy) */
+const auroraTex = (() => { const c = document.createElement('canvas'); c.width = 4; c.height = 128; const g = c.getContext('2d'); const gr = g.createLinearGradient(0, 0, 0, 128);
+  gr.addColorStop(0, 'rgba(255,60,160,0)'); gr.addColorStop(.35, 'rgba(160,80,255,.45)'); gr.addColorStop(.7, 'rgba(60,255,140,.95)'); gr.addColorStop(1, 'rgba(60,255,140,0)'); g.fillStyle = gr; g.fillRect(0, 0, 4, 128); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+const auroraMat = new THREE.MeshBasicMaterial({ map:auroraTex, transparent:true, opacity:.85, side:THREE.DoubleSide, depthWrite:false, blending:THREE.AdditiveBlending });
+const auroras = [1, -1].map(sg => { const m = new THREE.Mesh(new THREE.BufferGeometry(), auroraMat); m.userData.sg = sg; scene.add(m); return m; });
+function auroraGeo(sg){
+  const col = THREE.MathUtils.degToRad(19), r0 = R(100), r1 = R(300), seg = 120, pos = [], uv = [], idx = [];
+  for (let i = 0; i <= seg; i++){ const a = i / seg * Math.PI * 2, w = 1 + .07 * Math.sin(a * 7) + .04 * Math.sin(a * 13);
+    for (const [j, r] of [[0, r0], [1, r1]]){ const c2 = col * w; pos.push(r * Math.sin(c2) * Math.cos(a), sg * r * Math.cos(c2), r * Math.sin(c2) * Math.sin(a)); uv.push(i / seg, sg > 0 ? j : j); } }
+  for (let i = 0; i < seg; i++){ const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); return g;
+}
+for (const [k, obj] of [['plane', plane], ['balloon', balloon], ['meteor', meteor], ['iss', iss], ['sat', sat], ['cloud', cloudG]]) ctx.pickable(obj, 'obj:' + k);
+auroras.forEach(a => ctx.pickable(a, 'obj:aurora'));
+
+/* ---------- global wind belts (instanced arrows that ride on the spinning Earth) ---------- */
+const BANDS = [
+  { lat:15, ue:-1, un:-.5, c:'#ffd166', name:o('NE trade winds','东北信风') }, { lat:-15, ue:-1, un:.5, c:'#ffd166', name:o('SE trade winds','东南信风') },
+  { lat:45, ue:1, un:.35, c:'#ff5d73', name:o('Prevailing westerlies','盛行西风') }, { lat:-45, ue:1, un:-.35, c:'#ff5d73', name:o('Prevailing westerlies','盛行西风') },
+  { lat:72, ue:-1, un:-.35, c:'#7fd1ff', name:o('Polar easterlies','极地东风') }, { lat:-72, ue:-1, un:.35, c:'#7fd1ff', name:o('Polar easterlies','极地东风') }
+];
+const PER = 22, windArr = [];
+BANDS.forEach((b, bi) => { const n = Math.round(PER * Math.cos(THREE.MathUtils.degToRad(b.lat)) + 6); for (let i = 0; i < n; i++) windArr.push({ b, lon:i / n * Math.PI * 2 + Math.random() * .1, lat:THREE.MathUtils.degToRad(b.lat + (Math.random() - .5) * 8) }); });
+const winds = new THREE.InstancedMesh(new THREE.ConeGeometry(.07, .24, 8), new THREE.MeshBasicMaterial({ color:'#ffffff' }), windArr.length);
+windArr.forEach((w, i) => winds.setColorAt(i, new THREE.Color(w.b.c)));
+spinG.add(winds); ctx.pickable(winds, 'winds'); winds.visible = false;
+const wq = new THREE.Quaternion(), wm = new THREE.Matrix4(), wp = new V(), wd = new V(), ws = new V(1, 1, 1);
+function updateWinds(dt){
+  const r = Math.max(RE + .09, R(4));
+  windArr.forEach((w, i) => {
+    w.lon += w.b.ue * dt * .22;
+    const cl = Math.cos(w.lat), sl = Math.sin(w.lat), so = Math.sin(w.lon), co = Math.cos(w.lon);
+    wp.set(r * cl * so, r * sl, r * cl * co);
+    wd.set(co, 0, -so).multiplyScalar(w.b.ue).add(new V(-sl * so, cl, -sl * co).multiplyScalar(w.b.un)).normalize();
+    wq.setFromUnitVectors(UP, wd); wm.compose(wp, wq, ws); winds.setMatrixAt(i, wm);
+  });
+  winds.instanceMatrix.needsUpdate = true;
+}
+const windLblG = new THREE.Group(); scene.add(windLblG); windLblG.visible = false;
+[[15, BANDS[0].name], [45, BANDS[2].name], [72, BANDS[4].name], [-15, BANDS[1].name]].forEach(([lat, nm]) => { const a = THREE.MathUtils.degToRad(lat), lo = -.55, p = new THREE.Object3D(); p.position.set(Math.cos(a) * Math.sin(lo), Math.sin(a), Math.cos(a) * Math.cos(lo)).multiplyScalar(RE + .6); windLblG.add(p); ctx.label(nm, p); });
+
+/* ---------- labels ---------- */
+const layerLbls = [], objLbls = []; let labelsOn = false;
+['troposphere', 'stratosphere', 'mesosphere', 'thermosphere', 'exosphere'].forEach(k => { const L = ctx.label(PARTS[k].name, new V()); L.visible = false; L.k = k; layerLbls.push(L); });
+for (const [k, obj, off] of [['plane', plane, .22], ['balloon', balloon, .45], ['iss', iss, .25], ['sat', sat, .25], ['cloud', cloudG, .25]]){ const L = ctx.label(OBJ[k].name, obj, { offset:[0, off, 0] }); L.visible = false; objLbls.push(L); }
+function setLabels(on){ labelsOn = on; Lab.$('#labelBtn').classList.toggle('on', on); objLbls.forEach(L => L.visible = on); layerLbls.forEach(L => L.visible = on && S < .5); }
+Lab.$('#labelBtn').onclick = () => setLabels(!labelsOn);
+
+/* ---------- rebuild everything that depends on the radius scale ---------- */
+function orientOn(obj, dir, fwd){ obj.up.copy(dir); obj.lookAt(obj.position.clone().add(fwd)); }
+function rebuild(){
+  for (const k in SH){ const s = SH[k];
+    s.shell.scale.setScalar(k === 'ozone' ? R(25) : R(s.b));
+    s.faces.forEach(f => { f.geometry.dispose(); f.geometry = new THREE.RingGeometry(R(s.a), R(s.b), 96, 1, -Math.PI / 2, Math.PI); });
+  }
+  cloudSphere.scale.setScalar(Math.max(RE + .015, R(3)));
+  const top = R(1000) + .35; pline.position.copy(PN).multiplyScalar((RE + top) / 2); pline.scale.set(1, top - RE, 1);
+  puffs.forEach(p => { const d = dirOff(p.s, p.u); p.g.position.copy(d).multiplyScalar(Math.max(RE + .05, R(p.h))); orientOn(p.g, d, PT); });
+  { const d = dirOff(.12, .06); plane.position.copy(d).multiplyScalar(Math.max(RE + .04, R(10))); orientOn(plane, d, PT); }
+  { const d = dirOff(.34, -.02); balloon.position.copy(d).multiplyScalar(R(30)); balloon.quaternion.setFromUnitVectors(UP, d); }
+  auroras.forEach(a => { a.geometry.dispose(); a.geometry = auroraGeo(a.userData.sg); });
+  layerLbls.forEach(L => { const s = SH[L.k], rm = (R(s.a) + R(s.b)) / 2, a = THREE.MathUtils.degToRad(74); L.at.copy(dirPhi(PHI1)).multiplyScalar(Math.cos(a) * rm).addScaledVector(UP, Math.sin(a) * rm); });
+}
+rebuild();
+
+/* ---------- picking ---------- */
+const objKey = k => k && k.startsWith('obj:') ? k.slice(4) : null;
+ctx.hoverText(k => k === 'earth' ? Lab.L(o('Earth’s surface','地球表面')) : objKey(k) ? Lab.L(OBJ[objKey(k)].name) + ' · ' + Lab.L(PARTS[OBJ[objKey(k)].layer].name) : Lab.L(PARTS[k].name));
+const rc = new THREE.Raycaster(), ptr = new THREE.Vector2();
+ctx.onPick((k, hit, e) => {
+  if (k === 'earth') return;
+  if (k == null){
+    if (e){ const b = ctx.renderer.domElement.getBoundingClientRect(); ptr.set((e.clientX - b.left) / b.width * 2 - 1, -(e.clientY - b.top) / b.height * 2 + 1); rc.setFromCamera(ptr, camera);
+      const d = rc.ray.distanceToPoint(new V()); if (d > RE && d < R(1000)){ App.select(LAYER_OF(altAtR(d)), true); return; } }
+    if (App.sel) App.select(null, true); return;
+  }
+  const ob = objKey(k);
+  if (ob){ App.select(OBJ[ob].layer, true); const h = { cloud:5, plane:10, balloon:30, meteor:78, aurora:200, iss:400, sat:800 }[ob]; App.setU(App.toU(h)); return; }
+  App.select(k, true);
+});
+function focus(k, from3D){
+  if (!k) return from3D ? null : ctx.home();
+  if (k === 'winds'){ setWinds(true); return ctx.flyToPose([0, 7, 15], [0, 0, 0]); }
+  const p = PN.clone().multiplyScalar(R(PARTS[k].mid));
+  from3D ? ctx.flyTo(p) : ctx.flyTo(p, k === 'exosphere' || k === 'thermosphere' ? 13 : 10);
+}
+
+/* ---------- controls ---------- */
+let spin = true, windsOn = false;
+const setSpin = on => { spin = on; Lab.$('#spinBtn').classList.toggle('on', on); };
+function setWinds(on){ windsOn = on; winds.visible = on; windLblG.visible = on; Lab.$('#windBtn').classList.toggle('on', on); }
+Lab.$('#spinBtn').onclick = () => setSpin(!spin);
+Lab.$('#windBtn').onclick = () => { setWinds(!windsOn); if (windsOn) App.select('winds'); };
+const SCALE_CAP = o('True thickness: if Earth were an apple, the layers where most air lives would be thinner than the apple’s skin!','真实厚度：如果地球是一个苹果，大部分空气所在的那几层比苹果皮还要薄！');
+Lab.$('#scaleBtn').onclick = () => { St = St ? 0 : 1; Lab.$('#scaleBtn').classList.toggle('on', !!St); ctx.caption(St ? SCALE_CAP : null); if (St) ctx.flyToPose([3.5, 2.5, 9], [0, .6, 0]); else ctx.home(); };
+Lab.$('#resetBtn').onclick = () => { story.stop(); St = 0; Lab.$('#scaleBtn').classList.remove('on'); ctx.caption(null); setWinds(false); setSpin(true); App.select(null); App.setU(0); ctx.home(); };
+
+/* ---------- story: a trip to space ---------- */
+const TRIP = [
+  { en:'1 · Sea level. All the air above you is pressing down: about 1 kg on every square centimeter of your body!', zh:'1 · 海平面。你上方所有的空气都压在你身上：身体每平方厘米大约承受 1 千克的压力！', h:0, k:null },
+  { en:'2 · Troposphere (0–12 km): clouds and weather. The air gets about 6.5 °C colder for every kilometer.', zh:'2 · 对流层（0–12 千米）：云和天气都在这里。每升高 1 千米，气温约降低 6.5 °C。', h:9, k:'troposphere' },
+  { en:'3 · Stratosphere (12–50 km): the ozone layer soaks up UV, so it gets WARMER as you rise.', zh:'3 · 平流层（12–50 千米）：臭氧层吸收紫外线，所以越往上越暖和。', h:25, k:'ozone' },
+  { en:'4 · Mesosphere (50–85 km): the coldest layer. Watch a meteor burn up!', zh:'4 · 中间层（50–85 千米）：最冷的一层。看，一颗流星正在燃烧！', h:78, k:'mesosphere' },
+  { en:'5 · Thermosphere (85–600 km): very thin, very hot air. Auroras glow and the ISS orbits here.', zh:'5 · 热层（85–600 千米）：空气极稀薄、温度极高。极光在这里闪耀，国际空间站在这里运行。', h:400, k:'thermosphere' },
+  { en:'6 · Exosphere (600 km+): the last wisps of air fade into space. Satellites circle here.', zh:'6 · 散逸层（600 千米以上）：最后一丝空气逐渐融入太空，人造卫星在这里环绕。', h:800, k:'exosphere' }
+];
+const story = Lab3D.story('#stage', TRIP, (i, s) => {
+  setSpin(false); if (St){ St = 0; Lab.$('#scaleBtn').classList.remove('on'); }
+  App.select(s.k, true); App.setU(App.toU(s.h));
+  const p = PN.clone().multiplyScalar(R(s.h) + 0);
+  const cn = new V(.72, .22, .66).normalize();
+  ctx.flyToPose(p.clone().addScaledVector(cn, i > 3 ? 12 : 8).toArray(), p.toArray());
+}, () => { setSpin(true); ctx.home(); });
+Lab.$('#tourBtn').onclick = () => story.start();
+App.three = { focus, stopStory:() => { if (story.active) story.stop(); } };
+
+/* ---------- per-frame ---------- */
+ctx.onFrame((dt, t) => {
+  if (spin) spinG.rotation.y += dt * .06;
+  if (Math.abs(St - S) > .001){ S += Math.sign(St - S) * Math.min(Math.abs(St - S), dt * 1.1); rebuild(); setLabels(labelsOn); }
+  if (Math.abs(App.u - curU) > .01){ curU += (App.u - curU) * Math.min(1, dt * 4); probeLbl.set(probeLbl.text); }
+  marker.position.copy(PN).multiplyScalar(R(App.toAlt(curU)) + .02);
+  halo.scale.setScalar(1 + .25 * Math.sin(t * 4));
+  if (windsOn) updateWinds(dt);
+  // orbits
+  const ri = R(400), ai = t * .26, ci = THREE.MathUtils.degToRad(51.6);
+  iss.position.set(ri * Math.cos(ai), ri * Math.sin(ai) * Math.sin(ci), ri * Math.sin(ai) * Math.cos(ci)); iss.lookAt(0, 0, 0);
+  const rs = R(800), as = t * .16 + 2; sat.position.set(rs * Math.cos(as) * .3, rs * Math.sin(as), rs * Math.cos(as) * .954); sat.lookAt(0, 0, 0);
+  // meteor streak every 3.2 s
+  const mp = (t % 3.2) / 1.3;
+  meteor.visible = mp < 1;
+  if (mp < 1){ const a = dirOff(.36, .2).multiplyScalar(R(112)), b = dirOff(.1, .06).multiplyScalar(R(62)), d = b.clone().sub(a).normalize();
+    meteor.position.copy(a).lerp(b, mp); metTail.quaternion.setFromUnitVectors(new V(0, -1, 0), d.clone().negate()); metTail.position.copy(d).multiplyScalar(-.36);
+    metTail.material.opacity = .75 * (1 - mp * .6); }
+  auroraMat.opacity = .6 + .25 * Math.sin(t * 2.3) * Math.sin(t * .7); auroras.forEach(a => a.rotation.y = t * .05 * a.userData.sg);
+  // highlight the selected layer
+  const sel = App.sel;
+  for (const k in SH){
+    const s = SH[k], on = sel === k, dim = sel && sel !== 'winds' && !on && !(sel === 'stratosphere' && k === 'ozone');
+    const fo = on ? .92 : dim ? .18 : (k === 'ozone' ? .75 : .58);
+    s.faceMat.opacity += (fo - s.faceMat.opacity) * Math.min(1, dt * 6);
+    s.faceMat.emissiveIntensity = on ? .6 + .25 * Math.sin(t * 4) : .38;
+    s.shellMat.opacity += ((on ? s.base * 2.4 : dim ? s.base * .45 : s.base) - s.shellMat.opacity) * Math.min(1, dt * 6);
+  }
+});
+updateWinds(0);
+</script>
+</body>
+</html>

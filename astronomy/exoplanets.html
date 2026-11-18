@@ -1,0 +1,862 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exoplanets: Worlds Around Other Stars</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/lab3d.js"></script>
+<script src="../shared/photos.js"></script>
+<style>
+/* chart series colours (categorical slots, light + dark steps) */
+:root{--s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500}}
+:root[data-theme="dark"]{--s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0}
+.stat{background:var(--surface-2);border-radius:10px;padding:6px 10px;font-weight:800;font-size:14px;line-height:1.3;font-variant-numeric:tabular-nums}
+.stat small{display:block;color:var(--ink-2);font-weight:700;font-size:11px;letter-spacing:.04em;text-transform:uppercase}
+.stat.wide{grid-column:1/-1}
+.pill output{min-width:58px;font-variant-numeric:tabular-nums}
+.cvbox{position:relative;padding:0;overflow:hidden}
+.cvbox canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#lcBox{height:300px;margin-top:14px}
+#huntBox{height:300px}
+#rvBox{min-height:420px}
+#hzBox{min-height:380px}
+#figYear{height:380px}
+#figScatter{height:420px}
+.figcap{font-size:12.5px;color:var(--ink-2);margin:8px 4px 0;line-height:1.45}
+.counters .counter b{font-size:20px}
+.hunthead{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;margin-bottom:10px}
+.hunthead b{font-family:Fredoka;font-size:20px}
+.score{font-weight:800;color:var(--brand)}
+.qrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0}
+.qrow>span{font-weight:800;font-size:14px;min-width:150px}
+.qrow .seg{flex-wrap:wrap;border-radius:14px}
+.qrow .seg button{font-size:13px}
+.qrow input[type=number]{width:90px;padding:6px 8px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font:inherit;font-weight:800}
+.meas{background:var(--surface-2);border-radius:12px;padding:8px 12px;font-size:14px;line-height:1.5;min-height:44px}
+.meas b{font-variant-numeric:tabular-nums}
+.presetrow{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}
+.water{font-family:Fredoka;font-size:22px}
+.figgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.legendrow{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;font-weight:700;color:var(--ink-2);margin:0 4px 6px}
+.legendrow i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+@media (max-width:980px){.figgrid{grid-template-columns:1fr}}
+@media (max-width:560px){ .pill input[type=range]{width:84px} #lcBox{height:420px} #huntBox{height:240px} .qrow>span{min-width:0;width:100%} #figYear{height:330px} #figScatter{height:380px} }
+</style>
+</head>
+<body data-subject="astronomy" data-topic="exoplanets">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="天文 · 深入探究">Astronomy · Deep dive</span>
+  <h1 data-zh-html="系外行星：<em>其他恒星的世界</em>">Exoplanets: <em>Worlds Around Other Stars</em></h1>
+  <p class="lead" data-zh="一颗行星比它的恒星暗几十亿倍，又紧贴在恒星旁边，几乎不可能直接看到。那么天文学家是怎样找到 6000 多颗系外行星的？答案是：看恒星的“影子”和“摆动”。">A planet is billions of times fainter than its star and sits right next to it, so we almost never see it directly. So how have astronomers found more than 6,000 planets around other stars? By watching for tiny shadows and tiny wobbles.</p>
+  <p class="lead" style="font-size:16px" data-zh-html="学完你将能够：读懂光变曲线、找出行星，测量它的大小和“一年”有多长，并判断它上面能不能有液态水。"><b>You’ll be able to:</b> read a light curve to find a planet, measure its size and the length of its year, and decide whether it could have liquid water.</p>
+</header>
+
+<section class="wrap" id="transit" data-nav="Transit" data-nav-zh="凌星法">
+  <div class="sec-head">
+    <h2 data-zh="凌星法：行星从恒星前面经过">The transit method: a planet crosses its star</h2>
+    <p data-zh-html="如果行星的轨道恰好侧对着我们，它每公转一圈就会从恒星前面经过一次，挡住一小部分星光。望远镜测量恒星亮度随时间的变化，画出“光变曲线”。下陷有多深，告诉我们行星有多大；多久下陷一次，告诉我们它的一年有多长。">If a planet’s orbit is lined up edge-on to us, once every orbit it passes in front of its star and blocks a little starlight. A telescope measures the star’s brightness over time and draws a <b>light curve</b>. How deep the dip is tells us the planet’s size; how often it comes tells us the length of its year.</p>
+  </div>
+  <div class="explorer">
+    <div class="stage card space" id="stage" data-3d>
+      <div class="toolbar">
+        <button class="tbtn on" id="playBtn" data-zh="⏸ 暂停">⏸ Pause</button>
+        <button class="tbtn" id="storyBtn" data-zh="🎬 凌星是怎么回事（故事）">🎬 How a transit works (story)</button>
+        <button class="tbtn" id="sideBtn" data-zh="🔭 我们的视角">🔭 Our view</button>
+        <button class="tbtn" id="noiseBtn" data-zh="〰 加入噪声">〰 Add noise</button>
+      </div>
+      <div class="bottombar">
+        <div class="pill"><span data-zh="🪐 行星半径">🪐 Planet radius</span><input id="rp" type="range" min="0.3" max="16" step="0.1" value="11.2"><output id="rpOut"></output></div>
+        <div class="pill"><span data-zh="🧭 轨道距离">🧭 Orbit distance</span><input id="au" type="range" min="-1.9" max="0.3" step="0.01" value="-1.33"><output id="auOut"></output></div>
+        <div class="pill"><span data-zh="⭐ 恒星半径">⭐ Star radius</span><input id="rs" type="range" min="0.1" max="2" step="0.01" value="1"><output id="rsOut"></output></div>
+        <div class="tip" data-zh="拖动旋转 · 滚轮缩放 · 点击行星或恒星">Drag to rotate · Scroll to zoom · Click the planet or star</div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="chips" id="chips"></div>
+  <div class="card cvbox" id="lcBox"><canvas id="lcCv" aria-label="Live light curve of the star"></canvas></div>
+  <div class="counters" style="margin-top:12px">
+    <div class="counter"><b id="cDepth">–</b><span data-zh="亮度下降（凌星深度）">dip depth</span></div>
+    <div class="counter"><b id="cPeriod">–</b><span data-zh="周期（行星的一年）">period (the planet’s year)</span></div>
+    <div class="counter"><b id="cDur">–</b><span data-zh="一次凌星持续时间">transit lasts</span></div>
+    <div class="counter"><b id="cRatio">–</b><span data-zh="行星半径 ÷ 恒星半径">planet size ÷ star size</span></div>
+  </div>
+
+  <div class="card" style="margin-top:22px;padding:18px" id="hunt">
+    <div class="hunthead">
+      <div><b data-zh="🎯 行星猎手">🎯 Planet hunter</b><div class="muted" style="font-size:14px" data-zh="下面是 6 颗恒星 27 天的真实感模拟数据（和 TESS 望远镜观测一个天区的时间一样长，每 30 分钟一个点）。有的有行星，有的没有，有一颗有两颗行星。">Six stars, 27 days of simulated data each (as long as TESS stares at one patch of sky, one point every 30 minutes). Some have planets, some don’t, and one has two.</div></div>
+      <div class="score" id="huntScore"></div>
+    </div>
+    <div class="meas" id="huntStar" style="margin-bottom:8px"></div>
+    <div class="card cvbox" id="huntBox"><canvas id="huntCv" aria-label="Noisy light curve to search for transits"></canvas></div>
+    <p class="muted" style="font-size:13.5px;margin:6px 2px" data-zh="点击你认为是凌星下陷的地方做标记（再点一次标记可删除）。工具会测量每个下陷的深度和它们之间的时间。">Click each dip you think is a transit to mark it (click a mark again to remove it). The tool measures each dip’s depth and the time between them.</p>
+    <div class="meas" id="huntMeas"></div>
+    <div class="qrow"><span data-zh="这颗恒星有几颗行星？">How many planets?</span><div class="seg" id="qN"><button data-v="0">0</button><button data-v="1">1</button><button data-v="2">2</button></div></div>
+    <div class="qrow"><span data-zh="最大那颗行星的周期（天）">Period of the biggest planet (days)</span><input type="number" id="qP" min="0" step="0.01" inputmode="decimal"></div>
+    <div class="qrow"><span data-zh="最大那颗行星有多大？">How big is the biggest planet?</span><div class="seg" id="qS"><button data-v="e" data-zh="地球大小（&lt;2 R⊕）">Earth-size (&lt;2 R⊕)</button><button data-v="n" data-zh="海王星大小（2–6 R⊕）">Neptune-size (2–6 R⊕)</button><button data-v="j" data-zh="木星大小（&gt;6 R⊕）">Jupiter-size (&gt;6 R⊕)</button></div></div>
+    <div class="btnrow"><button class="btn" id="huntCheck" data-zh="✔ 检查答案">✔ Check</button><button class="btn ghost" id="huntNext" data-zh="下一颗恒星 ▶">Next star ▶</button><button class="btn ghost" id="huntNew" data-zh="↺ 换一组新数据">↺ New set</button></div>
+    <div class="result" id="huntRes"></div>
+    <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="行星半径 = 恒星半径 × √深度。深度 1% → 行星约是恒星的 1/10 宽。太阳半径约是地球的 109 倍。">Planet radius = star radius × √depth. A 1% dip → the planet is about 1/10 as wide as the star. The Sun is about 109 Earths wide.</span></div>
+  </div>
+</section>
+
+<section class="wrap" id="wobble" data-nav="Wobble" data-nav-zh="视向速度法">
+  <div class="sec-head">
+    <h2 data-zh="视向速度法：恒星也在“摆动”">Radial velocity: the star wobbles too</h2>
+    <p data-zh-html="行星和恒星都绕着它们共同的质量中心转。恒星朝我们移动时，它的光波被压缩，谱线向蓝端移动（蓝移）；离开我们时，光波被拉长，谱线向红端移动（红移）。这就是多普勒效应。1995 年发现的第一颗绕类太阳恒星的行星“飞马座 51b”就是这样找到的。">A planet and its star both orbit their shared center of mass. When the star moves toward us its light waves are squeezed and its spectral lines shift toward blue; when it moves away they stretch toward red. That’s the <b>Doppler effect</b>. The first planet found around a Sun-like star, 51 Pegasi b (1995), was found this way.</p>
+  </div>
+  <div class="sim">
+    <div class="simbox card cvbox" id="rvBox"><canvas id="rvCv" aria-label="Star wobble, spectrum shift and velocity graph"></canvas></div>
+    <div class="card simside">
+      <h3 data-zh="🌗 摆动实验台">🌗 Wobble bench</h3>
+      <div class="presetrow" id="rvPresets"></div>
+      <label class="ctl"><span><span data-zh="行星质量">Planet mass</span>: <b id="rvMOut"></b></span><input id="rvM" type="range" min="0" max="3.6" step="0.01" value="2.502"></label>
+      <label class="ctl"><span><span data-zh="轨道距离">Orbit distance</span>: <b id="rvAOut"></b></span><input id="rvA" type="range" min="-1.6" max="0.75" step="0.01" value="0.716"></label>
+      <label class="ctl"><span><span data-zh="恒星质量">Star mass</span>: <b id="rvSOut"></b></span><input id="rvS" type="range" min="0.1" max="2" step="0.01" value="1"></label>
+      <div class="counters">
+        <div class="counter"><b id="rvK">–</b><span data-zh="恒星最大速度（米/秒）">star’s top speed (m/s)</span></div>
+        <div class="counter"><b id="rvP">–</b><span data-zh="周期">period</span></div>
+      </div>
+      <div class="result" id="rvMsg"></div>
+      <div class="mix"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="“红移”不是说恒星变红了。谱线只移动了极其微小的一点（这里放大了上百万倍），肉眼根本看不出颜色变化。">“Redshift” doesn’t mean the star turns red. The lines move by a tiny fraction of a nanometer (exaggerated here about a million times); you could never see the color change by eye.</span></div>
+    </div>
+  </div>
+  <div class="timebar" style="margin-top:12px"><button id="rvPlay" aria-label="Play or pause">⏸</button><input type="range" id="rvT" min="0" max="1000" value="0" aria-label="Time"><output id="rvTOut">0 d</output></div>
+</section>
+
+<section class="wrap" id="hz" data-nav="Habitable zone" data-nav-zh="宜居带">
+  <div class="sec-head">
+    <h2 data-zh="宜居带：不太热、不太冷">The habitable zone: not too hot, not too cold</h2>
+    <p data-zh="宜居带是恒星周围的一个区域，在那里一颗像地球一样有大气的岩石行星，表面可以存在液态水。恒星越亮，宜居带离得越远；红矮星很暗，宜居带紧贴着恒星。改变恒星温度，把行星拖进去试试。">The habitable zone is the range of distances from a star where a rocky planet with Earth-like air could keep liquid water on its surface. A brighter star pushes the zone farther out; a dim red dwarf’s zone hugs the star. Change the star’s temperature and drag the planet around.</p>
+  </div>
+  <div class="sim">
+    <div class="simbox card cvbox" id="hzBox"><canvas id="hzCv" aria-label="Habitable zone with draggable planet"></canvas></div>
+    <div class="card simside">
+      <h3 data-zh="🌡️ 恒星与行星">🌡️ Star and planet</h3>
+      <div class="presetrow" id="hzPresets"></div>
+      <label class="ctl"><span><span data-zh="恒星表面温度">Star surface temperature</span>: <b id="hzTOut"></b></span><input id="hzT" type="range" min="2600" max="7200" step="10" value="5772"></label>
+      <div class="stats" id="hzStats"></div>
+      <div class="water" id="hzWater"></div>
+      <div class="btnrow"><button class="btn ghost" id="hzGame" data-zh="🎯 挑战：隐藏宜居带">🎯 Challenge: hide the zone</button></div>
+      <div class="result" id="hzMsg"></div>
+      <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="宜居带距离 ∝ √光度。恒星亮 100 倍，宜居带远 10 倍。">Zone distance grows like √(luminosity): a star 100× brighter has its zone 10× farther out.</span></div>
+    </div>
+  </div>
+  <p class="figcap" data-zh="宜居带边界使用 Kopparapu 等人（2014）的公式（失控温室效应 → 最大温室效应），适用于约 2600–7200 K 的恒星。“平衡温度”假设反照率 0.3、没有温室效应（地球是 −18 °C，大气层把它暖到约 +15 °C）。">Zone edges: Kopparapu et al. (2014) fit, from “runaway greenhouse” (too hot) to “maximum greenhouse” (too cold), valid for stars of about 2,600–7,200 K. “Equilibrium temperature” assumes the planet reflects 30% of light and has no greenhouse effect (Earth’s is −18 °C / 0 °F; its air warms it to about +15 °C / 59 °F).</p>
+</section>
+
+<section class="wrap" id="data" data-nav="Data" data-nav-zh="数据与影像">
+  <div class="sec-head">
+    <h2 data-zh="真实数据：我们找到了什么？">Real data: what have we found?</h2>
+    <p data-zh="把鼠标移到柱子或点上查看数字。">Hover over (or tap) a bar or a dot to see the numbers.</p>
+  </div>
+  <div class="figgrid">
+    <div>
+      <div class="legendrow" id="yearLegend"></div>
+      <div class="card cvbox" id="figYear"><canvas id="yearCv" aria-label="Exoplanet discoveries per year by method"></canvas></div>
+      <p class="figcap" data-zh="数据：根据 NASA 系外行星档案馆（NASA Exoplanet Archive）按发现年份统计，数值为四舍五入的近似值（截至 2024 年）。2014 和 2016 年的高峰是开普勒望远镜的候选行星被成批确认。">Data: approximate, rounded counts by discovery year, based on the NASA Exoplanet Archive (through 2024). The 2014 and 2016 spikes are Kepler planets confirmed in big batches.</p>
+    </div>
+    <div>
+      <div class="legendrow" id="scLegend"></div>
+      <div class="card cvbox" id="figScatter"><canvas id="scCv" aria-label="Planet size against orbit distance, with the Solar System for comparison"></canvas></div>
+      <p class="figcap" data-zh="数据：NASA 行星数据表和 NASA 系外行星档案馆（近似值）。直接成像行星的半径是根据模型估计的。两个坐标轴都是对数刻度：每一格是 10 倍。">Data: NASA Planetary Fact Sheet and NASA Exoplanet Archive (approximate). Radii of directly imaged planets are model estimates. Both axes are logarithmic: each grid step is 10×.</p>
+    </div>
+  </div>
+  <div id="gallery" style="margin-top:26px"></div>
+</section>
+
+<section class="wrap" id="further" data-nav="Go further" data-nav-zh="继续探索">
+  <div class="sec-head"><h2 data-zh="继续探索：真正的行星猎手在这里">Go further: where real planet hunters work</h2>
+    <p data-zh="这些网站是英文的，都是免费的。">These sites are free (in English).</p></div>
+  <div class="linkgrid" id="links"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 系外行星测验">🧠 Exoplanet quiz</h3><p class="sub" data-zh="有些题要用到上面的图表。">Some questions use the figures above.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分一分：哪种方法发现的线索？">🗂️ Sort it: which method gives this clue?</h3><p class="sub" data-zh="把每张卡片拖到（或先点再点方框）正确的组里。">Drag each card (or tap it, then tap a box) into the right group.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="对应佐治亚州标准 S6E1：获取、评估和交流关于宇宙的当代科学观点（S6E1.b 恒星与星系；S6E1.f 比较行星的物理特征）。学生把太阳系行星作为参照，与真实的系外行星比较大小、轨道距离和温度，并用模型（光变曲线、视向速度曲线）从数据中得出结论。">Supports GSE S6E1: obtain, evaluate and communicate information about current scientific views of the universe (S6E1.b stars and galaxies; S6E1.f compare physical attributes of planets). Students use our Solar System as the reference to compare real exoplanets’ sizes, orbits and temperatures, and they draw conclusions from models of data (light curves and velocity curves).</p>
+    <p data-zh="超出六年级的内容：深度 =（Rp/Rs）²、开普勒第三定律求周期、多普勒公式、宜居带边界公式都超出了六年级要求，可作为拓展或与数学课（平方、平方根、对数坐标）联系。建议流程：先玩凌星模拟，用“行星猎手”练习读图，然后比较两种方法各自能测出什么（凌星：大小；视向速度：质量），最后用宜居带挑战总结。">Beyond grade 6: depth = (Rp/Rs)², Kepler’s third law for the period, the Doppler formula and the habitable-zone fit go beyond the grade-6 standard; use them as enrichment or connect them to math (squares, square roots, log scales). Suggested flow: transit sim → planet hunter (reading data) → compare what each method measures (transit: size; radial velocity: mass) → habitable-zone challenge to wrap up.</p>
+    <p data-zh="模型说明：凌星曲线假设恒星表面亮度均匀（真实恒星边缘较暗，下陷底部会更圆）；恒星质量由半径近似估计（主序星）；3D 场景中轨道距离被压缩，两次凌星之间的时间会“快进”。猎手数据是计算机生成的，不是真实观测。">Model notes: the transit curve assumes the star is equally bright all over (real stars are darker near the edge, which rounds the bottom of the dip); the star’s mass is estimated from its radius (main-sequence approximation); the 3D orbit is compressed and time fast-forwards between transits. Planet-hunter data are computer-generated, not real observations.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+const o = (en, zh) => ({en, zh});
+const zh = () => Lab.lang === 'zh', TAU = Math.PI * 2;
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const dprOf = () => Math.min(devicePixelRatio, 2);
+function fit(box, cv){ const dpr = dprOf(), W = box.clientWidth, H = box.clientHeight; if (!W || !H) return null;
+  if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)){ cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); return { g, W, H }; }
+const nf = (x, d = 0) => x.toLocaleString('en-US', { maximumFractionDigits:d, minimumFractionDigits:d });
+const sig = (x, n = 2) => { if (!isFinite(x)) return '–'; const a = Math.abs(x); if (a === 0) return '0'; const d = Math.max(0, n - 1 - Math.floor(Math.log10(a))); return nf(x, Math.min(d, 7)); };
+const ink = () => ({ ink:css('--ink') || '#14213d', ink2:css('--ink-2') || '#4a5878', line:css('--line') || '#d9e2ee', surf:css('--surface') || '#fff', surf2:css('--surface-2') || '#eef3f9', brand:css('--brand') || '#5b5bd6', good:css('--good') || '#1aa36b', bad:css('--bad') || '#e0475b', s1:css('--s1'), s2:css('--s2'), s3:css('--s3'), s4:css('--s4') });
+const RE_RS = 0.009158, AU_RS = 215.03, RS_RE = 109.1;
+/* fraction of a uniformly bright star's disc (radius 1) covered by a planet disc of radius p at centre separation z */
+function blocked(z, p){
+  if (z >= 1 + p) return 0; if (z <= 1 - p) return p * p; if (z <= p - 1) return 1;
+  const k0 = Math.acos(Math.max(-1, Math.min(1, (p * p + z * z - 1) / (2 * p * z)))), k1 = Math.acos(Math.max(-1, Math.min(1, (1 - p * p + z * z) / (2 * z))));
+  return (p * p * k0 + k1 - .5 * Math.sqrt(Math.max(0, 4 * z * z - Math.pow(1 + z * z - p * p, 2)))) / Math.PI;
+}
+const fluxAt = (theta, aRs, p) => Math.cos(theta) > 0 ? 1 - blocked(aRs * Math.abs(Math.sin(theta)), p) : 1;
+let gseed = 7; const grnd = () => (gseed = (gseed * 16807) % 2147483647) / 2147483647;
+function gauss(r = grnd){ let u = 0; while (!u) u = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(TAU * r()); }
+/* approximate star colour from temperature (blackbody fit) */
+function bbColor(T){ const t = T / 100; let r, g, b;
+  r = t <= 66 ? 255 : 329.7 * Math.pow(t - 60, -.1332); g = t <= 66 ? 99.47 * Math.log(t) - 161.1 : 288.1 * Math.pow(t - 60, -.0755); b = t >= 66 ? 255 : t <= 19 ? 0 : 138.5 * Math.log(t - 10) - 305;
+  const c = v => Math.round(Math.max(0, Math.min(255, v))); return [c(r), c(g), c(b)]; }
+const rgb = (a, al = 1) => `rgba(${a[0]},${a[1]},${a[2]},${al})`;
+const statRow = (l, v, wide) => `<div class="stat${wide ? ' wide' : ''}"><small>${Lab.L(l)}</small>${v}</div>`;
+function wrapText(g, text, x, y, maxW, lh){ const toks = /\s/.test(text) ? text.split(/(\s+)/) : Array.from(text); let line = '';
+  for (const t of toks){ const test = line + t; if (g.measureText(test).width > maxW && line.trim()){ g.fillText(line.trim(), x, y); y += lh; line = t.trimStart(); } else line = test; }
+  if (line.trim()) g.fillText(line.trim(), x, y); return y; }
+
+/* ======================= 1. TRANSIT ======================= */
+const TR = { rp:15.5, a:.0475, rs:1.2, ms:1.13, phi:-2.2, playing:true, noise:false, trace:[], sel:'hot', tNow:0 };
+const INFO = {
+  hot:{ set:{rp:15.5, a:.0475, rs:1.2, ms:1.13}, color:'#f0a35a', name:o('Hot Jupiter: HD 209458 b','热木星：HD 209458 b'), job:o('The first planet ever seen to transit (1999)','第一颗被观测到凌星的行星（1999 年）'),
+    facts:{en:['A gas giant 1.4 times as wide as Jupiter, circling its star in only 3.5 days.','It blocks about 1.5% of its star’s light: one of the deepest, easiest dips to see.','It is so hot (over 1,000 °C) that gas is escaping from its atmosphere into a comet-like tail.','Hot Jupiters are rare, but they were found first because they give big, frequent signals.'],
+      zh:['一颗比木星宽 1.4 倍的气态巨行星，只需 3.5 天就绕恒星一圈。','它挡住约 1.5% 的星光，是最深、最容易看到的凌星之一。','它非常热（超过 1000 °C），大气中的气体正在逃逸，形成像彗星一样的尾巴。','热木星其实很少见，但它们的信号又大又频繁，所以最先被找到。']},
+    hint:o('Big + close = deep dips that come often.','又大又近 = 又深又频繁的下陷。') },
+  jup:{ set:{rp:11.2, a:5.2, rs:1, ms:1}, color:'#d9b48a', name:o('Jupiter crossing the Sun','木星从太阳前面经过'), job:o('What aliens would see','外星人会看到什么'),
+    facts:{en:['Seen from far away, Jupiter would dim the Sun by about 1%.','But it transits only once every 11.9 years, and each transit lasts about 30 hours.','To confirm it, an alien astronomer would need to watch for decades!','That is why most planets found so far have short years: they are much easier to catch.'],
+      zh:['从远处看，木星会让太阳变暗约 1%。','但它每 11.9 年才凌星一次，每次持续约 30 小时。','外星天文学家要观测几十年才能确认它！','所以目前发现的行星大多“一年”很短：它们更容易被抓到。']},
+    hint:o('Long year → rare transits → hard to find.','“一年”越长 → 凌星越少 → 越难发现。') },
+  earth:{ set:{rp:1, a:1, rs:1, ms:1}, color:'#4f8fe8', name:o('Earth crossing the Sun','地球从太阳前面经过'), job:o('A tiny dip once a year','每年一次微小的下陷'),
+    facts:{en:['Earth is 109 times narrower than the Sun, so it blocks only (1/109)² ≈ 0.0084% of the light: 84 parts per million.','The transit lasts about 13 hours, once every 365 days.','Only a telescope in space, like Kepler, is steady enough to measure such a tiny dip.','Turn on “Add noise” to see why small planets are hard to find.'],
+      zh:['地球的直径只有太阳的 1/109，所以只挡住（1/109）² ≈ 0.0084% 的光，也就是百万分之 84。','每 365 天凌星一次，每次约 13 小时。','只有像开普勒这样的太空望远镜才足够稳定，能测出这么小的下陷。','打开“加入噪声”，看看为什么小行星很难被发现。']},
+    hint:o('Earth-size planet + Sun-size star = a dip smaller than the noise.','地球大小的行星 + 太阳大小的恒星 = 比噪声还小的下陷。') },
+  trap:{ set:{rp:.92, a:.0293, rs:.119, ms:.089}, color:'#c98a6a', name:o('TRAPPIST-1 e','TRAPPIST-1 e'), job:o('An Earth-size planet around a tiny red star','绕着一颗小红矮星的地球大小的行星'),
+    facts:{en:['TRAPPIST-1 is a red dwarf only a little bigger than Jupiter, about 40 light-years away.','Because the star is so small, an Earth-size planet blocks about 0.5% of its light: 60 times more than Earth blocks of the Sun.','Its year lasts just 6.1 days. The star has seven known rocky planets.','TRAPPIST-1 e sits in the star’s habitable zone (see below).'],
+      zh:['TRAPPIST-1 是一颗红矮星，只比木星大一点，距离我们约 40 光年。','因为恒星很小，一颗地球大小的行星就能挡住它约 0.5% 的光，是地球挡住太阳光的 60 倍。','它的一年只有 6.1 天。这颗恒星有七颗已知的岩石行星。','TRAPPIST-1 e 位于这颗恒星的宜居带内（见下文）。']},
+    hint:o('Small star → deeper dip for the same planet.','恒星越小 → 同样的行星造成的下陷越深。'),
+    mix:o('A deeper dip does not always mean a bigger planet. It means a bigger planet COMPARED WITH its star.','下陷更深不一定说明行星更大，而是说明行星“相对于它的恒星”更大。') },
+  k452:{ set:{rp:1.63, a:1.046, rs:1.11, ms:1.04}, color:'#6fb07a', name:o('Kepler-452 b','开普勒-452b'), job:o('A “cousin” of Earth found by Kepler (2015)','开普勒望远镜发现的地球“表亲”（2015 年）'),
+    facts:{en:['About 1.6 times as wide as Earth, with a 385-day year around a Sun-like star.','About 1,800 light-years away, much too far to visit.','Its dip is only about 0.02% deep, so it took four years of Kepler data to find.','We still don’t know if it is rocky or more like a small Neptune.'],
+      zh:['大约比地球宽 1.6 倍，绕一颗类似太阳的恒星运行，一年 385 天。','距离我们约 1800 光年，太远了，无法前往。','它的下陷只有约 0.02%，用了开普勒四年的数据才找到。','我们还不知道它是岩石行星，还是更像一颗小海王星。']},
+    hint:o('Long year + small planet = years of watching.','“一年”长 + 行星小 = 要观测好几年。') },
+  star:{ color:'#ffd27a', name:o('The star','恒星'), job:o('We measure its total light','我们测量的是它的总亮度'),
+    facts:{en:['From light-years away, even the biggest telescope sees the star as a single point of light.','We cannot see the planet. We only see the star’s brightness go down a little, then back up.','Change the star-radius slider: the same planet blocks a bigger fraction of a smaller star.','Smaller stars are also cooler and redder (red dwarfs); bigger ones are hotter and whiter.'],
+      zh:['在几光年之外，即使最大的望远镜也只能把恒星看成一个光点。','我们看不到行星，只能看到恒星的亮度稍稍下降，然后恢复。','拖动“恒星半径”滑块：同一颗行星挡住小恒星的比例更大。','较小的恒星温度也更低、颜色更红（红矮星）；较大的恒星更热、更白。']},
+    hint:o('Depth = (planet radius ÷ star radius)².','深度 =（行星半径 ÷ 恒星半径）²。') },
+  planet:{ color:'#7fb2ff', name:o('The planet','行星'), job:o('Its shadow is what we detect','我们探测到的是它的“影子”'),
+    facts:{en:['Twice as wide → four times the area → a dip four times as deep.','A planet farther out has a longer year (Kepler’s third law), so its dips are further apart.','Farther out, it also moves more slowly, so each transit lasts longer.','If its orbit is tilted even slightly, it never crosses the star from our point of view and we see no transit at all.'],
+      zh:['宽 2 倍 → 面积 4 倍 → 下陷深 4 倍。','离恒星越远，一年越长（开普勒第三定律），下陷之间隔得越久。','离得越远，它运动得越慢，每次凌星持续得越久。','只要轨道稍微倾斜一点，从我们这里看它就不会经过恒星前方，也就看不到凌星。']},
+    hint:o('Depth → size. Time between dips → year.','深度 → 大小；下陷间隔 → 一年的长度。'),
+    mix:o('A transit is not an eclipse that makes the star go dark. Even Jupiter blocks only about 1% of the Sun.','凌星不是让恒星变黑的“日食”。即使是木星，也只能挡住太阳约 1% 的光。') }
+};
+const trFlux = (th, G) => { const s = Math.sin((TR.tilt || 0) * Math.PI / 180), c = Math.cos(th); return c > 0 ? 1 - blocked(G.aRs * Math.sqrt(Math.sin(th) ** 2 + c * c * s * s), G.p) : 1; };
+const PRESETS = ['hot', 'jup', 'earth', 'trap', 'k452'];
+function trGeom(){
+  const ms = TR.ms ?? Math.pow(TR.rs, 1.1), P = 365.25 * Math.sqrt(Math.pow(TR.a, 3) / ms), aRs = Math.max(1.05, TR.a * AU_RS / TR.rs), p = TR.rp * RE_RS / TR.rs;
+  const dur = P * 24 / Math.PI * Math.asin(Math.min(1, (1 + p) / aRs)), T = 5772 * Math.pow(TR.rs, .35);
+  return { ms, P, aRs, p, dur, depth:Math.min(1, p * p), T };
+}
+/* visual (compressed) sizes used by the 3D scene, and the time-warp that keeps the 3D crossing in step with the real light curve */
+function trVis(G = trGeom()){ const sv = .55 + .75 * Math.sqrt(TR.rs), pv = Math.max(.035, G.p * sv), ov = Math.max(sv + pv + .5, sv * (1.25 + 1.5 * Math.log10(G.aRs)));
+  const fv = Math.asin(Math.min(1, (sv + pv) / ov)), fr = Math.asin(Math.min(1, (1 + G.p) / G.aRs)), k = Math.min(2.2, .9 * Math.PI / Math.max(fv, fr));
+  return { sv, pv, ov, fv, fr, k, big:pv > G.p * sv * 1.05 }; }
+const wrapPi = a => a - TAU * Math.floor((a + Math.PI) / TAU);
+function visToReal(phi, V){ const s = Math.sign(phi) || 1, a = Math.abs(phi);
+  return s * (a <= V.k * V.fv ? a * V.fr / V.fv : V.k * V.fr + (a - V.k * V.fv) * (Math.PI - V.k * V.fr) / (Math.PI - V.k * V.fv)); }
+const EXO = window.EXO = { TR, INFO, trGeom, trVis, bbColor, three:null };
+const fmtP = P => P < 2 ? (zh() ? `${sig(P * 24, 2)} 小时` : `${sig(P * 24, 2)} hours`) : P < 800 ? (zh() ? `${sig(P, 3)} 天` : `${sig(P, 3)} days`) : (zh() ? `${sig(P / 365.25, 3)} 年` : `${sig(P / 365.25, 3)} years`);
+const fmtDepth = d => d >= .001 ? `${sig(d * 100, 2)}%` : `${sig(d * 100, 2)}% (${nf(d * 1e6)} ppm)`;
+const fmtH = h => zh() ? `${sig(h, 2)} 小时` : `${sig(h, 2)} hours`;
+function trOutputs(){
+  const G = trGeom();
+  Lab.$('#rpOut').textContent = zh() ? `${sig(TR.rp, 2)} 个地球` : `${sig(TR.rp, 2)} Earths`;
+  Lab.$('#auOut').textContent = zh() ? `${sig(TR.a, 2)} 天文单位` : `${sig(TR.a, 2)} AU`;
+  Lab.$('#rsOut').textContent = zh() ? `${sig(TR.rs, 2)} 个太阳` : `${sig(TR.rs, 2)} Suns`;
+  Lab.$('#cDepth').textContent = fmtDepth(G.depth);
+  Lab.$('#cPeriod').textContent = fmtP(G.P);
+  Lab.$('#cDur').textContent = fmtH(G.dur);
+  Lab.$('#cRatio').textContent = `1/${G.p >= .1 ? sig(1 / G.p, 2) : nf(1 / G.p)}`;
+  const live = Lab.$('#trLive'); if (live) live.innerHTML = trLiveHTML(G);
+}
+function trLiveHTML(G){
+  return `<div class="stats">${statRow(o('Dip depth','下陷深度'), fmtDepth(G.depth))}${statRow(o('Year (period)','一年（周期）'), fmtP(G.P))}
+    ${statRow(o('Transit lasts','凌星持续'), fmtH(G.dur))}${statRow(o('Chance the orbit lines up','轨道恰好对准我们的概率'), `${sig(100 / G.aRs, 2)}%`)}</div>`;
+}
+function renderInfo(){
+  const k = TR.sel, d = INFO[k], box = Lab.$('#info'), G = trGeom();
+  box.innerHTML = `<span class="tag">${Lab.L(PRESETS.includes(k) ? o('Real example','真实例子') : o('Part of the model','模型的组成部分'))}</span>
+    <h3><span class="dot" style="background:${d.color}"></span>${Lab.L(d.name)}</h3><div class="job">${Lab.L(d.job)}</div>
+    <div id="trLive">${trLiveHTML(G)}</div>
+    <ul>${Lab.L(d.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(d.hint)}</div>
+    <div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(d.mix || INFO.planet.mix)}</span></div>
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(d.name), Lab.L(d.job), ...Lab.L(d.facts), Lab.L(d.hint)].join('. '));
+  const order = [...PRESETS, 'star', 'planet'], i = order.indexOf(k), n = order.length;
+  Lab.$('#pPrev').onclick = () => selectInfo(order[(i - 1 + n) % n]); Lab.$('#pNext').onclick = () => selectInfo(order[(i + 1) % n]);
+}
+function renderChips(){
+  Lab.$('#chips').innerHTML = PRESETS.map(k => `<button class="chip ${TR.sel === k ? 'on' : ''}" data-k="${k}"><i style="background:${INFO[k].color}"></i>${Lab.L(INFO[k].name)}</button>`).join('');
+  Lab.$$('#chips .chip').forEach(c => c.onclick = () => selectInfo(c.dataset.k));
+}
+function setTransit(s){ Object.assign(TR, s); Lab.$('#rp').value = TR.rp; Lab.$('#au').value = Math.log10(TR.a); Lab.$('#rs').value = TR.rs; TR.trace = []; trOutputs(); }
+function selectInfo(k){ TR.sel = k; if (INFO[k].set) setTransit({ ...INFO[k].set }); renderInfo(); renderChips(); }
+EXO.selectInfo = selectInfo; EXO.setTransit = setTransit;
+Lab.$('#rp').oninput = e => { TR.rp = +e.target.value; TR.trace = []; trOutputs(); };
+Lab.$('#au').oninput = e => { TR.a = Math.pow(10, +e.target.value); TR.trace = []; trOutputs(); };
+Lab.$('#rs').oninput = e => { TR.rs = +e.target.value; TR.ms = null; TR.trace = []; trOutputs(); };
+const playLabel = () => Lab.L(TR.playing ? o('⏸ Pause','⏸ 暂停') : o('▶ Play','▶ 播放'));
+Lab.$('#playBtn').onclick = () => { TR.playing = !TR.playing; const b = Lab.$('#playBtn'); b.classList.toggle('on', TR.playing); b.textContent = playLabel(); };
+Lab.$('#noiseBtn').onclick = () => { TR.noise = !TR.noise; Lab.$('#noiseBtn').classList.toggle('on', TR.noise); TR.trace = []; };
+Lab.onLang(() => { renderInfo(); renderChips(); trOutputs(); Lab.$('#playBtn').textContent = playLabel(); });
+/* advance the orbit (called each frame by the 3D scene, or by a fallback timer if 3D is unavailable) */
+EXO.advance = dt => {
+  const G = trGeom(), V = trVis(G);
+  if (TR.playing) TR.phi += dt * TAU / 9;
+  const n = Math.floor((TR.phi + Math.PI) / TAU), th = visToReal(wrapPi(TR.phi), V), t = (n + th / TAU) * G.P;
+  let f = trFlux(th, G); if (TR.noise) f += gauss() * 2e-4;
+  if (TR.playing){ TR.trace.push([t, f]); while (TR.trace.length && TR.trace[0][0] < t - 2.25 * G.P) TR.trace.shift(); if (TR.trace.length > 6000) TR.trace.splice(0, 1000); }
+  TR.tNow = t; return { G, V, phiVis:wrapPi(TR.phi) };
+};
+function drawLC(){
+  const F = fit(Lab.$('#lcBox'), Lab.$('#lcCv')); if (!F) return; const { g, W, H } = F, C = ink(), G = trGeom();
+  g.fillStyle = C.surf; g.fillRect(0, 0, W, H);
+  const stack = W < 640;
+  const A = stack ? { x:62, y:30, w:W - 76, h:(H - 118) / 2 } : { x:66, y:34, w:(W - 66) * .58 - 20, h:H - 84 };
+  const B = stack ? { x:62, y:A.y + A.h + 58, w:W - 76, h:(H - 118) / 2 } : { x:A.x + A.w + 76, y:34, w:W - (A.x + A.w + 76) - 16, h:H - 84 };
+  const d = Math.max(G.depth, TR.noise ? 9e-4 : 5e-6), y0 = 1 + d * .25, y1 = 1 - d * 1.3;
+  const dec = Math.max(1, Math.ceil(-Math.log10(G.depth * 100 / 2)) + 1);
+  const Y = (R, f) => R.y + (y0 - Math.max(y1 - d * .2, Math.min(y0 + d * .2, f))) / (y0 - y1) * R.h;
+  const axisY = (R, label) => { g.strokeStyle = C.line; g.lineWidth = 1; g.fillStyle = C.ink2; g.font = '700 11px Nunito, sans-serif'; g.textAlign = 'right';
+    [1, 1 - G.depth / 2, 1 - G.depth].forEach(v => { const y = Y(R, v); g.beginPath(); g.moveTo(R.x, y); g.lineTo(R.x + R.w, y); g.stroke(); g.fillText(`${nf(v * 100, dec)}%`, R.x - 4, y + 4); });
+    g.fillStyle = C.ink; g.font = '800 13px Nunito, sans-serif'; g.textAlign = 'left'; g.fillText(Lab.L(label), R.x - (stack ? 50 : 56), R.y - 12); };
+  /* panel A: the last ~2 orbits, scrolling */
+  axisY(A, o('Star brightness over time (newest on the right)','恒星亮度随时间的变化（最新的在右边）'));
+  const span = 2.2 * G.P, tR = TR.tNow, tL = tR - span, X = t => A.x + (t - tL) / span * A.w;
+  g.fillStyle = C.ink2; g.font = '700 11px Nunito, sans-serif'; g.textAlign = 'center';
+  g.fillText(Lab.L(o(`← ${fmtP(span)} of watching →`, `← 观测 ${fmtP(span)} →`)), A.x + A.w / 2, A.y + A.h + 16);
+  g.strokeStyle = C.brand; g.lineWidth = 2; g.beginPath(); let first = true;
+  for (const [t, f] of TR.trace){ if (t < tL) continue; const x = X(t), y = Y(A, f); first ? g.moveTo(x, y) : g.lineTo(x, y); first = false; } g.stroke();
+  if (TR.trace.length){ const [t, f] = TR.trace[TR.trace.length - 1]; g.fillStyle = C.brand; g.beginPath(); g.arc(X(t), Y(A, f), 4, 0, TAU); g.fill(); }
+  /* panel B: zoom on the transit, all transits folded on top of each other */
+  const hw = Math.max(G.dur * .9, .5), XB = h => B.x + (h + hw) / (2 * hw) * B.w;
+  axisY(B, o('Zoom on one transit (hours from the middle)','放大一次凌星（离中点的小时数）'));
+  g.fillStyle = C.ink2; g.font = '700 11px Nunito, sans-serif'; g.textAlign = 'center';
+  [-1, -.5, 0, .5, 1].forEach(u => { const h = u * hw; g.fillText(sig(h, 2), XB(h), B.y + B.h + 16); });
+  g.setLineDash([4, 4]); g.strokeStyle = C.ink2; g.globalAlpha = .7; g.lineWidth = 1.5; g.beginPath();
+  for (let k = 0; k <= 160; k++){ const h = -hw + 2 * hw * k / 160, th = h / 24 / G.P * TAU, x = XB(h), y = Y(B, trFlux(th, G)); k ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke(); g.setLineDash([]); g.globalAlpha = 1;
+  g.fillStyle = C.brand; for (const [t, f] of TR.trace){ let ph = t / G.P; ph -= Math.round(ph); const h = ph * G.P * 24; if (Math.abs(h) <= hw){ g.beginPath(); g.arc(XB(h), Y(B, f), 2.2, 0, TAU); g.fill(); } }
+  const yb = Y(B, 1), yd = Y(B, 1 - G.depth), xb = B.x + B.w - 4;
+  g.strokeStyle = C.ink; g.lineWidth = 1.5; g.beginPath(); g.moveTo(xb - 6, yb); g.lineTo(xb, yb); g.lineTo(xb, yd); g.lineTo(xb - 6, yd); g.stroke();
+  g.fillStyle = C.ink; g.font = '800 12px Nunito, sans-serif'; g.textAlign = 'right'; g.fillText(Lab.L(o(`depth ${fmtDepth(G.depth)}`, `深度 ${fmtDepth(G.depth)}`)), xb - 10, (yb + yd) / 2 + 4);
+  g.fillStyle = C.ink2; g.font = '700 11px Nunito, sans-serif'; g.textAlign = 'left';
+  g.fillText(Lab.L(o('Dots: every transit so far, stacked (“folded”) · dashed: the model','圆点：目前为止的每次凌星叠在一起（“折叠”）· 虚线：模型')), B.x - (stack ? 50 : 56), H - 6);
+}
+/* if the 3D scene can't load (offline), keep the light curve running */
+let lcLast = performance.now(), lcVis = true;
+new IntersectionObserver(es => lcVis = es[0].isIntersecting).observe(Lab.$('#lcBox'));
+(function lcLoop(now){ const dt = Math.min(.05, (now - lcLast) / 1000); lcLast = now; if (!EXO.three) EXO.advance(dt); if (lcVis) drawLC(); requestAnimationFrame(lcLoop); })(performance.now());
+
+
+/* ======================= 2. PLANET HUNTER (generated light curves) ======================= */
+const HUNT = { stars:[], i:0, score:0, results:[], marks:[], ans:{ n:null, s:null }, autoP:true };
+const KINDS = ['none', 'spots', 'hotj', 'nep', 'small', 'two'];
+const mkRng = seed => { let s = (seed >>> 0) || 1; return () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296; };
+function genStar(kind, r){
+  const R = (a, b) => a + r() * (b - a), st = { kind, planets:[], noise:4e-4, spot:0, spotP:8, spotPh:0 };
+  if (kind === 'none') st.Rs = R(.7, 1.3);
+  if (kind === 'spots'){ st.Rs = R(.8, 1.2); st.spot = R(.0025, .004); st.spotP = R(5, 9); st.spotPh = R(0, TAU); }
+  if (kind === 'hotj'){ st.Rs = R(.9, 1.3); st.planets.push({ Rp:R(9, 13), P:R(2.5, 5) }); }
+  if (kind === 'nep'){ st.Rs = R(.6, .9); st.planets.push({ Rp:R(3.4, 5), P:R(5, 9) }); }
+  if (kind === 'small'){ st.Rs = R(.25, .35); st.planets.push({ Rp:R(1.3, 1.8), P:R(3, 7) }); }
+  if (kind === 'two'){ st.Rs = R(.8, 1.1); st.planets.push({ Rp:R(7.5, 11), P:R(3, 5) }, { Rp:R(3, 4.2), P:R(9.5, 12.5) }); }
+  st.Rs = +st.Rs.toFixed(2); const Ms = Math.pow(st.Rs, 1.1);
+  st.planets.forEach(p => { p.Rp = +p.Rp.toFixed(1); p.P = +p.P.toFixed(2); p.t0 = R(.4, p.P); p.aRs = Math.pow(p.P / 365.25, 2 / 3) * Math.cbrt(Ms) * AU_RS / st.Rs; p.p = p.Rp * RE_RS / st.Rs; });
+  const N = 27 * 48; st.t = new Float32Array(N); st.f = new Float32Array(N);
+  for (let k = 0; k < N; k++){ const t = k / 48; let f = 1 + st.noise * gauss(r) + st.spot * Math.sin(TAU * t / st.spotP + st.spotPh);
+    for (const p of st.planets) f -= 1 - fluxAt(TAU * (t - p.t0) / p.P, p.aRs, p.p);
+    st.t[k] = t; st.f[k] = f; }
+  return st;
+}
+function huntNewSet(){ const r = mkRng((Date.now() ^ (Math.random() * 1e9)) >>> 0); HUNT.stars = Lab.shuffle(KINDS).map(k => genStar(k, r)); HUNT.i = 0; HUNT.score = 0; HUNT.results = []; huntLoad(); }
+function huntLoad(){ HUNT.marks = []; HUNT.ans = { n:null, s:null }; HUNT.autoP = true; Lab.$('#qP').value = ''; Lab.$('#huntRes').textContent = ''; Lab.$('#huntRes').className = 'result'; huntRender(); }
+const HB = { x0:52, x1:0, y0:20, y1:0, fmin:0, fmax:0 };
+function measureAt(st, t){
+  const i0 = Math.max(1, Math.round((t - .5) * 48)), i1 = Math.min(st.f.length - 2, Math.round((t + .5) * 48)); let best = i0, bv = 9;
+  for (let i = i0; i <= i1; i++){ const v = (st.f[i - 1] + st.f[i] + st.f[i + 1]) / 3; if (v < bv){ bv = v; best = i; } }
+  let s = 0, n = 0; for (let i = Math.max(0, best - 72); i <= Math.min(st.f.length - 1, best + 72); i++){ const dt = Math.abs(i - best) / 48; if (dt > .35){ s += st.f[i]; n++; } }
+  return { t:best / 48, depth:Math.max(0, s / n - bv) };
+}
+function huntGroups(){
+  const m = HUNT.marks.slice().sort((a, b) => a.t - b.t); if (!m.length) return [];
+  const top = Math.max(...m.map(x => x.depth)), A = m.filter(x => x.depth >= .45 * top), B = m.filter(x => x.depth < .45 * top), st = HUNT.stars[HUNT.i];
+  return [A, B].filter(g => g.length).map(g => { const depth = g.reduce((s, x) => s + x.depth, 0) / g.length; let P = null;
+    for (let k = 1; k < g.length; k++){ const d = g[k].t - g[k - 1].t; if (d > .3 && (P == null || d < P)) P = d; }
+    return { n:g.length, depth, P, Rp:st.Rs * RS_RE * Math.sqrt(depth) }; });
+}
+function huntRender(){
+  const st = HUNT.stars[HUNT.i], done = HUNT.results[HUNT.i] != null;
+  Lab.$('#huntScore').textContent = Lab.L(o(`Score ${HUNT.score} / 18 · star ${HUNT.i + 1} of 6`, `得分 ${HUNT.score} / 18 · 第 ${HUNT.i + 1} 颗 / 共 6 颗`));
+  Lab.$('#huntStar').innerHTML = Lab.L(o(`<b>Star ${HUNT.i + 1}:</b> radius = <b>${st.Rs} × the Sun’s</b> (${nf(st.Rs * RS_RE)} Earths wide). Brightness is measured to about ±0.04% per point.`,
+    `<b>第 ${HUNT.i + 1} 颗恒星：</b>半径 = <b>太阳的 ${st.Rs} 倍</b>（相当于 ${nf(st.Rs * RS_RE)} 个地球那么宽）。每个数据点的亮度测量误差约 ±0.04%。`));
+  const gs = huntGroups();
+  Lab.$('#huntMeas').innerHTML = !gs.length ? Lab.L(o('No dips marked yet. Look for short, sharp drops that repeat at equal spacing.','还没有标记下陷。寻找短促、陡峭、而且间隔相等、反复出现的下降。'))
+    : gs.map((g, k) => { const cat = g.Rp < 2 ? o('Earth-size','地球大小') : g.Rp < 6 ? o('Neptune-size','海王星大小') : o('Jupiter-size','木星大小'), weak = g.depth < 9e-4;
+      return Lab.L(o(`${k ? 'Shallower' : 'Deeper'} dips (${g.n} marked): depth ≈ <b>${sig(g.depth * 100, 2)}%</b>${g.P ? ` · every <b>${sig(g.P, 3)} days</b>` : ' · mark another one to measure the period'} → size ≈ ${st.Rs} × 109 × √${sig(g.depth, 2)} = <b>${sig(g.Rp, 2)} Earths</b> (${Lab.L(cat)})${weak ? ' ⚠️ about as small as the noise' : ''}`,
+        `${k ? '较浅' : '较深'}的下陷（标记了 ${g.n} 个）：深度 ≈ <b>${sig(g.depth * 100, 2)}%</b>${g.P ? ` · 每 <b>${sig(g.P, 3)} 天</b>一次` : ' · 再标记一个就能测出周期'} → 大小 ≈ ${st.Rs} × 109 × √${sig(g.depth, 2)} = <b>${sig(g.Rp, 2)} 个地球</b>（${Lab.L(cat)}）${weak ? ' ⚠️ 和噪声差不多小' : ''}`)); }).join('<br>');
+  if (HUNT.autoP && gs[0] && gs[0].P) Lab.$('#qP').value = gs[0].P.toFixed(2);
+  Lab.$$('#qN button').forEach(b => b.classList.toggle('on', String(HUNT.ans.n) === b.dataset.v));
+  Lab.$$('#qS button').forEach(b => b.classList.toggle('on', HUNT.ans.s === b.dataset.v));
+  Lab.$('#huntCheck').disabled = done;
+  drawHunt();
+}
+function drawHunt(){
+  const F = fit(Lab.$('#huntBox'), Lab.$('#huntCv')); if (!F) return; const { g, W, H } = F, C = ink(), st = HUNT.stars[HUNT.i]; if (!st) return;
+  g.fillStyle = C.surf; g.fillRect(0, 0, W, H);
+  let mn = 1, mx = 1; for (const f of st.f){ if (f < mn) mn = f; if (f > mx) mx = f; } mn -= .001; mx += .001;
+  Object.assign(HB, { x0:58, x1:W - 12, y0:14, y1:H - 30, fmin:mn, fmax:mx });
+  const X = t => HB.x0 + t / 27 * (HB.x1 - HB.x0), Y = f => HB.y0 + (mx - f) / (mx - mn) * (HB.y1 - HB.y0);
+  g.strokeStyle = C.line; g.lineWidth = 1; g.fillStyle = C.ink2; g.font = '700 11px Nunito, sans-serif';
+  const step = mx - mn > .012 ? .005 : mx - mn > .005 ? .002 : .001;
+  for (let v = Math.ceil(mn / step) * step; v <= mx; v += step){ const y = Y(v); g.beginPath(); g.moveTo(HB.x0, y); g.lineTo(HB.x1, y); g.stroke(); g.textAlign = 'right'; g.fillText(`${nf(v * 100, 1)}%`, HB.x0 - 4, y + 4); }
+  g.textAlign = 'center'; for (let d = 0; d <= 27; d += 3) g.fillText(d, X(d), H - 14);
+  g.fillText(Lab.L(o('days','天')), X(27) - 14, H - 2);
+  g.fillStyle = C.ink2; g.globalAlpha = .85; for (let k = 0; k < st.f.length; k++){ g.fillRect(X(st.t[k]) - 1, Y(st.f[k]) - 1, 2.2, 2.2); } g.globalAlpha = 1;
+  /* marks */
+  HUNT.marks.forEach(m => { const x = X(m.t); g.strokeStyle = C.s2; g.lineWidth = 2; g.setLineDash([4, 3]); g.beginPath(); g.moveTo(x, HB.y0); g.lineTo(x, HB.y1); g.stroke(); g.setLineDash([]);
+    g.fillStyle = C.s2; g.beginPath(); g.moveTo(x, HB.y1 + 2); g.lineTo(x - 6, HB.y1 + 11); g.lineTo(x + 6, HB.y1 + 11); g.fill(); });
+  /* after checking: reveal the true transit times */
+  if (HUNT.results[HUNT.i] != null) st.planets.forEach((p, k) => { g.fillStyle = k ? C.s3 : C.s1; for (let t = p.t0 % p.P; t < 27; t += p.P){ g.beginPath(); g.arc(X(t), HB.y0 + 6 + k * 10, 4, 0, TAU); g.fill(); } });
+}
+Lab.$('#huntCv').addEventListener('click', e => {
+  const st = HUNT.stars[HUNT.i]; if (!st || HUNT.results[HUNT.i] != null) return;
+  const b = e.currentTarget.getBoundingClientRect(), x = e.clientX - b.left, t = (x - HB.x0) / (HB.x1 - HB.x0) * 27; if (t < 0 || t > 27) return;
+  const near = HUNT.marks.findIndex(m => Math.abs(m.t - t) < .45);
+  if (near >= 0) HUNT.marks.splice(near, 1); else if (HUNT.marks.length < 12) HUNT.marks.push(measureAt(st, t));
+  huntRender();
+});
+Lab.$$('#qN button').forEach(b => b.onclick = () => { HUNT.ans.n = +b.dataset.v; huntRender(); });
+Lab.$$('#qS button').forEach(b => b.onclick = () => { HUNT.ans.s = b.dataset.v; huntRender(); });
+Lab.$('#qP').oninput = () => HUNT.autoP = false;
+Lab.$('#huntCheck').onclick = () => {
+  const st = HUNT.stars[HUNT.i], res = Lab.$('#huntRes'), n = st.planets.length;
+  if (HUNT.ans.n == null){ res.className = 'result bad'; res.textContent = Lab.L(o('First choose how many planets you think it has.','先选一选你认为它有几颗行星。')); return; }
+  let pts = 0, why = [];
+  if (n === 0){ pts = HUNT.ans.n === 0 ? 3 : 0;
+    why.push(st.kind === 'spots' ? o('No planet! Those slow, smooth ups and downs are dark starspots turning with the star. Transits are short, sharp and repeat at exactly the same spacing.','没有行星！那些缓慢、平滑的起伏是随恒星自转的黑子。凌星是短促、陡峭的，并且以完全相同的间隔重复出现。')
+      : o('No planet: just noise. Random low points do not repeat at regular times.','没有行星：只是噪声。随机的低点不会按固定的时间间隔重复出现。')); }
+  else { const big = st.planets.reduce((a, b) => b.Rp > a.Rp ? b : a), cat = big.Rp < 2 ? 'e' : big.Rp < 6 ? 'n' : 'j', P = +Lab.$('#qP').value;
+    if (HUNT.ans.n === n) pts++; if (P && Math.abs(P - big.P) / big.P < .06) pts++; if (HUNT.ans.s === cat) pts++;
+    why.push(o(`${n === 2 ? 'Two planets' : 'One planet'}. The biggest: ${big.Rp} Earths wide, a year of ${big.P} days.`, `${n === 2 ? '两颗行星' : '一颗行星'}。最大的那颗：${big.Rp} 个地球宽，一年 ${big.P} 天。`));
+    if (n === 2){ const s = st.planets.find(p => p !== big); why.push(o(`The second, smaller one: ${s.Rp} Earths, every ${s.P} days.`, `第二颗较小：${s.Rp} 个地球宽，每 ${s.P} 天一次。`)); }
+    if (st.kind === 'small') why.push(o('Tiny dips like these are easiest to find around small stars.','这么小的下陷，在小恒星周围最容易被发现。')); }
+  HUNT.results[HUNT.i] = pts; HUNT.score += pts;
+  res.className = 'result ' + (pts === 3 ? 'good' : 'bad');
+  res.textContent = Lab.L(o(`+${pts} of 3 points. `, `得 ${pts} / 3 分。`)) + why.map(Lab.L).join(' ') + (HUNT.results.filter(x => x != null).length === 6 ? Lab.L(o(` 🎉 All six done: ${HUNT.score} / 18!`, ` 🎉 6 颗全部完成：${HUNT.score} / 18！`)) : '');
+  huntRender();
+};
+Lab.$('#huntNext').onclick = () => { HUNT.i = (HUNT.i + 1) % 6; huntLoad(); };
+Lab.$('#huntNew').onclick = huntNewSet;
+new ResizeObserver(() => requestAnimationFrame(drawHunt)).observe(Lab.$('#huntBox'));
+addEventListener('labtheme', drawHunt);
+Lab.onLang(() => { if (HUNT.stars.length){ huntRender(); } });
+
+/* ======================= 3. RADIAL VELOCITY ======================= */
+const RV = { t:0, playing:true, sel:'jup' };
+const RV_PRESETS = { jup:{ m:317.8, a:5.2, s:1, n:o('Jupiter & Sun','木星和太阳') }, earth:{ m:1, a:1, s:1, n:o('Earth & Sun','地球和太阳') },
+  peg:{ m:146, a:.0527, s:1.11, n:o('51 Pegasi b','飞马座 51b') }, prox:{ m:1.07, a:.0485, s:.122, n:o('Proxima b','比邻星 b') } };
+const rvVals = () => { const m = Math.pow(10, +Lab.$('#rvM').value), a = Math.pow(10, +Lab.$('#rvA').value), s = +Lab.$('#rvS').value, Pyr = Math.sqrt(a * a * a / s);
+  return { m, a, s, Pyr, P:Pyr * 365.25, K:28.43 * (m / 317.8) * Math.pow(s, -2 / 3) * Math.pow(Pyr, -1 / 3) }; };
+function rvOutputs(){
+  const v = rvVals();
+  Lab.$('#rvMOut').textContent = v.m >= 50 ? (zh() ? `${sig(v.m / 317.8, 2)} 个木星（${nf(v.m)} 个地球）` : `${sig(v.m / 317.8, 2)} Jupiters (${nf(v.m)} Earths)`) : (zh() ? `${sig(v.m, 2)} 个地球` : `${sig(v.m, 2)} Earths`);
+  Lab.$('#rvAOut').textContent = zh() ? `${sig(v.a, 2)} 天文单位` : `${sig(v.a, 2)} AU`;
+  Lab.$('#rvSOut').textContent = zh() ? `${sig(v.s, 2)} 个太阳` : `${sig(v.s, 2)} Suns`;
+  Lab.$('#rvK').textContent = sig(v.K, 2); Lab.$('#rvP').textContent = fmtP(v.P);
+  const msg = Lab.$('#rvMsg'), walk = v.K / 1.4;
+  msg.className = 'result ' + (v.K >= 1 ? 'good' : 'bad');
+  msg.textContent = Lab.L(v.K >= 10 ? o(`Easy to detect: the star swings at ${sig(v.K, 2)} m/s, about ${sig(walk, 2)}× walking speed.`, `很容易探测：恒星以 ${sig(v.K, 2)} 米/秒摆动，约是步行速度的 ${sig(walk, 2)} 倍。`)
+    : v.K >= 1 ? o(`Detectable with today’s best spectrographs (they can measure about 1 m/s, slower than walking).`, `用今天最好的光谱仪可以探测（它们能测出约 1 米/秒，比走路还慢）。`)
+    : o(`Too small for today’s instruments: ${sig(v.K, 2)} m/s is slower than an ant’s walk. (Earth makes the Sun wobble at only 0.09 m/s.)`, `对今天的仪器来说太小了：${sig(v.K, 2)} 米/秒比蚂蚁爬还慢。（地球只让太阳以 0.09 米/秒摆动。）`));
+  Lab.$$('#rvPresets .chip').forEach(c => c.classList.toggle('on', c.dataset.k === RV.sel));
+}
+function rvPresets(){ Lab.$('#rvPresets').innerHTML = Object.entries(RV_PRESETS).map(([k, p]) => `<button class="chip ${RV.sel === k ? 'on' : ''}" data-k="${k}">${Lab.L(p.n)}</button>`).join('');
+  Lab.$$('#rvPresets .chip').forEach(c => c.onclick = () => { const p = RV_PRESETS[c.dataset.k]; RV.sel = c.dataset.k; Lab.$('#rvM').value = Math.log10(p.m); Lab.$('#rvA').value = Math.log10(p.a); Lab.$('#rvS').value = p.s; RV.t = 0; rvOutputs(); }); }
+['#rvM', '#rvA', '#rvS'].forEach(s => Lab.$(s).addEventListener('input', () => { RV.sel = null; rvOutputs(); }));
+Lab.$('#rvPlay').onclick = () => { RV.playing = !RV.playing; Lab.$('#rvPlay').textContent = RV.playing ? '⏸' : '▶'; };
+Lab.$('#rvT').oninput = e => { RV.playing = false; Lab.$('#rvPlay').textContent = '▶'; RV.t = +e.target.value / 1000 * 2; };
+Lab.onLang(() => { rvPresets(); rvOutputs(); });
+function drawRV(){
+  const F = fit(Lab.$('#rvBox'), Lab.$('#rvCv')); if (!F) return; const { g, W, H } = F, C = ink(), v = rvVals();
+  g.fillStyle = '#070b1a'; g.fillRect(0, 0, W, H);
+  const wide = W > 600, ph = RV.t, th = TAU * ph, cosT = Math.cos(th);
+  const O = wide ? { x:0, y:0, w:W * .5, h:H * .58 } : { x:0, y:0, w:W, h:H * .42 }, S = wide ? { x:W * .5 + 10, y:30, w:W * .5 - 26, h:H * .58 - 50 } : { x:14, y:O.h + 8, w:W - 28, h:H * .16 };
+  const Gr = { x:52, y:(wide ? H * .58 : O.h + S.h + 22) + 36, w:W - 66, h:0 }; Gr.h = H - Gr.y - 30;
+  /* orbit view (top-down) */
+  const cx = O.x + O.w / 2, cy = O.y + O.h / 2 - 6, Rpl = Math.min(O.w, O.h) * .36, wob = 5 + Math.min(22, 6 * Math.log10(1 + v.K * 3));
+  g.strokeStyle = 'rgba(200,215,255,.25)'; g.setLineDash([3, 4]); g.beginPath(); g.arc(cx, cy, Rpl, 0, TAU); g.stroke(); g.beginPath(); g.arc(cx, cy, wob, 0, TAU); g.stroke(); g.setLineDash([]);
+  g.fillStyle = 'rgba(255,255,255,.5)'; g.beginPath(); g.arc(cx, cy, 2, 0, TAU); g.fill();
+  const sx = cx - wob * Math.cos(th), sy = cy - wob * Math.sin(th), px = cx + Rpl * Math.cos(th), py = cy + Rpl * Math.sin(th);
+  const base = bbColor(5772 * Math.pow(v.s, .5)), tint = cosT > 0 ? [255, 110, 90] : [110, 160, 255], u = Math.abs(cosT) * .55, col = base.map((c, i) => Math.round(c * (1 - u) + tint[i] * u));
+  const gr = g.createRadialGradient(sx, sy, 0, sx, sy, 34); gr.addColorStop(0, rgb(col)); gr.addColorStop(.5, rgb(col, .55)); gr.addColorStop(1, rgb(col, 0)); g.fillStyle = gr; g.beginPath(); g.arc(sx, sy, 34, 0, TAU); g.fill();
+  g.fillStyle = rgb(col); g.beginPath(); g.arc(sx, sy, 15, 0, TAU); g.fill();
+  g.fillStyle = '#7fb2ff'; g.beginPath(); g.arc(px, py, 4 + Math.min(6, Math.log10(v.m + 1) * 1.6), 0, TAU); g.fill();
+  /* star velocity arrow */
+  const vx = Math.sin(th), vy = -Math.cos(th); g.strokeStyle = '#3ed596'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(sx, sy); g.lineTo(sx + vx * 30, sy + vy * 30); g.stroke();
+  g.font = '800 12px Nunito, sans-serif'; g.textAlign = 'center'; g.fillStyle = '#eaf0fb';
+  g.fillText(Lab.L(o('👁 to Earth (our telescope) ↓','👁 朝向地球（我们的望远镜）↓')), cx, O.y + O.h - 6);
+  g.fillStyle = cosT > .15 ? '#ff9a8a' : cosT < -.15 ? '#9cc4ff' : '#c9d3ea';
+  g.fillText(Lab.L(cosT > .15 ? o('moving away → redshift','远离我们 → 红移') : cosT < -.15 ? o('moving toward us → blueshift','朝我们而来 → 蓝移') : o('moving sideways → no shift','横向运动 → 没有移动')), cx, O.y + 18);
+  g.fillStyle = '#a6b3cf'; g.font = '700 11px Nunito, sans-serif'; g.fillText(Lab.L(o('wobble greatly exaggerated','摆动被大大放大了')), cx, O.y + 34);
+  /* spectrum strip with absorption lines */
+  const sp = g.createLinearGradient(S.x, 0, S.x + S.w, 0); [[0,'#5a2aa8'],[.12,'#3050ff'],[.3,'#20b0ff'],[.42,'#20d070'],[.55,'#d8e020'],[.68,'#ffa020'],[.82,'#ff3020'],[1,'#8a1010']].forEach(([s, c]) => sp.addColorStop(s, c));
+  const sh = S.h * (wide ? .38 : .6), sTop = S.y + (wide ? S.h * .3 : 14);
+  g.fillStyle = sp; g.fillRect(S.x, sTop, S.w, sh);
+  const L2X = l => S.x + (l - 400) / 300 * S.w, shift = cosT * S.w * .03;
+  [[486.1,'Hβ'],[517,'Mg'],[589,'Na'],[656.3,'Hα']].forEach(([l, n]) => { const x0 = L2X(l); g.fillStyle = 'rgba(0,0,0,.85)'; g.fillRect(x0 + shift - 1.5, sTop, 3, sh);
+    g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 1; g.beginPath(); g.moveTo(x0, sTop - 7); g.lineTo(x0, sTop - 1); g.stroke(); g.fillStyle = '#c9d3ea'; g.font = '700 10px Nunito, sans-serif'; g.textAlign = 'center'; g.fillText(n, x0, sTop - 9); });
+  g.fillStyle = '#c9d3ea'; g.font = '700 11px Nunito, sans-serif'; g.textAlign = 'left';
+  const dl = v.K / 2.998e8 * 656.3;
+  if (wide){ g.font = '800 12.5px Nunito, sans-serif'; wrapText(g, Lab.L(o('The star’s spectrum (dark lines = elements in its gas)','恒星的光谱（暗线 = 恒星气体中的元素）')), S.x, S.y + 4, S.w - 46, 16); g.font = '700 11px Nunito, sans-serif'; }
+  wrapText(g, Lab.L(o(`White ticks: lines at rest. Real Hα shift: ±${sig(dl, 2)} nm (drawn far larger)`, `白色刻度：静止时的位置。Hα 线的真实移动：±${sig(dl, 2)} 纳米（这里画得大得多）`)), S.x, sTop + sh + 16, S.w, 14);
+  /* velocity graph over two orbits */
+  const K = v.K, top = Math.max(1.5, K * 1.25), X = p => Gr.x + p / 2 * Gr.w, Yv = u => Gr.y + Gr.h / 2 - u / top * Gr.h / 2;
+  g.fillStyle = 'rgba(62,213,150,.12)'; g.fillRect(Gr.x, Yv(1), Gr.w, Yv(-1) - Yv(1));
+  g.strokeStyle = 'rgba(200,215,255,.25)'; g.lineWidth = 1; [-top, 0, top].forEach(u => { g.beginPath(); g.moveTo(Gr.x, Yv(u)); g.lineTo(Gr.x + Gr.w, Yv(u)); g.stroke(); });
+  g.fillStyle = '#a6b3cf'; g.font = '700 11px Nunito, sans-serif'; g.textAlign = 'right';
+  [top, 0, -top].forEach(u => g.fillText(sig(u, 2), Gr.x - 4, Yv(u) + 4));
+  g.textAlign = 'left'; g.fillText(Lab.L(o('green band: ±1 m/s, about the limit of today’s best instruments','绿色带：±1 米/秒，约是当今最好仪器的极限')), Gr.x + 4, Gr.y + Gr.h + 16);
+  g.fillStyle = '#eaf0fb'; g.font = '800 12.5px Nunito, sans-serif'; g.fillText(Lab.L(o('Star’s speed away from us (m/s) over two orbits','恒星远离我们的速度（米/秒），两个公转周期')), Gr.x - 40, Gr.y - 10);
+  g.strokeStyle = 'rgba(200,215,255,.35)'; g.setLineDash([4, 4]); g.beginPath(); for (let k = 0; k <= 200; k++){ const p = k / 100; k ? g.lineTo(X(p), Yv(K * Math.cos(TAU * p))) : g.moveTo(X(p), Yv(K * Math.cos(TAU * p))); } g.stroke(); g.setLineDash([]);
+  g.strokeStyle = '#ffb347'; g.lineWidth = 2.5; g.beginPath(); for (let k = 0; k <= 200 && k / 100 <= ph; k++){ const p = k / 100; k ? g.lineTo(X(p), Yv(K * Math.cos(TAU * p))) : g.moveTo(X(p), Yv(K * Math.cos(TAU * p))); } g.lineTo(X(ph), Yv(K * cosT)); g.stroke();
+  g.fillStyle = '#ffb347'; g.beginPath(); g.arc(X(ph), Yv(K * cosT), 5, 0, TAU); g.fill();
+}
+let rvLast = performance.now(), rvVis = false;
+new IntersectionObserver(es => rvVis = es[0].isIntersecting).observe(Lab.$('#rvBox'));
+(function rvLoop(now){ const dt = Math.min(.05, (now - rvLast) / 1000); rvLast = now;
+  if (rvVis){ if (RV.playing){ RV.t = (RV.t + dt / 6) % 2; Lab.$('#rvT').value = RV.t / 2 * 1000; } const P = rvVals().P; Lab.$('#rvTOut').textContent = fmtP(RV.t * P).replace(' hours', ' h'); drawRV(); }
+  requestAnimationFrame(rvLoop); })(performance.now());
+
+/* ======================= 4. HABITABLE ZONE ======================= */
+const MS_T = [2566, 3042, 3500, 3900, 4400, 5000, 5300, 5772, 6000, 6500, 7000, 7200], MS_L = [.00055, .0016, .025, .07, .18, .4, .55, 1, 1.4, 2.7, 4.5, 5.6], MS_M = [.09, .12, .4, .55, .7, .8, .88, 1, 1.1, 1.3, 1.6, 1.7];
+const interp = (T, ys, log) => { let i = 0; while (i < MS_T.length - 2 && T > MS_T[i + 1]) i++; const u = Math.max(0, Math.min(1, (T - MS_T[i]) / (MS_T[i + 1] - MS_T[i]))); return log ? Math.pow(10, Math.log10(ys[i]) * (1 - u) + Math.log10(ys[i + 1]) * u) : ys[i] * (1 - u) + ys[i + 1] * u; };
+function hzEdges(T, L){ const t = Math.max(2600, Math.min(7200, T)) - 5780, s = (c, a, b, cc, d) => c + a * t + b * t * t + cc * t * t * t + d * t * t * t * t;
+  const sin = s(1.107, 1.332e-4, 1.58e-8, -8.308e-12, -1.931e-15), sout = s(.356, 6.171e-5, 1.698e-9, -3.198e-12, -5.575e-16); return [Math.sqrt(L / sin), Math.sqrt(L / sout)]; }
+const HZ_SYS = {
+  sun:{ T:5772, L:1, M:1, n:o('Solar System','太阳系'), star:o('the Sun','太阳'), pl:[['Mercury','水星', .387], ['Venus','金星', .723], ['Earth','地球', 1], ['Mars','火星', 1.524], ['Jupiter','木星', 5.2]] },
+  trap:{ T:2566, L:.000553, M:.089, n:o('TRAPPIST-1','TRAPPIST-1'), star:o('TRAPPIST-1','TRAPPIST-1'), pl:[['b','b', .01154], ['c','c', .0158], ['d','d', .02227], ['e','e', .02925], ['f','f', .03849], ['g','g', .04683], ['h','h', .06189]] },
+  prox:{ T:3042, L:.00155, M:.122, n:o('Proxima Centauri','比邻星'), star:o('Proxima Centauri','比邻星'), pl:[['d','d', .0289], ['b','b', .0485]] },
+  k452:{ T:5757, L:1.2, M:1.04, n:o('Kepler-452','开普勒-452'), star:o('Kepler-452','开普勒-452'), pl:[['b','b', 1.046]] }
+};
+const HZ = { T:5772, L:1, M:1, sys:'sun', d:1, drag:false, game:null };
+const HZX = { lo:Math.log10(.004), hi:Math.log10(8), x0:70, x1:0 };
+function hzState(d = HZ.d){ const [a, b] = hzEdges(HZ.T, HZ.L); return d < a ? 'steam' : d > b ? 'ice' : 'liquid'; }
+function hzOutputs(){
+  const [a, b] = hzEdges(HZ.T, HZ.L), S = HZ.L / (HZ.d * HZ.d), Teq = 255 * Math.pow(S, .25), C = Teq - 273.15, Fh = C * 9 / 5 + 32, P = 365.25 * Math.sqrt(Math.pow(HZ.d, 3) / HZ.M), hide = HZ.game && !HZ.game.revealed;
+  Lab.$('#hzTOut').textContent = `${nf(HZ.T)} K`;
+  Lab.$('#hzStats').innerHTML = statRow(o('Star’s brightness','恒星光度'), zh() ? `太阳的 ${sig(HZ.L, 2)} 倍` : `${sig(HZ.L, 2)} × the Sun`) + statRow(o('Habitable zone','宜居带'), hide ? '❓' : `${sig(a, 2)}–${sig(b, 2)} AU`)
+    + statRow(o('Your planet’s distance','你的行星距离'), `${sig(HZ.d, 2)} AU`) + statRow(o('Starlight it gets','接收到的星光'), zh() ? `地球的 ${sig(S, 2)} 倍` : `${sig(S, 2)} × Earth’s`)
+    + statRow(o('Equilibrium temperature','平衡温度'), `${nf(C)} °C / ${nf(Fh)} °F`) + statRow(o('Its year','它的一年'), fmtP(P));
+  const w = hzState();
+  Lab.$('#hzWater').textContent = hide ? Lab.L(o('❓ Lock in your guess','❓ 确定你的猜测')) : Lab.L(w === 'steam' ? o('♨️ Too hot: water boils away into steam','♨️ 太热：水会沸腾变成水蒸气') : w === 'ice' ? o('❄️ Too cold: water freezes into ice','❄️ 太冷：水会冻成冰') : o('💧 Just right: liquid water could exist','💧 刚刚好：可能存在液态水'));
+  Lab.$$('#hzPresets .chip').forEach(c => c.classList.toggle('on', c.dataset.k === HZ.sys));
+}
+function hzPresets(){ Lab.$('#hzPresets').innerHTML = Object.entries(HZ_SYS).map(([k, s]) => `<button class="chip ${HZ.sys === k ? 'on' : ''}" data-k="${k}">${Lab.L(s.n)}</button>`).join('');
+  Lab.$$('#hzPresets .chip').forEach(c => c.onclick = () => { if (HZ.game) hzEndGame(); const s = HZ_SYS[c.dataset.k]; Object.assign(HZ, { sys:c.dataset.k, T:s.T, L:s.L, M:s.M }); Lab.$('#hzT').value = s.T; const [a, b] = hzEdges(s.T, s.L); HZ.d = Math.sqrt(a * b); hzOutputs(); drawHZ(); }); }
+Lab.$('#hzT').oninput = e => { HZ.T = +e.target.value; HZ.L = interp(HZ.T, MS_L, true); HZ.M = interp(HZ.T, MS_M); HZ.sys = null; hzOutputs(); drawHZ(); };
+function drawHZ(){
+  const F = fit(Lab.$('#hzBox'), Lab.$('#hzCv')); if (!F) return; const { g, W, H } = F, C = ink();
+  g.fillStyle = '#070b1a'; g.fillRect(0, 0, W, H);
+  HZX.x0 = 64; HZX.x1 = W - 16; const X = d => HZX.x0 + (Math.log10(d) - HZX.lo) / (HZX.hi - HZX.lo) * (HZX.x1 - HZX.x0), yA = H * .52;
+  const [a, b] = hzEdges(HZ.T, HZ.L), col = bbColor(HZ.T), hide = HZ.game && !HZ.game.revealed;
+  /* star */
+  const sr = 20 + 8 * Math.log10(HZ.L / .0005 + 1) / 3.5, gr = g.createRadialGradient(24, yA, 0, 24, yA, sr * 2.4); gr.addColorStop(0, rgb(col)); gr.addColorStop(.4, rgb(col, .6)); gr.addColorStop(1, rgb(col, 0)); g.fillStyle = gr; g.beginPath(); g.arc(24, yA, sr * 2.4, 0, TAU); g.fill();
+  g.fillStyle = rgb(col); g.beginPath(); g.arc(24, yA, sr * .7, 0, TAU); g.fill();
+  /* zone */
+  if (!hide){ g.fillStyle = 'rgba(255,120,80,.10)'; g.fillRect(HZX.x0, 40, X(a) - HZX.x0, H - 100);
+    g.fillStyle = 'rgba(62,213,150,.28)'; g.fillRect(X(a), 40, X(b) - X(a), H - 100); g.fillStyle = 'rgba(120,170,255,.10)'; g.fillRect(X(b), 40, HZX.x1 - X(b), H - 100);
+    g.font = '800 13px Nunito, sans-serif'; g.textAlign = 'center'; g.fillStyle = '#9ff0c8'; g.fillText(Lab.L(o('habitable zone','宜居带')), (X(a) + X(b)) / 2, 58);
+    g.fillStyle = '#ffb6a0'; if (X(a) - HZX.x0 > 70) g.fillText(Lab.L(o('too hot','太热')), (HZX.x0 + X(a)) / 2, 80);
+    g.fillStyle = '#b8d0ff'; if (HZX.x1 - X(b) > 70) g.fillText(Lab.L(o('too cold','太冷')), (X(b) + HZX.x1) / 2, 80); }
+  /* axis */
+  g.strokeStyle = 'rgba(200,215,255,.45)'; g.lineWidth = 1; g.beginPath(); g.moveTo(HZX.x0, yA); g.lineTo(HZX.x1, yA); g.stroke();
+  g.fillStyle = '#a6b3cf'; g.font = '700 11px Nunito, sans-serif'; g.textAlign = 'center';
+  [.01, .03, .1, .3, 1, 3].forEach(d => { const x = X(d); g.beginPath(); g.moveTo(x, H - 58); g.lineTo(x, H - 52); g.stroke(); g.fillText(d, x, H - 40); });
+  g.fillText(Lab.L(o('distance from the star (AU, log scale: each step is ×3 or ×10)','离恒星的距离（天文单位，对数刻度）')), (HZX.x0 + HZX.x1) / 2, H - 22);
+  /* real planets of the chosen system */
+  const sys = HZ.sys && HZ_SYS[HZ.sys];
+  if (sys) sys.pl.forEach((p, i) => { const x = X(p[2]); if (x > HZX.x1) return; const st = hzState(p[2]), y = yA + (i % 2 ? 34 : -34);
+    g.strokeStyle = 'rgba(200,215,255,.35)'; g.beginPath(); g.moveTo(x, yA); g.lineTo(x, y); g.stroke();
+    g.fillStyle = hide ? '#c9d3ea' : st === 'liquid' ? '#4f9dff' : st === 'ice' ? '#e6f0ff' : '#ff9a6a'; g.beginPath(); g.arc(x, yA, 5, 0, TAU); g.fill();
+    g.fillStyle = '#eaf0fb'; g.font = '800 11.5px Nunito, sans-serif'; g.fillText(zh() ? p[1] : p[0], x, y + (i % 2 ? 12 : -4)); });
+  /* your planet (draggable) */
+  const xp = X(HZ.d), w = hzState();
+  g.fillStyle = hide ? '#ffd27a' : w === 'liquid' ? '#3ed596' : w === 'ice' ? '#e6f0ff' : '#ff7a59'; g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.arc(xp, yA, 11, 0, TAU); g.fill(); g.stroke();
+  g.fillStyle = '#fff'; g.font = '800 12px Nunito, sans-serif'; g.fillText(Lab.L(o('your planet ⇆','你的行星 ⇆')), xp, yA + (sys ? 92 : 30));
+  g.textAlign = 'left'; g.fillStyle = '#a6b3cf'; g.font = '700 11px Nunito, sans-serif'; g.fillText(Lab.L(o(`Star: ${nf(HZ.T)} K`, `恒星：${nf(HZ.T)} K`)), 8, 20);
+}
+const hzD = e => { const b = Lab.$('#hzCv').getBoundingClientRect(), x = e.clientX - b.left; return Math.pow(10, HZX.lo + Math.max(0, Math.min(1, (x - HZX.x0) / (HZX.x1 - HZX.x0))) * (HZX.hi - HZX.lo)); };
+const hzCv = Lab.$('#hzCv'); hzCv.style.touchAction = 'pan-y'; hzCv.style.cursor = 'grab';
+hzCv.addEventListener('pointerdown', e => { if (HZ.game && HZ.game.revealed) return; HZ.drag = true; hzCv.setPointerCapture(e.pointerId); HZ.d = hzD(e); hzOutputs(); drawHZ(); });
+hzCv.addEventListener('pointermove', e => { if (!HZ.drag) return; HZ.d = hzD(e); hzOutputs(); drawHZ(); });
+hzCv.addEventListener('pointerup', () => HZ.drag = false); hzCv.addEventListener('pointercancel', () => HZ.drag = false);
+/* challenge: zone hidden, 5 random stars */
+function hzRound(){ const G = HZ.game, T = Math.round((2700 + Math.random() * 4400) / 10) * 10; Object.assign(HZ, { T, L:interp(T, MS_L, true) * (.8 + Math.random() * .45), M:interp(T, MS_M), sys:null, d:.5 }); G.revealed = false; Lab.$('#hzT').value = T; Lab.$('#hzT').disabled = true;
+  Lab.$('#hzMsg').className = 'result'; Lab.$('#hzMsg').textContent = Lab.L(o(`Round ${G.round + 1} of 5 · score ${G.score}. The zone is hidden! Use the star’s brightness (zone ≈ √brightness AU) and drag your planet, then press “Lock in”.`, `第 ${G.round + 1} 轮 / 共 5 轮 · 得分 ${G.score}。宜居带被隐藏了！根据恒星的光度（宜居带 ≈ √光度 天文单位）拖动你的行星，然后按“确定”。`));
+  Lab.$('#hzGame').textContent = Lab.L(o('🔒 Lock in','🔒 确定')); hzOutputs(); drawHZ(); }
+function hzEndGame(){ HZ.game = null; Lab.$('#hzT').disabled = false; Lab.$('#hzGame').textContent = Lab.L(o('🎯 Challenge: hide the zone','🎯 挑战：隐藏宜居带')); }
+Lab.$('#hzGame').onclick = () => {
+  const G = HZ.game;
+  if (!G){ HZ.game = { round:0, score:0, revealed:false }; hzRound(); return; }
+  if (!G.revealed){ G.revealed = true; const ok = hzState() === 'liquid'; if (ok) G.score++; const [a, b] = hzEdges(HZ.T, HZ.L);
+    Lab.$('#hzMsg').className = 'result ' + (ok ? 'good' : 'bad');
+    Lab.$('#hzMsg').textContent = Lab.L(ok ? o(`✅ Liquid water! The zone was ${sig(a, 2)}–${sig(b, 2)} AU.`, `✅ 有液态水！宜居带是 ${sig(a, 2)}–${sig(b, 2)} 天文单位。`) : o(`❌ ${hzState() === 'ice' ? 'Frozen' : 'Boiling'}. The zone was ${sig(a, 2)}–${sig(b, 2)} AU.`, `❌ ${hzState() === 'ice' ? '结冰了' : '沸腾了'}。宜居带是 ${sig(a, 2)}–${sig(b, 2)} 天文单位。`))
+      + Lab.L(o(` Score ${G.score} / ${G.round + 1}.`, ` 得分 ${G.score} / ${G.round + 1}。`));
+    G.round++; Lab.$('#hzGame').textContent = Lab.L(G.round >= 5 ? o('Finish ✓','完成 ✓') : o('Next star ▶','下一颗恒星 ▶')); hzOutputs(); drawHZ(); return; }
+  if (G.round >= 5){ const s = G.score; hzEndGame(); Lab.$('#hzMsg').className = 'result good'; Lab.$('#hzMsg').textContent = Lab.L(o(`🎉 Challenge finished: ${s} / 5 planets with liquid water.`, `🎉 挑战完成：${s} / 5 颗行星有液态水。`)); hzOutputs(); drawHZ(); return; }
+  hzRound();
+};
+new ResizeObserver(() => requestAnimationFrame(drawHZ)).observe(Lab.$('#hzBox'));
+Lab.onLang(() => { hzPresets(); hzOutputs(); drawHZ(); Lab.$('#hzGame').textContent = Lab.L(!HZ.game ? o('🎯 Challenge: hide the zone','🎯 挑战：隐藏宜居带') : !HZ.game.revealed ? o('🔒 Lock in','🔒 确定') : HZ.game.round >= 5 ? o('Finish ✓','完成 ✓') : o('Next star ▶','下一颗恒星 ▶')); });
+
+
+/* ======================= 5. DATA FIGURES ======================= */
+/* discoveries per year: [transit, radial velocity, microlensing, imaging & other] — approximate, rounded */
+const YR = [[1995,[0,1,0,0]],[1996,[0,6,0,0]],[1997,[0,1,0,0]],[1998,[0,6,0,0]],[1999,[0,13,0,0]],[2000,[0,16,0,0]],[2001,[0,12,0,0]],[2002,[1,30,0,1]],[2003,[1,24,0,0]],
+  [2004,[5,20,1,1]],[2005,[4,30,1,1]],[2006,[7,22,2,0]],[2007,[18,32,1,2]],[2008,[22,38,2,4]],[2009,[20,52,3,3]],[2010,[40,55,4,2]],[2011,[60,70,7,3]],[2012,[80,48,6,6]],
+  [2013,[85,32,5,6]],[2014,[810,50,7,8]],[2015,[110,35,8,4]],[2016,[1450,35,15,5]],[2017,[90,40,18,4]],[2018,[250,40,25,8]],[2019,[130,40,22,5]],[2020,[165,40,24,8]],
+  [2021,[480,45,25,7]],[2022,[280,35,35,11]],[2023,[240,50,25,9]],[2024,[200,40,15,10]]];
+const METHODS = [o('Transit','凌星法'), o('Radial velocity','视向速度法'), o('Microlensing','微引力透镜法'), o('Imaging & other','直接成像及其他')];
+const FIG = { yHover:-1, sHover:-1 };
+function legends(){
+  Lab.$('#yearLegend').innerHTML = METHODS.map((m, i) => `<span><i style="background:var(--s${i + 1})"></i>${Lab.L(m)}</span>`).join('');
+  Lab.$('#scLegend').innerHTML = [o('Solar System planets','太阳系行星'), o('Transiting exoplanets (measured size)','凌星系外行星（测得的大小）'), o('Directly imaged (size estimated)','直接成像行星（估计大小）')].map((m, i) => `<span><i style="background:var(--s${i + 1});border-radius:50%"></i>${Lab.L(m)}</span>`).join('');
+}
+function tooltip(g, C, x, y, lines, W){ g.font = '700 12px Nunito, sans-serif'; const w = Math.max(...lines.map(s => g.measureText(s).width)) + 20, h = lines.length * 17 + 12, bx = Math.min(W - w - 6, Math.max(6, x - w / 2)), by = Math.max(6, y - h - 12);
+  g.fillStyle = C.ink; g.beginPath(); g.roundRect(bx, by, w, h, 8); g.fill(); g.fillStyle = C.surf; g.textAlign = 'left'; lines.forEach((s, k) => { g.font = (k ? '700' : '800') + ' 12px Nunito, sans-serif'; g.fillText(s, bx + 10, by + 20 + k * 17); }); }
+function drawYear(){
+  const F = fit(Lab.$('#figYear'), Lab.$('#yearCv')); if (!F) return; const { g, W, H } = F, C = ink(), cols = [C.s1, C.s2, C.s3, C.s4];
+  g.fillStyle = C.surf; g.fillRect(0, 0, W, H);
+  const pad = { l:46, r:12, t:40, b:34 }, max = 1600, bw = (W - pad.l - pad.r) / YR.length, Y = v => H - pad.b - v / max * (H - pad.t - pad.b);
+  g.fillStyle = C.ink; g.font = '700 17px Fredoka, Nunito, sans-serif'; g.textAlign = 'left'; g.fillText(Lab.L(o('Exoplanets discovered each year','每年发现的系外行星数量')), 12, 24);
+  g.font = '700 11px Nunito, sans-serif'; g.strokeStyle = C.line; g.lineWidth = 1;
+  for (let v = 0; v <= max; v += 400){ const y = Y(v); g.beginPath(); g.moveTo(pad.l, y); g.lineTo(W - pad.r, y); g.stroke(); g.fillStyle = C.ink2; g.textAlign = 'right'; g.fillText(nf(v), pad.l - 6, y + 4); }
+  YR.forEach(([yr, v], i) => { const x = pad.l + i * bw + 1, w = Math.max(2, bw - 2); let acc = 0;
+    v.forEach((n, k) => { if (!n) return; const y0 = Y(acc), y1 = Y(acc + n); g.fillStyle = cols[k]; g.globalAlpha = FIG.yHover < 0 || FIG.yHover === i ? 1 : .45; g.fillRect(x, y1, w, Math.max(1, y0 - y1 - (acc ? 1 : 0))); acc += n; });
+    g.globalAlpha = 1; if (yr % 5 === 0){ g.fillStyle = C.ink2; g.textAlign = 'center'; g.fillText(yr, x + w / 2, H - pad.b + 16); } });
+  [[2014, o('Kepler','开普勒')], [2016, o('Kepler','开普勒')]].forEach(([yr, t]) => { const i = YR.findIndex(r => r[0] === yr), tot = YR[i][1].reduce((a, b) => a + b, 0); g.fillStyle = C.ink2; g.textAlign = 'center'; g.font = '700 11px Nunito, sans-serif'; g.fillText(Lab.L(t), Math.min(W - 50, pad.l + (i + .5) * bw), Y(tot) - 6); });
+  if (FIG.yHover >= 0){ const [yr, v] = YR[FIG.yHover], tot = v.reduce((a, b) => a + b, 0);
+    tooltip(g, C, pad.l + (FIG.yHover + .5) * bw, Y(tot), [Lab.L(o(`${yr}: about ${nf(tot)} planets`, `${yr} 年：约 ${nf(tot)} 颗`)), ...METHODS.map((m, k) => `${Lab.L(m)}: ${v[k]}`)], W); }
+  FIG.yGeom = { pad, bw };
+}
+Lab.$('#yearCv').addEventListener('pointermove', e => { const G = FIG.yGeom; if (!G) return; const b = e.currentTarget.getBoundingClientRect(), i = Math.floor((e.clientX - b.left - G.pad.l) / G.bw), h = i >= 0 && i < YR.length ? i : -1; if (h !== FIG.yHover){ FIG.yHover = h; drawYear(); } });
+Lab.$('#yearCv').addEventListener('pointerleave', () => { FIG.yHover = -1; drawYear(); });
+/* size vs orbit: [name EN, name ZH, AU, Earth radii, group] */
+const SC = [['Mercury','水星',.387,.383,0],['Venus','金星',.723,.949,0],['Earth','地球',1,1,0],['Mars','火星',1.524,.532,0],['Jupiter','木星',5.2,11.21,0],['Saturn','土星',9.58,9.45,0],['Uranus','天王星',19.2,4.01,0],['Neptune','海王星',30.1,3.88,0],
+  ['HD 209458 b','HD 209458 b',.0475,15.5,1],['WASP-12 b','WASP-12 b',.0234,21,1],['HD 189733 b','HD 189733 b',.031,12.7,1],['WASP-39 b','WASP-39 b',.0486,14.2,1],['Kepler-16 b','开普勒-16b',.705,8.4,1],['Kepler-22 b','开普勒-22b',.849,2.4,1],
+  ['Kepler-452 b','开普勒-452b',1.046,1.63,1],['Kepler-186 f','开普勒-186f',.432,1.17,1],['Kepler-10 b','开普勒-10b',.0168,1.47,1],['55 Cancri e','巨蟹座 55e',.0154,1.88,1],['GJ 1214 b','GJ 1214 b',.0149,2.7,1],['K2-18 b','K2-18 b',.143,2.6,1],
+  ['TOI-700 d','TOI-700 d',.163,1.07,1],['LHS 1140 b','LHS 1140 b',.095,1.73,1],['Kepler-62 f','开普勒-62f',.718,1.41,1],['Kepler-90 h','开普勒-90h',1.01,11.3,1],['TRAPPIST-1 b','TRAPPIST-1 b',.0115,1.12,1],['TRAPPIST-1 e','TRAPPIST-1 e',.0293,.92,1],
+  ['TRAPPIST-1 g','TRAPPIST-1 g',.0468,1.13,1],['TRAPPIST-1 h','TRAPPIST-1 h',.0619,.76,1],['Kepler-1647 b','开普勒-1647b',2.72,11.9,1],['Kepler-167 e','开普勒-167e',1.89,10.2,1],
+  ['HR 8799 b','HR 8799 b',68,13,2],['HR 8799 e','HR 8799 e',16.4,13,2],['Beta Pictoris b','绘架座 β b',10,16,2],['51 Eridani b','波江座 51b',13,11,2],['HIP 65426 b','HIP 65426 b',92,16,2]];
+function drawScatter(){
+  const F = fit(Lab.$('#figScatter'), Lab.$('#scCv')); if (!F) return; const { g, W, H } = F, C = ink(), cols = [C.s1, C.s2, C.s3];
+  g.fillStyle = C.surf; g.fillRect(0, 0, W, H);
+  const pad = { l:48, r:14, t:40, b:44 }, lx0 = Math.log10(.008), lx1 = Math.log10(150), ly0 = Math.log10(.3), ly1 = Math.log10(30);
+  const X = a => pad.l + (Math.log10(a) - lx0) / (lx1 - lx0) * (W - pad.l - pad.r), Y = r => H - pad.b - (Math.log10(r) - ly0) / (ly1 - ly0) * (H - pad.t - pad.b);
+  g.fillStyle = C.ink; g.font = '700 17px Fredoka, Nunito, sans-serif'; g.textAlign = 'left'; g.fillText(Lab.L(o('Planet size vs. distance from its star','行星大小与离恒星距离的关系')), 12, 24);
+  g.strokeStyle = C.line; g.lineWidth = 1; g.font = '700 11px Nunito, sans-serif'; g.fillStyle = C.ink2;
+  [.01, .1, 1, 10, 100].forEach(a => { const x = X(a); g.beginPath(); g.moveTo(x, pad.t); g.lineTo(x, H - pad.b); g.stroke(); g.textAlign = 'center'; g.fillText(a, x, H - pad.b + 15); });
+  [.5, 1, 2, 5, 10, 20].forEach(r => { const y = Y(r); g.beginPath(); g.moveTo(pad.l, y); g.lineTo(W - pad.r, y); g.stroke(); g.textAlign = 'right'; g.fillText(r, pad.l - 6, y + 4); });
+  g.textAlign = 'center'; g.fillText(Lab.L(o('Distance from its star (AU, Earth = 1)','离恒星的距离（天文单位，地球 = 1）')), (pad.l + W - pad.r) / 2, H - 8);
+  g.save(); g.translate(13, (pad.t + H - pad.b) / 2); g.rotate(-Math.PI / 2); g.fillText(Lab.L(o('Radius (Earth = 1)','半径（地球 = 1）')), 0, 0); g.restore();
+  SC.forEach((p, i) => { const x = X(p[2]), y = Y(p[3]); g.fillStyle = cols[p[4]]; g.strokeStyle = C.surf; g.lineWidth = 2; g.beginPath(); g.arc(x, y, FIG.sHover === i ? 7 : 5, 0, TAU); g.fill(); g.stroke(); });
+  g.fillStyle = C.ink2; g.font = '700 11px Nunito, sans-serif'; g.textAlign = 'left';
+  SC.forEach(p => { if (p[4] === 0 && (W > 520 || ['Earth', 'Jupiter', 'Neptune', 'Mars'].includes(p[0]))) { const off = { Saturn:[8, 14], Venus:[-8, 16], Uranus:[-6, -10], Neptune:[8, 14], Earth:[8, -6] }[p[0]] || [8, -6]; g.textAlign = off[0] < 0 ? 'right' : 'left'; g.fillText(zh() ? p[1] : p[0], X(p[2]) + off[0], Y(p[3]) + off[1]); } });
+  g.textAlign = 'center'; g.fillText(Lab.L(o('hot Jupiters','热木星')), X(.03), Y(26));
+  if (FIG.sHover >= 0){ const p = SC[FIG.sHover]; tooltip(g, C, X(p[2]), Y(p[3]), [zh() ? p[1] : p[0], Lab.L(o(`${p[2]} AU from its star`, `离恒星 ${p[2]} 天文单位`)), Lab.L(o(`${p[3]} × Earth’s radius${p[4] === 2 ? ' (estimate)' : ''}`, `半径是地球的 ${p[3]} 倍${p[4] === 2 ? '（估计）' : ''}`))], W); }
+  FIG.sX = X; FIG.sY = Y;
+}
+Lab.$('#scCv').addEventListener('pointermove', e => { if (!FIG.sX) return; const b = e.currentTarget.getBoundingClientRect(), x = e.clientX - b.left, y = e.clientY - b.top; let best = -1, bd = 14;
+  SC.forEach((p, i) => { const d = Math.hypot(FIG.sX(p[2]) - x, FIG.sY(p[3]) - y); if (d < bd){ bd = d; best = i; } }); if (best !== FIG.sHover){ FIG.sHover = best; drawScatter(); } });
+Lab.$('#scCv').addEventListener('pointerleave', () => { FIG.sHover = -1; drawScatter(); });
+['#figYear', '#figScatter'].forEach(s => new ResizeObserver(() => requestAnimationFrame(s === '#figYear' ? drawYear : drawScatter)).observe(Lab.$(s)));
+addEventListener('labtheme', () => { drawYear(); drawScatter(); drawHunt(); drawHZ(); });
+Lab.onLang(() => { legends(); drawYear(); drawScatter(); });
+
+/* ======================= 6. GALLERY ======================= */
+const KIND = { tel:o('Telescope image','望远镜拍摄的真实图像'), craft:o('Spacecraft photo','航天器照片'), ill:o('Illustration (artist’s impression)','示意图（艺术家想象图）'), vid:o('Real telescope images (video)','真实望远镜图像（视频）'), anim:o('Animation (illustration)','动画（示意）') };
+const GAL = [
+  { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/1/13/Planets_Orbiting_HR_8799.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/13/Planets_Orbiting_HR_8799.webm/960px--Planets_Orbiting_HR_8799.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Planets_Orbiting_HR_8799.webm', credit:'Jason Wang (Caltech), Christian Marois (NRC Herzberg)', kind:KIND.vid,
+    en:'Four giant planets really moving around the star HR 8799, made from infrared images taken over several years. The star itself is blocked out in the middle so the faint planets show up. This is direct imaging!', zh:'四颗巨行星真的在绕着恒星 HR 8799 运动，由多年拍摄的红外图像制成。中间的恒星被遮住了，暗弱的行星才能显现出来。这就是“直接成像”！',
+    scale:o('About 130 light-years away · orbits of decades to centuries','距离约 130 光年 · 公转周期几十年到几百年') },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/40/Webb_Takes_Its_First_Exoplanet_Image_%28HIP-65426b%29.jpeg/960px-Webb_Takes_Its_First_Exoplanet_Image_%28HIP-65426b%29.jpeg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Webb_Takes_Its_First_Exoplanet_Image_(HIP-65426b).jpeg', credit:'NASA/ESA/CSA, A Carter (UCSC), the ERS 1386 team, and A. Pagan (STScI)', kind:KIND.tel,
+    en:'The James Webb Space Telescope’s first direct image of an exoplanet: the gas giant HIP 65426 b, seen in four infrared colors. The star (marked) is hidden by a coronagraph, a mask that blocks its glare.', zh:'詹姆斯·韦布空间望远镜第一次直接拍到的系外行星：气态巨行星 HIP 65426 b，用四种红外“颜色”拍摄。恒星（已标出）被日冕仪遮住，日冕仪是一块挡住刺眼星光的遮罩。',
+    scale:o('A few times Jupiter’s mass · about 100 AU from its star','质量是木星的几倍 · 离恒星约 100 天文单位') },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/52/Epsilon_Indi_Ab_%28MIRI_Image%29.png/960px-Epsilon_Indi_Ab_%28MIRI_Image%29.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Epsilon_Indi_Ab_(MIRI_Image).png', credit:'NASA, ESA, CSA, STScI, Elisabeth Matthews (MPIA)', kind:KIND.tel,
+    en:'Webb’s mid-infrared camera (MIRI) photographed the cold gas giant Epsilon Indi Ab. A coronagraph blocks the star’s light (its position is marked) so the planet’s own glow can be seen.', zh:'韦布望远镜的中红外相机（MIRI）拍到了低温气态巨行星“印第安座 ε Ab”。日冕仪挡住了恒星的光（位置已标出），行星自己发出的微光才能被看到。',
+    scale:o('About 12 light-years away: one of the closest imaged planets','距离约 12 光年：被拍到的最近的行星之一') },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fd/SDO%27s_Ultra-high_Definition_View_of_2012_Venus_Transit_--_Path_Sequence.jpg/960px-SDO%27s_Ultra-high_Definition_View_of_2012_Venus_Transit_--_Path_Sequence.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:SDO%27s_Ultra-high_Definition_View_of_2012_Venus_Transit_--_Path_Sequence.jpg', credit:'NASA/SDO, AIA', kind:KIND.tel,
+    en:'A real transit next door: in June 2012 Venus crossed the face of the Sun. NASA’s Solar Dynamics Observatory took a sequence of ultraviolet photos and stitched them together to show the path of the dark dot.', zh:'家门口的真实凌星：2012 年 6 月，金星从太阳表面经过。NASA 的太阳动力学天文台拍了一系列紫外线照片，拼在一起显示出黑点走过的路径。',
+    scale:o('Venus blocked only about 0.1% of the Sun’s light','金星只挡住了约 0.1% 的太阳光') },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e7/Kepler_space_telescope_shortly_after_the_assembly_to_the_third_stage.jpg/960px-Kepler_space_telescope_shortly_after_the_assembly_to_the_third_stage.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Kepler_space_telescope_shortly_after_the_assembly_to_the_third_stage.jpg', credit:'NASA/Troy Cryder', kind:KIND.craft,
+    en:'The Kepler space telescope being attached to its Delta II rocket in 2009. Kepler stared at one patch of sky for four years, measuring the brightness of about 150,000 stars, and found most of the planets in the chart above.', zh:'2009 年，开普勒太空望远镜被安装到“德尔塔 II”火箭上。开普勒连续四年盯着同一片天空，测量约 15 万颗恒星的亮度，上面图表中的大部分行星都是它发现的。',
+    scale:o('Launched 2009 · retired 2018','2009 年发射 · 2018 年退役') },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Integration_of_the_James_Webb_Space_Telescope.jpg/960px-Integration_of_the_James_Webb_Space_Telescope.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Integration_of_the_James_Webb_Space_Telescope.jpg', credit:'Northrop Grumman', kind:KIND.craft,
+    en:'August 2019: the two halves of the James Webb Space Telescope, the telescope and the spacecraft, are joined into one observatory. Webb now studies the air of exoplanets as starlight shines through it during transits.', zh:'2019 年 8 月：詹姆斯·韦布空间望远镜的两半（望远镜和航天器）被组装成一个完整的天文台。如今韦布在凌星时观察穿过行星大气的星光，研究系外行星的大气。',
+    scale:o('Main mirror 6.5 m (21 ft) across','主镜直径 6.5 米（21 英尺）') },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cf/Transiting_Exoplanet_Survey_Satellite_artist_concept_%28black_background%29.png/960px-Transiting_Exoplanet_Survey_Satellite_artist_concept_%28black_background%29.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Transiting_Exoplanet_Survey_Satellite_artist_concept_(black_background).png', credit:'NASA', kind:KIND.ill,
+    en:'Artist’s concept of TESS, the Transiting Exoplanet Survey Satellite. Its four cameras watch each strip of sky for about 27 days (like the planet-hunter data above) and then move on.', zh:'TESS（凌星系外行星巡天卫星）的艺术想象图。它的四台相机把每一片天区盯约 27 天（就像上面“行星猎手”的数据），然后转向下一片。',
+    scale:o('Launched 2018 · scans most of the sky','2018 年发射 · 扫描大部分天空') },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ed/Kepler-452b_artist_concept.jpg/960px-Kepler-452b_artist_concept.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Kepler-452b_artist_concept.jpg', credit:'NASA Ames/JPL-Caltech/T. Pyle', kind:KIND.ill,
+    en:'An artist’s idea of what Kepler-452 b might look like. Nobody has a real picture of it: all we measured is a tiny dip in its star’s light.', zh:'艺术家想象的开普勒-452b 的样子。没有人拍到过它的真实照片：我们测到的只是它的恒星亮度的一点点下降。',
+    scale:o('About 1.6 × Earth’s width · about 1,800 light-years away','约 1.6 倍地球宽 · 距离约 1800 光年') },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/ca/Artist%27s_impression_of_the_planet_orbiting_Proxima_Centauri_%28eso1629e%29.jpg/960px-Artist%27s_impression_of_the_planet_orbiting_Proxima_Centauri_%28eso1629e%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Artist%27s_impression_of_the_planet_orbiting_Proxima_Centauri_(eso1629e).jpg', credit:'ESO/M. Kornmesser', kind:KIND.ill,
+    en:'Artist’s impression of Proxima b orbiting the red dwarf Proxima Centauri, the closest star to the Sun. The double star Alpha Centauri AB appears in the sky. Proxima b was found with the radial-velocity method.', zh:'艺术家想象的比邻星 b 绕红矮星比邻星运行的情景。比邻星是离太阳最近的恒星，天空中还能看到双星南门二 AB。比邻星 b 是用视向速度法发现的。',
+    scale:o('4.2 light-years away · year of 11.2 days','距离 4.2 光年 · 一年 11.2 天') },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/8/84/TRAPPIST-1f_artist_impression_2018.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:TRAPPIST-1f_artist_impression_2018.png', credit:'NASA/JPL-Caltech', kind:KIND.ill,
+    en:'Artist’s impression of TRAPPIST-1 f, one of seven Earth-size planets around a cool red dwarf. Its real surface is unknown; Webb is now testing whether these planets have air.', zh:'艺术家想象的 TRAPPIST-1 f，它是一颗低温红矮星周围七颗地球大小的行星之一。它真实的表面是什么样还不知道；韦布望远镜正在检测这些行星有没有大气。',
+    scale:o('About 40 light-years away · year of 9.2 days','距离约 40 光年 · 一年 9.2 天') },
+  { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/3/3f/Transit_method_variable-size_planet_4K.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3f/Transit_method_variable-size_planet_4K.webm/960px--Transit_method_variable-size_planet_4K.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Transit_method_variable-size_planet_4K.webm', credit:'NASA', kind:KIND.anim,
+    en:'NASA animation of the transit method with planets of different sizes: the bigger the planet, the deeper the dip in the light curve. Compare it with the simulation at the top of this page.', zh:'NASA 制作的凌星法动画，展示不同大小的行星：行星越大，光变曲线的下陷越深。和本页顶部的模拟比较一下。',
+    scale:o('Video clip · 14 MB','视频片段 · 14 MB') }
+];
+LabPhotos.render('#gallery', GAL, { title:o('See the real thing','看看真实的样子'), sub:o('Real telescope images of exoplanets, the spacecraft that hunt them, and artist’s impressions (clearly labelled: nobody has a close-up photo of an exoplanet). Click to enlarge; videos play only when you press play.','系外行星的真实望远镜图像、寻找它们的航天器，以及艺术家想象图（已清楚标明：没有人拍到过系外行星的近照）。点击可放大；视频要你按播放键才会播放。') });
+
+
+/* ======================= 7. GO FURTHER ======================= */
+const LINKS = [
+  ['https://exoplanets.nasa.gov/', 'NASA Exoplanets', o('News, planet types, and a “how we find them” guide from NASA’s exoplanet team.','NASA 系外行星团队的新闻、行星类型介绍和“我们如何找到它们”的指南。'), 'exoplanets.nasa.gov'],
+  ['https://eyes.nasa.gov/apps/exo/', 'Eyes on Exoplanets', o('Fly in 3D to thousands of real planetary systems and compare their sizes and orbits.','在 3D 中飞往几千个真实的行星系统，比较它们的大小和轨道。'), 'eyes.nasa.gov'],
+  ['https://www.zooniverse.org/projects/nora-dot-eisner/planet-hunters-tess', 'Planet Hunters TESS', o('Look at REAL TESS light curves and mark transits. Volunteers have discovered new planets!','查看真实的 TESS 光变曲线并标记凌星。志愿者已经发现了新的行星！'), 'zooniverse.org'],
+  ['https://exoplanetarchive.ipac.caltech.edu/', 'NASA Exoplanet Archive', o('The data table professionals use: sort every confirmed planet by size, orbit and method.','专业天文学家使用的数据表：按大小、轨道和发现方法给所有已确认的行星排序。'), 'exoplanetarchive.ipac.caltech.edu'],
+  ['https://science.nasa.gov/exoplanets/exoplanet-catalog/', o('Exoplanet Catalog','系外行星目录'), o('Look up any planet from this page (try TRAPPIST-1 e or 51 Pegasi b) and see its facts.','查一查本页提到的任何行星（试试 TRAPPIST-1 e 或飞马座 51b），看看它的资料。'), 'science.nasa.gov'],
+  ['https://science.nasa.gov/exoplanets/how-we-find-and-characterize/', o('How we find exoplanets','我们如何找到系外行星'), o('Animations of all the detection methods, including microlensing and direct imaging.','用动画介绍所有的探测方法，包括微引力透镜和直接成像。'), 'science.nasa.gov'],
+  ['https://science.nasa.gov/exoplanets/habitable-zone/', o('The habitable zone','宜居带'), o('Why “Goldilocks” planets matter and what else a world needs to be livable.','为什么“金发姑娘”行星很重要，一个世界还需要什么条件才能宜居。'), 'science.nasa.gov'],
+  ['https://science.nasa.gov/mission/tess/', o('TESS mission','TESS 任务'), o('Follow the satellite that scans almost the whole sky for transiting planets.','了解这颗几乎扫描整个天空、寻找凌星行星的卫星。'), 'science.nasa.gov']
+];
+function renderLinks(){ Lab.$('#links').innerHTML = LINKS.map(([u, t, d, s]) => `<a class="linkcard" href="${u}" target="_blank" rel="noopener"><b>${Lab.L(t)}</b><span>${Lab.L(d)}</span><small>${s} ↗</small></a>`).join(''); }
+Lab.onLang(renderLinks);
+
+/* ======================= 8. QUIZ + SORT ======================= */
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('A planet makes its star dim by 1% during a transit. About how wide is the planet compared with the star?','一颗行星凌星时让恒星变暗 1%。行星的宽度大约是恒星的多少？'), options:[o('1/10 as wide','1/10'),o('1/100 as wide','1/100'),o('1/2 as wide','1/2'),o('1/1,000 as wide','1/1000')], answer:0, explain:o('Depth = (Rp/Rs)², so Rp/Rs = √0.01 = 0.1.','深度 =（Rp/Rs）²，所以 Rp/Rs = √0.01 = 0.1。')},
+  {q:o('A star’s dips come every 4.2 days, each lasting 3 hours. How long is the planet’s year?','一颗恒星每 4.2 天出现一次下陷，每次持续 3 小时。这颗行星的一年有多长？'), options:[o('4.2 days','4.2 天'),o('3 hours','3 小时'),o('12.6 days','12.6 天'),o('We can’t tell','无法判断')], answer:0, explain:o('The time between transits is one full orbit.','两次凌星之间的时间就是公转一圈的时间。')},
+  {q:o('The same planet orbits a star half as wide as the Sun. Compared with orbiting the Sun, its dip is…','同一颗行星绕着一颗宽度只有太阳一半的恒星运行。和绕太阳相比，它的下陷……'), options:[o('4 times deeper','深 4 倍'),o('2 times deeper','深 2 倍'),o('the same','一样'),o('half as deep','只有一半')], answer:0, explain:o('Depth goes with (1/Rs)²: (2)² = 4.','深度和（1/Rs）² 成正比：2² = 4。')},
+  {q:o('The radial velocity method detects…','视向速度法探测的是……'), options:[o('the star’s spectral lines shifting as it wobbles','恒星摆动时谱线的移动'),o('the planet’s shadow','行星的影子'),o('the planet’s own light','行星自己发的光'),o('the planet’s moons','行星的卫星')], answer:0},
+  {q:o('When a star moves toward us, its spectral lines shift toward…','当恒星朝我们运动时，它的谱线会向哪一端移动？'), options:[o('blue (shorter wavelengths)','蓝端（波长更短）'),o('red (longer wavelengths)','红端（波长更长）'),o('they don’t move','不会移动'),o('ultraviolet only','只向紫外线')], answer:0},
+  {q:o('Look at the chart of discoveries per year. Which method has found by far the most planets?','看“每年发现的系外行星数量”图。哪种方法发现的行星最多？'), options:[o('Transit','凌星法'),o('Radial velocity','视向速度法'),o('Microlensing','微引力透镜法'),o('Direct imaging','直接成像')], answer:0},
+  {q:o('In the same chart, which year has the tallest bar?','在同一张图中，哪一年的柱子最高？'), options:[o('2016','2016 年'),o('1995','1995 年'),o('2005','2005 年'),o('2024','2024 年')], answer:0, explain:o('In May 2016, 1,284 Kepler planets were confirmed at once.','2016 年 5 月一次确认了 1284 颗开普勒行星。')},
+  {q:o('Look at the size-vs-distance chart. The “hot Jupiters” are…','看“行星大小与距离”图。“热木星”……'), options:[o('as big as Jupiter but much closer to their stars than Mercury is to the Sun','和木星一样大，但离恒星比水星离太阳还近得多'),o('small rocky planets far from their stars','离恒星很远的小岩石行星'),o('the same as Jupiter in our Solar System','和太阳系的木星一样'),o('planets with no star','没有恒星的行星')], answer:0},
+  {q:o('Why were hot Jupiters among the first exoplanets found?','为什么热木星是最早被发现的一批系外行星？'), options:[o('Big and close: deep, frequent dips and big wobbles','又大又近：下陷深而频繁，摆动大'),o('They are the most common planets','它们是最常见的行星'),o('They glow brightly in visible light','它们在可见光下很亮'),o('They are the closest to Earth','它们离地球最近')], answer:0},
+  {q:o('The habitable zone of a cool red dwarf is…','一颗低温红矮星的宜居带……'), options:[o('much closer to the star than Earth is to the Sun','离恒星比地球离太阳近得多'),o('farther out than Earth’s orbit','比地球轨道更远'),o('exactly 1 AU away','正好在 1 天文单位处'),o('it has no habitable zone','它没有宜居带')], answer:0, explain:o('TRAPPIST-1’s zone is only about 0.025–0.05 AU from the star.','TRAPPIST-1 的宜居带离恒星只有约 0.025–0.05 天文单位。')},
+  {q:o('Mars is inside the Sun’s habitable zone, so why is its water frozen?','火星在太阳的宜居带内，为什么它的水是冻住的？'), options:[o('It is too small to keep a thick atmosphere to trap heat','它太小，留不住能保温的厚大气'),o('It is outside the zone','它在宜居带外面'),o('It has no water at all','它根本没有水'),o('The Sun is too hot','太阳太热了')], answer:0, explain:o('The zone assumes Earth-like air. Mars has only about 1% of Earth’s air pressure.','宜居带假设行星有像地球一样的大气。火星的气压只有地球的约 1%。')},
+  {q:o('Which pair of measurements together tells us a planet’s density (rock or gas)?','哪两个测量结合起来能告诉我们行星的密度（岩石还是气体）？'), options:[o('Size from a transit + mass from radial velocity','凌星测出的大小 + 视向速度测出的质量'),o('Period + temperature','周期 + 温度'),o('Star color + distance','恒星颜色 + 距离'),o('Two transits of the same planet','同一颗行星的两次凌星')], answer:0}
+], { count:12 });
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'t',en:'Transit',zh:'凌星法'},{id:'r',en:'Radial velocity',zh:'视向速度法'},{id:'b',en:'Both methods',zh:'两种方法都是'}],
+  items:[
+    {en:'A tiny dip in the star’s brightness',zh:'恒星亮度的微小下降',bin:'t'},{en:'Tells us the planet’s size (radius)',zh:'告诉我们行星的大小（半径）',bin:'t'},{en:'Only works if the orbit is edge-on to us',zh:'只有轨道侧对我们时才有效',bin:'t'},
+    {en:'Used by the Kepler and TESS space telescopes',zh:'开普勒和 TESS 太空望远镜使用的方法',bin:'t'},{en:'Spectral lines shift back and forth',zh:'谱线来回移动',bin:'r'},{en:'Tells us the planet’s mass',zh:'告诉我们行星的质量',bin:'r'},
+    {en:'Found 51 Pegasi b in 1995',zh:'1995 年发现了飞马座 51b',bin:'r'},{en:'Measures the star’s speed in m/s',zh:'以米/秒测量恒星的速度',bin:'r'},{en:'Needs a super-precise spectrograph',zh:'需要超精密的光谱仪',bin:'r'},
+    {en:'Tells us the length of the planet’s year',zh:'告诉我们行星一年有多长',bin:'b'},{en:'Easiest for big planets close to their star',zh:'对离恒星很近的大行星最容易',bin:'b'},{en:'Small stars give a bigger signal',zh:'小恒星给出的信号更大',bin:'b'}
+  ]
+});
+
+/* ======================= init ======================= */
+selectInfo('hot'); huntNewSet(); rvPresets(); rvOutputs(); hzPresets(); hzOutputs();
+
+
+</script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const E = window.EXO, TR = E.TR, V3 = THREE.Vector3;
+const ctx = Lab3D.stage('#stage', { THREE, OrbitControls, camera:[0, 5.5, 15], target:[0, 0, 0], minDistance:3, maxDistance:60, lights:false, fov:40 });
+const { scene, camera } = ctx;
+const K = () => camera.aspect < 1.2 ? 1.25 / camera.aspect : 1;
+const POSE_TILT = () => [[0, 5.5 * K(), 15 * K()], [0, 0, 0]], POSE_SIDE = () => [[0, .25, 16.5 * K()], [0, 0, 0]];
+camera.position.set(...POSE_TILT()[0]);
+scene.add(new THREE.AmbientLight(0xffffff, .18));
+const sunL = new THREE.PointLight(0xffffff, 3, 0, 0); scene.add(sunL);
+let seed = 5; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+(function stars(n = 1800, R = 260){ const p = new Float32Array(n * 3); for (let i = 0; i < n; i++){ const u = rnd() * 2 - 1, a = rnd() * Math.PI * 2, s = Math.sqrt(1 - u * u); p.set([R * s * Math.cos(a), R * u, R * s * Math.sin(a)], i * 3); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(p, 3)); scene.add(new THREE.Points(g, new THREE.PointsMaterial({ size:1.3, sizeAttenuation:false, color:0xdfe6ff, transparent:true, opacity:.7, depthWrite:false }))); })();
+const cvTex = (draw, w = 256, h = 128) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; };
+/* star */
+const star = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 48), new THREE.MeshBasicMaterial({ color:0xffffff }));
+star.material.map = cvTex((g, w, h) => { g.fillStyle = '#fff'; g.fillRect(0, 0, w, h); for (let i = 0; i < 900; i++){ g.fillStyle = `rgba(120,60,0,${.02 + rnd() * .03})`; g.beginPath(); g.arc(rnd() * w, rnd() * h, 1 + rnd() * 3, 0, 7); g.fill(); } });
+scene.add(star); ctx.pickable(star, 'star');
+const glowMat = new THREE.SpriteMaterial({ map:cvTex((g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,.9)'); gr.addColorStop(.35, 'rgba(255,255,255,.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); }, 128, 128), transparent:true, depthWrite:false, blending:THREE.AdditiveBlending });
+const glow = new THREE.Sprite(glowMat); scene.add(glow);
+/* planet with a texture that depends on its size */
+const planet = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 32), new THREE.MeshStandardMaterial({ roughness:.85 })); scene.add(planet); ctx.pickable(planet, 'planet');
+const pPick = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), new THREE.MeshBasicMaterial({ visible:false })); planet.add(pPick); pPick.scale.setScalar(1); ctx.pickable(pPick, 'planet');
+const TEX = {
+  rock:cvTex((g, w, h) => { g.fillStyle = '#8a7a6a'; g.fillRect(0, 0, w, h); for (let i = 0; i < 400; i++){ g.fillStyle = rnd() < .5 ? 'rgba(60,50,40,.35)' : 'rgba(200,180,150,.25)'; g.beginPath(); g.arc(rnd() * w, rnd() * h, 2 + rnd() * 8, 0, 7); g.fill(); } }),
+  ice:cvTex((g, w, h) => { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#9fd8e8'); gr.addColorStop(.5, '#5fa8d8'); gr.addColorStop(1, '#9fd8e8'); g.fillStyle = gr; g.fillRect(0, 0, w, h); for (let y = 0; y < h; y += 6){ g.fillStyle = `rgba(255,255,255,${rnd() * .12})`; g.fillRect(0, y, w, 3); } }),
+  gas:cvTex((g, w, h) => { const c = ['#d9b48a', '#b88a5a', '#efdcbc', '#a8764a', '#e6cfa6']; for (let y = 0; y < h; y += 8){ g.fillStyle = c[(y / 8 + Math.floor(rnd() * 2)) % c.length]; g.fillRect(0, y, w, 8); } g.fillStyle = 'rgba(180,90,60,.7)'; g.beginPath(); g.ellipse(w * .6, h * .62, 14, 7, 0, 0, 7); g.fill(); })
+};
+let pType = null;
+/* orbit ring + line of sight */
+const ringPts = []; for (let k = 0; k <= 160; k++){ const a = k / 160 * Math.PI * 2; ringPts.push(new V3(Math.sin(a), 0, Math.cos(a))); }
+const ring = new THREE.Line(new THREE.BufferGeometry().setFromPoints(ringPts), new THREE.LineBasicMaterial({ color:0x9fb3ff, transparent:true, opacity:.35 })); scene.add(ring);
+const sight = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new V3(0, 0, 0), new V3(0, 0, 1)]), new THREE.LineDashedMaterial({ color:0xffe08a, dashSize:.25, gapSize:.2, transparent:true, opacity:.6 }));
+sight.computeLineDistances(); scene.add(sight);
+const earthTag = new THREE.Object3D(); scene.add(earthTag);
+let pBig = false;
+const labels = { star:ctx.label({ en:'Star', zh:'恒星' }, star, { offset:[0, 1.2, 0] }), planet:ctx.label(() => Lab.L(pBig ? { en:'Planet (drawn bigger)', zh:'行星（画大了）' } : { en:'Planet', zh:'行星' }), planet, { offset:[0, .45, 0] }),
+  earth:ctx.label({ en:'↓ toward Earth', zh:'↓ 朝向地球' }, earthTag) };
+
+ctx.hoverText(k => Lab.L(E.INFO[k].name));
+ctx.onPick(k => { if (k){ if (story.active) story.stop(); E.selectInfo(k); } });
+/* per frame */
+ctx.onFrame(dt => {
+  const { G, V, phiVis } = E.advance(dt);
+  const col = E.bbColor(G.T), c = new THREE.Color(`rgb(${col[0]},${col[1]},${col[2]})`);
+  star.scale.setScalar(V.sv); star.material.color.copy(c); glow.material.color.copy(c); glow.scale.setScalar(V.sv * 4.2); sunL.color.copy(c);
+  const type = TR.rp < 2 ? 'rock' : TR.rp < 6 ? 'ice' : 'gas'; if (type !== pType){ pType = type; planet.material.map = TEX[type]; planet.material.needsUpdate = true; }
+  planet.scale.setScalar(V.pv); pPick.scale.setScalar(Math.max(1, .25 / V.pv));
+  const b = G.aRs * Math.sin((TR.tilt || 0) * Math.PI / 180) * V.sv;     // impact parameter, drawn to match the light curve
+  planet.position.set(V.ov * Math.sin(phiVis), b * Math.cos(phiVis), V.ov * Math.cos(phiVis)); planet.rotation.y += dt * .6;
+  ring.scale.set(V.ov, 1, V.ov); ring.rotation.x = -Math.atan2(b, V.ov);
+  sight.scale.set(1, 1, V.ov + 2.5); earthTag.position.set(0, -.25, V.ov + 2.6);
+  pBig = V.big; labels.planet.set(labels.planet.text);
+});
+E.three = { ctx };
+/* buttons */
+let side = false;
+Lab.$('#sideBtn').onclick = () => { side = !side; Lab.$('#sideBtn').classList.toggle('on', side); ctx.flyToPose(...(side ? POSE_SIDE() : POSE_TILT())); };
+const STEPS = [
+  { en:'1 · From light-years away we can’t see the planet, only the star’s total light. This is our view: the orbit is lined up edge-on with Earth.', zh:'1 · 在几光年之外我们看不到行星，只能看到恒星的总亮度。这是我们的视角：轨道恰好侧对地球。' },
+  { en:'2 · Each time the planet passes in front, it blocks a little light and the light curve below dips. Watch the dot in the graph.', zh:'2 · 每当行星从前面经过，它就挡住一点光，下面的光变曲线就会下陷。看图中的圆点。' },
+  { en:'3 · Shrink the planet to Neptune size (4 Earths wide): the dip gets much shallower. Depth depends on the planet’s AREA.', zh:'3 · 把行星缩小到海王星大小（4 个地球宽）：下陷浅了很多。深度取决于行星的“面积”。' },
+  { en:'4 · Move it farther out (0.2 AU): its year gets longer, so the dips are farther apart, and each one lasts longer.', zh:'4 · 把它移远一些（0.2 天文单位）：它的一年变长，下陷之间隔得更远，每次也持续得更久。' },
+  { en:'5 · Same planet, smaller star (0.4 Suns wide): the same shadow now covers a bigger part of the star, so the dip is deeper.', zh:'5 · 同样的行星，换成更小的恒星（太阳宽度的 0.4 倍）：同样的影子遮住了恒星更大的部分，下陷更深。' },
+  { en:'6 · Tilt the orbit by just 8°: the planet passes above the star and there is NO dip. That is why Kepler had to watch about 150,000 stars.', zh:'6 · 把轨道倾斜仅仅 8°：行星从恒星上方经过，没有下陷。这就是开普勒要同时盯着约 15 万颗恒星的原因。' }
+];
+const story = Lab3D.story('#stage', STEPS, i => {
+  TR.tilt = 0; TR.playing = true; Lab.$('#playBtn').classList.add('on');
+  if (i === 0){ E.selectInfo('hot'); side = true; Lab.$('#sideBtn').classList.add('on'); ctx.flyToPose(...POSE_SIDE()); }
+  if (i === 1){ E.selectInfo('hot'); TR.phi = -1.1; }
+  if (i === 2){ E.selectInfo('hot'); E.setTransit({ rp:4 }); TR.phi = -1.1; }
+  if (i === 3){ E.selectInfo('hot'); E.setTransit({ a:.2 }); TR.phi = -1.1; }
+  if (i === 4){ E.selectInfo('hot'); E.setTransit({ rs:.4, ms:null }); TR.phi = -1.1; }
+  if (i === 5){ E.selectInfo('hot'); TR.tilt = 8; TR.trace = []; side = false; Lab.$('#sideBtn').classList.remove('on'); ctx.flyToPose([0, 2.2 * K(), 15 * K()], [0, 0, 0]); }
+}, () => { TR.tilt = 0; TR.trace = []; });
+Lab.$('#storyBtn').onclick = () => story.start();
+
+</script>
+</body>
+</html>

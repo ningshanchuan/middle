@@ -1,0 +1,715 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Scale of the Universe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/photos.js"></script>
+<style>
+/* page-specific styles */
+#stage{min-height:600px}
+#stage .bottombar .pill{background:rgba(12,18,40,.78);color:#eaf0fb;border-color:rgba(255,255,255,.2)}
+#stage .toolbar .tbtn{background:rgba(12,18,40,.78);color:#eaf0fb;border-color:rgba(255,255,255,.2)}
+#stage .toolbar .tbtn.on{background:#eaf0fb;color:#0b1226}
+.zoombar{margin-top:14px}
+.zoombar output{min-width:150px}
+.readout{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-top:14px}
+.readout .counter b{font-size:19px;line-height:1.25;word-break:break-word}
+.cap{font-size:12.5px;color:var(--ink-2);margin:10px 0 0}
+.scenes{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.scenes .chip{font-size:13px;padding:4px 10px}
+#lightBox{min-height:360px;background:radial-gradient(circle at 50% 40%,#16204a,#05070f)}
+#walkBox{min-height:340px}
+#ladderBox{min-height:640px}
+.dest{display:flex;flex-wrap:wrap;gap:6px}
+.racetab{width:100%;border-collapse:collapse;font-size:14px}
+.racetab td,.racetab th{padding:6px 6px;border-bottom:1px solid var(--line);text-align:left}
+.racetab th{font-family:Fredoka;font-weight:600;font-size:14px;background:var(--surface-2)}
+.racetab td:last-child,.racetab th:last-child{text-align:right}
+.walkctl select{border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:10px;padding:6px 8px;font:inherit;font-size:14px;font-weight:700;width:100%}
+.lab-tip{position:absolute;z-index:6;pointer-events:none;background:var(--ink);color:var(--surface);font-weight:700;font-size:13px;padding:5px 9px;border-radius:9px;transform:translate(-50%,-130%);white-space:nowrap;display:none}
+/* order game */
+.og{padding:18px}
+.og-pool{display:flex;flex-wrap:wrap;gap:8px;min-height:46px;margin:10px 0}
+.og-card{border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:999px;padding:6px 12px;font-weight:800;font-size:14px;cursor:grab;touch-action:none;user-select:none;white-space:nowrap}
+.og-card.sel{box-shadow:0 0 0 3px var(--brand)}
+.og-card.drag{position:fixed;z-index:200;pointer-events:none;box-shadow:var(--shadow);opacity:.95}
+.og-track{position:relative;height:300px;border:2px dashed var(--line);border-radius:16px;background:var(--surface);margin-top:8px;overflow:hidden}
+.og-track.ready{border-color:var(--brand)}
+.og-track canvas{position:absolute;inset:0;width:100%;height:100%}
+.og-placed{position:absolute;transform:translate(-50%,-50%);font-size:12.5px;padding:3px 9px}
+.og-placed.good{border-color:var(--good);background:color-mix(in srgb,var(--good) 16%,var(--surface))}
+.og-placed.near{border-color:var(--warn)}
+.og-placed.bad{border-color:var(--bad)}
+.bigfact{font-family:Fredoka;font-size:19px;font-weight:600;color:var(--ink);margin:0}
+@media (max-width:980px){.readout{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:560px){#stage{min-height:460px}.readout{grid-template-columns:1fr 1fr}.og-track{height:340px}}
+</style>
+</head>
+<body data-subject="astronomy" data-topic="scale-universe">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="天文 · 深度探究">Astronomy · Deep dive</span>
+  <h1 data-zh-html="宇宙<em>有多大</em>">The Scale of <em>the Universe</em></h1>
+  <p class="lead" data-zh="如果太阳是一个篮球，地球只是 26 米外的一粒胡椒籽。那离我们最近的恒星在哪里？答案：大约 6900 千米外，差不多是从亚特兰大到伦敦那么远！在这里，你会以 10 的倍数缩放，从一个孩子一直放大到可观测宇宙的边缘。">If the Sun were a basketball, Earth would be a peppercorn 26 meters (85 feet) away. So where would the nearest star be? About 6,900 km (4,300 miles) away: roughly Atlanta to London! Here you will zoom by powers of ten, from a kid all the way out to the edge of the observable universe.</p>
+  <p class="lead" style="margin-top:8px;font-size:16px" data-zh="🎯 学完后你能：用 10 的幂表示巨大的距离；在千米、天文单位和光年之间换算；解释为什么太空几乎全是空的。"><b>🎯 You’ll be able to:</b> write huge distances as powers of ten, convert between km, astronomical units and light-years, and explain why space is mostly empty.</p>
+</header>
+
+<section class="wrap" id="zoom" data-nav="Powers of ten" data-nav-zh="10 的幂">
+  <div class="explorer">
+    <div class="stage card space" id="stage">
+      <canvas id="zoomCv"></canvas>
+      <div class="toolbar">
+        <button class="tbtn" id="zPrev" data-zh="◀ 上一站">◀ Previous stop</button>
+        <button class="tbtn" id="zNext" data-zh="下一站 ▶">Next stop ▶</button>
+        <button class="tbtn" id="zHome" data-zh="⌂ 回到孩子">⌂ Back to the kid</button>
+      </div>
+      <div class="bottombar"><div class="pill" id="zScene">–</div></div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="timebar zoombar"><button id="zPlay" aria-label="Play">▶</button><input type="range" id="zSl" min="0" max="27.2" step="0.01" value="0.4" aria-label="Zoom (power of ten)"><output id="zOut">10⁰ m</output></div>
+  <div class="scenes" id="sceneChips"></div>
+  <div class="readout">
+    <div class="counter"><b id="rM">–</b><span data-zh="视野宽度（米）">view width (meters)</span></div>
+    <div class="counter"><b id="rKm">–</b><span data-zh="千米">kilometers</span></div>
+    <div class="counter"><b id="rMi">–</b><span data-zh="英里">miles</span></div>
+    <div class="counter"><b id="rAu">–</b><span data-zh="天文单位（日地距离 = 1）">astronomical units (Earth–Sun = 1)</span></div>
+    <div class="counter"><b id="rLy">–</b><span data-zh="光年">light-years</span></div>
+    <div class="counter"><b id="rLt">–</b><span data-zh="光穿过这个视野需要">light takes this long to cross the view</span></div>
+  </div>
+  <p class="cap" data-zh="每一站的天体都按真实比例画出（太小时会画成至少几个像素的点）；距离来自 NASA 行星资料、JPL 轨道根数和常用天文数据，均为近似值。银河系、宇宙网等远景是示意图，标注了真实尺寸。">Every stop is drawn to real scale (objects too small to see are drawn as dots a few pixels wide). Distances come from NASA fact sheets, JPL orbital elements and standard astronomy values, rounded. The Milky Way, the cosmic web and other far views are illustrations drawn at their real sizes.</p>
+</section>
+
+<section class="wrap" id="light" data-nav="Light speed" data-nav-zh="光速旅行">
+  <div class="sec-head">
+    <h2 data-zh="模拟：以光速旅行">Simulation: travel at the speed of light</h2>
+    <p data-zh="光每秒走 299,792 千米，是宇宙中最快的速度。选一个目的地，发出一束光，再用“时间加速”控制模拟时钟。旁边的赛道上还有汽车、喷气式客机、旅行者 1 号和帕克太阳探测器在和光赛跑！">Light travels 299,792 km every second, the fastest speed in the universe. Pick a destination, send a pulse of light, and control the simulated clock with the time warp. A car, a jet airliner, Voyager 1 and the Parker Solar Probe race the light too!</p>
+  </div>
+  <div class="sim">
+    <div class="card simbox" id="lightBox"><canvas id="lightCv"></canvas></div>
+    <div class="card simside">
+      <div class="dest" id="destChips"></div>
+      <label class="ctl"><span data-zh="时间加速（模拟时间 ÷ 真实时间）">Time warp (simulated time ÷ real time)</span><b id="warpTxt">–</b><input type="range" id="warp" min="0" max="14" step="0.05" value="0"></label>
+      <div class="btnrow"><button class="btn" id="lPlay" data-zh="▶ 发射光束">▶ Send the light</button><button class="btn ghost" id="lReset" data-zh="↺ 重来">↺ Reset</button><button class="btn ghost" id="lAuto" data-zh="⏱ 自动加速">⏱ Auto warp</button></div>
+      <div class="counters">
+        <div class="counter"><b id="lElapsed">0 s</b><span data-zh="模拟时钟（光已经飞了多久）">simulated clock (light has flown for)</span></div>
+        <div class="counter"><b id="lTotal">–</b><span data-zh="光到达需要的总时间">total time for light to arrive</span></div>
+      </div>
+      <table class="racetab"><thead><tr><th data-zh="选手">Racer</th><th data-zh="速度">Speed</th><th data-zh="到达需要">Time to get there</th></tr></thead><tbody id="raceBody"></tbody></table>
+      <p class="cap" data-zh="速度：汽车 65 英里/时（约 105 千米/时）；客机约 900 千米/时；旅行者 1 号约 17 千米/秒；帕克太阳探测器最快约 192 千米/秒（2024 年创下的纪录）。火星和旅行者 1 号的距离按今天的日期计算，为近似值。">Speeds: car 65 mph (about 105 km/h); airliner about 900 km/h; Voyager 1 about 17 km/s; Parker Solar Probe up to about 192 km/s (its 2024 record). The distances to Mars and Voyager 1 are computed for today’s date and are approximate.</p>
+    </div>
+  </div>
+
+  <div class="sec-head" style="margin-top:34px">
+    <h2 data-zh="模拟：走一走缩小的太阳系">Simulation: walk a shrunken solar system</h2>
+    <p data-zh="把太阳缩小成一个篮球放在球场端线上，然后开始走。行星的大小和距离都按同一个比例缩小。数一数：要走过多少个美式橄榄球场才能到海王星？">Shrink the Sun to a basketball on a goal line and start walking. The planets’ sizes and distances are shrunk by the same amount. Count how many US football fields you cross before you reach Neptune!</p>
+  </div>
+  <div class="sim">
+    <div class="card simbox" id="walkBox"><canvas id="walkCv"></canvas></div>
+    <div class="card simside walkctl">
+      <label class="ctl"><span data-zh="太阳的大小相当于">Make the Sun the size of</span><select id="ballSel"></select></label>
+      <div class="timebar"><button id="wPlay" aria-label="Walk">▶</button><input type="range" id="wSl" min="0" max="1000" step="0.1" value="0" aria-label="Distance walked"><output id="wOut">0 m</output></div>
+      <div class="counters">
+        <div class="counter"><b id="wFields">0</b><span data-zh="走过的橄榄球场（每个 100 码 = 91.44 米）">football fields walked (100 yd = 91.44 m each)</span></div>
+        <div class="counter"><b id="wTime">0 s</b><span data-zh="以正常步速走需要的时间">time at a normal walking pace</span></div>
+      </div>
+      <p class="bigfact" id="wNear">–</p>
+      <p class="cap" data-zh="比例：太阳直径 1,392,700 千米；行星为平均轨道半径和赤道直径（NASA 行星资料）。步速按 1.4 米/秒（约 3 英里/时）。">Scale: Sun diameter 1,392,700 km; planets use average orbit radius and equatorial diameter (NASA Planetary Fact Sheet). Walking pace 1.4 m/s (about 3 mph).</p>
+    </div>
+  </div>
+  <div class="card table-wrap" style="margin-top:14px"><table class="lab"><thead><tr><th data-zh="天体">Object</th><th data-zh="缩小后的大小">Shrunk size</th><th data-zh="离“太阳”有多远">Distance from the “Sun”</th></tr></thead><tbody id="walkBody"></tbody></table></div>
+</section>
+
+<section class="wrap" id="ladder" data-nav="Size ladder" data-nav-zh="尺度阶梯">
+  <div class="sec-head">
+    <h2 data-zh="图表：宇宙的尺度阶梯（对数刻度）">Figure: the cosmic size ladder (log scale)</h2>
+    <p data-zh="横轴上每一格都比前一格大 1000 倍。实心点是物体的大小，空心圈是距离。把鼠标移到点上看具体数值。">Each grid step to the right is 1,000 times bigger than the one before. Filled dots are the sizes of things; hollow rings are distances. Hover over a point for its value.</p>
+  </div>
+  <div class="card simbox" id="ladderBox"><canvas id="ladderCv"></canvas><div class="lab-tip" id="ladTip"></div></div>
+  <p class="cap" data-zh="数据：NASA 行星资料、JPL、常用天文数据（取整）。银河系直径、本超星系团和可观测宇宙的大小都是近似值。">Data: NASA Planetary Fact Sheet, JPL and standard astronomy values (rounded). The Milky Way’s diameter, the Laniakea supercluster and the observable universe are approximate.</p>
+
+  <div class="sec-head" style="margin-top:30px"><h2 data-zh="数据表：真实的距离">Table: real distances</h2>
+    <p data-zh="1 天文单位（AU）= 日地平均距离 ≈ 1.496 亿千米；1 光年 ≈ 9.46 万亿千米。">1 astronomical unit (AU) = the average Earth–Sun distance ≈ 149.6 million km; 1 light-year ≈ 9.46 trillion km (5.88 trillion miles).</p></div>
+  <div class="card table-wrap"><table class="lab" id="distTable"></table></div>
+
+  <div class="sec-head" style="margin-top:30px">
+    <h2 data-zh="游戏：按大小排队">Game: put the universe in order</h2>
+    <p data-zh="把下面 10 张卡片拖到对数刻度上它们大小（或距离）对应的位置（在手机上：先点卡片，再点刻度）。然后按“检查”。误差在 10 倍以内得 10 分！">Drag the 10 cards onto the log scale where you think each size (or distance) belongs. (On a phone: tap a card, then tap the scale.) Then press Check. Within a factor of 10 scores full points!</p>
+  </div>
+  <div class="card og">
+    <div class="og-pool" id="ogPool"></div>
+    <div class="og-track" id="ogTrack"><canvas id="ogCv"></canvas></div>
+    <div class="btnrow" style="margin-top:12px"><button class="btn" id="ogCheck" data-zh="✔ 检查">✔ Check</button><button class="btn ghost" id="ogNew" data-zh="↺ 新的一轮">↺ New round</button></div>
+    <div class="result" id="ogMsg" style="margin-top:8px"></div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real photos" data-nav-zh="真实影像">
+  <div id="gallery"></div>
+</section>
+
+<section class="wrap" id="links" data-nav="Go further" data-nav-zh="继续探索">
+  <div class="sec-head"><h2 data-zh="继续探索">Go further</h2>
+    <p data-zh="这些网站能让你继续“缩放”宇宙，全部免费。">Keep zooming through the universe with these free tools.</p></div>
+  <div class="linkgrid" id="linkGrid"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 宇宙尺度测验">🧠 Cosmic scale quiz</h3><p class="sub" data-zh="选出正确答案。有些题要用到上面的图表。">Pick the best answer. Some questions use the figures above.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 它在哪里？">🗂️ Where is it?</h3><p class="sub" data-zh="把每个天体放进正确的“地址”。">Put each object at its correct “address”.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="对应佐治亚州标准 S6E1（宇宙的科学观点：太阳系、恒星、星系的相对大小与距离；光年等单位）。10 的幂缩放、光速旅行和“篮球太阳系”都使用真实数据（NASA 行星资料、JPL 轨道根数），缩放视图中的天体按真实比例画出。">Supports GSE S6E1 (scientific views of the universe: the relative sizes and distances of the solar system, stars and galaxies; units such as the light-year). The powers-of-ten zoom, the light-speed race and the basketball solar system all use real data (NASA Planetary Fact Sheet, JPL orbital elements), and objects in the zoom are drawn at true scale.</p>
+    <p data-zh="超出六年级的内容：科学记数法与对数刻度；光行时间（我们看到的总是过去）；宇宙膨胀使“光走了多久”和“现在有多远”不再相等（最远的光走了 138 亿年，但发光的物质现在约在 460 亿光年外）。">This goes beyond grade 6: scientific notation and logarithmic scales; light-travel time (we always see the past); and cosmic expansion, which makes “how long the light travelled” different from “how far away it is now” (the oldest light travelled for 13.8 billion years, but the matter that emitted it is now about 46 billion light-years away).</p>
+    <p data-zh="活动建议：在操场或街道上用真实篮球和胡椒籽搭建“篮球太阳系”（地球在 26 米处，木星在 134 米处）；让学生在缩放模拟中记录每一站的视野宽度，并改写成科学记数法。">Activities: build the basketball solar system outdoors with a real ball and peppercorns (Earth at 26 m, Jupiter at 134 m); have students record the view width at each zoom stop and rewrite it in scientific notation.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+const o = (en, zh) => ({en, zh});
+const D2R = Math.PI / 180;
+const isZh = () => Lab.lang === 'zh';
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const sstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+const PZ = s => isZh() ? "（" + s + "）" : " (" + s + ")";
+const nf = (x, d = 0) => Number(x).toLocaleString('en-US', { maximumFractionDigits:d, minimumFractionDigits:d });
+/* ===== units & formatting ===== */
+const C_LIGHT = 299792458, AU = 1.495978707e11, LY = 9.4607e15, MILE = 1609.344, KM = 1000;
+const sup = n => String(n).replace(/[-0-9]/g, c => '⁻⁰¹²³⁴⁵⁶⁷⁸⁹'['-0123456789'.indexOf(c)]);
+const sig = (x, n = 3) => Number(Number(x).toPrecision(n));
+function sci(x, n = 2){ if (x === 0) return '0'; const e = Math.floor(Math.log10(Math.abs(x))), m = x / Math.pow(10, e); return (m.toFixed(n - 1).replace(/\.0+$/, '')) + ' × 10' + sup(e); }
+function words(x){ // readable big/small numbers in the current language
+  const a = Math.abs(x);
+  if (a === 0) return '0';
+  if (a < 0.001) return sci(x);
+  if (a < 1) return String(sig(x, 2));
+  if (a < 1e4) return nf(sig(x, 3), a < 10 ? 2 : a < 100 ? 1 : 0);
+  if (isZh()){
+    if (a < 1e8) return nf(sig(x / 1e4, 3), 1).replace(/\.0$/, '') + ' 万';
+    if (a < 1e12) return nf(sig(x / 1e8, 3), 1).replace(/\.0$/, '') + ' 亿';
+    if (a < 1e16) return nf(sig(x / 1e12, 3), 1).replace(/\.0$/, '') + ' 万亿';
+    return sci(x);
+  }
+  if (a < 1e6) return nf(sig(x, 3));
+  if (a < 1e9) return nf(sig(x / 1e6, 3), 1).replace(/\.0$/, '') + ' million';
+  if (a < 1e12) return nf(sig(x / 1e9, 3), 1).replace(/\.0$/, '') + ' billion';
+  if (a < 1e15) return nf(sig(x / 1e12, 3), 1).replace(/\.0$/, '') + ' trillion';
+  return sci(x);
+}
+const U = { ns:o('nanoseconds','纳秒'), us:o('microseconds','微秒'), ms:o('milliseconds','毫秒'), s:o('seconds','秒'), min:o('minutes','分钟'), h:o('hours','小时'), d:o('days','天'), y:o('years','年') };
+function dur(sec){ // human duration
+  const Y = 365.25 * 86400, u = k => (isZh() ? ' ' : ' ') + Lab.L(U[k]);
+  if (sec < 1e-6) return words(sig(sec * 1e9, 2)) + u('ns');
+  if (sec < 1e-3) return words(sig(sec * 1e6, 2)) + u('us');
+  if (sec < 1) return words(sig(sec * 1e3, 2)) + u('ms');
+  if (sec < 120) return words(sig(sec, 3)) + u('s');
+  if (sec < 7200) return words(sig(sec / 60, 3)) + u('min');
+  if (sec < 3 * 86400) return words(sig(sec / 3600, 3)) + u('h');
+  if (sec < 2 * Y) return words(sig(sec / 86400, 3)) + u('d');
+  return words(sig(sec / Y, 3)) + u('y');
+}
+/* ===== real planet positions for today (JPL approximate elements, J2000 ecliptic) ===== */
+const KEP = {
+  mercury:[0.38709927,0.20563593,7.00497902,252.25032350,77.45779628,48.33076593, 0.00000037,0.00001906,-0.00594749,149472.67411175,0.16047689,-0.12534081],
+  venus:  [0.72333566,0.00677672,3.39467605,181.97909950,131.60246718,76.67984255, 0.00000390,-0.00004107,-0.00078890,58517.81538729,0.00268329,-0.27769418],
+  earth:  [1.00000261,0.01671123,-0.00001531,100.46457166,102.93768193,0, 0.00000562,-0.00004392,-0.01294668,35999.37244981,0.32327364,0],
+  mars:   [1.52371034,0.09339410,1.84969142,-4.55343205,-23.94362959,49.55953891, 0.00001847,0.00007882,-0.00813131,19140.30268499,0.44441088,-0.29257343],
+  jupiter:[5.20288700,0.04838624,1.30439695,34.39644051,14.72847983,100.47390909, -0.00011607,-0.00013253,-0.00183714,3034.74612775,0.21252668,0.20469106],
+  saturn: [9.53667594,0.05386179,2.48599187,49.95424423,92.59887831,113.66242448, -0.00125060,-0.00050991,0.00193609,1222.49362201,-0.41897216,-0.28867794],
+  uranus: [19.18916464,0.04725744,0.77263783,313.23810451,170.95427630,74.01692503, -0.00196176,-0.00004397,-0.00242939,428.48202785,0.40805281,0.04240589],
+  neptune:[30.06992276,0.00859048,1.77004347,-55.12002969,44.96476227,131.78422574, 0.00026291,0.00005105,0.00035372,218.45945325,-0.32241464,-0.00508664]
+};
+function kepler(p, T){
+  const k = KEP[p], a = k[0] + k[6] * T, e = k[1] + k[7] * T, I = (k[2] + k[8] * T) * D2R, L = k[3] + k[9] * T, W = k[4] + k[10] * T, N = k[5] + k[11] * T;
+  const w = (W - N) * D2R, Om = N * D2R, M = (((L - W) % 360 + 540) % 360 - 180) * D2R;
+  let E = M + e * Math.sin(M); for (let j = 0; j < 8; j++) E -= (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
+  const xp = a * (Math.cos(E) - e), yp = a * Math.sqrt(1 - e * e) * Math.sin(E), cw = Math.cos(w), sw = Math.sin(w), cO = Math.cos(Om), sO = Math.sin(Om), cI = Math.cos(I);
+  return [(cw * cO - sw * sO * cI) * xp + (-sw * cO - cw * sO * cI) * yp, (cw * sO + sw * cO * cI) * xp + (-sw * sO + cw * cO * cI) * yp];
+}
+const TODAY = Date.now(), T_NOW = (TODAY / 86400000 + 2440587.5 - 2451545) / 36525, YEAR_NOW = 1970 + TODAY / (365.25 * 86400000);
+const POS = {}; Object.keys(KEP).forEach(p => POS[p] = kepler(p, T_NOW));
+const marsDistAU = Math.hypot(POS.mars[0] - POS.earth[0], POS.mars[1] - POS.earth[1]);
+const voyagerAU = 172.4 + 3.58 * (YEAR_NOW - 2026.88);   // 172.4 AU from the Sun on 17 Nov 2026 (JPL Horizons), ≈ 1 light-day (173 AU) from Earth, moving ~3.6 AU per year (approximate)
+const todayStr = new Date(TODAY).toISOString().slice(0, 10);
+/* planets: name, diameter (km), average distance from Sun (AU), colour — NASA Planetary Fact Sheet */
+const PL = [
+  { id:'mercury', n:o('Mercury','水星'), d:4879, a:0.387, c:'#b9b0a4', like:o('a grain of sand','一粒沙') },
+  { id:'venus', n:o('Venus','金星'), d:12104, a:0.723, c:'#f2d9a0', like:o('a peppercorn','一粒胡椒籽') },
+  { id:'earth', n:o('Earth','地球'), d:12756, a:1.000, c:'#5aa0ff', like:o('a peppercorn','一粒胡椒籽') },
+  { id:'mars', n:o('Mars','火星'), d:6792, a:1.524, c:'#ff7b4f', like:o('a mustard seed','一粒芥菜籽') },
+  { id:'jupiter', n:o('Jupiter','木星'), d:142984, a:5.203, c:'#e8c896', like:o('a big grape','一颗大葡萄') },
+  { id:'saturn', n:o('Saturn','土星'), d:120536, a:9.537, c:'#f1d48a', like:o('a grape','一颗葡萄') },
+  { id:'uranus', n:o('Uranus','天王星'), d:51118, a:19.19, c:'#9fe0e8', like:o('a pea','一粒豌豆') },
+  { id:'neptune', n:o('Neptune','海王星'), d:49528, a:30.07, c:'#6b8cff', like:o('a pea','一粒豌豆') }
+];
+const SUN_D = 1392700; // km
+/* ===== Powers-of-ten zoom ===== */
+function rng(seed){ return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const PROC = (() => {
+  const P = {}, r1 = rng(7);
+  P.ast = Array.from({ length:420 }, () => { const r = (2.2 + r1() * 1.1) * AU, t = r1() * 6.2832; return [r * Math.cos(t), r * Math.sin(t)]; });
+  P.kui = Array.from({ length:520 }, () => { const r = (30 + r1() * 20) * AU, t = r1() * 6.2832; return [r * Math.cos(t), r * Math.sin(t)]; });
+  P.oort = Array.from({ length:1400 }, () => { const r = Math.pow(10, Math.log10(2000) + r1() * (Math.log10(100000) - Math.log10(2000))) * AU, t = r1() * 6.2832, ph = Math.acos(2 * r1() - 1); return [r * Math.sin(ph) * Math.cos(t), r * Math.sin(ph) * Math.sin(t)]; });
+  const r2 = rng(11); P.mw = []; // Milky Way: bar + 4 arms (illustration)
+  for (let i = 0; i < 2600; i++){ const arm = i % 4, t = r2() * 4.0, rr = 4500 * Math.exp(0.6 * t) * LY, th = t + arm * Math.PI / 2 + (r2() - 0.5) * 0.35; if (rr > 52000 * LY) continue; P.mw.push([rr * Math.cos(th) + (r2() - 0.5) * 2500 * LY, rr * Math.sin(th) + (r2() - 0.5) * 2500 * LY, r2()]); }
+  for (let i = 0; i < 900; i++){ const rr = Math.abs((r2() + r2() + r2() - 1.5)) * 9000 * LY, th = r2() * 6.2832; P.mw.push([rr * Math.cos(th) * 1.7, rr * Math.sin(th) * 0.8, r2()]); }
+  const r3 = rng(23), MLY = 1e6 * LY; P.webN = Array.from({ length:70 }, () => [(r3() - 0.5) * 1400 * MLY, (r3() - 0.5) * 1400 * MLY, 0.4 + r3()]); P.web = [];
+  P.webN.forEach((a, i) => { const nb = P.webN.map((b, j) => [Math.hypot(a[0] - b[0], a[1] - b[1]), j]).sort((x, y) => x[0] - y[0]).slice(1, 3);
+    nb.forEach(([d, j]) => { if (j < i) return; const b = P.webN[j], n = Math.round(d / (4 * MLY)); for (let s = 0; s < n; s++){ const t = r3(); P.web.push([a[0] + (b[0] - a[0]) * t + (r3() - 0.5) * 18 * MLY, a[1] + (b[1] - a[1]) * t + (r3() - 0.5) * 18 * MLY]); } });
+    for (let s = 0; s < 40 * a[2]; s++){ const rr = r3() * 20 * MLY, th = r3() * 6.2832; P.web.push([a[0] + rr * Math.cos(th), a[1] + rr * Math.sin(th)]); } });
+  const r4 = rng(31), GLY = 1e9 * LY; P.uni = [];
+  const nodes = Array.from({ length:160 }, () => { const rr = Math.sqrt(r4()) * 46 * GLY, th = r4() * 6.2832; return [rr * Math.cos(th), rr * Math.sin(th)]; });
+  nodes.forEach((a, i) => { const nb = nodes.map((b, j) => [Math.hypot(a[0] - b[0], a[1] - b[1]), j]).sort((x, y) => x[0] - y[0]).slice(1, 3);
+    nb.forEach(([d, j]) => { if (j < i) return; const b = nodes[j]; for (let s = 0; s < 30; s++){ const t = r4(); P.uni.push([a[0] + (b[0] - a[0]) * t + (r4() - 0.5) * 0.6 * GLY, a[1] + (b[1] - a[1]) * t + (r4() - 0.5) * 0.6 * GLY]); } }); });
+  return P;
+})();
+/* stars by right ascension (hours) and distance (ly): angle = direction around the sky, radius = true distance */
+const NEAR = [ ['Alpha Centauri','南门二',14.66,4.37,'#fff1c8'], ['Barnard’s Star','巴纳德星',17.96,5.96,'#ff9b6b'], ['Wolf 359','沃夫 359',10.94,7.86,'#ff8a5c'], ['Lalande 21185','拉兰德 21185',11.06,8.31,'#ff9b6b'],
+  ['Sirius','天狼星',6.75,8.6,'#cad8ff'], ['Luyten 726-8','鲸鱼座 UV',1.65,8.7,'#ff8a5c'], ['Ross 154','罗斯 154',18.83,9.7,'#ff8a5c'], ['Epsilon Eridani','天苑四',3.55,10.5,'#ffd9a0'],
+  ['Ross 128','罗斯 128',11.79,11.0,'#ff8a5c'], ['61 Cygni','天鹅座 61',21.12,11.4,'#ffc98f'], ['Procyon','南河三',7.65,11.5,'#fff6e6'], ['Tau Ceti','天仓五',1.73,11.9,'#ffeab5'] ];
+const FAR = [ ['Vega','织女星',18.6,25,'#d8e2ff'], ['Arcturus','大角星',14.26,37,'#ffc98f'], ['Aldebaran','毕宿五',4.6,65,'#ffb37a'], ['Polaris','北极星',2.53,430,'#fff3dc'], ['Pleiades','昴星团',3.79,444,'#b9cdff'],
+  ['Betelgeuse','参宿四',5.92,550,'#ff9f72'], ['Antares','心宿二',16.49,550,'#ff8f62'], ['Rigel','参宿七',5.24,860,'#b9cdff'], ['Orion Nebula','猎户座大星云',5.59,1344,'#ff9fd0'] ];
+const GA = [[35.0,-85.61],[35.0,-83.11],[34.48,-83.05],[33.95,-82.4],[33.47,-81.97],[32.9,-81.5],[32.5,-81.2],[32.08,-80.88],[31.6,-81.15],[31.15,-81.4],[30.72,-81.45],[30.38,-82.05],[30.58,-82.4],[30.69,-84.86],[31.0,-85.0],[31.6,-85.07],[32.46,-84.99],[32.85,-85.18],[35.0,-85.61]];
+const gaXY = ([la, lo]) => [(lo + 84.39) * Math.cos(33.75 * D2R) * 111320, (la - 33.75) * 110570]; // metres from Atlanta
+const ZS = { G:null, K:1, CX:0, CY:0, A:1, ox:0, oy:0, W:0, H:0 };
+const sx = m => ZS.CX + (m - ZS.ox) * ZS.K, sy = m => ZS.CY - (m - ZS.oy) * ZS.K;
+function disc(x, y, r, fill, min = 2){ const g = ZS.G, R = Math.max(min, r * ZS.K), X = sx(x), Y = sy(y);
+  if (R > 2e5){ if (Math.hypot(X - ZS.W / 2, Y - ZS.H / 2) < R){ g.fillStyle = fill; g.fillRect(0, 0, ZS.W, ZS.H); } return R; }
+  if (X + R < 0 || X - R > ZS.W || Y + R < 0 || Y - R > ZS.H) return R; g.fillStyle = fill; g.beginPath(); g.arc(X, Y, R, 0, 6.2832); g.fill(); return R; }
+function ring(x, y, r, stroke, dash, lw = 1.2){ const R = r * ZS.K; if (R < 2 || R > 3e5) return; const g = ZS.G; g.save(); g.strokeStyle = stroke; g.lineWidth = lw; if (dash) g.setLineDash(dash); g.beginPath(); g.arc(sx(x), sy(y), R, 0, 6.2832); g.stroke(); g.restore(); }
+function label(x, y, s, dx = 8, dy = -8, col = '#dbe5fb', size = 13, align = 'left'){ const X = sx(x) + dx, Y = sy(y) + dy; if (ZS.A < 0.25 || X < -200 || X > ZS.W + 200 || Y < 8 || Y > ZS.H - 8) return; const g = ZS.G; g.font = `800 ${size}px Nunito, sans-serif`; g.textAlign = align; g.textBaseline = 'middle';
+  g.lineWidth = 3; g.strokeStyle = 'rgba(5,8,18,.75)'; g.strokeText(s, X, Y); g.fillStyle = col; g.fillText(s, X, Y); }
+function dots(list, col, size){ const g = ZS.G; g.fillStyle = col; for (const p of list){ const X = sx(p[0]), Y = sy(p[1]); if (X < -2 || X > ZS.W + 2 || Y < -2 || Y > ZS.H + 2) continue; g.fillRect(X, Y, size, size); } }
+function poly(pts, fill, stroke){ const g = ZS.G; g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(sx(p[0]), sy(p[1])) : g.moveTo(sx(p[0]), sy(p[1]))); g.closePath(); if (fill){ g.fillStyle = fill; g.fill(); } if (stroke){ g.strokeStyle = stroke; g.lineWidth = 1.5; g.stroke(); } }
+const Ln = o => Lab.L(o);
+const planetsDraw = (list, sizeMin) => list.forEach(p => { const P = PL.find(q => q.id === p), v = POS[p]; ring(0, 0, Math.hypot(v[0], v[1]) * AU, 'rgba(160,185,235,.35)'); disc(v[0] * AU, v[1] * AU, P.d * 500, P.c, sizeMin); label(v[0] * AU, v[1] * AU, Ln(P.n), 8, -9, P.c, 12); });
+function starMap(list, sizeLy){ list.forEach(s => { const a = s[2] * 15 * D2R, x = s[3] * LY * Math.cos(a), y = s[3] * LY * Math.sin(a); disc(x, y, 0, s[4], 3.2); label(x, y, (isZh() ? s[1] : s[0]) + ' · ' + nf(s[3], s[3] < 20 ? 1 : 0) + (isZh() ? ' 光年' : ' ly'), 7, -8, '#dbe5fb', 12); }); }
+const SCENES = [
+  { z:0.4, o:[0, 0.75], n:o('A kid','一个孩子'), job:o('About 2.5 m across','约 2.5 米宽'),
+    f:o(['A typical 12-year-old is about 1.5 m (5 ft) tall; a basketball is 24 cm across.','Light crosses this whole view in about 8 billionths of a second.'],['一个 12 岁的孩子大约 1.5 米（5 英尺）高；篮球直径 24 厘米。','光穿过这个视野只需要大约 80 亿分之一秒。']),
+    draw(){ const g = ZS.G; g.fillStyle = '#2f5d3a'; g.fillRect(0, sy(0), ZS.W, ZS.H); disc(0, 1.38, 0.11, '#f2c9a0', 2); g.fillStyle = '#5aa0ff'; g.fillRect(sx(-0.19), sy(1.27), 0.38 * ZS.K, 0.5 * ZS.K); g.fillStyle = '#2e3f66'; g.fillRect(sx(-0.17), sy(0.77), 0.15 * ZS.K, 0.77 * ZS.K); g.fillRect(sx(0.02), sy(0.77), 0.15 * ZS.K, 0.77 * ZS.K);
+      g.strokeStyle = '#f2c9a0'; g.lineWidth = Math.max(1, 0.07 * ZS.K); g.lineCap = 'round'; g.beginPath(); g.moveTo(sx(-0.19), sy(1.2)); g.lineTo(sx(-0.32), sy(0.82)); g.moveTo(sx(0.19), sy(1.2)); g.lineTo(sx(0.4), sy(0.95)); g.stroke(); g.lineCap = 'butt';
+      disc(0.62, 0.12, 0.12, '#e8763a', 2); label(0.62, 0.12, Ln(o('basketball, 24 cm','篮球，24 厘米')), 14, -14);
+      g.strokeStyle = '#ffd27a'; g.lineWidth = 2; g.beginPath(); g.moveTo(sx(-0.9), sy(0)); g.lineTo(sx(-0.9), sy(1.5)); g.stroke(); label(-0.9, 1.5, Ln(o('1.5 m (5 ft)','1.5 米（5 英尺）')), 6, 0, '#ffd27a'); } },
+  { z:2.2, o:[0, 0], n:o('A football field','一个橄榄球场'), job:o('About 160 m across','约 160 米宽'),
+    f:o(['A US football field is 120 yards long with the end zones (110 m) and 53⅓ yards (49 m) wide.','You are the tiny dot in the middle.'],['美式橄榄球场连端区长 120 码（110 米），宽 53⅓ 码（49 米）。','你就是中间那个小点。']),
+    draw(){ const g = ZS.G; g.fillStyle = '#244a31'; g.fillRect(0, 0, ZS.W, ZS.H); poly([[-54.86, -24.38], [54.86, -24.38], [54.86, 24.38], [-54.86, 24.38]], '#3f8a4f', '#ffffff');
+      for (let yd = -50; yd <= 50; yd += 10){ const x = yd * 0.9144; g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 1; g.beginPath(); g.moveTo(sx(x), sy(-24.38)); g.lineTo(sx(x), sy(24.38)); g.stroke(); }
+      poly([[-54.86, -24.38], [-45.72, -24.38], [-45.72, 24.38], [-54.86, 24.38]], 'rgba(30,60,140,.5)'); poly([[45.72, -24.38], [54.86, -24.38], [54.86, 24.38], [45.72, 24.38]], 'rgba(140,30,40,.5)');
+      disc(0, 0, 0.3, '#ffd27a', 3); label(0, 0, Ln(o('you','你')), 8, -10, '#ffd27a'); label(0, -24.38, Ln(o('120 yd × 53⅓ yd','120 码 × 53⅓ 码')), 0, 16, '#dbe5fb', 13, 'center'); } },
+  { z:4.6, o:[0, 0], n:o('A city: Atlanta','一座城市：亚特兰大'), job:o('About 40 km (25 miles) across','约 40 千米（25 英里）宽'),
+    f:o(['The I-285 “Perimeter” highway loops about 64 miles (103 km) around Atlanta.','The football field is now smaller than one pixel.'],['I-285“环城”公路绕亚特兰大一圈约 64 英里（103 千米）。','橄榄球场现在比一个像素还小。']),
+    draw(){ const g = ZS.G; g.fillStyle = '#1d3326'; g.fillRect(0, 0, ZS.W, ZS.H); const pts = []; for (let a = 0; a < 360; a += 10){ const r = 16000 + 1600 * Math.sin(a * D2R * 3) + 900 * Math.cos(a * D2R * 2); pts.push([r * Math.cos(a * D2R) + 600, r * Math.sin(a * D2R) - 500]); } poly(pts, 'rgba(120,150,130,.25)', '#ffd27a');
+      disc(0, 0, 900, '#c9d6f2', 4); label(0, 0, Ln(o('Downtown','市中心')), 8, -10); disc(-1500, -12500, 1300, '#9fb0cc', 3); label(-1500, -12500, Ln(o('airport','机场')), 8, 8, '#9fb0cc', 12); disc(25000, 2500, 900, '#9fb0cc', 3); label(25000, 2500, Ln(o('Stone Mountain','石山')), -8, -12, '#9fb0cc', 12, 'right');
+      label(-16000, 8000, Ln(o('I-285 loop','I-285 环线')), 0, 0, '#ffd27a', 12, 'right'); } },
+  { z:5.9, o:[0, -150000], n:o('Georgia','佐治亚州'), job:o('About 800 km (500 miles) across','约 800 千米（500 英里）宽'),
+    f:o(['Georgia is about 300 miles (480 km) from north to south.','Driving from Atlanta to Savannah on the coast is about 250 miles (400 km): roughly 4 hours on the highway.'],['佐治亚州南北长约 300 英里（480 千米）。','从亚特兰大开车到海边的萨凡纳约 250 英里（400 千米），走高速公路大约 4 个小时。']),
+    draw(){ poly(GA.map(gaXY), 'rgba(90,160,110,.35)', '#9fe2a0'); disc(0, 0, 12000, '#ffd27a', 3); label(0, 0, Ln(o('Atlanta','亚特兰大')), 8, -10, '#ffd27a'); const s = gaXY([32.08, -81.09]); disc(s[0], s[1], 5000, '#c9d6f2', 3); label(s[0], s[1], Ln(o('Savannah','萨凡纳')), -8, -8, '#c9d6f2', 12, 'right'); label(-250000, 120000, Ln(o('outline approximate','轮廓为近似')), 0, 0, '#8fa2c8', 11); } },
+  { z:7.25, o:[0, 0], n:o('Earth','地球'), job:o('About 18,000 km across','约 18,000 千米宽'),
+    f:o(['Earth is 12,756 km (7,926 miles) wide at the equator.','The International Space Station orbits only about 420 km up: at this scale, just above the surface.'],['地球赤道直径 12,756 千米（7,926 英里）。','国际空间站只在约 420 千米高处绕地球运行：在这个比例下，几乎贴着地面。']),
+    draw(){ const g = ZS.G, R = 6.378e6 * ZS.K; if (R < 3e5){ const gr = g.createRadialGradient(sx(-0.3 * 6.378e6), sy(0.35 * 6.378e6), R * 0.1, sx(0), sy(0), R); gr.addColorStop(0, '#7fb6ff'); gr.addColorStop(0.6, '#2a6fd0'); gr.addColorStop(1, '#0c2a66'); disc(0, 0, 6.378e6, gr, 3); } else disc(0, 0, 6.378e6, '#2a6fd0', 3);
+      ring(0, 0, 6.378e6 + 420000, 'rgba(255,210,122,.8)', [5, 5]); label(4.8e6, 4.8e6, Ln(o('ISS orbit, 420 km up','国际空间站轨道，高 420 千米')), 8, -8, '#ffd27a', 12); disc(0, 0.237 * 6.378e6, 1, '#ffd27a', 3); label(0, 0.237 * 6.378e6, Ln(o('Atlanta','亚特兰大')), 8, -8, '#ffd27a', 12); } },
+  { z:8.95, o:[0, 0], n:o('Earth and Moon','地球和月球'), job:o('About 900,000 km across','约 90 万千米宽'),
+    f:o(['The Moon is on average 384,400 km (238,900 miles) away: about 30 Earths lined up.','Light takes 1.3 seconds to get from the Moon to us.'],['月球平均离我们 384,400 千米（238,900 英里），大约是 30 个地球排成一排。','光从月球到我们这里要 1.3 秒。']),
+    draw(){ disc(0, 0, 6.378e6, '#3f86e8', 3); label(0, 0, Ln(o('Earth','地球')), 8, -10); ring(0, 0, 3.844e8, 'rgba(200,210,235,.45)', [4, 6]); disc(3.844e8, 0, 1.737e6, '#d9d6cc', 2.5); label(3.844e8, 0, Ln(o('Moon','月球')), 8, -10);
+      ring(0, 0, 4.2164e7, 'rgba(255,210,122,.6)', [3, 4]); label(0, 4.2164e7, Ln(o('weather & TV satellites (36,000 km up)','气象和电视卫星（高 36,000 千米）')), 6, -8, '#ffd27a', 11); } },
+  { z:9.6, o:[0, 0], n:o('The Sun','太阳'), job:o('About 4 million km across','约 400 万千米宽'),
+    f:o(['The Sun is 1,392,700 km wide: 109 Earths side by side.','The Moon’s whole orbit around Earth would fit inside the Sun with room to spare.'],['太阳直径 1,392,700 千米，相当于 109 个地球并排。','把月球绕地球的整个轨道放进太阳里，还绰绰有余。']),
+    draw(){ const g = ZS.G, R = 6.96e8 * ZS.K; if (R < 3e5){ const gr = g.createRadialGradient(sx(0), sy(0), R * 0.2, sx(0), sy(0), R); gr.addColorStop(0, '#fff3c0'); gr.addColorStop(0.75, '#ffb340'); gr.addColorStop(1, '#ff7a1a'); disc(0, 0, 6.96e8, gr, 3); } else disc(0, 0, 6.96e8, '#ffb340', 3);
+      ring(0, 0, 3.844e8, 'rgba(20,30,70,.85)', [6, 5], 2); label(0, 3.844e8, Ln(o('the Moon’s orbit, for comparison','月球轨道（用来比较）')), 0, -12, '#14213d', 12, 'center');
+      disc(9.6e8, 0, 6.378e6, '#5aa0ff', 2); label(9.6e8, 0, Ln(o('Earth (to scale, not real distance)','地球（大小按比例，距离不是真的）')), 8, -10, '#dbe5fb', 12); } },
+  { z:11.2, o:[0, 0], n:o('Near the Sun','太阳附近'), job:o('About 1 AU across','约 1 个天文单位宽'),
+    f:o(['Mercury orbits only 0.39 AU (58 million km) from the Sun.','NASA’s Parker Solar Probe dives to about 6.1 million km from the Sun’s surface: the closest any spacecraft has ever been.'],['水星离太阳只有 0.39 天文单位（5800 万千米）。','NASA 的帕克太阳探测器俯冲到离太阳表面约 610 万千米处，是有史以来最靠近太阳的探测器。']),
+    draw(){ disc(0, 0, 6.96e8, '#ffcf5a', 3); label(0, 0, Ln(o('Sun','太阳')), 8, -10, '#ffcf5a'); planetsDraw(['mercury'], 2.5); ring(0, 0, 6.9e9, 'rgba(255,140,90,.8)', [3, 4]); label(0, -6.9e9, Ln(o('Parker Solar Probe’s closest pass','帕克太阳探测器最近点')), 0, 14, '#ff9a6b', 12, 'center'); } },
+  { z:12.25, o:[0, 0], n:o('The inner planets','内行星'), job:o('About 12 AU across','约 12 个天文单位宽'),
+    f:o(['The four rocky planets and the asteroid belt fit inside Jupiter’s orbit (5.2 AU).','Planets are shown where they really are today: ' + todayStr + '.'],['四颗岩质行星和小行星带都在木星轨道（5.2 天文单位）以内。','行星画在它们今天（' + todayStr + '）真实所在的位置。']),
+    draw(){ disc(0, 0, 6.96e8, '#ffcf5a', 3); dots(PROC.ast, 'rgba(190,170,140,.6)', 1.4); planetsDraw(['mercury','venus','earth','mars','jupiter'], 2.5); label(0, -2.8 * AU, Ln(o('asteroid belt','小行星带')), 0, 0, '#bfae8c', 11, 'center'); } },
+  { z:13.0, o:[0, 0], n:o('The outer planets','外行星'), job:o('About 67 AU across','约 67 个天文单位宽'),
+    f:o(['Neptune orbits 30 AU from the Sun: sunlight takes over 4 hours to get there.','Beyond Neptune is the Kuiper Belt, home of Pluto and thousands of icy worlds.'],['海王星离太阳 30 天文单位：阳光要走 4 个多小时才能到达。','海王星外面是柯伊伯带，冥王星和成千上万颗冰冻天体都在那里。']),
+    draw(){ disc(0, 0, 6.96e8, '#ffcf5a', 3); dots(PROC.kui, 'rgba(150,190,230,.55)', 1.4); planetsDraw(['jupiter','saturn','uranus','neptune'], 2.5); label(0, -42 * AU, Ln(o('Kuiper Belt','柯伊伯带')), 0, 0, '#9fc2e8', 11, 'center'); } },
+  { z:13.95, o:[0, 0], n:o('Voyager 1','旅行者 1 号'), job:o('About 600 AU across','约 600 个天文单位宽'),
+    f:o(['Voyager 1, launched in 1977, is the farthest spacecraft: about ' + Math.round(voyagerAU) + ' AU away, roughly one light-day (approximate).','In 2012 it crossed the heliopause (about 120 AU), where the Sun’s wind gives way to interstellar space.'],['1977 年发射的旅行者 1 号是最远的探测器：约 ' + Math.round(voyagerAU) + ' 天文单位，大约 1 光日（近似）。','2012 年它穿过了日球层顶（约 120 天文单位），进入星际空间。']),
+    draw(){ disc(0, 0, 6.96e8, '#ffcf5a', 3); dots(PROC.kui, 'rgba(150,190,230,.5)', 1.2); ring(0, 0, 30.07 * AU, 'rgba(160,185,235,.35)'); ring(0, 0, 120 * AU, 'rgba(255,170,110,.7)', [6, 5], 1.6); label(0, 120 * AU, Ln(o('heliopause (approx.)','日球层顶（近似）')), 0, -10, '#ffaa6e', 12, 'center');
+      const a = 255 * D2R; disc(voyagerAU * AU * Math.cos(a), voyagerAU * AU * Math.sin(a), 0, '#ffffff', 3); label(voyagerAU * AU * Math.cos(a), voyagerAU * AU * Math.sin(a), Ln(o('Voyager 1','旅行者 1 号')), 8, -8); label(0, -30 * AU, Ln(o('Neptune’s orbit','海王星轨道')), 0, 12, '#a0b9eb', 11, 'center'); } },
+  { z:15.0, o:[0, 0], n:o('Light-days and light-weeks','光日与光周'), job:o('About 6,700 AU across','约 6,700 个天文单位宽'),
+    f:o(['1 light-day = 173 AU; 1 light-week = about 1,200 AU.','The whole planet zone (out to Neptune) is now a speck at the centre.'],['1 光日 = 173 天文单位；1 光周 ≈ 1,200 天文单位。','整个行星区域（到海王星为止）现在只是中心的一个小点。']),
+    draw(){ disc(0, 0, 0, '#ffcf5a', 3); ring(0, 0, 30 * AU, 'rgba(160,185,235,.6)'); ring(0, 0, 173.1 * AU, '#ffd27a', [4, 4]); label(0, 173.1 * AU, Ln(o('1 light-day','1 光日')), 0, -10, '#ffd27a', 12, 'center'); ring(0, 0, 1211.6 * AU, '#ffd27a', [4, 4]); label(0, 1211.6 * AU, Ln(o('1 light-week','1 光周')), 0, -10, '#ffd27a', 12, 'center');
+      dots(PROC.oort, 'rgba(170,200,255,.35)', 1.2); label(2500 * AU, -2500 * AU, Ln(o('inner Oort cloud begins (approx.)','奥尔特云内缘（近似）')), 0, 0, '#9fb0cc', 11, 'center'); } },
+  { z:16.5, o:[0, 0], n:o('The Oort cloud','奥尔特云'), job:o('About 3.3 light-years across','约 3.3 光年宽'),
+    f:o(['A giant shell of icy comets thought to reach about 100,000 AU (1.6 ly) from the Sun. No one has seen it directly: this is an illustration.','The Sun’s gravity still holds these comets, far beyond the planets.'],['一个由冰冻彗星组成的巨大球壳，据推测离太阳可达约 10 万天文单位（1.6 光年）。还没有人直接看到过它：这是示意图。','这些彗星虽然远在行星之外，仍然被太阳的引力束缚着。']),
+    draw(){ dots(PROC.oort, 'rgba(170,200,255,.55)', 1.4); disc(0, 0, 0, '#ffcf5a', 3); label(0, 0, Ln(o('Sun','太阳')), 8, -10, '#ffcf5a'); ring(0, 0, LY, '#ffd27a', [4, 4]); label(0, LY, Ln(o('1 light-year','1 光年')), 0, -10, '#ffd27a', 12, 'center');
+      label(1.6 * LY, -0.15 * LY, Ln(o('→ Proxima Centauri, 4.24 ly','→ 比邻星，4.24 光年')), 0, 0, '#dbe5fb', 12, 'left'); } },
+  { z:17.4, o:[0, 0], n:o('The nearest stars','最近的恒星'), job:o('About 27 light-years across','约 27 光年宽'),
+    f:o(['The nearest star system, Alpha Centauri, is 4.37 light-years away (its small star Proxima is 4.24 ly).','Most of our neighbours are small, dim red dwarfs you cannot see without a telescope.'],['最近的恒星系统南门二离我们 4.37 光年（其中的小恒星比邻星为 4.24 光年）。','我们的大多数邻居都是又小又暗的红矮星，不用望远镜看不到。']),
+    draw(){ disc(0, 0, 0, '#ffcf5a', 3.5); label(0, 0, Ln(o('Sun','太阳')), 8, 10, '#ffcf5a'); ring(0, 0, 5 * LY, 'rgba(160,185,235,.35)', [3, 5]); ring(0, 0, 10 * LY, 'rgba(160,185,235,.35)', [3, 5]); starMap(NEAR);
+      label(0, -10 * LY, Ln(o('direction = position around the sky · distance from centre = real','方向 = 在天空中的方位 · 离中心的距离 = 真实距离')), 0, 16, '#8fa2c8', 11, 'center'); } },
+  { z:19.4, o:[0, 0], n:o('Our star neighbourhood','我们的恒星邻里'), job:o('About 2,600 light-years across','约 2,600 光年宽'),
+    f:o(['Most stars you see at night are within a few thousand light-years.','The Orion Nebula, a star nursery, is about 1,344 light-years away.'],['夜里你看到的大多数恒星都在几千光年之内。','猎户座大星云是恒星的“育婴室”，离我们约 1,344 光年。']),
+    draw(){ disc(0, 0, 0, '#ffcf5a', 3.5); label(0, 0, Ln(o('Sun','太阳')), 8, 10, '#ffcf5a'); ring(0, 0, 500 * LY, 'rgba(160,185,235,.35)', [3, 5]); ring(0, 0, 1000 * LY, 'rgba(160,185,235,.35)', [3, 5]); starMap(FAR); } },
+  { z:21.1, o:[0, 0], n:o('The Milky Way','银河系'), job:o('About 130,000 light-years across','约 13 万光年宽'),
+    f:o(['Our galaxy is a barred spiral about 100,000 light-years across with 100–400 billion stars.','The Sun is about 26,000 light-years from the centre and takes about 230 million years to go around once.'],['银河系是一个棒旋星系，直径约 10 万光年，有 1000 亿到 4000 亿颗恒星。','太阳离银河系中心约 26,000 光年，绕中心转一圈大约要 2.3 亿年。']),
+    draw(){ const g = ZS.G; for (const p of PROC.mw){ const X = sx(p[0]), Y = sy(p[1]); if (X < 0 || X > ZS.W || Y < 0 || Y > ZS.H) continue; g.fillStyle = p[2] > 0.7 ? 'rgba(190,210,255,.8)' : 'rgba(255,230,190,.55)'; g.fillRect(X, Y, 1.6, 1.6); }
+      disc(-26000 * LY * 0.6, -26000 * LY * 0.8, 0, '#ffd27a', 4); label(-26000 * LY * 0.6, -26000 * LY * 0.8, Ln(o('You are here','你在这里')), 8, 10, '#ffd27a'); label(0, 0, Ln(o('centre (black hole Sgr A*)','中心（人马座 A* 黑洞）')), 0, -16, '#dbe5fb', 12, 'center'); label(0, -56000 * LY, Ln(o('illustration · 100,000 ly','示意图 · 10 万光年')), 0, 0, '#8fa2c8', 11, 'center'); } },
+  { z:23.2, o:[0, 0], n:o('The Local Group','本星系群'), job:o('About 17 million light-years across','约 1700 万光年宽'),
+    f:o(['The Andromeda Galaxy, 2.5 million light-years away, is the farthest thing you can see with your eyes alone.','The Local Group has two big spirals (Andromeda and the Milky Way), Triangulum, and dozens of small galaxies.'],['仙女座星系离我们 250 万光年，是肉眼能看到的最远天体。','本星系群有两个大旋涡星系（仙女座星系和银河系）、三角座星系，以及几十个小星系。']),
+    draw(){ const g = ZS.G; disc(0, 0, 50000 * LY, 'rgba(255,230,190,.8)', 3); label(0, 0, Ln(o('Milky Way','银河系')), 8, 12);
+      const A = 2.5e6 * LY, a = 40 * D2R; g.save(); g.translate(sx(A * Math.cos(a)), sy(A * Math.sin(a))); g.rotate(-0.6); g.scale(1, 0.35); g.fillStyle = 'rgba(220,225,255,.8)'; g.beginPath(); g.arc(0, 0, Math.max(4, 110000 * LY * ZS.K), 0, 6.2832); g.fill(); g.restore(); label(A * Math.cos(a), A * Math.sin(a), Ln(o('Andromeda, 2.5 million ly','仙女座星系，250 万光年')), 10, -10);
+      const t = 2.73e6 * LY, b = 52 * D2R; disc(t * Math.cos(b), t * Math.sin(b), 30000 * LY, 'rgba(190,210,255,.7)', 2.5); label(t * Math.cos(b), t * Math.sin(b), Ln(o('Triangulum','三角座星系')), -8, -10, '#c9d6f2', 12, 'right');
+      disc(160000 * LY * Math.cos(-2.2), 160000 * LY * Math.sin(-2.2), 7000 * LY, '#c9d6f2', 2); const r5 = rng(5); for (let i = 0; i < 40; i++){ const rr = (0.2 + r5() * 1.6) * 1e6 * LY, th = r5() * 6.2832, cx = r5() < 0.5 ? 0 : A * Math.cos(a), cy = cx ? A * Math.sin(a) : 0; disc(cx + rr * Math.cos(th) * 0.5, cy + rr * Math.sin(th) * 0.5, 0, 'rgba(180,195,230,.6)', 1.3); }
+      label(0, -6e6 * LY, Ln(o('small dots: dwarf galaxies (illustration)','小点：矮星系（示意）')), 0, 0, '#8fa2c8', 11, 'center'); } },
+  { z:24.85, o:[0, 0], n:o('The cosmic web','宇宙网'), job:o('About 700 million light-years across','约 7 亿光年宽'),
+    f:o(['Galaxies gather in clusters strung along giant filaments, with huge empty voids between them.','Our home supercluster, Laniakea, is about 520 million light-years across. (Pattern is an illustration, not a real map.)'],['星系聚集成星系团，沿着巨大的“纤维”排列，中间是巨大的空洞。','我们所在的拉尼亚凯亚超星系团直径约 5.2 亿光年。（图案是示意，不是真实地图。）']),
+    draw(){ dots(PROC.web, 'rgba(200,180,255,.55)', 1.5); ring(0, 0, 260e6 * LY, 'rgba(255,210,122,.75)', [6, 5], 1.6); label(0, 260e6 * LY, Ln(o('Laniakea supercluster (approx.)','拉尼亚凯亚超星系团（近似）')), 0, -10, '#ffd27a', 12, 'center'); disc(0, 0, 0, '#ffd27a', 3); label(0, 0, Ln(o('Local Group (us)','本星系群（我们）')), 8, 10, '#ffd27a', 12); disc(54e6 * LY, 10e6 * LY, 0, '#ffffff', 3); label(54e6 * LY, 10e6 * LY, Ln(o('Virgo Cluster, 54 million ly','室女座星系团，5400 万光年')), 8, -8, '#dbe5fb', 12); } },
+  { z:27.15, o:[0, 0], n:o('The observable universe','可观测宇宙'), job:o('The orange circle is about 93 billion light-years across','橙色圆圈的直径约 930 亿光年'),
+    f:o(['We can only see light that has had time to reach us since the Big Bang, 13.8 billion years ago.','Because space has been expanding, the most distant light comes from matter that is now about 46 billion light-years away.'],['我们只能看到自 138 亿年前大爆炸以来有时间到达我们的光。','由于空间一直在膨胀，最远的光来自现在离我们约 460 亿光年的物质。']),
+    mix:o('The edge of the observable universe is not a wall. It is just as far as light has had time to travel to us; space goes on beyond it.','可观测宇宙的“边缘”不是一堵墙，只是光来得及走到我们这里的最远距离；空间在它之外仍在延续。'),
+    draw(){ const g = ZS.G, R = 46.5e9 * LY * ZS.K; g.save(); g.beginPath(); g.arc(sx(0), sy(0), R, 0, 6.2832); g.clip(); dots(PROC.uni, 'rgba(200,180,255,.5)', 1.3); g.restore();
+      g.strokeStyle = 'rgba(255,150,110,.9)'; g.lineWidth = 6; g.beginPath(); g.arc(sx(0), sy(0), R, 0, 6.2832); g.stroke(); label(0, 46.5e9 * LY, Ln(o('cosmic microwave background: the oldest light','宇宙微波背景辐射：最古老的光')), 0, -14, '#ffaa88', 12, 'center');
+      disc(0, 0, 0, '#ffd27a', 3); label(0, 0, Ln(o('us (everyone is at the centre of their own observable universe)','我们（每个人都在自己可观测宇宙的中心）')), 8, 12, '#ffd27a', 12); } }
+];
+/* the zoom view */
+const Z = { z:0.4, play:false };
+(function(){
+  const box = Lab.$('#stage'), cv = Lab.$('#zoomCv'), g = cv.getContext('2d'); let W = 0, H = 0, lastScene = -1;
+  function resize(){ const b = box.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); W = b.width; H = b.height; cv.width = W * d; cv.height = H * d; g.setTransform(d, 0, 0, d, 0, 0); draw(); }
+  function pair(z){ let i = 0; while (i < SCENES.length - 1 && SCENES[i + 1].z <= z) i++; if (i === SCENES.length - 1) return [[i, 1]]; const t = (z - SCENES[i].z) / (SCENES[i + 1].z - SCENES[i].z); if (z < SCENES[0].z) return [[0, 1]]; return [[i, 1 - sstep(0.4, 0.62, t)], [i + 1, sstep(0.38, 0.6, t)]]; }
+  function draw(){
+    if (!W) return; const z = Z.z; g.setTransform(Math.min(devicePixelRatio || 1, 2), 0, 0, Math.min(devicePixelRatio || 1, 2), 0, 0);
+    g.fillStyle = '#05070f'; g.fillRect(0, 0, W, H);
+    const K = W / Math.pow(10, z), P = pair(z);
+    for (const [i, a] of P){ if (a < 0.01) continue; Object.assign(ZS, { G:g, K, CX:W / 2, CY:H / 2, A:a, ox:SCENES[i].o[0], oy:SCENES[i].o[1], W, H }); g.save(); g.globalAlpha = a; SCENES[i].draw(); g.restore(); }
+    // scale bar
+    const span0 = Math.pow(10, z) * 0.22, u = span0 < 1000 ? 1 : span0 < 1e10 ? 1000 : span0 < 3e15 ? AU : LY, span = span0 / u, e = Math.floor(Math.log10(span)), m = span / Math.pow(10, e), nice = (m >= 5 ? 5 : m >= 2 ? 2 : 1) * Math.pow(10, e) * u, px = nice * K;
+    g.globalAlpha = 1; g.strokeStyle = '#eaf0fb'; g.lineWidth = 2; const x0 = 18, y0 = H - 70; g.beginPath(); g.moveTo(x0, y0 - 5); g.lineTo(x0, y0); g.lineTo(x0 + px, y0); g.lineTo(x0 + px, y0 - 5); g.stroke();
+    g.font = '800 13px Nunito, sans-serif'; g.fillStyle = '#eaf0fb'; g.textAlign = 'left'; g.fillText(lenText(nice), x0, y0 - 14);
+    const best = P.reduce((a, b) => b[1] > a[1] ? b : a, P[0])[0];
+    if (best !== lastScene){ lastScene = best; Z.scene = best; renderInfo(); renderChips(); }
+    readouts();
+  }
+  Z.draw = draw;
+  new ResizeObserver(() => requestAnimationFrame(resize)).observe(box);
+})();
+function lenText(m){
+  if (m < 1) return nf(m * 100) + (isZh() ? ' 厘米' : ' cm');
+  if (m < 1000) return words(m) + (isZh() ? ' 米' : ' m');
+  if (m < 1e10) return words(m / 1000) + (isZh() ? ' 千米' : ' km');
+  if (m < 3e15) return words(m / AU) + (isZh() ? ' 天文单位' : ' AU');
+  return words(m / LY) + (isZh() ? ' 光年' : ' ly');
+}
+function readouts(){
+  const w = Math.pow(10, Z.z);
+  Lab.$('#zOut').innerHTML = '10<sup>' + Z.z.toFixed(1) + '</sup>' + (isZh() ? ' 米' : ' m');
+  Lab.$('#rM').textContent = sci(w, 2) + ' m'; Lab.$('#rKm').textContent = words(w / KM); Lab.$('#rMi').textContent = words(w / MILE);
+  Lab.$('#rAu').textContent = words(w / AU); Lab.$('#rLy').textContent = words(w / LY); Lab.$('#rLt').textContent = dur(w / C_LIGHT);
+  const s = SCENES[Z.scene || 0]; Lab.$('#zScene').textContent = (isZh() ? `第 ${(Z.scene || 0) + 1} 站：` : `Stop ${(Z.scene || 0) + 1}: `) + Ln(s.n);
+}
+function renderInfo(){
+  const i = Z.scene || 0, s = SCENES[i], box = Lab.$('#info');
+  const mem = i < 7 ? o('Each step of 1 on the slider = 10× wider. Six steps = a million times!','滑块每走 1 格，视野就宽 10 倍。走 6 格就宽 100 万倍！') : i < 14 ? o('1 AU = Earth–Sun distance ≈ 150 million km. Light takes 8 min 20 s to cross 1 AU.','1 天文单位 = 日地距离 ≈ 1.5 亿千米。光走 1 天文单位要 8 分 20 秒。') : o('A light-year is a DISTANCE: how far light goes in a year, 9.46 trillion km (5.88 trillion miles).','光年是“距离”：光一年走过的路程，约 9.46 万亿千米（5.88 万亿英里）。');
+  const mix = s.mix || (i < 14 ? o('Pictures of the solar system are never to scale: if the planets were drawn big enough to see, the orbits would have to be miles wide.','太阳系的图片几乎都不按比例：如果把行星画得大到能看见，轨道就得画几千米宽。') : o('Constellations look flat, but their stars are at very different distances: here you see the real 3D spacing.','星座看起来是平的，但其中的恒星远近差别很大：这里你看到的是它们真实的远近。'));
+  box.innerHTML = `<span class="tag">${isZh() ? `第 ${i + 1} 站 / 共 ${SCENES.length} 站` : `Stop ${i + 1} of ${SCENES.length}`}</span><h3><span class="dot" style="background:var(--brand)"></span>${Ln(s.n)}</h3><div class="job">${Ln(s.job)} · 10<sup>${s.z.toFixed(1)}</sup> m</div>
+    <ul>${Ln(s.f).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Ln(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Ln(mem)}</div>
+    <div class="mix"><b>${Ln(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Ln(mix)}</span></div>
+    <button class="speak" id="speakBtn">${Ln(Lab.UI.listen)}</button>
+    <div class="nav"><button id="pPrev">${Ln(o('◀ Smaller','◀ 更小'))}</button><button id="pNext">${Ln(o('Bigger ▶','更大 ▶'))}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Ln(s.n), Ln(s.job), ...Ln(s.f), Ln(mem)].join('. '));
+  Lab.$('#pPrev').onclick = () => goScene(i - 1); Lab.$('#pNext').onclick = () => goScene(i + 1);
+}
+function renderChips(){
+  Lab.$('#sceneChips').innerHTML = SCENES.map((s, i) => `<button class="chip ${i === Z.scene ? 'on' : ''}" data-i="${i}">${i + 1}. ${Ln(s.n)}</button>`).join('');
+  Lab.$$('#sceneChips .chip').forEach(c => c.onclick = () => goScene(+c.dataset.i));
+}
+let anim = null;
+function goScene(i){ i = clamp(i, 0, SCENES.length - 1); const from = Z.z, to = SCENES[i].z, t0 = performance.now(), dur = Math.min(2600, 500 + Math.abs(to - from) * 260); Z.play = false; Lab.$('#zPlay').textContent = '▶';
+  cancelAnimationFrame(anim); const step = t => { const k = clamp((t - t0) / dur, 0, 1), e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2; Z.z = from + (to - from) * e; Lab.$('#zSl').value = Z.z; Z.draw(); if (k < 1) anim = requestAnimationFrame(step); }; anim = requestAnimationFrame(step); }
+Lab.$('#zSl').oninput = e => { cancelAnimationFrame(anim); Z.z = +e.target.value; Z.draw(); };
+Lab.$('#zPrev').onclick = () => goScene((Z.scene || 0) - 1); Lab.$('#zNext').onclick = () => goScene((Z.scene || 0) + 1); Lab.$('#zHome').onclick = () => goScene(0);
+Lab.$('#zPlay').onclick = () => { Z.play = !Z.play; Lab.$('#zPlay').textContent = Z.play ? '⏸' : '▶'; if (Z.play){ cancelAnimationFrame(anim); if (Z.z > 27.1) Z.z = 0; let last = 0; const step = t => { if (!Z.play) return; const dt = last ? Math.min(0.1, (t - last) / 1000) : 0; last = t; Z.z = Math.min(27.2, Z.z + dt * 0.55); Lab.$('#zSl').value = Z.z; Z.draw(); if (Z.z >= 27.2){ Z.play = false; Lab.$('#zPlay').textContent = '▶'; return; } requestAnimationFrame(step); }; requestAnimationFrame(step); } };
+Lab.onLang(() => { renderInfo(); renderChips(); Z.draw && Z.draw(); });
+/* ===== Light-speed travel ===== */
+const DEST = [
+  { id:'moon', n:o('Moon','月球'), m:3.844e8, c:'#d9d6cc' },
+  { id:'sun', n:o('Sun','太阳'), m:AU, c:'#ffcf5a' },
+  { id:'mars', n:o('Mars (today)','火星（今天）'), m:marsDistAU * AU, c:'#ff7b4f' },
+  { id:'voyager', n:o('Voyager 1','旅行者 1 号'), m:voyagerAU * AU, c:'#ffffff' },
+  { id:'proxima', n:o('Proxima Centauri','比邻星'), m:4.24 * LY, c:'#ff9b6b' },
+  { id:'gc', n:o('Centre of the Milky Way','银河系中心'), m:26000 * LY, c:'#ffe6b0' },
+  { id:'and', n:o('Andromeda Galaxy','仙女座星系'), m:2.5e6 * LY, c:'#c9d6f2' }
+];
+const RACERS = [
+  { n:o('Light','光'), v:C_LIGHT, sp:o('299,792 km/s','299,792 千米/秒'), c:'#ffe27a' },
+  { n:o('Parker Solar Probe','帕克太阳探测器'), v:191700, sp:o('192 km/s (690,000 km/h)','192 千米/秒（69 万千米/时）'), c:'#ff9a6b' },
+  { n:o('Voyager 1','旅行者 1 号'), v:17000, sp:o('17 km/s (61,000 km/h)','17 千米/秒（6.1 万千米/时）'), c:'#c9d6f2' },
+  { n:o('Jet airliner','喷气式客机'), v:250, sp:o('900 km/h (560 mph)','900 千米/时（560 英里/时）'), c:'#9fe2a0' },
+  { n:o('Car on the highway','高速公路上的汽车'), v:29.06, sp:o('105 km/h (65 mph)','105 千米/时（65 英里/时）'), c:'#8fb6ff' }
+];
+(function(){
+  const box = Lab.$('#lightBox'), cv = Lab.$('#lightCv'), g = cv.getContext('2d'); let W = 0, H = 0;
+  const L = { d:DEST[0], t:0, warp:1, run:false };
+  function resize(){ const b = box.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); W = b.width; H = b.height; cv.width = W * d; cv.height = H * d; g.setTransform(d, 0, 0, d, 0, 0); draw(); }
+  const total = () => L.d.m / C_LIGHT;
+  const pct = p => p >= 100 ? '100%' : p >= 0.01 ? p.toFixed(2) + '%' : p === 0 ? '0%' : sci(p, 2) + '%';
+  function draw(){
+    if (!W) return; g.clearRect(0, 0, W, H);
+    const x0 = 46, x1 = W - 46, top = 70, T = total();
+    g.font = '800 15px Nunito, sans-serif'; g.fillStyle = '#eaf0fb'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(isZh() ? `地球 → ${Ln(L.d.n)}：${lenText(L.d.m)}` : `Earth → ${Ln(L.d.n)}: ${lenText(L.d.m)}`, W / 2, 24);
+    g.font = '700 12.5px Nunito, sans-serif'; g.fillStyle = '#9fb0cc'; g.fillText(isZh() ? `（${words(L.d.m / 1000)} 千米 · ${words(L.d.m / MILE)} 英里）` : `(${words(L.d.m / 1000)} km · ${words(L.d.m / MILE)} miles)`, W / 2, 44);
+    const lanes = RACERS.length, lh = (H - top - 40) / lanes;
+    RACERS.forEach((r, j) => {
+      const y = top + lh * (j + 0.5), f = Math.min(1, r.v * L.t / L.d.m), x = x0 + (x1 - x0) * f;
+      g.strokeStyle = 'rgba(160,185,235,.25)'; g.lineWidth = 1; g.setLineDash([3, 5]); g.beginPath(); g.moveTo(x0, y); g.lineTo(x1, y); g.stroke(); g.setLineDash([]);
+      if (j === 0 && f > 0){ const gr = g.createLinearGradient(x0, 0, x, 0); gr.addColorStop(0, 'rgba(255,226,122,0)'); gr.addColorStop(1, 'rgba(255,226,122,.85)'); g.strokeStyle = gr; g.lineWidth = 4; g.beginPath(); g.moveTo(x0, y); g.lineTo(x, y); g.stroke(); }
+      g.fillStyle = r.c; g.beginPath(); g.arc(x, y, j === 0 ? 7 : 5, 0, 6.2832); g.fill();
+      if (j === 0){ g.globalAlpha = 0.3; g.beginPath(); g.arc(x, y, 16, 0, 6.2832); g.fill(); g.globalAlpha = 1; }
+      g.font = '800 12px Nunito, sans-serif'; g.textAlign = 'left'; g.fillStyle = '#dbe5fb'; g.fillText(Ln(r.n) + ' · ' + pct(f * 100), x0 + 4, y - 13);
+    });
+    // Earth & destination
+    g.fillStyle = '#5aa0ff'; g.beginPath(); g.arc(x0 - 22, top + (H - top - 40) / 2, 14, 0, 6.2832); g.fill();
+    g.fillStyle = L.d.c; g.beginPath(); g.arc(x1 + 22, top + (H - top - 40) / 2, 14, 0, 6.2832); g.fill();
+    g.font = '800 12px Nunito, sans-serif'; g.textAlign = 'center'; g.fillStyle = '#9fb0cc';
+    g.fillText(Lab.L(o('not to scale: the track is squeezed to fit','不按比例：赛道被压缩以便显示')), W / 2, H - 16);
+    Lab.$('#lElapsed').textContent = dur(Math.min(L.t, T)); Lab.$('#lTotal').textContent = dur(T);
+  }
+  function table(){
+    Lab.$('#raceBody').innerHTML = RACERS.map(r => `<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${r.c};margin-right:6px"></span>${Ln(r.n)}</td><td>${Ln(r.sp)}</td><td>${dur(L.d.m / r.v)}</td></tr>`).join('');
+  }
+  function chips(){ Lab.$('#destChips').innerHTML = DEST.map(d => `<button class="chip ${d === L.d ? 'on' : ''}" data-id="${d.id}">${Ln(d.n)}</button>`).join('');
+    Lab.$$('#destChips .chip').forEach(b => b.onclick = () => { L.d = DEST.find(d => d.id === b.dataset.id); L.t = 0; L.run = false; btn(); auto(); chips(); table(); draw(); }); }
+  function warpTxt(){ Lab.$('#warpTxt').textContent = L.warp < 1.5 ? Lab.L(o('1× (real time)','1×（真实时间）')) : (isZh() ? `${words(L.warp)} 倍：真实 1 秒 = 模拟 ${dur(L.warp)}` : `${words(L.warp)}×: 1 real second = ${dur(L.warp)}`); }
+  function auto(){ const w = clamp(Math.log10(Math.max(1, total() / 6)), 0, 14); Lab.$('#warp').value = w; L.warp = Math.pow(10, w); warpTxt(); }
+  function btn(){ Lab.$('#lPlay').textContent = L.run ? Lab.L(o('⏸ Pause','⏸ 暂停')) : Lab.L(o('▶ Send the light','▶ 发射光束')); }
+  let last = 0;
+  function step(t){ if (!L.run) return; const dt = last ? Math.min(0.1, (t - last) / 1000) : 0; last = t; L.t += dt * L.warp; if (L.t >= total()){ L.t = total(); L.run = false; btn(); } draw(); if (L.run) requestAnimationFrame(step); }
+  Lab.$('#lPlay').onclick = () => { if (L.t >= total()) L.t = 0; L.run = !L.run; btn(); last = 0; if (L.run) requestAnimationFrame(step); };
+  Lab.$('#lReset').onclick = () => { L.t = 0; L.run = false; btn(); draw(); };
+  Lab.$('#lAuto').onclick = () => { auto(); };
+  Lab.$('#warp').oninput = e => { L.warp = Math.pow(10, +e.target.value); warpTxt(); };
+  new ResizeObserver(() => requestAnimationFrame(resize)).observe(box);
+  Lab.onLang(() => { chips(); table(); warpTxt(); btn(); draw(); });
+  L.warp = 1; warpTxt();
+})();
+/* ===== Walk the shrunken solar system ===== */
+const BALLS = [ { id:'bb', m:0.24, n:o('a basketball (24 cm)','一个篮球（24 厘米）') }, { id:'beach', m:0.5, n:o('a beach ball (50 cm)','一个沙滩球（50 厘米）') }, { id:'grape', m:0.02, n:o('a grape (2 cm)','一颗葡萄（2 厘米）') } ];
+const FIELD = 91.44, PACE = 1.4;
+(function(){
+  const box = Lab.$('#walkBox'), cv = Lab.$('#walkCv'), g = cv.getContext('2d'); let W = 0, H = 0;
+  const S = { ball:BALLS[0], x:0, play:false };
+  const sc = () => S.ball.m / (SUN_D * 1000);
+  const dist = p => p.a * AU * sc(), size = p => p.d * 1000 * sc();
+  const end = () => PL[7].a * AU * sc() * 1.04;
+  const len = m => m < 0.01 ? (m * 1000).toFixed(m < 0.001 ? 2 : 1) + (isZh() ? ' 毫米' : ' mm') : m < 1 ? (m * 100).toFixed(1) + (isZh() ? ' 厘米' : ' cm') : m < 1000 ? nf(m, m < 10 ? 1 : 0) + (isZh() ? ' 米' : ' m') : nf(m / 1000, 1) + (isZh() ? ' 千米' : ' km');
+  const ft = m => nf(m * 3.28084) + (isZh() ? ' 英尺' : ' ft');
+  function resize(){ const b = box.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); W = b.width; H = b.height; cv.width = W * d; cv.height = H * d; g.setTransform(d, 0, 0, d, 0, 0); draw(); }
+  const css = () => { const s = getComputedStyle(document.documentElement), v = n => s.getPropertyValue(n).trim(); return { ink:v('--ink'), ink2:v('--ink-2'), line:v('--line'), brand:v('--brand'), surf2:v('--surface-2'), good:v('--good') }; };
+  function draw(){
+    if (!W) return; const C = css(), E = end(); g.clearRect(0, 0, W, H);
+    // overview strip
+    const ox0 = 20, ox1 = W - 64, oy = 34, X = m => ox0 + (ox1 - ox0) * m / E;
+    g.strokeStyle = C.line; g.lineWidth = 3; g.beginPath(); g.moveTo(ox0, oy); g.lineTo(ox1, oy); g.stroke();
+    g.strokeStyle = C.brand; g.beginPath(); g.moveTo(ox0, oy); g.lineTo(X(S.x), oy); g.stroke();
+    g.font = '700 10.5px Nunito, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = '#ffb340'; g.beginPath(); g.arc(ox0, oy, 5, 0, 6.2832); g.fill();
+    PL.forEach((p, j) => { const x = X(dist(p)); g.fillStyle = p.c; g.beginPath(); g.arc(x, oy, 3.5, 0, 6.2832); g.fill(); if (j >= 4 || W > 700){ g.fillStyle = C.ink2; g.fillText(Ln(p.n), x, oy + (j % 2 ? 14 : -14)); } });
+    g.fillStyle = C.ink; g.beginPath(); g.moveTo(X(S.x), oy + 6); g.lineTo(X(S.x) - 5, oy + 14); g.lineTo(X(S.x) + 5, oy + 14); g.fill();
+    // close-up window that follows the walker
+    const top = 70, span = Math.min(60, E * 0.35), k = (W - 40) / span, wx0 = Math.max(0, S.x - span * 0.35), x2p = m => 20 + (m - wx0) * k, mid = top + (H - top) / 2;
+    for (let f = Math.floor(wx0 / FIELD); f * FIELD < wx0 + span + FIELD; f++){ g.fillStyle = f % 2 ? 'rgba(63,138,79,.30)' : 'rgba(63,138,79,.18)'; const a = x2p(f * FIELD), b = x2p((f + 1) * FIELD); g.fillRect(a, top, b - a, H - top); }
+    for (let yd = Math.floor(wx0 / 9.144); yd * 9.144 < wx0 + span; yd++){ const x = x2p(yd * 9.144); g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = yd % 10 === 0 ? 2.5 : 1; g.beginPath(); g.moveTo(x, top); g.lineTo(x, H); g.stroke(); if (yd % 10 === 0 && yd > 0){ g.fillStyle = C.ink; g.font = '800 12px Nunito, sans-serif'; g.fillText((isZh() ? `第 ${yd / 10} 个球场` : `field ${yd / 10}`), x, top + 12); } }
+    // Sun and planets
+    const sunR = Math.max(5, S.ball.m / 2 * k); if (x2p(0) + sunR > 0){ g.fillStyle = '#ffb340'; g.beginPath(); g.arc(x2p(0), mid, sunR, 0, 6.2832); g.fill(); g.fillStyle = C.ink; g.font = '800 12px Nunito, sans-serif'; g.fillText(Lab.L(o('Sun','太阳')), x2p(0), mid - sunR - 12); }
+    PL.forEach((p, j) => { const x = x2p(dist(p)); if (x < -60 || x > W + 60) return; const r = Math.max(2.5, size(p) / 2 * k); g.fillStyle = p.c; g.beginPath(); g.arc(x, mid, r, 0, 6.2832); g.fill(); g.strokeStyle = C.ink; g.lineWidth = 1; g.beginPath(); g.arc(x, mid, r + 6, 0, 6.2832); g.stroke();
+      g.fillStyle = C.ink; g.font = '800 12.5px Nunito, sans-serif'; g.fillText(Ln(p.n), x, mid - 26 - (j % 2) * 16); g.font = '700 11.5px Nunito, sans-serif'; g.fillStyle = C.ink2; g.fillText(len(size(p)), x, mid + 24 + (j % 2) * 14); });
+    // walker
+    const wx = x2p(S.x), wy = H - 30; g.fillStyle = C.ink; g.beginPath(); g.arc(wx, wy - 22, 5, 0, 6.2832); g.fill(); g.fillRect(wx - 2, wy - 17, 4, 12); g.strokeStyle = C.ink; g.lineWidth = 2.5; const ph = Math.sin(S.x * 2); g.beginPath(); g.moveTo(wx, wy - 5); g.lineTo(wx - 5 * ph, wy + 6); g.moveTo(wx, wy - 5); g.lineTo(wx + 5 * ph, wy + 6); g.stroke();
+    // readouts
+    Lab.$('#wOut').textContent = len(S.x); Lab.$('#wFields').textContent = (S.x / FIELD).toFixed(2); Lab.$('#wTime').textContent = dur(S.x / PACE);
+    const passed = PL.filter(p => dist(p) <= S.x + 0.01).pop(), next = PL.find(p => dist(p) > S.x + 0.01);
+    Lab.$('#wNear').textContent = next ? (isZh() ? `${passed ? `你刚经过了${Ln(passed.n)}。` : ''}下一站：${Ln(next.n)}，还有 ${len(dist(next) - S.x)}。` : `${passed ? `You just passed ${Ln(passed.n)}. ` : ''}Next: ${Ln(next.n)}, ${len(dist(next) - S.x)} ahead.`) : (isZh() ? '你走到了海王星！最近的恒星还远得多……看看下面的表。' : 'You made it to Neptune! The nearest star is much farther… see the table.');
+  }
+  function table(){
+    const bb = S.ball.id === 'bb', px = 4.24 * LY * sc();
+    Lab.$('#walkBody').innerHTML = `<tr><td>${Ln(o('Sun','太阳'))}</td><td>${Ln(S.ball.n)}</td><td>0</td></tr>` + PL.map(p => `<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${p.c};margin-right:6px"></span>${Ln(p.n)}</td><td>${len(size(p))}${bb ? ' · ' + Ln(p.like) : ''}</td><td>${len(dist(p))} · ${(dist(p) / FIELD).toFixed(1)} ${isZh() ? '个球场' : 'fields'}</td></tr>`).join('')
+      + `<tr><td><b>${Ln(o('Proxima Centauri (nearest star)','比邻星（最近的恒星）'))}</b></td><td>${len(0.154 * SUN_D * 1000 * sc())}</td><td><b>${len(px)}</b>${bb ? Ln(o(' · about Atlanta → London!',' · 约等于亚特兰大到伦敦！')) : ''}</td></tr>`;
+  }
+  function sel(){ const el = Lab.$('#ballSel'), v = S.ball.id; el.innerHTML = BALLS.map(b => `<option value="${b.id}">${Ln(b.n)}</option>`).join(''); el.value = v; }
+  Lab.$('#ballSel').onchange = e => { const f = S.x / end(); S.ball = BALLS.find(b => b.id === e.target.value); Lab.$('#wSl').max = end(); S.x = f * end(); Lab.$('#wSl').value = S.x; table(); draw(); };
+  Lab.$('#wSl').oninput = e => { S.x = +e.target.value; draw(); };
+  let last = 0;
+  const step = t => { if (!S.play) return; const dt = last ? Math.min(0.1, (t - last) / 1000) : 0; last = t; S.x = Math.min(end(), S.x + dt * end() / 40); Lab.$('#wSl').value = S.x; draw(); if (S.x >= end()){ S.play = false; Lab.$('#wPlay').textContent = '▶'; return; } requestAnimationFrame(step); };
+  Lab.$('#wPlay').onclick = () => { S.play = !S.play; Lab.$('#wPlay').textContent = S.play ? '⏸' : '▶'; if (S.x >= end()) S.x = 0; last = 0; if (S.play) requestAnimationFrame(step); };
+  Lab.$('#wSl').max = end();
+  new ResizeObserver(() => requestAnimationFrame(resize)).observe(box); window.addEventListener('labtheme', draw);
+  Lab.onLang(() => { sel(); table(); draw(); });
+})();
+/* ===== Figure: size ladder (log scale) ===== */
+const LADDER = [
+  [o('Basketball','篮球'), 0.24, 's'], [o('A 12-year-old','一个 12 岁的孩子'), 1.5, 's'], [o('US football field','美式橄榄球场'), 110, 's'], [o('Mount Everest (height)','珠穆朗玛峰（高度）'), 8849, 's'],
+  [o('Georgia, north to south','佐治亚州南北长度'), 4.8e5, 's'], [o('The Moon (diameter)','月球（直径）'), 3.4748e6, 's'], [o('Earth (diameter)','地球（直径）'), 1.2756e7, 's'], [o('Jupiter (diameter)','木星（直径）'), 1.42984e8, 's'],
+  [o('Earth → Moon','地球 → 月球'), 3.844e8, 'd'], [o('The Sun (diameter)','太阳（直径）'), 1.3927e9, 's'], [o('Earth → Sun (1 AU)','地球 → 太阳（1 天文单位）'), AU, 'd'], [o('Neptune’s orbit (diameter)','海王星轨道（直径）'), 2 * 30.07 * AU, 's'],
+  [o('Sun → Voyager 1 (2026)','太阳 → 旅行者 1 号（2026 年）'), 172 * AU, 'd'], [o('1 light-year','1 光年'), LY, 'd'], [o('Sun → Proxima Centauri','太阳 → 比邻星'), 4.24 * LY, 'd'], [o('Milky Way (diameter)','银河系（直径）'), 1e5 * LY, 's'],
+  [o('Milky Way → Andromeda','银河系 → 仙女座星系'), 2.5e6 * LY, 'd'], [o('Laniakea supercluster','拉尼亚凯亚超星系团'), 5.2e8 * LY, 's'], [o('Observable universe (diameter)','可观测宇宙（直径）'), 9.3e10 * LY, 's']
+];
+(function(){
+  const box = Lab.$('#ladderBox'), cv = Lab.$('#ladderCv'), g = cv.getContext('2d'), tip = Lab.$('#ladTip'); let W = 0, H = 0, rows = [];
+  const css = () => { const s = getComputedStyle(document.documentElement), v = n => s.getPropertyValue(n).trim(); return { ink:v('--ink'), ink2:v('--ink-2'), line:v('--line'), brand:v('--brand'), accent:v('--accent'), surf:v('--surface') }; };
+  function resize(){ const b = box.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); W = b.width; H = b.height; cv.width = W * d; cv.height = H * d; g.setTransform(d, 0, 0, d, 0, 0); draw(); }
+  function draw(){
+    if (!W) return; const C = css(); g.clearRect(0, 0, W, H);
+    const x0 = 20, x1 = W - 20, top = 62, bot = H - 44, L0 = -1, L1 = 27, X = v => x0 + (Math.log10(v) - L0) / (L1 - L0) * (x1 - x0), rh = (bot - top) / LADDER.length;
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '700 11.5px Nunito, sans-serif';
+    for (let e = 0; e <= 27; e += 3){ const x = X(Math.pow(10, e)); g.strokeStyle = C.line; g.lineWidth = 1; g.beginPath(); g.moveTo(x, top - 6); g.lineTo(x, bot + 4); g.stroke(); g.fillStyle = C.ink2; g.fillText('10' + sup(e), x, bot + 16); }
+    g.fillStyle = C.ink; g.font = '800 12.5px Nunito, sans-serif'; g.fillText(Lab.L(o('meters (log scale: each grid line = 1,000× bigger)','米（对数刻度：每条网格线 = 大 1000 倍）')), W / 2, bot + 34);
+    // legend
+    g.textAlign = 'left'; g.font = '700 12.5px Nunito, sans-serif'; g.fillStyle = C.brand; g.beginPath(); g.arc(28, 22, 6, 0, 6.2832); g.fill(); g.fillStyle = C.ink; g.fillText(Lab.L(o('size of an object','物体的大小')), 40, 22);
+    g.strokeStyle = C.accent; g.lineWidth = 2.5; g.beginPath(); g.arc(W > 520 ? 200 : 28, W > 520 ? 22 : 42, 5.5, 0, 6.2832); g.stroke(); g.fillStyle = C.ink; g.fillText(Lab.L(o('a distance','一段距离')), W > 520 ? 212 : 40, W > 520 ? 22 : 42);
+    rows = LADDER.map((r, j) => ({ r, x:X(r[1]), y:top + rh * (j + 0.5) }));
+    rows.forEach(({ r, x, y }) => {
+      if (r[2] === 's'){ g.fillStyle = C.brand; g.beginPath(); g.arc(x, y, 6, 0, 6.2832); g.fill(); g.strokeStyle = C.surf; g.lineWidth = 2; g.stroke(); }
+      else { g.strokeStyle = C.accent; g.lineWidth = 2.5; g.beginPath(); g.arc(x, y, 5.5, 0, 6.2832); g.stroke(); }
+      g.fillStyle = C.ink; g.font = '700 12.5px Nunito, sans-serif'; const t = Ln(r[0]), tw = g.measureText(t).width, right = x + 12 + tw < W - 6; g.textAlign = right ? 'left' : 'right'; g.fillText(t, right ? x + 12 : x - 12, y);
+    });
+  }
+  cv.addEventListener('pointermove', e => { const b = cv.getBoundingClientRect(), x = e.clientX - b.left, y = e.clientY - b.top, h = rows.find(q => Math.abs(q.y - y) < 12 && Math.abs(q.x - x) < 40);
+    if (!h){ tip.style.display = 'none'; return; } tip.textContent = Ln(h.r[0]) + (isZh() ? "：" : ": ") + lenText(h.r[1]) + PZ(sci(h.r[1], 2) + (isZh() ? " 米" : " m")); tip.style.left = clamp(h.x, 140, W - 140) + 'px'; tip.style.top = h.y + 'px'; tip.style.display = 'block'; });
+  cv.addEventListener('pointerleave', () => tip.style.display = 'none');
+  new ResizeObserver(() => requestAnimationFrame(resize)).observe(box); window.addEventListener('labtheme', draw); Lab.onLang(draw);
+})();
+/* ===== Table: real distances ===== */
+const DIST = [
+  [o('The Moon','月球'), 3.844e8, o('average, from Earth','平均，从地球算')], [o('The Sun','太阳'), AU, o('average, from Earth','平均，从地球算')], [o('Mars, today','火星（今天）'), marsDistAU * AU, o('from Earth, ' + todayStr + ' (computed)','从地球算，' + todayStr + '（计算值）')],
+  [o('Jupiter','木星'), 5.203 * AU, o('average, from the Sun','平均，从太阳算')], [o('Neptune','海王星'), 30.07 * AU, o('average, from the Sun','平均，从太阳算')], [o('Voyager 1','旅行者 1 号'), voyagerAU * AU, o('from the Sun, today (approx.)','从太阳算，今天（近似）')],
+  [o('Proxima Centauri','比邻星'), 4.24 * LY, o('nearest star','最近的恒星')], [o('Sirius','天狼星'), 8.6 * LY, o('brightest night star','夜空最亮的恒星')], [o('Polaris','北极星'), 430 * LY, o('approx.','近似')],
+  [o('Centre of the Milky Way','银河系中心'), 26000 * LY, o('approx.','近似')], [o('Large Magellanic Cloud','大麦哲伦云'), 160000 * LY, o('nearby small galaxy','附近的小星系')], [o('Andromeda Galaxy','仙女座星系'), 2.5e6 * LY, o('farthest thing seen by eye','肉眼可见的最远天体')],
+  [o('Virgo Cluster','室女座星系团'), 5.4e7 * LY, o('nearest big galaxy cluster','最近的大型星系团')], [o('Edge of the observable universe','可观测宇宙的边缘'), 4.65e10 * LY, o('distance today; its light travelled 13.8 billion years','今天的距离；它的光走了 138 亿年')]
+];
+function distTable(){
+  Lab.$('#distTable').innerHTML = `<thead><tr><th>${Ln(o('Object','天体'))}</th><th>${Ln(o('Kilometers','千米'))}</th><th>${Ln(o('AU','天文单位'))}</th><th>${Ln(o('Light-years','光年'))}</th><th>${Ln(o('Light takes','光要走'))}</th></tr></thead><tbody>`
+    + DIST.map(([n, m, note], i) => `<tr><td><b>${Ln(n)}</b><br><small class="muted">${Ln(note)}</small></td><td>${words(m / 1000)}</td><td>${words(m / AU)}</td><td>${words(m / LY)}</td><td>${i === DIST.length - 1 ? Ln(o('13.8 billion years (space expanded on the way)','138 亿年（途中空间在膨胀）')) : dur(m / C_LIGHT)}</td></tr>`).join('') + '</tbody>';
+}
+Lab.onLang(distTable);
+/* ===== Game: put the universe in order (drag onto a log scale) ===== */
+const OPOOL = [ [o('A basketball','一个篮球'), 0.24], [o('A school bus','一辆校车'), 12], [o('A US football field','美式橄榄球场'), 110], [o('Mount Everest (height)','珠穆朗玛峰（高度）'), 8849],
+  [o('How high the ISS flies','国际空间站的飞行高度'), 4.2e5], [o('Georgia, north to south','佐治亚州南北长度'), 4.8e5], [o('The Moon (diameter)','月球（直径）'), 3.4748e6], [o('Earth (diameter)','地球（直径）'), 1.2756e7],
+  [o('Jupiter (diameter)','木星（直径）'), 1.43e8], [o('Earth → Moon','地球 → 月球'), 3.844e8], [o('The Sun (diameter)','太阳（直径）'), 1.3927e9], [o('Earth → Sun','地球 → 太阳'), AU],
+  [o('Neptune’s orbit (diameter)','海王星轨道（直径）'), 9e12], [o('Sun → Proxima Centauri','太阳 → 比邻星'), 4.24 * LY], [o('Milky Way (diameter)','银河系（直径）'), 1e5 * LY],
+  [o('Milky Way → Andromeda','银河系 → 仙女座星系'), 2.5e6 * LY], [o('Observable universe (diameter)','可观测宇宙（直径）'), 8.8e26] ];
+(function(){
+  const pool = Lab.$('#ogPool'), track = Lab.$('#ogTrack'), cv = Lab.$('#ogCv'), g = cv.getContext('2d'), LANES = 6, PAD = 24, L0 = -1, L1 = 27;
+  const G = { items:[], sel:null, checked:false }; let W = 0, H = 0, drag = null;
+  const xToLog = x => L0 + (x - PAD) / (W - 2 * PAD) * (L1 - L0), logToX = l => PAD + (l - L0) / (L1 - L0) * (W - 2 * PAD);
+  const laneY = l => 26 + l * ((H - 78) / (LANES - 1));
+  function newRound(){ G.items = Lab.shuffle(OPOOL).slice(0, 10).map(([n, m]) => ({ n, m, placed:false, x:0, lane:0 })); G.sel = null; G.checked = false; Lab.$('#ogMsg').textContent = ''; Lab.$('#ogMsg').className = 'result'; render(); }
+  function resize(){ const b = track.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); W = b.width; H = b.height; cv.width = W * d; cv.height = H * d; g.setTransform(d, 0, 0, d, 0, 0); render(); }
+  function axis(){
+    const s = getComputedStyle(document.documentElement), ink2 = s.getPropertyValue('--ink-2').trim(), line = s.getPropertyValue('--line').trim(), good = s.getPropertyValue('--good').trim();
+    g.clearRect(0, 0, W, H); const y = H - 34; g.strokeStyle = ink2; g.lineWidth = 2; g.beginPath(); g.moveTo(PAD, y); g.lineTo(W - PAD, y); g.stroke();
+    g.font = '700 11px Nunito, sans-serif'; g.textAlign = 'center'; g.fillStyle = ink2;
+    for (let e = 0; e <= 27; e += 3){ const x = logToX(e); g.strokeStyle = line; g.lineWidth = 1; g.beginPath(); g.moveTo(x, 6); g.lineTo(x, y); g.stroke(); g.fillText('10' + sup(e) + (e === 0 ? ' m' : ''), x, y + 16); }
+    if (G.checked) G.items.forEach(it => { const tx = logToX(Math.log10(it.m)), px = it.x * W, py = laneY(it.lane); g.strokeStyle = good; g.lineWidth = 1.5; g.setLineDash([4, 4]); g.beginPath(); g.moveTo(px, py); g.lineTo(tx, y); g.stroke(); g.setLineDash([]); g.fillStyle = good; g.beginPath(); g.arc(tx, y, 4.5, 0, 6.2832); g.fill(); });
+  }
+  function render(){
+    pool.innerHTML = G.items.map((it, i) => it.placed ? '' : `<span class="og-card ${G.sel === it ? 'sel' : ''}" data-i="${i}">${Ln(it.n)}</span>`).join('') || `<span class="muted" style="font-size:14px">${Ln(o('All cards placed. Press Check!','卡片都放好了，按“检查”！'))}</span>`;
+    Lab.$$('.og-placed', track).forEach(e => e.remove());
+    G.items.forEach((it, i) => { if (!it.placed) return; const el = document.createElement('span'); const err = Math.abs(Math.log10(it.m) - xToLog(it.x * W));
+      el.className = 'og-card og-placed' + (G.sel === it ? ' sel' : '') + (G.checked ? (err <= 1 ? ' good' : err <= 2 ? ' near' : ' bad') : ''); el.dataset.i = i; el.textContent = Ln(it.n); el.style.top = laneY(it.lane) + 'px'; track.appendChild(el); const w = el.offsetWidth; el.style.left = clamp(it.x * W, w / 2 + 4, W - w / 2 - 4) + 'px'; });
+    Lab.$$('.og-card', document).forEach(el => { if (el.dataset.i != null && !el.classList.contains('drag')) el.onpointerdown = e => start(e, G.items[+el.dataset.i]); });
+    if (W) axis();
+  }
+  const over = e => { const b = track.getBoundingClientRect(); return e.clientX >= b.left && e.clientX <= b.right && e.clientY >= b.top && e.clientY <= b.bottom; };
+  function start(e, it){ e.preventDefault(); const gh = document.createElement('span'); gh.className = 'og-card drag'; gh.textContent = Ln(it.n); document.body.appendChild(gh); drag = { it, gh, x0:e.clientX, y0:e.clientY, moved:false }; move(e);
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up, { once:true }); }
+  function move(e){ if (!drag) return; if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) > 6) drag.moved = true; drag.gh.style.display = drag.moved ? '' : 'none'; drag.gh.style.left = (e.clientX - drag.gh.offsetWidth / 2) + 'px'; drag.gh.style.top = (e.clientY - 20) + 'px'; track.classList.toggle('ready', drag.moved && over(e)); }
+  function up(e){ window.removeEventListener('pointermove', move); if (!drag) return; drag.gh.remove(); track.classList.remove('ready'); const it = drag.it, moved = drag.moved; drag = null;
+    if (!moved){ G.sel = G.sel === it ? null : it; track.classList.toggle('ready', !!G.sel); render(); return; }
+    if (over(e)) place(it, e.clientX, e.clientY); else { it.placed = false; G.checked = false; render(); } }
+  function place(it, cx, cy){ const b = track.getBoundingClientRect(); it.x = clamp(cx - b.left, PAD + 30, b.width - PAD - 30) / b.width; it.lane = clamp(Math.round((cy - b.top - 26) / ((H - 78) / (LANES - 1))), 0, LANES - 1); it.placed = true; G.checked = false; G.sel = null; track.classList.remove('ready'); render(); }
+  track.addEventListener('click', e => { if (G.sel && !e.target.closest('.og-placed')) place(G.sel, e.clientX, e.clientY); });
+  Lab.$('#ogCheck').onclick = () => {
+    const left = G.items.filter(it => !it.placed).length, msg = Lab.$('#ogMsg');
+    if (left){ msg.textContent = isZh() ? `还有 ${left} 张卡片没放到刻度上。` : `${left} card${left > 1 ? 's are' : ' is'} not on the scale yet.`; msg.className = 'result bad'; return; }
+    G.checked = true; let score = 0, inOrder = 0;
+    const byGuess = G.items.slice().sort((a, b) => a.x - b.x), byTrue = G.items.slice().sort((a, b) => a.m - b.m);
+    G.items.forEach(it => { const err = Math.abs(Math.log10(it.m) - xToLog(it.x * W)); score += err <= 1 ? 10 : err <= 2 ? 6 : err <= 3 ? 3 : 0; if (byGuess.indexOf(it) === byTrue.indexOf(it)) inOrder++; });
+    msg.textContent = isZh() ? `得分：${score} / 100。${inOrder} / 10 张卡片排在正确的顺序位置上。绿色点是真实位置。` : `Score: ${score} / 100. ${inOrder} of 10 cards are in the right order. Green dots show the true positions.`;
+    msg.className = 'result ' + (score >= 70 ? 'good' : 'bad'); render();
+  };
+  Lab.$('#ogNew').onclick = newRound;
+  new ResizeObserver(() => requestAnimationFrame(resize)).observe(track); window.addEventListener('labtheme', () => W && axis());
+  Lab.onLang(render);
+  newRound();
+})();
+/* ===== Real photos & clips ===== */
+const KIND = { craft:o('Spacecraft photo','探测器拍摄'), tele:o('Space telescope image','空间望远镜图像'), art:o('Illustration (artist’s impression)','艺术想象图'), vid:o('Video','视频') };
+const GAL = [
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a6/Pale_Blue_Dot_from_Voyager_1_-_PIA23645.png/960px-Pale_Blue_Dot_from_Voyager_1_-_PIA23645.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', page:'https://commons.wikimedia.org/wiki/File:Pale_Blue_Dot_from_Voyager_1_-_PIA23645.png', credit:'NASA/JPL-Caltech', license:'Public domain', kind:KIND.craft,
+    en:'The “Pale Blue Dot”: Earth seen by Voyager 1 in 1990 from about 6 billion km away (a newer processing from 2020). Earth is the tiny speck in the sunbeam.', zh:'“暗淡蓝点”：1990 年旅行者 1 号在约 60 亿千米外拍下的地球（2020 年重新处理的版本）。地球就是光带里那个小点。', scale:o('Earth: less than 1 pixel','地球：不到 1 个像素') },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/68/Earth_and_the_Moon_2016-07-05_0428Z.png/960px-Earth_and_the_Moon_2016-07-05_0428Z.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', page:'https://commons.wikimedia.org/wiki/File:Earth_and_the_Moon_2016-07-05_0428Z.png', credit:'NASA DSCOVR / EPIC', license:'Public domain', kind:KIND.craft,
+    en:'Earth and the far side of the Moon on 5 July 2016, from NASA’s DSCOVR satellite, with Typhoon Nepartak over the Pacific. The Moon is in front of Earth, about 384,000 km closer to the camera.', zh:'2016 年 7 月 5 日 NASA 的 DSCOVR 卫星拍到的地球和月球背面，太平洋上还有台风“尼伯特”。月球在地球前面，比地球离相机近约 38.4 万千米。', scale:o('Earth: 12,756 km wide','地球：直径 12,756 千米') },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b9/Full_disk_of_the_Sun_%28eso1703e-comparisona%29.jpg/960px-Full_disk_of_the_Sun_%28eso1703e-comparisona%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', page:'https://commons.wikimedia.org/wiki/File:Full_disk_of_the_Sun_(eso1703e-comparisona).jpg', credit:'NASA/SDO, ALMA (ESO/NAOJ/NRAO)', license:'CC BY 4.0', kind:KIND.craft,
+    en:'The whole Sun on 18 December 2015, from NASA’s Solar Dynamics Observatory. 109 Earths would fit across it.', zh:'2015 年 12 月 18 日 NASA 太阳动力学天文台拍到的整个太阳。它的直径可以排下 109 个地球。', scale:o('1,392,700 km wide','直径 1,392,700 千米') },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1c/Parker_Solar_Probe.jpg/960px-Parker_Solar_Probe.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', page:'https://commons.wikimedia.org/wiki/File:Parker_Solar_Probe.jpg', credit:'NASA/Johns Hopkins APL/Steve Gribben', license:'Public domain', kind:KIND.art,
+    en:'Artist’s concept of NASA’s Parker Solar Probe approaching the Sun. It is the fastest object humans have ever built.', zh:'NASA 帕克太阳探测器飞向太阳的艺术想象图。它是人类造出的最快的物体。', scale:o('top speed about 192 km/s','最高速度约 192 千米/秒') },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/60/ESO_-_Milky_Way.jpg/960px-ESO_-_Milky_Way.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', page:'https://commons.wikimedia.org/wiki/File:ESO_-_Milky_Way.jpg', credit:'ESO/S. Brunier', license:'CC BY 4.0', kind:o('Panorama photo from Earth','从地球拍摄的全景照片'),
+    en:'A 360° panorama of the entire sky: the band is our own Milky Way galaxy, seen from inside.', zh:'整个天空的 360° 全景照片：那条亮带就是我们从内部看到的银河系。', scale:o('our galaxy: about 100,000 ly across','银河系：直径约 10 万光年') },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e7/Andromeda_Galaxy_%28PIA04921%29.jpg/960px-Andromeda_Galaxy_%28PIA04921%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', page:'https://commons.wikimedia.org/wiki/File:Andromeda_Galaxy_(PIA04921).jpg', credit:'NASA/JPL/California Institute of Technology', license:'Public domain', kind:KIND.tele,
+    en:'The Andromeda Galaxy (M31) seen in ultraviolet light by NASA’s Galaxy Evolution Explorer. It is the biggest galaxy in our Local Group.', zh:'NASA 星系演化探测器用紫外线拍摄的仙女座星系（M31），它是本星系群里最大的星系。', scale:o('2.5 million light-years away','距离 250 万光年') },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2f/Hubble_ultra_deep_field.jpg/960px-Hubble_ultra_deep_field.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', page:'https://commons.wikimedia.org/wiki/File:Hubble_ultra_deep_field.jpg', credit:'NASA and the European Space Agency', license:'Public domain', kind:KIND.tele,
+    en:'The Hubble Ultra Deep Field: a tiny patch of sky in the constellation Fornax. Almost every dot is a whole galaxy, some seen as they were more than 13 billion years ago.', zh:'哈勃极深场：天炉座中一小片天空。几乎每个光点都是一整个星系，有些是它们 130 多亿年前的样子。', scale:o('thousands of galaxies','几千个星系') },
+  { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/4/40/Video-MoonPassingEarth-20150716.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/40/Video-MoonPassingEarth-20150716.webm/960px--Video-MoonPassingEarth-20150716.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', page:'https://commons.wikimedia.org/wiki/File:Video-MoonPassingEarth-20150716.webm', credit:'NASA/EPIC', license:'Public domain', kind:KIND.vid,
+    en:'The Moon’s far side, lit by the Sun, crossing in front of Earth, filmed by the DSCOVR spacecraft about 1.5 million km away (July 2015).', zh:'被太阳照亮的月球背面从地球前方经过，由约 150 万千米外的 DSCOVR 探测器拍摄（2015 年 7 月）。' },
+  { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/1/12/Hubble_Ultra_Deep_Field_Video_near_constellation_Fornax.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/12/Hubble_Ultra_Deep_Field_Video_near_constellation_Fornax.webm/960px--Hubble_Ultra_Deep_Field_Video_near_constellation_Fornax.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', page:'https://commons.wikimedia.org/wiki/File:Hubble_Ultra_Deep_Field_Video_near_constellation_Fornax.webm', credit:'NASA, ESA, and STScI', license:'Public domain', kind:KIND.vid,
+    en:'NASA video: where the Hubble Ultra Deep Field is in the sky (near the constellation Fornax), and what Hubble found there.', zh:'NASA 视频：哈勃极深场在天空中的位置（天炉座附近），以及哈勃在那里发现了什么。' }
+];
+LabPhotos.render('#gallery', GAL, { title:o('See the real thing','看看真实的样子'), sub:o('Real spacecraft and telescope pictures at every scale, from Earth and the Moon to thousands of galaxies, plus two videos. Click a picture to enlarge it; videos play only when you press play.','从地球、月球到成千上万个星系，各种尺度的真实探测器和望远镜图像，还有两段视频。点击图片可放大；视频只有按下播放键才会播放。') });
+/* ===== Go further links (all checked) ===== */
+const LINKS = [
+  ['https://eyes.nasa.gov/apps/solar-system/', o('NASA Eyes on the Solar System','NASA“太阳系之眼”'), o('Fly anywhere in the real solar system in 3D, ride along with spacecraft, and speed time up or down.','在三维的真实太阳系里随意飞行，跟着探测器一起旅行，还能加快或放慢时间。'), 'eyes.nasa.gov'],
+  ['https://htwins.net/scale2/', o('The Scale of the Universe 2','宇宙的尺度 2'), o('Scroll from the smallest things physicists know of to the whole observable universe.','从物理学家知道的最小东西一直滚动到整个可观测宇宙。'), 'htwins.net'],
+  ['https://www.joshworth.com/dev/pixelspace/pixelspace_solarsystem.html', o('If the Moon Were Only 1 Pixel','如果月球只有 1 个像素'), o('A to-scale map of the solar system: scroll sideways… and keep scrolling. It feels as empty as it really is.','一张按比例的太阳系地图：横向滚动……一直滚。你会感受到太空真的有多空。'), 'joshworth.com'],
+  ['https://science.nasa.gov/mission/voyager/where-are-voyager-1-and-voyager-2-now/', o('Where are the Voyagers now?','旅行者号现在在哪里？'), o('NASA’s live counter of how far away Voyager 1 and 2 are, and how long their radio signals take.','NASA 的实时计数器：旅行者 1 号和 2 号离我们多远，它们的无线电信号要走多久。'), 'science.nasa.gov'],
+  ['https://science.nasa.gov/mission/parker-solar-probe/', o('NASA Parker Solar Probe','NASA 帕克太阳探测器'), o('Follow the fastest human-made object as it “touches” the Sun.','跟踪人类造出的最快物体，看它怎样“触摸”太阳。'), 'science.nasa.gov'],
+  ['https://science.nasa.gov/universe/', o('NASA: the Universe','NASA：宇宙'), o('Explore galaxies, stars, dark matter and the Big Bang, with real images.','用真实图像探索星系、恒星、暗物质和大爆炸。'), 'science.nasa.gov'],
+  ['https://science.nasa.gov/mission/webb/', o('James Webb Space Telescope','詹姆斯·韦布空间望远镜'), o('See the newest images of the most distant galaxies ever observed.','看看人类观测到的最遥远星系的最新图像。'), 'science.nasa.gov'],
+  ['https://apod.nasa.gov/apod/', o('Astronomy Picture of the Day','每日天文图片'), o('A new real space picture every day since 1995, explained by astronomers.','从 1995 年起每天一张真实的太空照片，由天文学家来讲解。'), 'apod.nasa.gov']
+];
+Lab.onLang(() => { Lab.$('#linkGrid').innerHTML = LINKS.map(([u, t, d, h]) => `<a class="linkcard" href="${u}" target="_blank" rel="noopener"><b>${Ln(t)}</b><span>${Ln(d)}</span><small>${h} ↗</small></a>`).join(''); });
+/* ===== Quiz ===== */
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('How many meters is 10³ m?','10³ 米是多少米？'), options:[o('1,000 m (1 km)','1000 米（1 千米）'),o('30 m','30 米'),o('300 m','300 米'),o('1,000,000 m','1,000,000 米')], answer:0, explain:o('10³ = 10 × 10 × 10 = 1,000.','10³ = 10 × 10 × 10 = 1000。')},
+  {q:o('On the powers-of-ten slider, each step of +1 makes the view…','在 10 的幂滑块上，每增加 1，视野就……'), options:[o('10 times wider','宽 10 倍'),o('1 km wider','宽 1 千米'),o('twice as wide','宽 2 倍'),o('100 times wider','宽 100 倍')], answer:0},
+  {q:o('A light-year is a unit of…','光年是什么的单位？'), options:[o('distance','距离'),o('time','时间'),o('speed','速度'),o('brightness','亮度')], answer:0, explain:o('It is how far light goes in one year: about 9.46 trillion km.','它是光一年走过的距离，约 9.46 万亿千米。')},
+  {q:o('Sunlight takes about how long to reach Earth?','阳光到达地球大约要多久？'), options:[o('8 minutes 20 seconds','8 分 20 秒'),o('1.3 seconds','1.3 秒'),o('4 hours','4 小时'),o('1 year','1 年')], answer:0, explain:o('149.6 million km ÷ 299,792 km/s ≈ 499 s.','1.496 亿千米 ÷ 299,792 千米/秒 ≈ 499 秒。')},
+  {q:o('If the Sun were a basketball, how far away would Earth be?','如果太阳是一个篮球，地球离它多远？'), options:[o('About 26 m (85 ft)','约 26 米（85 英尺）'),o('About 26 cm','约 26 厘米'),o('About 2.6 km','约 2.6 千米'),o('About 260 km','约 260 千米')], answer:0},
+  {q:o('At that basketball scale, how big is Earth?','在这个篮球比例下，地球有多大？'), options:[o('A peppercorn (about 2 mm)','一粒胡椒籽（约 2 毫米）'),o('A tennis ball','一个网球'),o('A grape','一颗葡萄'),o('A marble','一颗弹珠')], answer:0},
+  {q:o('Use the size ladder: which is bigger, the Sun or the whole orbit of the Moon around Earth?','读尺度阶梯：太阳和月球绕地球的整个轨道，哪个更大？'), options:[o('The Sun (1.39 million km vs 0.77 million km)','太阳（139 万千米 对 77 万千米）'),o('The Moon’s orbit','月球轨道'),o('They are exactly equal','完全一样大'),o('You can’t compare them','无法比较')], answer:0, explain:o('The Moon’s orbit is 2 × 384,400 ≈ 769,000 km across; the Sun is 1,392,700 km.','月球轨道直径约 2 × 384,400 ≈ 769,000 千米，太阳直径 1,392,700 千米。')},
+  {q:o('Use the size ladder: about how many powers of ten bigger is the Milky Way (10²¹ m) than Earth (10⁷ m)?','读尺度阶梯：银河系（10²¹ 米）比地球（10⁷ 米）大多少个 10 的幂？'), options:[o('14 (a hundred trillion times)','14 个（100 万亿倍）'),o('3','3 个'),o('28','28 个'),o('2','2 个')], answer:0, explain:o('21 − 7 = 14, so 10¹⁴ = 100,000,000,000,000 times.','21 − 7 = 14，所以是 10¹⁴ = 100 万亿倍。')},
+  {q:o('About how far away is the nearest star system, Alpha Centauri?','最近的恒星系统南门二大约离我们多远？'), options:[o('About 4.4 light-years','约 4.4 光年'),o('About 4.4 AU','约 4.4 天文单位'),o('About 440 light-years','约 440 光年'),o('About 4.4 million km','约 440 万千米')], answer:0},
+  {q:o('Voyager 1 travels about 17 km/s. Roughly how long would it take to reach Proxima Centauri?','旅行者 1 号的速度约 17 千米/秒。它飞到比邻星大约要多久？'), options:[o('About 75,000 years','约 75,000 年'),o('About 75 years','约 75 年'),o('About 750 years','约 750 年'),o('About 7.5 billion years','约 75 亿年')], answer:0, explain:o('4.24 ly ≈ 40 trillion km; 40 trillion ÷ 17 km/s ≈ 2.4 trillion seconds ≈ 75,000 years.','4.24 光年 ≈ 40 万亿千米；40 万亿 ÷ 17 千米/秒 ≈ 2.4 万亿秒 ≈ 75,000 年。')},
+  {q:o('The Andromeda Galaxy is 2.5 million light-years away. The light you see from it tonight left it…','仙女座星系离我们 250 万光年。你今晚看到的它的光是什么时候发出的？'), options:[o('About 2.5 million years ago','约 250 万年前'),o('Last night','昨天晚上'),o('2.5 years ago','2.5 年前'),o('Just now','刚刚')], answer:0},
+  {q:o('The oldest light we see has travelled 13.8 billion years, yet its source is now about 46 billion light-years away. Why?','我们看到的最古老的光走了 138 亿年，可它的来源现在却在约 460 亿光年外。为什么？'), options:[o('Space has been expanding while the light travelled','光在路上的时候，空间一直在膨胀'),o('Light sped up on the way','光在路上加速了'),o('The universe has a wall at 46 billion ly','宇宙在 460 亿光年处有一堵墙'),o('It is a mistake in the numbers','这是数字算错了')], answer:0}
+], { count:12 });
+/* ===== Sort game ===== */
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'ss',en:'☀ In our solar system',zh:'☀ 在太阳系里'},{id:'mw',en:'✦ In the Milky Way, beyond the solar system',zh:'✦ 在银河系里、太阳系外'},{id:'far',en:'🌌 Beyond the Milky Way',zh:'🌌 在银河系之外'}],
+  items:[
+    {en:'Mars',zh:'火星',bin:'ss'},{en:'Pluto',zh:'冥王星',bin:'ss'},{en:'Voyager 1',zh:'旅行者 1 号',bin:'ss'},{en:'The Oort cloud',zh:'奥尔特云',bin:'ss'},
+    {en:'Proxima Centauri',zh:'比邻星',bin:'mw'},{en:'Sirius',zh:'天狼星',bin:'mw'},{en:'Betelgeuse',zh:'参宿四',bin:'mw'},{en:'The Orion Nebula',zh:'猎户座大星云',bin:'mw'},
+    {en:'The Andromeda Galaxy',zh:'仙女座星系',bin:'far'},{en:'The Triangulum Galaxy',zh:'三角座星系',bin:'far'},{en:'The Virgo Cluster',zh:'室女座星系团',bin:'far'},{en:'Hubble Ultra Deep Field galaxies',zh:'哈勃极深场里的星系',bin:'far'}
+  ]
+});
+distTable();
+</script>
+</body>
+</html>

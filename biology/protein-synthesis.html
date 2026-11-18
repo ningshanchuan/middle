@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DNA → RNA → Protein</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/photos.js"></script>
+<script src="../shared/lab3d.js"></script>
+<style>
+/* page-specific styles */
+.readout{font-family:Fredoka;font-weight:600}
+.pill input#prog{width:190px}
+.flow{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.flow .box h3{display:flex;align-items:center;gap:10px}
+.flow .box ul{margin:8px 0 0;padding-left:20px;color:var(--ink-2);font-size:15px;display:flex;flex-direction:column;gap:4px}
+.seqrow{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin:4px 0 10px}
+.seqrow .lbl{width:100%;font-weight:800;font-size:13px;color:var(--ink-2);letter-spacing:.02em}
+.nt{width:30px;height:36px;border-radius:8px;display:grid;place-items:center;font-family:Fredoka;font-weight:700;font-size:18px;color:#fff;box-shadow:inset 0 -3px 0 rgba(0,0,0,.18);border:0;padding:0}
+button.nt{cursor:pointer}
+button.nt:hover{outline:2px solid var(--ink);outline-offset:1px}
+.nt.mut{outline:3px solid var(--ink);outline-offset:1px}
+.cod{display:flex;gap:2px;padding:3px;border-radius:10px;cursor:pointer;border:2px solid transparent}
+.cod.sel{border-color:var(--ink)}
+.cod.dead{opacity:.35}
+.aa{min-width:94px;border-radius:12px;padding:6px 8px;text-align:center;font-weight:800;font-size:13px;color:#fff;box-shadow:inset 0 -3px 0 rgba(0,0,0,.18)}
+.aa b{display:block;font-family:Fredoka;font-size:18px}
+.aa.stop{background:#3a4256}
+.aa.diff{outline:3px solid var(--bad);outline-offset:2px}
+.aa.dead{opacity:.35;background:var(--surface-2)!important;color:var(--ink-2)}
+.wheelbox{position:relative;width:100%;max-width:420px;aspect-ratio:1/1;margin:0 auto}
+.wheelbox canvas{position:absolute;inset:0;width:100%;height:100%;cursor:pointer}
+.protcmp{font-family:Fredoka;font-size:18px;background:var(--surface-2);border-radius:12px;padding:10px 12px;line-height:1.5}
+.protcmp span.d{color:var(--bad);text-decoration:underline}
+@media (max-width:980px){.flow{grid-template-columns:1fr}}
+@media (max-width:560px){.pill input#prog{width:120px}.nt{width:26px;height:32px;font-size:16px}.aa{min-width:76px}}
+</style>
+</head>
+<body data-subject="biology" data-topic="protein-synthesis">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="生物 · 遗传（拓展）">Biology · Heredity (enrichment)</span>
+  <h1 data-zh-html="DNA → RNA → <em>蛋白质</em>">DNA → RNA → <em>Protein</em></h1>
+  <p class="lead" data-zh="基因怎样变成你的眼睛颜色、头发和肌肉？细胞先把基因“抄写”成 mRNA，再由核糖体把 mRNA“翻译”成一串氨基酸，也就是蛋白质。跟着一个小基因，看它拼出一个单词：M-A-G-I-C!">How does a gene become your eye color, hair or muscle? The cell first copies a gene into mRNA, then a ribosome translates the mRNA into a chain of amino acids: a protein. Follow one tiny gene as it spells a word: M-A-G-I-C!</p>
+</header>
+
+<section class="wrap" id="explore" data-nav="3D Gene → Protein" data-nav-zh="3D 基因 → 蛋白质">
+  <div class="explorer">
+    <div class="stage card" id="stage" data-3d>
+      <div class="toolbar">
+        <button class="tbtn" id="storyBtn" data-zh="🎬 从基因到蛋白质（故事）">🎬 Gene to protein (story)</button>
+        <button class="tbtn" id="playBtn" data-zh="▶ 播放">▶ Play</button>
+        <button class="tbtn" id="labelBtn" data-zh="🏷 标签">🏷 Labels</button>
+        <button class="tbtn" id="resetBtn" data-zh="⌂ 重置">⌂ Reset</button>
+      </div>
+      <div class="bottombar">
+        <div class="pill"><span data-zh="⏱ 进程">⏱ Progress</span><input id="prog" type="range" min="0" max="1200" value="0" aria-label="Progress"></div>
+        <div class="pill readout" id="stepRead">—</div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="chips" id="chips"></div>
+</section>
+
+<section class="wrap" id="steps" data-nav="Two steps" data-nav-zh="两个步骤">
+  <div class="sec-head">
+    <h2 data-zh="两个步骤：转录和翻译">Two steps: transcription and translation</h2>
+    <p data-zh="DNA 太珍贵，不能离开细胞核，所以细胞先做一份“工作副本”。">DNA is too precious to leave the nucleus, so the cell makes a working copy first.</p>
+  </div>
+  <div class="flow">
+    <div class="box card"><div class="ico">📝</div><h3 data-zh="① 转录（在细胞核中）">① Transcription (in the nucleus)</h3><ul>
+      <li data-zh="RNA 聚合酶把基因所在的 DNA 双链解开。">RNA polymerase unzips the DNA at one gene.</li>
+      <li data-zh="以其中一条链为模板，按碱基配对规则合成 mRNA:A–U、T–A、G–C、C–G。">Using one strand as a template, it builds mRNA by base pairing: A–U, T–A, G–C, C–G.</li>
+      <li data-zh="RNA 中没有 T，用 U（尿嘧啶）代替。">RNA has no T; it uses U (uracil) instead.</li>
+      <li data-zh="mRNA 通过核孔离开细胞核。">The mRNA leaves the nucleus through a nuclear pore.</li></ul></div>
+    <div class="box card"><div class="ico">🔤</div><h3 data-zh="② 翻译（在核糖体上）">② Translation (at a ribosome)</h3><ul>
+      <li data-zh="核糖体每次读取 mRNA 上的 3 个碱基，这 3 个碱基叫一个密码子。">The ribosome reads the mRNA 3 bases at a time. Each 3-base “word” is a codon.</li>
+      <li data-zh="tRNA 带着氨基酸过来，用自己的反密码子与密码子配对。">tRNA brings an amino acid and matches its anticodon to the codon.</li>
+      <li data-zh="氨基酸之间通过肽键连成一条长链。">Amino acids are joined by peptide bonds into a chain.</li>
+      <li data-zh="遇到终止密码子，链被释放，折叠成有功能的蛋白质。">At a stop codon the chain is released and folds into a working protein.</li></ul></div>
+  </div>
+  <div class="memory" style="margin-top:16px"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="转录 = 抄写（同一种“语言”：核酸 → 核酸）；翻译 = 换一种语言（核酸的碱基 → 蛋白质的氨基酸）。">TRANSCRIPTION = copying (same “language”: nucleic acid → nucleic acid). TRANSLATION = changing language (bases → amino acids).</span></div>
+</section>
+
+<section class="wrap" id="decoder" data-nav="Codon decoder" data-nav-zh="密码子解码">
+  <div class="sec-head">
+    <h2 data-zh="密码子解码器与突变实验">Codon decoder &amp; mutation lab</h2>
+    <p data-zh="点击 DNA 模板链上的碱基来改变它（A → T → G → C），看看 mRNA 和蛋白质会怎么变。再试试三种突变！点击一个密码子，在右边的密码子轮盘上找到它。">Tap a base on the DNA template strand to change it (A → T → G → C) and watch the mRNA and protein change. Then try the three mutations! Tap a codon to find it on the codon wheel.</p>
+  </div>
+  <div class="sim">
+    <div class="card simside">
+      <div class="seqrow" id="dnaRow"></div>
+      <div class="seqrow" id="rnaRow"></div>
+      <div class="seqrow" id="aaRow"></div>
+      <div class="btnrow"><button class="btn" id="mSub" data-zh="🔁 替换一个碱基">🔁 Substitution</button><button class="btn alt" id="mIns" data-zh="➕ 插入一个碱基">➕ Insertion</button><button class="btn alt" id="mDel" data-zh="➖ 缺失一个碱基">➖ Deletion</button><button class="btn ghost" id="mReset" data-zh="↺ 恢复原样">↺ Original</button></div>
+      <div class="protcmp" id="protCmp"></div>
+      <div class="result" id="mutMsg"></div>
+    </div>
+    <div class="card simside">
+      <h3 data-zh="密码子轮盘">Codon wheel</h3>
+      <p data-zh="从中心向外读：第 1 个碱基 → 第 2 个 → 第 3 个 → 氨基酸。">Read from the center outward: 1st base → 2nd → 3rd → amino acid.</p>
+      <div class="wheelbox"><canvas id="wheel" aria-label="Codon wheel"></canvas></div>
+      <div class="result" id="wheelMsg"></div>
+      <div class="mix"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="密码子在 mRNA 上，反密码子在 tRNA 上。轮盘查的是 mRNA 密码子，不是 DNA。">Codons are on the mRNA; anticodons are on tRNA. The wheel uses mRNA codons, not DNA.</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real photos" data-nav-zh="真实影像">
+  <div id="gallery"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 蛋白质合成测验">🧠 Protein synthesis quiz</h3><p class="sub" data-zh="选出正确答案。">Pick the best answer.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分一分：转录还是翻译？">🗂️ Sort it: transcription or translation?</h3><p class="sub" data-zh="把每个说法拖到（或先点再点方框）正确的组里。">Drag each fact (or tap it, then tap a box) into the right group.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="拓展内容，支持佐治亚州标准 S7L3a：解释基因和染色体在遗传中的作用——基因通过指导蛋白质的合成来决定性状。模型中的小基因编码 5 个氨基酸 M-A-G-I-C（真实的蛋白质通常有几百个氨基酸）。建议：用故事模式讲解转录和翻译，再用解码器让学生预测替换、插入和缺失突变的结果，讨论为什么移码突变通常比替换更严重。可联系镰状细胞贫血（一个碱基替换使谷氨酸变成缬氨酸）。">Enrichment supporting GSE S7L3a: genes determine traits by directing the making of proteins. The tiny model gene codes for 5 amino acids, M-A-G-I-C (real proteins usually have hundreds). Suggested flow: use the story to walk through transcription and translation, then have students predict the outcome of substitution, insertion and deletion mutations in the decoder and discuss why frameshifts are usually more harmful than substitutions. Real-world link: sickle-cell anemia (one base substitution changes glutamic acid to valine).</p>
+    <p data-zh="常见误区：mRNA 是 DNA 的“完全相同的复制品”（其实是互补的，且 T 换成 U）；一个基因直接变成性状（中间要经过蛋白质）；所有突变都有害（许多突变没有影响）。">Common misconceptions: mRNA is an identical copy of DNA (it is complementary and uses U instead of T); a gene turns directly into a trait (a protein is in between); all mutations are harmful (many have no effect).</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<!--REAL-PHOTOS-->
+<script>
+/* ===== See the real thing: real photos / clips (Wikimedia Commons, freely licensed; credit shown under each) ===== */
+(function(){
+const P = [
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8c/Insulincrystals.jpg/960px-Insulincrystals.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Crystals of insulin, a protein. Your cells build insulin by following the instructions in one gene.', zh:'胰岛素的晶体。胰岛素是一种蛋白质，你的细胞按照一个基因里的指令来合成它。', kind:{en:'Photo of protein crystals',zh:'蛋白质晶体照片'}, credit:'NASA/Marshall', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Insulincrystals.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ad/Protein_crystals_grown_in_space.jpg/960px-Protein_crystals_grown_in_space.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A collage of protein and virus crystals, many of them grown in space on the Space Shuttle or the Mir space station.', zh:'蛋白质晶体和病毒晶体的拼图，其中很多是在航天飞机或“和平号”空间站上长出来的。', kind:{en:'Photo of protein crystals',zh:'蛋白质晶体照片'}, credit:'NASA Marshall Space Flight Center', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Protein_crystals_grown_in_space.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/7/7b/FPbeachTsien.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'A beach scene “painted” with living bacteria. Each color is a different fluorescent protein that the bacteria build from a gene they were given.', zh:'用活细菌“画”出来的海滩。每一种颜色都是一种不同的荧光蛋白，细菌按照人们放进去的基因把它合成出来。', kind:{en:'Photo',zh:'照片'}, credit:'Nathan Shaner', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:FPbeachTsien.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/43/Varbuss.jpg/960px-Varbuss.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Living worms (C. elegans) whose nerve cells glow green: they were given the gene for green fluorescent protein (GFP), and their cells make the protein.', zh:'活的秀丽隐杆线虫，它们的神经细胞发出绿光：科学家给了它们绿色荧光蛋白（GFP）的基因，它们的细胞就把这种蛋白质造了出来。', kind:{en:'Fluorescence micrograph',zh:'荧光显微镜照片'}, credit:'Heiti Paves', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Varbuss.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a1/Sickle_cells.jpg/960px-Sickle_cells.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Protein shape matters. In sickle-cell disease, a genetic blood disorder, red blood cells take on an abnormal, stiff sickle shape.', zh:'蛋白质的形状很重要。镰状细胞贫血是一种遗传性血液病，患者的红细胞会变成不正常的、僵硬的镰刀形。', kind:{en:'Light micrograph',zh:'光学显微镜照片'}, credit:'Dr Graham Beards', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Sickle_cells.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/ca/DNA_Under_electron_microscope_Image_3576B-PH.jpg/960px-DNA_Under_electron_microscope_Image_3576B-PH.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The recipe book: real DNA under an electron microscope.', zh:'“配方书”：电子显微镜下真实的 DNA。', kind:{en:'Electron micrograph',zh:'电子显微镜照片'}, credit:'Photographer unknown (image ID 3576)', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:DNA_Under_electron_microscope_Image_3576B-PH.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/6/6c/HeLa_cells_stained_with_Hoechst_33258.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Where transcription happens: the blue areas are the nuclei of human (HeLa) cells, stained with a dye that sticks to DNA.', zh:'转录发生的地方：蓝色的区域是人类（HeLa）细胞的细胞核，用一种能与 DNA 结合的染料染过。', kind:{en:'Fluorescence micrograph',zh:'荧光显微镜照片'}, credit:'TenOfAllTrades (English Wikipedia)', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:HeLa_cells_stained_with_Hoechst_33258.jpg' }
+];
+window.REALFIG = { amino:P[4], dna:P[5], nucleus:P[6], protein:P[0] };
+if (window.LabPhotos) LabPhotos.render('#gallery', P.filter(p => !p._x), { title:{en:'See the real thing',zh:'看看真实的样子'}, sub:{en:'Ribosomes are too small to photograph easily, but the proteins they build are everywhere. Here are real proteins and the real DNA recipe. Click any picture to enlarge it.',zh:'核糖体小得很难拍到，但它们造出的蛋白质无处不在。这里有真实的蛋白质，还有真实的 DNA“配方”。点击图片可以放大。'} });
+})();
+</script>
+<!--/REAL-PHOTOS-->
+<script>
+const o = (en, zh) => ({en, zh});
+/* ===== Generic info-panel + chips explorer ===== */
+function makeExplorer(cfg){
+  const E = { sel:null, focus:null };
+  E.select = (k, from3D) => { E.sel = k; render(); cfg.onSelect && cfg.onSelect(k, from3D); if (!from3D && E.focus) E.focus(k); };
+  function render(){
+    const box = Lab.$(cfg.info), k = E.sel, I = cfg.intro;
+    if (!k){
+      box.innerHTML = `<span class="tag">${Lab.L(I.tag)}</span><h3>${Lab.L(I.title)}</h3>
+        <p class="muted" style="margin:0">${Lab.L(I.text)}</p>
+        <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(I.big)}</div>
+        <div class="nav"><button data-a="start">${Lab.L(I.start)}</button></div>`;
+      box.querySelector('[data-a=start]').onclick = () => E.select(cfg.order[0]);
+    } else {
+      const p = cfg.parts[k], i = cfg.order.indexOf(k), n = cfg.order.length;
+      box.innerHTML = `<span class="tag">${Lab.L(p.tag || cfg.tag)}</span>
+        <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+        <div class="job">${Lab.L(p.job)}</div>
+        <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>${window.REALFIG && REALFIG[k] ? LabPhotos.figure(REALFIG[k]) : ''}
+        <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(p.hint)}</div>
+        ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+        <button class="speak" data-a="speak">${Lab.L(Lab.UI.listen)}</button>
+        <div class="nav"><button data-a="prev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button data-a="next">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
+      box.querySelector('[data-a=speak]').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. ').replace(/<[^>]+>/g, ''));
+      box.querySelector('[data-a=prev]').onclick = () => E.select(cfg.order[(i - 1 + n) % n]);
+      box.querySelector('[data-a=next]').onclick = () => E.select(cfg.order[(i + 1) % n]);
+    }
+    Lab.$(cfg.chips).innerHTML = cfg.order.map(c => `<button class="chip ${E.sel === c ? 'on' : ''}" data-k="${c}"><i style="background:${cfg.parts[c].color}"></i>${Lab.L(cfg.parts[c].name)}</button>`).join('');
+    Lab.$$(cfg.chips + ' .chip').forEach(c => c.onclick = () => E.select(c.dataset.k));
+  }
+  E.render = render;
+  Lab.onLang(render);
+  return E;
+}
+
+/* ===== The genetic code ===== */
+const BASES = 'UCAG', CODE = 'FFLLSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG';
+const codonAA = c => CODE[BASES.indexOf(c[0]) * 16 + BASES.indexOf(c[1]) * 4 + BASES.indexOf(c[2])];
+const AA = {
+  F:['Phe',o('Phenylalanine','苯丙氨酸')], L:['Leu',o('Leucine','亮氨酸')], S:['Ser',o('Serine','丝氨酸')], Y:['Tyr',o('Tyrosine','酪氨酸')], C:['Cys',o('Cysteine','半胱氨酸')],
+  W:['Trp',o('Tryptophan','色氨酸')], P:['Pro',o('Proline','脯氨酸')], H:['His',o('Histidine','组氨酸')], Q:['Gln',o('Glutamine','谷氨酰胺')], R:['Arg',o('Arginine','精氨酸')],
+  I:['Ile',o('Isoleucine','异亮氨酸')], M:['Met',o('Methionine (START)','甲硫氨酸（起始）')], T:['Thr',o('Threonine','苏氨酸')], N:['Asn',o('Asparagine','天冬酰胺')], K:['Lys',o('Lysine','赖氨酸')],
+  V:['Val',o('Valine','缬氨酸')], A:['Ala',o('Alanine','丙氨酸')], D:['Asp',o('Aspartic acid','天冬氨酸')], E:['Glu',o('Glutamic acid','谷氨酸')], G:['Gly',o('Glycine','甘氨酸')], '*':['Stop',o('STOP','终止')]
+};
+const BCOL = { A:'#e5484d', T:'#e0a800', G:'#2fb36d', C:'#3fb6e0', U:'#ff8c42' };
+const AACOL = c => c === '*' ? '#3a4256' : `hsl(${(c.charCodeAt(0) * 47) % 360}, 62%, 48%)`;
+const DNA2RNA = { A:'U', T:'A', G:'C', C:'G' };
+/* the model gene (coding strand); its mRNA spells M-A-G-I-C then STOP */
+const GENE_CODING = 'GCA' + 'ATGGCTGGCATTTGCTAA' + 'CGT';
+const MRNA = 'AUGGCUGGCAUUUGCUAA';
+const PROT = ['M', 'A', 'G', 'I', 'C'];
+
+/* ===== Parts ===== */
+const PARTS = {
+  nucleus:{color:'#b48fe0', name:o('Nucleus','细胞核'), job:o('Keeps the DNA safe','保护 DNA 的“控制中心”'),
+    facts:o(['The nucleus holds the DNA, the cell’s complete set of instructions.','DNA never leaves the nucleus, so the cell sends out mRNA copies instead.','Transcription happens inside the nucleus.'],['细胞核里储存着 DNA，也就是细胞的全部“说明书”。','DNA 不离开细胞核，细胞改为送出 mRNA 副本。','转录在细胞核内进行。']),
+    hint:o('The nucleus is the library: the books (DNA) stay, the photocopies (mRNA) go out.','细胞核像图书馆：书（DNA）不外借，复印件（mRNA）可以带走。')},
+  dna:{color:'#4f8ff0', name:o('DNA & the gene','DNA 与基因'), job:o('The master recipe','原始“配方”'),
+    facts:o(['A gene is a section of DNA that holds the instructions for one protein.','Only ONE of the two DNA strands (the template strand) is read to make the mRNA.','The highlighted gene here is 18 base pairs long. Real genes are often thousands.'],['基因是 DNA 上指导合成一种蛋白质的一段。','DNA 的两条链中只有“一条”（模板链）被用来合成 mRNA。','这里发光的基因有 18 个碱基对，真实的基因往往长达几千个碱基对。']),
+    hint:o('Gene = recipe; protein = the dish.','基因是菜谱，蛋白质是做好的菜。')},
+  rnapol:{color:'#14b8a6', name:o('RNA polymerase','RNA 聚合酶'), job:o('The copying enzyme','负责“抄写”的酶'),
+    facts:o(['This enzyme unzips the DNA at a gene and links RNA nucleotides together.','It pairs bases by the rules A–U, T–A, G–C, C–G.','It is a protein itself, made from its own gene!'],['这种酶在基因处解开 DNA，并把 RNA 核苷酸连接起来。','它按照 A–U、T–A、G–C、C–G 的规则配对碱基。','它本身也是一种蛋白质，由自己的基因编码！']),
+    hint:o('Polymerase = “polymer maker”, builds a long chain.','聚合酶 = 把小单位“聚合”成长链。')},
+  mrna:{color:'#ff8c42', name:o('Messenger RNA (mRNA)','信使 RNA(mRNA)'), job:o('The working copy','基因的“工作副本”'),
+    facts:o(['mRNA is a single strand that carries the gene’s message from the nucleus to a ribosome.','RNA uses the base U (uracil) instead of T, and the sugar ribose instead of deoxyribose.','Every 3 bases form a codon. AUG is the START codon; UAA, UAG and UGA are STOP codons.'],['mRNA 是单链，把基因的信息从细胞核带到核糖体。','RNA 用碱基 U（尿嘧啶）代替 T，用核糖代替脱氧核糖。','每 3 个碱基组成一个密码子。AUG 是起始密码子；UAA、UAG、UGA 是终止密码子。']),
+    hint:o('Messenger = carries the message.','信使 = 送信的人。'),
+    mix:o('mRNA is not an identical copy of DNA: it is complementary to the template strand and has U instead of T.','mRNA 不是 DNA 的“完全相同”的复制品：它与模板链互补，而且用 U 代替 T。')},
+  pore:{color:'#c9a0dc', name:o('Nuclear pore','核孔'), job:o('Exit door of the nucleus','细胞核的“出入口”'),
+    facts:o(['Nuclear pores are tiny gates in the nuclear envelope.','Finished mRNA leaves the nucleus through a pore to reach the ribosomes in the cytoplasm.'],['核孔是核膜上的小通道。','合成好的 mRNA 通过核孔离开细胞核，到达细胞质中的核糖体。']),
+    hint:o('Pore = door.','核孔 = 门。')},
+  ribosome:{color:'#7c879c', name:o('Ribosome','核糖体'), job:o('The protein factory','蛋白质的“装配工厂”'),
+    facts:o(['A ribosome has a small and a large subunit that clamp around the mRNA.','It slides along the mRNA one codon (3 bases) at a time.','It links amino acids together with peptide bonds.'],['核糖体由一大一小两个亚基组成，夹住 mRNA。','它沿着 mRNA 一次移动一个密码子（3 个碱基）。','它用肽键把氨基酸连接起来。']),
+    hint:o('Ribosome = reader + builder.','核糖体 = “阅读器” + “装配机”。')},
+  trna:{color:'#9b5de5', name:o('Transfer RNA (tRNA)','转运 RNA(tRNA)'), job:o('The delivery truck','运送氨基酸的“小货车”'),
+    facts:o(['Each tRNA carries one specific amino acid.','Its anticodon (3 bases) pairs with a matching codon on the mRNA, like a key in a lock.','Example: the codon AUG pairs with the anticodon UAC, which carries methionine.'],['每种 tRNA 只运载一种特定的氨基酸。','它的反密码子（3 个碱基）与 mRNA 上的密码子互补配对，像钥匙对锁。','例如：密码子 AUG 与反密码子 UAC 配对，这个 tRNA 运载甲硫氨酸。']),
+    hint:o('Codon on mRNA, anti-codon on tRNA: opposites attract.','密码子在 mRNA 上，反密码子在 tRNA 上，两者互补。')},
+  amino:{color:'#f59f00', name:o('Amino acids','氨基酸'), job:o('The building blocks of proteins','组成蛋白质的“积木”'),
+    facts:o(['There are 20 kinds of amino acids in living things.','The ORDER of amino acids decides the shape and job of the protein.','Here the chain spells M-A-G-I-C: Met, Ala, Gly, Ile, Cys.'],['生物体内有 20 种氨基酸。','氨基酸的“排列顺序”决定蛋白质的形状和功能。','这里的链拼成 M-A-G-I-C：甲硫氨酸、丙氨酸、甘氨酸、异亮氨酸、半胱氨酸。']),
+    hint:o('20 amino acids are like an alphabet; proteins are the words.','20 种氨基酸就像字母表，蛋白质就是拼出来的单词。')},
+  protein:{color:'#2fb36d', name:o('Protein','蛋白质'), job:o('The finished, working product','最终有功能的产物'),
+    facts:o(['When the ribosome reaches a STOP codon, the chain is released.','The chain folds into a 3D shape. Its shape lets it do its job: enzymes, muscle, hair (keratin), hemoglobin…','Proteins build and run your body, and they are how genes produce traits.'],['核糖体读到终止密码子时，肽链被释放。','肽链折叠成特定的立体结构，这个结构决定了它的功能：酶、肌肉、头发（角蛋白）、血红蛋白……','蛋白质构建并维持身体的运转，基因正是通过蛋白质来控制性状的。']),
+    hint:o('DNA → RNA → protein → trait.','DNA → RNA → 蛋白质 → 性状。'),
+    mix:o('A gene does not turn directly into a trait; the protein it codes for causes the trait.','基因并不直接变成性状，而是通过它编码的蛋白质表现出性状。')}
+};
+const ORDER = ['nucleus','dna','rnapol','mrna','pore','ribosome','trna','amino','protein'];
+const STORY = [
+  {en:'1 · This glowing section of DNA is a gene: the recipe for one protein. It stays inside the nucleus.', zh:'1 · DNA 上发光的这一段就是基因：合成一种蛋白质的“配方”。它留在细胞核里。', p:.6, k:'dna', cam:'nuc'},
+  {en:'2 · Transcription begins: RNA polymerase unzips the gene.', zh:'2 · 转录开始：RNA 聚合酶把基因处的 DNA 解开。', p:2, k:'rnapol', cam:'nuc'},
+  {en:'3 · RNA nucleotides pair with the template strand: A–U, T–A, G–C, C–G. RNA uses U instead of T!', zh:'3 · RNA 核苷酸与模板链配对：A–U、T–A、G–C、C–G。RNA 用 U 代替 T!', p:3, k:'mrna', cam:'nuc'},
+  {en:'4 · The finished mRNA peels off and the DNA zips back up, unharmed.', zh:'4 · 合成好的 mRNA 脱离下来，DNA 重新螺旋化，完好无损。', p:4, k:'mrna', cam:'nuc'},
+  {en:'5 · The mRNA leaves through a nuclear pore and travels to a ribosome.', zh:'5 · mRNA 通过核孔离开细胞核，来到核糖体。', p:5, k:'pore', cam:'home'},
+  {en:'6 · Translation: the ribosome reads the first codon, AUG (START). A tRNA with anticodon UAC brings methionine (M).', zh:'6 · 翻译：核糖体读取第一个密码子 AUG（起始）。带反密码子 UAC 的 tRNA 运来甲硫氨酸（M）。', p:5.5, k:'trna', cam:'rib'},
+  {en:'7 · Codon by codon, tRNAs deliver amino acids and peptide bonds join them: M-A-G-I…', zh:'7 · 一个密码子接一个密码子，tRNA 运来氨基酸，肽键把它们连起来：M-A-G-I……', p:10.2, k:'amino', cam:'rib'},
+  {en:'8 · STOP codon UAA: the chain is released and folds into a protein. M-A-G-I-C!', zh:'8 · 终止密码子 UAA：肽链被释放，折叠成蛋白质。M-A-G-I-C!', p:12, k:'protein', cam:'rib'}
+];
+const EX = makeExplorer({ info:'#info', chips:'#chips', parts:PARTS, order:ORDER, tag:o('Protein synthesis','蛋白质合成'),
+  intro:{ tag:o('Central dogma','中心法则'), title:o('From gene to protein','从基因到蛋白质'),
+    text:o('On the right is the nucleus with a DNA molecule; on the left a ribosome waits in the cytoplasm. Press the story button or drag the Progress slider.','右边是含有 DNA 的细胞核，左边的细胞质中有一个核糖体在等待。点“故事”按钮或拖动“进程”滑块。'),
+    big:o('DNA → (transcription) → mRNA → (translation) → protein. The order of bases decides the order of amino acids.','DNA →（转录）→ mRNA →（翻译）→ 蛋白质。碱基的顺序决定氨基酸的顺序。'),
+    start:o('Start in the nucleus ▶','从细胞核开始 ▶') } });
+/* ===== Codon decoder + mutation lab + codon wheel ===== */
+(function(){
+  const ORIG = 'TACCGACCGTAAACGATT'.split('');       // template strand → mRNA AUG GCU GGC AUU UGC UAA
+  let dna = ORIG.slice(), mutAt = -1, kind = null, selCodon = 0;
+  const NEXT = { A:'T', T:'G', G:'C', C:'A' }, rnd = a => a[Math.random() * a.length | 0];
+  const rnaOf = d => d.map(b => DNA2RNA[b]);
+  function codons(rna){ const out = []; let dead = false;
+    for (let i = 0; i < rna.length; i += 3){ const c = rna.slice(i, i + 3).join(''); if (c.length < 3){ out.push({ c, a:null, dead:true }); break; }
+      const a = codonAA(c); out.push({ c, a, dead }); if (a === '*') dead = true; }
+    return out; }
+  const protein = cs => { const p = []; for (const x of cs){ if (x.dead || !x.a) break; if (x.a === '*') break; p.push(x.a); } return p; };
+  const ORIGP = protein(codons(rnaOf(ORIG)));
+  const ntStyle = b => `background:${BCOL[b]}`;
+  function render(){
+    const rna = rnaOf(dna), cs = codons(rna), prot = protein(cs);
+    Lab.$('#dnaRow').innerHTML = `<span class="lbl">${Lab.L(o('DNA template strand (tap to change)','DNA 模板链（点击可修改）'))}</span>` +
+      dna.map((b, i) => `<button class="nt ${i === mutAt ? 'mut' : ''}" data-i="${i}" style="${ntStyle(b)};${i % 3 === 0 && i ? 'margin-left:8px' : ''}" aria-label="${b}">${b}</button>`).join('');
+    Lab.$$('#dnaRow .nt').forEach(btn => btn.onclick = () => { const i = +btn.dataset.i; dna[i] = NEXT[dna[i]]; mutAt = i; kind = dna.length === ORIG.length ? 'sub' : kind; render(); });
+    Lab.$('#rnaRow').innerHTML = `<span class="lbl">${Lab.L(o('mRNA codons (tap one)','mRNA 密码子（点击一个）'))}</span>` +
+      cs.map((x, k) => `<span class="cod ${k === selCodon ? 'sel' : ''} ${x.dead ? 'dead' : ''}" data-k="${k}">${x.c.split('').map(b => `<span class="nt" style="${ntStyle(b)}">${b}</span>`).join('')}</span>`).join('');
+    Lab.$$('#rnaRow .cod').forEach(el => el.onclick = () => { selCodon = +el.dataset.k; render(); });
+    Lab.$('#aaRow').innerHTML = `<span class="lbl">${Lab.L(o('Amino acids','氨基酸'))}</span>` +
+      cs.map((x, k) => { if (!x.a) return `<span class="aa dead"><b>…</b>${Lab.L(o('incomplete','不完整'))}</span>`;
+        const diff = !x.dead && x.a !== '*' && x.a !== ORIGP[k], info = AA[x.a];
+        return `<span class="aa ${x.a === '*' ? 'stop' : ''} ${x.dead ? 'dead' : ''} ${diff ? 'diff' : ''}" style="background:${AACOL(x.a)}"><b>${x.a === '*' ? '■' : x.a}</b>${info[0]}</span>`; }).join('');
+    const fmtP = (p, ref) => p.length ? p.map((a, i) => a !== ref[i] ? `<span class="d">${a}</span>` : a).join('-') : '—';
+    Lab.$('#protCmp').innerHTML = `${Lab.L(o('Original protein','原来的蛋白质'))}: <b>${ORIGP.join('-')}</b><br>${Lab.L(o('Your protein','现在的蛋白质'))}: <b>${fmtP(prot, ORIGP)}</b>${prot.length < ORIGP.length ? ` <span class="d">(${Lab.L(o('cut short','变短了'))})</span>` : ''}`;
+    const same = prot.join('') === ORIGP.join(''), m = Lab.$('#mutMsg'); let msg, cls = '';
+    if (kind === null && same) msg = o('This is the original gene. Its protein spells M-A-G-I-C. Try a mutation!','这是原始基因，它的蛋白质拼出 M-A-G-I-C。试试制造一个突变！');
+    else if (dna.length !== ORIG.length){ msg = o(`Frameshift (${kind === 'ins' ? 'insertion' : 'deletion'}): adding or removing one base shifts the reading frame, so every codon after it is read differently. Usually very harmful.`, `移码突变(${kind === 'ins' ? '插入' : '缺失'}):增加或减少一个碱基会使“阅读框”移位,之后的每个密码子都被读错,通常危害很大。`); cls = 'bad'; }
+    else if (same){ msg = o('Silent mutation: the DNA changed, but the new codon codes for the SAME amino acid, so the protein is unchanged.','沉默突变：DNA 改变了，但新密码子编码的仍是“同一种”氨基酸，蛋白质没有改变。'); cls = 'good'; }
+    else if (prot.length < ORIGP.length){ msg = o('Nonsense mutation: a STOP codon appeared too early, so the protein is cut short.','无义突变：过早出现了终止密码子，蛋白质被截短。'); cls = 'bad'; }
+    else { msg = o('Missense (substitution): one base changed, so ONE amino acid changed. This can change how the protein works (like in sickle-cell anemia).','错义突变（替换）：一个碱基改变，导致“一个”氨基酸改变。这可能改变蛋白质的功能（例如镰状细胞贫血）。'); cls = 'bad'; }
+    m.textContent = Lab.L(msg); m.className = 'result ' + cls;
+    const sc = cs[Math.min(selCodon, cs.length - 1)];
+    drawWheel(sc && sc.c.length === 3 ? sc.c : null);
+    if (sc && sc.a) wheelInfo(sc.c);
+  }
+  const pos = () => 3 + (Math.random() * 11 | 0);
+  Lab.$('#mSub').onclick = () => { dna = ORIG.slice(); const i = pos(); dna[i] = rnd('ATGC'.replace(dna[i], '').split('')); mutAt = i; kind = 'sub'; selCodon = Math.floor(i / 3); render(); };
+  Lab.$('#mIns').onclick = () => { dna = ORIG.slice(); const i = pos(); dna.splice(i, 0, rnd(['A', 'T', 'G', 'C'])); mutAt = i; kind = 'ins'; selCodon = Math.floor(i / 3); render(); };
+  Lab.$('#mDel').onclick = () => { dna = ORIG.slice(); const i = pos(); dna.splice(i, 1); mutAt = Math.min(i, dna.length - 1); kind = 'del'; selCodon = Math.floor(i / 3); render(); };
+  Lab.$('#mReset').onclick = () => { dna = ORIG.slice(); mutAt = -1; kind = null; selCodon = 0; render(); };
+
+  /* --- codon wheel --- */
+  const cv = Lab.$('#wheel'), g = cv.getContext('2d'); let lastSel = null;
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const A0 = -Math.PI / 2, ST = Math.PI * 2 / 64;
+  function sec(r0, r1, i0, i1){ g.beginPath(); g.arc(0, 0, r1, A0 + i0 * ST, A0 + i1 * ST); g.arc(0, 0, r0, A0 + i1 * ST, A0 + i0 * ST, true); g.closePath(); }
+  function txt(s, r, i, size, col, radial){ const a = A0 + i * ST; g.save(); g.rotate(a); g.translate(r, 0); g.rotate(radial ? 0 : Math.PI / 2); if (radial && (a > Math.PI / 2 || a < -Math.PI / 2)) g.rotate(Math.PI);
+    g.fillStyle = col; g.font = `800 ${size}px Nunito, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(s, 0, 0); g.restore(); }
+  let geo = null;
+  function drawWheel(sel){
+    lastSel = sel;
+    const b = cv.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!b.width) return;
+    cv.width = Math.round(b.width * d); cv.height = Math.round(b.height * d);
+    const R = cv.width / 2 * .98, r = [R * .1, R * .3, R * .47, R * .61, R]; geo = { R, r, d };
+    g.setTransform(1, 0, 0, 1, cv.width / 2, cv.height / 2); g.clearRect(-cv.width, -cv.height, cv.width * 2, cv.height * 2);
+    const ink = css('--ink'), line = css('--surface');
+    g.lineWidth = 1.2 * d; g.strokeStyle = line;
+    for (let b1 = 0; b1 < 4; b1++){ sec(r[0], r[1], b1 * 16, b1 * 16 + 16); g.fillStyle = BCOL[BASES[b1]]; g.fill(); g.stroke(); txt(BASES[b1], (r[0] + r[1]) / 2, b1 * 16 + 8, R * .11, '#fff', true); }
+    for (let k = 0; k < 16; k++){ sec(r[1], r[2], k * 4, k * 4 + 4); g.fillStyle = BCOL[BASES[k % 4]]; g.globalAlpha = .85; g.fill(); g.globalAlpha = 1; g.stroke(); txt(BASES[k % 4], (r[1] + r[2]) / 2, k * 4 + 2, R * .07, '#fff', true); }
+    for (let k = 0; k < 64; k++){ sec(r[2], r[3], k, k + 1); g.fillStyle = BCOL[BASES[k % 4]]; g.globalAlpha = .7; g.fill(); g.globalAlpha = 1; g.stroke(); txt(BASES[k % 4], (r[2] + r[3]) / 2, k + .5, R * .042, '#fff', false); }
+    let s0 = 0;
+    for (let k = 1; k <= 64; k++){ if (k === 64 || CODE[k] !== CODE[s0] || k % 4 === 0 && CODE[k] !== CODE[k - 1]){
+        sec(r[3], r[4], s0, k); g.fillStyle = AACOL(CODE[s0]); g.globalAlpha = .28; g.fill(); g.globalAlpha = 1; g.stroke();
+        txt(AA[CODE[s0]][0], (r[3] + r[4]) / 2 + R * .02, (s0 + k) / 2, R * (k - s0 > 1 ? .052 : .042), ink, true); s0 = k; } }
+    if (sel){ const i = BASES.indexOf(sel[0]) * 16 + BASES.indexOf(sel[1]) * 4 + BASES.indexOf(sel[2]);
+      g.lineWidth = 3.5 * d; g.strokeStyle = ink;
+      sec(r[0], r[1], Math.floor(i / 16) * 16, Math.floor(i / 16) * 16 + 16); g.stroke(); sec(r[1], r[2], Math.floor(i / 4) * 4, Math.floor(i / 4) * 4 + 4); g.stroke(); sec(r[2], r[4], i, i + 1); g.stroke(); }
+  }
+  function wheelInfo(c){ const a = codonAA(c), info = AA[a], m = Lab.$('#wheelMsg');
+    m.textContent = Lab.lang === 'zh' ? `密码子 ${c} → ${info[0]}(${Lab.L(info[1])})` : `Codon ${c} → ${info[0]} (${Lab.L(info[1])})`; m.className = 'result ' + (a === '*' ? 'bad' : 'good'); }
+  cv.addEventListener('click', e => { if (!geo) return; const b = cv.getBoundingClientRect(), x = (e.clientX - b.left) * geo.d - cv.width / 2, y = (e.clientY - b.top) * geo.d - cv.height / 2, rr = Math.hypot(x, y);
+    if (rr < geo.r[2] || rr > geo.R) return; let a = Math.atan2(y, x) - A0; a = ((a % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    const i = Math.floor(a / ST), c = BASES[i >> 4] + BASES[(i >> 2) & 3] + BASES[i & 3]; drawWheel(c); wheelInfo(c); });
+  new ResizeObserver(() => drawWheel(lastSel)).observe(cv);
+  window.addEventListener('labtheme', () => drawWheel(lastSel));
+  Lab.onLang(render);
+})();
+/* ===== Quiz ===== */
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('Where does transcription happen?','转录在哪里进行？'), options:[o('In the nucleus','细胞核内'),o('At the ribosome','核糖体上'),o('In the cell membrane','细胞膜上'),o('Outside the cell','细胞外')], answer:0},
+  {q:o('Where does translation happen?','翻译在哪里进行？'), options:[o('At a ribosome in the cytoplasm','细胞质中的核糖体上'),o('Inside the DNA','DNA 内部'),o('In the nucleolus only','只在核仁中'),o('In the cell wall','细胞壁中')], answer:0},
+  {q:o('In RNA, which base replaces thymine (T)?','在 RNA 中，哪种碱基代替了胸腺嘧啶（T）?'), options:[o('Uracil (U)','尿嘧啶（U）'),o('Adenine (A)','腺嘌呤（A）'),o('Guanine (G)','鸟嘌呤（G）'),o('Cytosine (C)','胞嘧啶（C）')], answer:0},
+  {q:o('A DNA template strand reads T-A-C. What is the mRNA codon?','DNA 模板链是 T-A-C，对应的 mRNA 密码子是？'), options:[o('A-U-G','A-U-G'),o('A-T-G','A-T-G'),o('T-A-C','T-A-C'),o('U-A-C','U-A-C')], answer:0, explain:o('T→A, A→U, C→G. AUG is also the START codon.','T→A,A→U,C→G。AUG 也是起始密码子。')},
+  {q:o('How many bases make up one codon?','一个密码子由几个碱基组成？'), options:[o('3','3 个'),o('2','2 个'),o('1','1 个'),o('20','20 个')], answer:0},
+  {q:o('What is the job of tRNA?','tRNA 的作用是什么？'), options:[o('Bring the matching amino acid to the ribosome','把对应的氨基酸运到核糖体'),o('Copy the DNA','复制 DNA'),o('Unzip the DNA','解开 DNA'),o('Carry the message out of the nucleus','把信息带出细胞核')], answer:0},
+  {q:o('Proteins are long chains of…','蛋白质是由什么连成的长链？'), options:[o('Amino acids','氨基酸'),o('Nucleotides','核苷酸'),o('Sugars only','只有糖'),o('Fats','脂肪')], answer:0},
+  {q:o('What does the codon UAA tell the ribosome?','密码子 UAA 告诉核糖体什么？'), options:[o('STOP: release the chain','终止：释放肽链'),o('START building','开始合成'),o('Add methionine','加上甲硫氨酸'),o('Copy the DNA again','再复制一次 DNA')], answer:0},
+  {q:o('Which is the correct order?','下列哪个顺序是正确的？'), options:[o('DNA → mRNA → protein','DNA → mRNA → 蛋白质'),o('Protein → mRNA → DNA','蛋白质 → mRNA → DNA'),o('mRNA → DNA → protein','mRNA → DNA → 蛋白质'),o('DNA → protein → mRNA','DNA → 蛋白质 → mRNA')], answer:0},
+  {q:o('One base is inserted into a gene. This usually causes…','在一个基因中插入一个碱基，通常会导致……'), options:[o('A frameshift: many amino acids change','移码：许多氨基酸都改变'),o('No change at all','完全没有变化'),o('Exactly one amino acid to change','恰好一个氨基酸改变'),o('The DNA to become RNA','DNA 变成 RNA')], answer:0, explain:o('Codons are read in groups of 3, so an extra base shifts every group after it.','密码子是 3 个一组读取的，多出一个碱基会让之后的每一组都错位。')},
+  {q:o('Why does the cell make mRNA instead of sending out the DNA itself?','为什么细胞要合成 mRNA，而不是直接把 DNA 送出去？'), options:[o('DNA stays protected in the nucleus; mRNA is a disposable copy','DNA 留在细胞核里受保护，mRNA 是可丢弃的副本'),o('DNA is too small','DNA 太小了'),o('Ribosomes are inside the nucleus','核糖体在细胞核里'),o('mRNA is double-stranded','mRNA 是双链')], answer:0},
+  {q:o('How do genes control traits like eye color?','基因怎样控制眼睛颜色等性状？'), options:[o('They code for proteins that build and run the body','它们编码蛋白质，蛋白质构建和调控身体'),o('Genes are tiny copies of body parts','基因是身体部位的微小复制品'),o('Genes turn into the trait directly','基因直接变成性状'),o('Genes only work in eggs and sperm','基因只在精子和卵细胞中起作用')], answer:0}
+], { count:10 });
+
+/* ===== Sort game ===== */
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'tc',en:'Transcription',zh:'转录'},{id:'tl',en:'Translation',zh:'翻译'}],
+  items:[
+    {en:'Happens in the nucleus',zh:'在细胞核内进行',bin:'tc'},{en:'DNA is the template',zh:'以 DNA 为模板',bin:'tc'},{en:'RNA polymerase',zh:'RNA 聚合酶',bin:'tc'},
+    {en:'mRNA is made',zh:'合成 mRNA',bin:'tc'},{en:'A in DNA pairs with U in RNA',zh:'DNA 中的 A 与 RNA 中的 U 配对',bin:'tc'},
+    {en:'Happens at a ribosome',zh:'在核糖体上进行',bin:'tl'},{en:'tRNA brings amino acids',zh:'tRNA 运来氨基酸',bin:'tl'},{en:'Codons are read 3 bases at a time',zh:'每次读取 3 个碱基的密码子',bin:'tl'},
+    {en:'Peptide bonds form',zh:'形成肽键',bin:'tl'},{en:'Anticodon matches codon',zh:'反密码子与密码子配对',bin:'tl'}
+  ]
+});
+</script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const V = THREE.Vector3;
+const ctx = Lab3D.stage('#stage', { THREE, OrbitControls, camera:[-1.5, 3, 25], target:[-1.5, .3, 0], minDistance:5, maxDistance:45 });
+const { scene } = ctx;
+const MATS = {};
+const mat = (key, color, op = 1, extra = {}) => { const m = ctx.mat(color, op, { transparent:true, ...extra }); m.userData.op = op; (MATS[key] = MATS[key] || []).push(m); return m; };
+const smooth = x => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }, c01 = x => Math.max(0, Math.min(1, x));
+const UP = new V(0, 1, 0);
+function orient(m, a, b){ const d = b.clone().sub(a), L = d.length(); m.position.copy(a).addScaledVector(d, .5); m.scale.set(1, Math.max(.001, L), 1); if (L > 1e-5) m.quaternion.setFromUnitVectors(UP, d.normalize()); }
+const NC = new V(5.5, 0, 0), RN = 5, NP = 24, RISE = .36, RH = .8, TW = THREE.MathUtils.degToRad(36), G0 = 3, GL = 18;
+const xs = i => (i - 11.5) * RISE;
+const COMP = { A:'T', T:'A', G:'C', C:'G' }, ACOD = { A:'U', U:'A', G:'C', C:'G' };
+const COD = GENE_CODING.split(''), TPL = COD.map(b => COMP[b]);
+const Rx0 = -10, Ry = -.8, D = RISE;
+
+/* =================== nucleus, pores =================== */
+const nucM = mat('nucleus', '#b48fe0', .13, { side:THREE.DoubleSide, depthWrite:false });
+const nucMesh = new THREE.Mesh(new THREE.SphereGeometry(RN, 64, 44), nucM); nucMesh.position.copy(NC); scene.add(nucMesh); ctx.pickable(nucMesh, 'nucleus');
+const poreM = mat('pore', '#c9a0dc', .9), poreG = new THREE.TorusGeometry(.32, .07, 10, 28), ZA = new V(0, 0, 1);
+const EXIT_DIR = new V(-4.4, .8, 2.2).normalize();
+const pores = [EXIT_DIR.clone()];
+for (let i = 0; i < 26; i++){ const y = 1 - (i + .5) / 26 * 2, r = Math.sqrt(1 - y * y), a = i * 2.39996; const v = new V(Math.cos(a) * r, y, Math.sin(a) * r); if (v.distanceTo(EXIT_DIR) > .5) pores.push(v); }
+const exitPoreM = mat('pore', '#e9b8ff', 1, { emissive:new THREE.Color('#7a3fb0') });
+pores.forEach((v, i) => { const m = new THREE.Mesh(poreG, i ? poreM : exitPoreM); m.position.copy(NC).addScaledVector(v, RN); m.quaternion.setFromUnitVectors(ZA, v); scene.add(m); ctx.pickable(m, 'pore'); });
+
+/* =================== DNA (inside the nucleus) =================== */
+const dnaG = new THREE.Group(); dnaG.position.copy(NC); scene.add(dnaG);
+const boneM = mat('dna', '#8aa0c8', 1), geneM = mat('dna', '#ffd84d', 1, { emissive:new THREE.Color('#000') });
+const baseM = {}; for (const b of 'ATGC') baseM[b] = mat('dna', BCOL[b], 1);
+const gS = new THREE.SphereGeometry(.13, 12, 10), gB = new THREE.CylinderGeometry(.08, .08, 1, 10), gBone = new THREE.CylinderGeometry(.05, .05, 1, 8);
+const inGene = i => i >= G0 && i < G0 + GL;
+function strand(letters){ return { s:letters.map((b, i) => { const m = new THREE.Mesh(gS, inGene(i) ? geneM : boneM); dnaG.add(m); ctx.pickable(m, 'dna'); return m; }),
+  b:letters.map(b => { const m = new THREE.Mesh(gB, baseM[b]); dnaG.add(m); ctx.pickable(m, 'dna'); return m; }),
+  k:letters.slice(1).map((_, i) => { const m = new THREE.Mesh(gBone, inGene(i) && inGene(i + 1) ? geneM : boneM); dnaG.add(m); ctx.pickable(m, 'dna'); return m; }) }; }
+const SC = strand(COD), ST = strand(TPL);
+const openU = p => p < 1 ? 0 : p < 2 ? p - 1 : p < 3.4 ? 1 : p < 4 ? 1 - (p - 3.4) / .6 : 0;
+const tA = new V(), tB = new V(), tC = new V();
+function updateDNA(p){
+  const U = openU(p); let alpha = -G0 * TW; const sC = [], sT = [];
+  for (let i = 0; i < NP; i++){
+    const op = inGene(i) ? c01((U * (GL + 4) - (i - G0)) / 4) : 0, rad = new V(0, Math.cos(alpha), Math.sin(alpha)), c = new V(xs(i), 0, 0);
+    const pc = c.clone().addScaledVector(rad, RH + 1.4 * op), pt = c.clone().addScaledVector(rad, -(RH + .15 * op));
+    SC.s[i].position.copy(pc); ST.s[i].position.copy(pt); sC.push(pc); sT.push(pt);
+    orient(SC.b[i], pc, pc.clone().addScaledVector(rad, -RH * .95)); orient(ST.b[i], pt, pt.clone().addScaledVector(rad, RH * .95));
+    alpha += TW * (1 - op);
+  }
+  for (let i = 0; i < NP - 1; i++){ orient(SC.k[i], sC[i], sC[i + 1]); orient(ST.k[i], sT[i], sT[i + 1]); }
+}
+
+/* =================== RNA polymerase =================== */
+const polM = mat('rnapol', '#14b8a6', .45, { depthWrite:false });
+const pol = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 24), polM); pol.scale.set(.95, .85, .85); dnaG.add(pol); ctx.pickable(pol, 'rnapol');
+
+/* =================== mRNA =================== */
+const RNA = MRNA.split(''), rnaBone = mat('mrna', '#ff8c42', 1), rnaBase = {}; for (const b of 'AUGC') rnaBase[b] = mat('mrna', BCOL[b], 1, { emissive:new THREE.Color('#331100') });
+const mS = RNA.map(() => { const m = new THREE.Mesh(gS, rnaBone); scene.add(m); ctx.pickable(m, 'mrna'); return m; });
+const mB = RNA.map(b => { const m = new THREE.Mesh(gB, rnaBase[b]); scene.add(m); ctx.pickable(m, 'mrna'); return m; });
+const mK = RNA.slice(1).map(() => { const m = new THREE.Mesh(gBone, rnaBone); scene.add(m); ctx.pickable(m, 'mrna'); return m; });
+const S0 = new V(NC.x + xs(G0), RH, 2.2), E0 = new V(NC.x + xs(G0 + 17), RH, 2.2), Q = new V(Rx0 + 17 * D, Ry, 0), END = new V(Rx0, Ry, 0);
+const path = new THREE.CurvePath();
+path.add(new THREE.LineCurve3(E0, S0)); path.add(new THREE.CubicBezierCurve3(S0, new V(S0.x - 3, RH, 2.2), new V(Q.x + 3.5, Ry + .5, 0), Q)); path.add(new THREE.LineCurve3(Q, END));
+const L1 = 17 * D, LT = path.getLength();
+const codonX = k => Rx0 + (3 * k + 1) * D;
+function updateRNA(p, t){
+  const built = p < 2 ? 0 : Math.min(18, (p - 2) * 18), peel = 2.2 * smooth((p - 3) / .5), tt = smooth(p - 4), pts = [];
+  for (let j = 0; j < 18; j++){
+    const vis = j < built; mS[j].visible = mB[j].visible = vis; const sc = vis ? Math.min(1, built - j + .2) : 0;
+    let pos, dir;
+    if (p < 4){ pos = new V(NC.x + xs(G0 + j), RH, peel); dir = new V(0, -1, 0); }
+    else { const s = L1 + tt * (LT - L1) - j * D; pos = path.getPointAt(c01(s / LT)); dir = new V(0, -Math.cos(Math.PI * tt), -Math.sin(Math.PI * tt) * .3).normalize(); }
+    mS[j].position.copy(pos); mS[j].scale.setScalar(sc); pts.push(pos);
+    orient(mB[j], pos, pos.clone().addScaledVector(dir, (p < 4 ? RH * .95 : .3) * sc));
+  }
+  for (let j = 0; j < 17; j++){ mK[j].visible = mS[j + 1].visible; if (mK[j].visible) orient(mK[j], pts[j], pts[j + 1]); }
+  exitPoreM.emissiveIntensity = (p > 4 && p < 5) ? 1.5 + Math.sin(t * 8) : .2;
+}
+
+/* =================== ribosome =================== */
+const ribG = new THREE.Group(); scene.add(ribG);
+const lgM = mat('ribosome', '#7c879c', .42, { depthWrite:false }), smM = mat('ribosome', '#9aa6bd', .75);
+const large = new THREE.Group(), small = new THREE.Group(); ribG.add(large, small);
+[[0, 0, 0, 1.45, .95, 1.15], [-.8, .35, .3, .7, .6, .6], [.9, .3, -.2, .65, .55, .6]].forEach(([x, y, z, a, b, c]) => { const m = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 24), lgM); m.position.set(x, y, z); m.scale.set(a, b, c); large.add(m); ctx.pickable(m, 'ribosome'); });
+[[0, 0, 0, 1.35, .48, 1.0], [.7, -.1, .2, .55, .35, .5]].forEach(([x, y, z, a, b, c]) => { const m = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 24), smM); m.position.set(x, y, z); m.scale.set(a, b, c); small.add(m); ctx.pickable(m, 'ribosome'); });
+const rfM = mat('ribosome', '#5b6478', .9), relF = new THREE.Mesh(new THREE.CapsuleGeometry(.3, .9, 6, 14), rfM); scene.add(relF); ctx.pickable(relF, 'ribosome');
+
+/* =================== tRNAs + amino acids =================== */
+const trM = mat('trna', '#9b5de5', .95), acM = {}; for (const b of 'AUGC') acM[b] = mat('trna', BCOL[b], 1);
+const trnas = PROT.map((_, j) => {
+  const g = new THREE.Group(); scene.add(g);
+  const add = (geo, m, x, y, z, sx = 1, sy = 1, sz = 1) => { const me = new THREE.Mesh(geo, m); me.position.set(x, y, z); me.scale.set(sx, sy, sz); g.add(me); ctx.pickable(me, 'trna'); return me; };
+  add(new THREE.CapsuleGeometry(.17, .8, 6, 14), trM, 0, .62, 0); add(new THREE.SphereGeometry(.24, 16, 12), trM, -.38, .7, 0); add(new THREE.SphereGeometry(.24, 16, 12), trM, .38, .7, 0);
+  add(new THREE.CylinderGeometry(.08, .08, .5, 10), trM, .05, 1.35, 0);
+  const codon = MRNA.slice(j * 3, j * 3 + 3);
+  codon.split('').forEach((b, k) => { const m = add(new THREE.CylinderGeometry(.075, .075, .38, 10), acM[ACOD[b]], (k - 1) * D, -.05, 0); });
+  add(new THREE.BoxGeometry(3 * D + .1, .1, .22), trM, 0, .16, 0);
+  return g;
+});
+const amM = PROT.map(a => mat('amino', AACOL(a), 1, { clearcoat:.9 }));
+const beads = PROT.map((a, n) => { const m = new THREE.Mesh(new THREE.SphereGeometry(.27, 20, 16), amM[n]); scene.add(m); ctx.pickable(m, 'amino'); return m; });
+const bondM = mat('amino', '#f2f2f2', .95), bonds = [0, 1, 2, 3].map(() => { const m = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, 1, 8), bondM); scene.add(m); ctx.pickable(m, 'amino'); return m; });
+const protM = mat('protein', '#2fb36d', .3, { depthWrite:false }), protBlob = new THREE.Mesh(new THREE.SphereGeometry(1.2, 32, 24), protM); scene.add(protBlob); ctx.pickable(protBlob, 'protein');
+const PC = new V(-6.4, 4.3, 0);
+const trnaPos = (j, tau, out) => {
+  const dock = tA.set(codonX(j), Ry + .5, 0), from = tB.set(codonX(j) - 2.5, Ry + 6.5, 2), to = tC.set(codonX(j) + 2, Ry + 6.5, -2);
+  if (tau < j + .4) out.lerpVectors(from, dock, smooth((tau - j) / .4)); else if (tau < j + 1.6) out.copy(dock); else out.lerpVectors(dock, to, smooth((tau - j - 1.6) / .4));
+  return out;
+};
+const chainOff = (r, out) => out.set(-.3 * r + .2 * Math.sin(1.4 * r), .5 * r, .35 * (Math.cos(1.4 * r) - 1));
+
+/* =================== labels =================== */
+const codonL = [0, 1, 2, 3, 4, 5].map(k => { const L = ctx.label(MRNA.slice(k * 3, k * 3 + 3), new V(codonX(k), Ry - .75, 0), { cls:'' }); L.visible = false; return L; });
+const beadL = beads.map((b, n) => { const L = ctx.label(AA[PROT[n]][0], b, { offset:[0, .5, 0] }); L.visible = false; return L; });
+const protL = ctx.label(o('Protein: M-A-G-I-C','蛋白质：M-A-G-I-C'), PC.clone().add(new V(0, 1.7, 0))); protL.visible = false;
+const PL = [[o('Nucleus','细胞核'), NC.clone().add(new V(0, 5.4, 0)), () => true], [o('Gene','基因'), NC.clone().add(new V(0, -1.4, 0)), p => p < 1.5],
+  [o('RNA polymerase','RNA 聚合酶'), pol, p => p > 1 && p < 3.3], [o('mRNA','mRNA'), mS[9], p => p > 2.5], [o('Nuclear pore','核孔'), NC.clone().addScaledVector(EXIT_DIR, RN + .6), () => true],
+  [o('Ribosome','核糖体'), ribG, () => true], [o('tRNA','tRNA'), trnas[2], p => p > 7.4 && p < 8.6], [o('Cytoplasm','细胞质'), new V(-9, -4.2, 0), () => true]]
+  .map(([txt, at, cond]) => { const L = ctx.label(txt, at, at.isObject3D ? { offset:[0, 1.3, 0] } : {}); L.visible = false; return { L, cond }; });
+let labelsOn = false;
+Lab.$('#labelBtn').onclick = () => { labelsOn = !labelsOn; Lab.$('#labelBtn').classList.toggle('on', labelsOn); };
+
+/* =================== state & UI =================== */
+const S = { p:0, pT:0, play:false, drag:false };
+const slider = Lab.$('#prog');
+function setP(v){ S.pT = Math.max(0, Math.min(12, v)); slider.value = Math.round(S.pT * 100); }
+function setPlay(on){ S.play = on; Lab.$('#playBtn').textContent = Lab.L(on ? o('⏸ Pause','⏸ 暂停') : o('▶ Play','▶ 播放')); }
+slider.oninput = () => { story.stop(); setPlay(false); S.pT = slider.value / 100; S.drag = true; };
+slider.onchange = () => { S.drag = false; };
+Lab.$('#playBtn').onclick = () => { story.stop(); if (!S.play && S.pT >= 11.99) { S.p = 0; setP(0); } setPlay(!S.play); };
+Lab.onLang(() => setPlay(S.play));
+const POSES = { nuc:[[5.5, 2.5, 12.5], [5.5, .2, 0]], rib:[[-6.8, 2.4, 11.5], [-6.6, .9, 0]] };
+const cam = c => c === 'home' ? ctx.home() : ctx.flyToPose(...POSES[c]);
+Lab.$('#resetBtn').onclick = () => { story.stop(); setPlay(false); EX.select(null, true); S.p = 0; setP(0); ctx.home(); };
+ctx.hoverText(k => Lab.L(PARTS[k].name));
+ctx.onPick(k => { if (k !== EX.sel) EX.select(k, true); });
+const JUMP = { rnapol:[2, 'nuc'], mrna:[3, 'nuc'], pore:[4.55, 'home'], ribosome:[6.6, 'rib'], trna:[6.2, 'rib'], amino:[8.6, 'rib'], protein:[12, 'rib'], nucleus:[null, 'nuc'], dna:[null, 'nuc'] };
+EX.focus = k => { if (!k) return ctx.home(); const j = JUMP[k]; if (!j) return; setPlay(false); if (j[0] != null) setP(j[0]); cam(j[1]); };
+const story = Lab3D.story('#stage', STORY, (i, s) => { setPlay(false); setP(s.p); EX.select(s.k, true); cam(s.cam); }, () => {});
+Lab.$('#storyBtn').onclick = () => story.start();
+
+function readout(p){
+  const tau = Math.max(0, Math.min(6, p - 5)); let txt;
+  if (p < 1) txt = o('Gene in the nucleus','细胞核中的基因');
+  else if (p < 3.4) txt = o('Transcription: making mRNA','转录：合成 mRNA');
+  else if (p < 4) txt = o('mRNA released, DNA re-zips','mRNA 脱离，DNA 恢复双螺旋');
+  else if (p < 5) txt = o('mRNA leaves through a nuclear pore','mRNA 经核孔离开细胞核');
+  else if (p < 10.5){ const k = Math.min(5, Math.floor(tau + .0001)), c = MRNA.slice(k * 3, k * 3 + 3), a = codonAA(c);
+    txt = o(`Translation · codon ${k + 1}: ${c} → ${AA[a][0]}`, `翻译 · 第 ${k + 1} 个密码子:${c} → ${AA[a][0]}`); }
+  else txt = o('STOP → protein released & folds','终止 → 蛋白质释放并折叠');
+  Lab.$('#stepRead').textContent = Lab.L(txt);
+}
+const tv = new V(), tw = new V(), tops = PROT.map(() => new V());
+let lastP = -1, readT = 0;
+ctx.onFrame((dt, t) => {
+  if (S.play){ S.pT = Math.min(12, S.pT + dt * .5); slider.value = Math.round(S.pT * 100); if (S.pT >= 12) setPlay(false); }
+  const d = S.pT - S.p; if (Math.abs(d) > 1e-4) S.p += Math.sign(d) * Math.min(Math.abs(d), dt * (S.drag ? Math.max(2, Math.abs(d) * 4) : .55));
+  const p = S.p, tau = Math.max(0, Math.min(6, p - 5));
+  if (p !== lastP){ updateDNA(p); lastP = p; }
+  updateRNA(p, t);
+  geneM.emissive.set('#ffb800').multiplyScalar(p < 1.5 ? .35 + .3 * Math.sin(t * 4) : 0);
+  /* polymerase */
+  const built = p < 2 ? 0 : Math.min(18, (p - 2) * 18);
+  pol.visible = p > .9 && p < 3.35; polM.userData.op = .45 * smooth((p - .9) / .3) * (1 - smooth((p - 3.05) / .3));
+  pol.position.set(xs(G0) + Math.min(17, built) * RISE + .25, .25, 0);
+  /* ribosome */
+  let gP = 0; for (let j = 1; j <= 4; j++) gP += smooth((tau - (j + .6)) / .4);
+  const asm = smooth((p - 4.6) / .6), rel = smooth((p - 11) / 1);
+  ribG.position.set(Rx0 + (3 * gP + 2.5) * D, Ry, 0);
+  small.position.y = -.58 - 2.5 * (1 - asm) - 1.5 * rel; large.position.y = 1.15 + 3 * (1 - asm) + 2 * rel;
+  relF.visible = tau > 5 && p < 11.6; relF.position.lerpVectors(tv.set(codonX(5) - 1, Ry + 5, 1.5), tw.set(codonX(5), Ry + 1.1, 0), smooth((tau - 5) / .4)); if (p > 11) relF.position.y += (p - 11) * 4;
+  /* tRNAs */
+  trnas.forEach((g, j) => { g.visible = tau > j + .001 && tau < j + 1.999; trnaPos(j, tau, g.position); tops[j].copy(g.position).add(tv.set(0, 1.85, 0)); });
+  /* amino acids & chain */
+  let nF = 0; for (let j = 1; j <= 4; j++) nF += smooth((tau - (j + .4)) / .2);
+  const fl = Math.min(4, Math.floor(nF + 1e-6)), fr = nF - fl, fold = smooth((p - 10.5) / 1.5);
+  const attach = fl >= 4 ? tops[4].clone() : tops[fl].clone().lerp(tops[fl + 1], fr);
+  beads.forEach((b, n) => {
+    b.visible = tau > n + .001; if (!b.visible) return;
+    if (n > fl) b.position.copy(tops[n]);
+    else { chainOff(nF - n, tv); b.position.copy(attach).add(tv); }
+    if (fold > 0){ tw.set(.45 * Math.cos(n * 1.9 + t * .6), .32 * n - .65, .45 * Math.sin(n * 1.9 + t * .6)).add(PC); b.position.lerp(tw, fold); }
+  });
+  bonds.forEach((m, n) => { m.visible = beads[n].visible && beads[n + 1].visible && (n + 1 <= fl || fold > 0); if (m.visible) orient(m, beads[n].position, beads[n + 1].position); });
+  protBlob.visible = fold > .5; protM.userData.op = .3 * smooth((fold - .5) / .5); protBlob.position.copy(PC); protBlob.rotation.y = t * .3;
+  /* labels */
+  codonL.forEach(L => L.visible = p > 4.9 && p < 11.5);
+  beadL.forEach((L, n) => L.visible = beads[n].visible && p > 5);
+  protL.visible = fold > .8;
+  PL.forEach(({ L, cond }) => L.visible = labelsOn && cond(p));
+  readT += dt; if (readT > .2){ readT = 0; readout(p); }
+  /* highlight */
+  const sel = EX.sel;
+  for (const k in MATS) for (const m of MATS[k]){
+    const on = sel === k, dim = sel && !on;
+    if (m !== geneM && m !== exitPoreM) m.emissive.set(m.color).multiplyScalar(on ? .3 + .15 * Math.sin(t * 4) : 0);
+    m.opacity += (m.userData.op * (dim ? .3 : 1) - m.opacity) * Math.min(1, dt * 8);
+  }
+});
+updateDNA(0); readout(0);
+</script>
+</body>
+</html>

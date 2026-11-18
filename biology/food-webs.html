@@ -1,0 +1,745 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Food Webs &amp; Energy Pyramids</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/photos.js"></script>
+<script src="../shared/lab3d.js"></script>
+<style>
+/* page-specific styles */
+.chainrow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.chainrow .box{text-align:center;position:relative}
+.chainrow .box:not(:last-child)::after{content:"→";position:absolute;right:-13px;top:32%;font-size:22px;color:var(--ink-2);font-weight:800;z-index:1}
+.chainrow .box .lvl{font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--brand)}
+@media (max-width:980px){.chainrow{grid-template-columns:repeat(2,minmax(0,1fr))}.chainrow .box::after{display:none}}
+.webbox{padding:10px;position:relative;display:flex;align-items:center}
+.webbox svg{display:block;width:100%;height:auto;user-select:none}
+.webbox .node{cursor:pointer}
+.webbox .node circle{fill:var(--surface-2);stroke:var(--line);stroke-width:3;transition:stroke .2s}
+.webbox .node:hover circle{stroke:var(--brand)}
+.webbox .node text.nm{fill:var(--ink);font-weight:800;font-size:14px;text-anchor:middle;font-family:Nunito,"Microsoft YaHei",sans-serif}
+.webbox .node text.em{font-size:28px;text-anchor:middle;dominant-baseline:central}
+.webbox .node.gone{opacity:.32}
+.webbox .node.gone circle{stroke-dasharray:6 5}
+.webbox .node.up circle{stroke:var(--good)}
+.webbox .node.down circle{stroke:var(--bad)}
+.webbox .node.dead circle{stroke:var(--bad);fill:color-mix(in srgb,var(--bad) 16%,var(--surface))}
+.webbox .edge{stroke:var(--ink-2);stroke-width:2;opacity:.45;transition:opacity .2s,stroke .2s}
+.webbox .edge.hot{stroke:var(--brand);opacity:1;stroke-width:3}
+.webbox .edge.off{opacity:.12;stroke-dasharray:5 6}
+.webbox .lvlname{fill:var(--ink-2);font-size:12px;font-weight:800;letter-spacing:.05em}
+.webbox .dec rect{fill:color-mix(in srgb,#9a6b3f 18%,var(--surface));stroke:#9a6b3f;stroke-width:2.5}
+.webbox .dec text{fill:var(--ink);font-weight:800;font-size:15px;text-anchor:middle}
+.webbox .dec.gone{opacity:.32}
+.webbox .nut{stroke:#9a6b3f;stroke-width:2;stroke-dasharray:4 5;opacity:.7}
+.poplist{display:flex;flex-direction:column;gap:5px;max-height:440px;overflow:auto;padding-right:4px}
+.poprow{display:grid;grid-template-columns:26px 92px minmax(0,1fr) 56px;gap:8px;align-items:center;font-size:14px;font-weight:700}
+.poprow .bar{height:12px;border-radius:999px;background:var(--surface-2);position:relative;overflow:hidden}
+.poprow .bar i{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:var(--ink-2);transition:width .4s,background .3s}
+.poprow .bar::after{content:"";position:absolute;left:50%;top:-2px;bottom:-2px;width:2px;background:var(--ink);opacity:.35}
+.poprow .st{font-size:12px;text-align:right;color:var(--ink-2)}
+.poprow.gone{opacity:.4}
+.reasons{margin:0;padding-left:18px;font-size:14px;color:var(--ink-2);display:flex;flex-direction:column;gap:3px}
+.ctlgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ppstatus{background:var(--surface-2);border-radius:14px;padding:10px 12px;font-weight:700;font-size:15px;min-height:48px}
+@media (max-width:560px){.ctlgrid{grid-template-columns:1fr}.poprow{grid-template-columns:24px 78px minmax(0,1fr) 48px}}
+</style>
+</head>
+<body data-subject="biology" data-topic="food-webs">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="生物 · 生态学">Biology · Ecology</span>
+  <h1 data-zh-html="食物网与<em>能量金字塔</em>">Food Webs &amp; <em>Energy Pyramids</em></h1>
+  <p class="lead" data-zh="你午餐里的能量是从哪里来的？每一口食物里都藏着来自太阳的能量。看看能量如何从植物一层层传到鹰，为什么每往上一层就会少掉约 90%，再试着从食物网中拿走一个物种，看看会发生什么！">Where did the energy in your lunch come from? Every bite of food carries energy that started in the Sun. Watch energy climb from plants all the way up to a hawk, find out why about 90% disappears at every step, then pull a species out of a food web and see what happens!</p>
+</header>
+
+<section class="wrap" id="explore" data-nav="3D Pyramid" data-nav-zh="3D 能量金字塔">
+  <div class="explorer">
+    <div class="stage card" id="stage" data-3d>
+      <div class="toolbar">
+        <button class="tbtn on" id="rotBtn" data-zh="⟳ 旋转">⟳ Spin</button>
+        <button class="tbtn" id="resetBtn" data-zh="⌂ 重置">⌂ Reset</button>
+        <button class="tbtn" id="storyBtn" data-zh="☀️ 追踪能量（故事）">☀️ Follow the energy (story)</button>
+        <button class="tbtn on" id="flowBtn" data-zh="✨ 能量流动">✨ Energy flow</button>
+        <button class="tbtn on" id="labelBtn" data-zh="🏷 能量数值">🏷 Energy values</button>
+      </div>
+      <div class="bottombar">
+        <div class="pill"><span data-zh="⬆️ 传递效率">⬆️ Passed up</span><input id="eff" type="range" min="5" max="20" value="10"><b id="effVal">10%</b></div>
+        <div class="tip" data-zh="拖动旋转 · 滚轮缩放 · 点击任意一层或生物">Drag to rotate · Scroll to zoom · Click any level or organism</div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="chips" id="chips"></div>
+</section>
+
+<section class="wrap" id="chain" data-nav="Food chains" data-nav-zh="食物链">
+  <div class="sec-head">
+    <h2 data-zh="从食物链到食物网">From food chain to food web</h2>
+    <p data-zh="食物链是一条“谁吃谁”的直线。箭头指向“吃东西的一方”，也就是能量流动的方向。">A food chain is one straight line of “who eats whom”. Each arrow points to the eater, which is the direction energy flows.</p>
+  </div>
+  <div class="chainrow">
+    <div class="box card"><div class="ico">☀️</div><div class="lvl" data-zh="能量来源">Energy source</div><h3 data-zh="太阳">Sun</h3><p data-zh="提供光能。">Gives light energy.</p></div>
+    <div class="box card"><div class="ico">🌾</div><div class="lvl" data-zh="第 1 营养级">Level 1</div><h3 data-zh="生产者：草">Producer: grass</h3><p data-zh="通过光合作用把光能储存在有机物中。">Stores light energy in sugar by photosynthesis.</p></div>
+    <div class="box card"><div class="ico">🦗</div><div class="lvl" data-zh="第 2 营养级">Level 2</div><h3 data-zh="初级消费者：蚱蜢">Primary consumer: grasshopper</h3><p data-zh="植食性动物，吃植物。">A herbivore that eats plants.</p></div>
+    <div class="box card"><div class="ico">🐸</div><div class="lvl" data-zh="第 3 营养级">Level 3</div><h3 data-zh="次级消费者：青蛙">Secondary consumer: frog</h3><p data-zh="肉食性动物，吃植食性动物。">A carnivore that eats herbivores.</p></div>
+    <div class="box card"><div class="ico">🐍</div><div class="lvl" data-zh="第 4 营养级">Level 4</div><h3 data-zh="三级消费者：蛇">Tertiary consumer: snake</h3><p data-zh="吃次级消费者。">Eats secondary consumers.</p></div>
+  </div>
+  <div class="mix" style="margin-top:16px"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="箭头的意思不是“吃”，而是“被……吃掉，能量流向……”。“草 → 蚱蜢”表示能量从草流向蚱蜢，而不是草吃蚱蜢。">The arrow does not mean “eats”. It means “is eaten by, and energy flows to”. “Grass → grasshopper” means energy flows from the grass into the grasshopper, not that grass eats grasshoppers.</span></div>
+</section>
+
+<section class="wrap" id="web" data-nav="Food web" data-nav-zh="食物网">
+  <div class="sec-head">
+    <h2 data-zh="模拟：从食物网中移除一个物种">Simulation: remove a species from the food web</h2>
+    <p data-zh="这是佐治亚州森林边缘的一个食物网。点击任意物种把它移除（再点一次放回），右侧会预测其他种群如何变化。也可以移除分解者试试！">This is a food web from the edge of a Georgia forest. Click any species to remove it (click again to bring it back). The panel predicts how the other populations change. Try removing the decomposers too!</p>
+  </div>
+  <div class="sim">
+    <div class="webbox card" id="webBox"></div>
+    <div class="card simside">
+      <h3 data-zh="种群变化预测">Predicted population changes</h3>
+      <div class="counters">
+        <div class="counter"><b id="wRemoved">0</b><span data-zh="被移除的物种">species removed</span></div>
+        <div class="counter"><b id="wAffected">0</b><span data-zh="受到影响的物种">species affected</span></div>
+      </div>
+      <div class="legend"><span><i style="background:var(--good)"></i><span data-zh="增加">increases</span></span><span><i style="background:var(--bad)"></i><span data-zh="减少">decreases</span></span><span><i style="background:var(--ink-2)"></i><span data-zh="中线 = 原来的数量">middle line = starting size</span></span></div>
+      <div class="poplist" id="popList"></div>
+      <ul class="reasons" id="reasons"></ul>
+      <div class="btnrow"><button class="btn" id="webReset" data-zh="恢复食物网">Restore the web</button><button class="btn ghost" id="webRandom" data-zh="随机移除一个">Remove a random one</button></div>
+    </div>
+  </div>
+  <div class="memory" style="margin-top:16px"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="移除捕食者 → 它的猎物增多；移除猎物 → 它的捕食者挨饿。食物网中的联系越多，生态系统越稳定。">Remove a predator → its prey increases. Remove a prey → its predators go hungry. The more connections a food web has, the more stable the ecosystem.</span></div>
+</section>
+
+<section class="wrap" id="predator" data-nav="Predator & prey" data-nav-zh="捕食者与猎物">
+  <div class="sec-head">
+    <h2 data-zh="模拟：兔子与狐狸的种群曲线">Simulation: rabbit and fox population graph</h2>
+    <p data-zh="捕食者和猎物的数量会像跷跷板一样此消彼长。调节滑块，或者引发一件事件，观察两条曲线如何变化。">Predator and prey numbers rise and fall like a seesaw. Move the sliders or trigger an event, and watch how the two curves respond.</p>
+  </div>
+  <div class="sim">
+    <div class="simbox card"><canvas id="ppCanvas"></canvas></div>
+    <div class="card simside">
+      <h3 data-zh="草原控制台">Meadow controls</h3>
+      <div class="counters">
+        <div class="counter"><b id="ppR">0</b><span data-zh="🐇 兔子">🐇 rabbits</span></div>
+        <div class="counter"><b id="ppF">0</b><span data-zh="🦊 狐狸">🦊 foxes</span></div>
+        <div class="counter"><b id="ppT">0</b><span data-zh="经过的年数">years passed</span></div>
+        <div class="counter"><b id="ppRatio">–</b><span data-zh="每只狐狸对应的兔子数">rabbits per fox</span></div>
+      </div>
+      <div class="ctlgrid">
+        <label class="ctl"><span><span data-zh="🌾 草的多少">🌾 Grass available</span> <b id="vK"></b></span><input id="sK" type="range" min="200" max="1200" step="50" value="600"></label>
+        <label class="ctl"><span><span data-zh="🐇 兔子出生率">🐇 Rabbit birth rate</span> <b id="vA"></b></span><input id="sA" type="range" min="30" max="150" step="5" value="90"></label>
+        <label class="ctl"><span><span data-zh="🦊 狐狸捕猎本领">🦊 Fox hunting skill</span> <b id="vB"></b></span><input id="sB" type="range" min="4" max="20" step="1" value="10"></label>
+        <label class="ctl"><span><span data-zh="⏩ 速度">⏩ Speed</span> <b id="vS"></b></span><input id="sS" type="range" min="1" max="8" step="1" value="4"></label>
+      </div>
+      <div class="btnrow">
+        <button class="btn" id="ppPlay" data-zh="⏸ 暂停">⏸ Pause</button>
+        <button class="btn ghost" id="ppKill" data-zh="🦊 移走所有狐狸">🦊 Remove all foxes</button>
+        <button class="btn ghost" id="ppAdd" data-zh="🦊 放入 10 只狐狸">🦊 Add 10 foxes</button>
+        <button class="btn ghost" id="ppSick" data-zh="🦠 兔子生病（−50%）">🦠 Rabbit disease (−50%)</button>
+        <button class="btn ghost" id="ppReset" data-zh="↺ 重来">↺ Reset</button>
+      </div>
+      <div class="ppstatus" id="ppStatus"></div>
+    </div>
+  </div>
+  <div class="mix" style="margin-top:16px"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="捕食者并不会把猎物“吃光”。猎物变少时，捕食者先挨饿、数量下降，猎物才有机会恢复。注意：狐狸的曲线总是比兔子的曲线晚一步达到高峰。">Predators do not usually “eat up” all their prey. When prey get scarce, predators starve and decline first, which lets the prey recover. Notice that the fox peak always comes a little after the rabbit peak.</span></div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real photos" data-nav-zh="真实影像">
+  <div id="gallery"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 食物网测验">🧠 Food web quiz</h3><p class="sub" data-zh="选出正确答案。">Pick the best answer.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分一分">🗂️ Sort it</h3><p class="sub" data-zh="把每种生物拖到（或先点再点方框）它在生态系统中的角色里。">Drag each organism (or tap it, then tap a box) into its role in the ecosystem.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="对应佐治亚州标准 S7L4b：建立模型，描述物质循环和能量在生态系统生物与非生物成分之间的流动（重点：食物链、食物网和能量金字塔）；也联系 S7L4c（资源与种群变化）。">Supports GSE S7L4b: develop a model to describe the cycling of matter and the flow of energy among biotic and abiotic components of an ecosystem (emphasis on food chains, food webs and energy pyramids). The food-web and predator–prey simulations also connect to S7L4c (how resource availability affects populations).</p>
+    <p data-zh="建议提问：（1）把“传递效率”滑块拉到 20%，顶层能量增加了多少？为什么现实中很少超过 20%？（2）为什么分解者对能量没有“回收”，却对物质循环至关重要？（3）在食物网模拟中，移除哪一个物种影响最大？为什么？（联系物种之间连接的数量。）">Discussion prompts: (1) Slide “Passed up” to 20%. How much more energy reaches the top? Why is real-world efficiency rarely above about 20%? (2) Why do decomposers matter so much for the cycling of matter even though they do not recycle energy? (3) In the food web, which removal changes the most populations, and why? (Link it to the number of connections.)</p>
+    <p data-zh="说明：食物网预测使用的是简化的定性模型；捕食者—猎物曲线使用带有环境容纳量的洛特卡—沃尔泰拉方程。">Note: the food-web predictions use a simplified qualitative model; the predator–prey graph uses Lotka–Volterra equations with a carrying capacity for the prey.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<!--REAL-PHOTOS-->
+<script>
+/* ===== See the real thing: real photos / clips (Wikimedia Commons, freely licensed; credit shown under each) ===== */
+(function(){
+const P = [
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/31/Diatoms_through_the_microscope.jpg/960px-Diatoms_through_the_microscope.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Producers can be tiny: assorted diatoms seen through a microscope. These algae make their own food from sunlight.', zh:'生产者也可以很小：显微镜下各种各样的硅藻。这些藻类能利用阳光自己制造食物。', kind:{en:'Light micrograph',zh:'光学显微镜照片'}, credit:'Prof. Gordon T. Taylor, Stony Brook University (NOAA)', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Diatoms_through_the_microscope.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/df/Eastern_Cottontail.JPG/960px-Eastern_Cottontail.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Primary consumer: an eastern cottontail rabbit, a plant eater (Huntington Beach State Park, South Carolina).', zh:'初级消费者：一只东部棉尾兔，它以植物为食（美国南卡罗来纳州）。', kind:{en:'Photo',zh:'照片'}, credit:'Gareth Rasberry', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Eastern_Cottontail.JPG' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b7/White-tailed_deer.jpg/960px-White-tailed_deer.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Another primary consumer: a white-tailed deer. Herbivores get their energy straight from producers.', zh:'另一种初级消费者：白尾鹿。植食动物直接从生产者那里获得能量。', kind:{en:'Photo',zh:'照片'}, credit:'Scott Bauer (USDA)', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:White-tailed_deer.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f7/Thamnophis_sirtalis_sirtalis_Wooster.jpg/960px-Thamnophis_sirtalis_sirtalis_Wooster.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Secondary consumer: an eastern garter snake in Ohio. It eats smaller animals such as frogs.', zh:'次级消费者：美国俄亥俄州的一条东部束带蛇。它吃青蛙等小动物。', kind:{en:'Photo',zh:'照片'}, credit:'Wilson44691', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Thamnophis_sirtalis_sirtalis_Wooster.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7c/Hawk_eating_prey.jpg/960px-Hawk_eating_prey.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Top of the pyramid: a young red-tailed hawk eating its prey, a California meadow vole.', zh:'金字塔的顶端：一只年轻的红尾鵟正在吃它的猎物——一只加州草甸田鼠。', kind:{en:'Photo',zh:'照片'}, credit:'Steve Jurvetson', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Hawk_eating_prey.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/03/Vulpes_vulpes_laying_in_snow.jpg/960px-Vulpes_vulpes_laying_in_snow.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A red fox resting in the snow in Hokkaido, Japan. Foxes eat both animals and berries, so they sit at more than one level.', zh:'日本北海道雪地里休息的一只赤狐。赤狐既吃动物也吃浆果，所以它不止处在一个营养级上。', kind:{en:'Photo',zh:'照片'}, credit:'Shiretoko-Shari Tourist Association', license:'Attribution', page:'https://commons.wikimedia.org/wiki/File:Vulpes_vulpes_laying_in_snow.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d8/Mushrooms_on_a_log.jpg/960px-Mushrooms_on_a_log.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Decomposers at work: mushrooms growing on a dead log, returning its nutrients to the soil.', zh:'分解者在工作：长在枯木上的蘑菇，把枯木里的养分还给土壤。', kind:{en:'Photo',zh:'照片'}, credit:'Charlie Marshall', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Mushrooms_on_a_log.jpg' },
+  { type:'audio', media:'https://upload.wikimedia.org/wikipedia/commons/e/e5/Buteo_jamaicensis_-_Red-tailed_Hawk_-_XC71575.ogg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', en:'Listen: the call of a red-tailed hawk, a top predator. Movies often use this scream for eagles!', zh:'听一听：红尾鵟的叫声。它是顶级捕食者，电影里老鹰的叫声常常就是用它的声音配的！', kind:{en:'Audio',zh:'音频'}, credit:'Jonathon Jongsma', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Buteo_jamaicensis_-_Red-tailed_Hawk_-_XC71575.ogg' }
+];
+window.REALFIG = { decomposers:P[6], primary:P[1], producers:P[0], secondary:P[3], tertiary:P[4] };
+if (window.LabPhotos) LabPhotos.render('#gallery', P.filter(p => !p._x), { title:{en:'See the real thing',zh:'看看真实的样子'}, sub:{en:'Meet real members of a food web, one for each level of the energy pyramid. Click any picture to enlarge it; the sound plays only when you press play.',zh:'认识食物网里真实的成员：能量金字塔的每一层都有一位代表。点击图片可以放大；声音要按下播放键才会播放。'} });
+})();
+</script>
+<!--/REAL-PHOTOS-->
+<script>
+const o = (en, zh) => ({en, zh});
+/* ===== Parts of the energy pyramid (bilingual) ===== */
+const PARTS = {
+  sun:{color:'#ffc83d', name:o('The Sun','太阳'), job:o('Source of energy for almost every food web','几乎所有食物网的能量来源'),
+    facts:o(['Sunlight is the original energy source for nearly every ecosystem on Earth.','Only producers can capture light energy directly, by photosynthesis.','Plants capture only a small part (about 1%) of the sunlight that reaches them. That small part powers the whole pyramid.'],
+            ['阳光几乎是地球上所有生态系统能量的最初来源。','只有生产者能够通过光合作用直接利用光能。','植物只能固定照到它们身上的阳光中的一小部分（约 1%），但正是这一小部分支撑起了整座金字塔。']),
+    hint:o('Every food chain starts with ☀️ → a producer.','每条食物链的起点：☀️ → 生产者。'),
+    mix:o('Energy is not recycled in an ecosystem. It flows one way, so the Sun must keep supplying new energy every day.','能量在生态系统中不能循环利用，它是单向流动的，所以太阳必须每天不断地提供新的能量。')},
+  producers:{color:'#3fae5a', name:o('Producers','生产者'), job:o('Make their own food (level 1)','自己制造有机物（第 1 营养级）'),
+    facts:o(['Plants, algae and some bacteria are producers.','Photosynthesis: carbon dioxide + water + light energy → sugar (glucose) + oxygen.','Producers form the base of every energy pyramid and hold the MOST energy.','In this model: grass, trees and wildflowers.'],
+            ['植物、藻类和一些细菌是生产者。','光合作用：二氧化碳 + 水 —（光能）→ 有机物（葡萄糖）+ 氧气。','生产者位于每座能量金字塔的最底层，储存的能量最多。','模型中的生产者：草、树和野花。']),
+    hint:o('Producers PRODUCE their own food.','生产者 = 自己“生产”食物。'),
+    mix:o('Plants do not “eat” soil. Soil gives water and minerals, but the food (sugar) is built from CO₂ and water using light energy.','植物并不是“吃”土壤。土壤提供水和无机盐，而有机物（糖）是利用光能，由二氧化碳和水合成的。')},
+  primary:{color:'#f2b134', name:o('Primary consumers','初级消费者'), job:o('Herbivores that eat producers (level 2)','以生产者为食的植食性动物（第 2 营养级）'),
+    facts:o(['Herbivores such as rabbits, grasshoppers and deer eat only plants.','They get only about 10% of the energy stored in the plants they eat.','If producers hold 10,000 kJ, primary consumers get about 1,000 kJ.'],
+            ['兔子、蚱蜢、鹿等植食性动物只吃植物。','它们只能获得所吃植物中约 10% 的能量。','如果生产者含有 10 000 kJ 能量，初级消费者大约只得到 1 000 kJ。']),
+    hint:o('PRIMARY = first to eat. They eat the plants.','“初级”= 第一个吃的，它们吃植物。')},
+  secondary:{color:'#ee7a3b', name:o('Secondary consumers','次级消费者'), job:o('Eat primary consumers (level 3)','以初级消费者为食（第 3 营养级）'),
+    facts:o(['They can be carnivores (frog, snake) or omnivores (a fox eats rabbits AND berries).','They receive about 1% of the energy that the producers stored.','In this model: frog, snake and fox.'],
+            ['它们可以是肉食性动物（青蛙、蛇），也可以是杂食性动物（狐狸既吃兔子也吃浆果）。','它们只得到生产者所储存能量的约 1%。','模型中的次级消费者：青蛙、蛇和狐狸。']),
+    hint:o('Carnivore = meat eater. Omnivore = “omni” means all: plants and animals.','肉食性 = 吃肉；杂食性 = 植物和动物都吃。'),
+    mix:o('An animal is not stuck on one level. A fox eating berries is a primary consumer; a fox eating a rabbit is a secondary consumer.','动物不一定只属于一个营养级。狐狸吃浆果时是初级消费者，吃兔子时是次级消费者。')},
+  tertiary:{color:'#d9485f', name:o('Tertiary consumers','三级消费者'), job:o('Top predators (level 4)','顶级捕食者（第 4 营养级）'),
+    facts:o(['They eat secondary consumers. Examples: hawks, owls and eagles.','Only about 0.1% of the producers’ energy reaches them.','That is why an ecosystem can support only a few top predators, and food chains rarely have more than 4–5 links.'],
+            ['它们以次级消费者为食，例如鹰、猫头鹰和雕。','生产者的能量只有约 0.1% 能传到它们这里。','所以一个生态系统只能养活很少的顶级捕食者，食物链一般不超过 4~5 个环节。']),
+    hint:o('Top of the pyramid = least energy = fewest animals.','金字塔顶端 = 能量最少 = 数量最少。'),
+    mix:o('Top predators are not “extra”. They keep the numbers of snakes, mice and rabbits in check.','顶级捕食者不是“多余的”，它们控制着蛇、老鼠和兔子的数量。')},
+  decomposers:{color:'#9a6b3f', name:o('Decomposers','分解者'), job:o('Break down dead matter and wastes','分解动植物遗体和排泄物'),
+    facts:o(['Fungi (mushrooms, molds) and bacteria are decomposers. Earthworms and millipedes help break things down too.','They feed on dead organisms and wastes from EVERY level of the pyramid.','They return nutrients (matter) to the soil so producers can use them again.'],
+            ['真菌（蘑菇、霉菌）和细菌是分解者，蚯蚓和马陆也帮助分解。','它们以金字塔“每一层”的遗体和排泄物为食。','它们把营养物质（物质）归还到土壤中，让生产者可以再次利用。']),
+    hint:o('Decomposers are nature’s recyclers ♻️. Watch the brown and green particles.','分解者是大自然的“回收员”♻️。看看棕色和绿色的小粒子。'),
+    mix:o('Decomposers recycle MATTER (nutrients), not energy. The energy they use also ends up as heat. Matter cycles; energy flows.','分解者回收的是“物质”（营养），而不是能量。它们利用的能量最终也变成热散失。物质循环，能量流动。')},
+  heat:{color:'#ff5a36', name:o('Energy lost as heat','以热的形式散失的能量'), job:o('Where about 90% goes at each step','每一级约 90% 能量的去向'),
+    facts:o(['Organisms use most of their energy to move, grow, breathe and keep warm (cellular respiration).','That energy finally leaves as heat, which no organism can use as food.','Some energy also stays in parts that are not eaten (bones, fur, roots) or leaves in wastes.','Only about 10% is stored in the body and passed up: the 10% rule.'],
+            ['生物把大部分能量用于运动、生长、呼吸和维持体温（细胞呼吸）。','这些能量最终以热的形式散失，任何生物都不能再把它当作食物。','还有一些能量留在没被吃掉的部分（骨头、皮毛、根）里，或随排泄物离开。','只有约 10% 储存在身体中并传给下一级，这就是“10% 定律”。']),
+    hint:o('Each step up: keep 10%, lose 90%.','每上一级：留下 10%，散失 90%。'),
+    mix:o('Energy is not destroyed. It changes into heat. But heat cannot be passed back up the food chain, so the flow is one-way.','能量并没有消失，而是变成了热。但热不能再沿食物链向上传递，所以能量流动是单向的。')}
+};
+const ORDER = ['sun','producers','primary','secondary','tertiary','decomposers','heat'];
+const LEVELS = ['producers','primary','secondary','tertiary'];
+
+/* ===== Story: follow the energy ===== */
+const STORY = [
+  o('1 · Sunlight shines on the meadow. It is the energy source for the whole food web.','1 · 阳光照在草地上，它是整个食物网的能量来源。'),
+  o('2 · Producers capture light by photosynthesis and store it in sugar: 10,000 kJ at the base.','2 · 生产者通过光合作用固定光能，把它储存在有机物中：底层共有 10 000 kJ。'),
+  o('3 · Herbivores eat the plants, but only about 10% of the energy (1,000 kJ) moves up.','3 · 植食性动物吃掉植物，但只有约 10% 的能量（1 000 kJ）传上去。'),
+  o('4 · Where did the other 90% go? Used for living and lost as heat (the orange sparks).','4 · 另外 90% 去哪了？用于生命活动并以热的形式散失（橙色火花）。'),
+  o('5 · Up again: 100 kJ for the frog, snake and fox, and only 10 kJ for the hawk at the top.','5 · 再往上：青蛙、蛇和狐狸只有 100 kJ，顶端的鹰只剩 10 kJ。'),
+  o('6 · Decomposers break down dead matter from every level and return nutrients to the soil. Matter cycles; energy flows one way.','6 · 分解者分解每一级的遗体，把营养物质还给土壤。物质循环，能量单向流动。')
+];
+
+/* ===== Info panel / selection ===== */
+const App = window.FW = { sel:null, three:null, eff:.1 };
+App.select = (k, from3D) => { App.sel = k; renderInfo(); renderChips(); if (!from3D && App.three) App.three.focus(k); };
+const kJ = n => (n >= 100 ? Math.round(n).toLocaleString('en-US') : n >= 10 ? n.toFixed(0) : n >= 1 ? n.toFixed(1) : n.toFixed(2)) + ' kJ';
+App.energyAt = i => 10000 * Math.pow(App.eff, i);
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel;
+  if (!k){
+    const rows = LEVELS.map((l, i) => `<li><b style="color:${PARTS[l].color}">${Lab.L(PARTS[l].name)}</b>: ${kJ(App.energyAt(i))}</li>`).reverse().join('');
+    box.innerHTML = `<span class="tag">${Lab.L(o('Energy pyramid','能量金字塔'))}</span>
+      <h3>${Lab.L(o('Energy shrinks as it climbs','能量越往上越少'))}</h3>
+      <p class="muted" style="margin:0">${Lab.L(o('Each shelf is a trophic (feeding) level. Its width shows how much energy it holds. Click a shelf, the Sun, the heat sparks or the mushrooms to learn more.','每一层平台代表一个营养级，宽度表示它含有多少能量。点击平台、太阳、热火花或蘑菇来了解更多。'))}</p>
+      <ul>${rows}</ul>
+      <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(o('Only about 10% of the energy at one level is passed to the next level. The rest is used for life and lost as heat.','每一营养级只有约 10% 的能量传到下一级，其余用于生命活动并以热的形式散失。'))}</div>
+      <div class="nav"><button id="startBtn">${Lab.L(o('Start with the Sun ▶','从太阳开始 ▶'))}</button></div>`;
+    Lab.$('#startBtn').onclick = () => App.select('sun');
+    return;
+  }
+  const p = PARTS[k], i = ORDER.indexOf(k), li = LEVELS.indexOf(k);
+  const energy = li >= 0 ? `<div class="counter"><b>${kJ(App.energyAt(li))}</b><span>${Lab.L(o('energy at this level (with the slider setting)','这一级的能量（按当前滑块设置）'))}</span></div>` : '';
+  box.innerHTML = `<span class="tag">${Lab.L(li >= 0 ? o('Trophic level ' + (li + 1),'第 ' + (li + 1) + ' 营养级') : o('Energy pyramid','能量金字塔'))}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    ${energy}
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>${window.REALFIG && REALFIG[k] ? LabPhotos.figure(REALFIG[k]) : ''}
+    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. '));
+  Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
+  Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
+}
+function renderChips(){
+  Lab.$('#chips').innerHTML = ORDER.map(k => `<button class="chip ${App.sel===k?'on':''}" data-k="${k}"><i style="background:${PARTS[k].color}"></i>${Lab.L(PARTS[k].name)}</button>`).join('');
+  Lab.$$('#chips .chip').forEach(c => c.onclick = () => App.select(c.dataset.k));
+}
+Lab.onLang(() => { renderInfo(); renderChips(); });
+Lab.$('#eff').addEventListener('input', e => { App.eff = e.target.value / 100; Lab.$('#effVal').textContent = e.target.value + '%'; renderInfo(); App.three && App.three.setEff(App.eff); });
+/* ===== Food web: remove a species ===== */
+(function(){
+  const SP = {
+    grass:{e:'🌾', x:130, y:420, name:o('Grass','草')},
+    oak:{e:'🌳', x:400, y:420, name:o('Oak tree','橡树')},
+    berry:{e:'🍓', x:670, y:420, name:o('Wild berries','野浆果')},
+    grasshopper:{e:'🦗', x:70, y:300, name:o('Grasshopper','蚱蜢'), diet:['grass']},
+    rabbit:{e:'🐇', x:235, y:300, name:o('Rabbit','兔子'), diet:['grass']},
+    mouse:{e:'🐁', x:400, y:300, name:o('Mouse','老鼠'), diet:['grass','oak','berry']},
+    squirrel:{e:'🐿️', x:565, y:300, name:o('Squirrel','松鼠'), diet:['oak','berry']},
+    deer:{e:'🦌', x:730, y:300, name:o('Deer','鹿'), diet:['grass','oak','berry']},
+    frog:{e:'🐸', x:120, y:180, name:o('Frog','青蛙'), diet:['grasshopper']},
+    snake:{e:'🐍', x:320, y:180, name:o('Snake','蛇'), diet:['mouse','frog']},
+    fox:{e:'🦊', x:560, y:180, name:o('Red fox','赤狐'), diet:['rabbit','mouse','squirrel','berry']},
+    hawk:{e:'🦅', x:400, y:62, name:o('Hawk','鹰'), diet:['snake','mouse','rabbit','squirrel']},
+    decomp:{e:'🍄', x:400, y:515, name:o('Decomposers','分解者')}
+  };
+  const IDS = Object.keys(SP), PRODUCERS = ['grass','oak','berry'];
+  const eaters = id => IDS.filter(j => (SP[j].diet || []).includes(id));
+  const removed = new Set(); let eff = {}, hover = null;
+  const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+  const names = arr => arr.map(id => Lab.L(SP[id].name)).join(Lab.lang === 'zh' ? '、' : ', ');
+
+  function predict(){
+    eff = {}; IDS.forEach(id => eff[id] = 0);
+    const val = id => removed.has(id) ? -1 : eff[id];
+    for (let it = 0; it < 40; it++){
+      const nx = {};
+      for (const id of IDS){
+        if (removed.has(id)){ nx[id] = -1; continue; }
+        const diet = SP[id].diet || [];
+        let food = 0, pred = 0;
+        if (id === 'decomp') food = IDS.filter(j => j !== 'decomp').reduce((s, j) => s + val(j), 0) / (IDS.length - 1) * .8;
+        else if (diet.length){ food = diet.reduce((s, d) => s + val(d), 0) / diet.length; if (diet.every(d => removed.has(d))) food = -1.5; }
+        else if (removed.has('decomp')) food = -.7;
+        const ea = eaters(id);
+        if (ea.length) pred = ea.reduce((s, e) => s + val(e), 0) / ea.length;
+        nx[id] = clamp(.9 * food - .75 * pred, -1, 1);
+      }
+      for (const id of IDS) eff[id] = .6 * eff[id] + .4 * nx[id];
+    }
+  }
+  function reason(id){
+    const L = Lab.lang === 'zh', diet = SP[id].diet || [], ea = eaters(id), bits = [];
+    const fg = diet.filter(d => removed.has(d)), fd = diet.filter(d => !removed.has(d) && eff[d] < -.08), fu = diet.filter(d => !removed.has(d) && eff[d] > .08);
+    const pg = ea.filter(e => removed.has(e)), pd = ea.filter(e => !removed.has(e) && eff[e] < -.08), pu = ea.filter(e => !removed.has(e) && eff[e] > .08);
+    if (diet.length && fg.length === diet.length) bits.push(L ? '失去了全部食物' : 'lost ALL its food');
+    else if (fg.length) bits.push((L ? '失去食物：' : 'lost food: ') + names(fg));
+    if (fd.length) bits.push((L ? '食物减少：' : 'less food: ') + names(fd));
+    if (fu.length) bits.push((L ? '食物增多：' : 'more food: ') + names(fu));
+    if (pg.length) bits.push((L ? '天敌被移除：' : 'predator removed: ') + names(pg));
+    if (pd.length) bits.push((L ? '天敌减少：' : 'fewer predators: ') + names(pd));
+    if (pu.length) bits.push((L ? '吃它的动物增多：' : 'more animals eating it: ') + names(pu));
+    if (PRODUCERS.includes(id) && removed.has('decomp')) bits.push(L ? '没有分解者，养分不再回到土壤' : 'no decomposers, so nutrients stop returning to the soil');
+    if (id === 'decomp') bits.push(L ? '遗体和排泄物变少了' : 'less dead matter to feed on');
+    return bits.join(L ? ';' : '; ');
+  }
+  const status = id => removed.has(id) ? 'gone' : eff[id] <= -.8 ? 'dead' : eff[id] < -.08 ? 'down' : eff[id] > .08 ? 'up' : '';
+  const stLabel = s => Lab.L({gone:o('removed','已移除'), dead:o('may die out','可能消失'), down:o('↓ down','↓ 减少'), up:o('↑ up','↑ 增加'), '':o('≈ same','≈ 不变')}[s]);
+
+  function draw(){
+    const L = Lab.lang === 'zh';
+    let edges = '';
+    for (const id of IDS) for (const d of (SP[id].diet || [])){
+      const a = SP[d], b = SP[id], dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy), ux = dx / len, uy = dy / len;
+      const off = removed.has(id) || removed.has(d), hot = hover && (hover === id || hover === d);
+      edges += `<line class="edge ${off ? 'off' : ''} ${hot && !off ? 'hot' : ''}" x1="${a.x + ux * 31}" y1="${a.y + uy * 31}" x2="${b.x - ux * 35}" y2="${b.y - uy * 35}" marker-end="url(#${hot && !off ? 'arrH' : 'arr'})"/>`;
+    }
+    const nut = PRODUCERS.map(p => `<line class="nut" x1="${SP.decomp.x + (SP[p].x - 400) * .45}" y1="${SP.decomp.y - 20}" x2="${SP[p].x}" y2="${SP[p].y + 34}" marker-end="url(#arrN)"/>`).join('');
+    const lv = [[62, o('Top predator','顶级捕食者')], [180, o('Secondary consumers','次级消费者')], [300, o('Primary consumers','初级消费者')], [420, o('Producers','生产者')]]
+      .map(([y, t]) => `<text class="lvlname" x="6" y="${y - 40}">${Lab.L(t)}</text>`).join('');
+    const nodes = IDS.filter(id => id !== 'decomp').map(id => { const s = SP[id], st = status(id);
+      return `<g class="node ${st}" data-id="${id}" transform="translate(${s.x},${s.y})"><circle r="30"/><text class="em" y="1">${s.e}</text><text class="nm" y="48">${Lab.L(s.name)}</text>${st === 'gone' ? '<text class="em" y="1" style="fill:var(--bad);font-size:40px">✕</text>' : ''}</g>`; }).join('');
+    const dc = SP.decomp, dst = status('decomp');
+    const dec = `<g class="node dec ${dst}" data-id="decomp" transform="translate(${dc.x},${dc.y})"><rect x="-170" y="-20" width="340" height="40" rx="20"/><text y="6">🍄 🦠 🪱 ${Lab.L(o('Decomposers: fungi, bacteria, worms','分解者：真菌、细菌、蚯蚓'))}${dst === 'gone' ? ' ✕' : ''}</text></g>
+      <text class="lvlname" x="${dc.x + 180}" y="${dc.y + 5}">${L ? '营养物质 ↑' : 'nutrients ↑'}</text>`;
+    Lab.$('#webBox').innerHTML = `<svg viewBox="0 0 800 545" role="img" aria-label="${L ? '食物网' : 'Food web'}">
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--ink-2)"/></marker>
+        <marker id="arrH" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--brand)"/></marker>
+        <marker id="arrN" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#9a6b3f"/></marker>
+      </defs>${lv}${nut}${edges}${nodes}${dec}</svg>`;
+    Lab.$$('#webBox .node').forEach(g => {
+      g.onclick = () => { const id = g.dataset.id; removed.has(id) ? removed.delete(id) : removed.add(id); update(); };
+      g.onmouseenter = () => { hover = g.dataset.id; draw(); };
+      g.onmouseleave = () => { hover = null; draw(); };
+    });
+  }
+  function update(){
+    predict(); draw();
+    const rows = IDS.map(id => { const st = status(id), pct = removed.has(id) ? 0 : clamp(50 * (1 + eff[id]), 0, 100);
+      const col = st === 'up' ? 'var(--good)' : (st === 'down' || st === 'dead') ? 'var(--bad)' : 'var(--ink-2)';
+      return `<div class="poprow ${st === 'gone' ? 'gone' : ''}"><span>${SP[id].e}</span><span>${Lab.L(SP[id].name)}</span><span class="bar"><i style="width:${pct}%;background:${col}"></i></span><span class="st">${stLabel(st)}</span></div>`; }).join('');
+    Lab.$('#popList').innerHTML = rows;
+    const changed = IDS.filter(id => !removed.has(id) && Math.abs(eff[id]) > .08).sort((a, b) => Math.abs(eff[b]) - Math.abs(eff[a]));
+    Lab.$('#wRemoved').textContent = removed.size; Lab.$('#wAffected').textContent = changed.length;
+    Lab.$('#reasons').innerHTML = removed.size ? changed.slice(0, 5).map(id => `<li><b>${SP[id].e} ${Lab.L(SP[id].name)}</b> ${stLabel(status(id))}${Lab.lang === 'zh' ? '：' : ': '}${reason(id)}</li>`).join('')
+      : `<li>${Lab.L(o('Click a species in the web to remove it. Arrows show the direction energy flows.','点击食物网中的物种把它移除。箭头表示能量流动的方向。'))}</li>`;
+  }
+  Lab.$('#webReset').onclick = () => { removed.clear(); update(); };
+  Lab.$('#webRandom').onclick = () => { const left = IDS.filter(id => !removed.has(id)); if (left.length) removed.add(left[Math.random() * left.length | 0]); update(); };
+  Lab.onLang(update);
+})();
+
+/* ===== Predator–prey (rabbits & foxes), Lotka–Volterra with carrying capacity ===== */
+(function(){
+  const cv = Lab.$('#ppCanvas'), g = cv.getContext('2d');
+  const P = { a:.9, K:600, b:.01, e:.1, m:.35, speed:4 };
+  const CR = '#4f8ff0', CF = '#ee7a3b';
+  let R, F, t, hist, run = true, lastSample = 0, dR = 0, dF = 0;
+  function reset(){ R = 200; F = 10; t = 0; hist = [{t:0, R, F}]; lastSample = 0; }
+  function step(dt){
+    const n = 40, h = dt / n;
+    for (let i = 0; i < n; i++){
+      dR = P.a * R * (1 - R / P.K) - P.b * R * F; dF = P.e * P.b * R * F - P.m * F;
+      R = Math.max(0, R + dR * h); F = Math.max(0, F + dF * h);
+    }
+    if (F < .5) F = 0; if (R < .5) R = 0;
+    t += dt;
+    if (t - lastSample >= .1){ hist.push({t, R, F}); lastSample = t; if (hist.length > 600) hist.shift(); }
+  }
+  const nice = v => { const p = Math.pow(10, Math.floor(Math.log10(v))); return Math.ceil(v / p * 2) / 2 * p; };
+  function css(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+  function draw(){
+    const b = cv.parentElement.getBoundingClientRect(), dpr = Math.min(devicePixelRatio, 2);
+    if (cv.width !== Math.round(b.width * dpr) || cv.height !== Math.round(b.height * dpr)){ cv.width = Math.round(b.width * dpr); cv.height = Math.round(b.height * dpr); }
+    const W = b.width, H = b.height; g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+    const ink = css('--ink'), ink2 = css('--ink-2'), line = css('--line');
+    const pl = 56, pr = 56, pt = 34, pb = 40, w = W - pl - pr, h = H - pt - pb;
+    const maxR = nice(Math.max(P.K, ...hist.map(p => p.R)) * 1.08), maxF = nice(Math.max(20, ...hist.map(p => p.F)) * 1.15);
+    const t0 = Math.max(0, t - 60), X = tt => pl + (tt - t0) / 60 * w;
+    g.font = '700 12px Nunito, sans-serif'; g.lineWidth = 1;
+    for (let i = 0; i <= 5; i++){ const y = pt + h - i / 5 * h; g.strokeStyle = line; g.beginPath(); g.moveTo(pl, y); g.lineTo(pl + w, y); g.stroke();
+      g.fillStyle = CR; g.textAlign = 'right'; g.fillText(Math.round(maxR * i / 5), pl - 8, y + 4);
+      g.fillStyle = CF; g.textAlign = 'left'; g.fillText(Math.round(maxF * i / 5), pl + w + 8, y + 4); }
+    g.fillStyle = ink2; g.textAlign = 'center';
+    for (let yr = Math.ceil(t0 / 10) * 10; yr <= t0 + 60; yr += 10) g.fillText(yr, X(yr), pt + h + 18);
+    g.fillText(Lab.L(o('time (years)','时间（年）')), pl + w / 2, pt + h + 34);
+    // carrying capacity line
+    const yK = pt + h - P.K / maxR * h; g.setLineDash([6, 6]); g.strokeStyle = CR; g.globalAlpha = .5; g.beginPath(); g.moveTo(pl, yK); g.lineTo(pl + w, yK); g.stroke(); g.setLineDash([]); g.globalAlpha = 1;
+    g.fillStyle = CR; g.textAlign = 'left'; g.fillText(Lab.L(o('food limit for rabbits','兔子的食物上限')), pl + 6, yK - 6);
+    const plot = (key, max, col) => { g.strokeStyle = col; g.lineWidth = 3; g.beginPath(); hist.forEach((p, i) => { const x = X(p.t), y = pt + h - p[key] / max * h; i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.stroke(); };
+    plot('R', maxR, CR); plot('F', maxF, CF);
+    g.font = '800 13px Nunito, sans-serif'; g.textAlign = 'left';
+    g.fillStyle = CR; g.fillText('● ' + Lab.L(o('Rabbits (left axis)','兔子（左轴）')), pl, 20);
+    g.fillStyle = CF; g.fillText('● ' + Lab.L(o('Foxes (right axis)','狐狸（右轴）')), pl + 190, 20);
+    if (!run){ g.fillStyle = ink; g.textAlign = 'right'; g.fillText(Lab.L(o('⏸ paused','⏸ 已暂停')), pl + w, 20); }
+  }
+  function status(){
+    let m;
+    if (R === 0 && F === 0) m = o('Both populations are gone.','两个种群都消失了。');
+    else if (R === 0) m = o('No rabbits left: the foxes have nothing to eat and will starve.','兔子没有了：狐狸没有食物，将会饿死。');
+    else if (F === 0) m = o('No foxes: rabbits grow until their food (grass) runs short. That level is the carrying capacity.','没有狐狸：兔子不断增加，直到草不够吃为止，这个数量就是环境容纳量。');
+    else if (Math.abs(dR) < 1.5 && Math.abs(dF) < .3) m = o('The populations have settled into a balance.','两个种群已趋于平衡。');
+    else if (dR > 0 && dF > 0) m = o('Lots of rabbits → plenty of food for foxes, so foxes increase.','兔子很多 → 狐狸食物充足，狐狸增加。');
+    else if (dR <= 0 && dF > 0) m = o('Many foxes are eating many rabbits → rabbits start to drop.','狐狸多了，吃掉大量兔子 → 兔子开始减少。');
+    else if (dR <= 0 && dF <= 0) m = o('Fewer rabbits → foxes go hungry, so fox numbers drop.','兔子变少 → 狐狸挨饿，数量下降。');
+    else m = o('Fewer foxes → more rabbits survive and multiply again.','狐狸变少 → 更多兔子存活下来，再次繁殖。');
+    Lab.$('#ppStatus').textContent = Lab.L(m);
+    Lab.$('#ppR').textContent = Math.round(R); Lab.$('#ppF').textContent = Math.round(F); Lab.$('#ppT').textContent = Math.floor(t);
+    Lab.$('#ppRatio').textContent = F >= 1 ? Math.round(R / F) : '–';
+  }
+  function labels(){
+    Lab.$('#vK').textContent = P.K; Lab.$('#vA').textContent = P.a.toFixed(2); Lab.$('#vB').textContent = Math.round(P.b * 1000); Lab.$('#vS').textContent = P.speed + '×';
+    const pb = Lab.$('#ppPlay'); pb.dataset.en = run ? '⏸ Pause' : '▶ Play'; pb.dataset.zh = run ? '⏸ 暂停' : '▶ 继续'; pb.textContent = Lab.lang === 'zh' ? pb.dataset.zh : pb.dataset.en;
+  }
+  const bind = (id, fn) => Lab.$(id).addEventListener('input', e => { fn(+e.target.value); labels(); });
+  bind('#sK', v => P.K = v); bind('#sA', v => P.a = v / 100); bind('#sB', v => P.b = v / 1000); bind('#sS', v => P.speed = v);
+  Lab.$('#ppPlay').onclick = () => { run = !run; labels(); };
+  Lab.$('#ppKill').onclick = () => { F = 0; };
+  Lab.$('#ppAdd').onclick = () => { F += 10; };
+  Lab.$('#ppSick').onclick = () => { R *= .5; };
+  Lab.$('#ppReset').onclick = () => { reset(); };
+  let last = performance.now(), statT = 0;
+  function loop(now){
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    if (run) step(dt * P.speed);
+    draw(); statT += dt; if (statT > .25){ statT = 0; status(); }
+    requestAnimationFrame(loop);
+  }
+  reset(); labels(); Lab.onLang(() => { labels(); status(); });
+  requestAnimationFrame(loop);
+})();
+/* ===== Quiz ===== */
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('What is the original source of energy for almost every food web?','几乎所有食物网的能量最初来自哪里？'), options:[o('The Sun','太阳'),o('The soil','土壤'),o('Water','水'),o('Decomposers','分解者')], answer:0, explain:o('Producers capture sunlight by photosynthesis; every other organism depends on that stored energy.','生产者通过光合作用固定太阳能，其他所有生物都依赖这些储存的能量。')},
+  {q:o('Which organism is a producer?','下列哪种生物是生产者？'), options:[o('Grass','草'),o('Rabbit','兔子'),o('Mushroom','蘑菇'),o('Hawk','鹰')], answer:0, explain:o('Grass makes its own food by photosynthesis. Mushrooms are decomposers, not producers.','草通过光合作用自己制造有机物。蘑菇是分解者，不是生产者。')},
+  {q:o('In a food chain, the arrows point…','在食物链中，箭头指向……'), options:[o('From the food to the eater (the way energy flows)','从食物指向吃它的生物（能量流动的方向）'),o('From the eater to the food','从吃的一方指向食物'),o('From big animals to small ones','从大动物指向小动物'),o('Toward the Sun','指向太阳')], answer:0},
+  {q:o('Producers store 10,000 kJ. About how much energy reaches the secondary consumers?','生产者储存了 10 000 kJ 能量。大约有多少能量能传到次级消费者？'), options:[o('100 kJ','100 kJ'),o('1,000 kJ','1 000 kJ'),o('10 kJ','10 kJ'),o('9,000 kJ','9 000 kJ')], answer:0, explain:o('10,000 → 1,000 (primary) → 100 (secondary). Each step keeps about 10%.','10 000 → 1 000（初级）→ 100（次级），每一步只保留约 10%。')},
+  {q:o('What happens to most (about 90%) of the energy at each level?','每一营养级大部分（约 90%）的能量去哪了？'), options:[o('It is used for life processes and lost as heat','用于生命活动并以热的形式散失'),o('It is stored in the soil','储存在土壤里'),o('It goes back to the Sun','回到太阳'),o('It is passed to the next level','传给下一级')], answer:0},
+  {q:o('Why are there far fewer hawks than rabbits in an ecosystem?','为什么生态系统中鹰比兔子少得多？'), options:[o('Less energy is available at higher trophic levels','营养级越高，可利用的能量越少'),o('Hawks are bigger, so they need less food','鹰个子大，需要的食物少'),o('Hawks are producers','鹰是生产者'),o('Rabbits eat hawks','兔子吃鹰')], answer:0},
+  {q:o('What is the main job of decomposers?','分解者的主要作用是什么？'), options:[o('Break down dead matter and return nutrients to the soil','分解遗体，把营养物质归还土壤'),o('Make food from sunlight','利用阳光制造食物'),o('Hunt top predators','捕食顶级捕食者'),o('Recycle energy back to producers','把能量回收给生产者')], answer:0, explain:o('Decomposers recycle matter. Energy cannot be recycled; it is lost as heat.','分解者回收的是物质。能量不能被回收，它以热的形式散失。')},
+  {q:o('A fox eats rabbits and also eats berries. The fox is a(n)…','狐狸既吃兔子也吃浆果，狐狸属于……'), options:[o('Omnivore','杂食性动物'),o('Herbivore','植食性动物'),o('Producer','生产者'),o('Decomposer','分解者')], answer:0},
+  {q:o('How is a food web different from a food chain?','食物网和食物链有什么不同？'), options:[o('A web shows many connected food chains','食物网由许多相互交错的食物链组成'),o('A web has no producers','食物网里没有生产者'),o('A web shows only one path of energy','食物网只显示一条能量路径'),o('A web has no consumers','食物网里没有消费者')], answer:0},
+  {q:o('Snakes eat mice. If all the snakes are removed, the mouse population will probably…','蛇吃老鼠。如果所有的蛇都被移除，老鼠的数量很可能会……'), options:[o('Increase at first','先增加'),o('Decrease right away','马上减少'),o('Stay exactly the same','完全不变'),o('Turn into producers','变成生产者')], answer:0, explain:o('With fewer predators, more mice survive. Later they may run short of food.','天敌少了，更多老鼠存活下来；之后它们可能会因食物不足而减少。')},
+  {q:o('A grasshopper eats grass. Which trophic level is the grasshopper on?','蚱蜢吃草。蚱蜢处于第几营养级？'), options:[o('Level 2 (primary consumer)','第 2 营养级（初级消费者）'),o('Level 1 (producer)','第 1 营养级（生产者）'),o('Level 3 (secondary consumer)','第 3 营养级（次级消费者）'),o('Level 4 (top predator)','第 4 营养级（顶级捕食者）')], answer:0},
+  {q:o('Which statement about ecosystems is TRUE?','关于生态系统，下列哪种说法正确？'), options:[o('Matter cycles, but energy flows one way','物质循环，而能量单向流动'),o('Energy cycles, but matter flows one way','能量循环，而物质单向流动'),o('Both energy and matter are used up','能量和物质都会被用光'),o('Energy increases at each level','能量每升一级就增加')], answer:0}
+], { count:10 });
+
+/* ===== Sort game ===== */
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'pro',en:'Producer',zh:'生产者'},{id:'con',en:'Consumer',zh:'消费者'},{id:'dec',en:'Decomposer',zh:'分解者'}],
+  items:[
+    {en:'Grass',zh:'草',bin:'pro'},{en:'Oak tree',zh:'橡树',bin:'pro'},{en:'Algae',zh:'藻类',bin:'pro'},{en:'Sunflower',zh:'向日葵',bin:'pro'},
+    {en:'Rabbit',zh:'兔子',bin:'con'},{en:'Hawk',zh:'鹰',bin:'con'},{en:'Frog',zh:'青蛙',bin:'con'},{en:'Deer',zh:'鹿',bin:'con'},
+    {en:'Mushroom',zh:'蘑菇',bin:'dec'},{en:'Soil bacteria',zh:'土壤细菌',bin:'dec'},{en:'Earthworm',zh:'蚯蚓',bin:'dec'},{en:'Bread mold',zh:'面包上的霉菌',bin:'dec'}
+  ]
+});
+</script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const App = window.FW, V = THREE.Vector3, UP = new V(0, 1, 0);
+const ctx = Lab3D.stage('#stage', { THREE, OrbitControls, camera:[0, 6.5, 19.5], target:[0, 3.7, 0], minDistance:5, maxDistance:45, autoRotateSpeed:.5 });
+const { scene } = ctx;
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+
+/* ---------- materials: registered per part key so they can glow / dim ---------- */
+const MATS = {};
+const M = (key, color, o = {}) => { const m = ctx.mat(color, 1, { transparent:true, ...(o.x || {}) }); m.userData.emi = o.emi || 0; m.userData.op = o.op ?? 1; m.opacity = m.userData.op; (MATS[key] ||= []).push(m); return m; };
+const geo = { sph:new THREE.SphereGeometry(1, 22, 16), cyl:new THREE.CylinderGeometry(1, 1, 1, 14), cone:new THREE.ConeGeometry(1, 1, 16), ico:new THREE.IcosahedronGeometry(1, 1),
+  cap:new THREE.SphereGeometry(1, 22, 12, 0, Math.PI * 2, 0, Math.PI / 2) };
+function part(g, gm, mat, pos, scl = 1, rot){ const m = new THREE.Mesh(gm, mat); m.position.set(...pos); Array.isArray(scl) ? m.scale.set(...scl) : m.scale.setScalar(scl); if (rot) m.rotation.set(...rot); g.add(m); return m; }
+function rod(g, mat, a, b, r){ const p0 = new V(...a), p1 = new V(...b), d = p1.clone().sub(p0), m = new THREE.Mesh(geo.cyl, mat); m.position.copy(p0).addScaledVector(d, .5); m.scale.set(r, d.length(), r); m.quaternion.setFromUnitVectors(UP, d.normalize()); g.add(m); return m; }
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+
+/* ---------- ground: meadow disk with soil ---------- */
+const soilM = M('ground', '#7a5534'), meadowM = M('ground', '#86c46a');
+part(scene, new THREE.CylinderGeometry(8.6, 8.2, 1, 72), soilM, [0, -.5, 0]);
+part(scene, new THREE.CylinderGeometry(8.6, 8.6, .12, 72), meadowM, [0, .04, 0]);
+const meadowGrass = M('ground', '#5fa94b');
+for (let i = 0; i < 70; i++){ const a = rnd() * Math.PI * 2, r = 5.6 + rnd() * 2.8; for (let k = 0; k < 3; k++) part(scene, geo.cone, meadowGrass, [Math.cos(a) * r + (rnd() - .5) * .2, .3, Math.sin(a) * r + (rnd() - .5) * .2], [.05, .5 + rnd() * .3, .05], [(rnd() - .5) * .5, 0, (rnd() - .5) * .5]); }
+
+/* ---------- the Sun ---------- */
+const SUN = new V(9.5, 9, -3);
+const sunG = new THREE.Group(); sunG.position.copy(SUN); scene.add(sunG);
+part(sunG, geo.sph, M('sun', '#ffc83d', { emi:.95 }), [0, 0, 0], 1.3);
+part(sunG, geo.sph, M('sun', '#ffe7a0', { emi:.6, op:.22, x:{ depthWrite:false } }), [0, 0, 0], 2.1);
+const rays = new THREE.Group(); sunG.add(rays); const rayM = M('sun', '#ffd45a', { emi:.8 });
+for (let i = 0; i < 12; i++){ const a = i / 12 * Math.PI * 2, m = part(rays, geo.cone, rayM, [Math.cos(a) * 1.85, Math.sin(a) * 1.85, 0], [.13, .55, .13]); m.rotation.z = a - Math.PI / 2; }
+ctx.pickable(sunG, 'sun');
+const sunLight = new THREE.DirectionalLight(0xffe2a8, .7); sunLight.position.copy(SUN); scene.add(sunLight);
+
+/* ---------- organisms (stylized, built from primitives; origin at the feet) ---------- */
+const eye = key => M(key, '#151515');
+function tree(key, s){ const g = new THREE.Group(), bark = M(key, '#7b5230'), leaf = M(key, '#2f8f45'), leaf2 = M(key, '#46a956');
+  part(g, geo.cyl, bark, [0, .55, 0], [.13, 1.1, .13]);
+  part(g, geo.ico, leaf, [0, 1.45, 0], [.62, .55, .62]); part(g, geo.ico, leaf2, [.28, 1.75, .1], [.42, .4, .42]); part(g, geo.ico, leaf2, [-.25, 1.8, -.12], [.4, .38, .4]);
+  g.scale.setScalar(s); return g; }
+function tuft(key){ const g = new THREE.Group(), m = M(key, rnd() > .5 ? '#4fae4a' : '#67c255'); for (let i = 0; i < 5; i++) part(g, geo.cone, m, [(rnd() - .5) * .25, .2, (rnd() - .5) * .25], [.04, .42 + rnd() * .2, .04], [(rnd() - .5) * .6, 0, (rnd() - .5) * .6]); return g; }
+function flower(key, col){ const g = new THREE.Group(); part(g, geo.cyl, M(key, '#3f8f3a'), [0, .2, 0], [.025, .4, .025]);
+  const pm = M(key, col); for (let i = 0; i < 5; i++){ const a = i / 5 * Math.PI * 2; part(g, geo.sph, pm, [Math.cos(a) * .08, .42, Math.sin(a) * .08], [.07, .03, .07]); }
+  part(g, geo.sph, M(key, '#ffd23f'), [0, .43, 0], .045); return g; }
+function rabbit(key){ const g = new THREE.Group(), fur = M(key, '#b59a82'), lt = M(key, '#f1e6da'), pink = M(key, '#f2a3b3'), e = eye(key);
+  part(g, geo.sph, fur, [0, .3, 0], [.33, .27, .25]); part(g, geo.sph, fur, [.3, .52, 0], [.17, .16, .15]);
+  for (const z of [-.06, .06]){ part(g, geo.sph, fur, [.26, .8, z], [.05, .2, .04], [0, 0, .18]); part(g, geo.sph, pink, [.27, .8, z * 1.15], [.025, .15, .02], [0, 0, .18]); part(g, geo.sph, e, [.42, .56, z * 1.6], .03); }
+  part(g, geo.sph, lt, [-.34, .34, 0], .09); part(g, geo.sph, pink, [.47, .5, 0], .03);
+  for (const z of [-.13, .13]) part(g, geo.sph, fur, [.05, .06, z], [.2, .06, .07]);
+  return g; }
+function grasshopper(key){ const g = new THREE.Group(), gr = M(key, '#7cbf3a'), dk = M(key, '#4f8a22'), e = eye(key);
+  part(g, geo.sph, gr, [0, .28, 0], [.42, .11, .11]); part(g, geo.sph, dk, [-.05, .36, 0], [.36, .05, .1]); part(g, geo.sph, gr, [.42, .3, 0], [.12, .12, .1]);
+  for (const z of [-.09, .09]){ part(g, geo.sph, e, [.5, .34, z * .8], .03);
+    rod(g, gr, [-.02, .28, z * 1.2], [-.28, .55, z * 1.9], .035); rod(g, gr, [-.28, .55, z * 1.9], [-.5, .02, z * 2.1], .025);
+    rod(g, dk, [.2, .22, z], [.25, .02, z * 2.2], .018); rod(g, dk, [.05, .22, z], [.02, .02, z * 2.4], .018);
+    rod(g, dk, [.5, .38, z * .5], [.85, .6, z * 2.5], .01); }
+  g.scale.setScalar(1.1); return g; }
+function deer(key){ const g = new THREE.Group(), fur = M(key, '#a8703f'), lt = M(key, '#efdcc0'), dk = M(key, '#4a3523'), e = eye(key);
+  part(g, geo.sph, fur, [0, .95, 0], [.6, .3, .27]); part(g, geo.sph, lt, [.05, .82, 0], [.5, .18, .22]);
+  rod(g, fur, [.42, 1.05, 0], [.62, 1.45, 0], .1); part(g, geo.sph, fur, [.68, 1.5, 0], [.2, .13, .12]); part(g, geo.sph, dk, [.87, 1.46, 0], .045);
+  for (const z of [-.06, .06]){ part(g, geo.sph, e, [.76, 1.55, z * 1.6], .028); part(g, geo.sph, fur, [.6, 1.66, z * 2.2], [.04, .1, .06], [z * 4, 0, .5]);
+    rod(g, dk, [.64, 1.62, z], [.58, 1.95, z * 3], .02); rod(g, dk, [.6, 1.82, z * 2.4], [.75, 1.98, z * 2.8], .015); }
+  for (const [x, z] of [[.35, .14], [.35, -.14], [-.38, .14], [-.38, -.14]]){ rod(g, fur, [x, .85, z], [x, .08, z], .055); part(g, geo.sph, dk, [x + .02, .05, z], [.06, .05, .06]); }
+  part(g, geo.sph, lt, [-.62, 1.05, 0], [.1, .1, .08]);
+  return g; }
+function frog(key){ const g = new THREE.Group(), gr = M(key, '#3e9b47'), lt = M(key, '#c9e58a'), wh = M(key, '#ffffff'), e = eye(key);
+  part(g, geo.sph, gr, [0, .2, 0], [.36, .19, .3]); part(g, geo.sph, lt, [.12, .13, 0], [.25, .1, .22]);
+  for (const z of [-.13, .13]){ part(g, geo.sph, wh, [.2, .38, z], .085); part(g, geo.sph, e, [.27, .4, z * 1.05], .045);
+    part(g, geo.sph, gr, [-.2, .1, z * 2.1], [.26, .08, .1], [0, z * 4, 0]); part(g, geo.sph, gr, [-.02, .04, z * 2.6], [.16, .03, .1]);
+    rod(g, gr, [.18, .16, z * 1.6], [.3, .02, z * 2.2], .045); }
+  return g; }
+function snake(key){ const g = new THREE.Group(), sk = M(key, '#7a8f2e'), dk = M(key, '#3f4a17'), red = M(key, '#d23c3c'), e = eye(key);
+  const pts = []; for (let i = 0; i <= 34; i++){ const a = i * .5, r = .5 - i * .011; pts.push(new V(Math.cos(a) * r, .08 + i * .004, Math.sin(a) * r)); }
+  const last = pts[pts.length - 1]; pts.push(new V(last.x * .6, .35, last.z * .6), new V(last.x * .3 + .1, .55, last.z * .3 + .08));
+  const curve = new THREE.CatmullRomCurve3(pts); g.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 160, .075, 10), sk));
+  for (let i = 1; i < 30; i += 3){ const p = curve.getPointAt(i / 32); part(g, geo.sph, dk, [p.x, p.y + .06, p.z], [.05, .02, .05]); }
+  const h = curve.getPointAt(1); part(g, geo.sph, sk, [h.x + .04, h.y + .02, h.z + .03], [.13, .08, .1]);
+  part(g, geo.sph, e, [h.x + .1, h.y + .07, h.z + .1], .025); part(g, geo.sph, e, [h.x + .12, h.y + .07, h.z - .03], .025);
+  rod(g, red, [h.x + .15, h.y, h.z + .04], [h.x + .3, h.y - .02, h.z + .06], .01);
+  return g; }
+function fox(key){ const g = new THREE.Group(), fur = M(key, '#e0702a'), wh = M(key, '#fbefe3'), dk = M(key, '#2f241e'), e = eye(key);
+  part(g, geo.sph, fur, [0, .5, 0], [.48, .21, .19]); part(g, geo.sph, wh, [.25, .44, 0], [.22, .15, .15]);
+  part(g, geo.sph, fur, [.52, .68, 0], [.18, .16, .16]); part(g, geo.cone, wh, [.74, .63, 0], [.08, .22, .08], [0, 0, -Math.PI / 2]); part(g, geo.sph, dk, [.85, .63, 0], .03);
+  for (const z of [-.08, .08]){ part(g, geo.cone, fur, [.5, .88, z], [.06, .16, .05]); part(g, geo.sph, e, [.65, .73, z * 1.1], .025); }
+  for (const [x, z] of [[.3, .1], [.3, -.1], [-.3, .1], [-.3, -.1]]) rod(g, dk, [x, .45, z], [x, .02, z], .045);
+  part(g, geo.sph, fur, [-.68, .6, 0], [.34, .12, .12], [0, 0, .45]); part(g, geo.sph, wh, [-.95, .74, 0], [.1, .08, .08]);
+  return g; }
+let hawkWings = [];
+function hawk(key){ const g = new THREE.Group(), br = M(key, '#6e4a2f'), lt = M(key, '#e9d8bd'), tail = M(key, '#b5532c'), yel = M(key, '#f2c12e'), e = eye(key);
+  part(g, geo.sph, br, [0, 0, 0], [.24, .23, .45]); part(g, geo.sph, lt, [0, -.06, .12], [.18, .16, .3]);
+  part(g, geo.sph, lt, [0, .14, .42], .17); part(g, geo.cone, yel, [0, .1, .62], [.05, .12, .05], [Math.PI / 2 + .4, 0, 0]);
+  for (const x of [-.08, .08]) part(g, geo.sph, e, [x, .19, .55], .03);
+  part(g, geo.sph, tail, [0, -.02, -.55], [.2, .04, .3]);
+  for (const s of [-1, 1]){ const w = new THREE.Group(); w.position.set(.18 * s, .05, 0); g.add(w); part(w, geo.sph, br, [.7 * s, 0, 0], [.75, .05, .28]); part(w, geo.sph, lt, [.55 * s, -.03, .05], [.45, .03, .18]); w.userData.s = s; hawkWings.push(w); }
+  for (const x of [-.08, .08]) rod(g, yel, [x, -.15, .05], [x, -.4, .1], .025);
+  return g; }
+function mushroom(key, col, s){ const g = new THREE.Group(); part(g, geo.cyl, M(key, '#f4ecdc'), [0, .14, 0], [.07, .28, .07]);
+  part(g, geo.cap, M(key, col), [0, .26, 0], [.22, .17, .22]); if (col === '#d8453c'){ const dot = M(key, '#ffffff'); for (let i = 0; i < 5; i++){ const a = i * 1.3; part(g, geo.sph, dot, [Math.cos(a) * .12, .38, Math.sin(a) * .12], .03); } }
+  g.scale.setScalar(s); return g; }
+
+/* ---------- trophic-level shelves ---------- */
+const gSlab = new THREE.CylinderGeometry(.93, 1, .55, 4, 1); gSlab.rotateY(Math.PI / 4);
+const gEdge = new THREE.EdgesGeometry(gSlab);
+const LV = LEVELS.map((key, i) => ({ key, i, y:.55 + i * 2.15, refR:5.4 * Math.pow(.1, .2 * i), r:5.4 * Math.pow(.1, .2 * i), items:[], flames:[] }));
+LV.forEach(L => {
+  L.slab = new THREE.Group(); L.slab.position.y = L.y; scene.add(L.slab);
+  L.slab.add(new THREE.Mesh(gSlab, M(L.key, PARTS[L.key].color, { op:.93 })));
+  L.slab.add(new THREE.LineSegments(gEdge, new THREE.LineBasicMaterial({ color:0xffffff, transparent:true, opacity:.6 })));
+  ctx.pickable(L.slab, L.key);
+  L.anchor = new THREE.Object3D(); scene.add(L.anchor);
+  L.label = ctx.label(() => `${Lab.L(PARTS[L.key].name)} · ${kJ(App.energyAt(L.i))}`, L.anchor);
+  const hm = M('heat', '#ff6a3d', { emi:.6, op:.78 }), hm2 = M('heat', '#ffc061', { emi:.8, op:.85 });
+  for (const [sx, sz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]){
+    const f = new THREE.Group(); part(f, geo.cone, hm, [0, .35, 0], [.16, .7, .16]); part(f, geo.cone, hm2, [0, .25, 0], [.08, .4, .08]);
+    f.userData.s = [sx, sz]; f.rotation.set(sz * .35, 0, -sx * .35); scene.add(f); ctx.pickable(f, 'heat'); L.flames.push(f);
+  }
+});
+const add = (L, g, fx, fz, s = 1, ry = 0) => { g.rotation.y = ry; scene.add(g); ctx.pickable(g, L.key); L.items.push({ g, fx, fz, s }); return g; };
+/* producers */
+add(LV[0], tree('producers', 1.15), -.72, -.55); add(LV[0], tree('producers', .95), .7, -.72); add(LV[0], tree('producers', .8), .05, -.85);
+for (let i = 0; i < 26; i++) add(LV[0], tuft('producers'), rnd() * 2 - 1, rnd() * 1.6 - .5, 1.1);
+['#f06fa5', '#ffffff', '#b07cf0', '#ffd23f', '#f06fa5', '#ffffff', '#b07cf0', '#ff8c5a'].forEach(c => add(LV[0], flower('producers', c), rnd() * 2 - 1, rnd() * 1.4 - .3, 1.3));
+/* primary consumers */
+add(LV[1], deer('primary'), .15, -.4, 1.05, -.3); add(LV[1], rabbit('primary'), -.55, .35, 1.2, .5); add(LV[1], grasshopper('primary'), .6, .45, 1.1, -.9);
+/* secondary consumers */
+add(LV[2], fox('secondary'), -.05, -.4, .85, -.4); add(LV[2], frog('secondary'), -.55, .45, 1.1, .7); add(LV[2], snake('secondary'), .55, .35, .85);
+/* tertiary consumer: hovering hawk */
+const hawkG = add(LV[3], hawk('tertiary'), 0, 0, 1);
+/* decomposers around the base */
+const DEC = new THREE.Group(); scene.add(DEC);
+const decSpots = [];
+[[6.4, .9], [7.2, 2.25], [6.6, 3.7], [6.7, 5.0], [7.3, -.4]].forEach(([r, a], k) => {
+  const c = new THREE.Group(); c.position.set(Math.cos(a) * r, .1, Math.sin(a) * r); DEC.add(c); decSpots.push(c.position.clone());
+  const col = k % 2 ? '#c9a06b' : '#d8453c'; c.add(mushroom('decomposers', col, 1.4)); const m2 = mushroom('decomposers', col, .9); m2.position.set(.3, 0, .15); c.add(m2); const m3 = mushroom('decomposers', '#c9a06b', .7); m3.position.set(-.2, 0, .28); c.add(m3);
+  const leafM = M('decomposers', ['#a0522d', '#c97b2a', '#7a4a24'][k % 3]); for (let i = 0; i < 4; i++) part(c, geo.sph, leafM, [(rnd() - .5) * 1.2, .03, (rnd() - .5) * 1.2], [.18, .02, .1], [0, rnd() * 3, 0]);
+});
+{ const log = new THREE.Group(); log.position.set(2.6, .38, 6.6); log.rotation.y = .5; DEC.add(log);
+  part(log, geo.cyl, M('decomposers', '#6b4426'), [0, 0, 0], [.36, 2.4, .36], [0, 0, Math.PI / 2]);
+  for (const x of [-1.2, 1.2]) part(log, geo.cyl, M('decomposers', '#c4995f'), [x, 0, 0], [.33, .02, .33], [0, 0, Math.PI / 2]);
+  const shelf = M('decomposers', '#e2b065'); for (const [x, y] of [[-.5, .2], [.1, .28], [.6, .15]]) part(log, geo.cap, shelf, [x, y, .3], [.22, .1, .16], [Math.PI / 2, 0, 0]);
+  decSpots.push(new V(2.6, .3, 6.6)); }
+{ const wm = M('decomposers', '#e58f9a'); [[4.6, 5.2], [-6.2, 3.6]].forEach(([x, z]) => { const pts = [new V(0, -.1, 0), new V(.15, .15, .05), new V(.35, .2, .1), new V(.55, .05, .05), new V(.7, -.1, 0)];
+  const w = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 30, .05, 8), wm); w.position.set(x, .1, z); DEC.add(w); }); decSpots.push(new V(-6.2, .2, 3.6)); }
+ctx.pickable(DEC, 'decomposers');
+
+/* ---------- layout (responds to the efficiency slider) ---------- */
+function layout(L){
+  L.slab.scale.set(L.r, 1, L.r);
+  const hs = L.r * .707 * .93 * .82, k = clamp(L.r / L.refR, .6, 1.2);
+  L.items.forEach(it => { it.g.position.set(it.fx * hs, L.y + .275, it.fz * hs); it.g.scale.setScalar(it.s * k); });
+  L.flames.forEach(f => f.position.set(f.userData.s[0] * L.r * .74, L.y + .1, f.userData.s[1] * L.r * .74));
+  L.anchor.position.set(0, L.y - .02, L.r * .707 * .965 + .05);
+}
+let effTarget = App.eff;
+function setEff(e){ effTarget = e; LV.forEach(L => L.label.set(L.label.text)); }
+LV.forEach(layout);
+
+/* ---------- labels ---------- */
+const extra = [ctx.label(PARTS.sun.name, sunG, { offset:[0, -2.6, 0] }), ctx.label(PARTS.decomposers.name, DEC.children[1], { offset:[0, 1.2, 0] }), ctx.label(PARTS.heat.name, LV[0].flames[0], { offset:[0, 1.2, 0] })];
+let labelsOn = true;
+Lab.$('#labelBtn').onclick = () => { labelsOn = !labelsOn; [...LV.map(L => L.label), ...extra].forEach(L => L.visible = labelsOn); Lab.$('#labelBtn').classList.toggle('on', labelsOn); };
+
+/* ---------- energy particles: sunlight packets, heat sparks, dead matter, nutrients ---------- */
+const gP = new THREE.SphereGeometry(1, 12, 10);
+const PM = { packet:new THREE.MeshBasicMaterial({ color:0xffd23f }), heat:new THREE.MeshBasicMaterial({ color:0xff5a36, transparent:true, opacity:.9, depthWrite:false }),
+  dead:new THREE.MeshBasicMaterial({ color:0x8a5a33 }), nut:new THREE.MeshBasicMaterial({ color:0x5fd36f }) };
+const parts = [];
+const topPt = (i, spread) => { const L = LV[i], hs = L.r * .707 * .8 * spread; return new V((rnd() * 2 - 1) * hs, L.y + .55, (rnd() * 2 - 1) * hs); };
+function spawn(kind, pts, size, o = {}){ const m = new THREE.Mesh(gP, PM[kind]); m.position.copy(pts[0]); m.scale.setScalar(size); scene.add(m); const p = { kind, m, pts, i:0, u:0, wait:0, size, ...o }; parts.push(p); return p; }
+function spawnPacket(){ spawn('packet', [SUN.clone(), topPt(0, .8), topPt(1, .6), topPt(2, .45), topPt(3, .2)], .32, { E:1, dur:[1.8, 1.4, 1.3, 1.2], arc:1.2 }); }
+function heatBurst(i, n){ const L = LV[i]; for (let k = 0; k < n; k++){ const a = rnd() * Math.PI * 2, d = new V(Math.cos(a), 0, Math.sin(a)), p = d.clone().multiplyScalar(L.r * .6).setY(L.y + .3);
+  parts.push({ kind:'spark', m:(() => { const m = new THREE.Mesh(gP, PM.heat); m.position.copy(p); scene.add(m); return m; })(), v:d.multiplyScalar(1.3 + rnd()).setY(.8 + rnd() * .8), life:1.6, life0:1.6, size:.1 + rnd() * .05 }); } }
+function dropMatter(i){ const L = LV[i], spot = decSpots[rnd() * decSpots.length | 0], a = Math.atan2(spot.z, spot.x), from = new V(Math.cos(a) * L.r * .6, L.y + .2, Math.sin(a) * L.r * .6);
+  spawn('dead', [from, spot.clone().setY(.45)], .11, { dur:[1.8], arc:.6, onEnd:() => spawn('nut', [spot.clone().setY(.3), topPt(0, .5).setY(.6)], .09, { dur:[2.2], arc:.4 }) }); }
+function arrive(p){
+  if (p.kind !== 'packet') return;
+  const lvl = p.i - 1;                                   // just reached level lvl (0 = producers)
+  heatBurst(lvl, Math.round(2 + 6 * (1 - App.eff)));
+  if (rnd() < .55) dropMatter(lvl);
+  p.wait = .35; p.E *= App.eff;
+}
+let flowOn = true, spawnT = 0;
+function tickParticles(dt){
+  if (flowOn && (spawnT -= dt) <= 0){ spawnT = 1.1; spawnPacket(); }
+  for (let k = parts.length - 1; k >= 0; k--){
+    const p = parts[k];
+    if (p.kind === 'spark'){
+      p.life -= dt; p.m.position.addScaledVector(p.v, dt); p.v.y += dt * .4;
+      p.m.scale.setScalar(p.size * Math.max(0, p.life / p.life0)); if (p.life <= 0){ scene.remove(p.m); parts.splice(k, 1); } continue;
+    }
+    if (p.wait > 0){ p.wait -= dt; if (p.kind === 'packet') p.m.scale.setScalar(p.m.scale.x + (.32 * Math.pow(p.E, .22) - p.m.scale.x) * Math.min(1, dt * 6)); continue; }
+    p.u += dt / p.dur[Math.min(p.i, p.dur.length - 1)];
+    if (p.u >= 1){ p.u = 0; p.i++; arrive(p);
+      if (p.i >= p.pts.length - 1){ if (p.kind === 'packet'){ p.kind = 'fade'; p.life = .5; } else { p.onEnd && p.onEnd(); scene.remove(p.m); parts.splice(k, 1); continue; } } }
+    if (p.kind === 'fade'){ p.life -= dt; p.m.scale.multiplyScalar(.94); if (p.life <= 0){ scene.remove(p.m); parts.splice(k, 1); } continue; }
+    const a = p.pts[p.i], b = p.pts[p.i + 1]; p.m.position.lerpVectors(a, b, p.u); p.m.position.y += Math.sin(Math.PI * p.u) * p.arc;
+  }
+}
+function setFlow(on){ flowOn = on; Lab.$('#flowBtn').classList.toggle('on', on); }
+Lab.$('#flowBtn').onclick = () => setFlow(!flowOn);
+
+/* ---------- selection, focus, controls ---------- */
+ctx.hoverText(k => PARTS[k] ? Lab.L(PARTS[k].name) : '');
+ctx.onPick(k => { if (k === 'ground') k = null; if (k !== App.sel) App.select(k, false); });
+function focus(k){
+  if (!k) return ctx.home();
+  const li = LEVELS.indexOf(k);
+  if (li >= 0) return ctx.flyToPose([0, LV[li].y + 3.2, LV[li].y * .3 + 10 - li * 1.2], [0, LV[li].y + .6, 0]);
+  if (k === 'sun') return ctx.flyToPose([3, 8, 13], [8, 7, -2]);
+  if (k === 'decomposers') return ctx.flyToPose([9, 4, 13], [5, .5, 4]);
+  if (k === 'heat') return ctx.flyToPose([8, 8, 16], [1, 2.6, 1]);
+}
+App.three = { focus, setEff };
+let spin = true; ctx.controls.autoRotate = true;
+function setSpin(on){ spin = on; ctx.controls.autoRotate = on; Lab.$('#rotBtn').classList.toggle('on', on); }
+Lab.$('#rotBtn').onclick = () => setSpin(!spin);
+function setSlider(v){ const s = Lab.$('#eff'); s.value = v; s.dispatchEvent(new Event('input')); }
+Lab.$('#resetBtn').onclick = () => { story.stop(); setSlider(10); App.select(null); ctx.home(); };
+
+/* ---------- story: follow the energy ---------- */
+const STEP_SEL = ['sun', 'producers', 'primary', 'heat', 'tertiary', 'decomposers'];
+const story = Lab3D.story('#stage', STORY, i => {
+  setSpin(false); setFlow(true); if (+Lab.$('#eff').value !== 10) setSlider(10);
+  App.select(STEP_SEL[i], true);
+  if (i === 4) ctx.flyToPose([0, 10.5, 12], [0, 6, 0]); else focus(STEP_SEL[i]);
+  if (i === 0) spawnT = 0;
+}, () => { App.select(null, true); ctx.home(); });
+Lab.$('#storyBtn').onclick = () => story.start();
+
+/* ---------- per-frame ---------- */
+ctx.onFrame((dt, t) => {
+  // smooth efficiency changes
+  const cur = LV[1].r / 5.4, want = Math.pow(effTarget, .2);
+  if (Math.abs(cur - want) > .0005){ LV.forEach(L => { L.r += (5.4 * Math.pow(want, L.i) - L.r) * Math.min(1, dt * 5); layout(L); }); }
+  tickParticles(dt);
+  rays.rotation.z += dt * .3; sunG.children[1].scale.setScalar(2.1 + Math.sin(t * 2) * .12);
+  hawkG.position.y = LV[3].y + .275 + 1.1 + Math.sin(t * 1.4) * .15; hawkG.rotation.y = Math.sin(t * .5) * .5;
+  hawkWings.forEach(w => w.rotation.z = w.userData.s * Math.sin(t * 5) * .35);
+  LV.forEach(L => L.flames.forEach((f, j) => { f.scale.set(1, .8 + .35 * Math.abs(Math.sin(t * 5 + j * 1.7 + L.i)), 1); }));
+  const sel = App.sel;
+  for (const k in MATS){
+    const on = sel === k, dim = sel && !on && PARTS[k];
+    for (const m of MATS[k]){
+      const glow = (on ? .32 + .15 * Math.sin(t * 4) : 0) + m.userData.emi;
+      m.emissive.copy(m.color).multiplyScalar(glow);
+      m.opacity += ((dim ? .2 : 1) * m.userData.op - m.opacity) * Math.min(1, dt * 8);
+    }
+  }
+});
+renderInfo(); renderChips();
+if (ctx.el.clientWidth < 600) ctx.flyToPose([0, 8.5, 27], [0, 3.7, 0]);
+</script>
+</body>
+</html>

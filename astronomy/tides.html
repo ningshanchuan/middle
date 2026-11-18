@@ -1,0 +1,845 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tides: The Moon's Pull on the Sea</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/lab3d.js"></script>
+<script src="../shared/photos.js"></script>
+<style>
+/* page-specific styles */
+.readout{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px}
+.readout .counter b{font-size:22px}
+.readout .counter.spring b{color:var(--good)}
+.readout .counter.neap b{color:var(--accent)}
+.lvlbar{height:8px;border-radius:999px;background:var(--surface);margin-top:6px;overflow:hidden}
+.lvlbar i{display:block;height:100%;background:linear-gradient(90deg,#1e3a8a,#38bdf8);width:50%;transition:width .2s}
+#chartBox{min-height:430px}
+.phasebig{font-size:40px;line-height:1}
+.phaserow{display:flex;align-items:center;gap:12px}
+.phasecards .box{text-align:center}
+.phasecards svg{width:100%;max-width:230px;height:auto;display:block;margin:0 auto 6px}
+.phasecards .kind{display:inline-block;margin-top:8px;font-weight:800;font-size:13px;padding:3px 10px;border-radius:999px}
+.kind.spring{background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good)}
+.kind.neap{background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent)}
+.chal{display:flex;gap:8px;flex-wrap:wrap}
+@media (max-width:980px){.readout{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.pill input[type=range]{width:90px}}
+</style>
+</head>
+<body data-subject="astronomy" data-topic="tides">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="天文 · 日、地、月">Astronomy · Sun, Earth &amp; Moon</span>
+  <h1 data-zh-html="潮汐：<em>月球牵引着海洋</em>">Tides: <em>The Moon Pulls the Sea</em></h1>
+  <p class="lead" data-zh="每天，海边的海水都会涨上来又退下去，而且通常一天两次。这是谁干的？主要是月球！移动下面的月球和太阳，看看地球上的两个“水隆起”怎样变化，再让地球转起来。">Twice a day, the sea creeps up the beach and then slides back out. Who is doing that? Mostly the Moon! Move the Moon and the Sun below, watch Earth’s two “water bulges” change, and spin the planet underneath them.</p>
+</header>
+
+<section class="wrap" id="explore" data-nav="3D Tides" data-nav-zh="3D 潮汐">
+  <div class="explorer">
+    <div class="stage card space" id="stage" data-3d>
+      <div class="toolbar">
+        <button class="tbtn on" id="spinBtn" data-zh="🌍 自转">🌍 Spin Earth</button>
+        <button class="tbtn" id="resetBtn" data-zh="⌂ 重置">⌂ Reset</button>
+        <button class="tbtn" id="storyBtn" data-zh="🌊 大潮与小潮（故事）">🌊 Spring &amp; neap (story)</button>
+        <button class="tbtn on" id="labelBtn" data-zh="🏷 标签">🏷 Labels</button>
+        <button class="tbtn" id="forceBtn" data-zh="➜ 引力箭头">➜ Forces</button>
+      </div>
+      <div class="bottombar">
+        <div class="pill"><span data-zh="🌙 月球">🌙 Moon</span><input id="moonSl" type="range" min="0" max="359" value="0"></div>
+        <div class="pill"><span data-zh="☀️ 太阳">☀️ Sun</span><input id="sunSl" type="range" min="0" max="359" value="180"></div>
+        <div class="tip" data-zh="拖动旋转 · 滚轮缩放 · 点击海水、月球或太阳">Drag to rotate · Scroll to zoom · Click the water, Moon or Sun</div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="chips" id="chips"></div>
+  <div class="readout">
+    <div class="counter"><b id="rPhase">–</b><span data-zh="月相">Moon phase</span></div>
+    <div class="counter" id="rTypeBox"><b id="rType">–</b><span data-zh="潮汐类型">Tide type</span></div>
+    <div class="counter"><b id="rRange">–</b><span data-zh="潮差（示例港口）">Tidal range (example port)</span></div>
+    <div class="counter"><b id="rPort">–</b><span data-zh="港口水位">Port water level</span><div class="lvlbar"><i id="rPortBar"></i></div></div>
+  </div>
+</section>
+
+<section class="wrap" id="chart" data-nav="Tide chart" data-nav-zh="潮汐曲线">
+  <div class="sec-head">
+    <h2 data-zh="模拟：港口的潮汐曲线">Simulation: a port’s tide chart</h2>
+    <p data-zh="选择农历月中的某一天（月相），看看一个港口两天内的水位怎样起伏。下方的小柱子显示一个月里每天的潮差。">Pick a day in the Moon’s cycle and watch the water level at a port rise and fall over two days. The small bars below show the tidal range on every day of the month.</p>
+  </div>
+  <div class="sim">
+    <div class="card simbox" id="chartBox"><canvas id="chartCv"></canvas></div>
+    <div class="card simside">
+      <h3 data-zh="控制面板">Controls</h3>
+      <div class="phaserow"><span class="phasebig" id="cPhaseIco">🌑</span><div><b id="cPhaseName">–</b><div class="muted" id="cDayTxt" style="font-size:14px">–</div></div></div>
+      <label class="ctl"><span data-zh="月相周期中的第几天">Day of the Moon’s cycle</span><input id="daySl" type="range" min="0" max="29.5" step="0.5" value="0"></label>
+      <div class="btnrow"><button class="btn" id="playBtn" data-zh="▶ 播放时间">▶ Play time</button><button class="btn ghost" id="nextDayBtn" data-zh="+1 天">+1 day</button></div>
+      <div class="counters">
+        <div class="counter"><b id="cHigh">2</b><span data-zh="今天的高潮次数">high tides today</span></div>
+        <div class="counter"><b id="cRange">–</b><span data-zh="今天的潮差">tidal range today</span></div>
+        <div class="counter"><b id="cType">–</b><span data-zh="潮汐类型">tide type</span></div>
+        <div class="counter"><b id="cNow">–</b><span data-zh="此刻水位">water level now</span></div>
+      </div>
+      <h3 style="font-size:19px" data-zh="🎯 挑战">🎯 Challenge</h3>
+      <div class="chal"><button class="btn ghost" id="chSpring" data-zh="找一个大潮日">Find a spring-tide day</button><button class="btn ghost" id="chNeap" data-zh="找一个小潮日">Find a neap-tide day</button></div>
+      <div class="result" id="chMsg"></div>
+      <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="新月和满月 → 大潮（“满”而大）；上弦月和下弦月 → 小潮（“半”而小）。">New &amp; Full Moon → spring (big). Half Moons (quarters) → neap (small). “Full = big, half = small.”</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="phases" data-nav="Spring &amp; neap" data-nav-zh="大潮与小潮">
+  <div class="sec-head">
+    <h2 data-zh="太阳的位置让潮汐变大或变小">The Sun makes tides bigger or smaller</h2>
+    <p data-zh="太阳的引潮作用不到月球的一半，但它会与月球“合作”或“拔河”。下面是月球绕地球一周中的四个关键位置（从北极上方俯视，太阳在左边）。">The Sun’s tide-raising effect is less than half of the Moon’s, but it either teams up with the Moon or plays tug-of-war with it. Here are four key moments in one trip of the Moon around Earth (seen from above the North Pole, Sun on the left).</p>
+  </div>
+  <div class="grid4 phasecards" id="phaseCards"></div>
+  <div class="table-wrap card" style="margin-top:16px">
+    <table class="lab">
+      <tr><th></th><th data-zh="大潮">Spring tide</th><th data-zh="小潮">Neap tide</th></tr>
+      <tr><td data-zh="日、地、月的位置">Sun–Earth–Moon</td><td data-zh="排成一条直线">In a straight line</td><td data-zh="成直角（90°）">At a right angle (90°)</td></tr>
+      <tr><td data-zh="月相">Moon phase</td><td data-zh="新月、满月">New Moon, Full Moon</td><td data-zh="上弦月、下弦月">First &amp; third quarter</td></tr>
+      <tr><td data-zh="引力的作用">Pulls</td><td data-zh="相互叠加">Add together</td><td data-zh="部分抵消">Partly cancel</td></tr>
+      <tr><td data-zh="潮差">Tidal range</td><td data-zh="最大：高潮最高，低潮最低">Largest: highest highs, lowest lows</td><td data-zh="最小：高潮和低潮相差不大">Smallest: highs and lows are close</td></tr>
+      <tr><td data-zh="多久一次">How often</td><td data-zh="约每两周一次（每月两次）">About every 2 weeks (twice a month)</td><td data-zh="约每两周一次（每月两次）">About every 2 weeks (twice a month)</td></tr>
+    </table>
+  </div>
+  <div class="mix" style="margin-top:16px"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="“大潮”（英文 spring tide）和春天没有关系！英文名字来自海水“涌起（spring up）”。大潮全年都有，大约每两周一次。">Spring tides have nothing to do with the season spring! The name comes from water “springing up”. They happen all year, about every two weeks.</span></div>
+</section>
+
+<section class="wrap" id="month">
+  <div class="sec-head">
+    <h2 data-zh="真实的一个月：大潮、小潮和“国王潮”">A real month of tides: spring, neap and king tides</h2>
+    <p data-zh="选一个真实的月份，拖动时间条。上图是从北极上方俯视的太阳、地球和月球（月球的远近被夸大了）；下图是这个月每天的潮差。月球的轨道是椭圆，离地球最近时（近地点）引潮力会大约增加 25%。">Pick a real month and drag the time bar. The top view shows the Sun, Earth and Moon from above the North Pole (the Moon’s distance changes are exaggerated); the chart shows the tidal range on every day of the month. The Moon’s orbit is an ellipse: when it is closest (perigee) its tidal pull grows by about 25%.</p>
+  </div>
+  <div class="sim">
+    <div class="card simbox" id="tmBox" style="min-height:480px"><canvas id="tmCv"></canvas></div>
+    <div class="card simside">
+      <div class="btnrow" style="align-items:center"><button class="btn ghost" id="tmPrev" aria-label="previous month">◀</button><b id="tmMonth" style="font-family:Fredoka;font-size:20px;min-width:150px;text-align:center"></b><button class="btn ghost" id="tmNext" aria-label="next month">▶</button></div>
+      <div class="timebar"><button id="tmPlay" aria-label="play">▶</button><input id="tmDay" type="range" min="0" max="30" step="0.05" value="0" aria-label="day of the month"><output id="tmOut">–</output></div>
+      <div class="counters">
+        <div class="counter"><b id="tmPhase" style="font-size:19px">–</b><span data-zh="月相">Moon phase</span></div>
+        <div class="counter"><b id="tmDist" style="font-size:19px">–</b><span data-zh="月地距离">Moon’s distance</span></div>
+        <div class="counter"><b id="tmRange" style="font-size:19px">–</b><span data-zh="潮差（和平均值相比）">tidal range vs average</span></div>
+        <div class="counter"><b id="tmType" style="font-size:19px">–</b><span data-zh="潮汐类型">tide type</span></div>
+      </div>
+      <div class="result" id="tmMsg"></div>
+      <h3 style="font-size:19px" data-zh="🎯 挑战：找出这个月最大的潮">🎯 Challenge: find the biggest tide of the month</h3>
+      <p data-zh="不看曲线的高度，只用月相和月地距离来推理：把时间条拖到你认为潮差最大的那一天，再按“检查”。">Reason from the Moon’s phase and distance: drag the time bar to the day you think has the largest range, then press Check.</p>
+      <div class="btnrow"><button class="btn" id="tmCheck" data-zh="✔ 检查">✔ Check</button><button class="btn ghost" id="tmHide" data-zh="🙈 隐藏曲线">🙈 Hide the curve</button></div>
+      <div class="counters"><div class="counter"><b id="tmScore">0</b><span data-zh="找对的月份">months solved</span></div><div class="counter"><b id="tmTries">0</b><span data-zh="尝试次数">tries</span></div></div>
+    </div>
+  </div>
+  <p class="muted" style="font-size:13px;margin:6px 0 0" data-zh="模型：用平均轨道根数加主要修正项（参考 Meeus《天文算法》）计算月相和月地距离；潮差按“平衡潮”估算：月球引潮作用与距离的立方成反比，太阳的作用约为月球的 46%。真实港口的大潮通常比新月、满月晚 1–2 天出现，而且受海岸形状影响很大（近似值）。">Model: Moon phase and distance from mean orbits plus the main correction terms (after Meeus, “Astronomical Algorithms”); range from the equilibrium tide: the Moon’s tidal effect falls with the cube of its distance and the Sun’s is about 46% of the Moon’s. At real ports the biggest tides usually arrive 1–2 days after new or full Moon, and the coastline changes everything (approximate values).</p>
+  <div class="grid2" style="margin-top:18px">
+    <div class="card simside">
+      <h3 data-zh="⚖️ 谁拉得更用力？引潮力的比较">⚖️ Who pulls harder? Tide-raising strength</h3>
+      <div id="tmBars" style="display:flex;flex-direction:column;gap:7px"></div>
+      <p data-zh="太阳对地球的引力其实约是月球的 180 倍，但潮汐取决于引力在地球两侧的“差别”。这个差别和距离的立方成反比，所以近得多的月球赢了。">The Sun’s gravity on Earth is actually about 180 times stronger than the Moon’s, but tides depend on the DIFFERENCE in pull across Earth. That difference falls with the cube of distance, so the much closer Moon wins.</p>
+      <p class="muted" style="font-size:13px;margin:0" data-zh="以月球在平均距离（384,400 千米）时为 1.00 计算（近似值）。">Moon at its average distance (384,400 km) = 1.00 (approximate values).</p>
+    </div>
+    <div class="card simside">
+      <h3 data-zh="🌊 世界各地的真实潮差">🌊 Real tidal ranges around the world</h3>
+      <div class="table-wrap"><table class="lab" style="min-width:0">
+        <tr><th data-zh="地点">Place</th><th data-zh="潮差">Tidal range</th></tr>
+        <tr><td data-zh="加拿大芬迪湾（米纳斯湾）">Bay of Fundy (Minas Basin), Canada</td><td data-zh="大潮时可达约 16 米">up to ≈ 16 m (53 ft) at spring tides</td></tr>
+        <tr><td data-zh="法国圣米歇尔山">Mont-Saint-Michel, France</td><td data-zh="可达约 14 米">up to ≈ 14 m (46 ft)</td></tr>
+        <tr><td data-zh="中国杭州湾（钱塘江口）">Hangzhou Bay (Qiantang River mouth), China</td><td data-zh="可达约 8–9 米；涌潮常有 1–3 米高">up to ≈ 8–9 m; the tidal bore is often 1–3 m high</td></tr>
+        <tr><td data-zh="美国波士顿">Boston, Massachusetts</td><td data-zh="平均约 2.9 米">≈ 2.9 m (9.5 ft) on average</td></tr>
+        <tr><td data-zh="美国佐治亚州萨凡纳（普拉斯基堡）">Savannah, Georgia (Fort Pulaski)</td><td data-zh="平均约 2.1 米">≈ 2.1 m (7 ft) on average</td></tr>
+        <tr><td data-zh="墨西哥湾沿岸（如彭萨科拉）">Gulf of Mexico coast (e.g. Pensacola)</td><td data-zh="约 0.3–0.6 米，常常一天只有一次高潮">≈ 0.3–0.6 m (1–2 ft), often one high tide a day</td></tr>
+      </table></div>
+      <p class="muted" style="font-size:13px;margin:0" data-zh="数据：美国国家海洋和大气管理局（NOAA）潮汐站、加拿大渔业与海洋部等公开资料，取整（近似值）。">Data: NOAA Tides &amp; Currents stations, Fisheries and Oceans Canada and other public sources, rounded (approximate values).</p>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real photos" data-nav-zh="真实影像">
+  <div id="gallery"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 潮汐测验">🧠 Tides quiz</h3><p class="sub" data-zh="选出正确答案。">Pick the best answer.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 大潮还是小潮？">🗂️ Spring or neap?</h3><p class="sub" data-zh="把每个条件拖到（或先点再点方框）正确的组里。">Drag each condition (or tap it, then tap a box) into the right group.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="对应佐治亚州标准 S6E2（用模型说明太阳、地球和月球相对位置产生的影响），并联系 S6E3e（分析海浪、洋流和潮汐的成因与影响）。3D 模型采用“平衡潮”理论：隆起被极度夸大，并且省略了地轴倾斜、陆地阻挡和潮汐滞后。可以提问：为什么背对月球的一侧也有高潮？（那里的海水受到的引力比地心小，被“留在后面”。）为什么高潮每天推迟约 50 分钟？（月球在轨道上前进，地球要多转约 50 分钟才能再次正对月球。）">Supports GSE S6E2 (model the effects of the relative positions of the Sun, Earth and Moon) and connects to S6E3e (causes and effects of waves, currents and tides). The 3D model uses the “equilibrium tide” idea: the bulges are hugely exaggerated, and Earth’s tilt, continents blocking the water, and the real-world tide delay are left out. Good questions: Why is there a high tide on the side facing away from the Moon? (That water is pulled less than Earth’s center, so it is “left behind”.) Why is high tide about 50 minutes later each day? (The Moon moves along its orbit, so Earth must turn about 50 extra minutes to face it again.)</p>
+    <p data-zh="课堂活动：让学生用潮汐曲线模拟找出两个大潮日和两个小潮日，并把它们与月相对应起来；再查找本地（如萨凡纳或泰碧岛）的真实潮汐表进行比较。">Activity: have students use the tide-chart simulation to find two spring-tide days and two neap-tide days and match them to Moon phases; then compare with a real tide table for a local port (e.g. Savannah or Tybee Island).</p>
+  </details>
+</section>
+
+<section class="wrap" id="further" data-nav="Go further" data-nav-zh="延伸探索">
+  <div class="sec-head"><h2 data-zh="走得更远：真实的天文工具">Go further: real astronomy tools</h2><p data-zh="下面是航天机构和科学家公开分享的真实网站，每个都会在新标签页中打开。">Real tools shared by space agencies and scientists. Each opens in a new tab.</p></div>
+  <div class="linkgrid">
+    <a class="linkcard" href="https://tidesandcurrents.noaa.gov/" target="_blank" rel="noopener"><b data-zh="NOAA 潮汐与海流">NOAA Tides &amp; Currents</b><span data-zh="在地图上点开美国任何一个潮汐站（比如萨凡纳或泰碧岛），看今天的潮汐预报和实测水位曲线。">Click any US tide station on the map (try Savannah or Tybee Island) and see today’s tide prediction next to the water level actually measured.</span><small>tidesandcurrents.noaa.gov ↗</small></a>
+    <a class="linkcard" href="https://oceanservice.noaa.gov/education/tutorial_tides/" target="_blank" rel="noopener"><b data-zh="NOAA 潮汐教程">NOAA tides tutorial</b><span data-zh="一步步学习潮汐：为什么有的地方一天两次高潮，有的地方只有一次。">Learn tides step by step, including why some coasts get two high tides a day and others only one.</span><small>oceanservice.noaa.gov ↗</small></a>
+    <a class="linkcard" href="https://oceanservice.noaa.gov/facts/springtide.html" target="_blank" rel="noopener"><b data-zh="什么是大潮？">What is a spring tide?</b><span data-zh="读一篇简短的 NOAA 说明，并和本页模拟器里的大潮、小潮对照。">Read NOAA’s short explainer and compare it with the spring and neap tides in the simulator above.</span><small>oceanservice.noaa.gov ↗</small></a>
+    <a class="linkcard" href="https://science.nasa.gov/moon/tides/" target="_blank" rel="noopener"><b data-zh="NASA：月球与潮汐">NASA: the Moon and tides</b><span data-zh="读 NASA 的讲解，了解潮汐怎样让地球自转变慢、让月球每年远离我们约 3.8 厘米。">Read NASA’s explainer and find out how tides slow Earth’s spin and push the Moon about 3.8 cm farther away each year.</span><small>science.nasa.gov ↗</small></a>
+    <a class="linkcard" href="https://www.timeanddate.com/moon/" target="_blank" rel="noopener"><b data-zh="timeanddate 月球计算器">timeanddate Moon calculator</b><span data-zh="查你所在城市的月相、月出月落时间和月地距离，找下一次近地点满月。">Look up the Moon phase, moonrise, moonset and the Moon’s distance for your city, and spot the next perigee full Moon.</span><small>timeanddate.com ↗</small></a>
+  </div>
+  <h3 style="margin:26px 0 12px" data-zh="🔭 在本实验室继续深入">🔭 Go deeper in this lab</h3>
+  <div class="linkgrid" id="deeper" data-deeper="kepler-laws,planets-moons,black-holes"></div>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+/* ===== Tide model shared by the 3D scene and the chart =====
+   Equilibrium tide at a point on the equator: level = AM·cos(2θmoon) + AS·cos(2θsun)  (metres, example port)  */
+const AM = 1.0, AS = 0.46, MONTH = 29.53;
+const o = (en, zh) => ({en, zh});
+/* ===== Real photos (Wikimedia Commons, free licences; rendered by shared/photos.js) ===== */
+const RP_KIND = { earth:o('Photo from Earth','从地球上拍的照片'), vid:o('Time-lapse video','延时视频') };
+const RP = {
+  high:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/24/Parc_Provincial_Hopewell_Rocks-_Sea_Stack_High_Tide-_New_Brunswick.jpg/960px-Parc_Provincial_Hopewell_Rocks-_Sea_Stack_High_Tide-_New_Brunswick.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Parc_Provincial_Hopewell_Rocks-_Sea_Stack_High_Tide-_New_Brunswick.jpg', credit:'Mhsheikholeslami', kind:RP_KIND.earth,
+    en:'High tide at Hopewell Rocks on the Bay of Fundy, Canada. The sea surrounds the rocky “flowerpots”.', zh:'加拿大芬迪湾霍普韦尔岩的高潮。海水把“花盆岩”团团围住。',
+    scale:o('Fundy tides can rise about 16 m (over 50 ft), the biggest on Earth','芬迪湾的潮差可达约 16 米（50 多英尺），是世界上最大的') },
+  low:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/42/Parc_Provincial_Hopewell_Rocks_-_Sea_Stack_-_Low_Tide-_New_Brunswick_%281%29.jpg/960px-Parc_Provincial_Hopewell_Rocks_-_Sea_Stack_-_Low_Tide-_New_Brunswick_%281%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Parc_Provincial_Hopewell_Rocks_-_Sea_Stack_-_Low_Tide-_New_Brunswick_(1).jpg', credit:'Mhsheikholeslami', kind:RP_KIND.earth,
+    en:'The same sea stacks at low tide. The water has drained away and the sea floor is dry. High and low tide are only about six hours apart.', zh:'同样的海蚀柱在低潮时的样子。海水退走了，海底露了出来。高潮和低潮只相隔大约六小时。' },
+  walk:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/19/Visitors_walking_the_ocean_floor_below_the_flowerpot_sea_stacks_at_low_tide%2C_Hopewell_Rocks%2C_Hopewell_Cape%2C_New_Brunswick.jpg/960px-Visitors_walking_the_ocean_floor_below_the_flowerpot_sea_stacks_at_low_tide%2C_Hopewell_Rocks%2C_Hopewell_Cape%2C_New_Brunswick.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Visitors_walking_the_ocean_floor_below_the_flowerpot_sea_stacks_at_low_tide,_Hopewell_Rocks,_Hopewell_Cape,_New_Brunswick.jpg', credit:'Z3lvs', kind:RP_KIND.earth,
+    en:'At low tide, visitors can walk on the ocean floor below the flowerpot rocks. A few hours later this spot is deep under water.', zh:'低潮时，游客可以在“花盆岩”下面的海底散步。几个小时后，这里又会被深深的海水淹没。' },
+  fhigh:{ src:'https://upload.wikimedia.org/wikipedia/commons/7/76/Bay_of_Fundy_High_Tide.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Bay_of_Fundy_High_Tide.jpg', credit:'Samuel Wantman', kind:RP_KIND.earth,
+    en:'The Bay of Fundy at high tide, New Brunswick, 1972. Compare it with the next photo.', zh:'1972 年，加拿大新不伦瑞克省芬迪湾的高潮。和下一张照片比一比。' },
+  flow:{ src:'https://upload.wikimedia.org/wikipedia/commons/c/cf/Bay_of_Fundy_Low_Tide.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Bay_of_Fundy_Low_Tide.jpg', credit:'Samuel Wantman', kind:RP_KIND.earth,
+    en:'The same place at low tide. Where did all the water go?', zh:'同一个地方的低潮。海水都到哪里去了？' },
+  pool:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/74/Tide_pools_in_santa_cruz.jpg/960px-Tide_pools_in_santa_cruz.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Tide_pools_in_santa_cruz.jpg', credit:'Brocken Inaglory', kind:RP_KIND.earth,
+    en:'A tide pool in Santa Cruz, California, with sea stars, sea anemones and sponges. These animals live where the tide covers and uncovers the rocks twice a day.', zh:'美国加利福尼亚州圣克鲁斯的潮池，里面有海星、海葵和海绵。这些动物生活在每天被潮水淹没又露出两次的岩石上。' },
+  video:{ type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/1/18/Tide_St._Simons%2C_GA_2018.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/18/Tide_St._Simons%2C_GA_2018.webm/960px--Tide_St._Simons%2C_GA_2018.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Tide_St._Simons,_GA_2018.webm', credit:'Bubba73', kind:RP_KIND.vid,
+    en:'Time-lapse of the tide on June 10, 2018, looking south over the Atlantic Ocean from St. Simons Island, Georgia. Jekyll Island is on the horizon.', zh:'2018 年 6 月 10 日在美国佐治亚州圣西蒙斯岛向南拍摄的大西洋潮汐延时视频，地平线上是杰基尔岛。' }
+};
+const RP_PANEL = { near:'high', far:'high', low:'low', port:'walk' };
+const realFig = k => RP[RP_PANEL[k]] ? LabPhotos.figure(RP[RP_PANEL[k]]) : '';
+LabPhotos.render('#gallery', ['high','low','walk','fhigh','flow','pool','video'].map(k => RP[k]), { title:o('See the real thing','看看真实的样子'),
+  sub:o('Real tides: the same places at high and low tide, and a time-lapse from the Georgia coast. Click a picture to enlarge it; the video plays only when you press play.','真实的潮汐：同一个地方的高潮和低潮，还有一段佐治亚州海岸的延时视频。点击图片可以放大；视频要你按下播放键才会播放。') });
+function tideKind(elong){              // elong = Moon–Sun angle in degrees
+  const d = Math.abs(((elong % 180) + 180) % 180);  // 0..180
+  const off = Math.min(d, 180 - d);                 // 0 = lined up, 90 = right angle
+  if (off < 25) return 'spring';
+  if (off > 65) return 'neap';
+  return 'between';
+}
+const KIND = { spring:o('Spring tide','大潮'), neap:o('Neap tide','小潮'), between:o('In between','介于两者之间') };
+function phaseOf(elong){               // elong 0..360: 0 = new, 90 = first quarter, 180 = full, 270 = third quarter
+  const e = ((elong % 360) + 360) % 360, i = Math.round(e / 45) % 8;
+  return [
+    {ico:'🌑', n:o('New Moon','新月')}, {ico:'🌒', n:o('Waxing crescent','蛾眉月')}, {ico:'🌓', n:o('First quarter','上弦月')}, {ico:'🌔', n:o('Waxing gibbous','盈凸月')},
+    {ico:'🌕', n:o('Full Moon','满月')}, {ico:'🌖', n:o('Waning gibbous','亏凸月')}, {ico:'🌗', n:o('Third quarter','下弦月')}, {ico:'🌘', n:o('Waning crescent','残月')}
+  ][i];
+}
+const rangeFor = elong => { const c = Math.cos(2 * elong * Math.PI / 180); return 2 * Math.sqrt(AM * AM + AS * AS + 2 * AM * AS * c); };
+
+/* ===== Parts of the model (bilingual) ===== */
+const PARTS = {
+  moon:{color:'#cbd5e1', name:o('Moon','月球'), job:o('The main cause of tides','潮汐的主要成因'),
+    facts:{en:['The Moon’s gravity pulls on Earth and its oceans. It pulls hardest on the side closest to it.','The Moon goes around Earth about once a month, so it is in a slightly different place each day.','Earth has to turn about 50 extra minutes to face the Moon again, so high tide comes about 50 minutes later each day.'],
+           zh:['月球的引力拉着地球和地球上的海洋，离它最近的一侧受到的拉力最大。','月球大约一个月绕地球转一圈，所以它每天的位置都略有不同。','地球要多转大约 50 分钟才能再次正对月球，所以高潮每天大约推迟 50 分钟。']},
+    hint:o('Tides follow the Moon, about 50 minutes later every day.','潮汐跟着月球走，每天大约推迟 50 分钟。'),
+    mix:o('The Sun has far more mass, but the Moon is about 390 times closer. Its tide-raising effect is about twice as strong as the Sun’s.','太阳的质量大得多，但月球离我们近约 390 倍，所以月球的引潮作用大约是太阳的两倍。')},
+  sun:{color:'#fbbf24', name:o('Sun','太阳'), job:o('Makes tides bigger or smaller','让潮汐变大或变小'),
+    facts:{en:['The Sun also raises tides, but its effect is a bit less than half of the Moon’s (about 46%).','Sun, Earth and Moon in a line → the pulls add up → spring tides.','Sun and Moon at a right angle → the pulls partly cancel → neap tides.'],
+           zh:['太阳也会引起潮汐，但它的作用略小于月球的一半（约 46%）。','日、地、月排成一条直线 → 引力叠加 → 大潮。','太阳和月球与地球成直角 → 引力部分抵消 → 小潮。']},
+    hint:o('In a line → big tides. At a right angle → small tides.','成一直线 → 潮大；成直角 → 潮小。')},
+  earth:{color:'#3b82f6', name:o('Earth','地球'), job:o('Spins once a day under the bulges','每天自转一周，从隆起下面转过'),
+    facts:{en:['Earth rotates once about every 24 hours, carrying every coast through both bulges.','That is why most coasts get two high tides and two low tides each day.','The bulges stay lined up with the Moon while Earth turns underneath them.'],
+           zh:['地球大约每 24 小时自转一周，把每一段海岸都带着穿过两个隆起。','所以大多数海岸每天有两次高潮和两次低潮。','两个隆起始终对着月球的方向，地球在它们下面转动。']},
+    hint:o('Earth turns; the bulges stay put (pointing at the Moon).','地球在转，隆起不动（一直指向月球）。'),
+    mix:o('The water does not race around the planet once a day. Earth rotates beneath the bulges, and coasts move into and out of them.','海水并不是每天绕地球跑一圈，而是地球在隆起下面转动，海岸轮流进入和离开隆起。')},
+  near:{color:'#38bdf8', name:o('Near-side bulge (high tide)','近月侧隆起（高潮）'), job:o('Water pulled toward the Moon','被拉向月球的海水'),
+    facts:{en:['Ocean water on the side facing the Moon is pulled more strongly than Earth’s center.','Water piles up here, making a high tide.','In the open ocean this bulge is only about half a meter tall. The model is hugely exaggerated!'],
+           zh:['面向月球一侧的海水，受到的拉力比地心更大。','海水在这里堆积起来，形成高潮。','在开阔的大洋上，这个隆起只有大约半米高，模型把它夸大了很多倍！']},
+    hint:o('Closest side → strongest pull → high tide.','最近的一侧 → 拉力最大 → 高潮。')},
+  far:{color:'#0ea5e9', name:o('Far-side bulge (high tide)','远月侧隆起（高潮）'), job:o('Water “left behind”','被“留在后面”的海水'),
+    facts:{en:['On the side facing away from the Moon, the water is pulled LESS than Earth’s center.','Earth gets pulled toward the Moon a little more than this water, so the water is left behind and bulges out.','So there are two high tides at the same moment, on opposite sides of Earth.'],
+           zh:['在背对月球的一侧，海水受到的拉力比地心更小。','地球被月球拉过去的程度比这里的海水稍多一些，于是海水被“留在后面”，也鼓了起来。','所以同一时刻地球两侧各有一个高潮。']},
+    hint:o('Two bulges: one pulled toward the Moon, one left behind.','两个隆起：一个被拉过去，一个被留在后面。'),
+    mix:o('The Moon does not “push” water away on the far side. Gravity only pulls. The far bulge forms because that side is pulled the least.','月球并没有在远侧把海水“推”开，引力只会吸引。远侧隆起是因为那里受到的拉力最小。')},
+  low:{color:'#1e40af', name:o('Low tide','低潮'), job:o('Water drawn away from the sides','两侧的海水被抽走'),
+    facts:{en:['Halfway between the two bulges (90° from the Moon), the water is lower: low tide.','The water that builds the bulges comes from these regions.','A coast usually has a low tide about 6 hours 12 minutes after each high tide.'],
+           zh:['在两个隆起之间（与月球方向成 90° 的地方），水位较低，这就是低潮。','形成隆起的海水就是从这些地方“借”来的。','一般来说，高潮过后大约 6 小时 12 分钟会出现低潮。']},
+    hint:o('Highs at 0° and 180°, lows at 90° and 270°.','高潮在 0° 和 180°，低潮在 90° 和 270°。')},
+  port:{color:'#ef4444', name:o('Your port','你的港口'), job:o('One spot on a coast','海岸上的一个地点'),
+    facts:{en:['The red pin is a port on a coast, like Savannah, Georgia.','As Earth spins, the port passes a high, a low, a high and a low in each lunar day (about 24 hours 50 minutes).','Watch the “Port water level” bar under the model while Earth spins.'],
+           zh:['红色图钉代表海岸上的一个港口，比如美国佐治亚州的萨凡纳。','地球自转时，港口在每个“太阴日”（约 24 小时 50 分钟）里依次经过高潮、低潮、高潮、低潮。','地球转动时，留意模型下方的“港口水位”条。']},
+    hint:o('High, low, high, low: about 6 hours apart.','高、低、高、低：每次间隔大约 6 小时。')},
+  gravity:{color:'#facc15', name:o('The Moon’s pull','月球的引力'), job:o('Weaker with distance','距离越远越弱'),
+    facts:{en:['Gravity gets weaker with distance.','The near side of Earth is about 12,700 km (one Earth diameter) closer to the Moon than the far side, so it feels a stronger pull.','The DIFFERENCE in pull across Earth stretches the oceans into two bulges. Scientists call it the tidal force.'],
+           zh:['引力随距离增大而减弱。','地球近月侧比远月侧离月球近约 12,700 千米（一个地球直径），所以受到的拉力更大。','地球各处受到的拉力“不一样大”，这个差别把海洋拉成两个隆起，科学家称之为引潮力。']},
+    hint:o('Turn on Forces: long arrow on the near side, short arrow on the far side.','打开“引力箭头”：近侧箭头长，远侧箭头短。')}
+};
+const ORDER = ['moon','sun','earth','near','far','low','port','gravity'];
+
+/* ===== Story: spring & neap tides ===== */
+const STORY = [
+  o('1 · The Moon’s gravity pulls hardest on the ocean facing it, so water piles up there: a high tide.','1 · 月球的引力对面向它的海水拉得最厉害，海水堆起来，形成高潮。'),
+  o('2 · The far side is pulled less than Earth’s center, so that water is “left behind”: a second bulge.','2 · 远侧的海水受到的拉力比地心小，被“留在后面”，形成第二个隆起。'),
+  o('3 · Earth spins under both bulges, so a port gets 2 high tides and 2 low tides about every 24 h 50 min.','3 · 地球在两个隆起下自转，所以港口大约每 24 小时 50 分钟有 2 次高潮和 2 次低潮。'),
+  o('4 · New Moon: Sun, Earth and Moon line up. The pulls add up → spring tide (biggest range).','4 · 新月：日、地、月排成一线，引力叠加 → 大潮（潮差最大）。'),
+  o('5 · First quarter: the Sun and Moon are at a right angle. Their pulls partly cancel → neap tide (smallest range).','5 · 上弦月：太阳和月球与地球成直角，引力部分抵消 → 小潮（潮差最小）。'),
+  o('6 · Full Moon: lined up again, Moon on the far side → another spring tide. Spring tides come about every 2 weeks.','6 · 满月：再次排成一线（月球在另一侧）→ 又一次大潮。大潮大约每两周出现一次。')
+];
+
+/* ===== Info panel / selection ===== */
+const App = window.TIDES = { sel:null, three:null };
+App.select = (k, from3D) => { App.sel = k; renderInfo(); renderChips(); if (!from3D && App.three) App.three.focus(k); };
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel;
+  if (!k){
+    box.innerHTML = `<span class="tag">${Lab.L(o('Tides','潮汐'))}</span>
+      <h3>${Lab.L(o('Two bulges of water','两个“水隆起”'))}</h3>
+      <p class="muted" style="margin:0">${Lab.L(o('The Moon stretches Earth’s oceans into two bulges: one facing the Moon and one on the opposite side. As Earth spins, each coast moves through both bulges (high tides) and the dips between them (low tides).','月球把地球上的海洋拉成两个隆起：一个面向月球，一个在相反的一侧。地球自转时，每段海岸都会经过两个隆起（高潮）和它们之间的低处（低潮）。'))}</p>
+      <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(o('Tides are caused mainly by the Moon’s gravity. The Sun makes them bigger (spring tides) or smaller (neap tides).','潮汐主要由月球的引力引起，太阳让潮汐变大（大潮）或变小（小潮）。'))}</div>
+      <p class="muted" style="margin:0;font-size:14px">${Lab.L(o('Click the ocean, the Moon, the Sun or the red port pin. Try the sliders!','点击海水、月球、太阳或红色港口图钉，再试试滑块！'))}</p>
+      <div class="nav"><button id="startBtn">${Lab.L(o('Start with the Moon ▶','从月球开始 ▶'))}</button></div>`;
+    Lab.$('#startBtn').onclick = () => App.select('moon');
+    return;
+  }
+  const p = PARTS[k], i = ORDER.indexOf(k);
+  box.innerHTML = `<span class="tag">${Lab.L(o('Tide model','潮汐模型'))}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>${realFig(k)}
+    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. '));
+  Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
+  Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
+}
+function renderChips(){
+  Lab.$('#chips').innerHTML = ORDER.map(k => `<button class="chip ${App.sel===k?'on':''}" data-k="${k}"><i style="background:${PARTS[k].color}"></i>${Lab.L(PARTS[k].name)}</button>`).join('');
+  Lab.$$('#chips .chip').forEach(c => c.onclick = () => App.select(c.dataset.k));
+}
+/* readout under the 3D model (values pushed in by the 3D scene) */
+App.readout = { elong:180, port:0 };
+function renderReadout(){
+  const r = App.readout, kind = tideKind(r.elong), ph = phaseOf(r.elong);
+  Lab.$('#rPhase').textContent = ph.ico + ' ' + Lab.L(ph.n);
+  Lab.$('#rType').textContent = Lab.L(KIND[kind]);
+  Lab.$('#rTypeBox').className = 'counter ' + kind;
+  Lab.$('#rRange').textContent = rangeFor(r.elong).toFixed(1) + (Lab.lang === 'zh' ? ' 米' : ' m');
+  const lv = r.port, max = AM + AS;
+  Lab.$('#rPort').textContent = (lv >= 0 ? '+' : '') + lv.toFixed(2) + (Lab.lang === 'zh' ? ' 米' : ' m');
+  Lab.$('#rPortBar').style.width = Math.round((lv + max) / (2 * max) * 100) + '%';
+}
+App.renderReadout = renderReadout;
+
+/* ===== Phase cards (static diagrams; Sun on the left) ===== */
+function phaseSVG(elong){
+  const a = elong * Math.PI / 180;
+  // moon position: elongation measured from the Sun direction (left), counter-clockwise seen from above
+  const sx = -Math.cos(a), sy = Math.sin(a), px = 130 + 52 * sx, py = 60 + 52 * sy;
+  const k = tideKind(elong), stretch = k === 'spring' ? 1 : .55;
+  const ang = Math.atan2(sy, sx) * 180 / Math.PI;
+  return `<svg viewBox="0 0 230 120" aria-hidden="true">
+    <circle cx="16" cy="60" r="40" fill="#fbbf24"/>
+    ${[30,50,70,90].map(y => `<line x1="56" y1="${y}" x2="92" y2="${y}" stroke="#fbbf24" stroke-width="2" stroke-dasharray="4 4" opacity=".7"/>`).join('')}
+    <circle cx="130" cy="60" r="52" fill="none" stroke="currentColor" stroke-opacity=".25" stroke-dasharray="3 4"/>
+    <ellipse cx="130" cy="60" rx="${18 + 10 * stretch}" ry="${18 - 3 * stretch}" fill="#38bdf8" opacity=".55" transform="rotate(${ang} 130 60)"/>
+    <circle cx="130" cy="60" r="15" fill="#2563eb"/><path d="M130 45 a15 15 0 0 1 0 30z" fill="#0b1b4a" opacity=".55"/>
+    <circle cx="${px}" cy="${py}" r="9" fill="#d1d5db"/><path d="M${px} ${py - 9} a9 9 0 0 1 0 18z" fill="#374151" opacity=".75" transform="rotate(0 ${px} ${py})"/>
+  </svg>`;
+}
+const PHASE_CARDS = [
+  {e:0, n:o('New Moon','新月'), d:o('Moon between Sun and Earth. In a line.','月球在太阳和地球之间，三者成一直线。')},
+  {e:90, n:o('First quarter','上弦月'), d:o('Moon at a right angle to the Sun.','月球与太阳成直角。')},
+  {e:180, n:o('Full Moon','满月'), d:o('Earth between Sun and Moon. In a line.','地球在太阳和月球之间，三者成一直线。')},
+  {e:270, n:o('Third quarter','下弦月'), d:o('Right angle again, on the other side.','再次成直角，在另一侧。')}
+];
+function renderPhaseCards(){
+  Lab.$('#phaseCards').innerHTML = PHASE_CARDS.map(c => { const k = tideKind(c.e);
+    return `<div class="box card">${phaseSVG(c.e)}<h3>${Lab.L(c.n)}</h3><p>${Lab.L(c.d)}</p><span class="kind ${k}">${Lab.L(KIND[k])}</span></div>`; }).join('');
+}
+Lab.onLang(() => { renderInfo(); renderChips(); renderReadout(); renderPhaseCards(); });
+/* ===== Tide chart simulation ===== */
+(function(){
+  const cv = Lab.$('#chartCv'), box = Lab.$('#chartBox'), g = cv.getContext('2d');
+  const S = { day:0, tc:6, play:false, chal:null, found:{spring:0, neap:0}, lastOk:null };
+  const elongAt = (day, T) => 360 * (day + T / 24) / MONTH;
+  function level(day, T){                    // T hours after midnight of `day`
+    const ths = 2 * Math.PI * ((T % 24) - 12) / 24, thm = ths - elongAt(day, T) * Math.PI / 180;
+    return AM * Math.cos(2 * thm) + AS * Math.cos(2 * ths);
+  }
+  function dayStats(day){
+    let mx = -9, mn = 9, highs = 0, first = null, prev = level(day, -0.1), cur = level(day, 0);
+    for (let T = 0; T < 24; T += 0.05){
+      const nx = level(day, T + 0.05);
+      mx = Math.max(mx, cur); mn = Math.min(mn, cur);
+      if (cur > prev && cur >= nx){ highs++; if (first == null) first = T; }
+      prev = cur; cur = nx;
+    }
+    return { range:mx - mn, highs, first, kind:tideKind(elongAt(day, 12)) };
+  }
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const hhmm = T => { const m = Math.round(T * 60); return String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
+  const M = () => Lab.lang === 'zh' ? ' 米' : ' m';
+  let W = 0, H = 0;
+  function resize(){ const b = box.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); W = b.width; H = b.height; cv.width = W * d; cv.height = H * d; g.setTransform(d, 0, 0, d, 0, 0); }
+  new ResizeObserver(resize).observe(box); resize();
+
+  function draw(){
+    if (!W) return;
+    const ink = css('--ink'), ink2 = css('--ink-2'), line = css('--line'), surf2 = css('--surface-2'), brand = css('--brand'), good = css('--good'), acc = css('--accent');
+    g.clearRect(0, 0, W, H);
+    const narrow = W < 520, x0 = 44, x1 = narrow ? W - 14 : W * 0.76, y0 = 26, y1 = H * 0.64, yMid = (y0 + y1) / 2, ys = (y1 - y0) / 2 / 1.7;
+    const X = T => x0 + (x1 - x0) * T / 48, Y = v => yMid - v * ys;
+    g.font = '700 12px Nunito, sans-serif'; g.textBaseline = 'middle';
+    // grid
+    g.strokeStyle = line; g.lineWidth = 1; g.fillStyle = ink2;
+    [-1.5, -1, -0.5, 0, 0.5, 1, 1.5].forEach(v => { g.globalAlpha = v === 0 ? 1 : .5; g.beginPath(); g.moveTo(x0, Y(v)); g.lineTo(x1, Y(v)); g.stroke(); g.globalAlpha = 1; if (Number.isInteger(v)) { g.textAlign = 'right'; g.fillText((v > 0 ? '+' : '') + v + (Lab.lang === 'zh' ? '米' : 'm'), x0 - 6, Y(v)); } });
+    for (let T = 0; T <= 48; T += 6){ g.globalAlpha = T % 24 ? .35 : 1; g.beginPath(); g.moveTo(X(T), y0); g.lineTo(X(T), y1); g.stroke(); g.globalAlpha = 1; g.textAlign = 'center'; g.fillText(hhmm(T), X(T), y1 + 12); }
+    g.fillStyle = ink; g.textAlign = 'left';
+    const dl = d => Lab.lang === 'zh' ? `第 ${d} 天` : `Day ${d}`;
+    g.fillText(dl(Math.floor(S.day) + 1), X(0) + 6, y0 - 12); g.fillText(dl(Math.floor(S.day) + 2), X(24) + 6, y0 - 12);
+    // water area
+    const grad = g.createLinearGradient(0, y0, 0, y1); grad.addColorStop(0, 'rgba(56,189,248,.55)'); grad.addColorStop(1, 'rgba(30,64,175,.25)');
+    g.beginPath(); g.moveTo(X(0), y1);
+    for (let T = 0; T <= 48.001; T += 0.1) g.lineTo(X(T), Y(level(S.day, T)));
+    g.lineTo(X(48), y1); g.closePath(); g.fillStyle = grad; g.fill();
+    g.beginPath(); for (let T = 0; T <= 48.001; T += 0.1){ const p = [X(T), Y(level(S.day, T))]; T ? g.lineTo(...p) : g.moveTo(...p); } g.strokeStyle = '#0284c7'; g.lineWidth = 2.5; g.stroke();
+    // highs / lows
+    for (let T = 0.05; T < 48; T += 0.05){
+      const a = level(S.day, T - .05), b = level(S.day, T), c = level(S.day, T + .05);
+      if (b > a && b >= c){ g.fillStyle = good; g.beginPath(); g.arc(X(T), Y(b), 4.5, 0, 7); g.fill(); g.fillStyle = ink; g.textAlign = 'center'; g.fillText(Lab.lang === 'zh' ? '高' : 'H', X(T), Y(b) - 12); }
+      if (b < a && b <= c){ g.fillStyle = acc; g.beginPath(); g.arc(X(T), Y(b), 4.5, 0, 7); g.fill(); g.fillStyle = ink; g.textAlign = 'center'; g.fillText(Lab.lang === 'zh' ? '低' : 'L', X(T), Y(b) + 13); }
+    }
+    // cursor
+    const lv = level(S.day, S.tc);
+    g.strokeStyle = ink; g.lineWidth = 1.5; g.setLineDash([4, 4]); g.beginPath(); g.moveTo(X(S.tc), y0); g.lineTo(X(S.tc), y1); g.stroke(); g.setLineDash([]);
+    g.fillStyle = ink; g.beginPath(); g.arc(X(S.tc), Y(lv), 6, 0, 7); g.fill();
+    // harbour gauge
+    if (!narrow){
+      const hx0 = W * 0.8, hx1 = W - 14, hw = hx1 - hx0, gy = v => yMid - v * ys;
+      g.fillStyle = surf2; g.fillRect(hx0, y0, hw, y1 - y0);
+      g.fillStyle = 'rgba(56,189,248,.6)'; g.fillRect(hx0, gy(lv), hw, y1 - gy(lv));
+      g.fillStyle = '#7c5a3a'; g.fillRect(hx0 + hw * .62, y0 + 6, 9, y1 - y0 - 6);
+      g.fillStyle = ink; g.textAlign = 'left'; g.font = '700 10px Nunito, sans-serif';
+      for (let v = -1.5; v <= 1.51; v += .5){ g.fillRect(hx0 + hw * .62 + 9, gy(v) - .5, Number.isInteger(v) ? 9 : 5, 1); }
+      g.font = '22px sans-serif'; g.textAlign = 'center'; g.fillText('⛵', hx0 + hw * .3, gy(lv) - 10);
+      g.font = '700 12px Nunito, sans-serif'; g.fillText(Lab.lang === 'zh' ? '港口' : 'Harbor', hx0 + hw / 2, y0 - 12);
+    }
+    // month bars
+    const by0 = H * 0.76, by1 = H - 22, bx0 = x0, bx1 = W - 14, n = 30, bw = (bx1 - bx0) / n;
+    g.fillStyle = ink2; g.textAlign = 'left'; g.font = '700 12px Nunito, sans-serif';
+    g.fillText(Lab.lang === 'zh' ? '每天的潮差（一个月）' : 'Tidal range on each day of the month', bx0, by0 - 12);
+    for (let d = 0; d < n; d++){
+      const r = rangeFor(elongAt(d, 12)), h = (by1 - by0) * r / 3;
+      g.fillStyle = Math.floor(S.day) === d ? brand : (tideKind(elongAt(d, 12)) === 'spring' ? good : tideKind(elongAt(d, 12)) === 'neap' ? acc : line);
+      g.globalAlpha = Math.floor(S.day) === d ? 1 : .7; g.fillRect(bx0 + d * bw + 1, by1 - h, bw - 2, h); g.globalAlpha = 1;
+    }
+    g.font = '15px sans-serif'; g.textAlign = 'center';
+    [[0, '🌑'], [7.4, '🌓'], [14.8, '🌕'], [22.1, '🌗']].forEach(([d, e]) => g.fillText(e, bx0 + (d + .5) * bw, by1 + 12));
+    return lv;
+  }
+
+  function update(){
+    const st = dayStats(Math.floor(S.day)), ph = phaseOf(elongAt(S.day, 12));
+    Lab.$('#cPhaseIco').textContent = ph.ico; Lab.$('#cPhaseName').textContent = Lab.L(ph.n);
+    Lab.$('#cDayTxt').textContent = Lab.lang === 'zh' ? `第 ${Math.floor(S.day) + 1} 天 · 第一次高潮约在 ${hhmm(st.first ?? 0)}` : `Day ${Math.floor(S.day) + 1} · first high tide about ${hhmm(st.first ?? 0)}`;
+    Lab.$('#cHigh').textContent = st.highs;
+    Lab.$('#cRange').textContent = st.range.toFixed(1) + M();
+    Lab.$('#cType').textContent = Lab.L(KIND[st.kind]);
+    Lab.$('#cType').style.color = st.kind === 'spring' ? 'var(--good)' : st.kind === 'neap' ? 'var(--accent)' : '';
+    Lab.$('#daySl').value = S.day;
+    checkChallenge(st.kind);
+  }
+  function checkChallenge(kind){
+    const m = Lab.$('#chMsg');
+    if (!S.chal){ m.textContent = ''; m.className = 'result'; return; }
+    const want = KIND[S.chal];
+    if (kind === S.chal){
+      if (S.lastOk !== Math.floor(S.day)){ S.found[S.chal]++; S.lastOk = Math.floor(S.day); }
+      m.className = 'result good';
+      m.textContent = Lab.lang === 'zh' ? `✅ 找到了!这天是${Lab.L(want)},月相是${Lab.L(phaseOf(elongAt(S.day, 12)).n)}。(已找到:大潮 ${S.found.spring} 次,小潮 ${S.found.neap} 次)` : `✅ Found it! This is a ${Lab.L(want).toLowerCase()} day with a ${Lab.L(phaseOf(elongAt(S.day, 12)).n)}. (Found: ${S.found.spring} spring, ${S.found.neap} neap)`;
+    } else {
+      m.className = 'result';
+      m.textContent = Lab.lang === 'zh' ? `移动“第几天”滑块,找一个${Lab.L(want)}日。提示:看下方柱子的高矮。` : `Move the day slider to find a ${Lab.L(want).toLowerCase()} day. Hint: look at the bar heights below.`;
+    }
+  }
+  Lab.$('#daySl').oninput = e => { S.day = +e.target.value; update(); };
+  Lab.$('#nextDayBtn').onclick = () => { S.day = (Math.floor(S.day) + 1) % 30; update(); };
+  Lab.$('#playBtn').onclick = () => { S.play = !S.play; Lab.$('#playBtn').textContent = S.play ? Lab.L(o('⏸ Pause','⏸ 暂停')) : Lab.L(o('▶ Play time','▶ 播放时间')); };
+  Lab.$('#chSpring').onclick = () => { S.chal = 'spring'; S.lastOk = null; update(); };
+  Lab.$('#chNeap').onclick = () => { S.chal = 'neap'; S.lastOk = null; update(); };
+  cv.addEventListener('pointerdown', e => { const b = cv.getBoundingClientRect(), x1 = W < 520 ? W - 14 : W * 0.76; const T = (e.clientX - b.left - 44) / (x1 - 44) * 48; if (T >= 0 && T <= 48) S.tc = T; });
+  let last = performance.now();
+  (function loop(now){
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    if (S.play){ S.tc += dt * 4; if (S.tc > 30){ S.tc -= 24; S.day = (Math.floor(S.day) + 1) % 30; update(); } }
+    const lv = draw();
+    if (lv != null) Lab.$('#cNow').textContent = (lv >= 0 ? '+' : '') + lv.toFixed(2) + M();
+    requestAnimationFrame(loop);
+  })(last);
+  Lab.onLang(() => { update(); Lab.$('#playBtn').textContent = S.play ? Lab.L(o('⏸ Pause','⏸ 暂停')) : Lab.L(o('▶ Play time','▶ 播放时间')); });
+})();
+/* ===== Quiz ===== */
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('What is the main cause of ocean tides on Earth?','地球上海洋潮汐的主要成因是什么？'), options:[o('The Moon’s gravity','月球的引力'),o('Wind blowing on the ocean','风吹海面'),o('Earth’s magnetic field','地球的磁场'),o('Underwater earthquakes','海底地震')], answer:0, explain:o('The Moon’s gravity pulls unevenly on Earth, stretching the oceans into two bulges.','月球的引力对地球各处的拉力不均匀，把海洋拉成两个隆起。')},
+  {q:o('How many high tides do most coasts have in about one day?','大多数海岸大约一天有几次高潮？'), options:[o('Two','两次'),o('One','一次'),o('Four','四次'),o('None','没有')], answer:0, explain:o('Earth turns through two bulges, so most coasts get two highs and two lows every 24 h 50 min.','地球自转会经过两个隆起，所以大多数海岸每 24 小时 50 分钟有两次高潮、两次低潮。')},
+  {q:o('Why is there ALSO a high tide on the side of Earth facing away from the Moon?','为什么背对月球的一侧也会出现高潮？'), options:[o('That water is pulled less than Earth’s center, so it is left behind','那里的海水受到的拉力比地心小，被“留在后面”'),o('The Moon pushes water away from it','月球把海水推开了'),o('The Sun is always on that side','太阳总在那一侧'),o('Earth’s spin throws the water outward only on that side','地球自转只把那一侧的海水甩出去')], answer:0, explain:o('Gravity weakens with distance. The far side is pulled the least, so Earth is pulled away from that water a little.','引力随距离增大而减弱。远侧受到的拉力最小，地球被拉离那里的海水一点点。')},
+  {q:o('Spring tides happen when…','大潮出现在什么时候？'), options:[o('The Sun, Earth and Moon are in a straight line','日、地、月排成一直线时'),o('The Sun and Moon are at a right angle','太阳和月球与地球成直角时'),o('It is springtime','春天的时候'),o('The Moon is farthest from the Sun','月球离太阳最远时')], answer:0, explain:o('When they line up (New Moon and Full Moon), the Sun’s and Moon’s tides add together.','当三者排成一线（新月和满月）时，太阳潮和月球潮叠加在一起。')},
+  {q:o('During which Moon phases do neap tides happen?','小潮出现在哪些月相？'), options:[o('First and third quarter','上弦月和下弦月'),o('New Moon and Full Moon','新月和满月'),o('Only during a full Moon','只在满月时'),o('Only during a solar eclipse','只在日食时')], answer:0, explain:o('At the quarter Moons, the Sun and Moon pull at right angles and partly cancel.','在上弦月和下弦月时，太阳和月球的拉力成直角，部分相互抵消。')},
+  {q:o('Why does high tide come about 50 minutes later each day?','为什么高潮每天大约推迟 50 分钟？'), options:[o('The Moon moves along its orbit, so Earth must turn a bit more to face it again','月球沿轨道向前移动，地球要多转一点才能再次正对它'),o('Earth is slowing down by 50 minutes a day','地球每天变慢 50 分钟'),o('The ocean takes 50 minutes to warm up','海水需要 50 分钟才能变暖'),o('Clocks are not accurate','时钟不准确')], answer:0},
+  {q:o('Which has a bigger effect on Earth’s tides?','谁对地球潮汐的影响更大？'), options:[o('The Moon, because it is much closer','月球，因为它近得多'),o('The Sun, because it is much bigger','太阳，因为它大得多'),o('Both are exactly equal','两者完全一样'),o('Jupiter','木星')], answer:0, explain:o('The Sun’s tide-raising effect is only about 46% of the Moon’s, because tides depend strongly on distance.','太阳的引潮作用只有月球的约 46%，因为潮汐受距离的影响非常大。')},
+  {q:o('The tidal range is…','潮差是指……'), options:[o('The difference in height between high tide and low tide','高潮与低潮之间的水位差'),o('How far a wave travels','海浪传播的距离'),o('The time between two high tides','两次高潮之间的时间'),o('The depth of the ocean','海洋的深度')], answer:0},
+  {q:o('Where on Earth are the low tides at any moment?','在某一时刻，低潮出现在地球上的哪里？'), options:[o('About 90° from the Moon, between the two bulges','与月球方向约成 90° 的地方，两个隆起之间'),o('Directly under the Moon','月球的正下方'),o('On the side facing away from the Moon','背对月球的一侧'),o('Only at the North Pole','只在北极')], answer:0},
+  {q:o('About how often do spring tides happen?','大潮大约多久出现一次？'), options:[o('About every two weeks','大约每两周一次'),o('Once a year, in spring','每年一次，在春天'),o('Every day','每天'),o('Every 6 hours','每 6 小时')], answer:0, explain:o('There is one at New Moon and one at Full Moon, about 14.8 days apart.','新月时一次，满月时一次，相隔约 14.8 天。')},
+  {q:o('As Earth rotates, what do the two tidal bulges do?','地球自转时，两个潮汐隆起怎样？'), options:[o('They stay lined up with the Moon while Earth turns under them','它们一直对着月球，地球在它们下面转动'),o('They spin around with Earth','它们跟着地球一起转'),o('They disappear at night','它们在夜里消失'),o('They move toward the poles','它们向两极移动')], answer:0},
+  {q:o('A neap tide has…','小潮的特点是……'), options:[o('The smallest difference between high and low tide','高潮和低潮的差别最小'),o('The highest high tides of the month','一个月中最高的高潮'),o('No tides at all','完全没有潮汐'),o('Three high tides a day','一天三次高潮')], answer:0}
+], { count:10 });
+
+/* ===== Sort game ===== */
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'spring',en:'Spring tide',zh:'大潮'},{id:'neap',en:'Neap tide',zh:'小潮'}],
+  items:[
+    {en:'New Moon',zh:'新月',bin:'spring',color:'#475569'},{en:'Full Moon',zh:'满月',bin:'spring',color:'#e5e7eb'},
+    {en:'First quarter Moon',zh:'上弦月',bin:'neap',color:'#94a3b8'},{en:'Third quarter Moon',zh:'下弦月',bin:'neap',color:'#94a3b8'},
+    {en:'Sun, Earth & Moon in a line',zh:'日、地、月成一直线',bin:'spring'},{en:'Sun and Moon at 90°',zh:'太阳和月球成 90°',bin:'neap'},
+    {en:'Pulls add together',zh:'引力相互叠加',bin:'spring'},{en:'Pulls partly cancel',zh:'引力部分抵消',bin:'neap'},
+    {en:'Largest tidal range',zh:'潮差最大',bin:'spring'},{en:'Smallest tidal range',zh:'潮差最小',bin:'neap'}
+  ]
+});
+</script>
+<script>
+/* ===== A real month of tides: phase + Moon distance -> relative tidal range (equilibrium tide)
+   Moon/Sun positions and Moon distance from mean orbits + main periodic terms (after Meeus). ===== */
+(function(){
+const o = (en, zh) => ({en, zh});
+const zh = () => Lab.lang === 'zh';
+const $ = s => document.querySelector(s), $$ = s => Array.from(document.querySelectorAll(s));
+const R = Math.PI / 180, DAY = 864e5, J2000 = Date.UTC(2000, 0, 1, 12), KS = .46;
+const nrm = a => ((a % 360) + 360) % 360, sn = x => Math.sin(x * R), cs = x => Math.cos(x * R);
+function eph(ms){
+  const t = (ms - J2000) / DAY / 36525;
+  const D = 297.8501921 + 445267.1114034 * t, M = 357.5291092 + 35999.0502909 * t, Mp = 134.9633964 + 477198.8675055 * t,
+        F = 93.2720950 + 483202.0175233 * t, Lp = 218.3164477 + 481267.88123421 * t, Ls = 280.46646 + 36000.76983 * t;
+  const lonM = Lp + 6.289 * sn(Mp) + 1.274 * sn(2 * D - Mp) + 0.658 * sn(2 * D) + 0.214 * sn(2 * Mp) - 0.186 * sn(M) - 0.114 * sn(2 * F);
+  const lonS = Ls + 1.915 * sn(M) + 0.020 * sn(2 * M);
+  const km = 385000.56 - 20905.355 * cs(Mp) - 3699.111 * cs(2 * D - Mp) - 2955.968 * cs(2 * D);
+  const au = 1.00014 - .01671 * cs(M) - .00014 * cs(2 * M);
+  const fM = Math.pow(384400 / km, 3), fS = KS / Math.pow(au, 3), el = nrm(lonM - lonS);
+  return { lonM:nrm(lonM), lonS:nrm(lonS), el, km, fM, fS, amp:Math.sqrt(fM * fM + fS * fS + 2 * fM * fS * cs(2 * el)) };
+}
+// long-run average of the combined amplitude (normalises "1.00 x average")
+let AVG = 0; { const a = Date.UTC(2026, 0, 1); let n = 0; for (let d = 0; d < 3 * 365; d += .37){ AVG += eph(a + d * DAY).amp; n++; } AVG /= n; }
+const MON_EN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const PH = [['🌑', o('New Moon','新月')], ['🌒', o('Waxing crescent','蛾眉月')], ['🌓', o('First quarter','上弦月')], ['🌔', o('Waxing gibbous','盈凸月')], ['🌕', o('Full Moon','满月')], ['🌖', o('Waning gibbous','亏凸月')], ['🌗', o('Third quarter','下弦月')], ['🌘', o('Waning crescent','残月')]];
+const ph = el => { const k = [0, 90, 180, 270].findIndex(t => Math.abs(nrm(el - t + 180) - 180) < 12); return k >= 0 ? PH[k * 2] : PH[el < 90 ? 1 : el < 180 ? 3 : el < 270 ? 5 : 7]; };
+function moonIcon(g, x, y, r, el){   // phase as seen from the Northern Hemisphere
+  const c = Math.cos(el * R); g.fillStyle = "#3a3f4f"; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+  g.fillStyle = "#f1efe6"; g.beginPath(); g.arc(x, y, r, -Math.PI / 2, Math.PI / 2, el >= 180); g.fill();
+  g.fillStyle = c > 0 ? "#3a3f4f" : "#f1efe6"; g.beginPath(); g.ellipse(x, y, Math.abs(c) * r, r, 0, 0, 7); g.fill();
+  g.strokeStyle = "rgba(128,128,128,.7)"; g.lineWidth = 1; g.beginPath(); g.arc(x, y, r, 0, 7); g.stroke(); }
+const kindOf = (e) => { const d = Math.min(nrm(e.el) % 180, 180 - nrm(e.el) % 180); return d < 30 ? (e.km < 362000 ? 'king' : 'spring') : d > 60 ? 'neap' : 'mid'; };
+const KIND = { king:o('King tide!','国王潮！'), spring:o('Spring tide','大潮'), neap:o('Neap tide','小潮'), mid:o('In between','介于两者之间') };
+const st = { y:2026, m:10, day:0, play:false, hide:false, score:0, tries:0, solved:{} };
+{ const n = new Date(); st.y = n.getUTCFullYear(); st.m = n.getUTCMonth(); st.day = n.getUTCDate() - 1 + n.getUTCHours() / 24; }
+let MD = null;
+function buildMonth(){
+  const a = Date.UTC(st.y, st.m, 1), n = Math.round((Date.UTC(st.y, st.m + 1, 1) - a) / DAY), pts = [], marks = [];
+  for (let d = 0; d <= n; d += .25){ const e = eph(a + d * DAY); pts.push({ d, r:e.amp / AVG, km:e.km, el:e.el }); }
+  for (let i = 1; i < pts.length; i++){ const p = pts[i - 1], q = pts[i];
+    [0, 90, 180, 270].forEach((tg, k) => { const dp = nrm(p.el - tg + 180) - 180, dq = nrm(q.el - tg + 180) - 180; if (dp < 0 && dq >= 0 && dq - dp < 90) marks.push({ d:q.d, ico:true, el:tg }); });
+    if (i < pts.length - 1){ const nx = pts[i + 1]; if (q.km < p.km && q.km <= nx.km) marks.push({ d:q.d, peri:true, km:q.km }); if (q.km > p.km && q.km >= nx.km) marks.push({ d:q.d, apo:true, km:q.km }); } }
+  let best = pts[0]; pts.forEach(p => { if (p.r > best.r) best = p; });
+  MD = { a, n, pts, marks, best };
+  $('#tmDay').max = n; st.day = Math.min(st.day, n);
+  $('#tmMonth').textContent = zh() ? `${st.y} 年 ${st.m + 1} 月` : `${MON_EN[st.m]} ${st.y}`;
+}
+const fmtDay = d => { const dt = new Date(MD.a + d * DAY); return zh() ? `${dt.getUTCMonth() + 1} 月 ${dt.getUTCDate()} 日` : `${MON_EN[dt.getUTCMonth()].slice(0, 3)} ${dt.getUTCDate()}`; };
+function update(){
+  const e = eph(MD.a + st.day * DAY), r = e.amp / AVG, k = kindOf(e), p = ph(e.el);
+  $('#tmDay').value = st.day; $('#tmOut').textContent = fmtDay(st.day);
+  $("#tmPhase").textContent = Lab.L(p[1]);
+  $('#tmDist').textContent = zh() ? `${(e.km / 1e4).toFixed(1)} 万千米` : `${Math.round(e.km).toLocaleString('en-US')} km`;
+  $('#tmRange').textContent = `${r.toFixed(2)} × (${r >= 1 ? '+' : '−'}${Math.abs(Math.round((r - 1) * 100))}%)`;
+  $('#tmType').textContent = Lab.L(KIND[k]);
+  $('#tmType').style.color = k === 'king' ? 'var(--bad)' : k === 'spring' ? 'var(--good)' : k === 'neap' ? 'var(--accent)' : '';
+  const m = $('#tmMsg');
+  if (!m.dataset.lock){ m.className = 'result';
+    m.textContent = k === 'king' ? Lab.L(o('Sun, Earth and Moon line up AND the Moon is near perigee: a “perigean spring tide” (king tide). Coastal flooding is more likely.','日、地、月排成一线，而且月球靠近近地点：这是“近地点大潮”（国王潮），沿海更容易被淹。'))
+      : k === 'spring' ? Lab.L(o('Sun and Moon are lined up: their tidal bulges add together.','太阳和月球排成一线：两者的潮汐隆起叠加在一起。'))
+      : k === 'neap' ? Lab.L(o('Sun and Moon are at right angles: the Sun’s bulge partly fills in the Moon’s low tides.','太阳和月球成直角：太阳的隆起部分填平了月球造成的低潮。'))
+      : Lab.L(o('Between spring and neap: the range is changing day by day.','介于大潮和小潮之间：潮差每天都在变化。')); }
+  draw(e);
+}
+function draw(e){
+  if (!MD) return; e = e || eph(MD.a + st.day * DAY);
+  const cv = $('#tmCv'), box = $('#tmBox'), dpr = Math.min(devicePixelRatio || 1, 2), W = box.clientWidth, H = box.clientHeight;
+  if (!W || !H) return;
+  cv.width = W * dpr; cv.height = H * dpr; const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const css = getComputedStyle(document.documentElement), v = n => css.getPropertyValue(n).trim();
+  const C = { ink:v('--ink'), ink2:v('--ink-2'), line:v('--line'), surf:v('--surface'), good:v('--good'), bad:v('--bad'), brand:v('--brand'), accent:v('--accent') };
+  const topH = Math.round(H * .48);
+  /* top view: Sun fixed on the left, Moon at its real angle from the Sun, distance exaggerated x4 */
+  g.fillStyle = '#070b18'; g.fillRect(0, 0, W, topH);
+  for (let i = 0; i < 50; i++){ g.fillStyle = `rgba(255,255,255,${.15 + (i * 37 % 10) / 20})`; g.fillRect((i * 97.3) % W, (i * 53.7) % topH, 1.2, 1.2); }
+  const cx = W * .56, cy = topH / 2 + 10, base = Math.min(W * .3, topH * .36);
+  const sunG = g.createLinearGradient(0, 0, 60, 0); sunG.addColorStop(0, 'rgba(255,200,80,.85)'); sunG.addColorStop(1, 'rgba(255,200,80,0)');
+  g.fillStyle = sunG; g.fillRect(0, 0, 60, topH);
+  g.fillStyle = '#ffd36b'; g.font = '800 12px Nunito, sans-serif'; g.textAlign = 'left'; g.fillText('☀ ' + Lab.L(o('to the Sun','太阳方向')), 8, topH - 10);
+  g.strokeStyle = 'rgba(255,211,107,.25)'; g.lineWidth = 1; for (let k = -2; k <= 2; k++){ g.beginPath(); g.moveTo(60, cy + k * 26); g.lineTo(cx - 30, cy + k * 26); g.stroke(); }
+  // orbit (drawn as the month's distance track)
+  const rOf = km => base * (1 + (km - 384400) / 384400 * 4);
+  g.strokeStyle = 'rgba(159,179,255,.35)'; g.setLineDash([3, 5]); g.beginPath(); g.arc(cx, cy, base, 0, 7); g.stroke(); g.setLineDash([]);
+  // combined bulge (equilibrium tide): sum in doubled-angle space
+  const aM = 180 + e.el, aS = 180;   // screen angle measured from +x; the Sun is toward 180°
+  const bx = e.fM * cs(2 * aM) + e.fS * cs(2 * aS), by = e.fM * sn(2 * aM) + e.fS * sn(2 * aS), amp = Math.hypot(bx, by), ang = Math.atan2(by, bx) / 2;
+  const er = 20, k = 12 * amp / AVG;
+  g.save(); g.translate(cx, cy); g.rotate(-ang); g.fillStyle = "rgba(125,211,252,.55)"; g.strokeStyle = "#7dd3fc"; g.lineWidth = 1.5; g.beginPath(); g.ellipse(0, 0, er + k, Math.max(er - k * .3, er * .75), 0, 0, 7); g.fill(); g.stroke(); g.restore();
+  g.fillStyle = '#2f6fd0'; g.beginPath(); g.arc(cx, cy, er, 0, 7); g.fill();
+  g.fillStyle = 'rgba(0,0,0,.45)'; g.beginPath(); g.arc(cx, cy, er, -Math.PI / 2, Math.PI / 2); g.fill();
+  const mr = rOf(e.km), mx = cx + mr * cs(aM), my = cy - mr * sn(aM);
+  g.fillStyle = '#3a3f4f'; g.beginPath(); g.arc(mx, my, 8, 0, 7); g.fill();
+  g.fillStyle = '#e8e8e2'; g.beginPath(); g.arc(mx, my, 8, Math.PI / 2, Math.PI * 1.5); g.fill();
+  g.textAlign = 'center'; g.font = '800 12px Nunito, sans-serif'; g.fillStyle = '#eaf0fb'; g.fillText(Lab.L(o('Moon','月球')), mx, my - 13);
+  g.fillStyle = '#a9b8dc'; g.font = '700 11px Nunito, sans-serif'; g.fillText(Lab.L(o("Earth + tidal bulge","地球与潮汐隆起")), cx, cy - er - 22);
+  g.textAlign = 'left'; g.font = '800 13px Nunito, sans-serif'; g.fillStyle = '#eaf0fb'; g.fillText(Lab.L(o('Top view (above the North Pole)','俯视图（从北极上方看）')), 10, 18);
+  g.font = '700 11px Nunito, sans-serif'; g.fillStyle = '#a9b8dc'; g.fillText(Lab.L(o('Moon distance changes exaggerated 4×','月地距离的变化被放大了 4 倍')), 10, 33);
+  /* chart: relative tidal range through the month */
+  const y0 = topH, L = 40, Rm = 12, T = y0 + 50, B = H - 26, W2 = W - L - Rm, top = 1.8;
+  g.fillStyle = C.surf; g.fillRect(0, y0, W, H - y0);
+  const X = d => L + d / MD.n * W2, Yv = r => B - r / top * (B - T);
+  g.strokeStyle = C.line; g.lineWidth = 1; g.fillStyle = C.ink2; g.font = '700 11px Nunito, sans-serif'; g.textAlign = 'right';
+  [0, .5, 1, 1.5].forEach(r => { g.beginPath(); g.moveTo(L, Yv(r)); g.lineTo(L + W2, Yv(r)); g.stroke(); g.fillText(r.toFixed(1) + '×', L - 4, Yv(r) + 4); });
+  g.textAlign = 'left'; g.font = '800 12.5px Nunito, sans-serif'; g.fillStyle = C.ink; g.fillText(Lab.L(o('Tidal range each day (1.0× = average)','每天的潮差（1.0× = 平均值）')), 10, y0 + 17);
+  if (!st.hide){
+    g.fillStyle = C.brand; g.globalAlpha = .18; g.beginPath(); g.moveTo(X(0), Yv(0)); MD.pts.forEach(p => g.lineTo(X(p.d), Yv(p.r))); g.lineTo(X(MD.n), Yv(0)); g.closePath(); g.fill(); g.globalAlpha = 1;
+    g.strokeStyle = C.brand; g.lineWidth = 2.2; g.beginPath(); MD.pts.forEach((p, i) => i ? g.lineTo(X(p.d), Yv(p.r)) : g.moveTo(X(p.d), Yv(p.r))); g.stroke();
+  } else { g.fillStyle = C.ink2; g.font = '700 13px Nunito, sans-serif'; g.textAlign = 'center'; g.fillText(Lab.L(o('Curve hidden: use the phase icons and P (perigee) marks!','曲线已隐藏：用月相图标和 P（近地点）标记来推理！')), L + W2 / 2, (T + B) / 2); }
+  g.textAlign = 'center';
+  MD.marks.forEach(mk => { const x = X(mk.d);
+    if (mk.ico) moonIcon(g, x, y0 + 36, 6.5, mk.el);
+    else { g.font = '800 11px Nunito, sans-serif'; g.fillStyle = mk.peri ? C.bad : C.ink2; g.fillText(mk.peri ? "P" : "A", x, B - 6); g.fillStyle = C.ink2; } });
+  g.font = '700 10.5px Nunito, sans-serif'; g.fillStyle = C.ink2;
+  for (let d = 0; d < MD.n; d += 5) g.fillText(String(d + 1), X(d), B + 15);
+  const xc = X(st.day), e2 = e.amp / AVG; g.strokeStyle = C.ink; g.globalAlpha = .75; g.lineWidth = 1.5; g.beginPath(); g.moveTo(xc, T - 4); g.lineTo(xc, B); g.stroke(); g.globalAlpha = 1;
+  if (!st.hide){ g.fillStyle = C.ink; g.beginPath(); g.arc(xc, Yv(e2), 5, 0, 7); g.fill(); }
+  g.textAlign = 'right'; g.font = '700 10.5px Nunito, sans-serif'; g.fillStyle = C.ink2;
+  g.fillText(Lab.L(o('P = perigee (closest) · A = apogee (farthest)','P = 近地点（最近）· A = 远地点（最远）')), W - Rm, y0 + 17 + (W < 520 ? 14 : 0));
+}
+let raf = 0, last = 0;
+function stop(){ st.play = false; $('#tmPlay').textContent = '▶'; cancelAnimationFrame(raf); }
+function loop(t){ if (!st.play) return; const dt = last ? Math.min(.1, (t - last) / 1000) : 0; last = t; st.day += dt * 2.5;
+  if (st.day >= MD.n){ st.day = MD.n; update(); stop(); return; } update(); raf = requestAnimationFrame(loop); }
+$('#tmPlay').onclick = () => { if (st.play) return stop(); if (st.day >= MD.n - .3) st.day = 0; st.play = true; last = 0; $('#tmPlay').textContent = '⏸'; raf = requestAnimationFrame(loop); };
+$('#tmDay').oninput = e => { stop(); st.day = +e.target.value; delete $('#tmMsg').dataset.lock; update(); };
+const shift = k => { stop(); st.m += k; if (st.m < 0){ st.m = 11; st.y--; } if (st.m > 11){ st.m = 0; st.y++; } delete $('#tmMsg').dataset.lock; buildMonth(); update(); };
+$('#tmPrev').onclick = () => shift(-1); $('#tmNext').onclick = () => shift(1);
+$('#tmHide').onclick = () => { st.hide = !st.hide; $('#tmHide').textContent = Lab.L(st.hide ? o('👁 Show the curve','👁 显示曲线') : o('🙈 Hide the curve','🙈 隐藏曲线')); draw(); };
+$('#tmCheck').onclick = () => { stop(); st.tries++; const b = MD.best, m = $('#tmMsg'), key = st.y + '-' + st.m, diff = b.d - st.day;
+  if (Math.abs(diff) <= 1){ if (!st.solved[key]){ st.solved[key] = 1; st.score++; } m.className = 'result good';
+    m.textContent = zh() ? `✅ 找到了！最大的潮在 ${fmtDay(b.d)}，是平均值的 ${b.r.toFixed(2)} 倍。${b.km < 365000 ? '那几天月球离近地点很近。' : ''}` : `✅ Got it! The biggest tide is on ${fmtDay(b.d)}, ${b.r.toFixed(2)}× the average.${b.km < 365000 ? ' The Moon is near perigee then.' : ''}`; }
+  else { m.className = 'result bad'; m.textContent = zh() ? `❌ 还不对。更大的潮在${diff > 0 ? '后面' : '前面'}。提示：找离 P（近地点）最近的新月或满月。` : `❌ Not yet. A bigger tide comes ${diff > 0 ? 'later' : 'earlier'} in the month. Hint: look for the new or full Moon closest to a P (perigee).`; }
+  m.dataset.lock = 1; $('#tmScore').textContent = st.score; $('#tmTries').textContent = st.tries; };
+new ResizeObserver(() => draw()).observe($('#tmBox'));
+if (document.fonts) document.fonts.ready.then(() => draw());
+addEventListener('labtheme', () => draw());
+
+/* strength bars (data figure) */
+function renderBars(){
+  const peri = Math.pow(384400 / 356500, 3), apo = Math.pow(384400 / 406700, 3);
+  const rows = [[o('Moon at perigee (356,500 km)','近地点的月球（35.65 万千米）'), peri, '#9fb3ff'], [o('Moon, average distance','平均距离的月球'), 1, '#9fb3ff'], [o('Moon at apogee (406,700 km)','远地点的月球（40.67 万千米）'), apo, '#9fb3ff'],
+    [o('Sun','太阳'), KS, '#f4b400'], [o('Spring tide: Moon + Sun','大潮：月球 + 太阳'), 1 + KS, 'var(--good)'], [o('Neap tide: Moon − Sun','小潮：月球 − 太阳'), 1 - KS, 'var(--accent)']];
+  $('#tmBars').innerHTML = rows.map(([l, x, c]) => `<div style="display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) 44px;gap:8px;align-items:center;font-size:14px;font-weight:700"><span>${Lab.L(l)}</span><div style="height:14px;border-radius:999px;background:var(--surface-2);overflow:hidden"><div style="height:100%;width:${x / 1.6 * 100}%;background:${c};border-radius:999px"></div></div><b style="text-align:right;font-variant-numeric:tabular-nums">${x.toFixed(2)}</b></div>`).join('');
+}
+
+/* ----- go deeper links (from the catalog) ----- */
+const dp = document.getElementById('deeper'), AST = (window.LAB_CATALOG || []).find(s => s.id === 'astronomy');
+if (dp && AST) dp.innerHTML = dp.dataset.deeper.split(',').map(id => { const t = AST.topics.find(x => x.id === id); return t ? `<a class="linkcard" href="${id}.html" data-lab-link><b data-zh="${t.zh}">${t.en}</b><span data-zh="${t.d.zh}">${t.d.en}</span><small data-zh="深入专题 →">Deep dive →</small></a>` : ''; }).join('');
+
+Lab.onLang(() => { buildMonth(); update(); renderBars(); $('#tmHide').textContent = Lab.L(st.hide ? o('👁 Show the curve','👁 显示曲线') : o('🙈 Hide the curve','🙈 隐藏曲线')); });
+window.TideMonth = { set:d => { st.day = d; update(); }, month:(y, m) => { st.y = y; st.m = m; buildMonth(); update(); }, state:st, best:() => MD.best,
+  marks:() => MD.marks.map(k => (k.ico || (k.peri ? 'P' : 'A')) + (1 + k.d).toFixed(1)).join(' ') };
+})();
+</script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const App = window.TIDES, V = THREE.Vector3, D2R = Math.PI / 180;
+const ctx = Lab3D.stage('#stage', { THREE, OrbitControls, camera:[5, 10, 19], target:[-2, 0, 0], minDistance:4, maxDistance:80, fov:42, lights:false });
+const { scene } = ctx;
+scene.add(new THREE.AmbientLight(0xffffff, .5));
+const sunLight = new THREE.DirectionalLight(0xfff2dc, 2.6); scene.add(sunLight);
+
+/* ---------- background stars ---------- */
+{ const n = 1600, p = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++){ const v = new V(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1).normalize().multiplyScalar(320); p.set([v.x, v.y, v.z], i * 3); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(p, 3));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color:0xcfd8ff, size:1.6, sizeAttenuation:false, transparent:true, opacity:.8 }))); }
+
+/* ---------- Earth (rotates) with a port pin ---------- */
+const RE = 2, DM = 8, DS = 15;
+const earthMat = new THREE.MeshStandardMaterial({ color:'#2f6fd0', roughness:.85, metalness:0 });
+const earth = new THREE.Mesh(new THREE.SphereGeometry(RE, 64, 48), earthMat); scene.add(earth); ctx.pickable(earth, 'earth');
+Lab3D.texture(THREE, Lab3D.TEX + 'planets/earth_atmos_2048.jpg', t => { if (t){ earthMat.map = t; earthMat.color.set('#ffffff'); earthMat.needsUpdate = true; } });
+const pin = new THREE.Group(); earth.add(pin);
+{ const lat = 25 * D2R, dir = new V(Math.cos(lat), Math.sin(lat), 0);
+  const stick = new THREE.Mesh(new THREE.CylinderGeometry(.035, .035, 1.25, 8), new THREE.MeshStandardMaterial({ color:'#f8fafc' }));
+  stick.position.copy(dir.clone().multiplyScalar(RE + .55)); stick.quaternion.setFromUnitVectors(new V(0, 1, 0), dir); pin.add(stick);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(.16, 16, 12), new THREE.MeshStandardMaterial({ color:'#ef4444', emissive:'#ef4444', emissiveIntensity:.4 }));
+  head.position.copy(dir.clone().multiplyScalar(RE + 1.2)); pin.add(head); pin.userData.head = head;
+  ctx.pickable(pin, 'port'); }
+
+/* ---------- deformable ocean shell ---------- */
+const oGeo = new THREE.SphereGeometry(1, 128, 72), base = oGeo.attributes.position.array.slice();
+const cols = new Float32Array(base.length); oGeo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+const ocean = new THREE.Mesh(oGeo, new THREE.MeshStandardMaterial({ vertexColors:true, transparent:true, opacity:.6, roughness:.3, metalness:0, depthWrite:false }));
+ocean.renderOrder = 2; scene.add(ocean); ctx.pickable(ocean, 'ocean');
+const cLow = new THREE.Color('#1e3a8a'), cHigh = new THREE.Color('#a5f3fc'), tc = new THREE.Color();
+const OB = RE + .03, K = .3, MAXL = AM + AS;
+const st = { moon:0, sun:180 }, tg = { moon:0, sun:180 };
+const mDir = new V(), sDir = new V(), perp = new V();
+const dirOf = (deg, out) => out.set(Math.cos(deg * D2R), 0, -Math.sin(deg * D2R));
+const lev3 = (x, y, z) => { const cm = x * mDir.x + z * mDir.z, cs = x * sDir.x + z * sDir.z; return AM * (2 * cm * cm - 1) + AS * (2 * cs * cs - 1); };
+const radiusAt = lev => OB + K * (lev + MAXL);
+function updateOcean(){
+  const p = oGeo.attributes.position.array;
+  for (let i = 0; i < base.length; i += 3){
+    const x = base[i], y = base[i + 1], z = base[i + 2], lv = lev3(x, y, z), r = radiusAt(lv);
+    p[i] = x * r; p[i + 1] = y * r; p[i + 2] = z * r;
+    tc.copy(cLow).lerp(cHigh, (lv + MAXL) / (2 * MAXL)); cols[i] = tc.r; cols[i + 1] = tc.g; cols[i + 2] = tc.b;
+  }
+  oGeo.attributes.position.needsUpdate = true; oGeo.attributes.color.needsUpdate = true;
+  oGeo.computeVertexNormals(); oGeo.computeBoundingSphere();
+}
+
+/* ---------- Moon, Sun, orbit, sunlight ---------- */
+const moonMat = new THREE.MeshStandardMaterial({ color:'#b9bcc4', roughness:1 });
+const moon = new THREE.Mesh(new THREE.SphereGeometry(.55, 40, 28), moonMat); scene.add(moon); ctx.pickable(moon, 'moon');
+Lab3D.texture(THREE, Lab3D.TEX + 'planets/moon_1024.jpg', t => { if (t){ moonMat.map = t; moonMat.color.set('#ffffff'); moonMat.needsUpdate = true; } });
+{ const pts = []; for (let i = 0; i <= 128; i++){ const a = i / 128 * Math.PI * 2; pts.push(new V(Math.cos(a) * DM, 0, Math.sin(a) * DM)); }
+  scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color:0x8090b0, transparent:true, opacity:.45 }))); }
+function glowTex(inner, outer){
+  const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'), gr = x.createRadialGradient(64, 64, 0, 64, 64, 64);
+  gr.addColorStop(0, inner); gr.addColorStop(.25, inner); gr.addColorStop(1, outer); x.fillStyle = gr; x.fillRect(0, 0, 128, 128);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+const sun = new THREE.Group(); scene.add(sun);
+const sunBall = new THREE.Mesh(new THREE.SphereGeometry(1.8, 40, 28), new THREE.MeshBasicMaterial({ color:'#ffd34d' })); sun.add(sunBall);
+const sunGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map:glowTex('rgba(255,220,120,.9)', 'rgba(255,160,40,0)'), blending:THREE.AdditiveBlending, depthWrite:false }));
+sunGlow.scale.set(11, 11, 1); sun.add(sunGlow); ctx.pickable(sunBall, 'sun');
+const rayMat = new THREE.LineDashedMaterial({ color:0xffd34d, dashSize:.6, gapSize:.5, transparent:true, opacity:.55 });
+const rays = [-1.2, 0, 1.2].map(off => { const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new V(), new V()]), rayMat); l.userData.off = off; scene.add(l); return l; });
+
+/* ---------- force arrows (Moon's pull: strong near, weak far) ---------- */
+const forces = new THREE.Group(); forces.visible = false; scene.add(forces);
+const arrows = [[1, 2.6], [0, 1.8], [-1, 1.1]].map(([s, len]) => {
+  const a = new THREE.ArrowHelper(new V(1, 0, 0), new V(), len, 0xfacc15, .45, .3);
+  a.line.material.depthTest = a.cone.material.depthTest = false; a.renderOrder = 10; a.userData = { s, len }; forces.add(a); return a; });
+const fLab = [o('Strong pull','拉力强'), o('Medium','中等'), o('Weak pull','拉力弱')].map((t, i) => { const L = ctx.label(t, new V(), { offset:[0, .55, 0] }); L.visible = false; return L; });
+
+/* ---------- labels ---------- */
+const P = { hiN:new V(), hiF:new V(), lo1:new V(), lo2:new V() };
+const labs = [
+  ctx.label(o('High tide','高潮'), P.hiN), ctx.label(o('High tide','高潮'), P.hiF),
+  ctx.label(o('Low tide','低潮'), P.lo1), ctx.label(o('Low tide','低潮'), P.lo2),
+  ctx.label(PARTS.moon.name, moon, { offset:[0, 1, 0] }),
+  ctx.label(o('Sun (not to scale)','太阳（未按比例）'), sunBall, { offset:[0, 2.7, 0] }),
+  ctx.label(PARTS.port.name, pin.userData.head, { offset:[0, .45, 0] })
+];
+let labelsOn = true;
+Lab.$('#labelBtn').onclick = () => { labelsOn = !labelsOn; labs.forEach(L => L.visible = labelsOn); Lab.$('#labelBtn').classList.toggle('on', labelsOn); };
+function setForces(on){ forces.visible = on; fLab.forEach(L => L.visible = on); Lab.$('#forceBtn').classList.toggle('on', on); }
+Lab.$('#forceBtn').onclick = () => setForces(!forces.visible);
+
+/* ---------- selection beacon ---------- */
+const beacon = new THREE.Sprite(new THREE.SpriteMaterial({ map:glowTex('rgba(255,255,255,.95)', 'rgba(120,220,255,0)'), blending:THREE.AdditiveBlending, depthTest:false, depthWrite:false }));
+beacon.renderOrder = 11; beacon.visible = false; scene.add(beacon);
+
+/* ---------- layout from angles ---------- */
+function layout(){
+  dirOf(st.moon, mDir); dirOf(st.sun, sDir); perp.set(-mDir.z, 0, mDir.x);
+  updateOcean();
+  moon.position.copy(mDir).multiplyScalar(DM);
+  sun.position.copy(sDir).multiplyScalar(DS);
+  sunLight.position.copy(sDir).multiplyScalar(30);
+  const side = new V(-sDir.z, 0, sDir.x);
+  rays.forEach(l => { const a = sDir.clone().multiplyScalar(DS - 2.6).addScaledVector(side, l.userData.off), b = side.clone().multiplyScalar(l.userData.off * .9).addScaledVector(sDir, RE + 1.2);
+    l.geometry.setFromPoints([a, b]); l.computeLineDistances(); });
+  P.hiN.copy(mDir).multiplyScalar(radiusAt(lev3(mDir.x, 0, mDir.z)) + .55);
+  P.hiF.copy(mDir).multiplyScalar(-(radiusAt(lev3(mDir.x, 0, mDir.z)) + .55));
+  P.lo1.copy(perp).multiplyScalar(radiusAt(lev3(perp.x, 0, perp.z)) + .5); P.lo2.copy(P.lo1).negate();
+  arrows.forEach((a, i) => { const at = mDir.clone().multiplyScalar(a.userData.s * (RE + .2)).add(new V(0, 2.7, 0)); a.position.copy(at); a.setDirection(mDir); a.setLength(a.userData.len, .45, .3);
+    fLab[i].at = at.clone().addScaledVector(mDir, a.userData.len / 2); });
+  App.readout.elong = st.moon - st.sun;
+}
+const portH = new V();
+function portLevel(){ pin.userData.head.getWorldPosition(portH); portH.y = 0; portH.normalize(); return lev3(portH.x, 0, portH.z); }
+
+/* ---------- regions of the ocean (for clicking) ---------- */
+function region(pt){
+  const n = pt.clone().normalize(); if (Math.abs(n.y) > .8) return 'earth';
+  const h = new V(n.x, 0, n.z).normalize(), c = h.dot(mDir);
+  if (c > .72) return 'near'; if (c < -.72) return 'far'; if (Math.abs(c) < .4) return 'low'; return 'earth';
+}
+ctx.hoverText((k, h) => Lab.L(PARTS[k === 'ocean' ? region(h.point) : k].name));
+ctx.onPick((k, h) => { if (!k) return; const key = k === 'ocean' ? region(h.point) : k; App.select(key, false); });
+function beaconAt(k){
+  if (k === 'near') return P.hiN.clone().multiplyScalar(.86);
+  if (k === 'far') return P.hiF.clone().multiplyScalar(.86);
+  if (k === 'low') return P.lo1.clone().multiplyScalar(.9);
+  return null;
+}
+function focus(k){
+  if (!k) return ctx.home();
+  if (k === 'moon') ctx.flyTo(moon.position.clone(), 6);
+  else if (k === 'sun') ctx.flyTo(sun.position.clone(), 14);
+  else if (k === 'earth') ctx.flyTo(new V(), 10);
+  else if (k === 'port'){ const p = new V(); pin.userData.head.getWorldPosition(p); ctx.flyTo(p.multiplyScalar(.6), 8); }
+  else if (k === 'gravity'){ setForces(true); ctx.flyToPose([mDir.x * 3 + perp.x * 3, 14, mDir.z * 3 + perp.z * 3 + 4], [0, 1, 0]); }
+  else { const p = beaconAt(k); ctx.flyTo(p.multiplyScalar(.7), 9); }
+}
+App.three = { focus };
+
+/* ---------- controls ---------- */
+let spin = true;
+function setSpin(on){ spin = on; Lab.$('#spinBtn').classList.toggle('on', on); }
+Lab.$('#spinBtn').onclick = () => setSpin(!spin);
+Lab.$('#moonSl').oninput = e => { if (story.active) story.stop(); st.moon = tg.moon = +e.target.value; layout(); App.renderReadout(); };
+Lab.$('#sunSl').oninput = e => { if (story.active) story.stop(); st.sun = tg.sun = +e.target.value; layout(); App.renderReadout(); };
+Lab.$('#resetBtn').onclick = () => { story.stop(); App.select(null); tg.moon = 0; tg.sun = 180; setForces(false); setSpin(true); ctx.home(); };
+
+/* ---------- story ---------- */
+const TOP = [[-4, 32, 11], [-4, 0, 1.5]];
+const story = Lab3D.story('#stage', STORY, i => {
+  if (i === 0){ tg.moon = 0; tg.sun = 180; setSpin(false); setForces(false); App.select('near', true); ctx.flyToPose([9, 6, 9], [1, 0, 0]); }
+  if (i === 1){ tg.moon = 0; tg.sun = 180; setSpin(false); setForces(true); App.select('far', true); ctx.flyToPose([0, 15, 9], [0, 1, 0]); }
+  if (i === 2){ setForces(false); setSpin(true); App.select('port', true); ctx.flyToPose([0, 7, 13], [0, 0, 0]); }
+  if (i === 3){ setSpin(false); tg.sun = 180; tg.moon = 180; App.select('sun', true); ctx.flyToPose(...TOP); }
+  if (i === 4){ setSpin(false); tg.sun = 180; tg.moon = 270; App.select('low', true); ctx.flyToPose(...TOP); }
+  if (i === 5){ setSpin(false); tg.sun = 180; tg.moon = 360; App.select('near', true); ctx.flyToPose(...TOP); }
+}, () => { setForces(false); setSpin(true); ctx.home(); });
+Lab.$('#storyBtn').onclick = () => story.start();
+
+/* ---------- per-frame ---------- */
+const ang = (a, b) => ((b - a) % 360 + 540) % 360 - 180;   // shortest signed difference
+let acc = 0;
+layout(); App.renderReadout();
+ctx.onFrame((dt, t) => {
+  if (spin) earth.rotation.y += dt * .5;
+  let moved = false;
+  for (const k of ['moon', 'sun']){ const d = ang(st[k], tg[k]); if (Math.abs(d) > .05){ st[k] += Math.sign(d) * Math.min(Math.abs(d), dt * 110); moved = true; } }
+  if (moved){ st.moon = (st.moon + 360) % 360; st.sun = (st.sun + 360) % 360; tg.moon = (tg.moon + 360) % 360; tg.sun = (tg.sun + 360) % 360;
+    Lab.$('#moonSl').value = Math.round(st.moon); Lab.$('#sunSl').value = Math.round(st.sun); layout(); }
+  moon.rotation.y = -st.moon * D2R + Math.PI;
+  acc += dt; if (acc > .12 || moved){ acc = 0; App.readout.port = portLevel(); App.renderReadout(); }
+  const sel = App.sel, pulse = .5 + .5 * Math.sin(t * 4);
+  earthMat.emissive.set(sel === 'earth' ? '#1d4ed8' : '#000000').multiplyScalar(sel === 'earth' ? .25 * pulse : 0);
+  moonMat.emissive.set('#ffffff').multiplyScalar(sel === 'moon' ? .25 * pulse : 0);
+  pin.userData.head.material.emissiveIntensity = sel === 'port' ? .4 + .8 * pulse : .4;
+  sunGlow.scale.setScalar(sel === 'sun' ? 11 + 3 * pulse : 11);
+  const bp = beaconAt(sel); beacon.visible = !!bp; if (bp){ beacon.position.copy(bp); beacon.scale.setScalar(1.2 + .8 * pulse); }
+  ocean.material.opacity = sel === 'earth' || sel === 'port' ? .35 : .6;
+});
+</script>
+</body>
+</html>

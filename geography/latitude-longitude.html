@@ -1,0 +1,721 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Latitude &amp; Longitude: Earth's Address System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/lab3d.js"></script><script src="../shared/photos.js"></script>
+<style>
+.yr-card{padding:16px}
+.yr-row{display:grid;grid-template-columns:minmax(120px,1fr) minmax(0,3fr);gap:12px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+.yr-row b{font-size:15px}.yr-row small{display:block;color:var(--ink-2);font-weight:700}
+.yr-m{display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px;white-space:nowrap}
+.yr-bar{flex:1;height:12px;border-radius:999px;background:var(--ink-2);overflow:hidden;min-width:30px}
+.yr-bar i{display:block;height:100%;background:var(--warn);transition:width .25s}
+.yr-m span{min-width:140px;text-align:right}
+@media (max-width:560px){.yr-row{grid-template-columns:1fr}}
+/* page-specific styles */
+.stage .pill input[type=range]{width:120px}
+.stage .pill b{font-family:Fredoka;font-weight:600;min-width:62px;display:inline-block;text-align:right}
+.coordbig{font-family:Fredoka;font-size:30px;font-weight:600;color:var(--brand);line-height:1.1}
+.mapbox{position:relative;aspect-ratio:2/1;min-height:0;overflow:hidden;align-self:start;width:100%}
+.mapbox canvas{cursor:crosshair}
+.prompt{font-family:Fredoka;font-size:21px;font-weight:600;line-height:1.3}
+.prompt small{display:block;font-family:Nunito;font-size:13px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.optgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.optgrid button{border:2px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:12px;padding:10px;font-weight:800}
+.optgrid button.right{border-color:var(--good);background:color-mix(in srgb,var(--good) 16%,var(--surface))}
+.optgrid button.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,var(--surface))}
+.steps .box .ico{font-family:Fredoka;font-size:30px;color:var(--brand)}
+.ex{font-family:Fredoka;font-size:20px;background:var(--surface-2);border-radius:10px;padding:2px 8px;display:inline-block;margin-top:6px}
+.toggle{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px;color:var(--ink-2)}
+@media (max-width:560px){ .stage .pill input[type=range]{width:90px} .coordbig{font-size:24px} }
+</style>
+</head>
+<body data-subject="geography" data-topic="latitude-longitude">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="地理 · 地图与地球仪技能">Geography · Map &amp; Globe Skills</span>
+  <h1 data-zh-html="经度与纬度：<em>地球上的地址</em>">Latitude &amp; Longitude: <em>Earth's Address</em></h1>
+  <p class="lead" data-zh="手机怎么知道你现在站在哪里？地球上的每一个地点都有一个由两个数字组成的“地址”：纬度和经度。转动地球仪，拖动滑块，点击任意地点，读出它的坐标吧！">How does a phone know exactly where you are standing? Every place on Earth has an “address” made of two numbers: latitude and longitude. Spin the globe, drag the sliders and click anywhere to read its coordinates!</p>
+</header>
+
+<section class="wrap" id="explore" data-nav="3D Globe" data-nav-zh="3D 地球仪">
+  <div class="explorer">
+    <div class="stage card" id="stage" data-3d>
+      <div class="toolbar">
+        <button class="tbtn on" id="rotBtn" data-zh="⟳ 旋转">⟳ Spin</button>
+        <button class="tbtn" id="resetBtn" data-zh="⌂ 重置">⌂ Reset</button>
+        <button class="tbtn" id="storyBtn" data-zh="🧭 坐标怎么读（故事）">🧭 How coordinates work (story)</button>
+        <button class="tbtn" id="gridBtn" data-zh="▦ 网格 15°">▦ Grid 15°</button>
+        <button class="tbtn" id="labelBtn" data-zh="🏷 度数">🏷 Degrees</button>
+        <button class="tbtn" id="insideBtn" data-zh="🔍 看内部角度">🔍 See the angles</button>
+      </div>
+      <div class="bottombar">
+        <div class="pill"><span data-zh="纬度">Latitude</span><input id="latS" type="range" min="-90" max="90" step="0.1" value="33.7"><b id="latV">33.7°N</b></div>
+        <div class="pill"><span data-zh="经度">Longitude</span><input id="lonS" type="range" min="-180" max="180" step="0.1" value="-84.4"><b id="lonV">84.4°W</b></div>
+        <div class="tip" data-zh="拖动旋转 · 滚轮缩放 · 点击地球读出坐标">Drag to rotate · Scroll to zoom · Click the globe to read coordinates</div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="chips" id="chips"></div>
+</section>
+
+<section class="wrap" id="read" data-nav="Reading coordinates" data-nav-zh="读坐标">
+  <div class="sec-head">
+    <h2 data-zh="四步读懂一个坐标">Read any coordinate in four steps</h2>
+    <p data-zh="纬度和经度都是用“度（°）”来表示的角度，是从地球中心量出来的。坐标就像在一张巨大的网格上找交叉点。">Latitude and longitude are angles measured in degrees (°) from Earth's center. A coordinate is just the crossing point of two lines on a giant grid.</p>
+  </div>
+  <div class="grid4 steps">
+    <div class="box card"><div class="ico">1</div><h3 data-zh="先写纬度">Latitude first</h3><p data-zh="纬度表示在赤道以北或以南多少度，范围是 0°–90°。">Latitude tells how many degrees north or south of the equator a place is: 0° to 90°.</p><span class="ex" data-zh="北纬 33.7°">33.7°N</span></div>
+    <div class="box card"><div class="ico">2</div><h3 data-zh="再写经度">Then longitude</h3><p data-zh="经度表示在本初子午线以东或以西多少度，范围是 0°–180°。">Longitude tells how many degrees east or west of the prime meridian: 0° to 180°.</p><span class="ex" data-zh="西经 84.4°">84.4°W</span></div>
+    <div class="box card"><div class="ico">3</div><h3 data-zh="别忘了方向">Always add a direction</h3><p data-zh="纬度要写“北（N）”或“南（S）”，经度要写“东（E）”或“西（W）”。只有 0° 线和 180° 经线不需要。">Latitude needs N or S, longitude needs E or W. Only the 0° lines and the 180° meridian do not.</p><span class="ex" data-zh="北纬33.7°，西经84.4°">33.7°N, 84.4°W</span></div>
+    <div class="box card"><div class="ico">4</div><h3 data-zh="度可以再分成分">Degrees → minutes</h3><p data-zh="1 度 = 60 分（′）。所以 33.75° 也可以写成 33°45′。纬度每 1° 大约相距 111 千米（69 英里）。">1 degree = 60 minutes (′), so 33.75° can be written 33°45′. Each degree of latitude is about 111 km (69 miles).</p><span class="ex">33°45′N</span></div>
+  </div>
+  <div class="grid4" style="margin-top:16px">
+    <div class="box card"><div class="ico">⬆️</div><h3 data-zh="北半球">Northern Hemisphere</h3><p data-zh="赤道以北。北美洲、欧洲、亚洲的大部分都在这里，佐治亚州也在这里。">North of the equator: North America, Europe, most of Asia — and Georgia.</p></div>
+    <div class="box card"><div class="ico">⬇️</div><h3 data-zh="南半球">Southern Hemisphere</h3><p data-zh="赤道以南。澳大利亚、南极洲、南美洲和非洲的大部分在这里。">South of the equator: Australia, Antarctica, most of South America and part of Africa.</p></div>
+    <div class="box card"><div class="ico">⬅️</div><h3 data-zh="西半球">Western Hemisphere</h3><p data-zh="本初子午线以西到 180° 经线。北美洲和南美洲都在这里。">West of the prime meridian to 180°: all of North and South America.</p></div>
+    <div class="box card"><div class="ico">➡️</div><h3 data-zh="东半球">Eastern Hemisphere</h3><p data-zh="本初子午线以东到 180° 经线。亚洲、澳大利亚和非洲的大部分在这里。">East of the prime meridian to 180°: Asia, Australia and most of Africa and Europe.</p></div>
+  </div>
+  <div class="mix" style="margin-top:16px"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="纬线是“横”着画的（东西方向），但纬度告诉你的是“南北”位置；经线是“竖”着画的（南北方向），但经度告诉你的是“东西”位置。另外，中国的地理课本常用西经 20° 和东经 160° 来划分东、西半球，这样不会把非洲和欧洲切开；美国课堂通常使用本初子午线和 180° 经线。">Latitude lines run side to side (east–west) but tell you how far NORTH or SOUTH you are. Longitude lines run up and down but tell you how far EAST or WEST you are. Also: some maps (including Chinese textbooks) split the Eastern and Western Hemispheres at 20°W and 160°E so that Africa and Europe are not cut in half; US classes usually use the prime meridian and the 180° meridian.</span></div>
+  <h3 style="margin:26px 0 12px;font-size:24px" data-zh="拖一拖：纬度怎样改变白天的长短">Scrub through a year: latitude changes the length of your day</h3>
+  <div class="card yr-card">
+    <div class="timebar" id="dayBar"><button aria-label="play">▶</button><input type="range" min="0" max="11" step="1" value="5" aria-label="month"><output></output></div>
+    <div id="dayRows" style="margin-top:12px"></div>
+    <p class="muted" style="font-size:13px;margin:10px 0 12px" data-zh="白天的长度是根据纬度用公式算出来的（每月中旬，从日出到日落），是近似值。">Day length is calculated from the latitude with a formula (mid-month, sunrise to sunset), so it is approximate.</p>
+    <details class="peek"><summary data-zh="为什么赤道上的基多几乎不变？">Why does Quito, on the equator, hardly change?</summary><p data-zh="在赤道上，一年到头白天和黑夜都差不多是 12 小时。离赤道越远（纬度越高），夏天白天越长，冬天白天越短。">On the equator, day and night are each about 12 hours all year. The farther from the equator (the higher the latitude), the longer the summer days and the shorter the winter days.</p></details>
+    <details class="peek"><summary data-zh="特罗姆瑟怎么会有 24 小时的白天？">How can Tromsø have 24 hours of daylight?</summary><p data-zh="特罗姆瑟在北极圈（北纬 66.5°）以北。夏天这里的太阳整夜不落，叫“极昼”；冬天太阳好几个星期不升起，叫“极夜”。">Tromsø is north of the Arctic Circle (66.5°N). In summer the Sun never sets there: the “midnight sun”. In winter it does not rise for weeks: the “polar night”.</p></details>
+  </div>
+</section>
+
+<section class="wrap" id="game" data-nav="City game" data-nav-zh="找城市游戏">
+  <div class="sec-head">
+    <h2 data-zh="游戏：用坐标找城市">Game: find the city by its coordinates</h2>
+    <p data-zh="“找城市”模式：看坐标，在地图上点出城市的位置，离得越近得分越高。“读坐标”模式：看地图上的图钉，选出它的正确坐标。">“Find it” mode: read the coordinates and click where the city is — the closer, the more points. “Name it” mode: look at the pin and pick its correct coordinates.</p>
+  </div>
+  <div class="sim">
+    <div><div class="card simbox mapbox"><canvas id="gmap"></canvas></div>
+      <div class="legend" style="margin-top:12px"><span><i style="background:#e5484d"></i><span data-zh="赤道 0°">Equator 0°</span></span><span><i style="background:#f5b82e"></i><span data-zh="本初子午线 0°">Prime meridian 0°</span></span><span><i style="background:var(--accent)"></i><span data-zh="你的猜测">Your guess</span></span><span><i style="background:#1aa36b"></i><span data-zh="城市的真实位置">Where the city really is</span></span><span><i style="background:#e5484d;border-radius:3px"></i><span data-zh="“读坐标”图钉">“Name it” pin</span></span></div>
+      <p class="muted" style="font-size:14px;margin:8px 0 0" data-zh="网格线每隔 15° 一条。N = 北纬，S = 南纬，E = 东经，W = 西经。">Grid lines every 15°. N = north, S = south, E = east, W = west.</p></div>
+    <div class="card simside">
+      <div class="seg" id="gmode"><button data-m="find" class="on" data-zh="📍 找城市">📍 Find it</button><button data-m="name" data-zh="🔢 读坐标">🔢 Name it</button></div>
+      <div class="prompt" id="gPrompt"></div>
+      <div class="optgrid" id="gOpts"></div>
+      <div class="result" id="gMsg"></div>
+      <div class="counters">
+        <div class="counter"><b id="gRound">1/8</b><span data-zh="回合">round</span></div>
+        <div class="counter"><b id="gScore">0</b><span data-zh="得分">score</span></div>
+        <div class="counter"><b id="gErr">–</b><span data-zh="平均误差（千米）">average miss (km)</span></div>
+        <div class="counter"><b id="gStreak">0</b><span data-zh="连续答对">streak</span></div>
+      </div>
+      <label class="toggle"><input type="checkbox" id="gLabels" checked> <span data-zh="显示网格度数（关掉更难！）">Show grid numbers (turn off for a challenge!)</span></label>
+      <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="先找纬度（上下），再找经度（左右）。地图中间的红线是赤道，金线是本初子午线。">Find latitude (up/down) first, then longitude (left/right). The red line is the equator, the gold line is the prime meridian.</span></div>
+      <div class="btnrow"><button class="btn" id="gNext" data-zh="下一个 ▶">Next ▶</button><button class="btn ghost" id="gNew" data-zh="新游戏">New game</button></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real photos" data-nav-zh="实景照片">
+  <div class="sec-head">
+    <h2 data-zh="看看真实的样子">See the real thing</h2>
+    <p data-zh="点击照片放大。影片和录音不会自动播放。">Click a photo to enlarge it. Videos and sound never start by themselves.</p>
+  </div>
+  <div id="gallery"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 经纬度测验">🧠 Latitude &amp; longitude quiz</h3><p class="sub" data-zh="选出正确答案。">Pick the best answer.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 按半球分一分">🗂️ Sort by hemisphere</h3><p class="sub" data-zh="每座城市都同时位于两个半球。把它拖到（或先点再点方框）正确的组合里。">Every city is in two hemispheres at once. Drag each city (or tap it, then tap a box) into the right pair.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="对应佐治亚州社会研究课程 SS6G / SS7G 中的“地图与地球仪技能”：用经纬度确定位置、比较不同半球、使用网格系统定位。建议：（1）先播放“坐标怎么读”故事，让学生说出每一步移动的是哪条线；（2）打开“看内部角度”，强调纬度和经度都是从地心量出的角度，而不是距离；（3）让学生用两个滑块找到自己学校所在城市（亚特兰大约为北纬 33.7°，西经 84.4°），再找一个南半球、东半球的城市作对比；（4）找城市游戏可作为课堂热身，把平均误差写在白板上比赛。">Supports Georgia Social Studies SS6G / SS7G Map &amp; Globe Skills: use latitude and longitude to determine location, compare hemispheres, and use a grid system. Suggestions: (1) play the “How coordinates work” story and have students name which line moves at each step; (2) turn on “See the angles” to stress that latitude and longitude are angles measured from Earth's center, not distances; (3) have students use the two sliders to find their own city (Atlanta ≈ 33.7°N, 84.4°W), then a city in the Southern and Eastern Hemispheres for contrast; (4) use the city game as a warm-up and race for the lowest average miss.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+/* ===== GEO kit: real country shapes (world-atlas 2.0.2 = Natural Earth 1:110m) + lookups + drawing ===== */
+const GEO = window.GEO = { feats:null };
+const NAMES = {
+  asia:'Kazakhstan:哈萨克斯坦|Uzbekistan:乌兹别克斯坦|Indonesia:印度尼西亚|Timor-Leste:东帝汶|Israel:以色列|Lebanon:黎巴嫩|Palestine:巴勒斯坦|Jordan:约旦|United Arab Emirates:阿联酋|Qatar:卡塔尔|Kuwait:科威特|Iraq:伊拉克|Oman:阿曼|Cambodia:柬埔寨|Thailand:泰国|Laos:老挝|Myanmar:缅甸|Vietnam:越南|North Korea:朝鲜|South Korea:韩国|Mongolia:蒙古|India:印度|Bangladesh:孟加拉国|Bhutan:不丹|Nepal:尼泊尔|Pakistan:巴基斯坦|Afghanistan:阿富汗|Tajikistan:塔吉克斯坦|Kyrgyzstan:吉尔吉斯斯坦|Turkmenistan:土库曼斯坦|Iran:伊朗|Syria:叙利亚|Armenia:亚美尼亚|Sri Lanka:斯里兰卡|China:中国|Taiwan:中国台湾|Azerbaijan:阿塞拜疆|Georgia:格鲁吉亚|Philippines:菲律宾|Malaysia:马来西亚|Brunei:文莱|Japan:日本|Yemen:也门|Saudi Arabia:沙特阿拉伯|N. Cyprus:北塞浦路斯|Cyprus:塞浦路斯|Turkey:土耳其',
+  africa:'Tanzania:坦桑尼亚|W. Sahara:西撒哈拉|Dem. Rep. Congo:刚果(金)|Somalia:索马里|Kenya:肯尼亚|Sudan:苏丹|Chad:乍得|South Africa:南非|Lesotho:莱索托|Zimbabwe:津巴布韦|Botswana:博茨瓦纳|Namibia:纳米比亚|Senegal:塞内加尔|Mali:马里|Mauritania:毛里塔尼亚|Benin:贝宁|Niger:尼日尔|Nigeria:尼日利亚|Cameroon:喀麦隆|Togo:多哥|Ghana:加纳|Côte d\'Ivoire:科特迪瓦|Guinea:几内亚|Guinea-Bissau:几内亚比绍|Liberia:利比里亚|Sierra Leone:塞拉利昂|Burkina Faso:布基纳法索|Central African Rep.:中非|Congo:刚果(布)|Gabon:加蓬|Eq. Guinea:赤道几内亚|Zambia:赞比亚|Malawi:马拉维|Mozambique:莫桑比克|eSwatini:斯威士兰|Angola:安哥拉|Burundi:布隆迪|Madagascar:马达加斯加|Gambia:冈比亚|Tunisia:突尼斯|Algeria:阿尔及利亚|Eritrea:厄立特里亚|Morocco:摩洛哥|Egypt:埃及|Libya:利比亚|Ethiopia:埃塞俄比亚|Djibouti:吉布提|Somaliland:索马里兰地区|Uganda:乌干达|Rwanda:卢旺达|S. Sudan:南苏丹',
+  europe:'Russia:俄罗斯|Norway:挪威|France:法国|Sweden:瑞典|Belarus:白俄罗斯|Ukraine:乌克兰|Poland:波兰|Austria:奥地利|Hungary:匈牙利|Moldova:摩尔多瓦|Romania:罗马尼亚|Lithuania:立陶宛|Latvia:拉脱维亚|Estonia:爱沙尼亚|Germany:德国|Bulgaria:保加利亚|Greece:希腊|Albania:阿尔巴尼亚|Croatia:克罗地亚|Switzerland:瑞士|Luxembourg:卢森堡|Belgium:比利时|Netherlands:荷兰|Portugal:葡萄牙|Spain:西班牙|Ireland:爱尔兰|Italy:意大利|Denmark:丹麦|United Kingdom:英国|Iceland:冰岛|Slovenia:斯洛文尼亚|Finland:芬兰|Slovakia:斯洛伐克|Czechia:捷克|Bosnia and Herz.:波黑|Macedonia:北马其顿|Serbia:塞尔维亚|Montenegro:黑山|Kosovo:科索沃',
+  namerica:'Canada:加拿大|United States of America:美国|Haiti:海地|Dominican Rep.:多米尼加|Bahamas:巴哈马|Greenland:格陵兰岛|Mexico:墨西哥|Panama:巴拿马|Costa Rica:哥斯达黎加|Nicaragua:尼加拉瓜|Honduras:洪都拉斯|El Salvador:萨尔瓦多|Guatemala:危地马拉|Belize:伯利兹|Puerto Rico:波多黎各|Jamaica:牙买加|Cuba:古巴|Trinidad and Tobago:特立尼达和多巴哥',
+  samerica:'Argentina:阿根廷|Chile:智利|Falkland Is.:马尔维纳斯群岛(福克兰群岛)|Uruguay:乌拉圭|Brazil:巴西|Bolivia:玻利维亚|Peru:秘鲁|Colombia:哥伦比亚|Venezuela:委内瑞拉|Guyana:圭亚那|Suriname:苏里南|Ecuador:厄瓜多尔|Paraguay:巴拉圭',
+  oceania:'Australia:澳大利亚|New Zealand:新西兰|Papua New Guinea:巴布亚新几内亚|Fiji:斐济|Vanuatu:瓦努阿图|New Caledonia:新喀里多尼亚|Solomon Is.:所罗门群岛',
+  antarctica:'Antarctica:南极洲'
+};
+GEO.zh = { 'Fr. S. Antarctic Lands':'法属南部领地' }; GEO.cont = {};
+for (const c in NAMES) NAMES[c].split('|').forEach(s => { const [en, zh] = s.split(':'); GEO.zh[en] = zh; GEO.cont[en] = c; });
+GEO.CONT = { asia:{en:'Asia',zh:'亚洲'}, africa:{en:'Africa',zh:'非洲'}, namerica:{en:'North America',zh:'北美洲'}, samerica:{en:'South America',zh:'南美洲'},
+  antarctica:{en:'Antarctica',zh:'南极洲'}, europe:{en:'Europe',zh:'欧洲'}, oceania:{en:'Australia/Oceania',zh:'大洋洲'}, other:{en:'Island',zh:'岛屿'} };
+GEO.OCEAN = { pacific:{en:'Pacific Ocean',zh:'太平洋'}, atlantic:{en:'Atlantic Ocean',zh:'大西洋'}, indian:{en:'Indian Ocean',zh:'印度洋'},
+  southern:{en:'Southern Ocean',zh:'南大洋'}, arctic:{en:'Arctic Ocean',zh:'北冰洋'}, caspian:{en:'Caspian Sea (a lake)',zh:'里海（湖泊）'} };
+GEO.cname = n => Lab.lang === 'zh' ? (GEO.zh[n] || n) : n;
+/* unwrap longitudes so rings never jump across ±180°; rings that wrap all the way round (Antarctica) are closed via the pole */
+function prepRing(ring){
+  const out = []; let off = 0, prev = null;
+  for (const [lon, lat] of ring){ let x = lon + off; if (prev != null){ while (x - prev > 180){ off -= 360; x -= 360; } while (x - prev < -180){ off += 360; x += 360; } } out.push([x, lat]); prev = x; }
+  if (Math.abs(out[out.length - 1][0] - out[0][0]) > 180){ const pole = out.reduce((s, p) => s + p[1], 0) < 0 ? -90 : 90; out.push([out[out.length - 1][0], pole], [out[0][0], pole]); }
+  return out;
+}
+GEO.ready = (async () => {
+  try {
+    const topojson = await import('https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/+esm');
+    const world = await (await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json')).json();
+    GEO.feats = topojson.feature(world, world.objects.countries).features.filter(f => f.geometry).map(f => {
+      const G = f.geometry, raw = G.type === 'Polygon' ? [G.coordinates] : G.coordinates, name = f.properties.name;
+      const polys = raw.map(poly => { const rings = poly.map(prepRing), b = [1e9, 1e9, -1e9, -1e9]; let cx = 0;
+        for (const [x, y] of rings[0]){ b[0] = Math.min(b[0], x); b[1] = Math.min(b[1], y); b[2] = Math.max(b[2], x); b[3] = Math.max(b[3], y); cx += x; }
+        return { rings, bbox:b, cx:cx / rings[0].length }; });
+      return { name, cont:GEO.cont[name] || 'other', raw, polys };
+    });
+  } catch (e){ console.warn('World map data unavailable:', e); GEO.feats = null; }
+  return GEO.feats;
+})();
+const inRing = (r, x, y) => { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++){ const a = r[i], b = r[j]; if ((a[1] > y) !== (b[1] > y) && x < (b[0] - a[0]) * (y - a[1]) / (b[1] - a[1]) + a[0]) c = !c; } return c; };
+GEO.find = (lat, lon) => {
+  if (!GEO.feats) return null;
+  for (const f of GEO.feats) for (const p of f.polys) for (const x of [lon, lon + 360, lon - 360]){
+    const b = p.bbox; if (x < b[0] || x > b[2] || lat < b[1] || lat > b[3]) continue;
+    if (inRing(p.rings[0], x, lat) && !p.rings.slice(1).some(h => inRing(h, x, lat))) return { f, p };
+  }
+  return null;
+};
+GEO.polyCont = (f, p, lon) => f.name === 'Russia' ? (lon > 0 && lon < 60 ? 'europe' : 'asia') : (f.name === 'France' && p.cx < -30 ? 'samerica' : f.cont);
+function atlWest(lat){ return lat >= 18 ? -100 : lat >= 14 ? -90 : lat >= 10 ? -85 : lat >= 9 ? -84 : lat >= 7 ? -77.5 : lat >= -56 ? -71 : -67; }
+GEO.ocean = (lat, lon) => {
+  if (lat < -60) return 'southern';
+  if (lat > 66) return 'arctic';
+  if (lat > 36 && lat < 47.5 && lon > 46.5 && lon < 55) return 'caspian';
+  const east = lat >= 47 ? 45 : lat >= 30 ? 42 : 20;
+  if (lon >= atlWest(lat) && lon <= east) return 'atlantic';
+  if ((lon > 20 && lon < 100 && lat < 30) || (lon >= 100 && lon < 147 && lat < -8 && !(lon > 129 && lat > -11) && !(lon > 135 && lat > -18))) return 'indian';
+  return 'pacific';
+};
+GEO.where = (lat, lon) => { const h = GEO.find(lat, lon); return h ? { land:true, country:h.f.name, cont:GEO.polyCont(h.f, h.p, lon) } : { land:false, ocean:GEO.ocean(lat, lon) }; };
+GEO.dist = (a1, o1, a2, o2) => { const r = Math.PI / 180, h = Math.sin((a2 - a1) * r / 2) ** 2 + Math.cos(a1 * r) * Math.cos(a2 * r) * Math.sin((o2 - o1) * r / 2) ** 2; return 12742 * Math.asin(Math.min(1, Math.sqrt(h))); };
+/* draw land on an equirectangular canvas: x = (lon+180)/360·W, y = (90-lat)/180·H. colorFn(continentKey, feature) -> fill or null */
+GEO.draw = (g, W, H, colorFn, stroke, lw) => {
+  const X = L => (L + 180) / 360 * W, Y = la => (90 - la) / 180 * H;
+  for (const f of GEO.feats || []) for (const p of f.polys){
+    const offs = [0]; if (p.bbox[0] < -180) offs.push(360); if (p.bbox[2] > 180) offs.push(-360);
+    const parts = f.name === 'Russia' ? [['europe', 0, 60], ['asia', 60, 600], ['asia', -600, 0]] : [[GEO.polyCont(f, p, p.cx)]];
+    for (const [ck, a, b] of parts){
+      const col = colorFn(ck, f); if (!col) continue;
+      g.save(); if (a != null){ g.beginPath(); g.rect(X(a), -10, X(b) - X(a), H + 20); g.clip(); }
+      for (const off of offs){
+        g.beginPath(); for (const r of p.rings){ r.forEach(([L, la], i) => i ? g.lineTo(X(L + off), Y(la)) : g.moveTo(X(L + off), Y(la))); g.closePath(); }
+        g.fillStyle = col; g.fill('evenodd'); if (stroke){ g.strokeStyle = stroke; g.lineWidth = lw || 1; g.stroke(); }
+      }
+      g.restore();
+    }
+  }
+};
+/* a "natural" land colour that changes with latitude (ice → forest → desert → rainforest) */
+GEO.landGrad = (g, H, y0 = 0) => { const gr = g.createLinearGradient(0, y0, 0, y0 + H);
+  [[0,'#f1f5f8'],[.1,'#e1ebe4'],[.17,'#a9cf8f'],[.3,'#86bf6b'],[.37,'#cdbd7e'],[.42,'#d9c88c'],[.47,'#76b664'],[.53,'#69ad5b'],[.6,'#cfbf84'],[.68,'#93c574'],[.78,'#b2d29a'],[.835,'#eef3f6'],[1,'#f6f9fb']].forEach(([o, c]) => gr.addColorStop(o, c)); return gr; };
+GEO.fmtLat = (v, d = 1) => { const a = Math.abs(v).toFixed(d); if (Math.abs(v) < .05) return '0°'; return Lab.lang === 'zh' ? (v > 0 ? '北纬 ' : '南纬 ') + a + '°' : a + '°' + (v > 0 ? 'N' : 'S'); };
+GEO.fmtLon = (v, d = 1) => { const a = Math.abs(v).toFixed(d); if (Math.abs(v) < .05 || Math.abs(v) > 179.95) return a.replace(/\.0+$/, '') + '°'; return Lab.lang === 'zh' ? (v > 0 ? '东经 ' : '西经 ') + a + '°' : a + '°' + (v > 0 ? 'E' : 'W'); };
+GEO.fmtLL = (lat, lon, d = 1) => GEO.fmtLat(lat, d) + (Lab.lang === 'zh' ? ',' : ', ') + GEO.fmtLon(lon, d);
+GEO.placeName = w => w.land ? Lab.L(GEO.CONT[w.cont]) + ' · ' + GEO.cname(w.country) : Lab.L(GEO.OCEAN[w.ocean]);
+/* ===== Key ideas (bilingual) ===== */
+const PARTS = {
+  equator:{color:'#e5484d', name:{en:'Equator',zh:'赤道'}, job:{en:'0° latitude — the line around Earth\'s middle',zh:'0° 纬线——环绕地球“腰部”的线'},
+    facts:{en:['An imaginary line around Earth exactly halfway between the North Pole and the South Pole.','It divides Earth into the Northern and Southern Hemispheres.','It is about 40,075 km (24,901 miles) long — the longest line of latitude.','It crosses South America (Ecuador, Brazil), Africa (Gabon, DR Congo, Kenya) and Asia (Indonesia).'],
+      zh:['一条假想的线，位于北极和南极的正中间。','它把地球分成北半球和南半球。','赤道长约 40,075 千米，是最长的一条纬线。','它穿过南美洲（厄瓜多尔、巴西）、非洲（加蓬、刚果（金）、肯尼亚）和亚洲（印度尼西亚）。']},
+    hint:{en:'Equator sounds like “equal”: it cuts Earth into two equal halves.',zh:'赤道就像地球的“腰带”，把地球平分成南北两半。'},
+    mix:{en:'The equator is the starting line (0°) for LATITUDE only. Longitude starts somewhere else: the prime meridian.',zh:'赤道只是“纬度”的起点（0°）。经度的起点是另一条线——本初子午线。'}},
+  prime:{color:'#f5b82e', name:{en:'Prime Meridian',zh:'本初子午线'}, job:{en:'0° longitude — through Greenwich, England',zh:'0° 经线——穿过英国格林尼治'},
+    facts:{en:['A half-circle from the North Pole to the South Pole through Greenwich, London, England.','Countries agreed on it at an international meeting in 1884.','It passes through the United Kingdom, France, Spain, Algeria, Mali, Burkina Faso, Togo and Ghana.','With the 180° meridian it divides Earth into the Eastern and Western Hemispheres.'],
+      zh:['一条从北极到南极、穿过英国伦敦格林尼治的半圆。','1884 年的一次国际会议确定了它。','它穿过英国、法国、西班牙、阿尔及利亚、马里、布基纳法索、多哥和加纳。','它和 180° 经线一起把地球分成东半球和西半球。']},
+    hint:{en:'PRIME means “first”: it is the first meridian, 0°.',zh:'“本初”就是“最初”的意思：它是第一条经线，0°。'},
+    mix:{en:'The prime meridian is only a half-circle. The other half of that great circle is the 180° meridian on the far side of Earth.',zh:'本初子午线只是半个圆，同一个大圆的另一半是地球背面的 180° 经线。'}},
+  lat:{color:'#4f8ff0', name:{en:'Latitude (parallels)',zh:'纬度（纬线）'}, job:{en:'How far NORTH or SOUTH of the equator',zh:'在赤道以北或以南多远'},
+    facts:{en:['Lines of latitude circle Earth east–west, but they measure distance north or south.','They never meet, so they are also called parallels.','Latitude runs from 0° at the equator to 90°N at the North Pole and 90°S at the South Pole.','One degree of latitude is always about 111 km (69 miles).','Parallels get shorter toward the poles; each pole is just a point.'],
+      zh:['纬线沿东西方向环绕地球，但纬度表示的是南北位置。','纬线互相平行、永不相交，所以也叫“平行线”。','纬度从赤道的 0° 到北极的北纬 90°、南极的南纬 90°。','纬度每相差 1°，距离大约是 111 千米（69 英里）。','越靠近两极，纬线越短；两极只是一个点。']},
+    hint:{en:'LAT sounds like “ladder”: lines of latitude are the flat rungs you climb north or south.',zh:'latitude 听起来像 ladder（梯子）：纬线就是梯子的横档，一级一级向北或向南爬。'},
+    mix:{en:'Latitude lines run side to side, yet latitude tells you how far NORTH or SOUTH you are.',zh:'纬线是横着（东西方向）画的，但纬度告诉你的是南北位置。'}},
+  lon:{color:'#2fb36d', name:{en:'Longitude (meridians)',zh:'经度（经线）'}, job:{en:'How far EAST or WEST of the prime meridian',zh:'在本初子午线以东或以西多远'},
+    facts:{en:['Lines of longitude (meridians) run north–south from pole to pole.','They are NOT parallel: they are farthest apart at the equator and meet at the poles.','Longitude runs from 0° at the prime meridian to 180° east or west.','Every meridian is the same length — half of a great circle.','Earth turns 15° of longitude every hour, which is why we have time zones.'],
+      zh:['经线（子午线）沿南北方向，从一极连到另一极。','经线不平行：在赤道处相距最远，在两极汇聚。','经度从本初子午线的 0° 到东经或西经 180°。','所有经线一样长，每条都是半个大圆。','地球每小时自转 15° 经度，这就是时区的由来。']},
+    hint:{en:'LONGitude lines are all LONG — every one stretches from pole to pole.',zh:'Longitude 里有 long（长）：每条经线都一样长，从北极连到南极。'},
+    mix:{en:'Longitude lines run up and down, yet longitude tells you how far EAST or WEST you are.',zh:'经线是竖着（南北方向）画的，但经度告诉你的是东西位置。'}},
+  hemNS:{color:'#8e6cf0', name:{en:'Northern & Southern Hemispheres',zh:'北半球与南半球'}, job:{en:'Earth split in half by the equator',zh:'赤道把地球分成两半'},
+    facts:{en:['“Hemi” means half, so a hemisphere is half of a sphere.','The Northern Hemisphere has most of Earth\'s land and about 90% of its people.','Georgia, USA is in the Northern Hemisphere (about 30.5°N to 35°N).','Seasons are opposite: when it is summer in Georgia, it is winter in Australia.'],
+      zh:['“半球”就是球体的一半。','北半球拥有地球上大部分陆地和约 90% 的人口。','美国佐治亚州位于北半球（约北纬 30.5° 到 35°）。','南北半球的季节相反：佐治亚州是夏天时，澳大利亚正是冬天。']},
+    hint:{en:'North of the equator → N. South of the equator → S.',zh:'赤道以北写 N（北纬），赤道以南写 S（南纬）。'}},
+  hemEW:{color:'#e46fb4', name:{en:'Eastern & Western Hemispheres',zh:'东半球与西半球'}, job:{en:'Split by the prime meridian and the 180° meridian',zh:'由本初子午线和 180° 经线划分'},
+    facts:{en:['The Western Hemisphere holds all of North and South America.','The Eastern Hemisphere holds Asia, Australia and most of Europe and Africa.','Georgia, USA is in the Western Hemisphere (about 81°W to 86°W).','Every place is in two hemispheres at once: Atlanta is in the Northern AND Western Hemispheres.'],
+      zh:['西半球包括整个北美洲和南美洲。','东半球包括亚洲、澳大利亚，以及欧洲和非洲的大部分。','美国佐治亚州位于西半球（约西经 81° 到 86°）。','每个地方都同时属于两个半球：亚特兰大既在北半球，也在西半球。']},
+    hint:{en:'West of Greenwich → W. East of Greenwich → E.',zh:'格林尼治以西写 W（西经），以东写 E（东经）。'},
+    mix:{en:'Some maps (and Chinese textbooks) divide East and West at 20°W and 160°E instead, so that no continent is cut in two.',zh:'有些地图（包括中国地理课本）用西经 20° 和东经 160° 划分东西半球，这样就不会把大洲切开。'}},
+  tropics:{color:'#ff8a3d', name:{en:'Tropics & polar circles',zh:'回归线与极圈'}, job:{en:'Special lines of latitude',zh:'几条特殊的纬线'},
+    facts:{en:['Tropic of Cancer (23.4°N) and Tropic of Capricorn (23.4°S): the farthest north and south the Sun can be straight overhead.','Arctic Circle (66.6°N) and Antarctic Circle (66.6°S): beyond them there is at least one day a year with 24 hours of daylight and one with 24 hours of darkness.','These numbers come from Earth\'s 23.4° tilt.'],
+      zh:['北回归线（北纬 23.4°）和南回归线（南纬 23.4°）：太阳直射点能到达的最北和最南的位置。','北极圈（北纬 66.6°）和南极圈（南纬 66.6°）：在极圈以内，每年至少有一天出现 24 小时白昼（极昼）和一天 24 小时黑夜（极夜）。','这些数字都来自地轴 23.4° 的倾斜。']},
+    hint:{en:'90° − 23.4° = 66.6°: the polar circles and the tropics are linked by Earth\'s tilt.',zh:'“回归”：太阳直射点在南、北回归线之间来回移动，到了回归线就“回归”。90° − 23.4° = 66.6°。'}},
+  coords:{color:'#20b2aa', name:{en:'Coordinates',zh:'经纬度坐标'}, job:{en:'Latitude first, then longitude',zh:'先写纬度，再写经度'},
+    facts:{en:['A coordinate pair is an exact address on Earth: latitude, then longitude.','Example: Atlanta ≈ 33.7°N, 84.4°W.','Each degree splits into 60 minutes (′): 33.7° ≈ 33°42′.','Try it: drag the Latitude and Longitude sliders under the globe and watch the pin move.'],
+      zh:['一对坐标就是地球上一个准确的地址：先纬度，后经度。','例如：亚特兰大约为北纬 33.7°，西经 84.4°。','1 度可以再分为 60 分（′）:33.7° ≈ 33°42′。','试一试：拖动地球下方的“纬度”和“经度”滑块，看图钉怎么移动。']},
+    hint:{en:'LAt comes before LOng, just like A comes before O in the alphabet.',zh:'按字母顺序，LA（纬度）在 LO（经度）前面：先纬后经。'},
+    mix:{en:'A number with no direction is incomplete: 30° could mean 30°N or 30°S — over 6,600 km apart!',zh:'只有数字、没有方向的坐标是不完整的：30° 可能是北纬 30°，也可能是南纬 30°，两地相距 6,600 多千米！'}}
+};
+const ORDER = ['equator','prime','lat','lon','hemNS','hemEW','tropics','coords'];
+const CITIES = [
+  ['Atlanta','亚特兰大',33.75,-84.39],['New York','纽约',40.71,-74.01],['Los Angeles','洛杉矶',34.05,-118.24],['Mexico City','墨西哥城',19.43,-99.13],
+  ['Toronto','多伦多',43.65,-79.38],['Anchorage','安克雷奇',61.22,-149.90],['Honolulu','檀香山',21.31,-157.86],['Rio de Janeiro','里约热内卢',-22.91,-43.17],
+  ['Buenos Aires','布宜诺斯艾利斯',-34.60,-58.38],['Lima','利马',-12.05,-77.04],['Quito','基多',-0.18,-78.47],['London','伦敦',51.51,-0.13],
+  ['Paris','巴黎',48.86,2.35],['Reykjavik','雷克雅未克',64.15,-21.94],['Moscow','莫斯科',55.76,37.62],['Cairo','开罗',30.04,31.24],
+  ['Lagos','拉各斯',6.52,3.38],['Nairobi','内罗毕',-1.29,36.82],['Cape Town','开普敦',-33.92,18.42],['Dubai','迪拜',25.20,55.27],
+  ['Mumbai','孟买',19.08,72.88],['Beijing','北京',39.90,116.40],['Shanghai','上海',31.23,121.47],['Seoul','首尔',37.57,126.98],
+  ['Tokyo','东京',35.68,139.69],['Bangkok','曼谷',13.76,100.50],['Singapore','新加坡',1.35,103.82],['Jakarta','雅加达',-6.21,106.85],
+  ['Sydney','悉尼',-33.87,151.21],['Auckland','奥克兰',-36.85,174.76]
+].map(([en, zh, lat, lon]) => ({ name:{en, zh}, lat, lon }));
+const nearest = (lat, lon) => CITIES.map(c => ({ c, d:GEO.dist(lat, lon, c.lat, c.lon) })).sort((a, b) => a.d - b.d)[0];
+const hemis = (lat, lon) => {
+  const ns = Math.abs(lat) < .05 ? {en:'on the equator',zh:'在赤道上'} : lat > 0 ? {en:'Northern',zh:'北半球'} : {en:'Southern',zh:'南半球'};
+  const ew = Math.abs(lon) < .05 || Math.abs(lon) > 179.95 ? {en:'on the dividing meridian',zh:'在分界经线上'} : lon < 0 ? {en:'Western',zh:'西半球'} : {en:'Eastern',zh:'东半球'};
+  return Lab.lang === 'zh' ? Lab.L(ns) + ' · ' + Lab.L(ew) : `${ns.en} & ${ew.en} Hemispheres`;
+};
+
+/* ===== Story: how coordinates work ===== */
+const STORY = [
+  {en:'1 · Meet the equator (red): 0° latitude, exactly halfway between the poles.',zh:'1 · 认识赤道（红线）：0° 纬线，正好在两极中间。'},
+  {en:'2 · Latitude: climb NORTH from the equator. The blue ring rises to 33.7°N — the latitude of Atlanta.',zh:'2 · 纬度：从赤道向北“爬”。蓝色圆圈升到北纬 33.7°——亚特兰大的纬度。'},
+  {en:'3 · Meet the prime meridian (gold): 0° longitude, through Greenwich, England.',zh:'3 · 认识本初子午线（金线）：0° 经线，穿过英国格林尼治。'},
+  {en:'4 · Longitude: sweep WEST from the prime meridian. The green half-ring moves to 84.4°W.',zh:'4 · 经度：从本初子午线向西“扫”。绿色半圆移到西经 84.4°。'},
+  {en:'5 · Where the two lines cross is the address: 33.7°N, 84.4°W = Atlanta, Georgia!',zh:'5 · 两条线的交点就是地址：北纬 33.7°，西经 84.4° = 佐治亚州亚特兰大！'},
+  {en:'6 · Look inside: both numbers are ANGLES measured from Earth\'s center, not distances.',zh:'6 · 看看内部：这两个数字都是从地心量出的“角度”，而不是距离。'}
+];
+
+/* ===== Info panel / selection ===== */
+const App = window.APP = { sel:null, pt:null, three:null };
+App.select = (k, from3D) => { App.sel = k; renderInfo(); renderChips(); if (!from3D && App.three) App.three.focus(k); };
+App.showPoint = (lat, lon) => { App.sel = '@pt'; App.pt = { lat, lon }; renderInfo(); renderChips(); };
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel, T = (en, zh) => Lab.lang === 'zh' ? zh : en;
+  if (k === '@pt'){
+    const { lat, lon } = App.pt, w = GEO.where(lat, lon), n = nearest(lat, lon);
+    const km = Math.round(Math.abs(lat) * 111.2).toLocaleString(), place = GEO.feats ? GEO.placeName(w) : T('(map data offline)','（地图数据未加载）');
+    box.innerHTML = `<span class="tag">${T('📍 Your point','📍 你选的点')}</span>
+      <div class="coordbig">${GEO.fmtLL(lat, lon)}</div>
+      <div class="job">${hemis(lat, lon)}</div>
+      <ul>
+        <li>${T(`Latitude ${GEO.fmtLat(lat)}: ${Math.abs(lat).toFixed(1)}° ${lat >= 0 ? 'north' : 'south'} of the equator (about ${km} km).`, `纬度 ${GEO.fmtLat(lat)}:在赤道以${lat >= 0 ? '北' : '南'} ${Math.abs(lat).toFixed(1)}°(约 ${km} 千米)。`)}</li>
+        <li>${T(`Longitude ${GEO.fmtLon(lon)}: ${Math.abs(lon).toFixed(1)}° ${lon >= 0 ? 'east' : 'west'} of the prime meridian.`, `经度 ${GEO.fmtLon(lon)}:在本初子午线以${lon >= 0 ? '东' : '西'} ${Math.abs(lon).toFixed(1)}°。`)}</li>
+        <li>${T('Location: ','位置：')}<b>${place}</b></li>
+        <li>${T(`Nearest big city on our list: ${n.c.name.en} (${Math.round(n.d).toLocaleString()} km away)`, `列表中最近的大城市:${n.c.name.zh}(相距 ${Math.round(n.d).toLocaleString()} 千米)`)}</li>
+      </ul>
+      <div class="memory"><b>${T('💡 Say it out loud','💡 大声读出来')}</b>${T('Latitude first, then longitude — and never forget N/S and E/W.','先读纬度，再读经度，别忘了南北（N/S）和东西（E/W）。')}</div>
+      <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+      <div class="nav"><button id="pBack">${T('◀ Key ideas','◀ 核心概念')}</button><button id="pZoom">${T('Zoom here 🔍','放大这里 🔍')}</button></div>`;
+    Lab.$('#speakBtn').onclick = () => Lab.speak(GEO.fmtLL(lat, lon) + '. ' + hemis(lat, lon) + '. ' + place);
+    Lab.$('#pBack').onclick = () => App.select('coords');
+    Lab.$('#pZoom').onclick = () => App.three && App.three.zoomTo(lat, lon);
+    return;
+  }
+  if (!k){
+    box.innerHTML = `<span class="tag">${T('Earth\'s grid','地球的网格')}</span>
+      <h3>${T('A grid wrapped around a ball','包在球上的一张网')}</h3>
+      <p class="muted" style="margin:0">${T('Lines of latitude (east–west circles) and longitude (pole-to-pole half-circles) form a grid. Any place sits where one of each crosses. Click a line, a chip, or anywhere on the globe.','纬线（东西方向的圆）和经线（连接两极的半圆）组成一张网格。任何地点都在一条纬线和一条经线的交点上。点击某条线、下方的标签，或地球上的任意位置。')}</p>
+      <div class="memory"><b>${T('💡 Big idea','💡 核心概念')}</b>${T('Latitude = up/down (N–S). Longitude = around (E–W). Together they give an exact address.','纬度 = 南北位置；经度 = 东西位置。两者合起来就是一个精确的地址。')}</div>
+      <div class="nav"><button id="startBtn">${T('Start with the equator ▶','从赤道开始 ▶')}</button></div>`;
+    Lab.$('#startBtn').onclick = () => App.select('equator');
+    return;
+  }
+  const p = PARTS[k], i = ORDER.indexOf(k);
+  box.innerHTML = `<span class="tag">${T('Key idea','核心概念')} ${i + 1}/${ORDER.length}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${T('💡 Memory hint','💡 记忆小窍门')}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${T('⚠️ Common mix-up:','⚠️ 容易混淆：')}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="pPrev">${T('◀ Previous','◀ 上一个')}</button><button id="pNext">${T('Next ▶','下一个 ▶')}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. '));
+  Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
+  Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
+}
+function renderChips(){
+  Lab.$('#chips').innerHTML = ORDER.map(k => `<button class="chip ${App.sel === k ? 'on' : ''}" data-k="${k}"><i style="background:${PARTS[k].color}"></i>${Lab.L(PARTS[k].name)}</button>`).join('');
+  Lab.$$('#chips .chip').forEach(c => c.onclick = () => App.select(c.dataset.k));
+}
+Lab.onLang(() => { renderInfo(); renderChips(); });
+GEO.ready.then(() => { if (App.sel === '@pt') renderInfo(); });
+/* ===== Find-the-city coordinate game (2D equirectangular map) ===== */
+(function(){
+  const cv = Lab.$('#gmap'), g = cv.getContext('2d'), ROUNDS = 8;
+  const S = { mode:'find', list:[], i:0, score:0, errs:[], streak:0, answered:false, guess:null, opts:[], pick:null, over:false };
+  let W = 0, H = 0, dpr = 1;
+  const X = lon => (lon + 180) / 360 * W, Y = lat => (90 - lat) / 180 * H;
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const isDark = () => { const r = document.documentElement.dataset.theme; return r ? r === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches; };
+  function resize(){ const b = cv.getBoundingClientRect(); if (!b.width) return; dpr = Math.min(2, devicePixelRatio || 1); W = cv.width = Math.round(b.width * dpr); H = cv.height = Math.round(b.height * dpr); draw(); }
+  new ResizeObserver(resize).observe(cv.parentElement);
+  addEventListener('labtheme', draw);
+  function pin(lon, lat, color, ring){
+    const x = X(lon), y = Y(lat), s = dpr;
+    if (ring){ g.strokeStyle = color; g.lineWidth = 3 * s; g.beginPath(); g.arc(x, y, 9 * s, 0, 7); g.stroke(); g.fillStyle = color; g.beginPath(); g.arc(x, y, 3 * s, 0, 7); g.fill(); return; }
+    g.fillStyle = color; g.strokeStyle = '#fff'; g.lineWidth = 2 * s;
+    g.beginPath(); g.moveTo(x, y); g.bezierCurveTo(x - 9 * s, y - 12 * s, x - 9 * s, y - 24 * s, x, y - 24 * s); g.bezierCurveTo(x + 9 * s, y - 24 * s, x + 9 * s, y - 12 * s, x, y); g.fill(); g.stroke();
+    g.fillStyle = '#fff'; g.beginPath(); g.arc(x, y - 17 * s, 3.4 * s, 0, 7); g.fill();
+  }
+  function draw(){
+    if (!W) return;
+    const dark = isDark(), labels = Lab.$('#gLabels').checked;
+    g.fillStyle = dark ? '#16365c' : '#cfe4f6'; g.fillRect(0, 0, W, H);
+    if (GEO.feats) GEO.draw(g, W, H, () => dark ? '#3f6b4c' : '#bfe0a8', dark ? '#2b4d37' : '#94c27c', dpr * .8);
+    g.lineWidth = dpr; g.strokeStyle = dark ? 'rgba(255,255,255,.16)' : 'rgba(20,33,61,.16)';
+    for (let la = -75; la <= 75; la += 15){ g.beginPath(); g.moveTo(0, Y(la)); g.lineTo(W, Y(la)); g.stroke(); }
+    for (let lo = -165; lo <= 165; lo += 15){ g.beginPath(); g.moveTo(X(lo), 0); g.lineTo(X(lo), H); g.stroke(); }
+    g.lineWidth = 2.5 * dpr; g.strokeStyle = '#e5484d'; g.beginPath(); g.moveTo(0, Y(0)); g.lineTo(W, Y(0)); g.stroke();
+    g.strokeStyle = '#f5b82e'; g.beginPath(); g.moveTo(X(0), 0); g.lineTo(X(0), H); g.stroke();
+    if (labels){
+      g.font = `800 ${11 * dpr}px Nunito, sans-serif`; g.fillStyle = css('--ink-2'); g.textBaseline = 'middle';
+      for (let la = -60; la <= 60; la += 30){ g.textAlign = 'left'; g.fillText(la ? Math.abs(la) + '°' + (la > 0 ? 'N' : 'S') : '0°', 4 * dpr, Y(la) - 7 * dpr); }
+      g.textBaseline = 'bottom';
+      for (let lo = -150; lo <= 150; lo += 30){ g.textAlign = 'center'; g.fillText(lo ? Math.abs(lo) + '°' + (lo > 0 ? 'E' : 'W') : '0°', X(lo), H - 3 * dpr); }
+    }
+    const c = S.list[S.i]; if (!c || S.over) return;
+    if (S.mode === 'find' && S.answered){
+      g.setLineDash([6 * dpr, 5 * dpr]); g.strokeStyle = css('--ink'); g.lineWidth = 2 * dpr; g.beginPath(); g.moveTo(X(S.guess.lon), Y(S.guess.lat)); g.lineTo(X(c.lon), Y(c.lat)); g.stroke(); g.setLineDash([]);
+      pin(S.guess.lon, S.guess.lat, css('--accent'), true); pin(c.lon, c.lat, '#1aa36b');
+    }
+    if (S.mode === 'name') pin(c.lon, c.lat, '#e5484d');
+  }
+  const msg = (t, good) => { const m = Lab.$('#gMsg'); m.innerHTML = t; m.className = 'result ' + (good === true ? 'good' : good === false ? 'bad' : ''); };
+  const T = (en, zh) => Lab.lang === 'zh' ? zh : en;
+  function makeOpts(c){
+    const lat2 = Math.abs(c.lat) < 6 ? c.lat + 25 : -c.lat, lon2 = Math.abs(c.lon) < 6 ? c.lon + 45 : -c.lon;
+    S.opts = Lab.shuffle([[c.lat, c.lon, 1], [lat2, c.lon, 0], [c.lat, lon2, 0], [lat2, lon2, 0]]);
+  }
+  function newGame(){ S.list = Lab.shuffle(CITIES).slice(0, ROUNDS); S.i = 0; S.score = 0; S.errs = []; S.streak = 0; S.over = false; load(); }
+  function load(){ S.answered = false; S.guess = null; S.pick = null; msg(''); if (S.mode === 'name') makeOpts(S.list[S.i]); render(); draw(); }
+  function render(){
+    Lab.$('#gRound').textContent = `${Math.min(S.i + 1, ROUNDS)}/${ROUNDS}`; Lab.$('#gScore').textContent = S.score; Lab.$('#gStreak').textContent = S.streak;
+    Lab.$('#gErr').textContent = S.errs.length ? Math.round(S.errs.reduce((a, b) => a + b, 0) / S.errs.length).toLocaleString() : '–';
+    Lab.$$('#gmode button').forEach(b => b.classList.toggle('on', b.dataset.m === S.mode));
+    const c = S.list[S.i], P = Lab.$('#gPrompt'), O = Lab.$('#gOpts');
+    if (S.over){ P.innerHTML = `<small>${T('Game over','游戏结束')}</small>${T(`🏆 Final score: ${S.score} / ${ROUNDS * 100}`, `🏆 最终得分:${S.score} / ${ROUNDS * 100}`)}`; O.innerHTML = ''; return; }
+    if (S.mode === 'find'){
+      P.innerHTML = `<small>${T('Click the map where this city is','在地图上点出这座城市')}</small>${Lab.L(c.name)}: <span style="color:var(--brand)">${GEO.fmtLL(c.lat, c.lon)}</span>`;
+      O.innerHTML = '';
+    } else {
+      P.innerHTML = `<small>${T('Which coordinates match the red pin?','红色图钉的坐标是哪一个？')}</small>${S.answered ? Lab.L(c.name) : '❓'}`;
+      O.innerHTML = S.opts.map((o, k) => `<button data-k="${k}" class="${S.answered ? (o[2] ? 'right' : k === S.pick ? 'wrong' : '') : ''}" ${S.answered ? 'disabled' : ''}>${GEO.fmtLL(o[0], o[1])}</button>`).join('');
+      Lab.$$('#gOpts button').forEach(b => b.onclick = () => choose(+b.dataset.k));
+    }
+  }
+  function choose(k){
+    if (S.answered) return; S.answered = true; S.pick = k; const c = S.list[S.i], ok = S.opts[k][2];
+    if (ok){ S.score += 100; S.streak++; msg(T('✅ Correct! ','✅ 正确！') + Lab.L(c.name) + ' = ' + GEO.fmtLL(c.lat, c.lon), true); }
+    else { S.streak = 0; msg(T(`❌ Not quite. The pin is ${c.lat >= 0 ? 'north' : 'south'} of the red equator line and ${c.lon >= 0 ? 'east' : 'west'} of the gold prime meridian.`, `❌ 不对。图钉在红色赤道以${c.lat >= 0 ? '北' : '南'},在金色本初子午线以${c.lon >= 0 ? '东' : '西'}。`), false); }
+    render();
+  }
+  cv.addEventListener('click', e => {
+    if (S.mode !== 'find' || S.answered || S.over) return;
+    const b = cv.getBoundingClientRect(), lon = (e.clientX - b.left) / b.width * 360 - 180, lat = 90 - (e.clientY - b.top) / b.height * 180, c = S.list[S.i];
+    S.answered = true; S.guess = { lat, lon };
+    const err = GEO.dist(lat, lon, c.lat, c.lon), pts = Math.max(0, Math.round(100 - err / 40));
+    S.score += pts; S.errs.push(err); S.streak = pts >= 70 ? S.streak + 1 : 0;
+    let tip = '';
+    if (Math.sign(lat) !== Math.sign(c.lat) && Math.abs(c.lat) > 3) tip += T(` Check N/S: ${Lab.L(c.name)} is in the ${c.lat > 0 ? 'Northern' : 'Southern'} Hemisphere.`, ` 注意南北:${Lab.L(c.name)}在${c.lat > 0 ? '北' : '南'}半球。`);
+    if (Math.sign(lon) !== Math.sign(c.lon) && Math.abs(c.lon) > 3) tip += T(` Check E/W: it is in the ${c.lon > 0 ? 'Eastern' : 'Western'} Hemisphere.`, ` 注意东西:它在${c.lon > 0 ? '东' : '西'}半球。`);
+    msg(T(`${pts >= 70 ? '🎯' : pts > 0 ? '👍' : '😮'} +${pts} points — you were ${Math.round(err).toLocaleString()} km away.`, `${pts >= 70 ? '🎯' : pts > 0 ? '👍' : '😮'} +${pts} 分——你离目标 ${Math.round(err).toLocaleString()} 千米。`) + tip, pts >= 50);
+    render(); draw();
+  });
+  Lab.$('#gNext').onclick = () => { if (S.over) return newGame(); if (!S.answered) return msg(T('Make a guess first!','先作答吧！')); if (S.i >= ROUNDS - 1){ S.over = true; render(); draw(); msg(T('Press “New game” to play again.','点“新游戏”再玩一次。')); } else { S.i++; load(); } };
+  Lab.$('#gNew').onclick = newGame;
+  Lab.$$('#gmode button').forEach(b => b.onclick = () => { S.mode = b.dataset.m; newGame(); });
+  Lab.$('#gLabels').onchange = draw;
+  Lab.onLang(() => { render(); draw(); });
+  GEO.ready.then(draw);
+  newGame();
+})();
+
+/* ===== Quiz ===== */
+const o = (en, zh) => ({en, zh});
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('What is the latitude of the equator?','赤道的纬度是多少？'), options:[o('0°','0°'),o('90°','90°'),o('180°','180°'),o('23.4°','23.4°')], answer:0, explain:o('The equator is the starting line for latitude, so it is 0°.','赤道是纬度的起点，所以是 0°。')},
+  {q:o('The prime meridian (0° longitude) passes through…','本初子午线（0° 经线）穿过哪里？'), options:[o('Greenwich, England','英国格林尼治'),o('Atlanta, Georgia','佐治亚州亚特兰大'),o('Beijing, China','中国北京'),o('The International Date Line','国际日期变更线')], answer:0, explain:o('It was set through the Royal Observatory in Greenwich, London, in 1884.','1884 年，它被确定为穿过伦敦格林尼治皇家天文台。')},
+  {q:o('Latitude measures how far a place is…','纬度表示一个地方……'), options:[o('North or south of the equator','在赤道以北或以南多远'),o('East or west of the prime meridian','在本初子午线以东或以西多远'),o('Above sea level','高出海平面多少'),o('From the Sun','离太阳多远')], answer:0},
+  {q:o('Which lines meet at the North and South Poles?','哪种线在北极和南极汇聚？'), options:[o('Lines of longitude (meridians)','经线'),o('Lines of latitude (parallels)','纬线'),o('The equator and the tropics','赤道和回归线'),o('No lines meet anywhere','没有任何线会相交')], answer:0, explain:o('Meridians run from pole to pole, so they all meet at the poles. Parallels never meet.','经线从一极连到另一极，所以在两极汇聚；纬线互相平行，永不相交。')},
+  {q:o('What is the largest possible latitude?','纬度最大是多少？'), options:[o('90°','90°'),o('180°','180°'),o('360°','360°'),o('60°','60°')], answer:0, explain:o('90°N is the North Pole and 90°S is the South Pole.','北纬 90° 是北极，南纬 90° 是南极。')},
+  {q:o('What is the largest possible longitude?','经度最大是多少？'), options:[o('180°','180°'),o('90°','90°'),o('360°','360°'),o('100°','100°')], answer:0, explain:o('Longitude goes 180° east and 180° west; they meet at the 180° meridian.','经度向东、向西各 180°，在 180° 经线处相遇。')},
+  {q:o('Atlanta is at about 33.7°N, 84.4°W. Which hemispheres is it in?','亚特兰大约为北纬 33.7°，西经 84.4°。它位于哪两个半球？'), options:[o('Northern and Western','北半球和西半球'),o('Northern and Eastern','北半球和东半球'),o('Southern and Western','南半球和西半球'),o('Southern and Eastern','南半球和东半球')], answer:0, explain:o('N means north of the equator; W means west of the prime meridian.','N 表示在赤道以北；W 表示在本初子午线以西。')},
+  {q:o('Which coordinate is written correctly?','下面哪个坐标的写法是正确的？'), options:[o('33°N, 84°W','33°N, 84°W'),o('33, 84','33, 84'),o('95°N, 30°W','95°N, 30°W'),o('200°E, 10°S','200°E, 10°S')], answer:0, explain:o('A coordinate needs directions, latitude can\'t be over 90°, and longitude can\'t be over 180°.','坐标必须写出方向；纬度不能超过 90°，经度不能超过 180°。')},
+  {q:o('About how far apart are two lines of latitude that are 1° apart?','相差 1° 的两条纬线大约相距多远？'), options:[o('111 km (69 miles)','111 千米（69 英里）'),o('1 km','1 千米'),o('1,000 km','1,000 千米'),o('11 km','11 千米')], answer:0, explain:o('Earth\'s circumference (≈40,000 km) ÷ 360° ≈ 111 km per degree.','地球周长约 40,000 千米 ÷ 360° ≈ 每度 111 千米。')},
+  {q:o('The Tropic of Cancer is at about…','北回归线大约在……'), options:[o('23.4°N','北纬 23.4°'),o('23.4°S','南纬 23.4°'),o('66.6°N','北纬 66.6°'),o('0°','0°')], answer:0, explain:o('It is the farthest north the Sun is ever directly overhead.','它是太阳直射点能到达的最北位置。')},
+  {q:o('What is found at 0° latitude, 0° longitude?','纬度 0°、经度 0° 的地方是什么？'), options:[o('Ocean (the Gulf of Guinea, Atlantic)','海洋（大西洋的几内亚湾）'),o('London, England','英国伦敦'),o('The North Pole','北极'),o('Antarctica','南极洲')], answer:0, explain:o('The equator and prime meridian cross in the Atlantic Ocean off the coast of West Africa.','赤道和本初子午线相交于西非海岸外的大西洋中。')},
+  {q:o('Which two lines divide Earth into the Eastern and Western Hemispheres?','哪两条线把地球分成东、西半球（美国课堂常用的划分）?'), options:[o('The prime meridian and the 180° meridian','本初子午线和 180° 经线'),o('The equator and the prime meridian','赤道和本初子午线'),o('The two tropics','南北回归线'),o('The Arctic and Antarctic Circles','北极圈和南极圈')], answer:0, explain:o('Together they make one great circle from pole to pole. (Some maps use 20°W and 160°E instead.)','它们合起来是一个经过两极的大圆。（有些地图改用西经 20° 和东经 160°。）')}
+], { count:10 });
+
+/* ===== Sort game ===== */
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'nw',en:'Northern + Western',zh:'北半球 + 西半球'},{id:'ne',en:'Northern + Eastern',zh:'北半球 + 东半球'},{id:'sw',en:'Southern + Western',zh:'南半球 + 西半球'},{id:'se',en:'Southern + Eastern',zh:'南半球 + 东半球'}],
+  items:[
+    {en:'Atlanta, USA',zh:'美国亚特兰大',bin:'nw'},{en:'Mexico City',zh:'墨西哥城',bin:'nw'},{en:'Beijing, China',zh:'中国北京',bin:'ne'},{en:'Cairo, Egypt',zh:'埃及开罗',bin:'ne'},
+    {en:'Tokyo, Japan',zh:'日本东京',bin:'ne'},{en:'Rio de Janeiro, Brazil',zh:'巴西里约热内卢',bin:'sw'},{en:'Buenos Aires, Argentina',zh:'阿根廷布宜诺斯艾利斯',bin:'sw'},{en:'Lima, Peru',zh:'秘鲁利马',bin:'sw'},
+    {en:'Sydney, Australia',zh:'澳大利亚悉尼',bin:'se'},{en:'Cape Town, South Africa',zh:'南非开普敦',bin:'se'},{en:'Auckland, New Zealand',zh:'新西兰奥克兰',bin:'se'},{en:'Toronto, Canada',zh:'加拿大多伦多',bin:'nw'}
+  ]
+});
+</script>
+<script>
+/* ===== Added: time scrubber + "See the real thing" gallery ===== */
+(() => {
+const o = (en, zh) => ({ en, zh }), $ = s => document.querySelector(s);
+/* shared .timebar: ▶ plays through once, dragging pauses */
+function timebar(sel, render, ms){ const bar = $(sel); if (!bar) return; const b = bar.querySelector('button'), s = bar.querySelector('input'); let t = null;
+  const stop = () => { clearInterval(t); t = null; b.textContent = '▶'; };
+  b.onclick = () => { if (t) return stop(); if (+s.value >= +s.max) s.value = s.min; b.textContent = '⏸'; render();
+    t = setInterval(() => { if (+s.value >= +s.max) return stop(); s.value = +s.value + (+s.step || 1); render(); }, ms || 900); };
+  s.oninput = () => { stop(); render(); }; Lab.onLang(render); }
+const MONTHS = [o('January','1 月'),o('February','2 月'),o('March','3 月'),o('April','4 月'),o('May','5 月'),o('June','6 月'),o('July','7 月'),o('August','8 月'),o('September','9 月'),o('October','10 月'),o('November','11 月'),o('December','12 月')];
+/* live progress for the sort game (the shared game only gives a total at the end) */
+(() => { const host = $('#sort'); if (!host) return; const out = document.createElement('div'); out.className = 'muted'; out.style.cssText = 'font-weight:800;font-size:14px;margin-top:6px'; host.after(out);
+  const upd = () => { const done = host.querySelectorAll('.bin .chip').length, all = done + host.querySelectorAll('.pool .chip').length; out.textContent = Lab.lang === 'zh' ? `已分好 ${done} / ${all}` : `Sorted ${done} / ${all}`; };
+  new MutationObserver(upd).observe(host, { childList:true, subtree:true }); Lab.onLang(upd); })();
+/* Hours of daylight by month, calculated from latitude (standard sunrise equation, mid-month, no refraction) */
+const DAYC = [ { n:o('Tromsø, Norway','挪威特罗姆瑟'), lat:69.7 }, { n:o('London, UK','英国伦敦'), lat:51.5 }, { n:o('Atlanta, USA','美国亚特兰大'), lat:33.7 },
+  { n:o('Quito, Ecuador','厄瓜多尔基多'), lat:0 }, { n:o('Sydney, Australia','澳大利亚悉尼'), lat:-33.9 } ];
+const MID = [15,46,74,105,135,166,196,227,258,288,319,349], RAD = Math.PI / 180;
+const dayHours = (lat, n) => { const dec = 23.44 * RAD * Math.sin(2 * Math.PI * (284 + n) / 365), x = -Math.tan(lat * RAD) * Math.tan(dec);
+  return x <= -1 ? 24 : x >= 1 ? 0 : 24 / Math.PI * Math.acos(x); };
+function drawDay(){ const m = +$('#dayBar input').value, zh = Lab.lang === 'zh'; $('#dayBar output').textContent = Lab.L(MONTHS[m]);
+  $('#dayRows').innerHTML = DAYC.map(c => { const h = dayHours(c.lat, MID[m]), la = Math.abs(c.lat);
+    const pos = c.lat === 0 ? (zh ? '赤道 0°' : 'Equator 0°') : zh ? `${c.lat > 0 ? '北纬' : '南纬'} ${la}°` : `${la}°${c.lat > 0 ? 'N' : 'S'}`;
+    return `<div class="yr-row"><div><b>${Lab.L(c.n)}</b><small>${pos}</small></div>
+      <div class="yr-m"><div class="yr-bar"><i style="width:${h / 24 * 100}%"></i></div><span>${zh ? `白天 ${h.toFixed(1)} 小时` : `${h.toFixed(1)} h of daylight`}</span></div></div>`; }).join(''); }
+timebar('#dayBar', drawDay, 900);
+/* Real media from Wikimedia Commons: URLs, credit and licence copied from the Commons API helper */
+LabPhotos.render($('#gallery'), [
+  { kind:o('0° longitude','0° 经线'), src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/82/The_Prime_Meridian_line_at_the_Greenwich_Royal_Observatory_-_geograph.org.uk_-_8156662.jpg/960px-The_Prime_Meridian_line_at_the_Greenwich_Royal_Observatory_-_geograph.org.uk_-_8156662.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The Prime Meridian line at the Royal Observatory in Greenwich, London. Stand with one foot on each side and you are in the Eastern and Western Hemispheres at once!', zh:'伦敦格林尼治皇家天文台的本初子午线。两只脚分别踩在线的两边，你就同时站在东半球和西半球！', credit:'Chris Gorringe', license:'CC BY-SA 2.0', page:'https://commons.wikimedia.org/wiki/File:The_Prime_Meridian_line_at_the_Greenwich_Royal_Observatory_-_geograph.org.uk_-_8156662.jpg' },
+  { kind:o('0° latitude','0° 纬线'), src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f6/Equator_Monument_Mitad_del_Mundo_Ecuador_DSC00138_ad.JPG/960px-Equator_Monument_Mitad_del_Mundo_Ecuador_DSC00138_ad.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The Equator Monument (Mitad del Mundo, “middle of the world”) near Quito, Ecuador. The equator splits Earth into the Northern and Southern Hemispheres.', zh:'厄瓜多尔基多附近的赤道纪念碑（“世界中心”）。赤道把地球分成北半球和南半球。', credit:'Adavyd', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Equator_Monument_Mitad_del_Mundo_Ecuador_DSC00138_ad.JPG' },
+  { kind:o('66.5°N','北纬 66.5°'), src:'https://upload.wikimedia.org/wikipedia/commons/c/cc/201006_norway_polar-circle.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'A sign marking the Arctic Circle on Vikingen Island, Norway. North of this line the Sun stays up all night for at least one day in summer.', zh:'挪威维金根岛上标出北极圈的标志。在这条线以北，夏天至少有一天太阳整夜不落。', credit:'Guy Lebègue', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:201006_norway_polar-circle.JPG' },
+  { kind:o('23.5°S','南纬 23.5°'), src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/57/Tropic_of_Capricorn_%28Namibia%29.jpg/960px-Tropic_of_Capricorn_%28Namibia%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A Tropic of Capricorn sign in Namibia, Africa. On about December 21, the noon Sun is straight overhead on this line.', zh:'非洲纳米比亚的南回归线标志。每年 12 月 21 日前后，正午的太阳直射这条线。', credit:'Hans Hillewaert', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Tropic_of_Capricorn_(Namibia).jpg' },
+  { kind:o('Old navigation','古老的导航'), src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bf/Navigation_sextant_in_Museum_of_the_World_Ocean_-_p8.jpg/960px-Navigation_sextant_in_Museum_of_the_World_Ocean_-_p8.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A ship’s sextant made in the USSR in the 1960s. Sailors measured the angle of the Sun above the horizon with it to work out their latitude.', zh:'20 世纪 60 年代苏联制造的航海六分仪。水手用它测量太阳离地平线的角度，从而算出所在的纬度。', credit:'Александр Сигачёв', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Navigation_sextant_in_Museum_of_the_World_Ocean_-_p8.jpg' },
+  { kind:o('Artist’s drawing','艺术想象图'), src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8d/GPS_Satellite_NASA_art-iif.jpg/960px-GPS_Satellite_NASA_art-iif.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'An artist’s drawing (not a photo) of a GPS satellite in orbit. Your phone listens to several of these satellites to work out your latitude and longitude.', zh:'GPS 卫星在轨道上运行的想象图（不是照片）。你的手机接收好几颗这样的卫星的信号，算出你所在的经纬度。', credit:'NASA', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:GPS_Satellite_NASA_art-iif.jpg' },
+  { type:'video', kind:o('Video','视频'), media:'https://upload.wikimedia.org/wikipedia/commons/0/00/Solstice_Timelapse_-_Day_and_Night_in_the_Midnight_Sun.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/00/Solstice_Timelapse_-_Day_and_Night_in_the_Midnight_Sun.webm/500px--Solstice_Timelapse_-_Day_and_Night_in_the_Midnight_Sun.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/00/Solstice_Timelapse_-_Day_and_Night_in_the_Midnight_Sun.webm/500px--Solstice_Timelapse_-_Day_and_Night_in_the_Midnight_Sun.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Watch one whole day: a time-lapse of the midnight sun on the summer solstice in Fairbanks, Alaska (about 65°N). The sky never gets fully dark.', zh:'看完整整一天：阿拉斯加费尔班克斯（约北纬 65°）夏至日的“午夜阳光”延时摄影。天空始终没有完全变黑。', credit:'Orion Lawlor', license:'CC BY 3.0', page:'https://commons.wikimedia.org/wiki/File:Solstice_Timelapse_-_Day_and_Night_in_the_Midnight_Sun.webm' }
+]);
+})();
+</script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const App = window.APP, V = THREE.Vector3, D2R = Math.PI / 180, R = 5;
+const ctx = Lab3D.stage('#stage', { THREE, OrbitControls, camera:[0, 3, 18.5], minDistance:7.5, maxDistance:40 });
+const { scene, camera } = ctx;
+/* lat/lon <-> 3D (matches SphereGeometry UVs: u = (lon+180)/360) */
+const ll2v = (lat, lon, r = R) => { const p = (90 - lat) * D2R, t = (lon + 180) * D2R; return new V(-r * Math.sin(p) * Math.cos(t), r * Math.cos(p), r * Math.sin(p) * Math.sin(t)); };
+const v2ll = v => { const r = v.length(); let lon = Math.atan2(v.z, -v.x) / D2R - 180; if (lon < -180) lon += 360; return { lat:90 - Math.acos(Math.max(-1, Math.min(1, v.y / r))) / D2R, lon }; };
+const earth = new THREE.Group(); scene.add(earth);
+const cur = { lat:33.7, lon:-84.4 }, tgt = { lat:33.7, lon:-84.4 };
+
+/* ---------- globe texture (equirectangular canvas) ---------- */
+const TW = 2048, TH = 1024, cv = document.createElement('canvas'); cv.width = TW; cv.height = TH;
+const g2 = cv.getContext('2d'), tex = new THREE.CanvasTexture(cv);
+tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = ctx.renderer.capabilities.getMaxAnisotropy();
+let hemi = null;
+function paint(){
+  const oc = g2.createLinearGradient(0, 0, 0, TH);
+  [[0,'#8fb6d9'],[.18,'#3172b5'],[.5,'#3d8ad1'],[.82,'#3172b5'],[1,'#8fb6d9']].forEach(([s, c]) => oc.addColorStop(s, c));
+  g2.fillStyle = oc; g2.fillRect(0, 0, TW, TH);
+  if (GEO.feats){ const land = GEO.landGrad(g2, TH); GEO.draw(g2, TW, TH, () => land); }
+  else { g2.fillStyle = '#7cb867'; [[-100,45,30,18],[-60,-15,14,24],[20,5,22,30],[90,50,55,22],[134,-25,16,10],[15,52,15,8]].forEach(([lo, la, rx, ry]) => { g2.beginPath(); g2.ellipse((lo + 180) / 360 * TW, (90 - la) / 180 * TH, rx / 360 * TW, ry / 180 * TH, 0, 0, 7); g2.fill(); }); }
+  if (hemi === 'ns'){ g2.fillStyle = 'rgba(142,108,240,.34)'; g2.fillRect(0, 0, TW, TH / 2); g2.fillStyle = 'rgba(255,138,61,.30)'; g2.fillRect(0, TH / 2, TW, TH / 2); }
+  if (hemi === 'ew'){ g2.fillStyle = 'rgba(228,111,180,.34)'; g2.fillRect(0, 0, TW / 2, TH); g2.fillStyle = 'rgba(32,178,170,.32)'; g2.fillRect(TW / 2, 0, TW / 2, TH); }
+  tex.needsUpdate = true;
+}
+paint();
+const globeMat = new THREE.MeshStandardMaterial({ map:tex, roughness:.85, metalness:0 });
+const globe = new THREE.Mesh(new THREE.SphereGeometry(R, 128, 64), globeMat); earth.add(globe); ctx.pickable(globe, 'globe');
+scene.add(new THREE.Mesh(new THREE.SphereGeometry(R * 1.07, 64, 32), new THREE.MeshBasicMaterial({ color:0x8fd0ff, transparent:true, opacity:.12, side:THREE.BackSide, depthWrite:false })));
+
+/* ---------- borders (crisp 3D lines) ---------- */
+function makeBorders(r){
+  const pts = [];
+  for (const f of GEO.feats) for (const poly of f.raw) for (const ring of poly) for (let i = 1; i < ring.length; i++){
+    const [a0, b0] = ring[i - 1], [a1, b1] = ring[i]; if (Math.abs(a1 - a0) > 180) continue;
+    const n = Math.max(1, Math.ceil(Math.max(Math.abs(a1 - a0), Math.abs(b1 - b0)) / 2));
+    for (let k = 0; k < n; k++){ const p = ll2v(b0 + (b1 - b0) * k / n, a0 + (a1 - a0) * k / n, r), q = ll2v(b0 + (b1 - b0) * (k + 1) / n, a0 + (a1 - a0) * (k + 1) / n, r); pts.push(p.x, p.y, p.z, q.x, q.y, q.z); }
+  }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+  return new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color:0x2d4a2a, transparent:true, opacity:.45 }));
+}
+GEO.ready.then(feats => {
+  paint();
+  if (!feats){ ctx.caption({en:'⚠️ Country shapes could not load (offline?). Showing a simple globe.',zh:'⚠️ 国家轮廓无法加载（可能未联网），这里显示简易地球仪。'}); setTimeout(() => ctx.caption(null), 7000); return; }
+  earth.add(makeBorders(R * 1.0015));
+});
+
+/* ---------- graticule: parallels and meridians as separate line sets ---------- */
+const matLat = new THREE.LineBasicMaterial({ color:0xffffff, transparent:true, opacity:.3 }), matLon = matLat.clone();
+let gridLat = null, gridLon = null, gridStep = 15;
+function buildGrid(){
+  [gridLat, gridLon].forEach(o => { if (o){ earth.remove(o); o.geometry.dispose(); } });
+  const A = [], B = [], r = R * 1.002, seg = (arr, a, b) => arr.push(a.x, a.y, a.z, b.x, b.y, b.z);
+  for (let la = -90 + gridStep; la < 90; la += gridStep) if (la !== 0) for (let lo = -180; lo < 180; lo += 2) seg(A, ll2v(la, lo, r), ll2v(la, lo + 2, r));
+  for (let lo = -180; lo < 180; lo += gridStep) if (lo !== 0) for (let la = -90; la < 90; la += 2) seg(B, ll2v(la, lo, r), ll2v(la + 2, lo, r));
+  const mk = (arr, m) => { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3)); const l = new THREE.LineSegments(g, m); earth.add(l); return l; };
+  gridLat = mk(A, matLat); gridLon = mk(B, matLon);
+}
+buildGrid();
+
+/* ---------- special lines (tori so they look thick) ---------- */
+const basic = c => new THREE.MeshBasicMaterial({ color:c, transparent:true, opacity:1 });
+function parallel(lat, color, tube = .035){ const r = R * 1.004, m = new THREE.Mesh(new THREE.TorusGeometry(r * Math.cos(lat * D2R), tube, 8, 220), basic(color)); m.rotation.x = Math.PI / 2; m.position.y = r * Math.sin(lat * D2R); return m; }
+function meridian(lon, color, tube = .035){ const grp = new THREE.Group(), m = new THREE.Mesh(new THREE.TorusGeometry(R * 1.004, tube, 8, 160, Math.PI), basic(color)); m.rotation.z = -Math.PI / 2; grp.add(m); grp.rotation.y = lon * D2R; grp.userData.m = m; return grp; }
+const eq = parallel(0, PARTS.equator.color, .05); earth.add(eq); ctx.pickable(eq, 'equator');
+const pm = meridian(0, PARTS.prime.color, .05); earth.add(pm); ctx.pickable(pm, 'prime');
+const am = meridian(180, PARTS.hemEW.color, .04); am.visible = false; earth.add(am); ctx.pickable(am, 'hemEW');
+const trop = new THREE.Group(); [23.44, -23.44].forEach(l => trop.add(parallel(l, '#ff8a3d', .028))); [66.56, -66.56].forEach(l => trop.add(parallel(l, '#5cc8ff', .028)));
+trop.visible = false; earth.add(trop); ctx.pickable(trop, 'tropics');
+
+/* ---------- the "dial-a-coordinate" lines + pin ---------- */
+const latRing = parallel(33.7, '#4f8ff0', .032); earth.add(latRing);
+const lonMer = meridian(-84.4, '#2fb36d', .032); earth.add(lonMer);
+function setLatRing(lat){ const r = R * 1.008, c = Math.max(.004, Math.cos(lat * D2R)); latRing.geometry.dispose(); latRing.geometry = new THREE.TorusGeometry(r * c, .032, 8, 220); latRing.position.y = r * Math.sin(lat * D2R); }
+const marker = new THREE.Group(); earth.add(marker);
+const head = new THREE.Mesh(new THREE.SphereGeometry(.2, 24, 16), ctx.mat('#ff4d6d')); head.position.y = .95;
+const stem = new THREE.Mesh(new THREE.CylinderGeometry(.035, .035, .9, 10), ctx.mat('#ffffff')); stem.position.y = .45;
+const halo = new THREE.Mesh(new THREE.RingGeometry(.16, .24, 48), new THREE.MeshBasicMaterial({ color:'#ff4d6d', transparent:true, side:THREE.DoubleSide, depthWrite:false })); halo.rotation.x = -Math.PI / 2; halo.position.y = .02;
+marker.add(head, stem, halo);
+function placeMarker(lat, lon){ marker.position.copy(ll2v(lat, lon)); marker.quaternion.setFromUnitVectors(new V(0, 1, 0), marker.position.clone().normalize()); }
+
+/* ---------- "see the angles": lines from Earth's centre ---------- */
+const ang = new THREE.Group(); ang.visible = false; earth.add(ang);
+const lm = c => new THREE.LineBasicMaterial({ color:c, depthTest:false, transparent:true });
+const mkLine = c => { const l = new THREE.Line(new THREE.BufferGeometry(), lm(c)); l.frustumCulled = false; l.renderOrder = 10; ang.add(l); return l; };
+const rLat = mkLine('#1d4ed8'), aLat = mkLine('#1d4ed8'), rLon = mkLine('#047857'), aLon = mkLine('#047857');
+const core = new THREE.Mesh(new THREE.SphereGeometry(.12, 16, 12), new THREE.MeshBasicMaterial({ color:'#ffffff', depthTest:false })); core.renderOrder = 11; ang.add(core);
+const latA = new THREE.Object3D(), lonA = new THREE.Object3D(); ang.add(latA, lonA);
+function buildAngles(){
+  const { lat, lon } = cur, O = new V();
+  rLat.geometry.setFromPoints([ll2v(0, lon), O, ll2v(lat, lon)]);
+  aLat.geometry.setFromPoints(Array.from({ length:41 }, (_, i) => ll2v(lat * i / 40, lon, 2.2)));
+  rLon.geometry.setFromPoints([ll2v(0, 0), O, ll2v(0, lon)]);
+  aLon.geometry.setFromPoints(Array.from({ length:61 }, (_, i) => ll2v(0, lon * i / 60, 1.5)));
+  latA.position.copy(ll2v(lat / 2, lon, 2.7)); lonA.position.copy(ll2v(-6, lon / 2, 1.9));
+}
+
+/* ---------- HTML labels (hidden when on the far side of the globe) ---------- */
+const labels = []; let labelsOn = false;
+function addLabel(text, lat, lon, want, r = R * 1.02){ const a = new THREE.Object3D(); a.position.copy(ll2v(lat, lon, r)); earth.add(a); const L = ctx.label(text, a); L.visible = false; labels.push({ L, a, want, face:true }); return L; }
+for (const lo of [-90, 0, 90, 180]) for (const la of [-60, -30, 30, 60]) addLabel(() => GEO.fmtLat(la, 0), la, lo, () => labelsOn);
+for (let lo = -150; lo <= 180; lo += 30) addLabel(() => GEO.fmtLon(lo, 0), -4, lo, () => labelsOn);
+addLabel(PARTS.equator.name, 3, -40, () => labelsOn || App.sel === 'equator'); addLabel(PARTS.equator.name, 3, 140, () => labelsOn || App.sel === 'equator');
+addLabel(PARTS.prime.name, 40, 0, () => labelsOn || App.sel === 'prime');
+addLabel({en:'180° meridian',zh:'180° 经线'}, 30, 180, () => App.sel === 'hemEW');
+const H = { n:{en:'Northern Hemisphere',zh:'北半球'}, s:{en:'Southern Hemisphere',zh:'南半球'}, e:{en:'Eastern Hemisphere',zh:'东半球'}, w:{en:'Western Hemisphere',zh:'西半球'} };
+for (const lo of [-90, 90]){ addLabel(H.n, 45, lo, () => App.sel === 'hemNS'); addLabel(H.s, -45, lo, () => App.sel === 'hemNS'); }
+for (const la of [25, -25]){ addLabel(H.w, la, -50, () => App.sel === 'hemEW'); addLabel(H.e, la, 50, () => App.sel === 'hemEW'); addLabel(H.w, la, -130, () => App.sel === 'hemEW'); addLabel(H.e, la, 130, () => App.sel === 'hemEW'); }
+for (const lo of [-45, 135]){
+  addLabel({en:'Tropic of Cancer 23.4°N',zh:'北回归线 北纬 23.4°'}, 26.5, lo, () => trop.visible); addLabel({en:'Tropic of Capricorn 23.4°S',zh:'南回归线 南纬 23.4°'}, -20.5, lo, () => trop.visible);
+  addLabel({en:'Arctic Circle 66.6°N',zh:'北极圈 北纬 66.6°'}, 69.5, lo, () => trop.visible); addLabel({en:'Antarctic Circle 66.6°S',zh:'南极圈 南纬 66.6°'}, -63.5, lo, () => trop.visible);
+}
+const pinL = ctx.label(() => GEO.fmtLL(cur.lat, cur.lon), head, { offset:[0, .55, 0] }); pinL.el.style.background = '#ff4d6d'; pinL.el.style.color = '#fff'; pinL.el.style.borderColor = '#ff4d6d';
+const latAL = ctx.label(() => (Lab.lang === 'zh' ? '纬度 ' : 'lat ') + Math.abs(cur.lat).toFixed(1) + '°', latA), lonAL = ctx.label(() => (Lab.lang === 'zh' ? '经度 ' : 'lon ') + Math.abs(cur.lon).toFixed(1) + '°', lonA);
+latAL.visible = lonAL.visible = false;
+const tmp = new V(), camDir = new V();
+function updateLabels(){
+  camDir.copy(camera.position).sub(ctx.controls.target).normalize();
+  for (const o of labels){ const w = o.want(); if (!w){ o.L.visible = false; continue; } o.a.getWorldPosition(tmp); o.L.visible = tmp.normalize().dot(camDir) > .12; }
+  marker.getWorldPosition(tmp); pinL.visible = tmp.normalize().dot(camDir) > .05 || ang.visible;
+  latAL.visible = lonAL.visible = ang.visible;
+}
+
+/* ---------- state: current coordinate, tweened toward a target ---------- */
+
+const latS = Lab.$('#latS'), lonS = Lab.$('#lonS');
+function apply(){
+  setLatRing(cur.lat); lonMer.rotation.y = cur.lon * D2R; placeMarker(cur.lat, cur.lon);
+  if (ang.visible) buildAngles();
+  latS.value = cur.lat; lonS.value = cur.lon; Lab.$('#latV').textContent = GEO.fmtLat(cur.lat); Lab.$('#lonV').textContent = GEO.fmtLon(cur.lon);
+  pinL.set(pinL.text); latAL.set(latAL.text); lonAL.set(lonAL.text);
+}
+apply();
+Lab.onLang(apply);
+latS.oninput = () => { if (story.active) story.stop(); cur.lat = tgt.lat = +latS.value; apply(); App.showPoint(cur.lat, cur.lon); };
+lonS.oninput = () => { if (story.active) story.stop(); cur.lon = tgt.lon = +lonS.value; apply(); App.showPoint(cur.lat, cur.lon); };
+
+/* ---------- camera helpers + selection highlight ---------- */
+function flyLL(lat, lon, dist = 17){ const d = ll2v(lat, lon, 1).applyQuaternion(earth.quaternion); ctx.flyToPose(d.multiplyScalar(dist).toArray(), [0, 0, 0]); }
+function highlight(k){
+  const h = k === 'hemNS' ? 'ns' : k === 'hemEW' ? 'ew' : null; if (h !== hemi){ hemi = h; paint(); }
+  am.visible = k === 'hemEW'; trop.visible = k === 'tropics';
+  matLat.color.set(k === 'lat' ? '#7fb2ff' : '#ffffff'); matLon.color.set(k === 'lon' ? '#7fe3a8' : '#ffffff');
+}
+const VIEW = { equator:[8, -50, 17], prime:[25, -10, 17], lat:[28, -70, 17], lon:[62, -40, 17], hemNS:[4, -75, 19], hemEW:[8, 0, 19], tropics:[12, -40, 19] };
+function focus(k){
+  setSpin(false); highlight(k);
+  if (!k) return ctx.home();
+  if (k === 'coords'){ tgt.lat = 33.7; tgt.lon = -84.4; return flyLL(33.7, -84.4, 13); }
+  flyLL(...VIEW[k]);
+}
+App.three = { focus, zoomTo:(lat, lon) => { setSpin(false); flyLL(lat, lon, 10); } };
+ctx.hoverText((k, h) => {
+  if (k !== 'globe') return Lab.L(PARTS[k].name);
+  const ll = v2ll(earth.worldToLocal(h.point.clone())), w = GEO.where(ll.lat, ll.lon);
+  return GEO.fmtLL(ll.lat, ll.lon) + (GEO.feats ? ' · ' + (w.land ? GEO.cname(w.country) : Lab.L(GEO.OCEAN[w.ocean])) : '');
+});
+ctx.onPick((k, h) => {
+  if (!k) return;
+  if (story.active) story.stop();
+  if (k === 'globe'){
+    const ll = v2ll(earth.worldToLocal(h.point.clone())); tgt.lat = Math.round(ll.lat * 10) / 10; tgt.lon = Math.round(ll.lon * 10) / 10;
+    setSpin(false); highlight(null); App.showPoint(tgt.lat, tgt.lon);
+  } else App.select(k, false);
+});
+
+/* ---------- toolbar ---------- */
+let spin = true;
+function setSpin(on){ spin = on; Lab.$('#rotBtn').classList.toggle('on', on); }
+Lab.$('#rotBtn').onclick = () => setSpin(!spin);
+Lab.$('#resetBtn').onclick = () => { story.stop(); setInside(false); App.select(null, true); highlight(null); tgt.lat = 33.7; tgt.lon = -84.4; earth.rotation.y = 0; ctx.home(); };
+Lab.$('#labelBtn').onclick = () => { labelsOn = !labelsOn; Lab.$('#labelBtn').classList.toggle('on', labelsOn); };
+Lab.$('#gridBtn').onclick = () => {
+  gridStep = gridStep === 15 ? 30 : gridStep === 30 ? 10 : 15; buildGrid();
+  const b = Lab.$('#gridBtn'); b.dataset.en = `▦ Grid ${gridStep}°`; b.dataset.zh = `▦ 网格 ${gridStep}°`; b.textContent = Lab.lang === 'zh' ? b.dataset.zh : b.dataset.en;
+};
+function setInside(on){
+  ang.visible = on; globeMat.transparent = on; globeMat.opacity = on ? .38 : 1; globeMat.depthWrite = !on; globeMat.needsUpdate = true;
+  Lab.$('#insideBtn').classList.toggle('on', on); if (on) buildAngles();
+}
+Lab.$('#insideBtn').onclick = () => { setInside(!ang.visible); if (ang.visible){ setSpin(false); flyLL(Math.max(10, cur.lat / 2), cur.lon - 35, 16); } };
+
+/* ---------- story: how coordinates work ---------- */
+const SPOT = [[0, 0, 'equator', [10, -40, 17]], [33.7, 0, 'lat', [25, -35, 17]], [33.7, 0, 'prime', [22, -15, 17]], [33.7, -84.4, 'lon', [35, -55, 17]], [33.7, -84.4, 'coords', [33.7, -84.4, 12.5]], [33.7, -84.4, 'coords', [18, -45, 16]]];
+const story = Lab3D.story('#stage', STORY, i => {
+  const [la, lo, k, view] = SPOT[i];
+  setSpin(false); tgt.lat = la; tgt.lon = lo; App.select(k, true); highlight(k); setInside(i === 5); flyLL(...view);
+}, () => setInside(false));
+Lab.$('#storyBtn').onclick = () => story.start();
+
+/* ---------- per-frame ---------- */
+ctx.onFrame((dt, t) => {
+  if (spin) earth.rotation.y += dt * .1;
+  let moved = false;
+  for (const k of ['lat', 'lon']){ const d = tgt[k] - cur[k]; if (Math.abs(d) > .02){ cur[k] += d * Math.min(1, dt * 2.6); moved = true; } else if (d){ cur[k] = tgt[k]; moved = true; } }
+  if (moved) apply();
+  const s = (t * .8) % 1; halo.scale.setScalar(1 + s * 3); halo.material.opacity = 1 - s; head.position.y = .95 + Math.sin(t * 3) * .06;
+  const sel = App.sel, pulse = .55 + .45 * Math.abs(Math.sin(t * 3));
+  eq.material.opacity = sel === 'equator' ? pulse : 1; pm.userData.m.material.opacity = sel === 'prime' ? pulse : 1;
+  am.userData.m.material.opacity = pulse; trop.children.forEach(c => c.material.opacity = pulse);
+  matLat.opacity = sel === 'lat' ? .5 + .4 * pulse : .3; matLon.opacity = sel === 'lon' ? .5 + .4 * pulse : .3;
+  updateLabels();
+});
+renderInfo(); renderChips();
+</script>
+</body>
+</html>

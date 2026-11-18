@@ -1,0 +1,853 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Day, Night &amp; Seasons</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/lab3d.js"></script>
+<script src="../shared/photos.js"></script>
+<style>
+/* page-specific styles */
+.stage .inset{position:absolute;right:12px;top:110px;z-index:3;width:250px;background:rgba(8,12,32,.82);color:#eaf0fb;border:1px solid rgba(255,255,255,.16);border-radius:14px;padding:8px 10px 9px;font-size:12.5px;line-height:1.35;backdrop-filter:blur(4px)}
+.stage .inset b.t{display:block;font-family:Fredoka;font-weight:600;font-size:14px;margin-bottom:2px}
+.stage .inset canvas{position:static;display:block;width:228px;height:118px;inset:auto}
+.stage .inset .rd{display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;margin-top:4px}
+.stage .inset .rd span{color:#a9b8dc}
+.stage .inset .rd .season-tag{color:#14213d}
+.stage .pill b{min-width:54px;font-family:Fredoka;font-weight:600}
+.stage .pill{padding:5px 12px;gap:8px}
+.stage .pill input[type=range]{width:105px}
+.stage .tip{max-width:190px}
+.season-tag{display:inline-block;padding:1px 8px;border-radius:999px;font-weight:800;font-size:12px;color:#14213d}
+.readline{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:14px;color:var(--ink-2);font-weight:700}
+.readline b{color:var(--ink)}
+.presets{display:flex;flex-wrap:wrap;gap:6px}
+.presets button{border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:999px;padding:5px 11px;font-weight:700;font-size:13px}
+.presets button.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+#yearBox{position:relative;height:150px;border-radius:14px;background:var(--surface-2);overflow:hidden}
+#yearBox canvas{position:absolute;inset:0;width:100%;height:100%}
+.simbox{min-height:440px}
+@media (min-width:1260px){ .stage .inset{top:64px} }
+#stage .lab-caption{left:12px;transform:none;max-width:calc(100% - 290px);text-align:left}
+@media (max-width:560px){ .stage .inset{display:none} #stage .lab-caption{left:50%;transform:translateX(-50%);max-width:90%;text-align:center} }
+@media (max-width:560px){ .stage .tbtn{font-size:12px;padding:5px 9px} #stage .lab-caption{top:auto;bottom:66px;font-size:14px} .stage:has(.storybar.show) .bottombar{display:none} #stage .storybar{bottom:12px} #stage .storybar button{padding:6px 10px;white-space:nowrap;font-size:13px} }
+</style>
+</head>
+<body data-subject="astronomy" data-topic="seasons">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="天文 · 地球运动">Astronomy · Earth in Motion</span>
+  <h1 data-zh-html="昼夜与<em>四季</em>">Day, Night &amp; <em>Seasons</em></h1>
+  <p class="lead" data-zh="为什么佐治亚州是夏天的时候，澳大利亚却是冬天？地球每天自转一圈，每年绕太阳公转一圈，而且它的地轴是倾斜的。拖动日期滑块，看看阳光照射到地球上的方式怎样随季节变化，再找出四季形成的真正原因！">Why is it summer in Georgia when it is winter in Australia? Earth spins once a day, travels around the Sun once a year, and its axis is tilted. Drag the date slider to see how sunlight hits Earth through the year, and discover the real reason we have seasons!</p>
+</header>
+
+<section class="wrap" id="explore" data-nav="3D Orbit" data-nav-zh="3D 公转">
+  <div class="explorer">
+    <div class="stage card space" id="stage" data-3d>
+      <div class="toolbar">
+        <button class="tbtn" id="playBtn" data-zh="▶ 播放一年">▶ Play a year</button>
+        <button class="tbtn" id="tiltBtn" data-zh="📐 如果没有倾斜？">📐 What if no tilt?</button>
+        <button class="tbtn" id="followBtn" data-zh="🎥 跟随地球">🎥 Follow Earth</button>
+        <button class="tbtn" id="storyBtn" data-zh="📖 四季的成因（故事）">📖 Why seasons? (story)</button>
+        <button class="tbtn" id="labelBtn" data-zh="🏷 标签">🏷 Labels</button>
+        <button class="tbtn" id="resetBtn" data-zh="⌂ 重置">⌂ Reset</button>
+      </div>
+      <div class="inset" id="inset">
+        <b class="t" data-zh="☀️ 从地面看正午的太阳">☀️ Noon Sun seen from the ground</b>
+        <canvas id="skyCv" width="456" height="236"></canvas>
+        <div class="rd" id="insetRd"></div>
+      </div>
+      <div class="bottombar">
+        <div class="pill"><span data-zh="📅 日期">📅 Date</span><input id="day" type="range" min="0" max="364" value="171" aria-label="date"><b id="dayLbl">Jun 21</b></div>
+        <div class="pill"><span data-zh="📍 纬度">📍 Latitude</span><input id="lat" type="range" min="0" max="66" value="34" aria-label="latitude"><b id="latLbl">±34°</b></div>
+        <div class="tip" data-zh="拖动旋转 · 滚轮缩放 · 点击太阳、地球、地轴或轨道上的标记">Drag to rotate · Scroll to zoom · Click the Sun, Earth, axis or orbit markers</div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="chips" id="chips"></div>
+</section>
+
+<section class="wrap" id="ideas" data-nav="Key ideas" data-nav-zh="核心概念">
+  <div class="sec-head">
+    <h2 data-zh="四个关键词">Four big ideas</h2>
+    <p data-zh="昼夜和四季都来自地球的运动。分清“自转”和“公转”，再加上“倾斜”和“直射”，就能解释一切。">Day, night and seasons all come from Earth’s motion. Tell rotation from revolution, add tilt and direct sunlight, and you can explain it all.</p>
+  </div>
+  <div class="grid4">
+    <div class="box card"><div class="ico">🌍</div><h3 data-zh="自转 → 昼夜">Rotation → day &amp; night</h3><p data-zh="地球绕地轴自西向东自转，每 24 小时一圈。朝向太阳的一半是白天，背向太阳的一半是黑夜。">Earth spins west to east on its axis once every 24 hours. The half facing the Sun has day; the half facing away has night.</p></div>
+    <div class="box card"><div class="ico">🔄</div><h3 data-zh="公转 → 一年">Revolution → a year</h3><p data-zh="地球绕太阳公转一圈约需 365¼ 天。多出的 ¼ 天每 4 年凑成一个闰日（2 月 29 日）。">Earth orbits the Sun once every 365¼ days. The extra ¼ day adds up to a leap day (Feb 29) every 4 years.</p></div>
+    <div class="box card"><div class="ico">📐</div><h3 data-zh="地轴倾斜 23.5°">Tilt of 23.5°</h3><p data-zh="地轴倾斜约 23.5°，而且一年到头都指向北极星。所以半年北半球偏向太阳，另外半年南半球偏向太阳。">The axis tilts about 23.5° and always points toward Polaris. So for half the year the north leans toward the Sun, and for the other half the south does.</p></div>
+    <div class="box card"><div class="ico">🔦</div><h3 data-zh="直射与斜射">Direct vs. slanted rays</h3><p data-zh="太阳高时，光线集中在小面积上，地面升温快；太阳低时，同样的光被摊到大面积上，升温慢。再加上白天长短不同，就形成了四季。">A high Sun concentrates light on a small area, so the ground heats quickly. A low Sun spreads the same light over a big area. Add longer or shorter days, and you get seasons.</p></div>
+  </div>
+
+  <div class="card table-wrap" style="margin-top:18px">
+    <table class="lab">
+      <thead><tr><th data-zh="节气">Event</th><th data-zh="日期（约）">Date (about)</th><th data-zh="太阳直射">Sun directly overhead at</th><th data-zh="北半球">Northern Hemisphere</th><th data-zh="南半球">Southern Hemisphere</th></tr></thead>
+      <tbody>
+        <tr><td data-zh="春分">March equinox</td><td data-zh="3 月 20 日">Mar 20</td><td data-zh="赤道（0°）">Equator (0°)</td><td data-zh="春季开始，昼夜等长">Spring begins · day = night</td><td data-zh="秋季开始，昼夜等长">Autumn begins · day = night</td></tr>
+        <tr><td data-zh="夏至">June solstice</td><td data-zh="6 月 21 日">Jun 21</td><td data-zh="北回归线（23.5°N）">Tropic of Cancer (23.5°N)</td><td data-zh="夏季开始，白昼最长">Summer begins · longest day</td><td data-zh="冬季开始，白昼最短">Winter begins · shortest day</td></tr>
+        <tr><td data-zh="秋分">September equinox</td><td data-zh="9 月 22 日">Sep 22</td><td data-zh="赤道（0°）">Equator (0°)</td><td data-zh="秋季开始，昼夜等长">Autumn begins · day = night</td><td data-zh="春季开始，昼夜等长">Spring begins · day = night</td></tr>
+        <tr><td data-zh="冬至">December solstice</td><td data-zh="12 月 21 日">Dec 21</td><td data-zh="南回归线（23.5°S）">Tropic of Capricorn (23.5°S)</td><td data-zh="冬季开始，白昼最短">Winter begins · shortest day</td><td data-zh="夏季开始，白昼最长">Summer begins · longest day</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid2" style="margin-top:18px">
+    <div class="callout card"><div class="big">147</div><div><h3 data-zh="1 月初离太阳最近！">Closest to the Sun in early January!</h3><p class="muted" style="margin:4px 0 0" data-zh="每年 1 月 3 日前后，地球离太阳最近（近日点，约 1.47 亿千米）；7 月 4 日前后最远（远日点，约 1.52 亿千米）。可那时北半球正是冬天！距离只变化约 3%，影响很小。">Around January 3 Earth is closest to the Sun (perihelion, about 147 million km); around July 4 it is farthest (aphelion, about 152 million km). Yet January is winter in the north! Distance changes only about 3%, a tiny effect.</p></div></div>
+    <div class="callout card"><div class="big">⇅</div><div><h3 data-zh="南北半球季节相反">Opposite seasons in each hemisphere</h3><p class="muted" style="margin:4px 0 0" data-zh="当佐治亚州过夏天时，澳大利亚正过冬天。如果季节由距离决定，整个地球应该同时过夏天，但事实并非如此。">When Georgia has summer, Australia has winter. If distance caused seasons, the whole planet would have summer at the same time, and it doesn’t.</p></div></div>
+  </div>
+  <div class="mix" style="margin-top:16px"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="四季不是因为地球离太阳时近时远，而是因为地轴倾斜：偏向太阳的半球得到更直射的阳光和更长的白天。">Seasons are NOT caused by Earth getting closer to or farther from the Sun. They happen because of the tilt: the hemisphere leaning toward the Sun gets more direct sunlight and longer days.</span></div>
+</section>
+
+<section class="wrap" id="sim" data-nav="Flashlight test" data-nav-zh="手电筒实验">
+  <div class="sec-head">
+    <h2 data-zh="模拟实验：阳光角度与昼长">Simulation: Sun angle &amp; day length</h2>
+    <p data-zh="把太阳光想象成一支手电筒。选一个纬度和日期，看看正午太阳有多高、光斑有多大、每块地面分到多少能量，以及白天有多长。">Think of sunlight as a flashlight. Pick a latitude and a date and see how high the noon Sun is, how big the light spot is, how much energy each square of ground gets, and how long the day lasts.</p>
+  </div>
+  <div class="sim">
+    <div class="card simbox" id="beamBox"><canvas id="beamCv"></canvas></div>
+    <div class="card simside">
+      <h3 data-zh="选择地点和日期">Choose a place and a date</h3>
+      <div class="presets" id="placeBtns"></div>
+      <label class="ctl"><span><span data-zh="纬度">Latitude</span>: <b id="sLatLbl">34°N</b></span><input id="sLat" type="range" min="-90" max="90" value="34"></label>
+      <div class="presets" id="dateBtns"></div>
+      <label class="ctl"><span><span data-zh="日期">Date</span>: <b id="sDayLbl">Jun 21</b></span><input id="sDay" type="range" min="0" max="364" value="171"></label>
+      <div class="counters">
+        <div class="counter"><b id="cAlt">0°</b><span data-zh="正午太阳高度角">noon Sun angle</span></div>
+        <div class="counter"><b id="cSpot">1.0×</b><span data-zh="光斑面积">spot size</span></div>
+        <div class="counter"><b id="cPow">100%</b><span data-zh="每块地面得到的能量">energy per square</span></div>
+        <div class="counter"><b id="cDay">12 h</b><span data-zh="白昼时长">hours of daylight</span></div>
+      </div>
+      <div id="yearBox"><canvas id="yearCv"></canvas></div>
+      <div class="result" id="simMsg"></div>
+      <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="手电筒竖直照：光斑小而亮（夏天）；斜着照：光斑大而暗（冬天）。">Flashlight straight down: small, bright spot (summer). Tilted: big, dim spot (winter).</span></div>
+    </div>
+  </div>
+</section>
+
+<!--deep-->
+<section class="wrap" id="sunpath">
+  <div class="sec-head">
+    <h2 data-zh="太阳在天上走哪条路？">Where does the Sun travel across the sky?</h2>
+    <p data-zh="太阳并不总是“正东升起、正西落下”。选一个地点和日期，看太阳一整天在天空中走过的弧线，以及一根 1 米高的木棍的影子怎样转动。夏天的弧线又高又长，冬天的又低又短。">The Sun does NOT always rise due east and set due west. Pick a place and a date to see the Sun’s whole arc across the sky, and how the shadow of a 1-meter stick swings around. Summer arcs are high and long; winter arcs are low and short.</p>
+  </div>
+  <div class="sim">
+    <div class="card simbox" id="pathBox" style="min-height:400px"><canvas id="pathCv" aria-label="Panorama of the sky with the Sun's path for the chosen date, June solstice, equinox and December solstice"></canvas></div>
+    <div class="card simside">
+      <div class="presets" id="spPlaces"></div>
+      <label class="ctl"><span><span data-zh="纬度">Latitude</span>: <b id="spLatOut">34°N</b></span><input id="spLat" type="range" min="-90" max="90" step="0.1" value="33.7"></label>
+      <div class="timebar"><button id="spRun" aria-label="Play a year">▶</button><input id="spDay" type="range" min="0" max="364" value="171" aria-label="Date"><output id="spDayOut">Jun 21</output></div>
+      <label class="ctl"><span><span data-zh="当地太阳时（正午 = 12:00）">Local solar time (noon = 12:00)</span>: <b id="spHourOut">15:00</b></span><input id="spHour" type="range" min="0" max="24" step="0.05" value="15"></label>
+      <div class="counters">
+        <div class="counter"><b id="spRise">–</b><span data-zh="日出 · 方向">sunrise · direction</span></div>
+        <div class="counter"><b id="spSet">–</b><span data-zh="日落 · 方向">sunset · direction</span></div>
+        <div class="counter"><b id="spNoon">–</b><span data-zh="正午太阳高度 · 方向">noon Sun height · direction</span></div>
+        <div class="counter"><b id="spNow">–</b><span data-zh="此刻太阳高度 · 影子长">Sun height now · shadow length</span></div>
+      </div>
+      <div class="result" id="spMsg"></div>
+    </div>
+  </div>
+  <div class="grid2" style="margin-top:18px">
+    <div class="card simside">
+      <h3 data-zh="🕰️ 木棍的影子（俯视图）">🕰️ The stick’s shadow (seen from above)</h3>
+      <div class="simbox" id="shadowBox" style="min-height:300px;border-radius:14px;background:var(--surface-2)"><canvas id="shadowCv" aria-label="Top view of a 1 m stick, its shadow now, and the path of the shadow tip during the day"></canvas></div>
+      <p data-zh="虚线是影子尖端一整天走过的路线。古人正是用这样的“日晷”来计时、找方向：正午时影子最短，并且指向正北（在南半球指向正南）。">The dotted line is the path the shadow’s tip traces during the day. People used this kind of sundial to tell time and find directions: at noon the shadow is shortest and points due north (due south in the Southern Hemisphere).</p>
+    </div>
+    <div class="card simside">
+      <h3 data-zh="📈 一年中白天有多长：不同纬度比一比">📈 Hours of daylight through the year, by latitude</h3>
+      <div class="simbox" id="dlBox" style="min-height:300px;border-radius:14px"><canvas id="dlCv" aria-label="Line chart of daylight hours through the year at six latitudes"></canvas></div>
+      <div class="legend" id="dlLegend"></div>
+      <p class="muted" style="font-size:13px;margin:6px 0 0" data-zh="数据：用标准日出方程计算（考虑了太阳圆面大小和大气折射），误差几分钟以内；钟表时间还会受时区和夏令时影响。">Data: computed with the standard sunrise equation (includes the Sun’s size and air bending sunlight), good to within a few minutes. Clock times also depend on time zones and daylight saving.</p>
+    </div>
+  </div>
+  <div class="mix" style="margin-top:16px"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="“正午太阳在头顶正上方”只在南北回归线之间、而且一年里只有一两天成立。在亚特兰大，正午太阳永远在偏南方向，最高也只有约 80°。">“The Sun is straight overhead at noon” is only true between the Tropics, and only on one or two days a year. In Atlanta the noon Sun is always toward the south and never higher than about 80°.</span></div>
+</section>
+<!--/deep-->
+
+<section class="wrap" id="real" data-nav="Real photos" data-nav-zh="真实影像">
+  <div id="gallery"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 四季测验">🧠 Seasons quiz</h3><p class="sub" data-zh="选出正确答案。">Pick the best answer.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分一分：是不是四季的成因？">🗂️ Sort it: cause or not?</h3><p class="sub" data-zh="把每一项拖到（或先点再点方框）正确的组里。">Drag each item (or tap it, then tap a box) into the right group.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="对应佐治亚州标准 S6E2c：分析和解释数据，把地轴倾斜与全年阳光分布及其对季节的影响联系起来（同时复习自转产生昼夜、公转产生一年）。">Supports GSE S6E2c: analyze and interpret data to relate the tilt of the Earth to the distribution of sunlight throughout the year and its effect on seasons (also reviews rotation → day/night and revolution → year).</p>
+    <p data-zh="最常见的错误概念是“夏天地球离太阳更近”。请让学生把日期滑到 1 月 3 日前后（近日点），读出日地距离，再看北半球的季节；然后点“如果没有倾斜？”说明：没有倾斜就没有四季。">The most common misconception is “summer happens when Earth is closer to the Sun.” Have students slide to about January 3 (perihelion), read the distance, and check the northern season; then press “What if no tilt?” to show that no tilt means no seasons.</p>
+    <p data-zh="手电筒模拟：让学生比较亚特兰大在 6 月和 12 月的“光斑大小”和昼长，并把两者都作为夏季更暖的原因写进解释（直射更集中 + 白天更长）。注意：模型中天体大小和距离都不按比例。">Flashlight sim: have students compare Atlanta’s spot size and day length in June vs. December, and include BOTH in their explanation (more concentrated rays + longer days). Note: sizes and distances in the 3D model are not to scale.</p>
+  </details>
+</section>
+
+<!--deep-->
+<section class="wrap" id="further" data-nav="Go further" data-nav-zh="延伸探索">
+  <div class="sec-head"><h2 data-zh="走得更远：真实的天文工具">Go further: real astronomy tools</h2><p data-zh="下面是航天机构和科学家公开分享的真实网站，每个都会在新标签页中打开。">Real tools shared by space agencies and scientists. Each opens in a new tab.</p></div>
+  <div class="linkgrid">
+    <a class="linkcard" href="https://gml.noaa.gov/grad/solcalc/" target="_blank" rel="noopener"><b data-zh="NOAA 太阳计算器">NOAA Solar Calculator</b><span data-zh="在地图上点你的家，输入日期，查出精确的日出、日落、正午时刻和太阳的方向。">Click your home on a map, choose a date, and get the exact sunrise, sunset, solar noon and Sun direction.</span><small>gml.noaa.gov ↗</small></a>
+    <a class="linkcard" href="https://www.timeanddate.com/sun/" target="_blank" rel="noopener"><b data-zh="timeanddate：日出与日落">timeanddate: Sunrise &amp; Sunset</b><span data-zh="搜索任何城市，看全年每天的日出日落时间和白天长短表。">Search any city for a whole year of sunrise and sunset times and day lengths.</span><small>timeanddate.com ↗</small></a>
+    <a class="linkcard" href="https://www.timeanddate.com/calendar/seasons.html" target="_blank" rel="noopener"><b data-zh="timeanddate：二分二至日期">timeanddate: Equinoxes &amp; Solstices</b><span data-zh="查今年春分、夏至、秋分、冬至的准确日期和时刻。">Find the exact date and time of this year’s equinoxes and solstices.</span><small>timeanddate.com ↗</small></a>
+    <a class="linkcard" href="https://spaceplace.nasa.gov/seasons/" target="_blank" rel="noopener"><b data-zh="NASA 太空乐园：四季">NASA Space Place: Seasons</b><span data-zh="用动画和小实验复习：为什么会有四季，其他行星有没有四季。">Animations and activities on what causes seasons, and whether other planets have them too.</span><small>spaceplace.nasa.gov ↗</small></a>
+    <a class="linkcard" href="https://earthobservatory.nasa.gov/" target="_blank" rel="noopener"><b data-zh="NASA 地球观测站">NASA Earth Observatory</b><span data-zh="看卫星拍到的地球怎样随季节变化：积雪、海冰、植物变绿又变黄。">See satellite images of Earth changing with the seasons: snow, sea ice, and plants greening and browning.</span><small>science.nasa.gov ↗</small></a>
+  </div>
+  <h3 style="margin:26px 0 12px" data-zh="🔭 在本实验室继续深入">🔭 Go deeper in this lab</h3>
+  <div class="linkgrid" id="deeper" data-deeper="sky-tonight,kepler-laws,planets-moons"></div>
+</section>
+<!--/deep-->
+
+<div id="lab-footer"></div>
+<script>
+/* ===== Date & sunlight helpers (day index 0 = Jan 1) ===== */
+const o = (en, zh) => ({en, zh});
+/* ===== Real photos (Wikimedia Commons, free licences; rendered by shared/photos.js) ===== */
+const RP_KIND = { earth:o('Photo from Earth','从地球上拍的照片'), sat:o('Satellite image','卫星图像'), crew:o('Astronaut photo','宇航员拍摄的照片'), vid:o('Satellite time-lapse','卫星延时视频') };
+const RP = {
+  space:{ src:'https://upload.wikimedia.org/wikipedia/commons/b/b9/Seeing_Equinoxes_and_Solstices_from_Space_%286174784751%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Seeing_Equinoxes_and_Solstices_from_Space_(6174784751).jpg', credit:'NASA Goddard Space Flight Center', kind:RP_KIND.sat,
+    en:'Earth seen by a weather satellite at the solstices and equinoxes (December 2010 to September 2011). Look at how the line between day and night changes its tilt.', zh:'气象卫星在冬至、春分、夏至和秋分（2010 年 12 月至 2011 年 9 月）拍到的地球。看看昼夜分界线的倾斜方向怎样变化。' },
+  marble:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/97/The_Earth_seen_from_Apollo_17.jpg/960px-The_Earth_seen_from_Apollo_17.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:The_Earth_seen_from_Apollo_17.jpg', credit:'NASA / Apollo 17 crew', kind:RP_KIND.crew,
+    en:'The “Blue Marble”, taken on December 7, 1972, two weeks before the December solstice. The South Pole is tilted toward the Sun, so Antarctica (bottom) is in full sunlight.', zh:'“蓝色弹珠”，拍摄于 1972 年 12 月 7 日，离 12 月的冬至只有两周。南极朝太阳倾斜，所以南极洲（下方）完全被阳光照亮。' },
+  midnight:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b5/Midnight_sun.jpg/960px-Midnight_sun.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Midnight_sun.jpg', credit:'Yan Zhang', kind:RP_KIND.earth,
+    en:'The midnight Sun at Nordkapp, Norway. Far north in summer, the North Pole is tilted toward the Sun so much that the Sun never sets.', zh:'挪威北角的“午夜太阳”。在遥远的北方，夏天北极朝太阳倾斜得很厉害，太阳整夜都不落下。',
+    scale:o('About 71° north · Georgia is about 33° north','约北纬 71° · 佐治亚州约北纬 33°') },
+  stone:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ae/Sun_behind_the_Heel_Stone.jpg/960px-Sun_behind_the_Heel_Stone.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'CC BY-SA 2.0', page:'https://commons.wikimedia.org/wiki/File:Sun_behind_the_Heel_Stone.jpg', credit:'Andrew Dunn', kind:RP_KIND.earth,
+    en:'The Sun rising behind the Heel Stone at Stonehenge, England, on the summer solstice. People built this monument over 4,000 years ago to line up with the longest day.', zh:'英国巨石阵：夏至那天太阳从“踵石”后面升起。人们在 4000 多年前就把这座建筑对准了一年中白天最长的一天。' },
+  four:{ src:'https://upload.wikimedia.org/wikipedia/commons/0/04/Four_seasons.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Four_seasons.jpg', credit:'Collage by Predavatel (from Wikimedia Commons images)', kind:RP_KIND.earth,
+    en:'Spring, summer, autumn and winter. Away from the equator, the tilt of Earth’s axis changes how high the Sun gets and how long the day lasts, and nature changes with it.', zh:'春、夏、秋、冬。在远离赤道的地方，地轴的倾斜改变了太阳的高度和白天的长短，大自然也跟着变化。' },
+  video:{ type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/d/d5/Year-Long_View_of_the_Earth_Between_Fall_Equinoxes_%28CIRA_2026-09-21_-_terminator_labels%29.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d5/Year-Long_View_of_the_Earth_Between_Fall_Equinoxes_%28CIRA_2026-09-21_-_terminator_labels%29.webm/960px--Year-Long_View_of_the_Earth_Between_Fall_Equinoxes_%28CIRA_2026-09-21_-_terminator_labels%29.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Year-Long_View_of_the_Earth_Between_Fall_Equinoxes_(CIRA_2026-09-21_-_terminator_labels).webm', credit:'GOES imagery: CSU/CIRA & NOAA', kind:RP_KIND.vid,
+    en:'One whole year of Earth from a weather satellite, from the 2025 fall equinox to the 2026 fall equinox. Watch the day–night line swing back and forth with the seasons.', zh:'气象卫星拍下的地球一整年：从 2025 年秋分到 2026 年秋分。看昼夜分界线怎样随着季节来回摆动。' }
+};
+const RP_PANEL = { circle:'space', axis:'marble', jun:'midnight', dec:'marble' };
+const realFig = k => RP[RP_PANEL[k]] ? LabPhotos.figure(RP[RP_PANEL[k]]) : '';
+LabPhotos.render('#gallery', ['space','marble','midnight','stone','four','video'].map(k => RP[k]), { title:o('See the real thing','看看真实的样子'),
+  sub:o('Real photos of Earth from space and of the seasons on the ground. Click a picture to enlarge it; the video plays only when you press play.','从太空拍到的地球，和地面上的四季真实照片。点击图片可以放大；视频要你按下播放键才会播放。') });
+const MD = [31,28,31,30,31,30,31,31,30,31,30,31];
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const DEG = Math.PI / 180;
+const SE = window.SEAS = {
+  wrap: d => ((Math.round(d) % 365) + 365) % 365,
+  date(d){ d = SE.wrap(d); let m = 0; while (d >= MD[m]){ d -= MD[m]; m++; } return { m, day:d + 1 }; },
+  fmt(d){ const { m, day } = SE.date(d); return Lab.lang === 'zh' ? `${m + 1}月${day}日` : `${MON[m]} ${day}`; },
+  decl: d => 23.44 * Math.sin(2 * Math.PI * (d - 79) / 365),                       // Sun's declination (°)
+  noonAlt: (lat, dec) => 90 - Math.abs(lat - dec),                                   // noon Sun altitude (°)
+  dayLen(lat, dec){ const c = -Math.tan(lat * DEG) * Math.tan(dec * DEG); if (c <= -1) return 24; if (c >= 1) return 0; return 2 * Math.acos(c) / DEG / 15; },
+  dist: d => 149.6 * (1 - .0167 * .0167) / (1 + .0167 * Math.cos(2 * Math.PI * (d - 2) / 365)),   // million km
+  seasonN(d){ d = SE.wrap(d); return d >= 78 && d < 171 ? 'spring' : d >= 171 && d < 264 ? 'summer' : d >= 264 && d < 354 ? 'autumn' : 'winter'; },
+  opp: { spring:'autumn', summer:'winter', autumn:'spring', winter:'summer' },
+  SN: { spring:o('Spring','春季'), summer:o('Summer','夏季'), autumn:o('Autumn','秋季'), winter:o('Winter','冬季'), none:o('No seasons','没有四季') },
+  SC: { spring:'#8be28b', summer:'#ffd25a', autumn:'#ffa25a', winter:'#9fd3ff', none:'#cfd6e6' }
+};
+
+/* ===== Parts of the 3D model (bilingual) ===== */
+const PARTS = {
+  sun:{color:'#ffc93c', name:o('The Sun','太阳'), job:o('Source of light and heat','光和热的来源'),
+    facts:{en:['The Sun always lights exactly half of Earth. That half has daytime.','Sunlight takes about 8 minutes to reach Earth.','The real Sun is 109 times wider than Earth and about 150 million km away. This model is not to scale.'],zh:['太阳总是照亮地球的一半，被照亮的那一半是白天。','阳光到达地球大约需要 8 分钟。','真实的太阳直径是地球的 109 倍，距离地球约 1.5 亿千米。这个模型没有按比例绘制。']},
+    hint:o('The Sun stays put. Earth’s tilt and orbit make the seasons.','太阳不动，是地球的倾斜和公转造成了四季。'),
+    mix:o('The Sun does not get hotter in summer. Its energy output stays almost the same all year.','夏天太阳并没有变得更热，它全年放出的能量几乎不变。')},
+  earth:{color:'#3f8ae0', name:o('Earth','地球'), job:o('Spins once a day · orbits once a year','一天自转一圈 · 一年公转一圈'),
+    facts:{en:['Rotation: Earth spins west to east on its axis once every 24 hours. This causes day and night.','Revolution: Earth travels around the Sun once every 365¼ days. That is one year.','Because Earth spins toward the east, the Sun appears to rise in the east and set in the west.'],zh:['自转：地球绕地轴自西向东旋转，每 24 小时一圈，形成昼夜交替。','公转：地球绕太阳运行一圈约需 365¼ 天，也就是一年。','因为地球自西向东自转，所以太阳看起来东升西落。']},
+    hint:o('ROtation = ROlling in place (spin). REVolution = going aRound the Sun.','自转是“自己转”，公转是“绕着太阳转”。'),
+    mix:o('Day and night come from rotation, not from Earth going around the Sun.','昼夜交替是自转造成的，不是公转造成的。')},
+  axis:{color:'#ff5d73', name:o('Tilted axis (23.5°)','地轴（倾斜 23.5°）'), job:o('The real cause of the seasons','四季形成的真正原因'),
+    facts:{en:['Earth’s axis is tilted about 23.5° from “straight up” compared with its orbit.','The axis always points the same way in space, toward Polaris (the North Star), all year long.','So in June the north end leans toward the Sun, and in December it leans away.'],zh:['与公转轨道相比，地轴倾斜约 23.5°。','地轴在太空中的指向始终不变，一年到头都指向北极星。','所以 6 月地轴北端偏向太阳，12 月则偏离太阳。']},
+    hint:o('Tilt + orbit = seasons. Press “What if no tilt?” to test it.','倾斜 + 公转 = 四季。点“如果没有倾斜？”试一试。'),
+    mix:o('The axis does not swing back and forth. It keeps pointing at Polaris; only Earth’s position around the Sun changes.','地轴并不会来回摆动，它一直指向北极星，改变的只是地球在轨道上的位置。')},
+  equator:{color:'#ff9f43', name:o('Equator & tropics','赤道与南北回归线'), job:o('Where the Sun can be directly overhead','太阳可能直射的地带'),
+    facts:{en:['The equator (0°) divides Earth into the Northern and Southern Hemispheres.','On the June solstice the noon Sun is directly overhead at the Tropic of Cancer (23.5°N).','On the December solstice it is directly overhead at the Tropic of Capricorn (23.5°S). Outside the tropics the Sun is never straight overhead.'],zh:['赤道（0°）把地球分成北半球和南半球。','夏至日，正午太阳直射北回归线（23.5°N）。','冬至日，太阳直射南回归线（23.5°S）。在南北回归线之外，太阳永远不会直射头顶。']},
+    hint:o('The tropics are 23.5° from the equator, the same number as the tilt!','回归线离赤道 23.5°，正好等于地轴倾斜的角度！')},
+  circle:{color:'#c8f0ff', name:o('Day–night line','晨昏线'), job:o('Boundary between the lit half and the dark half','白天半球与黑夜半球的分界线'),
+    facts:{en:['Sunlight always lights half of Earth. The edge between day and night is called the circle of illumination.','As Earth rotates, places cross this line at sunrise and sunset.','In June the whole Arctic stays inside the lit half all day: 24 hours of daylight (the “midnight Sun”). Antarctica has 24 hours of night.'],zh:['太阳总是照亮地球的一半，白天与黑夜的分界线叫做晨昏线。','地球自转时，各地依次越过晨昏线，迎来日出或日落。','6 月整个北极圈内一整天都在白天一侧：出现极昼；而南极出现极夜。']},
+    hint:o('Half lit, always, just like the Moon.','永远只照亮一半，和月球一样。')},
+  beam:{color:'#ffe27a', name:o('Noon sunlight patches','正午阳光照射区'), job:o('Same light, different spread','同样的光，铺开的面积不同'),
+    facts:{en:['Each beam carries the same amount of sunlight. Gold = the northern city, pink = the southern city.','High Sun (direct rays): the light lands on a small patch, so it is concentrated and heats more.','Low Sun (slanted rays): the same light spreads over a bigger patch, so each square gets less energy.'],zh:['每一束光携带的阳光一样多。金色是北半球城市，粉色是南半球城市。','太阳高（直射）：光落在小块地面上，能量集中，升温多。','太阳低（斜射）：同样的光铺在更大的面积上，每块地面分到的能量更少。']},
+    hint:o('Flashlight straight down = small, bright spot. Tilted = big, dim spot.','手电筒竖直照，光斑小而亮；斜着照，光斑大而暗。')},
+  orbit:{color:'#8f9cff', name:o('Earth’s orbit','地球公转轨道'), job:o('Almost a perfect circle','几乎是正圆'),
+    facts:{en:['Earth’s distance from the Sun changes by only about 3%: from 147 to 152 million km.','Earth is closest (perihelion) around January 3, during northern winter, and farthest (aphelion) around July 4, during northern summer.','If distance caused seasons, both hemispheres would have summer at the same time. They don’t.'],zh:['日地距离只变化约 3%：在 1.47 亿千米到 1.52 亿千米之间。','地球在 1 月 3 日前后离太阳最近（近日点），正是北半球的冬天；7 月 4 日前后最远（远日点），正是北半球的夏天。','如果季节由距离决定，南北半球会同时过夏天，但事实上它们的季节相反。']},
+    hint:o('Closest in January, yet it’s cold in Georgia: distance is NOT the reason.','1 月离太阳最近，佐治亚州却很冷：距离不是原因。'),
+    mix:o('Seasons are not caused by distance from the Sun. The tilt is the cause.','四季不是由日地距离造成的，原因是地轴倾斜。')},
+  mar:{color:'#8be28b', day:78, name:o('March equinox','春分'), job:o('About March 20 · day = night','约 3 月 20 日 · 昼夜等长'),
+    facts:{en:['Neither hemisphere leans toward the Sun.','The noon Sun is directly over the equator.','Day and night are about 12 hours everywhere. Spring begins in the north, autumn in the south.'],zh:['南北半球都不偏向太阳。','正午太阳直射赤道。','全球各地昼夜几乎等长，约 12 小时。北半球春季开始，南半球秋季开始。']},
+    hint:o('“Equinox” means “equal night”.','“Equinox”的意思是“昼夜相等”。')},
+  jun:{color:'#ffd25a', day:171, name:o('June solstice','夏至'), job:o('About June 21 · longest day in the north','约 6 月 21 日 · 北半球白昼最长'),
+    facts:{en:['The north end of the axis leans toward the Sun.','The noon Sun is directly over the Tropic of Cancer (23.5°N).','Summer begins in the Northern Hemisphere; winter begins in the Southern Hemisphere. The Arctic has 24-hour daylight.'],zh:['地轴北端偏向太阳。','正午太阳直射北回归线（23.5°N）。','北半球夏季开始，南半球冬季开始。北极圈内出现极昼。']},
+    hint:o('Solstice = “Sun stands still”: the Sun reaches its highest noon point of the year in the north.','“至”就是“到了极点”：北半球正午太阳高度达到一年中的最高。')},
+  sep:{color:'#ffa25a', day:264, name:o('September equinox','秋分'), job:o('About September 22 · day = night','约 9 月 22 日 · 昼夜等长'),
+    facts:{en:['Again, neither hemisphere leans toward the Sun.','The noon Sun is directly over the equator.','Autumn begins in the north, spring in the south.'],zh:['南北半球又一次都不偏向太阳。','正午太阳直射赤道。','北半球秋季开始，南半球春季开始。']},
+    hint:o('Two equinoxes a year: March and September.','一年有两个“分”：春分和秋分。')},
+  dec:{color:'#9fd3ff', day:354, name:o('December solstice','冬至'), job:o('About December 21 · shortest day in the north','约 12 月 21 日 · 北半球白昼最短'),
+    facts:{en:['The north end of the axis leans away from the Sun (it still points at Polaris!).','The noon Sun is directly over the Tropic of Capricorn (23.5°S).','Winter begins in the north; summer begins in the south, so people in Australia often spend Christmas at the beach.'],zh:['地轴北端偏离太阳（但它仍然指向北极星！）。','正午太阳直射南回归线（23.5°S）。','北半球冬季开始，南半球夏季开始，所以澳大利亚人常在海滩过圣诞节。']},
+    hint:o('Two weeks later, Earth is at its closest point to the Sun, in winter!','两周后地球到达近日点，却正值北半球冬天！'),
+    mix:o('Winter is not because Earth is far away. In December Earth is actually near its closest point to the Sun.','冬天并不是因为地球离太阳远。12 月地球其实接近离太阳最近的位置。')}
+};
+const ORDER = ['sun','earth','axis','equator','circle','beam','orbit','mar','jun','sep','dec'];
+
+/* ===== Story: why seasons? ===== */
+const STORY = [
+  {en:'1 · Earth spins once a day (rotation) and travels around the Sun once a year (revolution). Watch the red axis: it always points the same way, toward Polaris.',zh:'1 · 地球一天自转一圈，一年绕太阳公转一圈。注意红色的地轴：它始终指向同一个方向——北极星。'},
+  {en:'2 · June solstice: the Northern Hemisphere leans toward the Sun. Its sunlight is direct and its days are long: summer in the north, winter in the south.',zh:'2 · 夏至：北半球偏向太阳，阳光直射、白天长：北半球是夏天，南半球是冬天。'},
+  {en:'3 · September equinox: neither hemisphere leans toward the Sun. Day and night are about 12 hours long everywhere.',zh:'3 · 秋分：南北半球都不偏向太阳，全球昼夜几乎都是 12 小时。'},
+  {en:'4 · December solstice: the Northern Hemisphere leans away. Its sunlight is slanted and spread out and its days are short: winter in the north, summer in the south.',zh:'4 · 冬至：北半球偏离太阳，阳光斜射、能量分散、白天短：北半球是冬天，南半球是夏天。'},
+  {en:'5 · Surprise! Earth is closest to the Sun around January 3, in the middle of northern winter. So distance is NOT the cause of seasons.',zh:'5 · 想不到吧！地球在 1 月 3 日前后离太阳最近，正是北半球的隆冬。所以距离并不是四季的成因。'},
+  {en:'6 · What if Earth had no tilt? Each place would get the same sunlight all year. No tilt → no seasons!',zh:'6 · 如果地轴不倾斜会怎样？每个地方全年得到的阳光都一样。没有倾斜 → 没有四季！'}
+];
+
+/* ===== Info panel / selection ===== */
+const App = window.SEASONS = { sel:null, three:null };
+App.select = (k, from3D) => { App.sel = k; renderInfo(); renderChips(); if (!from3D && App.three) App.three.focus(k); };
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel;
+  if (!k){
+    box.innerHTML = `<span class="tag">${Lab.L(o('Big question','核心问题'))}</span>
+      <h3>${Lab.L(o('Why do we have seasons?','为什么会有四季？'))}</h3>
+      <p class="muted" style="margin:0">${Lab.L(o('Drag the date slider and watch the two sunlight patches on Earth: gold for a northern city and pink for a southern city at the same latitude. The box at the lower left shows how high the noon Sun climbs in each sky.','拖动日期滑块，观察地球上的两块阳光照射区：金色代表北半球的城市，粉色代表同纬度的南半球城市。左下角的小窗显示两地正午太阳有多高。'))}</p>
+      <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(o('Seasons happen because Earth’s axis is tilted 23.5°. The hemisphere tilted toward the Sun gets more direct sunlight and longer days.','四季的形成是因为地轴倾斜 23.5°。偏向太阳的半球得到更直射的阳光和更长的白天。'))}</div>
+      <div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(o('It is not about distance. Earth is closest to the Sun in January!','与距离无关。地球在 1 月离太阳最近！'))}</span></div>
+      <div class="nav"><button id="startBtn">${Lab.L(o('Start with the Sun ▶','从太阳开始 ▶'))}</button></div>`;
+    Lab.$('#startBtn').onclick = () => App.select('sun');
+    return;
+  }
+  const p = PARTS[k], i = ORDER.indexOf(k);
+  box.innerHTML = `<span class="tag">${Lab.L(p.day != null ? o('Point in the orbit','轨道上的位置') : o('Part of the model','模型的组成'))}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>${realFig(k)}
+    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts), Lab.L(p.hint)].join('. '));
+  Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
+  Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
+}
+function renderChips(){
+  Lab.$('#chips').innerHTML = ORDER.map(k => `<button class="chip ${App.sel===k?'on':''}" data-k="${k}"><i style="background:${PARTS[k].color}"></i>${Lab.L(PARTS[k].name)}</button>`).join('');
+  Lab.$$('#chips .chip').forEach(c => c.onclick = () => App.select(c.dataset.k));
+}
+Lab.onLang(() => { renderInfo(); renderChips(); });
+
+/* ===== Flashlight / Sun-angle simulation ===== */
+(function(){
+  const cv = Lab.$('#beamCv'), yc = Lab.$('#yearCv'), latIn = Lab.$('#sLat'), dayIn = Lab.$('#sDay');
+  const PLACES = [ {lat:34, n:o('Atlanta 34°N','亚特兰大 34°N')}, {lat:0, n:o('Equator 0°','赤道 0°')}, {lat:-34, n:o('Sydney 34°S','悉尼 34°S')}, {lat:40, n:o('Beijing 40°N','北京 40°N')}, {lat:70, n:o('Arctic 70°N','北极圈内 70°N')} ];
+  const DATES = [ {d:78, n:PARTS.mar.name}, {d:171, n:PARTS.jun.name}, {d:264, n:PARTS.sep.name}, {d:354, n:PARTS.dec.name} ];
+  const latTxt = l => l === 0 ? '0°' : Math.abs(l) + '°' + (l > 0 ? 'N' : 'S');
+  function buttons(){
+    const lat = +latIn.value, d = +dayIn.value;
+    Lab.$('#placeBtns').innerHTML = PLACES.map((p, i) => `<button data-i="${i}" class="${p.lat === lat ? 'on' : ''}">${Lab.L(p.n)}</button>`).join('');
+    Lab.$('#dateBtns').innerHTML = DATES.map((p, i) => `<button data-i="${i}" class="${p.d === d ? 'on' : ''}">${Lab.L(p.n)}</button>`).join('');
+    Lab.$$('#placeBtns button').forEach(b => b.onclick = () => { latIn.value = PLACES[b.dataset.i].lat; update(); });
+    Lab.$$('#dateBtns button').forEach(b => b.onclick = () => { dayIn.value = DATES[b.dataset.i].d; update(); });
+  }
+  function fit(c){ const r = c.getBoundingClientRect(), k = Math.min(devicePixelRatio || 1, 2); if (c.width !== Math.round(r.width * k)){ c.width = Math.round(r.width * k); c.height = Math.round(r.height * k); } const g = c.getContext('2d'); g.setTransform(k, 0, 0, k, 0, 0); return { g, W:r.width, H:r.height }; }
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  function drawBeam(alt){
+    const { g, W, H } = fit(cv); if (!W) return;
+    const ink = css('--ink'), ink2 = css('--ink-2'), line = css('--line'), s2 = css('--surface-2');
+    g.clearRect(0, 0, W, H);
+    const topH = H * .56, gy = topH - 34, cx = W * .5, bw = 56;
+    // sky
+    const sky = g.createLinearGradient(0, 0, 0, gy); const day = alt > 0;
+    sky.addColorStop(0, day ? '#6fb4ff' : '#0b1430'); sky.addColorStop(1, day ? '#cfe8ff' : '#26345e');
+    g.fillStyle = sky; g.fillRect(0, 0, W, gy);
+    g.fillStyle = '#6aa84f'; g.fillRect(0, gy, W, 10); g.fillStyle = '#8a6a43'; g.fillRect(0, gy + 10, W, topH - gy - 10);
+    g.font = '700 13px Nunito, sans-serif'; g.fillStyle = day ? '#14213d' : '#eaf0fb'; g.textAlign = 'left';
+    g.fillText(Lab.L(o('Side view: sunlight at noon','侧视图：正午的阳光')), 12, 20);
+    if (day){
+      const a = Math.max(alt, 3) * DEG, dx = Math.cos(a), dy = -Math.sin(a), L = Math.min(bw / Math.sin(a), W * 1.6), far = 600;
+      const x1 = cx - L / 2, x2 = cx + L / 2;
+      // beam polygon from the ground back toward the Sun
+      g.fillStyle = 'rgba(255,214,80,.55)'; g.beginPath(); g.moveTo(x1, gy); g.lineTo(x2, gy); g.lineTo(x2 + dx * far, gy + dy * far); g.lineTo(x1 + dx * far, gy + dy * far); g.closePath(); g.fill();
+      g.strokeStyle = 'rgba(255,170,0,.9)'; g.lineWidth = 1.5;
+      for (let k = 0; k <= 4; k++){ const x = x1 + (x2 - x1) * k / 4; g.beginPath(); g.moveTo(x, gy); g.lineTo(x + dx * far, gy + dy * far); g.stroke(); }
+      // Sun icon along the beam
+      const sx = cx + dx * Math.min(gy * .8 / Math.max(Math.sin(a), .2), W * .42), sy = gy + dy * Math.min(gy * .8 / Math.max(Math.sin(a), .2), W * .42);
+      g.fillStyle = '#ffcf3a'; g.beginPath(); g.arc(Math.min(sx, W - 22), Math.max(sy, 24), 16, 0, 7); g.fill();
+      // angle arc
+      g.strokeStyle = '#14213d'; g.lineWidth = 2; g.beginPath(); g.arc(x2, gy, 30, -a, 0); g.stroke();
+      g.fillStyle = '#14213d'; g.font = '800 14px Nunito, sans-serif'; g.fillText(Math.round(alt) + '°', x2 + 34, gy - 8);
+      // spot bracket
+      g.strokeStyle = '#ffffff'; g.lineWidth = 3; g.beginPath(); g.moveTo(Math.max(x1, 4), gy + 4); g.lineTo(Math.min(x2, W - 4), gy + 4); g.stroke();
+    } else {
+      g.fillStyle = '#eaf0fb'; g.font = '800 15px Nunito, sans-serif'; g.textAlign = 'center';
+      g.fillText(Lab.L(o('🌑 The Sun does not rise today (polar night)','🌑 今天太阳不升起（极夜）')), cx, gy / 2 + 10);
+    }
+    // top view of the spot on a grid of squares
+    const y0 = topH + 8, h2 = H - y0 - 8; g.fillStyle = s2; g.fillRect(8, y0, W - 16, h2);
+    g.fillStyle = ink2; g.font = '700 13px Nunito, sans-serif'; g.textAlign = 'left';
+    g.fillText(Lab.L(o('Top view: the same light on 1 m² squares','俯视图：同样的光落在 1 平方米的方格上')), 16, y0 + 18);
+    const cell = 22, gx0 = 16, gy0 = y0 + 28, cols = Math.floor((W - 32) / cell), rows = Math.floor((h2 - 36) / cell);
+    const ecx = gx0 + cols * cell / 2, ecy = gy0 + rows * cell / 2, rw = bw / 2, rl = day ? Math.min(bw / Math.sin(Math.max(alt, 3) * DEG) / 2, cols * cell / 2 + 40) : 0;
+    const pow = day ? Math.sin(alt * DEG) : 0;
+    if (day){
+      g.fillStyle = `rgba(255,196,40,${.18 + .72 * pow})`; g.beginPath(); g.ellipse(ecx, ecy, rl, rw, 0, 0, 7); g.fill();
+      g.strokeStyle = 'rgba(230,150,0,.9)'; g.lineWidth = 2; g.stroke();
+    }
+    g.strokeStyle = line; g.lineWidth = 1;
+    for (let c = 0; c <= cols; c++){ g.beginPath(); g.moveTo(gx0 + c * cell, gy0); g.lineTo(gx0 + c * cell, gy0 + rows * cell); g.stroke(); }
+    for (let r = 0; r <= rows; r++){ g.beginPath(); g.moveTo(gx0, gy0 + r * cell); g.lineTo(gx0 + cols * cell, gy0 + r * cell); g.stroke(); }
+    g.fillStyle = ink; g.font = '800 13px Nunito, sans-serif'; g.textAlign = 'right';
+    if (day) g.fillText(Lab.L(o('brightness per square: ','每格亮度：')) + Math.round(pow * 100) + '%', W - 18, y0 + 18);
+  }
+  function drawYear(lat, d){
+    const { g, W, H } = fit(yc); if (!W) return;
+    const ink = css('--ink'), ink2 = css('--ink-2'), line = css('--line'), brand = css('--brand');
+    g.clearRect(0, 0, W, H);
+    const L = 34, R = 10, T = 22, B = 22, X = x => L + (W - L - R) * x / 365, Y = h => T + (H - T - B) * (1 - h / 24);
+    g.strokeStyle = line; g.lineWidth = 1; g.font = '700 11px Nunito, sans-serif'; g.fillStyle = ink2; g.textAlign = 'right';
+    [0, 12, 24].forEach(h => { g.beginPath(); g.setLineDash(h === 12 ? [4, 4] : []); g.moveTo(L, Y(h)); g.lineTo(W - R, Y(h)); g.stroke(); g.fillText(h + 'h', L - 4, Y(h) + 4); });
+    g.setLineDash([]); g.textAlign = 'center';
+    let acc = 0; for (let m = 0; m < 12; m++){ if (m % 2 === 0) g.fillText(Lab.lang === 'zh' ? (m + 1) + '月' : MON[m], X(acc + 15), H - 6); acc += MD[m]; }
+    g.strokeStyle = '#f0a500'; g.lineWidth = 2.5; g.beginPath();
+    for (let x = 0; x <= 365; x += 2){ const h = SE.dayLen(lat, SE.decl(x)); x ? g.lineTo(X(x), Y(h)) : g.moveTo(X(x), Y(h)); } g.stroke();
+    const hNow = SE.dayLen(lat, SE.decl(d));
+    g.fillStyle = brand; g.beginPath(); g.arc(X(d), Y(hNow), 5, 0, 7); g.fill();
+    g.fillStyle = ink; g.textAlign = 'left'; g.font = '800 12px Nunito, sans-serif';
+    g.fillText(Lab.L(o('Hours of daylight through the year','全年白昼时长变化')), L, 14);
+  }
+  function update(){
+    const lat = +latIn.value, d = +dayIn.value, dec = SE.decl(d), alt = SE.noonAlt(lat, dec), h = SE.dayLen(lat, dec);
+    Lab.$('#sLatLbl').textContent = latTxt(lat); Lab.$('#sDayLbl').textContent = SE.fmt(d);
+    const up = alt > 0;
+    Lab.$('#cAlt').textContent = up ? Math.round(alt) + '°' : '—';
+    Lab.$('#cSpot').textContent = up ? (1 / Math.sin(Math.max(alt, 1) * DEG)).toFixed(1) + '×' : '—';
+    Lab.$('#cPow').textContent = up ? Math.round(Math.sin(alt * DEG) * 100) + '%' : '0%';
+    Lab.$('#cDay').textContent = h.toFixed(1) + (Lab.lang === 'zh' ? ' 小时' : ' h');
+    const sN = SE.seasonN(d), season = lat > 0 ? sN : lat < 0 ? SE.opp[sN] : null;
+    let kind;
+    if (!up) kind = o('No sunlight at all today: polar night. It is deep winter here.','今天完全没有阳光：极夜，这里正值隆冬。');
+    else if (alt >= 60) kind = o('The rays are close to direct: the light is concentrated on a small spot.','光线接近直射：光集中在一小块地面上。');
+    else if (alt >= 35) kind = o('The rays are somewhat slanted: the spot is a bit larger and weaker.','光线有些倾斜：光斑变大，能量变弱。');
+    else kind = o('The rays are very slanted: the same light spreads over a big area, so each square gets little energy.','光线非常倾斜：同样的光铺满大片地面，每块地面得到的能量很少。');
+    const dayTxt = h >= 23.9 ? o(' The Sun never sets: midnight Sun!',' 太阳整天不落：极昼！') : h > 12.3 ? o(' Days are longer than nights, adding extra heating time.',' 白天比黑夜长，增加了受热时间。') : h < 11.7 && h > 0 ? o(' Nights are longer than days.',' 黑夜比白天长。') : h > 0 ? o(' Day and night are almost equal.',' 昼夜几乎等长。') : o('','');
+    const seasonTxt = season ? (Lab.lang === 'zh' ? ` 季节:${Lab.L(SE.SN[season])}。` : ` Season: ${Lab.L(SE.SN[season])}.`) : Lab.L(o(' At the equator, seasons are mostly wet and dry, not hot and cold.',' 在赤道，季节主要表现为雨季和旱季，而不是冷热变化。'));
+    const msg = Lab.$('#simMsg'); msg.textContent = Lab.L(kind) + Lab.L(dayTxt) + seasonTxt; msg.className = 'result';
+    buttons(); drawBeam(alt); drawYear(lat, d);
+  }
+  latIn.oninput = dayIn.oninput = update;
+  new ResizeObserver(() => requestAnimationFrame(update)).observe(Lab.$("#beamBox"));
+  window.addEventListener('labtheme', update);
+  Lab.onLang(update);
+})();
+
+/* ===== Quiz ===== */
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('What causes the seasons on Earth?','地球上四季形成的原因是什么？'), options:[o('The tilt of Earth’s axis as Earth orbits the Sun','地球公转时地轴是倾斜的'),o('Earth’s changing distance from the Sun','日地距离的变化'),o('The Sun getting hotter and cooler','太阳时冷时热'),o('Clouds blocking sunlight in winter','冬天云层挡住阳光')], answer:0, explain:o('The tilt makes each hemisphere lean toward the Sun for part of the year, giving it more direct sunlight and longer days.','地轴倾斜使每个半球在一年中有一段时间偏向太阳，得到更直射的阳光和更长的白天。')},
+  {q:o('What causes day and night?','昼夜交替是由什么引起的？'), options:[o('Earth rotating on its axis','地球绕地轴自转'),o('Earth revolving around the Sun','地球绕太阳公转'),o('The Moon blocking the Sun','月球挡住太阳'),o('The Sun moving around Earth','太阳绕地球转')], answer:0, explain:o('One rotation takes about 24 hours. The half of Earth facing the Sun has day.','自转一圈约 24 小时，朝向太阳的那一半是白天。')},
+  {q:o('How long does Earth take to revolve once around the Sun?','地球绕太阳公转一圈需要多长时间？'), options:[o('About 365¼ days','约 365¼ 天'),o('24 hours','24 小时'),o('29.5 days','29.5 天'),o('7 days','7 天')], answer:0, explain:o('One revolution is one year. The extra ¼ day becomes a leap day every 4 years.','公转一圈就是一年，多出来的 ¼ 天每 4 年凑成一个闰日。')},
+  {q:o('About how much is Earth’s axis tilted?','地轴大约倾斜多少度？'), options:[o('23.5°','23.5°'),o('5°','5°'),o('45°','45°'),o('90°','90°')], answer:0},
+  {q:o('Why is it summer in the Northern Hemisphere in June?','为什么 6 月北半球是夏天？'), options:[o('It is tilted toward the Sun, so it gets more direct sunlight and longer days','它偏向太阳，得到更直射的阳光和更长的白天'),o('Earth is closest to the Sun in June','6 月地球离太阳最近'),o('The Southern Hemisphere blocks the cold','南半球挡住了寒冷'),o('The Sun is bigger in June','6 月太阳更大')], answer:0},
+  {q:o('When it is summer in Georgia (USA), what season is it in Australia?','佐治亚州（美国）是夏天时，澳大利亚是什么季节？'), options:[o('Winter','冬季'),o('Summer','夏季'),o('Spring','春季'),o('Autumn','秋季')], answer:0, explain:o('The hemispheres have opposite seasons because when one leans toward the Sun, the other leans away.','南北半球季节相反，因为一个半球偏向太阳时，另一个半球就偏离太阳。')},
+  {q:o('Why do direct (high-angle) rays heat the ground more than slanted rays?','为什么直射的阳光比斜射的阳光更能使地面升温？'), options:[o('The same energy is concentrated on a smaller area','同样的能量集中在更小的面积上'),o('Direct rays travel faster','直射光传播得更快'),o('Direct rays are a different color','直射光颜色不同'),o('Direct rays come from a closer Sun','直射光来自更近的太阳')], answer:0, explain:o('Slanted light spreads over a larger area, so each square meter gets less energy, just like a tilted flashlight.','斜射光铺开的面积更大，每平方米得到的能量更少，就像斜着照的手电筒。')},
+  {q:o('What is true on an equinox?','春分或秋分这一天，下列哪项正确？'), options:[o('Day and night are about 12 hours each everywhere','全球各地昼夜都约 12 小时'),o('The North Pole has 24 hours of daylight','北极有 24 小时白昼'),o('Earth is closest to the Sun','地球离太阳最近'),o('The Sun is directly over the Tropic of Cancer','太阳直射北回归线')], answer:0, explain:o('On an equinox the Sun is directly over the equator and neither hemisphere leans toward it.','春分和秋分时太阳直射赤道，南北半球都不偏向太阳。')},
+  {q:o('When is Earth closest to the Sun?','地球什么时候离太阳最近？'), options:[o('Early January','1 月初'),o('Early July','7 月初'),o('March 20','3 月 20 日'),o('September 22','9 月 22 日')], answer:0, explain:o('Perihelion is around January 3, which is winter in the north. That proves distance does not cause seasons.','近日点在 1 月 3 日前后，正是北半球的冬天。这说明距离不是四季的成因。')},
+  {q:o('On the June solstice, where is the noon Sun directly overhead?','夏至日正午，太阳直射哪里？'), options:[o('Tropic of Cancer (23.5°N)','北回归线（23.5°N）'),o('The equator','赤道'),o('Tropic of Capricorn (23.5°S)','南回归线（23.5°S）'),o('The North Pole','北极点')], answer:0},
+  {q:o('As Earth orbits the Sun, its axis always points toward…','地球公转时，地轴始终指向……'), options:[o('Polaris, the North Star','北极星'),o('The Sun','太阳'),o('The Moon','月球'),o('A different star each month','每个月不同的恒星')], answer:0, explain:o('Because the axis keeps the same direction, the north end leans toward the Sun in June and away in December.','因为地轴方向不变，所以 6 月地轴北端偏向太阳，12 月偏离太阳。')},
+  {q:o('If Earth’s axis were not tilted at all, what would happen?','如果地轴完全不倾斜，会发生什么？'), options:[o('There would be no seasons','就没有四季了'),o('Seasons would be stronger','四季变化会更明显'),o('There would be no day and night','就没有昼夜了'),o('A year would be shorter','一年会变短')], answer:0, explain:o('Each place would get the same Sun angle and day length all year. Try the “What if no tilt?” button.','每个地方全年的太阳高度和昼长都不变。试试“如果没有倾斜？”按钮。')}
+], { count:10 });
+
+/* ===== Sort game ===== */
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'yes',en:'Helps cause seasons',zh:'是四季的成因'},{id:'no',en:'Does NOT cause seasons',zh:'不是四季的成因'}],
+  items:[
+    {en:'Earth’s axis is tilted 23.5°',zh:'地轴倾斜 23.5°',bin:'yes',color:'#ff5d73'},
+    {en:'The axis keeps pointing at Polaris as Earth orbits',zh:'公转时地轴始终指向北极星',bin:'yes',color:'#ff5d73'},
+    {en:'Direct vs. slanted sunlight',zh:'阳光直射与斜射',bin:'yes',color:'#ffd25a'},
+    {en:'Longer or shorter hours of daylight',zh:'白昼时间的长短变化',bin:'yes',color:'#ffd25a'},
+    {en:'Earth revolving around the Sun',zh:'地球绕太阳公转',bin:'yes',color:'#3f8ae0'},
+    {en:'Earth’s distance from the Sun',zh:'日地距离的远近',bin:'no'},
+    {en:'Earth rotating once a day',zh:'地球每天自转一圈',bin:'no'},
+    {en:'The Sun giving off more heat in summer',zh:'太阳夏天放出更多热量',bin:'no'},
+    {en:'Clouds and weather',zh:'云和天气',bin:'no'},
+    {en:'The phases of the Moon',zh:'月相的变化',bin:'no'}
+  ]
+});
+</script>
+<script>/*deep*/
+(function(){
+  const o = (en, zh) => ({en, zh}), $ = Lab.$, isZh = () => Lab.lang === 'zh', S = window.SEAS, R = Math.PI / 180;
+  const cssv = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const isDark = () => { const r = document.documentElement; return r.dataset.theme ? r.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches; };
+  /* ---- Go deeper cards from the catalog ---- */
+  const dp = document.getElementById('deeper'), AST = (window.LAB_CATALOG || []).find(s => s.id === 'astronomy');
+  if (dp && AST) dp.innerHTML = dp.dataset.deeper.split(',').map(id => { const t = AST.topics.find(x => x.id === id); return t ? `<a class="linkcard" href="${id}.html" data-lab-link><b data-zh="${t.zh}">${t.en}</b><span data-zh="${t.d.zh}">${t.d.en}</span><small data-zh="深入专题 →">Deep dive →</small></a>` : ''; }).join('');
+
+  /* ---- Sun position: local east/north/up unit vector for latitude φ, declination δ, solar hour t ---- */
+  const clampLat = l => Math.max(-89.9, Math.min(89.9, l));
+  function sunVec(lat, dec, t){
+    const f = clampLat(lat) * R, d = dec * R, H = (t - 12) * 15 * R;
+    return { e:-Math.cos(d) * Math.sin(H), n:Math.sin(d) * Math.cos(f) - Math.cos(d) * Math.cos(H) * Math.sin(f), u:Math.sin(d) * Math.sin(f) + Math.cos(d) * Math.cos(H) * Math.cos(f) };
+  }
+  const altAz = v => ({ alt:Math.asin(Math.max(-1, Math.min(1, v.u))) / R, az:((Math.atan2(v.e, v.n) / R) + 360) % 360 });
+  // sunrise hour angle with refraction + solar radius (−0.833°); returns hours from noon, or 12 (never sets) / 0 (never rises)
+  function halfDay(lat, dec){ const f = clampLat(lat) * R, d = dec * R, c = (Math.sin(-.833 * R) - Math.sin(f) * Math.sin(d)) / (Math.cos(f) * Math.cos(d)); return c <= -1 ? 12 : c >= 1 ? 0 : Math.acos(c) / R / 15; }
+  const hm = h => { h = ((h % 24) + 24) % 24; let H = Math.floor(h), M = Math.round((h - H) * 60); if (M === 60){ H++; M = 0; } return `${H}:${String(M).padStart(2, '0')}`; };
+  const dur = h => { const tm = Math.round(h * 60), H = Math.floor(tm / 60), M = tm % 60; return isZh() ? `${H} 小时 ${M} 分` : `${H}h ${M}m`; };
+  const DIRS = { en:['N','NE','E','SE','S','SW','W','NW'], zh:['北','东北','东','东南','南','西南','西','西北'] };
+  const compass = az => Lab.L(DIRS)[Math.round(az / 45) % 8];
+  const latTxt = l => Math.abs(l) < .05 ? '0°' : (isZh() ? `${l > 0 ? '北纬' : '南纬'} ${Math.abs(l).toFixed(Math.abs(l) % 1 ? 1 : 0)}°` : `${Math.abs(l).toFixed(Math.abs(l) % 1 ? 1 : 0)}°${l > 0 ? 'N' : 'S'}`);
+  const PLACES = [ {lat:33.7, n:o('Atlanta','亚特兰大')}, {lat:0, n:o('Equator (Quito)','赤道（基多）')}, {lat:39.9, n:o('Beijing','北京')}, {lat:64.8, n:o('Fairbanks, Alaska','阿拉斯加费尔班克斯')}, {lat:-33.9, n:o('Sydney','悉尼')}, {lat:90, n:o('North Pole','北极点')} ];
+  const st = { lat:33.7, day:171, hour:15, run:false, last:0 };
+  const pathBox = $('#pathBox'), pathCv = $('#pathCv'), shBox = $('#shadowBox'), shCv = $('#shadowCv'), dlBox = $('#dlBox'), dlCv = $('#dlCv');
+  function fit(cv, box){ const dpr = Math.min(devicePixelRatio || 1, 2), W = box.clientWidth, H = box.clientHeight; if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)){ cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); } const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H); return { g, W, H }; }
+
+  /* ---- Sky panorama ---- */
+  function drawPath(){
+    const { g, W, H } = fit(pathCv, pathBox); if (!W) return;
+    const center = st.lat >= 0 ? 180 : 0, hor = H * .84, top = 30, X = az => ((az - center + 540) % 360) / 360 * W, Y = alt => hor - (hor - top) * alt / 90;
+    const sky = g.createLinearGradient(0, top, 0, hor); sky.addColorStop(0, isDark() ? '#0d1a3a' : '#9cc8f2'); sky.addColorStop(1, isDark() ? '#22345e' : '#dcecfb');
+    g.fillStyle = sky; g.fillRect(0, 0, W, hor); g.fillStyle = isDark() ? '#24331f' : '#9fc58a'; g.fillRect(0, hor, W, H - hor);
+    g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 1; g.font = '700 11px Nunito'; g.fillStyle = isDark() ? '#c9d4ec' : '#33476e'; g.textAlign = 'left';
+    [30, 60].forEach(a => { g.beginPath(); g.moveTo(0, Y(a)); g.lineTo(W, Y(a)); g.stroke(); g.fillText(a + '°', 4, Y(a) - 3); });
+    g.textAlign = 'center'; g.fillStyle = isDark() ? '#e6eedd' : '#1e3313'; g.font = '800 13px Nunito';
+    for (let k = 0; k < 8; k++){ const x = X(k * 45); if (x > 8 && x < W - 8) g.fillText(Lab.L(DIRS)[k], x, hor + 18); }
+    const arc = (dayN, color, width, dash) => {
+      const dec = S.decl(dayN); g.strokeStyle = color; g.lineWidth = width; g.setLineDash(dash || []); g.beginPath(); let pen = false, lx = 0;
+      for (let t = 0; t <= 24.001; t += .05){ const a = altAz(sunVec(st.lat, dec, t)); if (a.alt < -.8){ pen = false; continue; } const x = X(a.az), y = Y(a.alt);
+        if (pen && Math.abs(x - lx) < W / 2) g.lineTo(x, y); else g.moveTo(x, y); pen = true; lx = x; }
+      g.stroke(); g.setLineDash([]);
+    };
+    arc(171, 'rgba(235,104,52,.75)', 1.5, [5, 4]); arc(78, 'rgba(120,120,120,.75)', 1.5, [5, 4]); arc(354, 'rgba(42,120,214,.85)', 1.5, [5, 4]);
+    arc(st.day, isDark() ? '#ffd25a' : '#c98500', 3);
+    const now = altAz(sunVec(st.lat, S.decl(st.day), st.hour));
+    if (now.alt > -6){ const x = X(now.az), y = Y(Math.max(now.alt, -4)); g.fillStyle = '#ffb43a'; g.shadowColor = '#ff9a2a'; g.shadowBlur = 18; g.beginPath(); g.arc(x, y, 9, 0, 7); g.fill(); g.shadowBlur = 0; }
+    // horizon line drawn on top so a setting Sun is cut by it
+    g.fillStyle = isDark() ? '#24331f' : '#9fc58a'; g.fillRect(0, hor, W, 4);
+    g.font = '700 11px Nunito'; g.textAlign = 'left'; g.fillStyle = isDark() ? '#dfe7f7' : '#14213d';
+    const key = [[isDark() ? "#ffd25a" : "#c98500", (isZh() ? "所选：" : "Chosen: ") + S.fmt(st.day)], ['rgba(235,104,52,.9)', Lab.L(o('Jun 21','6月21日'))], ['rgba(120,120,120,.9)', Lab.L(o('Mar 20 / Sep 22','3月20日 / 9月22日'))], ['rgba(42,120,214,.95)', Lab.L(o('Dec 21','12月21日'))]];
+    let kx = 8; key.forEach(([c, t]) => { g.fillStyle = c; g.fillRect(kx, 9, 14, 3); g.fillStyle = isDark() ? '#dfe7f7' : '#14213d'; g.fillText(t, kx + 18, 15); kx += 26 + g.measureText(t).width; });
+    if (now.alt <= -6){ g.textAlign = 'center'; g.font = '800 14px Nunito'; g.fillStyle = isDark() ? '#dfe7f7' : '#14213d'; g.fillText(Lab.L(o('🌙 The Sun is below the horizon now','🌙 此刻太阳在地平线以下')), W / 2, top + 30); }
+  }
+  /* ---- Shadow of a 1 m stick (top view, north up) ---- */
+  function drawShadow(){
+    const { g, W, H } = fit(shCv, shBox); if (!W) return;
+    const cx = W / 2, cy = H / 2, M = Math.min(W, H) / 2 - 22, k = M / 4;     // 4 m of shadow fits
+    g.strokeStyle = cssv('--line'); g.lineWidth = 1; [1, 2, 3, 4].forEach(r => { g.beginPath(); g.arc(cx, cy, r * k, 0, 7); g.stroke(); });
+    g.fillStyle = cssv('--ink-2'); g.font = '700 10px Nunito'; g.textAlign = 'left'; [1, 2, 3, 4].forEach(r => g.fillText(r + ' m', cx + r * k * .71 + 2, cy - r * k * .71));
+    g.font = '800 13px Nunito'; g.textAlign = 'center'; g.fillStyle = cssv('--ink');
+    g.fillText(Lab.L(DIRS)[0], cx, cy - M - 6); g.fillText(Lab.L(DIRS)[4], cx, cy + M + 16); g.fillText(Lab.L(DIRS)[2], cx + M + 12, cy + 4); g.fillText(Lab.L(DIRS)[6], cx - M - 12, cy + 4);
+    const dec = S.decl(st.day), tip = t => { const v = sunVec(st.lat, dec, t), a = altAz(v); if (a.alt < 3) return null; const L = 1 / Math.tan(a.alt * R), h = Math.hypot(v.e, v.n) || 1; return [cx - L * v.e / h * k, cy + L * v.n / h * k, L]; };
+    g.save(); g.beginPath(); g.rect(0, 0, W, H); g.clip();
+    g.setLineDash([2, 4]); g.strokeStyle = '#c98500'; g.lineWidth = 2; g.beginPath(); let pen = false;
+    for (let t = 0; t <= 24; t += .05){ const p = tip(t); if (!p || p[2] > 6){ pen = false; continue; } pen ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]); pen = true; }
+    g.stroke(); g.setLineDash([]);
+    for (let t = 6; t <= 18; t += 1){ const p = tip(t); if (p && p[2] <= 6){ g.fillStyle = '#c98500'; g.beginPath(); g.arc(p[0], p[1], 2.5, 0, 7); g.fill(); if (t % 3 === 0){ g.fillStyle = cssv('--ink-2'); g.font = '700 10px Nunito'; g.fillText(t + ':00', p[0], p[1] - 6); } } }
+    const p = tip(st.hour);
+    if (p){ g.strokeStyle = cssv('--ink'); g.globalAlpha = .55; g.lineWidth = 5; g.lineCap = 'round'; g.beginPath(); g.moveTo(cx, cy); g.lineTo(p[0], p[1]); g.stroke(); g.globalAlpha = 1; g.lineCap = 'butt'; }
+    g.restore();
+    g.fillStyle = '#8a5a2b'; g.beginPath(); g.arc(cx, cy, 5, 0, 7); g.fill();
+    if (!p){ g.fillStyle = cssv('--ink-2'); g.font = '700 13px Nunito'; g.fillText(Lab.L(o('No shadow now (Sun down or too low)','现在没有影子（太阳落山或太低）')), cx, H - 8); }
+  }
+  /* ---- Data figure: day length through the year at six latitudes ---- */
+  const DL = [ {lat:0, n:o("0° Equator","0° 赤道"), s:o("Equator","赤道")}, {lat:20, n:o("20°N Hawaii","北纬 20° 夏威夷"), s:o("Hawaii","夏威夷")}, {lat:33.7, n:o("34°N Atlanta","北纬 34° 亚特兰大"), s:o("Atlanta","亚特兰大")}, {lat:47.6, n:o("48°N Seattle","北纬 48° 西雅图"), s:o("Seattle","西雅图")}, {lat:64.8, n:o("65°N Fairbanks","北纬 65° 费尔班克斯"), s:o("Fairbanks","费尔班克斯")} ];
+  const PAL = { light:['#2a78d6','#eb6834','#1baf7a','#eda100','#e87ba4'], dark:['#3987e5','#d95926','#199e70','#c98500','#d55181'] };
+  let hoverDay = null;
+  function drawDL(){
+    const { g, W, H } = fit(dlCv, dlBox); if (!W) return;
+    const L = 34, Rm = 8, T = 10, B = 24, X = d => L + (W - L - Rm) * d / 365, Y = h => T + (H - T - B) * (1 - h / 24), pal = PAL[isDark() ? 'dark' : 'light'];
+    g.strokeStyle = cssv('--line'); g.lineWidth = 1; g.fillStyle = cssv('--ink-2'); g.font = '700 11px Nunito'; g.textAlign = 'right';
+    [0, 6, 12, 18, 24].forEach(h => { g.beginPath(); g.moveTo(L, Y(h)); g.lineTo(W - Rm, Y(h)); g.stroke(); g.fillText(h + (isZh() ? '时' : 'h'), L - 5, Y(h) + 4); });
+    g.textAlign = 'center'; let m0 = 0; for (let m = 0; m < 12; m++){ if (W > 380 || m % 2 === 0) g.fillText(isZh() ? `${m + 1}月` : ['J','F','M','A','M','J','J','A','S','O','N','D'][m], X(m0 + 15), H - 7); m0 += [31,28,31,30,31,30,31,31,30,31,30,31][m]; }
+    DL.forEach((c, i) => { g.strokeStyle = pal[i]; g.lineWidth = 2; g.beginPath(); for (let d = 0; d <= 365; d += 2){ const h = 2 * halfDay(c.lat, S.decl(d)); d ? g.lineTo(X(d), Y(h)) : g.moveTo(X(d), Y(h)); } g.stroke(); });
+    const d = hoverDay != null ? hoverDay : st.day;
+    g.strokeStyle = cssv('--ink-2'); g.setLineDash([3, 3]); g.beginPath(); g.moveTo(X(d), T); g.lineTo(X(d), H - B); g.stroke(); g.setLineDash([]);
+    const rows = DL.map((c, i) => [i, 2 * halfDay(c.lat, S.decl(d))]).sort((a, b) => b[1] - a[1]);
+    rows.forEach(([i, h]) => { g.fillStyle = pal[i]; g.beginPath(); g.arc(X(d), Y(h), 4, 0, 7); g.fill(); g.strokeStyle = cssv('--surface'); g.lineWidth = 2; g.stroke(); });
+    // tooltip
+    g.font = "700 11px Nunito"; const tw = 34 + Math.max(...rows.map(([i, h]) => g.measureText(`${dur(h)} · ${Lab.L(DL[i].s)}`).width)), tx = X(d) + 10 + tw > W ? X(d) - tw - 10 : X(d) + 10, ty = T + 4;
+    g.fillStyle = cssv('--surface'); g.strokeStyle = cssv('--line'); g.lineWidth = 1; g.beginPath(); g.roundRect ? g.roundRect(tx, ty, tw, 18 + rows.length * 15, 8) : g.rect(tx, ty, tw, 18 + rows.length * 15); g.fill(); g.stroke();
+    g.textAlign = 'left'; g.font = '800 11px Nunito'; g.fillStyle = cssv('--ink'); g.fillText(S.fmt(d), tx + 8, ty + 13);
+    g.font = '700 11px Nunito'; rows.forEach(([i, h], r) => { g.fillStyle = pal[i]; g.fillRect(tx + 8, ty + 20 + r * 15, 8, 8); g.fillStyle = cssv('--ink'); g.fillText(`${dur(h)} · ${Lab.L(DL[i].s)}`, tx + 20, ty + 28 + r * 15); });
+  }
+  function legend(){ const pal = PAL[isDark() ? "dark" : "light"]; $("#dlLegend").innerHTML = DL.map((c, i) => `<span><i style="background:${pal[i]}"></i>${Lab.L(c.n)}</span>`).join(""); }
+  dlCv.addEventListener('pointermove', e => { const r = dlCv.getBoundingClientRect(), x = e.clientX - r.left; hoverDay = Math.max(0, Math.min(364, Math.round((x - 34) / (r.width - 42) * 365))); drawDL(); });
+  dlCv.addEventListener('pointerleave', () => { hoverDay = null; drawDL(); });
+
+  function readout(){
+    const dec = S.decl(st.day), h = halfDay(st.lat, dec), noon = altAz(sunVec(st.lat, dec, 12)), now = altAz(sunVec(st.lat, dec, st.hour));
+    $('#spLatOut').textContent = latTxt(st.lat); $('#spDayOut').textContent = S.fmt(st.day); $('#spHourOut').textContent = hm(st.hour);
+    if (h <= 0 || h >= 12){ const t = Lab.L(h >= 12 ? o('never sets','整天不落') : o('never rises','整天不升')); $('#spRise').textContent = t; $('#spSet').textContent = t; }
+    else { const r = altAz(sunVec(st.lat, dec, 12 - h)), s = altAz(sunVec(st.lat, dec, 12 + h)); $('#spRise').textContent = `${hm(12 - h)} · ${compass(r.az)}`; $('#spSet').textContent = `${hm(12 + h)} · ${compass(s.az)}`; }
+    $('#spNoon').textContent = noon.alt < -.8 ? Lab.L(o('below horizon','在地平线下')) : `${noon.alt.toFixed(0)}° · ${noon.alt > 89.5 ? Lab.L(o('overhead','头顶')) : compass(noon.az)}`;
+    $('#spNow').textContent = now.alt < .5 ? `${now.alt.toFixed(0)}° · –` : `${now.alt.toFixed(0)}° · ${(1 / Math.tan(now.alt * R)).toFixed(1)} m`;
+    const r = h > 0 && h < 12 ? altAz(sunVec(st.lat, dec, 12 - h)).az : null, m = $('#spMsg');
+    m.textContent = h >= 12 ? Lab.L(o('Midnight Sun! The Sun circles the sky all day without setting.','极昼！太阳整天绕着天空转圈，不会落下。'))
+      : h <= 0 ? Lab.L(o('Polar night: the Sun never comes up today.','极夜：今天太阳根本不会升起。'))
+      : isZh() ? `今天太阳从${compass(r)}方升起（偏离正东 ${Math.abs(90 - r).toFixed(0)}°），白天约 ${(2 * h).toFixed(1)} 小时。` : `Today the Sun rises in the ${compass(r)} (${Math.abs(90 - r).toFixed(0)}° from due east) and the day lasts about ${(2 * h).toFixed(1)} hours.`;
+    m.className = 'result good';
+    Lab.$$('#spPlaces button').forEach(b => b.classList.toggle('on', Math.abs(PLACES[b.dataset.i].lat - st.lat) < .05));
+  }
+  function render(){ readout(); drawPath(); drawShadow(); drawDL(); }
+  function places(){ $('#spPlaces').innerHTML = PLACES.map((p, i) => `<button data-i="${i}">${Lab.L(p.n)}</button>`).join(''); Lab.$$('#spPlaces button').forEach(b => b.onclick = () => set({ lat:PLACES[b.dataset.i].lat })); }
+  function set(v){ Object.assign(st, v); $('#spLat').value = st.lat; $('#spDay').value = Math.round(st.day); $('#spHour').value = st.hour; render(); }
+  $('#spLat').oninput = e => set({ lat:+e.target.value });
+  $('#spDay').oninput = e => { setRun(false); set({ day:+e.target.value }); };
+  $('#spHour').oninput = e => set({ hour:+e.target.value });
+  function setRun(r){ st.run = r; $('#spRun').textContent = r ? '⏸' : '▶'; st.last = performance.now(); if (r) requestAnimationFrame(loop); }
+  function loop(now){ if (!st.run) return; const dt = Math.min(.1, (now - st.last) / 1000); st.last = now; st.day = (st.day + dt * 30) % 365; $('#spDay').value = Math.floor(st.day); render(); requestAnimationFrame(loop); }
+  $('#spRun').onclick = () => setRun(!st.run);
+  window.SunPath = { set, state:st };
+  let rq = 0; const soon = () => { cancelAnimationFrame(rq); rq = requestAnimationFrame(render); };
+  [pathBox, shBox, dlBox].forEach(b => new ResizeObserver(soon).observe(b));
+  Lab.onLang(() => { places(); legend(); render(); });
+  addEventListener("labtheme", () => { legend(); render(); });
+})();
+/*/deep*/</script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const App = window.SEASONS, SE = window.SEAS, V = THREE.Vector3, D2R = Math.PI / 180, UP = new V(0, 1, 0);
+const ctx = Lab3D.stage('#stage', { THREE, OrbitControls, camera:[0, 13, 27], minDistance:3, maxDistance:80, lights:false });
+const { scene } = ctx;
+const R = 9, RE = 1.3, RS = 2.1, TILT = 23.44 * D2R;
+
+/* ---------- light: a real point light inside the Sun + faint fill so the night side isn't pitch black ---------- */
+scene.add(new THREE.AmbientLight(0x7083b8, .35));
+scene.add(new THREE.PointLight(0xffffff, 3.4, 0, 0));
+
+/* ---------- helpers ---------- */
+function canvasTex(w, h, draw){ const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; }
+const PM = {};   // materials per pickable part (for highlighting)
+const mk = (key, c, ei = .6, extra = {}) => { const m = new THREE.MeshStandardMaterial({ color:c, emissive:c, emissiveIntensity:ei, roughness:.6, ...extra }); m.userData.ei = ei; (PM[key] = PM[key] || []).push(m); return m; };
+
+/* ---------- starfield ---------- */
+(function(){
+  const n = 2400, p = new Float32Array(n * 3), c = new Float32Array(n * 3), v = new V();
+  for (let i = 0; i < n; i++){ v.randomDirection().multiplyScalar(300 + Math.random() * 200); p.set([v.x, v.y, v.z], i * 3); const w = .45 + Math.random() * .55, r = Math.random(); c.set([w * (r < .15 ? 1 : .86), w * .9, w * (r > .85 ? 1 : .9)], i * 3); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(p, 3)); g.setAttribute('color', new THREE.BufferAttribute(c, 3));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ size:1.7, sizeAttenuation:false, vertexColors:true, transparent:true, opacity:.95, depthWrite:false })));
+})();
+
+/* ---------- Sun ---------- */
+const sunTex = canvasTex(256, 128, (g, w, h) => { g.fillStyle = '#ffb52e'; g.fillRect(0, 0, w, h); for (let i = 0; i < 600; i++){ g.fillStyle = `rgba(255,${200 + Math.random() * 55 | 0},${70 + Math.random() * 90 | 0},${Math.random() * .55})`; g.beginPath(); g.arc(Math.random() * w, Math.random() * h, 1 + Math.random() * 5, 0, 7); g.fill(); } });
+const glowTex = canvasTex(256, 256, g => { const r = g.createRadialGradient(128, 128, 0, 128, 128, 128); r.addColorStop(0, 'rgba(255,240,180,1)'); r.addColorStop(.22, 'rgba(255,200,90,.65)'); r.addColorStop(.5, 'rgba(255,150,40,.16)'); r.addColorStop(1, 'rgba(255,120,0,0)'); g.fillStyle = r; g.fillRect(0, 0, 256, 256); });
+const sun = new THREE.Mesh(new THREE.SphereGeometry(RS, 48, 32), new THREE.MeshBasicMaterial({ map:sunTex }));
+scene.add(sun); ctx.pickable(sun, 'sun');
+const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map:glowTex, blending:THREE.AdditiveBlending, depthWrite:false, transparent:true }));
+glow.scale.set(RS * 5.5, RS * 5.5, 1); sun.add(glow);
+
+/* ---------- Earth: position group → tilt group → spin group ---------- */
+const earthPos = new THREE.Group(), tiltG = new THREE.Group(), spinG = new THREE.Group();
+scene.add(earthPos); earthPos.add(tiltG); tiltG.add(spinG);
+const fallback = canvasTex(512, 256, (g, w, h) => {
+  g.fillStyle = '#2a64b8'; g.fillRect(0, 0, w, h);
+  const blobs = [[80,80,60,40],[120,150,35,55],[250,70,70,35],[270,150,40,50],[370,80,80,40],[420,170,40,25],[160,40,30,15]];
+  for (const [x, y, rx, ry] of blobs){ g.fillStyle = '#4f9a45'; g.beginPath(); g.ellipse(x, y, rx, ry, .3, 0, 7); g.fill(); g.fillStyle = '#a58c55'; g.beginPath(); g.ellipse(x + rx * .2, y, rx * .4, ry * .35, 0, 0, 7); g.fill(); }
+  g.fillStyle = '#f2f6fb'; g.fillRect(0, 0, w, 14); g.fillRect(0, h - 18, w, 18);
+});
+const earthMat = new THREE.MeshStandardMaterial({ map:fallback, roughness:.9, metalness:0, emissive:'#3f8ae0', emissiveIntensity:0 });
+earthMat.userData.ei = 0; PM.earth = [earthMat];
+const earth = new THREE.Mesh(new THREE.SphereGeometry(RE, 64, 48), earthMat); spinG.add(earth); ctx.pickable(earth, 'earth');
+Lab3D.texture(THREE, Lab3D.TEX + 'planets/earth_atmos_2048.jpg', t => { if (t){ earthMat.map = t; earthMat.needsUpdate = true; } });
+
+/* axis + Polaris pointer */
+const axisMat = mk('axis', '#ff5d73', .9);
+const axis = new THREE.Mesh(new THREE.CylinderGeometry(.03, .03, RE * 3.2, 10), axisMat); tiltG.add(axis); ctx.pickable(axis, 'axis');
+const nTip = new THREE.Mesh(new THREE.ConeGeometry(.09, .26, 14), axisMat); nTip.position.y = RE * 1.6 + .12; tiltG.add(nTip); ctx.pickable(nTip, 'axis');
+const sEnd = new THREE.Object3D(); sEnd.position.y = -RE * 1.6 - .1; tiltG.add(sEnd);
+const pol = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new V(0, RE * 1.75, 0), new V(0, RE * 4.2, 0)]), new THREE.LineDashedMaterial({ color:0xff8fa0, dashSize:.15, gapSize:.1, transparent:true, opacity:.85 }));
+pol.computeLineDistances(); tiltG.add(pol);
+const polEnd = new THREE.Object3D(); polEnd.position.y = RE * 4.35; tiltG.add(polEnd);
+
+/* equator + tropics (geographic lines, tilt with Earth but don't spin) */
+const ring = (r, tube, m) => { const t = new THREE.Mesh(new THREE.TorusGeometry(r, tube, 8, 160), m); t.rotation.x = Math.PI / 2; return t; };
+const eqMat = mk('equator', '#ff9f43', .8), trMat = mk('equator', '#ffc27a', .55, { transparent:true, opacity:.85 });
+const eq = ring(RE * 1.004, .017, eqMat); tiltG.add(eq);
+const tc = ring(RE * Math.cos(TILT) * 1.004, .01, trMat); tc.position.y = RE * Math.sin(TILT); tiltG.add(tc);
+const tcap = ring(RE * Math.cos(TILT) * 1.004, .01, trMat); tcap.position.y = -RE * Math.sin(TILT); tiltG.add(tcap);
+[eq, tc, tcap].forEach(m => ctx.pickable(m, 'equator'));
+const eqA = new THREE.Object3D(); eqA.position.set(0, 0, RE * 1.02); tiltG.add(eqA);
+const tcA = new THREE.Object3D(); tcA.position.set(0, RE * Math.sin(TILT) + .05, RE * Math.cos(TILT) * 1.02); tiltG.add(tcA);
+const tcapA = new THREE.Object3D(); tcapA.position.set(0, -RE * Math.sin(TILT) - .05, RE * Math.cos(TILT) * 1.02); tiltG.add(tcapA);
+
+/* day–night line (circle of illumination): always faces the Sun */
+const circMat = mk('circle', '#c8f0ff', .9, { transparent:true, opacity:.85 });
+const circ = new THREE.Mesh(new THREE.TorusGeometry(RE * 1.012, .014, 8, 160), circMat); earthPos.add(circ); ctx.pickable(circ, 'circle');
+
+/* ---------- orbit + key dates ---------- */
+const orbitMat = mk('orbit', '#8f9cff', .7, { transparent:true, opacity:.55 });
+const orbit = ring(R, .03, orbitMat); scene.add(orbit); ctx.pickable(orbit, 'orbit');
+const posOf = d => { const th = Math.PI + 2 * Math.PI * (d - 171) / 365.25; return new V(R * Math.cos(th), 0, -R * Math.sin(th)); };
+const markers = {};
+for (const k of ['mar', 'jun', 'sep', 'dec']){
+  const g = new THREE.Group(); g.position.copy(posOf(PARTS[k].day)); scene.add(g);
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(.24, 20, 14), mk(k, PARTS[k].color, .85)); g.add(ball);
+  const stick = new THREE.Mesh(new THREE.CylinderGeometry(.02, .02, 1.5, 6), mk(k, '#ff5d73', .6, { transparent:true, opacity:.75 })); g.add(stick);
+  ctx.pickable(g, k); markers[k] = { g, ball, stick };
+  ctx.label(PARTS[k].name, g, { offset:[0, -.75, 0] });
+}
+// orbit direction arrows
+for (const d of [40, 130, 220, 310]){ const p = posOf(d), q = posOf(d + 6), a = new THREE.Mesh(new THREE.ConeGeometry(.13, .4, 10), mk('orbit', '#8f9cff', .8)); a.position.copy(p); a.quaternion.setFromUnitVectors(UP, q.sub(p).normalize()); scene.add(a); }
+const periA = posOf(2).multiplyScalar(1.13), aphA = posOf(184).multiplyScalar(1.13);
+
+/* ---------- noon sunlight beams (north = gold, south = pink) ---------- */
+const NR = 8, K = 48, BW = .2, BD = 3.4;
+function makeBeam(color){
+  const fg = new THREE.BufferGeometry(); fg.setAttribute('position', new THREE.BufferAttribute(new Float32Array((K + 2) * 3), 3));
+  const idx = []; for (let k = 1; k <= K; k++) idx.push(0, k, k + 1); fg.setIndex(idx);
+  const fill = new THREE.Mesh(fg, new THREE.MeshBasicMaterial({ color, transparent:true, opacity:.9, side:THREE.DoubleSide, depthWrite:false, polygonOffset:true, polygonOffsetFactor:-4, polygonOffsetUnits:-4 }));
+  const rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NR * 6), 3));
+  const rays = new THREE.LineSegments(rg, new THREE.LineBasicMaterial({ color, transparent:true, opacity:.85 }));
+  const cyl = new THREE.Mesh(new THREE.CylinderGeometry(BW, BW, 1, 32, 1, true), new THREE.MeshBasicMaterial({ color, transparent:true, opacity:.16, side:THREE.DoubleSide, depthWrite:false }));
+  const tip = new THREE.Object3D();
+  [fill, rays, cyl].forEach(m => m.frustumCulled = false);
+  scene.add(fill, rays, cyl, tip); ctx.pickable(fill, 'beam'); ctx.pickable(cyl, 'beam');
+  PM.beam = (PM.beam || []).concat([fill.material, cyl.material]);
+  return { fill, rays, cyl, tip };
+}
+const beamN = makeBeam('#ffd23a'), beamS = makeBeam('#ff7fb0');
+const U = new V(), W = new V();
+function updateBeam(B, latDeg, s, a, E){
+  const n = s.clone().addScaledVector(a, -s.dot(a)).normalize().multiplyScalar(Math.cos(latDeg * D2R)).addScaledVector(a, Math.sin(latDeg * D2R));
+  const sinAlt = n.dot(s), alt = Math.asin(THREE.MathUtils.clamp(sinAlt, -1, 1)) / D2R, vis = sinAlt > .03;
+  B.fill.visible = B.rays.visible = B.cyl.visible = B.tip.visible = vis;
+  if (!vis) return alt;
+  const P = E.clone().addScaledVector(n, RE);
+  U.crossVectors(s, a).normalize(); W.crossVectors(s, U).normalize();
+  const rr = RE * 1.006;
+  const hit = (u, w) => { const O = P.clone().addScaledVector(s, BD).addScaledVector(U, u).addScaledVector(W, w), oc = O.clone().sub(E), b = oc.dot(s), disc = b * b - (oc.lengthSq() - RE * RE), t = b - Math.sqrt(Math.max(0, disc)); return [O, O.clone().addScaledVector(s, -t).sub(E).setLength(rr).add(E)]; };
+  const fp = B.fill.geometry.attributes.position;
+  fp.setXYZ(0, ...hit(0, 0)[1].toArray());
+  for (let k = 0; k <= K; k++){ const an = 2 * Math.PI * k / K; fp.setXYZ(k + 1, ...hit(BW * Math.cos(an), BW * Math.sin(an))[1].toArray()); }
+  fp.needsUpdate = true;
+  const rp = B.rays.geometry.attributes.position;
+  for (let r = 0; r < NR; r++){ const an = 2 * Math.PI * r / NR, [O, X] = hit(BW * .75 * Math.cos(an), BW * .75 * Math.sin(an)); rp.setXYZ(2 * r, O.x, O.y, O.z); rp.setXYZ(2 * r + 1, X.x, X.y, X.z); }
+  rp.needsUpdate = true;
+  B.cyl.position.copy(P).addScaledVector(s, BD / 2); B.cyl.quaternion.setFromUnitVectors(UP, s); B.cyl.scale.set(1, BD, 1);
+  B.tip.position.copy(P).addScaledVector(s, BD + .25);
+  return alt;
+}
+
+/* ---------- labels ---------- */
+const extra = []; let labelsOn = false;
+const lab = (t, at, off) => { const L = ctx.label(t, at, off ? { offset:off } : {}); L.visible = false; extra.push(L); return L; };
+lab(PARTS.sun.name, sun, [0, RS + .7, 0]);
+lab(PARTS.earth.name, earthPos, [0, -RE - .55, 0]);
+lab({ en:'N', zh:'北' }, nTip, [0, .3, 0]); lab({ en:'S', zh:'南' }, sEnd, [0, -.2, 0]);
+lab({ en:'Equator', zh:'赤道' }, eqA); lab({ en:'Tropic of Cancer', zh:'北回归线' }, tcA); lab({ en:'Tropic of Capricorn', zh:'南回归线' }, tcapA);
+const periL = lab({ en:'Closest · Jan 3', zh:'近日点 · 1月3日' }, periA), aphL = lab({ en:'Farthest · Jul 4', zh:'远日点 · 7月4日' }, aphA);
+ctx.label({ en:'→ Polaris ★', zh:'→ 北极星 ★' }, polEnd);
+const latName = (l, south) => l === 0 ? '0°' : l + '°' + (south ? 'S' : 'N');
+const nTag = ctx.label(() => latName(App.lat ?? 34, false), beamN.tip), sTag = ctx.label(() => latName(App.lat ?? 34, true), beamS.tip);
+function setLabels(on){ labelsOn = on; extra.forEach(L => L.visible = on); Lab.$('#labelBtn').classList.toggle('on', on); }
+Lab.$('#labelBtn').onclick = () => setLabels(!labelsOn);
+
+/* ---------- state ---------- */
+const st = { day:171, playing:false, follow:false, tilt:TILT, tiltT:TILT };
+App.lat = 34;
+const daySl = Lab.$('#day'), latSl = Lab.$('#lat'), lastE = new V();
+function setDay(d){ st.day = ((d % 365) + 365) % 365; daySl.value = Math.floor(st.day); place(); }
+function place(){ earthPos.position.copy(posOf(st.day)); }
+function setPlay(p){ st.playing = p; const b = Lab.$('#playBtn'); b.classList.toggle('on', p); b.textContent = Lab.L(p ? { en:'⏸ Pause', zh:'⏸ 暂停' } : { en:'▶ Play a year', zh:'▶ 播放一年' }); }
+function setFollow(f){ st.follow = f; Lab.$('#followBtn').classList.toggle('on', f); lastE.copy(earthPos.position); }
+function setTilt(on){ st.tiltT = on ? TILT : 0; Lab.$('#tiltBtn').classList.toggle('on', !on); }
+Lab.onLang(() => { setPlay(st.playing); nTag.set(nTag.text); sTag.set(sTag.text); if (rdReady) readout(true); });
+setDay(171);
+
+/* camera pose that shows Earth's lit side from 3/4 */
+function viewEarth(dist = 7.5){
+  const E = earthPos.position.clone(), s = E.clone().negate().normalize(), side = new V().crossVectors(UP, s).normalize();
+  ctx.flyToPose(E.clone().add(s.multiplyScalar(.6).add(side.multiplyScalar(.7)).add(new V(0, .42, 0)).normalize().multiplyScalar(dist)).toArray(), E.toArray());
+  setFollow(true);
+}
+function focus(k){
+  if (!k){ setFollow(false); return ctx.home(); }
+  if (k === 'sun'){ setFollow(false); return ctx.flyToPose([7, 9, 15], [0, 0, 0]); }
+  if (k === 'orbit'){ setFollow(false); return ctx.flyToPose([0, 30, 7], [0, 0, 0]); }
+  if (PARTS[k].day != null){ setPlay(false); setDay(PARTS[k].day); }
+  viewEarth(PARTS[k].day != null ? 8.5 : 7);
+}
+App.three = { focus };
+ctx.hoverText(k => Lab.L(PARTS[k].name));
+ctx.onPick(k => { if (k && k !== App.sel) App.select(k); });
+
+/* ---------- controls ---------- */
+Lab.$('#playBtn').onclick = () => { if (story.active) story.stop(); setPlay(!st.playing); };
+Lab.$('#tiltBtn').onclick = () => setTilt(st.tiltT === 0);
+Lab.$('#followBtn').onclick = () => st.follow ? setFollow(false) : viewEarth();
+Lab.$('#resetBtn').onclick = () => { story.stop(); setPlay(false); setTilt(true); setDay(171); latSl.value = 34; latSl.oninput(); App.select(null); };
+daySl.oninput = () => { if (story.active) story.stop(); setPlay(false); setDay(+daySl.value); };
+latSl.oninput = () => { App.lat = +latSl.value; Lab.$('#latLbl').textContent = '±' + App.lat + '°'; nTag.set(nTag.text); sTag.set(sTag.text); readout(true); };
+
+/* ---------- story ---------- */
+const story = Lab3D.story('#stage', STORY, i => {
+  setTilt(i !== 5); periL.visible = aphL.visible = labelsOn || i === 4;
+  if (i === 0){ setFollow(false); ctx.home(); setPlay(true); App.select('axis', true); }
+  if (i >= 1 && i <= 3){ setPlay(false); setDay([0, 171, 264, 354][i]); viewEarth(8); App.select(['', 'jun', 'sep', 'dec'][i], true); }
+  if (i === 4){ setPlay(false); setDay(2); setFollow(false); const E = earthPos.position; ctx.flyToPose([E.x * 1.7, 22, E.z * 1.7], [0, 0, 0]); App.select('orbit', true); }
+  if (i === 5){ setPlay(false); setDay(171); viewEarth(7.5); App.select('axis', true); }
+}, () => { setTilt(true); setPlay(false); periL.visible = aphL.visible = labelsOn; });
+Lab.$('#storyBtn').onclick = () => story.start();
+
+/* ---------- inset: noon Sun seen from the two cities + readouts ---------- */
+const sky = Lab.$('#skyCv'), sg = sky.getContext('2d');
+function drawInset(c){
+  sg.setTransform(2, 0, 0, 2, 0, 0); sg.clearRect(0, 0, 228, 118);
+  c.forEach((p, i) => {
+    const x0 = i * 116, w = 112, gy = 92, cx = x0 + w / 2, day = p.alt > 0;
+    const gr = sg.createLinearGradient(0, 0, 0, gy); gr.addColorStop(0, day ? '#3d7fd6' : '#070d26'); gr.addColorStop(1, day ? '#b4dbff' : '#1d2a55');
+    sg.fillStyle = gr; sg.beginPath(); sg.roundRect(x0, 0, w, gy + 10, [10, 10, 0, 0]); sg.fill();
+    sg.fillStyle = '#4c8f3a'; sg.fillRect(x0, gy, w, 10);
+    sg.strokeStyle = 'rgba(255,255,255,.4)'; sg.setLineDash([3, 3]); sg.beginPath(); sg.arc(cx, gy, 46, Math.PI, 2 * Math.PI); sg.stroke(); sg.setLineDash([]);
+    sg.fillStyle = '#14213d'; sg.fillRect(cx - 1.5, gy - 11, 3, 11); sg.beginPath(); sg.arc(cx, gy - 14, 3.5, 0, 7); sg.fill();
+    sg.font = '800 9px Nunito, sans-serif'; sg.fillStyle = '#fff'; sg.textAlign = 'left'; sg.fillText(Lab.L({ en:'N', zh:'北' }), x0 + 4, gy - 3); sg.textAlign = 'right'; sg.fillText(Lab.L({ en:'S', zh:'南' }), x0 + w - 4, gy - 3);
+    if (day){
+      const a = p.alt * D2R, sx = cx + p.side * 46 * Math.cos(a), sy = gy - 46 * Math.sin(a);
+      sg.strokeStyle = 'rgba(255,225,110,.95)'; sg.lineWidth = 1.5; sg.beginPath(); sg.moveTo(cx, gy - 14); sg.lineTo(sx, sy); sg.stroke();
+      sg.fillStyle = '#ffd23a'; sg.shadowColor = '#ffd23a'; sg.shadowBlur = 8; sg.beginPath(); sg.arc(sx, sy, 7, 0, 7); sg.fill(); sg.shadowBlur = 0;
+    } else { sg.fillStyle = '#eaf0fb'; sg.font = '700 9px Nunito, sans-serif'; sg.textAlign = 'center'; sg.fillText(Lab.L({ en:'Sun below horizon', zh:'太阳在地平线以下' }), cx, 40); }
+    sg.fillStyle = p.color; sg.font = '800 12px Fredoka, Nunito, sans-serif'; sg.textAlign = 'left'; sg.fillText(p.name, x0 + 6, 14);
+    sg.fillStyle = '#fff'; sg.textAlign = 'right'; sg.fillText(day ? Math.round(p.alt) + '°' : '—', x0 + w - 6, 14);
+  });
+}
+var rdReady; let lastRd = '', lastT = 0;
+function readout(force){
+  const E = earthPos.position, s = E.clone().negate().normalize(), a = new V(Math.sin(st.tilt), Math.cos(st.tilt), 0);
+  const dec = Math.asin(s.dot(a)) / D2R, lat = App.lat, noSeasons = st.tilt < 2 * D2R;
+  const sN = noSeasons ? 'none' : SE.seasonN(st.day), sS = noSeasons ? 'none' : SE.opp[sN];
+  const cities = [
+    { name:latName(lat, false), color:'#ffd23a', alt:SE.noonAlt(lat, dec), side:lat >= dec ? 1 : -1, h:SE.dayLen(lat, dec), season:sN },
+    { name:latName(lat, true), color:'#ff7fb0', alt:SE.noonAlt(-lat, dec), side:-lat >= dec ? 1 : -1, h:SE.dayLen(-lat, dec), season:sS }
+  ];
+  const zh = Lab.lang === 'zh', hrs = h => h.toFixed(1) + (zh ? ' 小时' : ' h');
+  const html = cities.map(c => `<div><span class="season-tag" style="background:${SE.SC[c.season]}">${Lab.L(SE.SN[c.season])}</span><br><span>${zh ? '白昼' : 'Daylight'}</span> ${hrs(c.h)}</div>`).join('')
+    + `<div style="grid-column:1/-1"><span>📅</span> ${SE.fmt(st.day)} · <span>${zh ? '日地距离' : 'Sun distance'}</span> ${zh ? (SE.dist(st.day) / 100).toFixed(3) + ' 亿千米' : SE.dist(st.day).toFixed(1) + ' million km'}</div>`;
+  if (force || html !== lastRd){ Lab.$('#insetRd').innerHTML = html; lastRd = html; }
+  Lab.$('#dayLbl').textContent = SE.fmt(st.day);
+  drawInset(cities);
+  return a;
+}
+
+/* ---------- per-frame ---------- */
+ctx.onFrame((dt, t) => {
+  if (st.playing) setDay(st.day + dt * 30);
+  st.tilt += (st.tiltT - st.tilt) * Math.min(1, dt * 3);
+  tiltG.rotation.z = -st.tilt; for (const k in markers) markers[k].stick.rotation.z = -st.tilt;
+  spinG.rotation.y += dt * (st.playing ? 2.2 : .35);
+  sun.rotation.y += dt * .05;
+  const E = earthPos.position;
+  if (st.follow){ const d = E.clone().sub(lastE); ctx.camera.position.add(d); ctx.controls.target.add(d); }
+  lastE.copy(E);
+  circ.lookAt(0, 0, 0);
+  const s = E.clone().negate().normalize(), a = new V(Math.sin(st.tilt), Math.cos(st.tilt), 0);
+  updateBeam(beamN, App.lat, s, a, E); updateBeam(beamS, -App.lat, s, a, E);
+  if (t - lastT > .12){ lastT = t; readout(); }
+  // highlight the selected part
+  const sel = App.sel, pulse = .45 + .35 * Math.sin(t * 5);
+  for (const k in PM) for (const m of PM[k]){
+    if (m.isMeshStandardMaterial) m.emissiveIntensity = m.userData.ei + (sel === k ? pulse : 0);
+    else m.opacity = m.userData.op ?? (m.userData.op = m.opacity), m.opacity = m.userData.op * (sel === k ? 1 + .25 * Math.sin(t * 5) : 1);
+  }
+  for (const k in markers) markers[k].ball.scale.setScalar(sel === k ? 1.25 + .15 * Math.sin(t * 5) : 1);
+  glow.scale.setScalar(RS * (sel === 'sun' ? 6.2 + .4 * Math.sin(t * 4) : 5.5));
+});
+rdReady = true; readout(true); renderInfo(); renderChips();
+</script>
+</body>
+</html>

@@ -1,0 +1,918 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planetarium: The Sky Tonight</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/photos.js"></script>
+<style>
+/* page-specific styles */
+#stage{min-height:620px;cursor:grab}
+#stage.drag{cursor:grabbing}
+#stage .toolbar .tbtn{background:rgba(12,18,40,.78);color:#eaf0fb;border-color:rgba(255,255,255,.2)}
+#stage .toolbar .tbtn.on{background:#eaf0fb;color:#0b1226}
+#stage .bottombar .pill{background:rgba(12,18,40,.78);color:#eaf0fb;border-color:rgba(255,255,255,.2)}
+#stage .tip{background:rgba(12,18,40,.78);color:#c9d5ee;border-color:rgba(255,255,255,.2)}
+#stage .lab-loading{color:#c9d5ee}
+.skyctl{padding:14px 16px;margin-top:14px;display:flex;flex-direction:column;gap:12px}
+.ctlrow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;align-items:end}
+.ctlrow input[type=date],.ctlrow select{border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:10px;padding:6px 8px;font:inherit;font-size:14px;font-weight:700;width:100%}
+.btn.sm{padding:6px 10px;font-size:13px;border-radius:10px}
+.readout{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-top:14px}
+.readout .counter b{font-size:19px;line-height:1.25}
+.cap{font-size:12.5px;color:var(--ink-2);margin:10px 0 0}
+.info .facts li{font-size:15px}
+.info .kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:15px;margin:0}
+.info .kv dt{color:var(--ink-2);font-weight:700}
+.info .kv dd{margin:0;font-weight:700}
+#findBox{min-height:520px;background:radial-gradient(circle at 50% 40%,#16204a,#05070f);cursor:crosshair}
+#cpBox{min-height:420px}
+#magBox{min-height:520px}
+.target{font-family:Fredoka;font-size:24px;font-weight:600;color:var(--brand)}
+.lab-tip{position:absolute;z-index:6;pointer-events:none;background:var(--ink);color:var(--surface);font-weight:700;font-size:13px;padding:5px 9px;border-radius:9px;transform:translate(-50%,-130%);white-space:nowrap;display:none}
+.zones{display:flex;flex-wrap:wrap;gap:6px}
+.zones .chip{font-size:13px;padding:4px 10px}
+.cmp{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-weight:700;font-size:14px}
+.cmp select{border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:10px;padding:5px 8px;font:inherit;font-size:14px;max-width:100%}
+.bigfact{font-family:Fredoka;font-size:19px;font-weight:600;color:var(--ink);margin:0}
+@media (max-width:980px){.readout{grid-template-columns:repeat(3,minmax(0,1fr))}.ctlrow{grid-template-columns:1fr 1fr}}
+@media (max-width:560px){#stage{min-height:500px}.readout{grid-template-columns:1fr 1fr}.ctlrow{grid-template-columns:1fr}#stage .toolbar .tbtn{padding:5px 9px;font-size:13px}}
+</style>
+</head>
+<body data-subject="astronomy" data-topic="sky-tonight">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="天文 · 深度探究">Astronomy · Deep dive</span>
+  <h1 data-zh-html="天象馆：<em>今晚的星空</em>">Planetarium: <em>The Sky Tonight</em></h1>
+  <p class="lead" data-zh="如果今晚 9 点你走到院子里抬头看，能看到哪几颗行星？它们在哪个方向？这是一张真实的星图：约 5000 颗真实恒星、88 个星座，还有按真实轨道算出的行星和月球。设定日期、时间和地点，拖动时间条扫过整个夜晚，看星空怎样转动。">If you walked outside at 9 PM tonight, which planets could you see, and which way would you look? This is a real star map: about 5,000 real stars, all 88 constellations, and the planets and Moon placed by their real orbits. Set the date, time and place, then sweep through the night and watch the sky turn.</p>
+  <p class="lead" style="margin-top:8px;font-size:16px" data-zh="🎯 学完后你能：在今晚的星空里找到行星、亮星和星座；解释星空为什么会转动；读懂“星等”（为什么数字越小反而越亮）。"><b>🎯 You’ll be able to:</b> find planets, bright stars and constellations in tonight’s sky, explain why the sky turns, and read the magnitude scale (and why smaller numbers mean brighter).</p>
+</header>
+
+<section class="wrap" id="map" data-nav="Sky map" data-nav-zh="星图">
+  <div class="explorer">
+    <div class="stage card space" id="stage">
+      <canvas id="skyCv"></canvas>
+      <div class="lab-loading" id="skyMsg" data-zh="正在加载约 5000 颗真实恒星……">Loading about 5,000 real stars…</div>
+      <div class="lab-tip" id="skyTip"></div>
+      <div class="toolbar">
+        <button class="tbtn on" id="vDome" data-zh="🌐 全天">🌐 Whole sky</button>
+        <button class="tbtn" data-look="0" data-zh="北">N</button><button class="tbtn" data-look="90" data-zh="东">E</button><button class="tbtn" data-look="180" data-zh="南">S</button><button class="tbtn" data-look="270" data-zh="西">W</button>
+        <button class="tbtn" id="zIn" title="Zoom in">＋</button><button class="tbtn" id="zOut" title="Zoom out">－</button>
+      </div>
+      <div class="bottombar"><div class="pill" id="viewTxt">–</div><div class="tip" data-zh="拖动来环顾四周 · 滚轮缩放 · 点击恒星或行星">Drag to look around · scroll to zoom · click a star or planet</div></div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="card skyctl">
+    <div class="timebar"><button id="playBtn" aria-label="Play">▶</button><input type="range" id="timeSl" min="0" max="1440" step="5" value="540" aria-label="Time of night"><output id="timeOut">21:00</output></div>
+    <div class="ctlrow">
+      <label class="ctl"><span data-zh="📅 日期">📅 Date</span><input type="date" id="dateIn"></label>
+      <div class="btnrow"><button class="btn ghost sm" data-dd="-1" data-zh="−1 天">−1 day</button><button class="btn ghost sm" data-dd="1" data-zh="+1 天">+1 day</button><button class="btn ghost sm" data-dd="30" data-zh="+30 天">+30 days</button><button class="btn sm" id="nowBtn" data-zh="现在">Now</button></div>
+      <label class="ctl"><span data-zh="📍 地点">📍 Place</span><select id="locSel"></select></label>
+      <label class="ctl"><span data-zh="纬度">Latitude</span><b id="latTxt">–</b><input type="range" id="latSl" min="-90" max="90" step="0.5" value="33.7"></label>
+    </div>
+    <label class="ctl"><span data-zh="夜空有多黑（光污染）">How dark is your sky? (light pollution)</span><b id="darkTxt">–</b><input type="range" id="darkSl" min="2.5" max="6.5" step="0.1" value="5.5"></label>
+  </div>
+  <div class="chips" id="layers"></div>
+  <div class="readout">
+    <div class="counter"><b id="rClock">–</b><span data-zh="当地时间">local time</span></div>
+    <div class="counter"><b id="rLst">–</b><span data-zh="恒星时（哪一部分星空在头顶）">sidereal time (which sky is overhead)</span></div>
+    <div class="counter"><b id="rSun">–</b><span data-zh="太阳">the Sun</span></div>
+    <div class="counter"><b id="rMoon">–</b><span data-zh="月相（被照亮的比例）">Moon (part that is lit)</span></div>
+    <div class="counter"><b id="rPlan">–</b><span data-zh="地平线以上的肉眼行星">naked-eye planets above the horizon</span></div>
+    <div class="counter"><b id="rStars">–</b><span data-zh="此刻你能看到的恒星">stars you could see right now</span></div>
+  </div>
+  <p class="cap" data-zh="数据：恒星与星座连线来自 d3-celestial 星表（依巴谷/耶鲁亮星星表，J2000 坐标，亮于 6 等）；行星位置用 NASA 喷气推进实验室（JPL）的“主要行星近似位置开普勒轨道根数”计算，月球用简化公式（误差约 0.5°），均为近似值；恒星距离为近似值。">Data: stars and constellation lines from the d3-celestial catalog (Hipparcos / Yale Bright Star data, J2000 positions, brighter than magnitude 6). Planet positions are computed from NASA JPL “Keplerian elements for approximate positions of the major planets”; the Moon uses a short formula (good to about 0.5°). All planet and Moon positions are approximate; star distances are approximate.</p>
+</section>
+
+<section class="wrap" id="turn" data-nav="How the sky turns" data-nav-zh="星空的旋转">
+  <div class="sec-head">
+    <h2 data-zh="图表：星空怎样旋转">Figure: how the sky turns</h2>
+    <p data-zh="这是从侧面看的“天球”：你站在中心，横线是地平线。地轴指向天极，每颗星每天沿着一条与天赤道平行的线转一圈。改变纬度，看看哪些星永远不落（拱极星），哪些星永远不升起。">This is the “celestial sphere” seen from the side: you stand in the middle and the flat line is your horizon. Earth’s axis points at the celestial pole, and every star travels once a day along a path parallel to the celestial equator. Change the latitude and see which stars never set (circumpolar) and which never rise at all.</p>
+  </div>
+  <div class="sim">
+    <div class="card simbox" id="cpBox"><canvas id="cpCv"></canvas></div>
+    <div class="card simside">
+      <label class="ctl"><span data-zh="你的纬度">Your latitude</span><b id="cpLatTxt">–</b><input type="range" id="cpLat" min="-90" max="90" step="0.5" value="33.7"></label>
+      <div class="zones" id="cpStars"></div>
+      <label class="ctl"><span data-zh="或者选一个赤纬（星星在天赤道以北多少度）">Or choose a declination (how far north of the celestial equator)</span><b id="cpDecTxt">–</b><input type="range" id="cpDec" min="-90" max="90" step="0.5" value="38.8"></label>
+      <div class="timebar"><button id="cpPlay" aria-label="Play">▶</button><input type="range" id="cpH" min="0" max="24" step="0.05" value="0" aria-label="Hours"><output id="cpHOut">0 h</output></div>
+      <div class="counters">
+        <div class="counter"><b id="cpUp">–</b><span data-zh="每天在地平线以上的时间">hours above the horizon each day</span></div>
+        <div class="counter"><b id="cpMax">–</b><span data-zh="最高能升到（正南/正北方）">highest altitude it reaches</span></div>
+        <div class="counter"><b id="cpNever">–</b><span data-zh="永不落下：赤纬高于">never sets: declination above</span></div>
+        <div class="counter"><b id="cpNo">–</b><span data-zh="永不升起：赤纬低于">never rises: declination below</span></div>
+      </div>
+      <p class="bigfact" id="cpFact">–</p>
+      <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="北极星的高度 = 你的纬度。在亚特兰大约 34°，在北极是 90°（头顶），在赤道是 0°（贴着地平线）。">Polaris’s height = your latitude. About 34° in Atlanta, 90° (overhead) at the North Pole, 0° (on the horizon) at the Equator.</span></div>
+    </div>
+  </div>
+
+  <div class="sec-head" style="margin-top:34px">
+    <h2 data-zh="图表：星等——天文学家的亮度刻度">Figure: the magnitude scale, astronomers’ brightness ruler</h2>
+    <p data-zh="星等越小越亮，而且每相差 5 个星等，亮度正好相差 100 倍。把鼠标移到点上看数值，或者在下面比较任意两个天体。">The smaller the magnitude, the brighter the object, and every 5 magnitudes is exactly 100 times in brightness. Hover over a dot for its value, or compare any two objects below.</p>
+  </div>
+  <div class="sim">
+    <div class="card simbox" id="magBox"><canvas id="magCv"></canvas><div class="lab-tip" id="magTip"></div></div>
+    <div class="card simside">
+      <h3 data-zh="谁比谁亮多少？">How much brighter?</h3>
+      <div class="cmp"><select id="magA"></select><span data-zh="对比">vs</span><select id="magB"></select></div>
+      <p class="bigfact" id="magOut">–</p>
+      <p id="magHow">–</p>
+      <div class="mix"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="“视星等”是从地球上看起来有多亮，并不是星星真正发多少光。参宿七发出的光是天狼星的几千倍，但它远了约 100 倍，所以看起来反而更暗。">Apparent magnitude is how bright something LOOKS from Earth, not how much light it really gives off. Rigel shines thousands of times more light than Sirius, but it is about 100 times farther away, so it looks dimmer.</span></div>
+      <p class="cap" data-zh="数据：太阳、月球和行星为典型（最亮时）数值，来自 NASA 行星资料；恒星来自本页所用星表；肉眼、双筒望远镜和哈勃的极限为近似值。">Data: Sun, Moon and planets are typical (brightest) values from NASA fact sheets; stars from this page’s catalog; the limits for eyes, binoculars and Hubble are approximate.</p>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="find" data-nav="Find it!" data-nav-zh="找一找">
+  <div class="sec-head">
+    <h2 data-zh="游戏：找一找！">Game: Find it!</h2>
+    <p data-zh="这是你所选地点、所选日期晚上 9 点的真实星空，但星座连线和名字都藏起来了（为了让你看清星星，白天的阳光也被“关掉”了）。读题目，然后在星图上点击它！">This is the real sky from your chosen place at 9 PM on your chosen date, but the constellation lines and names are hidden (and daylight is switched off so you can see the stars). Read the target, then click it on the map!</p>
+  </div>
+  <div class="sim">
+    <div class="card simbox" id="findBox"><canvas id="findCv"></canvas></div>
+    <div class="card simside">
+      <span class="tag" data-zh="找到它">Find</span>
+      <div class="target" id="fTarget">–</div>
+      <p id="fClue">–</p>
+      <div class="result" id="fMsg"></div>
+      <div class="counters">
+        <div class="counter"><b id="fScore">0</b><span data-zh="得分">score</span></div>
+        <div class="counter"><b id="fStreak">0</b><span data-zh="连续答对">streak</span></div>
+        <div class="counter"><b id="fFound">0</b><span data-zh="已找到">found</span></div>
+        <div class="counter"><b id="fBest">0</b><span data-zh="最长连对">best streak</span></div>
+      </div>
+      <div class="btnrow"><button class="btn ghost" id="fHint" data-zh="💡 提示（得分减半）">💡 Hint (half points)</button><button class="btn ghost" id="fShow" data-zh="告诉我答案">Show me</button><button class="btn" id="fNext" data-zh="下一个 ▶">Next ▶</button></div>
+      <p class="cap" data-zh="第一次就点对得 10 分，用了提示得 5 分。点错 3 次会显示答案。只会出现此刻在地平线以上的目标。">10 points if you find it without a hint, 5 with a hint. After 3 misses the answer is shown. Only targets above the horizon right now are asked.</p>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real photos" data-nav-zh="真实影像">
+  <div id="gallery"></div>
+</section>
+
+<section class="wrap" id="links" data-nav="Go further" data-nav-zh="继续探索">
+  <div class="sec-head"><h2 data-zh="继续探索：真正的天文工具">Go further: real astronomy tools</h2>
+    <p data-zh="这些网站都是天文学家和天文爱好者每天在用的，全部免费。">Real tools that astronomers and amateur skywatchers use every day. All free.</p></div>
+  <div class="linkgrid" id="linkGrid"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 星空测验">🧠 Sky quiz</h3><p class="sub" data-zh="选出正确答案。有些题要用到上面的图表。">Pick the best answer. Some questions use the figures above.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 从亚特兰大看，它会落下吗？">🗂️ Seen from Atlanta, does it set?</h3><p class="sub" data-zh="亚特兰大在北纬约 34°。根据每颗星的赤纬（括号里）分类。提示：用“星空怎样旋转”那张图试一试！">Atlanta is at about 34° N. Sort each star by its declination (in brackets). Tip: try it on the “how the sky turns” figure!</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="对应佐治亚州标准 S6E1（宇宙的科学观点：恒星的亮度、距离与星座）和 S6E2（地球、月球、太阳的相对运动：月相、昼夜）。星图使用真实星表（约 5000 颗亮于 6 等的恒星），行星用 JPL 近似轨道根数逐日计算，月球用简化公式；位置误差通常小于 1°，足够在户外对照。">Supports GSE S6E1 (scientific views of the universe: brightness, distance and patterns of stars) and S6E2 (relative motions of the Earth, Moon and Sun: Moon phases, day and night). The map uses a real catalog (about 5,000 stars brighter than magnitude 6); planet positions are computed day by day from JPL approximate orbital elements and the Moon from a short formula. Positions are normally good to better than 1°, plenty for checking outdoors.</p>
+    <p data-zh="超出六年级的内容：恒星时、地平坐标（高度角/方位角）与赤道坐标（赤经/赤纬）、星等的对数刻度（相差 5 等 = 亮度相差 100 倍）、以及从 B−V 色指数估算恒星温度。">This goes beyond grade 6: sidereal time, horizon coordinates (altitude/azimuth) versus equatorial coordinates (right ascension/declination), the logarithmic magnitude scale (5 magnitudes = 100× in brightness), and estimating a star’s temperature from its B−V colour index.</p>
+    <p data-zh="活动建议：（1）让学生用“现在”按钮生成今晚的星图，晚上到户外对照，记录看到的行星和月相；（2）连续一周每天同一时间观察月球，在星图上用 +1 天按钮验证它每天向东移动约 13°；（3）把“夜空有多黑”滑块从城市调到乡村，讨论光污染，并参加 Globe at Night 公民科学项目。">Activities: (1) use the “Now” button to make tonight’s chart, go outside and record which planets and which Moon phase you see; (2) observe the Moon at the same time for a week and check with “+1 day” that it moves about 13° east each day; (3) move the sky-darkness slider from city to countryside, discuss light pollution and join the Globe at Night citizen-science project.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+const o = (en, zh) => ({en, zh});
+const D2R = Math.PI / 180, R2D = 180 / Math.PI;
+const isZh = () => Lab.lang === 'zh';
+const PZ = s => isZh() ? "（" + s + "）" : " (" + s + ")";
+const nf = (x, d = 0) => Number(x).toLocaleString('en-US', { maximumFractionDigits:d, minimumFractionDigits:d });
+/* ===== Places (standard-time offset; DST rule) ===== */
+const LOCS = [
+  { n:o('Atlanta, Georgia','佐治亚州亚特兰大'), lat:33.75, lon:-84.39, tz:-5, dst:'us' },
+  { n:o('New York','纽约'), lat:40.71, lon:-74.01, tz:-5, dst:'us' },
+  { n:o('Beijing','北京'), lat:39.90, lon:116.40, tz:8, dst:'' },
+  { n:o('Sydney, Australia','澳大利亚悉尼'), lat:-33.87, lon:151.21, tz:10, dst:'au' },
+  { n:o('North Pole','北极点'), lat:90, lon:0, tz:0, dst:'' },
+  { n:o('Equator (Quito, Ecuador)','赤道（厄瓜多尔基多）'), lat:-0.2, lon:-78.5, tz:-5, dst:'' }
+];
+const nthSunday = (y, m, n) => { const dow = new Date(Date.UTC(y, m, 1)).getUTCDay(); return 1 + (7 - dow) % 7 + 7 * (n - 1); };
+function tzOffset(loc, y, m, d){ // m = 1..12
+  const t = Date.UTC(y, m - 1, d);
+  if (loc.dst === 'us'){ const a = Date.UTC(y, 2, nthSunday(y, 2, 2)), b = Date.UTC(y, 10, nthSunday(y, 10, 1)); return loc.tz + (t >= a && t < b ? 1 : 0); }
+  if (loc.dst === 'au'){ const a = Date.UTC(y, 3, nthSunday(y, 3, 1)), b = Date.UTC(y, 9, nthSunday(y, 9, 1)); return loc.tz + (t < a || t >= b ? 1 : 0); }
+  return loc.tz;
+}
+/* ===== Famous stars (HIP number from the catalog): name, Chinese name, distance in light-years (approximate; u = very uncertain), short fact ===== */
+const FAM = {
+  32349:['Sirius','天狼星',8.6,0,o('The brightest star in the night sky. It has a tiny white-dwarf partner, Sirius B.','夜空中最亮的恒星，它有一颗很小的白矮星伴星“天狼星 B”。')],
+  30438:['Canopus','老人星',310,0,o('The second-brightest star. From Atlanta it barely skims the southern horizon in winter.','全天第二亮的恒星。从亚特兰大看，它冬天只在南方地平线上露一下头。')],
+  69673:['Arcturus','大角星',37,0,o('An orange giant, the brightest star in the northern half of the sky. “Arc to Arcturus” along the Big Dipper’s handle.','一颗橙色巨星，北半天球最亮的恒星。顺着北斗勺柄的弧线就能找到它。')],
+  71683:['Alpha Centauri','南门二',4.37,0,o('The nearest star system to the Sun (its faint partner Proxima is even closer, 4.24 ly). Not visible from Atlanta.','离太阳最近的恒星系统（它的暗伴星比邻星更近，4.24 光年）。在亚特兰大看不到。')],
+  91262:['Vega','织女星',25,0,o('A blue-white star almost overhead on summer evenings. It was the “zero point” of the magnitude scale.','夏夜几乎在头顶的蓝白色亮星，曾是星等刻度的“零点”。')],
+  24608:['Capella','五车二',43,0,o('Actually two yellow giant stars orbiting each other.','其实是两颗互相绕转的黄色巨星。')],
+  24436:['Rigel','参宿七',860,0,o('A blue supergiant marking Orion’s foot: tens of thousands of times more powerful than the Sun.','标出猎户脚的蓝超巨星，发光能力是太阳的几万倍。')],
+  37279:['Procyon','南河三',11.5,0,o('One of our nearest bright neighbours, the “Little Dog Star”.','离我们最近的亮星之一，小犬座的主星。')],
+  7588:['Achernar','水委一',139,0,o('Spins so fast that it is squashed into an egg shape.','它自转得非常快，被“甩”成了扁扁的蛋形。')],
+  27989:['Betelgeuse','参宿四',550,1,o('A red supergiant: if it replaced the Sun it would swallow Mars’s orbit. One day it will explode as a supernova.','一颗红超巨星：如果把它放在太阳的位置，它能吞下火星的轨道。将来它会爆发成超新星。')],
+  68702:['Hadar','马腹一',390,0,null], 97649:['Altair','牛郎星',16.7,0,o('The Cowherd of the Chinese Qixi story. It spins once in less than 8 hours.','中国七夕故事里的牛郎星，它不到 8 小时就自转一周。')],
+  60718:['Acrux','十字架二',320,0,o('The brightest star of the Southern Cross.','南十字座最亮的星。')], 21421:['Aldebaran','毕宿五',65,0,o('The orange “eye of the Bull” in Taurus.','金牛座橙红色的“牛眼”。')],
+  80763:['Antares','心宿二',550,0,o('A red supergiant, the heart of the Scorpion. Its name means “rival of Mars”.','天蝎的心脏，一颗红超巨星。名字的意思是“火星的对手”。')],
+  65474:['Spica','角宿一',250,0,null], 37826:['Pollux','北河三',34,0,null], 113368:['Fomalhaut','北落师门',25,0,o('The lonely bright star of autumn evenings; it has a dusty disk around it.','秋夜南方孤零零的亮星，周围有一圈尘埃盘。')],
+  102098:['Deneb','天津四',2600,1,o('One of the most powerful stars you can see: about 2,600 ly away and still among the brightest.','肉眼可见的最强大的恒星之一：远在约 2600 光年外，看起来依然很亮。')],
+  62434:['Mimosa','十字架三',280,0,null], 49669:['Regulus','轩辕十四',79,0,null], 33579:['Adhara','弧矢七',430,0,null], 36850:['Castor','北河二',51,0,o('Six stars in one: three pairs orbiting each other.','其实是 6 颗星：三对双星互相绕转。')],
+  85927:['Shaula','尾宿八',570,1,null], 25336:['Bellatrix','参宿五',250,0,null], 25428:['Elnath','五车五',130,0,null],
+  26311:['Alnilam','参宿二',2000,1,o('The middle star of Orion’s Belt.','猎户腰带中间的那颗星。')], 26727:['Alnitak','参宿一',1200,1,null], 25930:['Mintaka','参宿三',1200,1,null],
+  11767:['Polaris','北极星',430,0,o('Less than 1° from the north celestial pole, so it barely moves all night. It is only about the 48th-brightest star.','离北天极不到 1°，所以整夜几乎不动。它只排全天亮星的第 48 名左右。')],
+  54061:['Dubhe','天枢',123,0,o('A “pointer star”: Merak → Dubhe points to Polaris.','“指极星”之一：从天璇到天枢的连线指向北极星。')], 53910:['Merak','天璇',80,0,null],
+  62956:['Alioth','玉衡',83,0,null], 65378:['Mizar','开阳',83,0,o('Sharp eyes can see its faint partner Alcor next to it.','眼力好的人能看到它旁边的暗星“辅”。')], 67301:['Alkaid','摇光',104,0,null], 58001:['Phecda','天玑',84,0,null], 59774:['Megrez','天权',81,0,null],
+  72607:['Kochab','帝星',131,0,null], 3179:['Schedar','王良四',228,0,null], 746:['Caph','王良一',55,0,null], 4427:['Gamma Cassiopeiae','策',550,1,null], 6686:['Ruchbah','阁道三',99,0,null],
+  14576:['Algol','大陵五',90,0,o('The “Demon Star”: it dims every 2.9 days when its partner passes in front of it.','“恶魔之星”：每 2.9 天，它的伴星从前面经过，它就会变暗一次。')],
+  57632:['Denebola','五帝座一',36,0,null], 46390:['Alphard','星宿一',177,0,null], 27366:['Saiph','参宿六',650,1,null], 15863:['Mirfak','天船三',510,0,null], 677:['Alpheratz','壁宿二',97,0,null],
+  95947:['Albireo','辇道增七',430,0,o('Through a small telescope it splits into a gold and a blue star.','用小望远镜看，它会分成一金一蓝两颗星。')], 9884:['Hamal','娄宿三',66,0,null], 76267:['Alphecca','贯索四',75,0,null],
+  86032:['Rasalhague','候',49,0,null], 92855:['Nunki','斗宿四',228,0,null], 90185:['Kaus Australis','箕宿三',143,0,null], 113963:['Markab','室宿一',133,0,null], 107315:['Enif','危宿三',690,0,null],
+  68756:['Thuban','右枢',303,0,o('The pole star about 4,700 years ago, when the Egyptian pyramids were built: Earth’s axis slowly wobbles.','大约 4700 年前（建造埃及金字塔的年代）它曾是北极星：地轴在缓慢地摆动。')],
+  17702:['Alcyone (Pleiades)','昴宿六（昴星团）',440,0,o('The brightest star of the Pleiades cluster, the “Seven Sisters”.','昴星团（“七姐妹”）里最亮的星。')], 100453:['Sadr','天津一',1800,1,null], 61084:['Gacrux','十字架一',88,0,null],
+  31681:['Alhena','井宿三',109,0,null], 28360:['Menkalinan','五车三',81,0,null], 113881:['Scheat','室宿二',196,0,null], 1067:['Algenib','壁宿一',390,1,null], 3419:['Diphda','土司空',96,0,null], 5447:['Mirach','奎宿九',197,0,null], 9640:['Almach','天大将军一',350,0,null]
+};
+/* ===== JPL approximate Keplerian elements (Standish, valid 1800–2050), J2000 ecliptic: a(AU) e i L ϖ Ω and their rates per century ===== */
+const KEP = {
+  mercury:[0.38709927,0.20563593,7.00497902,252.25032350,77.45779628,48.33076593, 0.00000037,0.00001906,-0.00594749,149472.67411175,0.16047689,-0.12534081],
+  venus:  [0.72333566,0.00677672,3.39467605,181.97909950,131.60246718,76.67984255, 0.00000390,-0.00004107,-0.00078890,58517.81538729,0.00268329,-0.27769418],
+  earth:  [1.00000261,0.01671123,-0.00001531,100.46457166,102.93768193,0, 0.00000562,-0.00004392,-0.01294668,35999.37244981,0.32327364,0],
+  mars:   [1.52371034,0.09339410,1.84969142,-4.55343205,-23.94362959,49.55953891, 0.00001847,0.00007882,-0.00813131,19140.30268499,0.44441088,-0.29257343],
+  jupiter:[5.20288700,0.04838624,1.30439695,34.39644051,14.72847983,100.47390909, -0.00011607,-0.00013253,-0.00183714,3034.74612775,0.21252668,0.20469106],
+  saturn: [9.53667594,0.05386179,2.48599187,49.95424423,92.59887831,113.66242448, -0.00125060,-0.00050991,0.00193609,1222.49362201,-0.41897216,-0.28867794]
+};
+const BODY = {
+  sun:{ n:o('Sun','太阳'), col:'#ffd75e' }, moon:{ n:o('Moon','月球'), col:'#f1efe6' },
+  mercury:{ n:o('Mercury','水星'), col:'#c9beb0', fact:o('Never far from the Sun: look low in the west just after sunset, or low in the east before sunrise.','它总在太阳附近：日落后低低地出现在西方，或日出前出现在东方。') },
+  venus:{ n:o('Venus','金星'), col:'#fff4c9', fact:o('The brightest thing in the night sky after the Moon. Its thick white clouds reflect sunlight.','除了月球，它是夜空中最亮的天体。厚厚的白色云层反射阳光。') },
+  mars:{ n:o('Mars','火星'), col:'#ff8a5c', fact:o('Its orange-red colour comes from rusty iron dust. Its brightness changes a lot because its distance from Earth changes a lot.','它的橙红色来自生锈的含铁尘土。它离地球的距离变化很大，所以亮度变化也很大。') },
+  jupiter:{ n:o('Jupiter','木星'), col:'#ffe2b0', fact:o('With binoculars held steady you can see up to four tiny dots beside it: its moons Io, Europa, Ganymede and Callisto.','用双筒望远镜拿稳看，可以在它旁边看到最多 4 个小亮点：木卫一、木卫二、木卫三和木卫四。') },
+  saturn:{ n:o('Saturn','土星'), col:'#f3d68f', fact:o('The farthest planet easy to see with the eye alone. Any small telescope shows its rings.','肉眼容易看到的最远行星。任何一台小望远镜都能看到它的光环。') }
+};
+const PLANETS = ['mercury','venus','mars','jupiter','saturn'];
+/* ===== "Find it!" targets: hip list (or body), hint ===== */
+const TARGETS = [
+  { id:'polaris', n:o('Polaris, the North Star','北极星'), hip:[11767], hint:o('Find the Big Dipper, then follow its two “pointer stars” (the end of the bowl) about five times their distance.','先找到北斗七星，再把斗口的两颗“指极星”连线延长约 5 倍。') },
+  { id:'dipper', n:o('the Big Dipper','北斗七星'), hip:[54061,53910,58001,59774,62956,65378,67301], hint:o('Seven bright stars making a ladle: four in a bowl, three in a curved handle. In the north.','七颗亮星组成一把勺子：四颗是勺斗，三颗是弯弯的勺柄。在北方。') },
+  { id:'belt', n:o('Orion’s Belt','猎户腰带（参宿一、二、三）'), hip:[26727,26311,25930], hint:o('Three bright stars in a short, straight row, between red Betelgeuse and blue-white Rigel.','三颗亮星排成短短的一条直线，夹在红色的参宿四和蓝白色的参宿七之间。') },
+  { id:'cas', n:o('Cassiopeia’s “W”','仙后座的“W”'), hip:[746,3179,4427,6686,8886], hint:o('A W (or M) of five stars on the opposite side of Polaris from the Big Dipper.','五颗星组成的“W”（或“M”），和北斗七星分别在北极星两侧。') },
+  { id:'vega', n:o('Vega','织女星'), hip:[91262], hint:o('A very bright blue-white star, high in summer and autumn evenings. One corner of the Summer Triangle.','一颗很亮的蓝白色星，夏秋季的傍晚高挂天空，是“夏季大三角”的一个角。') },
+  { id:'arcturus', n:o('Arcturus','大角星'), hip:[69673], hint:o('Follow the curve of the Big Dipper’s handle: “arc to Arcturus”. A bright orange star.','顺着北斗勺柄的弧线延伸，就能找到这颗橙色亮星。') },
+  { id:'sirius', n:o('Sirius','天狼星'), hip:[32349], hint:o('The brightest star of all. Follow Orion’s Belt down and to the left (from the north).','全天最亮的恒星。（北半球看）顺着猎户腰带向左下方延伸。') },
+  { id:'betelgeuse', n:o('Betelgeuse','参宿四'), hip:[27989], hint:o('The orange-red shoulder of Orion, above the belt.','猎户的橙红色“肩膀”，在腰带上方。') },
+  { id:'rigel', n:o('Rigel','参宿七'), hip:[24436], hint:o('The blue-white foot of Orion, on the opposite side of the belt from Betelgeuse.','猎户的蓝白色“脚”，和参宿四分别在腰带两侧。') },
+  { id:'aldebaran', n:o('Aldebaran','毕宿五'), hip:[21421], hint:o('An orange star: follow Orion’s Belt the other way (up and right, from the north).','一颗橙色星：（北半球看）顺着猎户腰带向右上方延伸。') },
+  { id:'pleiades', n:o('the Pleiades (Seven Sisters)','昴星团（七姐妹）'), hip:[17702,17499,17573,17608,17847,17851,17489], hint:o('A tiny, misty dipper-shaped cluster beyond Aldebaran. It looks like a smudge of stars.','毕宿五再过去一点，一小团像小勺子的朦胧星团。') },
+  { id:'capella', n:o('Capella','五车二'), hip:[24608], hint:o('A bright yellow star high in the north-east on winter evenings.','冬天傍晚东北方高空的一颗黄色亮星。') },
+  { id:'altair', n:o('Altair','牛郎星'), hip:[97649], hint:o('The Summer Triangle corner farthest south, with a fainter star on each side.','“夏季大三角”最南的那个角，两边各有一颗暗一点的星。') },
+  { id:'deneb', n:o('Deneb','天津四'), hip:[102098], hint:o('The tail of Cygnus, the Swan, and a corner of the Summer Triangle.','天鹅座的“尾巴”，也是“夏季大三角”的一个角。') },
+  { id:'antares', n:o('Antares','心宿二'), hip:[80763], hint:o('A red star low in the south on summer evenings, the heart of Scorpius.','夏天傍晚南方低空的一颗红星，是天蝎的心脏。') },
+  { id:'spica', n:o('Spica','角宿一'), hip:[65474], hint:o('“Arc to Arcturus, then speed on to Spica”: keep following the curve.','“沿着弧线到大角，再往前到角宿一”。') },
+  { id:'regulus', n:o('Regulus','轩辕十四'), hip:[49669], hint:o('The bottom of a backward question mark, the head of Leo.','一个反写问号的最下面一点，狮子座的头。') },
+  { id:'cross', n:o('the Southern Cross','南十字'), hip:[60718,62434,61084,59747], hint:o('A small, bright kite of four stars in the far south, next to the two pointer stars Alpha and Beta Centauri.','南方天空中四颗亮星组成的小风筝形，旁边有两颗“指针星”南门二和马腹一。') },
+  { id:'canopus', n:o('Canopus','老人星'), hip:[30438], hint:o('The second-brightest star, far south of Sirius.','全天第二亮的星，在天狼星的南边很远处。') },
+  { id:'venus', n:o('Venus','金星'), body:'venus', hint:o('The brightest “star” near where the Sun went down (or will come up). It doesn’t twinkle much.','在太阳落下（或将要升起）的方向附近最亮的“星”，几乎不闪烁。') },
+  { id:'jupiter', n:o('Jupiter','木星'), body:'jupiter', hint:o('A very bright, steady cream-coloured “star” on the ecliptic.','黄道附近一颗很亮、稳定的奶白色“星”。') },
+  { id:'mars', n:o('Mars','火星'), body:'mars', hint:o('An orange-red dot on the ecliptic that doesn’t twinkle.','黄道附近一个不闪烁的橙红色亮点。') },
+  { id:'saturn', n:o('Saturn','土星'), body:'saturn', hint:o('A steady pale-yellow dot on the ecliptic, not as bright as Jupiter.','黄道附近一个稳定的淡黄色亮点，没有木星亮。') },
+  { id:'moon', n:o('the Moon','月球'), body:'moon', hint:o('Easy one: the biggest thing in the sky! Look along the ecliptic.','送分题：天上最大的那个！沿着黄道找。') }
+];
+/* ===== magnitude figure data ===== */
+const MAGS = [
+  { n:o('Sun','太阳'), m:-26.74, c:'#ffd75e' }, { n:o('Full Moon','满月'), m:-12.74, c:'#f1efe6' }, { n:o('Venus (at its brightest)','金星（最亮时）'), m:-4.6, c:'#fff4c9' },
+  { n:o('Jupiter (at its brightest)','木星（最亮时）'), m:-2.9, c:'#ffe2b0' }, { n:o('Sirius','天狼星'), m:-1.46, c:'#cad8ff' }, { n:o('Vega','织女星'), m:0.03, c:'#d8e2ff' },
+  { n:o('Polaris','北极星'), m:1.98, c:'#fff3dc' }, { n:o('Faintest stars in a big-city sky (about)','大城市夜空能看到的最暗星（约）'), m:3.5, c:'#9aa7c4', lim:1 },
+  { n:o('Uranus','天王星'), m:5.7, c:'#b8f0f0' }, { n:o('Faintest stars by eye, dark country sky (about)','乡村黑暗夜空肉眼极限（约）'), m:6.5, c:'#9aa7c4', lim:1 },
+  { n:o('Neptune','海王星'), m:7.8, c:'#8fb6ff' }, { n:o('Binoculars limit (about)','双筒望远镜极限（约）'), m:9.5, c:'#9aa7c4', lim:1 },
+  { n:o('Pluto','冥王星'), m:14.4, c:'#d9c2a8' }, { n:o('Faintest galaxies, Hubble Ultra Deep Field (about)','哈勃极深场中最暗的星系（约）'), m:30, c:'#9aa7c4', lim:1 }
+];
+/* ===== small maths helpers ===== */
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const norm = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+const vec = (lon, lat) => { const a = lon * D2R, d = lat * D2R; return [Math.cos(d) * Math.cos(a), Math.cos(d) * Math.sin(a), Math.sin(d)]; };
+const sstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+const EPS = 23.43928 * D2R;
+const ecl2eq = v => [v[0], v[1] * Math.cos(EPS) - v[2] * Math.sin(EPS), v[1] * Math.sin(EPS) + v[2] * Math.cos(EPS)];
+/* star colour and temperature from the B−V colour index (Ballesteros 2012 formula for temperature) */
+const BVS = [[-0.4,[155,178,255]],[0,[202,216,255]],[0.3,[248,247,255]],[0.6,[255,244,232]],[0.9,[255,224,182]],[1.3,[255,197,132]],[1.9,[255,158,94]]];
+function bvRGB(bv){ if (!isFinite(bv)) bv = 0.6; bv = clamp(bv, -0.4, 1.9); for (let j = 1; j < BVS.length; j++) if (bv <= BVS[j][0]){ const [a, ca] = BVS[j - 1], [b, cb] = BVS[j], t = (bv - a) / (b - a); return ca.map((c, k) => Math.round(c + (cb[k] - c) * t)); } return BVS[BVS.length - 1][1]; }
+const bvTemp = bv => 4600 * (1 / (0.92 * bv + 1.7) + 1 / (0.92 * bv + 0.62));
+function tempWord(T){ return T > 10000 ? o('blue-white','蓝白色') : T > 7500 ? o('white','白色') : T > 6000 ? o('yellow-white','黄白色') : T > 5200 ? o('yellow','黄色') : T > 3700 ? o('orange','橙色') : o('red-orange','橙红色'); }
+
+/* ===== real catalog from d3-celestial (jsDelivr CDN) ===== */
+const CDN = 'https://cdn.jsdelivr.net/npm/d3-celestial@0.7.35/data/';
+const DATA = { ok:false, failed:false, N:0, names:null, mw:null, cons:{}, lines:[], hipIdx:{} };
+const getJSON = f => fetch(CDN + f).then(r => { if (!r.ok) throw new Error(f + ' ' + r.status); return r.json(); });
+function prepStars(js){
+  const f = js.features.filter(s => s.properties && isFinite(s.properties.mag)).sort((a, b) => b.properties.mag - a.properties.mag); // faint first, bright drawn on top
+  const N = DATA.N = f.length;
+  DATA.X = new Float32Array(N); DATA.Y = new Float32Array(N); DATA.Z = new Float32Array(N); DATA.MAG = new Float32Array(N); DATA.BV = new Float32Array(N); DATA.HIP = new Int32Array(N); DATA.COL = new Array(N);
+  f.forEach((s, i) => { const v = vec(s.geometry.coordinates[0], s.geometry.coordinates[1]); DATA.X[i] = v[0]; DATA.Y[i] = v[1]; DATA.Z[i] = v[2];
+    DATA.MAG[i] = s.properties.mag; const bv = parseFloat(s.properties.bv); DATA.BV[i] = isFinite(bv) ? bv : NaN; DATA.HIP[i] = s.id | 0; DATA.hipIdx[s.id] = i;
+    const c = bvRGB(bv); DATA.COL[i] = `rgb(${c[0]},${c[1]},${c[2]})`; });
+}
+function prepLines(js){ js.features.forEach(ft => ft.geometry.coordinates.forEach(line => { const a = new Float32Array(line.length * 3); line.forEach((p, j) => a.set(vec(p[0], p[1]), j * 3)); DATA.lines.push(a); })); }
+function prepCons(js){ js.features.forEach(ft => { const p = ft.properties; DATA.cons[ft.id] = { en:p.name, zh:p.zh || p.name, rank:+p.rank || 3, v:vec(ft.geometry.coordinates[0], ft.geometry.coordinates[1]) }; }); }
+function prepMW(js){ // paint the Milky Way outline levels into a 0.5° RA/Dec brightness map
+  const W = 720, H = 360, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
+  g.fillStyle = 'rgba(255,255,255,0.2)';
+  js.features.forEach(ft => ft.geometry.coordinates.forEach(poly => {
+    for (const shift of [-720, 0, 720, 1440]){
+      g.beginPath();
+      poly.forEach(ring => { let prev = null; ring.forEach((p, j) => { let lon = p[0]; if (prev != null){ while (lon - prev > 180) lon -= 360; while (prev - lon > 180) lon += 360; } prev = lon;
+        const x = lon * 2 + shift, y = (90 - p[1]) * 2; j ? g.lineTo(x, y) : g.moveTo(x, y); }); g.closePath(); });
+      g.fill('evenodd');
+    }
+  }));
+  const d = g.getImageData(0, 0, W, H).data, m = new Float32Array(W * H); let mx = 0;
+  for (let i = 0; i < W * H; i++){ m[i] = d[i * 4 + 3] / 255; if (m[i] > mx) mx = m[i]; }
+  if (mx > 0) for (let i = 0; i < W * H; i++) m[i] /= mx;
+  DATA.mw = m;
+}
+const ECL = []; for (let l = 0; l <= 360; l += 3) ECL.push(ecl2eq(vec(l, 0)));
+
+/* ===== Sun, Moon and planets (approximate) ===== */
+function kepler(p, T){
+  const k = KEP[p], a = k[0] + k[6] * T, e = k[1] + k[7] * T, I = (k[2] + k[8] * T) * D2R, L = k[3] + k[9] * T, W = k[4] + k[10] * T, N = k[5] + k[11] * T;
+  const w = (W - N) * D2R, Om = N * D2R, M = (((L - W) % 360 + 540) % 360 - 180) * D2R;
+  let E = M + e * Math.sin(M); for (let j = 0; j < 8; j++) E -= (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
+  const xp = a * (Math.cos(E) - e), yp = a * Math.sqrt(1 - e * e) * Math.sin(E);
+  const cw = Math.cos(w), sw = Math.sin(w), cO = Math.cos(Om), sO = Math.sin(Om), cI = Math.cos(I), sI = Math.sin(I);
+  return [(cw * cO - sw * sO * cI) * xp + (-sw * cO - cw * sO * cI) * yp, (cw * sO + sw * cO * cI) * xp + (-sw * sO + cw * cO * cI) * yp, sw * sI * xp + cw * sI * yp];
+}
+function bodies(T){
+  const E = kepler('earth', T), sunG = [-E[0], -E[1], -E[2]], R = Math.hypot(...E), out = {};
+  out.sun = { v:norm(ecl2eq(sunG)), dist:R, mag:-26.74 };
+  for (const p of PLANETS){
+    const P = kepler(p, T), g = [P[0] - E[0], P[1] - E[1], P[2] - E[2]], r = Math.hypot(...P), D = Math.hypot(...g);
+    const i = Math.acos(clamp((r * r + D * D - R * R) / (2 * r * D), -1, 1)) * R2D, l5 = 5 * Math.log10(r * D);
+    const mag = { mercury:-0.42 + l5 + 0.038 * i - 0.000273 * i * i + 0.000002 * i * i * i, venus:-4.40 + l5 + 0.0009 * i + 0.000239 * i * i - 0.00000065 * i * i * i,
+                  mars:-1.52 + l5 + 0.016 * i, jupiter:-9.40 + l5 + 0.005 * i, saturn:-8.88 + l5 }[p];
+    out[p] = { v:norm(ecl2eq(g)), dist:D, mag, elong:Math.acos(clamp(dot(norm(g), norm(sunG)), -1, 1)) * R2D };
+  }
+  const s = x => Math.sin(x * D2R), c = x => Math.cos(x * D2R);
+  const lam = 218.32 + 481267.881 * T + 6.29 * s(135.0 + 477198.87 * T) - 1.27 * s(259.3 - 413335.36 * T) + 0.66 * s(235.7 + 890534.22 * T) + 0.21 * s(269.9 + 954397.74 * T) - 0.19 * s(357.5 + 35999.05 * T) - 0.11 * s(186.5 + 966404.03 * T) - 1.397 * T;
+  const bet = 5.13 * s(93.3 + 483202.02 * T) + 0.28 * s(228.2 + 960400.89 * T) - 0.28 * s(318.3 + 6003.15 * T) - 0.17 * s(217.6 - 407332.21 * T);
+  const par = 0.9508 + 0.0518 * c(135.0 + 477198.87 * T) + 0.0095 * c(259.3 - 413335.36 * T) + 0.0078 * c(235.7 + 890534.22 * T) + 0.0028 * c(269.9 + 954397.74 * T);
+  const me = vec(lam, bet), el = Math.acos(clamp(dot(me, norm(sunG)), -1, 1)) * R2D, sunLon = Math.atan2(sunG[1], sunG[0]) * R2D;
+  out.moon = { v:ecl2eq(me), dist:6378.14 / Math.sin(par * D2R), par, elong:el, frac:(1 - Math.cos(el * D2R)) / 2, waxing:((lam - sunLon) % 360 + 360) % 360 < 180, mag:-12.73 + 0.026 * (180 - el) + 4e-9 * Math.pow(180 - el, 4) };
+  return out;
+}
+/* local frame: east, north, up as equatorial (J2000) unit vectors */
+function frameFor(utc, lat, lon){
+  const d = utc / 86400000 + 2440587.5 - 2451545, T = d / 36525;
+  const lst = ((280.46061837 + 360.98564736629 * d + lon) % 360 + 360) % 360, L = lst * D2R, p = lat * D2R;
+  const F = { d, T, lst, lat, E:[-Math.sin(L), Math.cos(L), 0], N:[-Math.sin(p) * Math.cos(L), -Math.sin(p) * Math.sin(L), Math.cos(p)], U:[Math.cos(p) * Math.cos(L), Math.cos(p) * Math.sin(L), Math.sin(p)] };
+  F.B = bodies(T);
+  const mv = F.B.moon.v, h = Math.asin(clamp(dot(mv, F.U), -1, 1)), az = Math.atan2(dot(mv, F.E), dot(mv, F.N)), h2 = h - F.B.moon.par * D2R * Math.cos(h); // topocentric Moon (parallax)
+  F.B.moon.v = [0, 1, 2].map(j => Math.cos(h2) * (Math.sin(az) * F.E[j] + Math.cos(az) * F.N[j]) + Math.sin(h2) * F.U[j]);
+  return F;
+}
+const altOf = (F, v) => Math.asin(clamp(dot(v, F.U), -1, 1)) * R2D;
+const azOf = (F, v) => (Math.atan2(dot(v, F.E), dot(v, F.N)) * R2D + 360) % 360;
+const DIRS = [o('N','北'),o('NE','东北'),o('E','东'),o('SE','东南'),o('S','南'),o('SW','西南'),o('W','西'),o('NW','西北')];
+const dirWord = az => DIRS[Math.round(az / 45) % 8];
+const starVec = i => [DATA.X[i], DATA.Y[i], DATA.Z[i]];
+
+/* ===== The sky view: stereographic projection of the alt-az sky onto a canvas ===== */
+function SkyView(box, canvas, opt){
+  const V = { az:180, alt:90, fov:180, ...(opt.view || {}) };
+  const g = canvas.getContext('2d'), sky = document.createElement('canvas'), gnd = document.createElement('canvas'), sg = sky.getContext('2d'), gg = gnd.getContext('2d');
+  let W = 0, H = 0, k = 1, cx = 0, cy = 0, F = null, Fv, Rv, Uv, simg = null, gimg = null, queued = false;
+  const vis = { stars:[], bodies:[] };
+  function resize(){ const b = box.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2); W = b.width; H = b.height; canvas.width = W * dpr; canvas.height = H * dpr; g.setTransform(dpr, 0, 0, dpr, 0, 0); draw(); }
+  const toEq = b => [0, 1, 2].map(j => b[0] * F.E[j] + b[1] * F.N[j] + b[2] * F.U[j]);
+  function basis(){
+    const a = V.az * D2R, h = V.alt * D2R;
+    Fv = toEq([Math.cos(h) * Math.sin(a), Math.cos(h) * Math.cos(a), Math.sin(h)]); Rv = toEq([Math.cos(a), -Math.sin(a), 0]); Uv = toEq([-Math.sin(a) * Math.sin(h), -Math.cos(a) * Math.sin(h), Math.cos(h)]);
+    k = (Math.min(W, H) / 2) / Math.tan(V.fov / 4 * D2R); cx = W / 2; cy = H / 2;
+  }
+  function proj(v){ const d = dot(v, Fv); if (d < -0.7) return null; const q = 1 / (1 + d); return [cx + k * dot(v, Rv) * q, cy - k * dot(v, Uv) * q]; }
+  function sunAlt(){ return opt.forceNight ? -40 : altOf(F, F.B.sun.v); }
+  function limMag(){ if (opt.forceNight) return 5.6; const hs = sunAlt(), base = SKY.dark; if (hs > 0) return -4; return base + (-1.2 - base) * sstep(-18, -4, hs); }
+  function raster(){
+    const s = 4, rw = Math.max(1, Math.ceil(W / s)), rh = Math.max(1, Math.ceil(H / s));
+    if (sky.width !== rw || sky.height !== rh || !simg){ sky.width = gnd.width = rw; sky.height = gnd.height = rh; simg = sg.createImageData(rw, rh); gimg = gg.createImageData(rw, rh); }
+    const sd = simg.data, gd = gimg.data, U = F.U, sun = F.B.sun.v, hs = sunAlt();
+    const day = sstep(-18, 8, hs), warm = Math.max(0, 1 - Math.abs(hs + 3) / 8), mwK = (opt.layers().mw && DATA.mw) ? (1 - sstep(-18, -10, hs)) * clamp(((opt.forceNight ? 6 : SKY.dark) - 3.6) / 2.4, 0, 1) : 0;
+    const gR = 12 + 50 * day, gG = 22 + 55 * day, gB = 18 + 30 * day, mw = DATA.mw;
+    for (let j = 0; j < rh; j++) for (let i = 0; i < rw; i++){
+      const px = ((i + 0.5) * s - cx) / k, py = (cy - (j + 0.5) * s) / k, r2 = px * px + py * py, q = 1 / (1 + r2);
+      const vx = (2 * px * Rv[0] + 2 * py * Uv[0] + (1 - r2) * Fv[0]) * q, vy = (2 * px * Rv[1] + 2 * py * Uv[1] + (1 - r2) * Fv[1]) * q, vz = (2 * px * Rv[2] + 2 * py * Uv[2] + (1 - r2) * Fv[2]) * q;
+      const sa = vx * U[0] + vy * U[1] + vz * U[2], n = (j * rw + i) * 4;
+      if (sa < 0){ gd[n] = gR; gd[n + 1] = gG; gd[n + 2] = gB; gd[n + 3] = 228; sd[n] = gR; sd[n + 1] = gG; sd[n + 2] = gB; sd[n + 3] = 255; continue; }
+      gd[n + 3] = 0;
+      const cs = vx * sun[0] + vy * sun[1] + vz * sun[2], glow = Math.exp((cs - 1) * 3.2), hz = Math.pow(1 - sa, 3);
+      let R = 4 + day * (62 + 70 * hz) + glow * day * 110 + warm * hz * 110 * (0.4 + glow), G = 7 + day * (115 + 55 * hz) + glow * day * 95 + warm * hz * 45 * (0.4 + glow), B = 20 + day * (190 + 35 * hz) + glow * day * 60;
+      if (mwK){ const ra = (Math.atan2(vy, vx) * R2D + 360) % 360, dec = Math.asin(clamp(vz, -1, 1)) * R2D, I = mw[Math.min(359, Math.floor((90 - dec) * 2)) * 720 + Math.min(719, Math.floor(ra * 2))] * mwK; R += I * 34; G += I * 38; B += I * 48; }
+      sd[n] = R > 255 ? 255 : R; sd[n + 1] = G > 255 ? 255 : G; sd[n + 2] = B > 255 ? 255 : B; sd[n + 3] = 255;
+    }
+    sg.putImageData(simg, 0, 0); gg.putImageData(gimg, 0, 0);
+  }
+  function draw(){
+    queued = false; if (!W || !H) return;
+    F = opt.frame(); if (!F) return; basis();
+    const Ly = opt.layers(), U = F.U, lim = limMag(), zf = clamp(Math.sqrt(150 / V.fov), 1, 2.6), hs = sunAlt();
+    raster(); g.imageSmoothingEnabled = true; g.drawImage(sky, 0, 0, W, H);
+    const ink = hs > -4 ? 'rgba(10,25,60,' : 'rgba(150,180,255,';
+    if (DATA.ok){
+      if (Ly.lines){ g.strokeStyle = ink + (hs > -4 ? '0.45)' : '0.42)'); g.lineWidth = 1; g.beginPath();
+        for (const P of DATA.lines){ let prev = null; for (let j = 0; j < P.length; j += 3){ const p = proj([P[j], P[j + 1], P[j + 2]]); if (p && prev && Math.abs(p[0] - prev[0]) < W && Math.abs(p[1] - prev[1]) < H) g.lineTo(p[0], p[1]); else if (p) g.moveTo(p[0], p[1]); prev = p; } }
+        g.stroke(); }
+      if (Ly.ecl){ g.save(); g.setLineDash([6, 6]); g.strokeStyle = 'rgba(255,200,90,0.6)'; g.lineWidth = 1.2; g.beginPath(); let prev = null; for (const v of ECL){ const p = proj(v); if (p && prev) g.lineTo(p[0], p[1]); else if (p) g.moveTo(p[0], p[1]); prev = p; } g.stroke(); g.restore(); }
+      vis.stars.length = 0; const X = DATA.X, Y = DATA.Y, Z = DATA.Z, M = DATA.MAG;
+      for (let i = 0; i < DATA.N; i++){
+        const m = M[i]; if (m > lim) continue;
+        const x = X[i], y = Y[i], z = Z[i], d = x * Fv[0] + y * Fv[1] + z * Fv[2]; if (d < -0.6) continue;
+        const q = 1 / (1 + d), sx = cx + k * (x * Rv[0] + y * Rv[1] + z * Rv[2]) * q; if (sx < -6 || sx > W + 6) continue;
+        const sy = cy - k * (x * Uv[0] + y * Uv[1] + z * Uv[2]) * q; if (sy < -6 || sy > H + 6) continue;
+        const r = Math.max(0.6, Math.min(7.5, (6.9 - m) * 0.42 * zf));
+        g.globalAlpha = clamp((lim - m) / 1.2 + 0.35, 0.25, 1); g.fillStyle = DATA.COL[i]; g.beginPath(); g.arc(sx, sy, r, 0, 6.2832); g.fill();
+        if (m < 1.2){ g.globalAlpha = 0.16; g.beginPath(); g.arc(sx, sy, r * 2.4, 0, 6.2832); g.fill(); }
+        vis.stars.push(i, sx, sy);
+      }
+      g.globalAlpha = 1;
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      if (Ly.cnames){ g.font = '700 12px Nunito, sans-serif'; g.fillStyle = hs > -4 ? 'rgba(10,25,60,0.75)' : 'rgba(170,195,255,0.78)'; const rk = V.fov > 150 ? 1 : V.fov > 90 ? 2 : 3;
+        for (const id in DATA.cons){ const c = DATA.cons[id]; if (c.rank > rk || dot(c.v, U) < 0.03) continue; const p = proj(c.v); if (p && p[0] > 0 && p[0] < W && p[1] > 0 && p[1] < H) g.fillText(isZh() ? c.zh : c.en.toUpperCase(), p[0], p[1]); } }
+      if (Ly.snames){ g.font = '700 11.5px Nunito, sans-serif'; g.textAlign = 'left'; g.fillStyle = hs > -4 ? 'rgba(20,20,20,0.85)' : 'rgba(255,236,190,0.92)'; const nl = V.fov > 150 ? 1.3 : V.fov > 90 ? 2.1 : 3;
+        for (const h in FAM){ const i = DATA.hipIdx[h]; if (i == null || DATA.MAG[i] > nl || DATA.MAG[i] > lim) continue; const v = starVec(i); if (dot(v, U) < 0) continue; const p = proj(v); if (p) g.fillText(isZh() ? FAM[h][1] : FAM[h][0], p[0] + 6, p[1] - 6); }
+        g.textAlign = 'center'; }
+    }
+    // Sun, Moon, planets
+    vis.bodies.length = 0;
+    for (const id of ['sun', 'moon', ...PLANETS]){
+      const b = F.B[id], p = proj(b.v); if (!p || p[0] < -20 || p[0] > W + 20 || p[1] < -20 || p[1] > H + 20) continue;
+      if (opt.forceNight && id === 'sun') continue;
+      if (id !== 'sun' && id !== 'moon' && b.mag > lim + 0.5) continue;
+      vis.bodies.push(id, p[0], p[1]);
+      if (id === 'sun'){ const gr = g.createRadialGradient(p[0], p[1], 2, p[0], p[1], 34); gr.addColorStop(0, 'rgba(255,240,170,1)'); gr.addColorStop(0.3, 'rgba(255,220,120,.55)'); gr.addColorStop(1, 'rgba(255,200,90,0)'); g.fillStyle = gr; g.beginPath(); g.arc(p[0], p[1], 34, 0, 6.2832); g.fill(); g.fillStyle = '#fff6cf'; g.beginPath(); g.arc(p[0], p[1], 9, 0, 6.2832); g.fill(); }
+      else if (id === 'moon') drawMoon(p, b);
+      else { const r = Math.max(2.6, Math.min(8, 2.6 + (1.2 - b.mag) * 0.9)) * Math.min(zf, 1.6); g.fillStyle = BODY[id].col; g.beginPath(); g.arc(p[0], p[1], r, 0, 6.2832); g.fill(); g.strokeStyle = 'rgba(0,0,0,.35)'; g.lineWidth = 1; g.stroke(); }
+    }
+    g.drawImage(gnd, 0, 0, W, H);
+    if (Ly.horizon){
+      g.strokeStyle = 'rgba(150,215,160,.95)'; g.lineWidth = 1.6; g.beginPath(); let prev = null;
+      for (let a = 0; a <= 360; a += 2){ const ar = a * D2R, v = [0, 1, 2].map(j => Math.sin(ar) * F.E[j] + Math.cos(ar) * F.N[j]), p = proj(v); if (p && prev && Math.abs(p[0] - prev[0]) < W) g.lineTo(p[0], p[1]); else if (p) g.moveTo(p[0], p[1]); prev = p; }
+      g.stroke(); g.font = '800 14px Nunito, sans-serif'; g.fillStyle = '#c8f0cd'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      DIRS.forEach((dw, j) => { const ar = j * 45 * D2R, h = -3 * D2R, v = [0, 1, 2].map(n => Math.cos(h) * (Math.sin(ar) * F.E[n] + Math.cos(ar) * F.N[n]) + Math.sin(h) * F.U[n]), p = proj(v); if (p && p[0] > 8 && p[0] < W - 8 && p[1] > 8 && p[1] < H - 8){ g.font = (j % 2 ? '700 11px' : '800 15px') + ' Nunito, sans-serif'; g.fillText(Lab.L(dw), p[0], p[1] + 6); } });
+    }
+    if (opt.bodyLabels !== false){ g.font = '800 12.5px Nunito, sans-serif'; g.textAlign = 'left'; g.textBaseline = 'middle';
+      for (let j = 0; j < vis.bodies.length; j += 3){ const id = vis.bodies[j]; if (altOf(F, F.B[id].v) < 0) continue; g.fillStyle = hs > -4 ? '#3a2a00' : BODY[id].col; g.fillText(Lab.L(BODY[id].n), vis.bodies[j + 1] + 11, vis.bodies[j + 2] + 1); } }
+    const sel = opt.sel && opt.sel();
+    if (sel){ const p = sel.type === 'star' ? proj(starVec(sel.i)) : proj(F.B[sel.id].v); if (p){ g.strokeStyle = '#7fe3d2'; g.lineWidth = 2; g.beginPath(); g.arc(p[0], p[1], 13, 0, 6.2832); g.stroke(); } }
+    if (opt.overlay) opt.overlay(g, api);
+    if (opt.after) opt.after(api, lim);
+  }
+  function drawMoon(p, b){
+    const r = Math.max(8, k * 0.0045 * 1.1), toS = proj(F.B.sun.v.map((x, j) => b.v[j] + 0.02 * (x - b.v[j])));
+    const ang = toS ? Math.atan2(toS[1] - p[1], toS[0] - p[0]) : 0, kf = b.frac;
+    g.save(); g.translate(p[0], p[1]); g.rotate(ang);
+    g.fillStyle = 'rgba(40,44,60,.92)'; g.beginPath(); g.arc(0, 0, r, 0, 6.2832); g.fill();
+    g.fillStyle = '#f3f0e4'; g.beginPath();
+    for (let s = -90; s <= 90; s += 6){ const a = s * D2R; g.lineTo(r * Math.cos(a), r * Math.sin(a)); }
+    for (let s = 90; s >= -90; s -= 6){ const a = s * D2R; g.lineTo(-(2 * kf - 1) * r * Math.cos(a), r * Math.sin(a)); }
+    g.fill(); g.restore();
+  }
+  function pick(x, y){
+    let best = null, bd = 1e9;
+    for (let j = 0; j < vis.bodies.length; j += 3){ if (dot(F.B[vis.bodies[j]].v, F.U) < 0) continue; const d = Math.hypot(vis.bodies[j + 1] - x, vis.bodies[j + 2] - y); if (d < 16 && d < bd){ bd = d; best = { type:'body', id:vis.bodies[j] }; } }
+    if (best) return best;
+    for (let j = 0; j < vis.stars.length; j += 3){ const i = vis.stars[j], d = Math.hypot(vis.stars[j + 1] - x, vis.stars[j + 2] - y); if (d > 13 || DATA.X[i] * F.U[0] + DATA.Y[i] * F.U[1] + DATA.Z[i] * F.U[2] < 0) continue; const sc = d + DATA.MAG[i] * 1.6; if (sc < bd){ bd = sc; best = { type:'star', i }; } }
+    return best;
+  }
+  const req = () => { if (!queued){ queued = true; requestAnimationFrame(draw); } };
+  // pointer: drag to look around, click to pick, wheel to zoom
+  let down = null;
+  canvas.addEventListener('pointerdown', e => { down = { x:e.clientX, y:e.clientY, az:V.az, alt:V.alt, moved:false }; canvas.setPointerCapture(e.pointerId); });
+  canvas.addEventListener('pointermove', e => {
+    if (!down){ if (opt.hover) opt.hover(e, api); return; }
+    const dx = e.clientX - down.x, dy = e.clientY - down.y; if (!down.moved && Math.hypot(dx, dy) < 5) return;
+    down.moved = true; box.classList.add('drag'); const dpp = 2 / k * R2D;
+    V.az = ((down.az - dx * dpp / Math.max(0.35, Math.cos(V.alt * D2R) * 0.6 + 0.4)) % 360 + 360) % 360; V.alt = clamp(down.alt + dy * dpp, -10, 90); req(); if (opt.onView) opt.onView(api);
+  });
+  canvas.addEventListener('pointerup', e => { box.classList.remove('drag'); if (down && !down.moved && opt.onClick){ const b = canvas.getBoundingClientRect(); opt.onClick(e.clientX - b.left, e.clientY - b.top, api); } down = null; });
+  canvas.addEventListener('pointercancel', () => { down = null; box.classList.remove('drag'); });
+  canvas.addEventListener('wheel', e => { e.preventDefault(); zoom(e.deltaY > 0 ? 1.12 : 1 / 1.12); }, { passive:false });
+  function zoom(f){ V.fov = clamp(V.fov * f, 15, 200); req(); if (opt.onView) opt.onView(api); }
+  const api = { V, draw:req, now:draw, pick, proj, zoom, vis, frame:() => F, size:() => [W, H], setView(az, alt, fov){ V.az = az; V.alt = alt; V.fov = fov; req(); if (opt.onView) opt.onView(api); } };
+  new ResizeObserver(() => requestAnimationFrame(resize)).observe(box);
+  return api;
+}
+/* ===== shared sky state ===== */
+const pad2 = n => String(n).padStart(2, '0');
+const SKY = window.SKY = { loc:0, lat:LOCS[0].lat, lon:LOCS[0].lon, day:'', min:540, dark:5.5, sel:null, playing:false, F:null,
+  layers:{ lines:true, cnames:true, snames:true, horizon:true, ecl:true, mw:true } };
+SKY.ymd = () => SKY.day.split('-').map(Number);
+SKY.off = () => { const [y, m, d] = SKY.ymd(); return tzOffset(LOCS[SKY.loc], y, m, d); };
+SKY.utc = (min = SKY.min) => { const [y, m, d] = SKY.ymd(); return Date.UTC(y, m - 1, d, 12, 0) + min * 60000 - SKY.off() * 3600000; };
+SKY.clock = (min = SKY.min) => { const t = Math.floor(720 + min) % 1440; return pad2(Math.floor(t / 60)) + ':' + pad2(t % 60); };
+function setNow(){ // today's date and time at the chosen place
+  const loc = LOCS[SKY.loc], now = Date.now(); let t = new Date(now + loc.tz * 3600000);
+  const off = tzOffset(loc, t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate()); t = new Date(now + off * 3600000);
+  let mins = t.getUTCHours() * 60 + t.getUTCMinutes(); if (mins < 720) t = new Date(t.getTime() - 86400000); // after midnight → still "tonight" of yesterday's date
+  SKY.day = `${t.getUTCFullYear()}-${pad2(t.getUTCMonth() + 1)}-${pad2(t.getUTCDate())}`; SKY.min = ((mins - 720) + 1440) % 1440;
+}
+setNow(); if (SKY.min > 720){ const [y0, m0, d0] = SKY.ymd(), t0 = new Date(Date.UTC(y0, m0 - 1, d0 + 1)); SKY.day = `${t0.getUTCFullYear()}-${pad2(t0.getUTCMonth() + 1)}-${pad2(t0.getUTCDate())}`; } SKY.min = 540; // start at 9 PM tonight (today's date)
+const LAYERS = [ ['lines', o('✦ Constellation lines','✦ 星座连线')], ['cnames', o('🏷 Constellation names','🏷 星座名称')], ['snames', o('⭐ Star names','⭐ 恒星名称')],
+  ['horizon', o('🧭 Horizon & directions','🧭 地平线与方向')], ['ecl', o('☀ Ecliptic (planets’ path)','☀ 黄道（行星走的路）')], ['mw', o('🌌 Milky Way','🌌 银河')] ];
+
+/* ===== main map ===== */
+const main = SkyView(Lab.$('#stage'), Lab.$('#skyCv'), {
+  view:{ az:180, alt:90, fov:180 }, frame:() => SKY.F, layers:() => SKY.layers, sel:() => SKY.sel,
+  onClick(x, y, api){ const p = api.pick(x, y); SKY.sel = p; renderInfo(); api.draw(); },
+  onView:() => viewText(), after:(api, lim) => afterDraw(api, lim),
+  hover(e, api){ const b = Lab.$('#skyCv').getBoundingClientRect(), p = api.pick(e.clientX - b.left, e.clientY - b.top), tip = Lab.$('#skyTip');
+    if (!p){ tip.style.display = 'none'; return; } tip.textContent = objName(p); tip.style.left = (e.clientX - b.left) + 'px'; tip.style.top = (e.clientY - b.top) + 'px'; tip.style.display = 'block'; }
+});
+Lab.$('#skyCv').addEventListener('pointerleave', () => Lab.$('#skyTip').style.display = 'none');
+function objName(p){
+  if (!p) return '';
+  if (p.type === 'body') return Lab.L(BODY[p.id].n);
+  const hip = DATA.HIP[p.i], f = FAM[hip]; if (f) return isZh() ? f[1] : f[0];
+  const n = DATA.names && DATA.names[hip]; if (n){ if (n.name) return isZh() && n.zh ? n.zh : n.name; const c = DATA.cons[n.c]; if (n.desig) return n.desig + ' ' + (c ? (isZh() ? c.zh : c.en) : n.c); }
+  return 'HIP ' + hip;
+}
+function update(){
+  SKY.F = frameFor(SKY.utc(), SKY.lat, SKY.lon); main.draw(); if (window.FIND) FIND.refresh();
+  Lab.$('#timeSl').value = SKY.min; Lab.$('#timeOut').textContent = SKY.clock(); Lab.$('#dateIn').value = SKY.day;
+  readouts(); if (!SKY.sel) updateSummary(); else if (!SKY.playing) renderInfo();
+}
+function viewText(){
+  const V = main.V, el = Lab.$('#viewTxt');
+  Lab.$('#vDome').classList.toggle('on', V.alt > 88 && V.fov > 160);
+  el.textContent = V.alt > 88 ? Lab.L(o('Looking straight up · whole sky','抬头看 · 全天')) : (isZh() ? `面向${Lab.L(dirWord(V.az))}方 · 高度 ${V.alt.toFixed(0)}° · 视野 ${V.fov.toFixed(0)}°` : `Facing ${Lab.L(dirWord(V.az))} · ${V.alt.toFixed(0)}° up · ${V.fov.toFixed(0)}° view`);
+}
+let lastVisCount = 0;
+function afterDraw(api, lim){ // count stars visible above the horizon in the whole sky
+  if (!DATA.ok) return; const U = SKY.F.U; let n = 0;
+  for (let i = 0; i < DATA.N; i++) if (DATA.MAG[i] <= lim && DATA.X[i] * U[0] + DATA.Y[i] * U[1] + DATA.Z[i] * U[2] > 0) n++;
+  lastVisCount = n; Lab.$('#rStars').textContent = nf(n);
+}
+function sunState(F){ const h = altOf(F, F.B.sun.v);
+  return { h, word: h > 0 ? o('Day','白天') : h > -6 ? o('Twilight (dusk/dawn)','暮光（黄昏/黎明）') : h > -18 ? o('Twilight, getting dark','天色渐暗的暮光') : o('Full night','完全的黑夜') }; }
+function planetsUp(F){ return PLANETS.filter(p => altOf(F, F.B[p].v) > 0); }
+function readouts(){
+  const F = SKY.F, off = SKY.off(), ss = sunState(F), m = F.B.moon, up = planetsUp(F);
+  Lab.$('#rClock').textContent = SKY.clock() + ' (UTC' + (off >= 0 ? '+' : '−') + Math.abs(off) + ')';
+  const l = F.lst / 15; Lab.$('#rLst').textContent = pad2(Math.floor(l)) + 'h ' + pad2(Math.floor(l % 1 * 60)) + 'm';
+  Lab.$('#rSun').textContent = Lab.L(ss.word) + ' · ' + ss.h.toFixed(0) + '°';
+  Lab.$('#rMoon').textContent = (m.frac * 100).toFixed(0) + '% · ' + Lab.L(m.waxing ? o('waxing','渐盈') : o('waning','渐亏')) + (altOf(F, m.v) > 0 ? '' : Lab.L(o(' · set',' · 已落')));
+  Lab.$('#rPlan').textContent = up.length ? up.map(p => Lab.L(BODY[p].n)).join(isZh() ? '、' : ', ') : Lab.L(o('none','没有'));
+}
+/* ----- info panel ----- */
+const KEY = {
+  facts:o(['About 5,000 real stars are on this map: every star down to magnitude 6, roughly what your eyes can see from a dark countryside.',
+           'The whole sky turns 15° every hour (once in 23 h 56 min) because Earth spins from west to east.',
+           'Planets always stay near the yellow dashed line, the ecliptic. It is the flat plane of the solar system seen edge-on.',
+           'Each day the Moon moves about 13° east against the stars, so it rises about 50 minutes later each night.'],
+          ['这张星图上有约 5000 颗真实恒星：所有亮于 6 等的星，大约就是在黑暗的乡村用肉眼能看到的数量。',
+           '因为地球自西向东自转，整个天空每小时转过 15°（每 23 小时 56 分转一圈）。',
+           '行星总在黄色虚线（黄道）附近。黄道就是从侧面看过去的太阳系平面。',
+           '月球每天在星空背景上向东移动约 13°，所以它每天大约晚 50 分钟升起。']),
+  memory:o('Stars twinkle; planets mostly shine steadily. If a bright “star” sits on the ecliptic and isn’t on a star chart, it’s a planet.','恒星会闪烁，行星大多稳稳地亮着。如果黄道上有一颗明亮的“星”在星图上找不到，那它就是行星。'),
+  mix:o('Polaris is NOT the brightest star in the sky (it is about 48th). It is famous because it barely moves: it sits almost exactly above Earth’s North Pole.','北极星并不是全天最亮的星（大约排第 48 名）。它出名是因为它几乎不动：它几乎正好在地球北极的正上方。')
+};
+function updateSummary(){
+  const el = Lab.$('#skySum'); if (!el) return; const F = SKY.F, ss = sunState(F), up = planetsUp(F), loc = LOCS[SKY.loc], m = F.B.moon, ma = altOf(F, m.v);
+  const where = Math.abs(SKY.lat - loc.lat) < 0.01 ? Lab.L(loc.n) : (isZh() ? `纬度 ${SKY.lat.toFixed(1)}°` : `latitude ${SKY.lat.toFixed(1)}°`);
+  const pl = up.map(p => `<b>${Lab.L(BODY[p].n)}</b>${isZh() ? "（" : " ("}${Lab.L(dirWord(azOf(F, F.B[p].v)))} ${altOf(F, F.B[p].v).toFixed(0)}°${isZh() ? "）" : ")"}`).join(isZh() ? '、' : ', ');
+  el.innerHTML = isZh()
+    ? `${where}，${SKY.day} ${SKY.clock()}：${Lab.L(ss.word)}（太阳高度 ${ss.h.toFixed(0)}°）。月球被照亮 ${(m.frac * 100).toFixed(0)}%，${ma > 0 ? `在${Lab.L(dirWord(azOf(F, m.v)))}方 ${ma.toFixed(0)}° 高` : '此刻在地平线以下'}。地平线以上的行星：${pl || '没有'}。`
+    : `${where}, ${SKY.day} at ${SKY.clock()}: ${Lab.L(ss.word).toLowerCase()} (Sun ${ss.h.toFixed(0)}°). The Moon is ${(m.frac * 100).toFixed(0)}% lit and ${ma > 0 ? `${ma.toFixed(0)}° up in the ${Lab.L(dirWord(azOf(F, m.v)))}` : 'below the horizon'}. Planets up: ${pl || 'none'}.`;
+}
+function renderInfo(){
+  const box = Lab.$('#info'), p = SKY.sel, F = SKY.F;
+  if (!p){
+    box.innerHTML = `<span class="tag">${Lab.L(o('Planetarium','天象馆'))}</span><h3>${Lab.L(o('Your sky','你的星空'))}</h3>
+      <p style="margin:0" id="skySum"></p><ul class="facts">${Lab.L(KEY.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+      <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(KEY.memory)}</div>
+      <div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(KEY.mix)}</span></div>
+      <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+      <p class="muted" style="margin:0;font-size:14px">${Lab.L(o('Click any star, planet or the Moon on the map to learn about it.','点击星图上的任何恒星、行星或月球，了解它。'))}</p>`;
+    updateSummary();
+    Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.$('#skySum').textContent, ...Lab.L(KEY.facts), Lab.L(KEY.memory), Lab.L(KEY.mix)].join(' '));
+    return;
+  }
+  let tag, title, col, job, rows = [], fact = null, v;
+  if (p.type === 'star'){
+    const i = p.i, hip = DATA.HIP[i], fam = FAM[hip], nm = DATA.names && DATA.names[hip], bv = DATA.BV[i], T = isFinite(bv) ? bvTemp(bv) : null, mag = DATA.MAG[i];
+    v = starVec(i); const c = nm && DATA.cons[nm.c]; const rgb = bvRGB(bv);
+    tag = Lab.L(o('Star','恒星')); title = objName(p); col = `rgb(${rgb})`;
+    job = (c ? (isZh() ? `位于${c.zh}` : `in ${c.en}`) + ' · ' : '') + (isZh() ? `星等 ${mag.toFixed(2)}` : `magnitude ${mag.toFixed(2)}`);
+    if (T) rows.push([o('Colour & temperature','颜色与温度'), `${Lab.L(tempWord(T))} · ${isZh() ? '约' : 'about'} ${nf(Math.round(T / 100) * 100)} K${PZ(nf(Math.round(((T - 273.15) * 1.8 + 32) / 100) * 100) + " °F")}`]);
+    if (fam){ const ly = fam[2], yr = new Date().getFullYear() - ly;
+      rows.push([o('Distance','距离'), `${isZh() ? '约' : 'about'} ${nf(ly, ly < 20 ? 1 : 0)} ${isZh() ? '光年' : 'light-years'}${fam[3] ? Lab.L(o(' (uncertain)','（不太确定）')) : ''}`]);
+      rows.push([o('The light you see left it…','你看到的光出发于……'), yr > 0 ? (isZh() ? `约公元 ${Math.round(yr)} 年` : `around the year ${Math.round(yr)}`) : (isZh() ? `约公元前 ${nf(Math.round(-yr))} 年` : `around ${nf(Math.round(-yr))} BC`)]);
+      fact = fam[4];
+    } else rows.push([o('Distance','距离'), Lab.L(o('not in this page’s list','本页列表中没有'))]);
+    rows.push([o('Compared with Polaris','和北极星比'), (() => { const r = Math.pow(10, 0.4 * (1.98 - mag)); return r >= 1 ? (isZh() ? `亮 ${r < 10 ? r.toFixed(1) : nf(r)} 倍` : `${r < 10 ? r.toFixed(1) : nf(r)}× brighter`) : (isZh() ? `暗 ${(1 / r).toFixed(1)} 倍` : `${(1 / r).toFixed(1)}× fainter`); })()]);
+    if (nm && (nm.hd || nm.hip)) rows.push([o('Catalog number','星表编号'), [nm.hip, nm.hd].filter(Boolean).join(' · ')]);
+  } else {
+    const b = F.B[p.id]; v = b.v; tag = Lab.L(p.id === 'sun' ? o('Our star','我们的恒星') : p.id === 'moon' ? o('Earth’s moon (approximate position)','地球的卫星（近似位置）') : o('Planet (approximate position)','行星（近似位置）'));
+    title = Lab.L(BODY[p.id].n); col = BODY[p.id].col;
+    if (p.id === 'sun'){ job = Lab.L(o('Never look straight at the Sun!','千万不要直视太阳！')); rows.push([o('Distance','距离'), `${b.dist.toFixed(4)} AU · ${nf(b.dist * 149.598, 1)} ${isZh() ? '百万千米' : 'million km'}`], [o('Light travel time','光走过来要'), `${(b.dist * 499 / 60).toFixed(1)} ${isZh() ? '分钟' : 'min'}`]);
+      fact = o('The Sun’s position along the ecliptic tells you which constellations are hidden in daylight this month.','太阳在黄道上的位置告诉你：这个月哪些星座被淹没在白天的阳光里。'); }
+    else if (p.id === 'moon'){ job = `${(b.frac * 100).toFixed(0)}% ${isZh() ? '被照亮' : 'lit'} · ${Lab.L(b.waxing ? o('waxing','渐盈（越来越圆）') : o('waning','渐亏（越来越缺）'))}`;
+      rows.push([o('Distance','距离'), `${nf(b.dist)} km${PZ(nf(b.dist * 0.621371) + (isZh() ? " 英里" : " miles"))}`], [o('Angle from the Sun','与太阳的角距'), b.elong.toFixed(0) + '°'], [o('Light travel time','光走过来要'), (b.dist / 299792).toFixed(2) + (isZh() ? ' 秒' : ' s')]);
+      fact = o('We always see the same face of the Moon. The phase depends only on the angle between the Sun and the Moon as seen from Earth.','我们总是看到月球的同一面。月相只取决于从地球看过去太阳和月球之间的夹角。'); }
+    else { job = (isZh() ? `星等约 ${b.mag.toFixed(1)}` : `magnitude about ${b.mag.toFixed(1)}`);
+      rows.push([o('Distance from Earth now','此刻离地球'), `${b.dist.toFixed(2)} AU · ${nf(b.dist * 149.598)} ${isZh() ? '百万千米' : 'million km'}`], [o('Light travel time','光走过来要'), `${(b.dist * 499 / 60).toFixed(1)} ${isZh() ? '分钟' : 'min'}`], [o('Angle from the Sun','与太阳的角距'), b.elong.toFixed(0) + '°' + (b.elong < 15 ? Lab.L(o(' (lost in the Sun’s glare)',' （淹没在阳光里）')) : '')]);
+      fact = BODY[p.id].fact; }
+  }
+  const h = altOf(F, v), az = azOf(F, v);
+  rows.push([o('Where to look now','此刻往哪看'), h > 0 ? (isZh() ? `${Lab.L(dirWord(az))}方，地平线以上 ${h.toFixed(0)}°（方位角 ${az.toFixed(0)}°）` : `${h.toFixed(0)}° above the ${Lab.L(dirWord(az))} horizon (azimuth ${az.toFixed(0)}°)`) : Lab.L(o('below the horizon: not visible now','在地平线以下：此刻看不见'))]);
+  box.innerHTML = `<span class="tag">${tag}</span><h3><span class="dot" style="background:${col}"></span>${title}</h3><div class="job">${job}</div>
+    <dl class="kv">${rows.map(r => `<dt>${Lab.L(r[0])}</dt><dd>${r[1]}</dd>`).join('')}</dl>
+    ${fact ? `<div class="memory"><b>${Lab.L(o('✨ Did you know?','✨ 你知道吗？'))}</b>${Lab.L(fact)}</div>` : ''}
+    <div class="btnrow"><button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button><button class="speak" id="centerBtn">${Lab.L(o('🎯 Center it','🎯 居中'))}</button></div>
+    <div class="nav"><button id="backBtn">${Lab.L(o('◀ Back to my sky','◀ 回到星空概况'))}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([title, job, ...rows.map(r => Lab.L(r[0]) + ': ' + r[1]), fact ? Lab.L(fact) : ''].join('. '));
+  Lab.$('#backBtn').onclick = () => { SKY.sel = null; renderInfo(); main.draw(); };
+  Lab.$('#centerBtn').onclick = () => { main.setView(az, clamp(h, -5, 89), Math.min(main.V.fov, 70)); };
+}
+/* ----- controls ----- */
+function fillLoc(){ Lab.$('#locSel').innerHTML = LOCS.map((l, i) => `<option value="${i}" ${i === SKY.loc ? 'selected' : ''}>${Lab.L(l.n)}${PZ(Math.abs(l.lat).toFixed(1) + "° " + (l.lat >= 0 ? Lab.L(o("N","北")) : Lab.L(o("S","南"))))}</option>`).join(''); }
+function latText(){ Lab.$('#latTxt').textContent = Math.abs(SKY.lat).toFixed(1) + '° ' + (SKY.lat >= 0 ? Lab.L(o('N','北纬')) : Lab.L(o('S','南纬'))); }
+function darkText(){ const d = SKY.dark; Lab.$('#darkTxt').textContent = (d < 3.6 ? Lab.L(o('Big-city sky','大城市的夜空')) : d < 4.8 ? Lab.L(o('Suburbs','郊区')) : d < 5.9 ? Lab.L(o('Small town / rural','小镇或乡村')) : Lab.L(o('Truly dark site','真正黑暗的地方'))) + (isZh() ? ` · 能看到 ${d.toFixed(1)} 等星` : ` · stars down to magnitude ${d.toFixed(1)}`); }
+function renderLayers(){
+  Lab.$('#layers').innerHTML = LAYERS.map(([k, n]) => `<button class="chip ${SKY.layers[k] ? 'on' : 'off'}" data-k="${k}" aria-pressed="${SKY.layers[k]}">${Lab.L(n)}</button>`).join('');
+  Lab.$$('#layers .chip').forEach(c => c.onclick = () => { SKY.layers[c.dataset.k] = !SKY.layers[c.dataset.k]; renderLayers(); main.draw(); });
+}
+Lab.$('#timeSl').oninput = e => { SKY.min = +e.target.value; update(); };
+Lab.$('#dateIn').onchange = e => { if (/^\d{4}-\d\d-\d\d$/.test(e.target.value)){ SKY.day = e.target.value; update(); } };
+Lab.$$('[data-dd]').forEach(b => b.onclick = () => { const [y, m, d] = SKY.ymd(), t = new Date(Date.UTC(y, m - 1, d + +b.dataset.dd)); SKY.day = `${t.getUTCFullYear()}-${pad2(t.getUTCMonth() + 1)}-${pad2(t.getUTCDate())}`; update(); });
+Lab.$('#nowBtn').onclick = () => { setNow(); update(); };
+Lab.$('#locSel').onchange = e => { SKY.loc = +e.target.value; SKY.lat = LOCS[SKY.loc].lat; SKY.lon = LOCS[SKY.loc].lon; Lab.$('#latSl').value = SKY.lat; latText(); update(); };
+Lab.$('#latSl').oninput = e => { SKY.lat = +e.target.value; latText(); update(); };
+Lab.$('#darkSl').oninput = e => { SKY.dark = +e.target.value; darkText(); main.draw(); };
+Lab.$('#vDome').onclick = () => main.setView(180, 90, 180);
+Lab.$$('[data-look]').forEach(b => b.onclick = () => main.setView(+b.dataset.look, 28, 100));
+Lab.$('#zIn').onclick = () => main.zoom(1 / 1.3); Lab.$('#zOut').onclick = () => main.zoom(1.3);
+let playT = 0;
+Lab.$('#playBtn').onclick = () => { SKY.playing = !SKY.playing; Lab.$('#playBtn').textContent = SKY.playing ? '⏸' : '▶'; if (SKY.playing){ playT = 0; requestAnimationFrame(play); } else renderInfo(); };
+function play(t){ if (!SKY.playing) return; if (!playT) playT = t; const dt = Math.min(0.1, (t - playT) / 1000); playT = t;
+  SKY.min = (SKY.min + dt * 90) % 1440; SKY.min = Math.round(SKY.min * 100) / 100; update(); requestAnimationFrame(play); }
+Lab.$('#latSl').value = SKY.lat;
+/* ----- load the catalog ----- */
+Promise.all([getJSON('stars.6.json'), getJSON('constellations.lines.json'), getJSON('constellations.json')]).then(([s, l, c]) => {
+  prepStars(s); prepLines(l); prepCons(c); DATA.ok = true; Lab.$('#skyMsg').hidden = true; main.draw(); if (window.FIND) FIND.refresh();
+  getJSON('mw.json').then(js => { prepMW(js); main.draw(); if (window.FIND) FIND.refresh(); }).catch(() => {});
+  getJSON('starnames.json').then(js => { DATA.names = js; }).catch(() => {});
+}).catch(() => { DATA.failed = true; const m = Lab.$('#skyMsg'); m.removeAttribute('data-zh'); m.textContent = Lab.L(o('⚠️ The real star catalog needs an internet connection (it loads from cdn.jsdelivr.net). The Sun, Moon and planets below are still computed.','⚠️ 真实星表需要联网加载（来自 cdn.jsdelivr.net）。下面的太阳、月球和行星位置仍然是计算出来的。')); m.style.alignItems = 'start'; m.style.paddingTop = '70px'; main.draw(); });
+Lab.onLang(() => { fillLoc(); latText(); darkText(); renderLayers(); viewText(); renderInfo(); if (SKY.F) readouts(); main.draw(); if (DATA.failed) Lab.$('#skyMsg').textContent = Lab.L(o('⚠️ The real star catalog needs an internet connection (it loads from cdn.jsdelivr.net). The Sun, Moon and planets below are still computed.','⚠️ 真实星表需要联网加载（来自 cdn.jsdelivr.net）。下面的太阳、月球和行星位置仍然是计算出来的。')); });
+SKY.F = frameFor(SKY.utc(), SKY.lat, SKY.lon);
+Lab.ready(() => update());
+/* ===== colours from the theme (canvas figures follow light/dark mode) ===== */
+const css = () => { const s = getComputedStyle(document.documentElement), v = n => s.getPropertyValue(n).trim(); return { ink:v('--ink'), ink2:v('--ink-2'), line:v('--line'), brand:v('--brand'), good:v('--good'), bad:v('--bad'), surf:v('--surface'), surf2:v('--surface-2'), accent:v('--accent') }; };
+const sup = n => String(n).replace(/[-0-9]/g, c => '⁻⁰¹²³⁴⁵⁶⁷⁸⁹'['-0123456789'.indexOf(c)]);
+function bigNum(x){
+  if (x < 1000) return x < 10 ? x.toFixed(1) : nf(x);
+  if (x >= 1e15){ const e = Math.floor(Math.log10(x)); return (x / Math.pow(10, e)).toFixed(1) + ' × 10' + sup(e); }
+  if (isZh()){ if (x >= 1e12) return (x / 1e12).toFixed(1) + ' 万亿'; if (x >= 1e8) return (x / 1e8).toFixed(1) + ' 亿'; if (x >= 1e4) return (x / 1e4).toFixed(x < 1e5 ? 1 : 0) + ' 万'; return nf(x); }
+  if (x >= 1e12) return (x / 1e12).toFixed(1) + ' trillion'; if (x >= 1e9) return (x / 1e9).toFixed(1) + ' billion'; if (x >= 1e6) return (x / 1e6).toFixed(1) + ' million'; return nf(x);
+}
+/* ===== Figure 1: how the sky turns (side view of the celestial sphere) ===== */
+(function(){
+  const box = Lab.$('#cpBox'), cv = Lab.$('#cpCv'), g = cv.getContext('2d');
+  const CP = { lat:33.75, dec:38.78, H:0, play:false, star:'vega' };
+  const CPS = [ ['polaris',o('Polaris','北极星'),89.26], ['dubhe',o('Dubhe (Big Dipper)','天枢（北斗）'),61.75], ['capella',o('Capella','五车二'),46.0], ['vega',o('Vega','织女星'),38.78], ['arcturus',o('Arcturus','大角星'),19.18],
+    ['betelgeuse',o('Betelgeuse','参宿四'),7.41], ['sirius',o('Sirius','天狼星'),-16.72], ['antares',o('Antares','心宿二'),-26.43], ['canopus',o('Canopus','老人星'),-52.70], ['acrux',o('Acrux (Southern Cross)','十字架二（南十字）'),-63.10] ];
+  let W = 0, H = 0;
+  const zone = (lat, d) => Math.abs(lat + d) > 90 ? 'always' : Math.abs(lat - d) > 90 ? 'never' : 'rs';
+  const ZN = { always:['∞',o('never sets','永不落下')], rs:['↕',o('rises & sets','东升西落')], never:['✕',o('never rises','永不升起')] };
+  function hoursUp(lat, d){ const c = -Math.tan(lat * D2R) * Math.tan(d * D2R); if (Math.abs(lat) > 89.99) return d * Math.sign(lat) > 0 ? 24 : 0; return c <= -1 ? 24 : c >= 1 ? 0 : 2 * Math.acos(c) * R2D / 15; }
+  function resize(){ const b = box.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); W = b.width; H = b.height; cv.width = W * d; cv.height = H * d; g.setTransform(d, 0, 0, d, 0, 0); draw(); }
+  function draw(){
+    if (!W) return; const C = css(); g.clearRect(0, 0, W, H);
+    const R = Math.min(W * 0.38, H * 0.40), cx = W / 2, cy = H * 0.5, f = CP.lat * D2R, a = [-Math.cos(f), -Math.sin(f)], e = [Math.sin(f), -Math.cos(f)];
+    const P = (b) => [cx + R * (Math.sin(b * D2R) * a[0] + Math.cos(b * D2R) * e[0]), cy + R * (Math.sin(b * D2R) * a[1] + Math.cos(b * D2R) * e[1])];
+    const cap = (b0, b1, col) => { g.beginPath(); for (let b = b0; b <= b1 + 0.01; b += 2){ const p = P(b); b === b0 ? g.moveTo(p[0], p[1]) : g.lineTo(p[0], p[1]); } g.closePath(); g.fillStyle = col; g.fill(); };
+    // ground
+    g.save(); g.beginPath(); g.arc(cx, cy, R, 0, Math.PI); g.closePath(); g.fillStyle = C.line; g.globalAlpha = 0.45; g.fill(); g.restore();
+    // circumpolar & never-rise caps
+    const dc = 90 - Math.abs(CP.lat);
+    g.globalAlpha = 0.22;
+    if (CP.lat > 0.01){ cap(dc, 180 - dc, C.good); cap(180 + dc, 360 - dc, C.bad); } else if (CP.lat < -0.01){ cap(180 + dc, 360 - dc, C.good); cap(dc, 180 - dc, C.bad); }
+    g.globalAlpha = 1;
+    g.strokeStyle = C.ink2; g.lineWidth = 1.5; g.beginPath(); g.arc(cx, cy, R, 0, 6.2832); g.stroke();
+    // horizon
+    g.strokeStyle = C.ink; g.lineWidth = 2; g.beginPath(); g.moveTo(cx - R - 24, cy); g.lineTo(cx + R + 24, cy); g.stroke();
+    // axis & equator
+    const np = P(90), sp = P(270); g.setLineDash([5, 5]); g.strokeStyle = C.ink2; g.lineWidth = 1.2; g.beginPath(); g.moveTo(sp[0], sp[1]); g.lineTo(np[0], np[1]); g.stroke();
+    const e1 = P(0), e2 = P(180); g.strokeStyle = C.brand; g.beginPath(); g.moveTo(e1[0], e1[1]); g.lineTo(e2[0], e2[1]); g.stroke(); g.setLineDash([]);
+    // star path
+    const d = CP.dec, s1 = P(d), s2 = P(180 - d), Hh = CP.H * 15 * D2R;
+    const sp0 = [cx + R * Math.sin(d * D2R) * a[0], cy + R * Math.sin(d * D2R) * a[1]], st = [sp0[0] + R * Math.cos(d * D2R) * Math.cos(Hh) * e[0], sp0[1] + R * Math.cos(d * D2R) * Math.cos(Hh) * e[1]];
+    g.strokeStyle = C.accent; g.lineWidth = 4; g.lineCap = 'round';
+    // split the chord at the horizon: draw the visible part solid, the hidden part dashed
+    const seg = (p, q, dash) => { g.setLineDash(dash ? [4, 6] : []); g.lineWidth = dash ? 2 : 4; g.beginPath(); g.moveTo(p[0], p[1]); g.lineTo(q[0], q[1]); g.stroke(); };
+    if ((s1[1] - cy) * (s2[1] - cy) < 0){ const t = (cy - s1[1]) / (s2[1] - s1[1]), m = [s1[0] + t * (s2[0] - s1[0]), cy]; seg(s1, m, s1[1] > cy); seg(m, s2, s2[1] > cy); } else seg(s1, s2, s1[1] > cy);
+    g.setLineDash([]); g.lineCap = 'butt';
+    const alt = Math.asin(clamp(Math.sin(f) * Math.sin(d * D2R) + Math.cos(f) * Math.cos(d * D2R) * Math.cos(Hh), -1, 1)) * R2D;
+    g.fillStyle = alt > 0 ? '#ffd75e' : C.ink2; g.strokeStyle = C.surf; g.lineWidth = 2; g.beginPath(); g.arc(st[0], st[1], 8, 0, 6.2832); g.fill(); g.stroke();
+    // observer
+    g.fillStyle = C.ink; g.beginPath(); g.arc(cx, cy - 13, 4, 0, 6.2832); g.fill(); g.fillRect(cx - 1.5, cy - 9, 3, 9);
+    // labels
+    g.font = '800 14px Nunito, sans-serif'; g.fillStyle = C.ink; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(Lab.L(o('N','北')), cx - R - 36, cy); g.fillText(Lab.L(o('S','南')), cx + R + 36, cy);
+    g.font = '700 12.5px Nunito, sans-serif'; g.fillStyle = C.ink2;
+    g.fillText(Lab.L(o('zenith (straight up)','天顶（正头顶）')), cx, cy - R - 14); g.fillText(Lab.L(o('horizon','地平线')), cx + R * 0.62, cy + 13);
+    const lab = (p, t, dy) => { g.fillText(t, clamp(p[0], 70, W - 70), clamp(p[1] + dy, 12, H - 12)); };
+    lab(np, Lab.L(o('north celestial pole (Polaris)','北天极（北极星）')), np[1] < cy ? -14 : 14); lab(sp, Lab.L(o('south celestial pole','南天极')), sp[1] < cy ? -14 : 14);
+    g.fillStyle = C.brand; lab(e2, Lab.L(o('celestial equator','天赤道')), e2[1] < cy ? -14 : 14);
+    // latitude angle at the north horizon
+    if (Math.abs(CP.lat) > 3){ g.strokeStyle = C.ink2; g.lineWidth = 1.2; g.beginPath(); const r0 = 46; g.arc(cx, cy, r0, Math.PI, Math.PI + (CP.lat > 0 ? 1 : -1) * Math.abs(f), CP.lat < 0); g.stroke();
+      g.fillStyle = C.ink; g.font = '800 13px Nunito, sans-serif'; g.fillText(Math.abs(CP.lat).toFixed(0) + '°', cx - r0 - 18 * Math.cos(f / 2) - 6, cy - (r0 + 10) * Math.sin(f / 2)); }
+    g.textAlign = 'left'; g.font = '700 12px Nunito, sans-serif';
+    [[C.good, o('∞ never sets (circumpolar)','∞ 永不落下（拱极）')], [C.bad, o('✕ never rises','✕ 永不升起')]].forEach(([c, t], j) => { g.fillStyle = c; g.globalAlpha = 0.5; g.fillRect(12, 14 + j * 20, 14, 12); g.globalAlpha = 1; g.fillStyle = C.ink; g.fillText(Lab.L(t), 32, 20 + j * 20); });
+    g.fillStyle = C.ink2; g.fillText(Lab.L(o('Not to scale · side view','示意图 · 侧视')), 12, H - 14);
+    // readouts
+    const hu = hoursUp(CP.lat, d), mx = 90 - Math.abs(CP.lat - d);
+    Lab.$('#cpUp').textContent = hu.toFixed(1) + (isZh() ? ' 小时' : ' h');
+    Lab.$('#cpMax').textContent = mx > 0 ? mx.toFixed(0) + '°' : Lab.L(o('never up','从不升起'));
+    Lab.$('#cpNever').textContent = CP.lat > 0.01 ? '+' + dc.toFixed(1) + '°' : CP.lat < -0.01 ? Lab.L(o('(south) below ','（南天）低于 ')) + '−' + dc.toFixed(1) + '°' : Lab.L(o('none','没有'));
+    Lab.$('#cpNo').textContent = CP.lat > 0.01 ? '−' + dc.toFixed(1) + '°' : CP.lat < -0.01 ? Lab.L(o('(north) above ','（北天）高于 ')) + '+' + dc.toFixed(1) + '°' : Lab.L(o('none','没有'));
+    Lab.$('#cpHOut').textContent = CP.H.toFixed(1) + ' h';
+    Lab.$('#cpLatTxt').textContent = Math.abs(CP.lat).toFixed(1) + '° ' + (CP.lat >= 0 ? Lab.L(o('N','北纬')) : Lab.L(o('S','南纬')));
+    Lab.$('#cpDecTxt').textContent = (d >= 0 ? '+' : '−') + Math.abs(d).toFixed(1) + '°';
+    const z = zone(CP.lat, d), nm = CPS.find(c => c[0] === CP.star), who = nm && Math.abs(nm[2] - d) < 0.3 ? Lab.L(nm[1]) : (isZh() ? `赤纬 ${d.toFixed(1)}° 的星` : `A star at declination ${d.toFixed(1)}°`);
+    Lab.$('#cpFact').textContent = isZh() ? `${who}：${Lab.L(ZN[z][1])}，每天在地平线以上 ${hu.toFixed(1)} 小时${mx > 0 ? `，最高升到 ${mx.toFixed(0)}°` : ''}。此刻高度 ${alt.toFixed(0)}°。`
+      : `${who}: ${Lab.L(ZN[z][1])}, up ${hu.toFixed(1)} hours a day${mx > 0 ? `, climbing to ${mx.toFixed(0)}°` : ''}. Right now it is ${alt.toFixed(0)}° ${alt >= 0 ? 'above' : 'below'} the horizon.`;
+  }
+  function chips(){
+    const C = css();
+    Lab.$('#cpStars').innerHTML = CPS.map(([id, n, d]) => { const z = zone(CP.lat, d); return `<button class="chip ${CP.star === id ? 'on' : ''}" data-id="${id}" style="border-color:${z === 'always' ? C.good : z === 'never' ? C.bad : C.line}">${ZN[z][0]} ${Lab.L(n)}${PZ((d > 0 ? '+' : '−') + Math.abs(d).toFixed(0) + '°')}</button>`; }).join('');
+    Lab.$$('#cpStars .chip').forEach(b => b.onclick = () => { const s = CPS.find(c => c[0] === b.dataset.id); CP.star = s[0]; CP.dec = s[2]; Lab.$('#cpDec').value = s[2]; chips(); draw(); });
+  }
+  Lab.$('#cpLat').oninput = e => { CP.lat = +e.target.value; chips(); draw(); };
+  Lab.$('#cpDec').oninput = e => { CP.dec = +e.target.value; CP.star = ''; chips(); draw(); };
+  Lab.$('#cpH').oninput = e => { CP.H = +e.target.value; draw(); };
+  let last = 0;
+  const step = t => { if (!CP.play) return; const dt = last ? Math.min(0.1, (t - last) / 1000) : 0; last = t; CP.H = (CP.H + dt * 2.4) % 24; Lab.$('#cpH').value = CP.H; draw(); requestAnimationFrame(step); };
+  Lab.$('#cpPlay').onclick = () => { CP.play = !CP.play; Lab.$('#cpPlay').textContent = CP.play ? '⏸' : '▶'; last = 0; if (CP.play) requestAnimationFrame(step); };
+  new ResizeObserver(() => requestAnimationFrame(resize)).observe(box);
+  window.addEventListener('labtheme', draw);
+  Lab.onLang(() => { chips(); draw(); });
+  window.CPFIG = { setLat(l){ CP.lat = l; Lab.$('#cpLat').value = l; chips(); draw(); }, CP };
+})();
+/* ===== Figure 2: the magnitude scale ===== */
+(function(){
+  const box = Lab.$('#magBox'), cv = Lab.$('#magCv'), g = cv.getContext('2d'), tip = Lab.$('#magTip');
+  let W = 0, H = 0, rows = [], X0 = 0, X1 = 0;
+  const M0 = -28, M1 = 31, xOf = m => X0 + (m - M0) / (M1 - M0) * (X1 - X0);
+  function resize(){ const b = box.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); W = b.width; H = b.height; cv.width = W * d; cv.height = H * d; g.setTransform(d, 0, 0, d, 0, 0); draw(); }
+  function draw(){
+    if (!W) return; const C = css(); g.clearRect(0, 0, W, H); X0 = 18; X1 = W - 18;
+    const top = 62, bot = H - 46, rh = (bot - top) / MAGS.length;
+    g.font = '700 11.5px Nunito, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    for (let m = -25; m <= 30; m += 5){ const x = xOf(m); g.strokeStyle = C.line; g.lineWidth = 1; g.beginPath(); g.moveTo(x, top - 8); g.lineTo(x, bot + 4); g.stroke();
+      g.fillStyle = C.ink2; g.fillText((m > 0 ? '+' : m < 0 ? '−' : '') + Math.abs(m), x, bot + 16);
+      const e = Math.round(-0.4 * m); if ((W > 520 || m % 10 === 0) && x < W - 60) g.fillText(e === 0 ? '1×' : '10' + sup(e) + '×', x, top - 18); }
+    g.fillStyle = C.ink; g.font = '800 12.5px Nunito, sans-serif';
+    g.fillText(Lab.L(o('apparent magnitude  (← brighter · fainter →)','视星等（← 更亮 · 更暗 →）')), W / 2, bot + 34);
+    g.fillText(Lab.L(o('brightness compared with Vega','和织女星相比的亮度')), W / 2, top - 40);
+    // naked-eye band
+    g.fillStyle = C.brand; g.globalAlpha = 0.08; g.fillRect(xOf(M0), top - 8, xOf(6.5) - xOf(M0), bot - top + 12); g.globalAlpha = 1;
+    rows = MAGS.map((r, j) => ({ ...r, y:top + rh * (j + 0.5), x:xOf(r.m) }));
+    rows.forEach(r => {
+      g.strokeStyle = C.surf; g.lineWidth = 2;
+      if (r.lim){ g.strokeStyle = C.ink2; g.lineWidth = 2; g.beginPath(); g.arc(r.x, r.y, 5, 0, 6.2832); g.stroke(); }
+      else { g.fillStyle = r.c; g.beginPath(); g.arc(r.x, r.y, 6, 0, 6.2832); g.fill(); g.strokeStyle = C.ink2; g.lineWidth = 1; g.stroke(); }
+      g.fillStyle = C.ink; g.font = '700 12.5px Nunito, sans-serif'; const t = Lab.L(r.n) + '  ' + (r.m > 0 ? '+' : '') + r.m.toFixed(1), tw = g.measureText(t).width, right = r.x + 12 + tw < W - 8;
+      g.textAlign = right ? 'left' : 'right'; g.fillText(t, right ? r.x + 12 : r.x - 12, r.y);
+    });
+    g.textAlign = 'left'; g.fillStyle = C.brand; g.font = '800 11.5px Nunito, sans-serif'; g.fillText(Lab.L(o('what eyes can see (dark sky)','肉眼可见（黑暗夜空）')), xOf(M0) + 4, bot - 2);
+  }
+  cv.addEventListener('pointermove', e => { const b = cv.getBoundingClientRect(), x = e.clientX - b.left, y = e.clientY - b.top;
+    const r = rows.find(r => Math.abs(r.y - y) < 14 && Math.abs(r.x - x) < 60); if (!r){ tip.style.display = 'none'; return; }
+    const k = Math.pow(10, -0.4 * (r.m - 0.03)); tip.textContent = `${Lab.L(r.n)} · ${isZh() ? '星等' : 'mag'} ${r.m > 0 ? '+' : ''}${r.m} · ${k >= 1 ? (isZh() ? `比织女星亮 ${bigNum(k)} 倍` : `${bigNum(k)}× brighter than Vega`) : (isZh() ? `比织女星暗 ${bigNum(1 / k)} 倍` : `${bigNum(1 / k)}× fainter than Vega`)}`;
+    tip.style.left = clamp(r.x, 120, W - 120) + 'px'; tip.style.top = r.y + 'px'; tip.style.display = 'block'; });
+  cv.addEventListener('pointerleave', () => tip.style.display = 'none');
+  function sel(){ ['#magA', '#magB'].forEach((s, j) => { const el = Lab.$(s), v = el.value || (j ? 6 : 4); el.innerHTML = MAGS.map((r, i) => `<option value="${i}">${Lab.L(r.n)}${PZ((r.m > 0 ? "+" : "") + r.m)}</option>`).join(''); el.value = v; }); cmp(); }
+  function cmp(){ const a = MAGS[+Lab.$('#magA').value], b = MAGS[+Lab.$('#magB').value], dm = b.m - a.m, r = Math.pow(10, 0.4 * Math.abs(dm));
+    const br = dm >= 0 ? a : b, fa = dm >= 0 ? b : a;
+    Lab.$('#magOut').textContent = Math.abs(dm) < 0.005 ? Lab.L(o('They look equally bright.','它们看起来一样亮。')) : (isZh() ? `${Lab.L(br.n)}看起来比${Lab.L(fa.n)}亮约 ${bigNum(r)} 倍。` : `${Lab.L(br.n)} looks about ${bigNum(r)} times brighter than ${Lab.L(fa.n)}.`);
+    Lab.$('#magHow').textContent = isZh() ? `星等相差 ${Math.abs(dm).toFixed(2)}。亮度比 = 10^(0.4 × ${Math.abs(dm).toFixed(2)}) ≈ ${bigNum(r)}。每差 1 等约 2.512 倍，每差 5 等正好 100 倍。` : `Magnitude difference ${Math.abs(dm).toFixed(2)}. Brightness ratio = 10^(0.4 × ${Math.abs(dm).toFixed(2)}) ≈ ${bigNum(r)}. Each magnitude is about 2.512×; every 5 magnitudes is exactly 100×.`; }
+  Lab.$('#magA').onchange = cmp; Lab.$('#magB').onchange = cmp;
+  new ResizeObserver(() => requestAnimationFrame(resize)).observe(box); window.addEventListener('labtheme', draw);
+  Lab.onLang(() => { sel(); draw(); });
+})();
+/* ===== Game: Find it! ===== */
+(function(){
+  const box = Lab.$('#findBox'), cv = Lab.$('#findCv');
+  const S = { score:0, streak:0, best:0, found:0, t:null, tries:0, hint:false, hintOff:[0, 0], done:false, ok:false, queue:[], miss:[] };
+  let key = '', F = null;
+  const getF = () => { const k = SKY.day + '|' + SKY.lat + '|' + SKY.lon + '|' + SKY.loc; if (k !== key){ key = k; F = frameFor(SKY.utc(540), SKY.lat, SKY.lon); } return F; };
+  const members = t => t.body ? [getF().B[t.body].v] : t.hip.map(h => DATA.hipIdx[h]).filter(i => i != null).map(starVec);
+  const isUp = t => { if (t.body){ const b = getF().B[t.body]; return altOf(getF(), b.v) > 8 && (t.body === 'moon' || b.elong > 15); }
+    if (!DATA.ok) return false; const m = members(t); return m.length && m.every(v => altOf(getF(), v) > 2) && m.some(v => altOf(getF(), v) > 8); };
+  const view = SkyView(box, cv, { view:{ az:180, alt:90, fov:180 }, frame:getF, forceNight:true, bodyLabels:false,
+    layers:() => ({ lines:false, cnames:false, snames:false, horizon:true, ecl:false, mw:true }), onClick, overlay });
+  function msg(t, cls){ const el = Lab.$('#fMsg'); el.textContent = t; el.className = 'result ' + (cls || ''); }
+  function counters(){ Lab.$('#fScore').textContent = S.score; Lab.$('#fStreak').textContent = S.streak; Lab.$('#fFound').textContent = S.found; Lab.$('#fBest').textContent = S.best; }
+  function label(){
+    if (!S.t){ Lab.$('#fTarget').textContent = DATA.failed ? Lab.L(o('Needs the star catalog (internet)','需要联网加载星表')) : Lab.L(o('Loading the sky…','正在加载星空……')); Lab.$('#fClue').textContent = ''; return; }
+    Lab.$('#fTarget').textContent = Lab.L(S.t.n);
+    Lab.$('#fClue').textContent = S.hint || S.done ? Lab.L(S.t.hint) : Lab.L(o('Bright stars are drawn bigger; planets don’t sit on any constellation pattern. Drag to look around, scroll to zoom.','亮星画得更大；行星不属于任何星座图案。拖动可以环顾四周，滚轮可以缩放。'));
+  }
+  function next(){
+    const pool = TARGETS.filter(isUp); if (!pool.length){ S.t = null; label(); view.draw(); return; }
+    S.queue = S.queue.filter(t => pool.includes(t) && t !== S.t); if (!S.queue.length) S.queue = Lab.shuffle(pool.filter(t => t !== S.t)); if (!S.queue.length) S.queue = pool.slice();
+    S.t = S.queue.shift(); S.tries = 0; S.hint = false; S.done = false; S.ok = false; S.miss = []; msg(''); label(); view.draw();
+  }
+  function onClick(x, y, api){
+    if (!S.t || S.done) return;
+    const tol = S.t.id === 'pleiades' ? 26 : S.t.hip && S.t.hip.length > 1 ? 20 : 17;
+    const hit = members(S.t).some(v => { const p = api.proj(v); return p && Math.hypot(p[0] - x, p[1] - y) < tol; });
+    if (hit){ const pts = S.hint ? 5 : 10; S.score += pts; S.streak++; S.best = Math.max(S.best, S.streak); S.found++; S.done = S.ok = true;
+      msg((isZh() ? `✅ 找到了！+${pts} 分` : `✅ You found it! +${pts}`) + (S.streak > 2 ? (isZh() ? `（连对 ${S.streak} 个！）` : ` (${S.streak} in a row!)`) : ''), 'good'); }
+    else { S.tries++; S.streak = 0; S.miss.push([x, y]); const p = api.pick(x, y);
+      const what = p ? (isZh() ? `那是${objName(p)}。` : `That’s ${objName(p)}. `) : Lab.L(o('Nothing bright there. ','那里没有亮星。'));
+      if (S.tries >= 3){ S.done = true; msg(what + Lab.L(o('Here it is (circled). Try the next one!','答案在圆圈里，试试下一个！')), 'bad'); }
+      else msg(what + Lab.L(o('Try again!','再试一次！')), 'bad'); }
+    counters(); label(); api.draw();
+  }
+  function overlay(g, api){
+    if (!S.t) return;
+    const pts = members(S.t).map(v => api.proj(v)).filter(Boolean);
+    if (S.hint && !S.done && pts.length){ const c = pts.reduce((a, p) => [a[0] + p[0] / pts.length, a[1] + p[1] / pts.length], [0, 0]);
+      g.save(); g.setLineDash([6, 6]); g.strokeStyle = '#ffd75e'; g.lineWidth = 2; g.beginPath(); g.arc(c[0] + S.hintOff[0], c[1] + S.hintOff[1], 78, 0, 6.2832); g.stroke(); g.restore(); }
+    S.miss.forEach(([x, y]) => { g.strokeStyle = '#ff6b7f'; g.lineWidth = 2; g.beginPath(); g.moveTo(x - 5, y - 5); g.lineTo(x + 5, y + 5); g.moveTo(x + 5, y - 5); g.lineTo(x - 5, y + 5); g.stroke(); });
+    if (S.done){ g.strokeStyle = S.ok ? '#3ed596' : '#ffd75e'; g.lineWidth = 2;
+      if (pts.length > 1 && S.t.id !== 'pleiades'){ g.beginPath(); pts.forEach((p, j) => j ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.stroke(); }
+      pts.forEach(p => { g.beginPath(); g.arc(p[0], p[1], 11, 0, 6.2832); g.stroke(); });
+      if (pts[0]){ g.font = '800 13px Nunito, sans-serif'; g.fillStyle = '#eaf0fb'; g.textAlign = 'left'; g.fillText(Lab.L(S.t.n), pts[0][0] + 14, pts[0][1] - 12); } }
+  }
+  Lab.$('#fHint').onclick = () => { if (!S.t || S.done) return; S.hint = true; S.hintOff = [(Math.random() - 0.5) * 60, (Math.random() - 0.5) * 60]; label(); view.draw(); };
+  Lab.$('#fShow').onclick = () => { if (!S.t || S.done) return; S.done = true; S.streak = 0; counters(); msg(Lab.L(o('Here it is (circled).','答案在圆圈里。')), ''); label(); view.draw(); };
+  Lab.$('#fNext').onclick = next;
+  let lastKey = '';
+  window.FIND = { refresh(){ const k = SKY.day + '|' + SKY.lat + '|' + SKY.lon + '|' + SKY.loc + '|' + DATA.ok + '|' + !!DATA.mw; if (k === lastKey) return; lastKey = k; view.draw(); if (!S.t || !isUp(S.t)) next(); else label(); } };
+  Lab.onLang(() => { label(); view.draw(); });
+  counters();
+})();
+/* ===== Real photos & clips (Wikimedia Commons, free licences) ===== */
+const KIND = { earth:o('Photo from Earth','从地球上拍的照片'), craft:o('Spacecraft photo','探测器拍摄'), place:o('Photo','照片'), vid:o('Time-lapse video','延时视频') };
+const GAL = [
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9d/Night_sky_treasure_trove_Dsc4593-cc.jpg/960px-Night_sky_treasure_trove_Dsc4593-cc.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', page:'https://commons.wikimedia.org/wiki/File:Night_sky_treasure_trove_Dsc4593-cc.jpg', credit:'ESO/A. Ghizzi Panizza', license:'CC BY 4.0', kind:KIND.earth,
+    en:'A “treasure trove” in one photo: the full Moon flanked by the planets Venus and Jupiter, the star Regulus, and, near the horizon, comet C/2014 Q1 (PANSTARRS) with its two tails. Click to see the whole picture.', zh:'一张照片里的“宝藏”：满月两边是金星和木星，还有恒星轩辕十四；靠近地平线处是拖着两条彗尾的 C/2014 Q1（泛星）彗星。点击查看完整照片。' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/c/c9/Funny_face_in_the_night_sky._Brisbane%2C_1st_December_2008_%283073572829%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', page:'https://commons.wikimedia.org/wiki/File:Funny_face_in_the_night_sky._Brisbane,_1st_December_2008_(3073572829).jpg', credit:'Tatters ✾ from Brisbane, Australia', license:'CC BY 2.0', kind:KIND.earth,
+    en:'A “smiley face” over Brisbane, Australia, on 1 December 2008: Venus, Jupiter and a young crescent Moon came close together.', zh:'2008 年 12 月 1 日澳大利亚布里斯班上空的“笑脸”：金星、木星和一弯新月靠在了一起。' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a5/Moon-venus-jupiter-2.jpg/960px-Moon-venus-jupiter-2.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', page:'https://commons.wikimedia.org/wiki/File:Moon-venus-jupiter-2.jpg', credit:'Jopsens', license:'CC BY-SA 3.0', kind:KIND.earth,
+    en:'A conjunction of the Moon, Venus (the brightest dot) and Jupiter above the city centre of Leipzig, Germany. Planets are bright enough to see even from a city.', zh:'德国莱比锡市中心上空的月球、金星（最亮的点）和木星相合。行星很亮，在城市里也能看到。' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2c/Night_Sky-_the_tightest_planet_alignment_this_century_%285714261012%29.jpg/960px-Night_Sky-_the_tightest_planet_alignment_this_century_%285714261012%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', page:'https://commons.wikimedia.org/wiki/File:Night_Sky-_the_tightest_planet_alignment_this_century_(5714261012).jpg', credit:'Tatters ✾ from Brisbane, Australia', license:'CC BY-SA 2.0', kind:KIND.earth,
+    en:'Jupiter, Venus and Mercury close together in the eastern sky before dawn on 13 May 2011, seen from Brisbane. Planets gather like this because they all travel near the ecliptic.', zh:'2011 年 5 月 13 日黎明前，从布里斯班看到的东方天空：木星、金星和水星聚在一起。行星会这样相聚，是因为它们都在黄道附近运行。' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/35/Guisard_-_Milky_Way.jpg/960px-Guisard_-_Milky_Way.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', page:'https://commons.wikimedia.org/wiki/File:Guisard_-_Milky_Way.jpg', credit:'ESO/S. Guisard', license:'CC BY 4.0', kind:KIND.earth,
+    en:'The Milky Way above Cerro Paranal in Chile, home of ESO’s Very Large Telescope. Turn on the Milky Way layer on the map to see where it runs tonight.', zh:'智利帕瑞纳山上空的银河，这里是欧洲南方天文台甚大望远镜的所在地。打开星图上的“银河”图层，看看今晚银河在哪里。' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c7/Saturn_during_Equinox.jpg/960px-Saturn_during_Equinox.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', page:'https://commons.wikimedia.org/wiki/File:Saturn_during_Equinox.jpg', credit:'NASA / JPL / Space Science Institute', license:'Public domain', kind:KIND.craft,
+    en:'Saturn in natural colour, from NASA’s Cassini spacecraft (2008). From your backyard it looks like a steady pale-yellow “star”; a small telescope shows the rings.', zh:'NASA 卡西尼号拍摄的土星真实色彩照片（2008 年）。在你家院子里，它看起来是一颗稳定的淡黄色“星”；小望远镜就能看到光环。' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/ff/Manitoba_Museum_Planetarium.jpg/960px-Manitoba_Museum_Planetarium.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', page:'https://commons.wikimedia.org/wiki/File:Manitoba_Museum_Planetarium.jpg', credit:'TMMCommunications', license:'CC BY-SA 4.0', kind:KIND.place,
+    en:'Inside the Manitoba Museum Planetarium, Canada: the star projector (lit blue) throws stars and galaxies onto the dome, just like this page draws them on your screen.', zh:'加拿大马尼托巴博物馆天象馆内部：投影仪（蓝光处）把恒星和星系投到圆顶上，就像本页把它们画在你的屏幕上。' },
+  { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/c/c5/ESO_-_Night-time_time-lapse_at_Cerro_Armazones_%28by%29.ogv?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c5/ESO_-_Night-time_time-lapse_at_Cerro_Armazones_%28by%29.ogv/960px--ESO_-_Night-time_time-lapse_at_Cerro_Armazones_%28by%29.ogv.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', page:'https://commons.wikimedia.org/wiki/File:ESO_-_Night-time_time-lapse_at_Cerro_Armazones_(by).ogv', credit:'ESO/S. Brunier', license:'CC BY 4.0', kind:KIND.vid,
+    en:'Time-lapse of a night on Cerro Armazones in Chile’s Atacama Desert: the Milky Way wheels across the sky as Earth turns.', zh:'智利阿塔卡马沙漠阿马索内斯山上一夜的延时视频：地球转动时，银河在天空中缓缓转过。' },
+  { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/3/39/Time-lapse_of_night_sky_in_Antarctica.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/39/Time-lapse_of_night_sky_in_Antarctica.webm/960px--Time-lapse_of_night_sky_in_Antarctica.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', page:'https://commons.wikimedia.org/wiki/File:Time-lapse_of_night_sky_in_Antarctica.webm', credit:'Discovering Antarctica / Kenrick Turner', license:'CC BY 3.0', kind:KIND.vid,
+    en:'A winter night under the stars in Antarctica, in time-lapse. Near the South Pole, the stars circle the south celestial pole: try latitude −75° on the map.', zh:'南极冬夜星空的延时视频。在南极附近，星星绕着南天极转圈：在星图上把纬度设为南纬 75° 试试。' }
+];
+LabPhotos.render('#gallery', GAL, { title:o('See the real thing','看看真实的样子'), sub:o('Real photos of planets and stars in the night sky, a planetarium, and two time-lapse videos of the sky turning. Click a picture to enlarge it; videos play only when you press play.','夜空中行星和恒星的真实照片、一座天象馆，以及两段星空旋转的延时视频。点击图片可放大；视频只有按下播放键才会播放。') });
+/* ===== Go further links (all checked) ===== */
+const LINKS = [
+  ['https://stellarium-web.org/', 'Stellarium Web', o('A full planetarium in your browser: type any star, planet or galaxy and it shows you exactly where it is tonight.','浏览器里的完整天象馆：输入任何恒星、行星或星系，它会告诉你今晚它在哪里。'), 'stellarium-web.org'],
+  ['https://science.nasa.gov/skywatching/whats-up/', o('NASA “What’s Up”','NASA “天上有什么”'), o('A short video every month from NASA/JPL telling you what to look for in the sky this month.','NASA/JPL 每月一段短视频，告诉你这个月天上有什么值得看。'), 'science.nasa.gov'],
+  ['https://www.heavens-above.com/', 'Heavens-Above', o('Find out when the International Space Station flies over your house, and how bright it will be.','查一查国际空间站什么时候从你家上空飞过，会有多亮。'), 'heavens-above.com'],
+  ['https://www.timeanddate.com/astronomy/night/', o('timeanddate: Night sky','timeanddate：夜空'), o('Pick your city to see which planets are up tonight, and when they rise and set.','选择你的城市，看看今晚有哪些行星，它们何时升起、何时落下。'), 'timeanddate.com'],
+  ['https://globeatnight.org/', 'Globe at Night', o('Citizen science: match the stars you see in Orion or Leo to charts and report how dark your sky is.','公民科学：把你看到的猎户座或狮子座星星和星图对照，报告你那里的夜空有多黑。'), 'globeatnight.org'],
+  ['https://www.lightpollutionmap.info/', o('Light Pollution Map','光污染地图'), o('Zoom the world map to find the darkest skies near you for stargazing.','缩放世界地图，找到你附近最适合观星的黑暗地点。'), 'lightpollutionmap.info'],
+  ['https://science.nasa.gov/skywatching/night-sky-network/', o('NASA Night Sky Network','NASA 夜空网络'), o('Find a local astronomy club and a free “star party” where you can look through real telescopes.','找到附近的天文俱乐部和免费的“观星会”，用真正的望远镜看星星。'), 'science.nasa.gov'],
+  ['https://in-the-sky.org/', 'In-The-Sky.org', o('A calendar of sky events: meteor showers, eclipses, planets meeting the Moon, with finder charts.','天象日历：流星雨、日月食、行星合月，还有寻星图。'), 'in-the-sky.org']
+];
+Lab.onLang(() => { Lab.$('#linkGrid').innerHTML = LINKS.map(([u, t, d, h]) => `<a class="linkcard" href="${u}" target="_blank" rel="noopener"><b>${Lab.L(t)}</b><span>${Lab.L(d)}</span><small>${h} ↗</small></a>`).join(''); });
+/* ===== Quiz ===== */
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('Why does the whole sky seem to turn during the night?','为什么整个天空在夜里看起来会转动？'), options:[o('Earth spins on its axis','地球绕地轴自转'),o('The stars orbit Earth','恒星绕地球转'),o('Earth orbits the Sun once a night','地球每晚绕太阳一圈'),o('The Moon drags the stars','月球拖着星星走')], answer:0, explain:o('Earth turns west to east, so the sky seems to turn east to west, about 15° per hour.','地球自西向东转，所以天空看起来自东向西转，每小时约 15°。')},
+  {q:o('Which line on the map do the planets and the Moon always stay close to?','星图上行星和月球总是靠近哪条线？'), options:[o('The ecliptic','黄道'),o('The horizon','地平线'),o('The Milky Way','银河'),o('The celestial equator only','只有天赤道')], answer:0, explain:o('The planets orbit in nearly the same flat plane, which we see edge-on as the ecliptic.','行星几乎在同一个平面上公转，从侧面看过去就是黄道。')},
+  {q:o('Which of these magnitudes is the BRIGHTEST?','下面哪个星等最亮？'), options:[o('−1.5','−1.5'),o('0','0'),o('+2','+2'),o('+6','+6')], answer:0, explain:o('On the magnitude scale, smaller (more negative) numbers are brighter. −1.5 is Sirius.','星等数字越小（越负）越亮。−1.5 是天狼星。')},
+  {q:o('A difference of 5 magnitudes means a brightness difference of…','星等相差 5 等，亮度相差……'), options:[o('100 times','100 倍'),o('5 times','5 倍'),o('10 times','10 倍'),o('1,000 times','1000 倍')], answer:0},
+  {q:o('Use the magnitude figure: about how many times brighter does Vega (0) look than the faintest stars you can see from a dark site (+6.5)?','读星等图：织女星（0 等）看起来比黑暗地方肉眼能看到的最暗星（+6.5 等）亮多少倍？'), options:[o('About 400 times','约 400 倍'),o('About 6 times','约 6 倍'),o('About 65 times','约 65 倍'),o('About 1 million times','约 100 万倍')], answer:0, explain:o('10^(0.4 × 6.5) ≈ 400.','10^(0.4 × 6.5) ≈ 400。')},
+  {q:o('From Atlanta (34° N), which stars never set?','从亚特兰大（北纬 34°）看，哪些星永远不落下？'), options:[o('Stars with declination above about +56°','赤纬高于约 +56° 的星'),o('Stars with declination above 0°','赤纬高于 0° 的星'),o('Only Polaris','只有北极星'),o('Stars on the ecliptic','黄道上的星')], answer:0, explain:o('Circumpolar limit = 90° − latitude = 90° − 34° = 56°.','拱极界限 = 90° − 纬度 = 90° − 34° = 56°。')},
+  {q:o('Use the “how the sky turns” figure: from Atlanta, about how many hours a day is Vega (Dec +39°) above the horizon?','读“星空怎样旋转”图：从亚特兰大看，织女星（赤纬 +39°）每天大约有几小时在地平线以上？'), options:[o('About 16 hours','约 16 小时'),o('About 8 hours','约 8 小时'),o('24 hours','24 小时'),o('Exactly 12 hours','正好 12 小时')], answer:0, explain:o('Stars north of the celestial equator are up for more than half the day from the northern hemisphere.','从北半球看，天赤道以北的星每天在地平线以上的时间超过一半。')},
+  {q:o('At the North Pole, where is Polaris?','在北极点，北极星在哪里？'), options:[o('Almost straight overhead','几乎在头顶正上方'),o('On the horizon','在地平线上'),o('Below the horizon','在地平线以下'),o('In the south','在南方')], answer:0, explain:o('Polaris’s altitude equals your latitude: 90° at the pole.','北极星的高度等于当地纬度：在极点是 90°。')},
+  {q:o('Rigel looks blue-white and Betelgeuse looks orange-red. What does that tell you?','参宿七看起来是蓝白色，参宿四是橙红色，这说明什么？'), options:[o('Rigel’s surface is much hotter','参宿七的表面温度高得多'),o('Rigel is closer to us','参宿七离我们更近'),o('Betelgeuse is a planet','参宿四是一颗行星'),o('Betelgeuse is moving away','参宿四正在远离')], answer:0, explain:o('A star’s colour shows its surface temperature: blue-white stars are hottest, red ones coolest.','恒星的颜色反映表面温度：蓝白色最热，红色最冷。')},
+  {q:o('Polaris is about 430 light-years away. The light you see from it tonight left the star…','北极星离我们约 430 光年。你今晚看到的星光是什么时候发出的？'), options:[o('About 430 years ago','约 430 年前'),o('Last night','昨天晚上'),o('About 430 seconds ago','约 430 秒前'),o('It left just now','刚刚发出的')], answer:0},
+  {q:o('You see a bright, steady “star” on the ecliptic that is not on any star chart. It is most likely…','你在黄道上看到一颗明亮、不闪烁、星图上没有的“星”，它最可能是……'), options:[o('A planet','一颗行星'),o('A new star','一颗新恒星'),o('Polaris','北极星'),o('A galaxy','一个星系')], answer:0},
+  {q:o('Press “+1 day” and watch the Moon: compared with the stars it moves about…','按“+1 天”观察月球：相对于星星，它每天大约移动……'), options:[o('13° east each day','每天向东 13°'),o('1° west each day','每天向西 1°'),o('180° each day','每天 180°'),o('It never moves against the stars','它相对星星从不移动')], answer:0, explain:o('The Moon orbits Earth in about 27.3 days: 360° ÷ 27.3 ≈ 13° per day.','月球约 27.3 天绕地球一圈：360° ÷ 27.3 ≈ 每天 13°。')}
+], { count:12 });
+/* ===== Sort game ===== */
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'always',en:'∞ Never sets (circumpolar)',zh:'∞ 永不落下（拱极）'},{id:'rs',en:'↕ Rises and sets',zh:'↕ 东升西落'},{id:'never',en:'✕ Never rises',zh:'✕ 永不升起'}],
+  items:[
+    {en:'Polaris (+89°)',zh:'北极星（+89°）',bin:'always'},{en:'Kochab (+74°)',zh:'帝星（+74°）',bin:'always'},{en:'Dubhe (+62°)',zh:'天枢（+62°）',bin:'always'},{en:'Caph (+59°)',zh:'王良一（+59°）',bin:'always'},
+    {en:'Vega (+39°)',zh:'织女星（+39°）',bin:'rs'},{en:'Deneb (+45°)',zh:'天津四（+45°）',bin:'rs'},{en:'Arcturus (+19°)',zh:'大角星（+19°）',bin:'rs'},{en:'Sirius (−17°)',zh:'天狼星（−17°）',bin:'rs'},{en:'Antares (−26°)',zh:'心宿二（−26°）',bin:'rs'},
+    {en:'Acrux (−63°)',zh:'十字架二（−63°）',bin:'never'},{en:'Alpha Centauri (−61°)',zh:'南门二（−61°）',bin:'never'},{en:'Large Magellanic Cloud (−70°)',zh:'大麦哲伦云（−70°）',bin:'never'}
+  ]
+});
+</script>
+</body>
+</html>

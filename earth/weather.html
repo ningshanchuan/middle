@@ -1,0 +1,756 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weather: Air Masses, Fronts &amp; Storms</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/lab3d.js"></script>
+<script src="../shared/photos.js"></script>
+<style>
+/* page-specific styles */
+.modeseg{pointer-events:auto}
+.hidden{display:none!important}
+.am .ico{font-size:30px}
+.am .tagline{font-weight:800;font-size:13px;letter-spacing:.04em;text-transform:uppercase;margin:2px 0 6px}
+.inst{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.inst .counter b{font-size:22px}
+.inst .counter small{display:block;font-size:12px;color:var(--ink-2);font-weight:700}
+.sky{display:flex;gap:12px;align-items:center;background:var(--surface-2);border-radius:14px;padding:10px 14px;font-weight:800}
+.sky .em{font-size:34px;line-height:1}
+.symgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:18px}
+.sym{padding:14px;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.sym svg{width:100%;max-width:150px;height:44px}
+.sym b{font-family:Fredoka;font-size:18px;font-weight:600}
+.sym span{font-size:14px;color:var(--ink-2)}
+.fc{padding:22px;margin-top:18px}
+.fc .clue{background:var(--surface-2);border-radius:14px;padding:12px 14px;font-weight:700;margin:10px 0}
+.fc .clue li{margin:2px 0}
+.fcopts{display:grid;gap:10px}
+.fcopts button{text-align:left}
+@media (max-width:980px){.symgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.inst{grid-template-columns:1fr 1fr}.symgrid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body data-subject="earth" data-topic="weather">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="地球科学 · 天气与气候">Earth Science · Weather &amp; Climate</span>
+  <h1 data-zh-html="天气：<em>气团、锋面与风暴</em>">Weather: <em>Air Masses, Fronts &amp; Storms</em></h1>
+  <p class="lead" data-zh="为什么晴朗的下午，不到一小时就可能变成雷雨天？当一大团冷空气撞上一大团暖空气，天气就会发生变化。在下面的 3D 剖面模型里，看冷锋和暖锋怎样把空气抬升、形成云和雨；再切换到飓风模式，看温暖的海洋怎样为一场巨大的风暴提供能量。">Why can a sunny afternoon turn into a thunderstorm in less than an hour? When a huge body of cold air bumps into a huge body of warm air, the weather changes. In the 3D cross-section below, watch cold and warm fronts lift air into clouds and rain, then switch to hurricane mode and see how warm ocean water powers a giant storm.</p>
+</header>
+
+<section class="wrap" id="explore" data-nav="3D Weather" data-nav-zh="3D 天气">
+  <div class="explorer">
+    <div class="stage card" id="stage" data-3d>
+      <div class="toolbar">
+        <div class="seg modeseg"><button data-mode="fronts" class="on" data-zh="🌦 锋面">🌦 Fronts</button><button data-mode="hurricane" data-zh="🌀 飓风">🌀 Hurricane</button></div>
+        <button class="tbtn" id="resetBtn" data-zh="⌂ 重置">⌂ Reset</button>
+        <button class="tbtn" id="storyBtn" data-zh="📖 讲解（故事）">📖 Explain (story)</button>
+        <button class="tbtn" id="labelBtn" data-zh="🏷 标签">🏷 Labels</button>
+        <button class="tbtn" id="playBtn" data-zh="▶ 播放">▶ Play</button>
+      </div>
+      <div class="bottombar">
+        <div class="pill" id="pillTime"><span data-zh="⏱ 时间">⏱ Time</span><input id="tSlider" type="range" min="0" max="100" step="0.1" value="15"><b id="tVal"></b></div>
+        <div class="pill hidden" id="pillSst"><span data-zh="🌡 海水温度">🌡 Ocean temp</span><input id="sst" type="range" min="24" max="31" step="0.1" value="29"><b id="sstVal">29 °C</b></div>
+        <div class="pill hidden" id="pillCat"><b id="catVal"></b></div>
+        <div class="tip" data-zh="拖动旋转 · 滚轮缩放 · 点击气团、锋面或云">Drag to rotate · Scroll to zoom · Click an air mass, front or cloud</div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="chips" id="chips"></div>
+  <div class="mix" style="margin-top:16px"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="锋面的名字取决于哪种空气在“进攻”，而不是哪边更冷。冷空气推进取代暖空气 = 冷锋；暖空气推进取代冷空气 = 暖锋。锋面符号（三角形或半圆）指向锋面移动的方向。">A front is named for the air that is advancing, not just which side is colder. Cold air pushing in and replacing warm air = cold front; warm air advancing over cold air = warm front. The front symbols (triangles or half-circles) point the way the front is moving.</span></div>
+</section>
+
+<section class="wrap" id="airmasses" data-nav="Air masses" data-nav-zh="气团">
+  <div class="sec-head">
+    <h2 data-zh="北美洲的四种气团">Four air masses that shape North American weather</h2>
+    <p data-zh="气团是一大团温度和湿度都差不多的空气，可以覆盖几百万平方千米。它的性质取决于它在哪里形成：在陆地上形成就干燥（大陆性），在海洋上形成就潮湿（海洋性）；在高纬度形成就寒冷（极地），在低纬度形成就温暖（热带）。">An air mass is a huge body of air with about the same temperature and humidity throughout, sometimes covering millions of square kilometers. It takes on the character of where it forms: over land it is dry (continental), over ocean it is humid (maritime); near the poles it is cold (polar), near the tropics it is warm (tropical).</p>
+  </div>
+  <div class="grid4" id="amGrid"></div>
+</section>
+
+<section class="wrap" id="station" data-nav="Weather station" data-nav-zh="气象站">
+  <div class="sec-head">
+    <h2 data-zh="模拟：锋面经过你的城市">Simulation: a storm system passes your town</h2>
+    <p data-zh="一个低气压系统带着暖锋和冷锋自西向东移动。拖动时间滑块（或播放），观察城市气象站的各种仪器读数怎样变化，下面的曲线会记录气温和气压。">A low-pressure system with a warm front and a cold front moves from west to east. Drag the time slider (or press Play) and watch how each instrument at your town’s weather station changes. The graph records temperature and pressure.</p>
+  </div>
+  <div class="sim">
+    <div class="card simbox" style="min-height:470px"><canvas id="wmap"></canvas></div>
+    <div class="card simside">
+      <label class="ctl"><span><span data-zh="🕒 时间">🕒 Time</span>: <b id="hVal">0 h</b></span><input id="hour" type="range" min="0" max="48" step="0.1" value="0"></label>
+      <div class="btnrow"><button class="btn" id="wPlay" data-zh="▶ 播放">▶ Play</button><button class="btn ghost" id="wReset" data-zh="↺ 重新开始">↺ Restart</button></div>
+      <div class="sky"><span class="em" id="skyEm">🌤</span><span id="skyTxt"></span></div>
+      <div class="inst" id="inst"></div>
+    </div>
+  </div>
+  <div class="symgrid" id="symGrid"></div>
+  <div class="card fc">
+    <h3 data-zh="🔮 当一回天气预报员">🔮 Be the forecaster</h3>
+    <p class="muted" style="margin:6px 0 0" data-zh="阅读气象站数据，选出最合理的预报。">Read the station data and choose the most likely forecast.</p>
+    <div id="fcBox"></div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real Photos" data-nav-zh="真实照片">
+  <div class="sec-head">
+    <h2 data-zh="看看真实的样子">See the real thing</h2>
+    <p data-zh="3D 模型把云画成了简单的形状，这里是真实的云——有从地面拍的，也有从太空拍的。点击照片可以放大；影片不会自动播放。">The 3D model draws clouds as simple shapes. Here are the real ones, from the ground and from space. Click a photo to enlarge it; the video never starts by itself.</p>
+  </div>
+  <div id="gallery"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 天气测验">🧠 Weather quiz</h3><p class="sub" data-zh="选出正确答案。">Pick the best answer.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="☁️ 认识云">☁️ Name that cloud</h3><p class="sub" data-zh="把每条描述拖到（或先点再点方框）正确的云类。">Drag each description (or tap it, then tap a box) to the right cloud type.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="对应佐治亚州标准 S6E4d（解释气压、锋面、气团与雷暴、龙卷风等天气事件的关系）、S6E4e（分析天气数据，解释海洋水分蒸发对飓风等天气的影响）和 S6E4f（认识气象仪器及其测量的数据）。建议：先让学生用时间滑块观察冷锋“推”起暖空气，再提问为什么冷锋带来短暂猛烈的雷雨，而暖锋带来持久的小雨（坡度不同）；在飓风模式下把海水温度降到 26 °C 以下，讨论飓风为什么登陆后会减弱。">Supports GSE S6E4d (relationship between air pressure, fronts, air masses and events such as thunderstorms and tornadoes), S6E4e (interpret weather data to explain how moisture evaporating from the ocean affects weather such as hurricanes) and S6E4f (weather instruments and the data they collect). Try: have students scrub the time slider to watch the cold front shove warm air upward, then ask why cold fronts bring short, intense storms while warm fronts bring long, light rain (steep vs. gentle slope). In hurricane mode, drop the ocean temperature below 26 °C and discuss why hurricanes weaken over land.</p>
+    <p data-zh="说明：模型经过简化。飓风强度与海温的对应关系只用于演示趋势，真实强度还取决于风切变、湿度等因素。">Note: models are simplified. The ocean-temperature-to-category link only shows the trend; real intensity also depends on wind shear, humidity and more.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+/* ===== helpers ===== */
+const o = (en, zh) => ({en, zh});
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function fit(cv){ const r = cv.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); cv.width = Math.max(1, r.width * d); cv.height = Math.max(1, r.height * d); const g = cv.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0); return [g, r.width, r.height]; }
+const sig = x => 1 / (1 + Math.exp(-x));
+
+/* ===== Parts (bilingual) ===== */
+const PARTS = {
+  coldAir:{color:'#3b82f6', name:o('Cold air mass','冷气团'), job:o('Continental polar (cP): cold & dry','大陆极地气团（cP）：寒冷干燥'),
+    facts:o(['Forms over snowy northern Canada, so it is cold and dry.','Cold air is denser (heavier) than warm air, so it hugs the ground and slides underneath warm air like a wedge.','When it reaches Georgia in winter it brings cold, clear, crisp days.'],
+            ['形成于积雪覆盖的加拿大北部，所以寒冷干燥。','冷空气比暖空气密度大（更重），所以贴着地面，像楔子一样插到暖空气下面。','冬天它到达佐治亚州时，会带来寒冷、晴朗、干爽的天气。']),
+    hint:o('Continental = dry (formed over land); Polar = cold.','“大陆”= 干燥（在陆地上形成）；“极地”= 寒冷。')},
+  warmAir:{color:'#f97316', name:o('Warm air mass','暖气团'), job:o('Maritime tropical (mT): warm & humid','海洋热带气团（mT）：温暖潮湿'),
+    facts:o(['Forms over the warm Gulf of Mexico, so it is warm and full of water vapor.','It gives the southeastern United States its hot, sticky summers and fuels thunderstorms.','Warm air is less dense, so it gets pushed upward when it meets cold air. Rising air cools, and its water vapor condenses into clouds.'],
+            ['形成于温暖的墨西哥湾上空，所以温暖并含有大量水汽。','它让美国东南部夏季又热又闷，还为雷暴提供“燃料”。','暖空气密度小，遇到冷空气时会被抬升。上升的空气冷却，其中的水汽凝结成云。']),
+    hint:o('Maritime = moist (formed over ocean); Tropical = warm.','“海洋”= 潮湿（在海洋上形成）；“热带”= 温暖。')},
+  coolAir:{color:'#38bdf8', name:o('Cool air ahead','前方的冷空气'), job:o('The air the warm front is replacing','暖锋正在取代的空气'),
+    facts:o(['Cooler air sits ahead (east) of the warm front.','The advancing warm air cannot push this denser air away, so it glides up and over it on a long, gentle slope.','As the warm front passes, your town switches from this cool air to the warm, humid air behind it.'],
+            ['较冷的空气位于暖锋的前方（东边）。','前进的暖空气推不动密度更大的冷空气，只能沿着长长的缓坡爬升到它上面。','暖锋过境后，你所在的城市就从这团冷空气变为后面温暖潮湿的空气。']),
+    hint:o('Warm air is a gentle climber: it rides up and over.','暖空气是“慢慢爬坡”的：它沿缓坡爬到冷空气上面。')},
+  coldFront:{color:'#2563eb', name:o('Cold front','冷锋'), job:o('Cold air plows under warm air','冷空气铲到暖空气下面'),
+    facts:o(['A fast-moving cold air mass pushes under the warm air and shoves it up steeply.','Steep, fast lifting builds tall cumulonimbus clouds: heavy rain, thunderstorms, gusty winds, sometimes hail or tornadoes, but only for a short time.','After it passes: temperature drops, pressure rises, the wind shifts (often to the northwest) and skies clear.','Map symbol: a blue line with triangles pointing the way it moves.'],
+            ['快速移动的冷气团插到暖空气下面，把暖空气陡峭地向上推。','陡峭而快速的抬升形成高大的积雨云：大雨、雷暴、阵风，有时还有冰雹或龙卷风，但持续时间短。','冷锋过境后：气温下降，气压升高，风向转变（常转为西北风），天空转晴。','天气图符号：蓝色线条加三角形，三角形指向锋面移动方向。']),
+    hint:o('Cold front = a bulldozer: fast, steep, stormy, then clear and cool.','冷锋像推土机：来得快、坡度陡、风雨猛，过后转晴变冷。'),
+    mix:o('Rain does not fall all along the cold air mass, only in a narrow band at the front where warm air is being lifted.','并不是整个冷气团都在下雨，只有锋面附近暖空气被抬升的狭窄地带才有降水。')},
+  warmFront:{color:'#dc2626', name:o('Warm front','暖锋'), job:o('Warm air slides up over cool air','暖空气沿冷空气爬升'),
+    facts:o(['Advancing warm air slowly rises over the cooler air on a gentle slope that can stretch hundreds of kilometers.','Clouds arrive in order: high cirrus first (a day or more ahead), then lower, thicker stratus and nimbostratus.','It brings long periods of light, steady rain or drizzle. Afterward it is warmer and more humid.','Map symbol: a red line with half-circles pointing the way it moves.'],
+            ['前进的暖空气沿着缓坡慢慢爬升到冷空气上面，这个坡面可以延伸几百千米。','云会按顺序出现：先是高高的卷云（提前一天或更久），然后是更低更厚的层云和雨层云。','它带来持续时间长的小雨或毛毛雨。暖锋过后，天气变得更暖、更潮湿。','天气图符号：红色线条加半圆形，半圆指向锋面移动方向。']),
+    hint:o('Warm front = a slow ramp: long, gentle, drizzly.','暖锋像一个缓坡：来得慢、坡度缓、细雨绵绵。')},
+  occluded:{color:'#9333ea', name:o('Occluded front','锢囚锋'), job:o('Cold front catches the warm front','冷锋追上了暖锋'),
+    facts:o(['Cold fronts move faster than warm fronts. When a cold front catches up, the warm air between them is lifted completely off the ground.','Weather is a mix of both fronts: clouds and rain, often over a wide area.','Occlusion usually means the low-pressure system is mature and will soon weaken, because warm, moist air is cut off from the ground.','Map symbol: a purple line with triangles and half-circles on the same side. Try the time slider!'],
+            ['冷锋比暖锋移动得快。当冷锋追上暖锋时，夹在中间的暖空气被完全抬离地面。','天气兼有两种锋面的特点：多云和降水，范围往往较大。','出现锢囚通常说明低气压系统已经成熟，很快会减弱，因为温暖潮湿的空气与地面隔开了。','天气图符号：紫色线条，三角形和半圆排在同一侧。试试拖动时间滑块！']),
+    hint:o('Occluded = “closed off”: the warm air gets shut off from the ground.','锢囚 = 被“关住”：暖空气被封闭、抬离地面。')},
+  cumulonimbus:{color:'#64748b', name:o('Cumulonimbus','积雨云'), job:o('Thunderstorm cloud','雷暴云'),
+    facts:o(['A giant tower cloud that can reach 12 km or higher, with a flat anvil top where it hits the stratosphere.','Strong updrafts of warm, moist air feed it. It brings lightning, thunder, downpours, hail and sometimes tornadoes.','“Cumulus” means heap, and “nimbus” means rain cloud.'],
+            ['巨大的塔状云，可高达 12 千米以上，顶部碰到平流层后摊平成“砧状”。','强烈上升的暖湿气流为它提供能量。它带来闪电、雷声、暴雨、冰雹，有时还有龙卷风。','“积”表示堆积，“雨”表示会下雨。']),
+    hint:o('See an anvil-shaped tower? Get indoors: lightning is coming.','看到砧状的“高塔”云？快进屋，雷电要来了。')},
+  stratus:{color:'#94a3b8', name:o('Stratus & nimbostratus','层云与雨层云'), job:o('Gray layered rain clouds','灰色层状雨云'),
+    facts:o(['Flat, gray sheets of cloud that can cover the whole sky. Fog is stratus at ground level.','Nimbostratus is a thick, dark layer that gives long periods of steady rain or snow.','They form when a wide layer of air is lifted gently, as at a warm front.'],
+            ['扁平的灰色云层，可以布满整个天空。雾就是贴近地面的层云。','雨层云是又厚又暗的云层，带来持续时间长的稳定降雨或降雪。','当一大片空气被缓慢抬升时（例如在暖锋处）就会形成这类云。']),
+    hint:o('“Stratus” = layer, like strata (layers) in rock.','“层云”= 一层层的云，就像岩石的层理。')},
+  cirrus:{color:'#e2e8f0', name:o('Cirrus','卷云'), job:o('High, wispy ice clouds','高空中纤细的冰晶云'),
+    facts:o(['Thin, feathery clouds high in the troposphere (above about 6 km), made of ice crystals.','Often the first sign of an approaching warm front: rain may arrive within a day or two.','Nicknamed “mares’ tails” for their curly shapes.'],
+            ['高空（约 6 千米以上）中薄而呈羽毛状的云，由冰晶组成。','它常常是暖锋即将到来的第一个信号：一两天内可能会下雨。','因形状卷曲，被称为“马尾云”。']),
+    hint:o('Cirrus = curl. High, thin, icy and curly.','卷云：高、薄、由冰晶组成、形状卷曲。')},
+  low:{color:'#e5484d', name:o('Low pressure (L)','低气压（L）'), job:o('Rising air → clouds and storms','空气上升 → 多云和风暴'),
+    facts:o(['Air rises at the center of a low. Rising air cools, so water vapor condenses into clouds and precipitation.','Surface winds spiral IN toward the low, counterclockwise in the Northern Hemisphere.','Fronts usually stretch out from a low-pressure center. A falling barometer warns that a low is coming.'],
+            ['低气压中心的空气上升。上升的空气冷却，水汽凝结形成云和降水。','地面风向低压中心旋转着吹入，在北半球呈逆时针方向。','锋面通常从低压中心向外延伸。气压计读数下降，预示低气压正在靠近。']),
+    hint:o('L = Lousy weather (rising air, clouds, rain).','L（低压）= 坏天气（空气上升、多云、下雨）。'),
+    mix:o('Pressure does not “pull” clouds. Low pressure means air is rising, and rising air makes clouds.','低气压并不是把云“吸”过来，而是说明空气在上升，上升的空气才形成了云。')},
+  high:{color:'#2563eb', name:o('High pressure (H)','高气压（H）'), job:o('Sinking air → clear skies','空气下沉 → 晴朗'),
+    facts:o(['Air sinks at the center of a high. Sinking air warms and dries out, so clouds evaporate.','Surface winds spiral OUT from a high, clockwise in the Northern Hemisphere.','Highs bring calm, sunny, settled weather. A rising barometer means fair weather ahead.'],
+            ['高气压中心的空气下沉。下沉的空气增温变干，云就消散了。','地面风从高压中心旋转着向外吹出，在北半球呈顺时针方向。','高气压带来平静、晴朗、稳定的天气。气压计读数上升，预示天气将转好。']),
+    hint:o('H = Happy weather (sinking air, sunshine).','H（高压）= 好天气（空气下沉、阳光明媚）。')},
+  eye:{color:'#7dd3fc', name:o('The eye','风眼（台风眼）'), job:o('Calm, clear center','平静晴朗的中心'),
+    facts:o(['The center of the hurricane, usually 20–60 km across.','Air sinks gently in the eye, so it is surprisingly calm, with light winds and sometimes blue sky.','Danger: after the eye passes, the other side of the eyewall hits with winds from the opposite direction.'],
+            ['飓风的中心，直径通常为 20–60 千米。','风眼里的空气缓慢下沉，所以出奇地平静，风很小，有时还能看到蓝天。','危险：风眼过去后，眼墙的另一侧会带着反方向的狂风袭来。']),
+    hint:o('The eye is the calm in the middle of the storm.','风眼是风暴中心的“平静地带”。')},
+  eyewall:{color:'#f1f5f9', name:o('Eyewall','眼墙'), job:o('Strongest winds & heaviest rain','最强的风和最大的雨'),
+    facts:o(['A ring of towering thunderstorms around the eye.','Here, warm moist air rises fastest. As its water vapor condenses, it releases heat that powers the whole storm.','The eyewall has the fastest winds: over 250 km/h in a Category 5 hurricane.'],
+            ['环绕风眼的一圈高耸的雷暴云。','温暖潮湿的空气在这里上升得最快。水汽凝结时释放热量，为整个风暴提供能量。','眼墙里的风最猛：5 级飓风中风速超过 250 千米/时。']),
+    hint:o('Wall = worst: the worst winds are in the wall.','“墙”最猛：最猛烈的风就在眼墙里。')},
+  rainbands:{color:'#cbd5e1', name:o('Spiral rain bands','螺旋雨带'), job:o('Arms of storms','风暴的“旋臂”'),
+    facts:o(['Long curved bands of clouds and thunderstorms that spiral in toward the center.','They bring bursts of heavy rain and gusty winds, and can spin up small tornadoes.','A whole hurricane can be 500 km or more across.'],
+            ['一条条弯曲的云带和雷暴，螺旋状地卷向中心。','它们带来一阵阵的大雨和阵风，还可能产生小型龙卷风。','整个飓风的直径可达 500 千米以上。']),
+    hint:o('Rain bands look like the arms of a pinwheel.','螺旋雨带看起来就像风车的叶片。')},
+  winds:{color:'#facc15', name:o('Spiraling winds','旋转的风'), job:o('In at the bottom, up, out at the top','底部吹入，中间上升，顶部吹出'),
+    facts:o(['Near the ocean surface, air rushes in toward the very low pressure at the center.','Earth’s rotation (the Coriolis effect) turns it into a spin: counterclockwise in the Northern Hemisphere, clockwise in the Southern.','The air rises in the eyewall and spreads out at the top of the storm.','The same kind of storm is called a hurricane (Atlantic), typhoon (western Pacific) or cyclone (Indian Ocean).'],
+            ['在海面附近，空气向中心极低的气压区猛烈吹入。','地球自转（地转偏向力）使它旋转起来：北半球逆时针，南半球顺时针。','空气在眼墙中上升，在风暴顶部向外散开。','同一类风暴在大西洋叫飓风，在西太平洋叫台风，在印度洋叫气旋。']),
+    hint:o('Northern Hemisphere storms spin counterclockwise.','北半球的风暴逆时针旋转。')},
+  warmOcean:{color:'#fb923c', name:o('Warm ocean water','温暖的海水'), job:o('The hurricane’s fuel','飓风的“燃料”'),
+    facts:o(['Hurricanes need ocean water of at least about 26.5 °C.','Warm water evaporates, loading the air with water vapor. When that vapor condenses into clouds, it releases huge amounts of heat energy.','Over land or cold water the fuel is cut off and the storm weakens. Try the ocean-temperature slider!'],
+            ['飓风需要至少约 26.5 °C 的海水。','温暖的海水蒸发，使空气中充满水汽。水汽凝结成云时会释放大量热能。','移到陆地或冷水上空后，能量来源被切断，风暴就会减弱。试试海水温度滑块！']),
+    hint:o('No warm water, no hurricane.','没有温暖的海水，就没有飓风。'),
+    mix:o('Hurricanes do not get energy from wind or lightning. Their engine is heat released when evaporated ocean water condenses.','飓风的能量并非来自风或闪电，它的“发动机”是蒸发的海水凝结时释放的热量。')}
+};
+const ORDERS = { fronts:['coldAir','warmAir','coolAir','coldFront','warmFront','occluded','cumulonimbus','stratus','cirrus','low','high'], hurricane:['eye','eyewall','rainbands','winds','warmOcean'] };
+
+/* ===== App / info panel ===== */
+const App = window.WX = { sel:null, mode:'fronts', three:null };
+App.select = (k, from3D) => { App.sel = k; renderInfo(); renderChips(); if (App.three) App.three.focus(k, from3D); };
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel, ord = ORDERS[App.mode];
+  if (!k){
+    const fr = App.mode === 'fronts';
+    box.innerHTML = `<span class="tag">${Lab.L(fr ? o('Cross-section of a storm system','风暴系统剖面图') : o('Inside a hurricane','飓风内部'))}</span>
+      <h3>${Lab.L(fr ? o('Where air masses meet','气团相遇的地方') : o('A heat engine made of air','一台由空气组成的“热机”'))}</h3>
+      <p class="muted" style="margin:0">${Lab.L(fr ? o('You are looking at a slice through the lower atmosphere, west on the left and east on the right. A cold air mass (blue) is chasing warm, humid air (orange), which is overtaking cool air (light blue). The boundaries between them are fronts.','你看到的是低层大气的剖面：左边是西，右边是东。冷气团（蓝色）在追赶温暖潮湿的空气（橙色），而暖空气又在赶上前方的冷空气（浅蓝色）。它们之间的分界面就是锋面。') : o('A hurricane is a huge, spinning low-pressure storm that forms over warm tropical oceans. Raise or lower the ocean temperature and watch it change.','飓风是在温暖的热带海洋上形成的巨大旋转低压风暴。升高或降低海水温度，看看它怎样变化。'))}</p>
+      <ul>${(fr ? [o('Cold air is dense and sinks; warm air is less dense and rises.','冷空气密度大会下沉，暖空气密度小会上升。'),o('Wherever air is forced to rise, it cools, and clouds and precipitation form.','空气只要被迫上升就会冷却，形成云和降水。'),o('Drag the Time slider to move the fronts.','拖动时间滑块，锋面就会移动。')] : [o('Strongest winds circle the calm eye.','最强的风环绕着平静的风眼。'),o('Fuel = water vapor from warm ocean water.','燃料 = 温暖海水蒸发产生的水汽。')]).map(x => `<li>${Lab.L(x)}</li>`).join('')}</ul>
+      <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(fr ? o('Weather changes happen where different air masses meet.','天气变化发生在不同气团相遇的地方。') : o('Evaporation stores energy; condensation releases it.','蒸发储存能量，凝结释放能量。'))}</div>
+      <div class="nav"><button id="startBtn">${Lab.L(o('Start exploring ▶','开始探索 ▶'))}</button></div>`;
+    Lab.$('#startBtn').onclick = () => App.select(ord[0]);
+    return;
+  }
+  const p = PARTS[k], i = ord.indexOf(k);
+  box.innerHTML = `<span class="tag">${Lab.L(App.mode === 'fronts' ? o('Fronts & air masses','锋面与气团') : o('Hurricane','飓风'))}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    ${p.photo ? LabPhotos.figure(p.photo) : ''}
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. '));
+  Lab.$('#pPrev').onclick = () => App.select(ord[(i - 1 + ord.length) % ord.length]);
+  Lab.$('#pNext').onclick = () => App.select(ord[(i + 1) % ord.length]);
+}
+function renderChips(){
+  Lab.$('#chips').innerHTML = ORDERS[App.mode].map(k => `<button class="chip ${App.sel===k?'on':''}" data-k="${k}"><i style="background:${PARTS[k].color};border:1px solid rgba(0,0,0,.15)"></i>${Lab.L(PARTS[k].name)}</button>`).join('');
+  Lab.$$('#chips .chip').forEach(c => c.onclick = () => App.select(c.dataset.k));
+}
+Lab.onLang(() => { renderInfo(); renderChips(); });
+
+/* ===== Air masses grid ===== */
+const AM = [
+  {ico:'🧊', code:'cP', color:'#3b82f6', name:o('Continental polar','大陆极地气团'), tag:o('Cold · Dry','寒冷 · 干燥'), from:o('Forms over northern Canada. Brings cold, clear winter days to Georgia.','形成于加拿大北部，冬天给佐治亚州带来寒冷晴朗的天气。')},
+  {ico:'🌊', code:'mP', color:'#0ea5e9', name:o('Maritime polar','海洋极地气团'), tag:o('Cool · Humid','凉爽 · 潮湿'), from:o('Forms over the cold North Pacific and North Atlantic. Brings cool, cloudy, damp weather and snow to coasts.','形成于寒冷的北太平洋和北大西洋上空，给沿海地区带来凉爽、多云、潮湿的天气和降雪。')},
+  {ico:'🌴', code:'mT', color:'#f97316', name:o('Maritime tropical','海洋热带气团'), tag:o('Warm · Humid','温暖 · 潮湿'), from:o('Forms over the Gulf of Mexico and the tropical Atlantic. Brings Georgia’s hot, muggy summers and thunderstorms.','形成于墨西哥湾和热带大西洋上空，带来佐治亚州闷热的夏天和雷暴。')},
+  {ico:'🏜️', code:'cT', color:'#d97706', name:o('Continental tropical','大陆热带气团'), tag:o('Hot · Dry','炎热 · 干燥'), from:o('Forms over the deserts of Mexico and the U.S. Southwest. Brings heat waves and very dry air.','形成于墨西哥和美国西南部的沙漠上空，带来热浪和非常干燥的空气。')}
+];
+function renderAM(){
+  Lab.$('#amGrid').innerHTML = AM.map(a => `<div class="card box am"><div class="ico">${a.ico}</div><h3>${Lab.L(a.name)} (${a.code})</h3><div class="tagline" style="color:${a.color}">${Lab.L(a.tag)}</div><p>${Lab.L(a.from)}</p></div>`).join('');
+}
+Lab.onLang(renderAM);
+
+/* ===== Front symbols key (SVG) ===== */
+function svgFront(type){
+  const line = (c, x0 = 4, x1 = 146) => `<line x1="${x0}" y1="30" x2="${x1}" y2="30" stroke="${c}" stroke-width="4"/>`;
+  const tri = (x, c, down) => `<polygon points="${x},30 ${x + 18},30 ${x + 9},${down ? 44 : 14}" fill="${c}"/>`;
+  const semi = (x, c, down) => `<path d="M${x},30 A9,9 0 0 ${down ? 0 : 1} ${x + 18},30 Z" fill="${c}"/>`;
+  let s = '';
+  if (type === 'cold') s = line('#2563eb') + [12, 52, 92].map(x => tri(x, '#2563eb')).join('');
+  if (type === 'warm') s = line('#dc2626') + [12, 52, 92].map(x => semi(x, '#dc2626')).join('');
+  if (type === 'stat') s = line('#dc2626', 4, 40) + line('#2563eb', 40, 76) + line('#dc2626', 76, 112) + line('#2563eb', 112, 146) + semi(12, '#dc2626') + tri(49, '#2563eb', true) + semi(85, '#dc2626') + tri(121, '#2563eb', true);
+  if (type === 'occ') s = line('#9333ea') + tri(12, '#9333ea') + semi(48, '#9333ea') + tri(84, '#9333ea') + semi(120, '#9333ea');
+  if (type === 'H') s = `<text x="75" y="38" text-anchor="middle" font-family="Fredoka" font-weight="700" font-size="34" fill="#2563eb">H</text>`;
+  if (type === 'L') s = `<text x="75" y="38" text-anchor="middle" font-family="Fredoka" font-weight="700" font-size="34" fill="#dc2626">L</text>`;
+  return `<svg viewBox="0 0 150 46" aria-hidden="true">${s}</svg>`;
+}
+const SYMS = [
+  ['cold', o('Cold front','冷锋'), o('Short, heavy storms, then cooler and clearer.','短时强降雨和雷暴，过后转凉转晴。')],
+  ['warm', o('Warm front','暖锋'), o('Long, light rain, then warmer and more humid.','持续小雨，过后变暖变潮湿。')],
+  ['stat', o('Stationary front','准静止锋'), o('Neither air mass wins: clouds and rain can last for days.','两个气团势均力敌：阴雨天气可能持续多日。')],
+  ['occ', o('Occluded front','锢囚锋'), o('Cold front has caught the warm front; warm air lifted off the ground.','冷锋追上暖锋，暖空气被抬离地面。')],
+  ['H', o('High pressure','高气压'), o('Sinking air: fair, calm, sunny weather.','空气下沉：晴朗、平静的天气。')],
+  ['L', o('Low pressure','低气压'), o('Rising air: clouds, precipitation and storms.','空气上升：多云、降水和风暴。')]
+];
+function renderSyms(){ Lab.$('#symGrid').innerHTML = SYMS.map(([t, n, d]) => `<div class="card sym">${svgFront(t)}<b>${Lab.L(n)}</b><span>${Lab.L(d)}</span></div>`).join(''); }
+Lab.onLang(renderSyms);
+
+/* ===== Weather station simulation ===== */
+(function(){
+  const cv = Lab.$('#wmap'); let t = 0, playing = false;
+  const Lx = h => -12 + h * .45, LY = 2, TOWN = [0, -1.5];
+  const WD = [Math.cos(-35 * Math.PI / 180), Math.sin(-35 * Math.PI / 180)], CD = (() => { const v = [-.33, -1], m = Math.hypot(...v); return [v[0] / m, v[1] / m]; })();
+  const xW = h => Lx(h) + (TOWN[1] - LY) / WD[1] * WD[0], xC = h => Lx(h) + (TOWN[1] - LY) / CD[1] * CD[0];
+  function wx(h){
+    const aW = xW(h) * -1, aC = xC(h) * -1;              // >0: front has not reached the town yet
+    const temp = 12 + 12 * sig(-aW / .6) - 16 * sig(-aC / .35) + 2 * Math.sin(2 * Math.PI * (h - 9) / 24);
+    const d2 = Lx(h) ** 2 + (LY - TOWN[1]) ** 2, pres = 1018 - 22 * Math.exp(-d2 / 40) + 5 * sig((-aC - 2) / 1.5);
+    const hum = Math.min(99, 55 + 35 * sig((3 - aW) / .5) - 10 * sig(-aW / .5) + 15 * Math.exp(-(aC * aC) / .3) - 45 * sig(-aC / .4));
+    const dir = 90 + 45 * sig((3 - aW) / .6) + 65 * sig(-aW / .5) + 115 * sig(-aC / .3);
+    const spd = 12 + 8 * sig(-aW / .5) + 38 * Math.exp(-(aC * aC) / .25) + 10 * sig(-aC / .4) * Math.exp(Math.min(0, aC) / 3);
+    const rate = (aW > 0 && aW < 3 ? 1.5 : 0) + 14 * Math.exp(-(aC * aC) / .12);
+    let zone;
+    if (aW > 3) zone = 0; else if (aW > 0) zone = 1; else if (aC > .5) zone = 2; else if (aC > -.6) zone = 3; else zone = 4;
+    return { temp, pres, hum, dir, spd, rate, zone };
+  }
+  const SKY = [
+    ['🌤️', o('Fair, with thin, high cirrus clouds moving in from the west.','天气晴好，西边飘来薄薄的高空卷云。')],
+    ['🌧️', o('Gray stratus and nimbostratus: light, steady rain (warm front arriving).','灰色的层云和雨层云：持续的小雨（暖锋来了）。')],
+    ['⛅', o('Warm sector: warm, humid and muggy with puffy cumulus.','暖区：温暖潮湿、闷热，天上有蓬松的积云。')],
+    ['⛈️', o('Cold front passing! Cumulonimbus, thunder, downpours and gusty winds.','冷锋过境！积雨云、雷声、暴雨和阵风。')],
+    ['☀️', o('Clearing: cooler, drier air and blue skies as high pressure builds.','转晴：高压逐渐控制，空气变凉变干，蓝天出现。')]
+  ];
+  const COMPASS = [o('E','东'), o('SE','东南'), o('S','南'), o('SW','西南'), o('W','西'), o('NW','西北'), o('N','北'), o('NE','东北')];
+  const compass = d => COMPASS[Math.round(((d - 90) % 360 + 360) % 360 / 45) % 8];
+  function rainTotal(h){ let s = 0; for (let x = 0; x < h; x += .1) s += wx(x).rate * .1; return s; }
+  function side(){
+    const w = wx(t), w2 = wx(Math.max(0, t - .5)), trend = w.pres - w2.pres;
+    Lab.$('#hVal').textContent = t.toFixed(0) + (Lab.lang === 'zh' ? ' 小时' : ' h');
+    Lab.$('#skyEm').textContent = SKY[w.zone][0]; Lab.$('#skyTxt').textContent = Lab.L(SKY[w.zone][1]);
+    const I = [
+      ['🌡️', o('Thermometer','温度计'), Math.round(w.temp) + ' °C', o('air temperature','气温')],
+      ['⏲️', o('Barometer','气压计'), Math.round(w.pres) + ' hPa ' + (Math.abs(trend) < .05 ? '→' : trend < 0 ? '↓' : '↑'), o('air pressure','气压')],
+      ['💧', o('Hygrometer','湿度计'), Math.round(w.hum) + '%', o('relative humidity','相对湿度')],
+      ['🧭', o('Wind vane','风向标'), Lab.L(o('from ', '')) + Lab.L(compass(w.dir)) + (Lab.lang === 'zh' ? '风' : ''), o('wind direction','风向')],
+      ['🌀', o('Anemometer','风速计'), Math.round(w.spd) + ' km/h', o('wind speed','风速')],
+      ['🌧️', o('Rain gauge','雨量器'), rainTotal(t).toFixed(1) + ' mm', o('total rainfall','累计降雨量')]
+    ];
+    Lab.$('#inst').innerHTML = I.map(([ic, n, v, d]) => `<div class="counter"><small>${ic} ${Lab.L(n)}</small><b>${v}</b><span>${Lab.L(d)}</span></div>`).join('');
+  }
+  function frontPath(g, P, x0, y0, dir, len, color, kind){
+    g.strokeStyle = color; g.fillStyle = color; g.lineWidth = 4; g.beginPath(); g.moveTo(...P(x0, y0)); g.lineTo(...P(x0 + dir[0] * len, y0 + dir[1] * len)); g.stroke();
+    for (let s = .6; s < len - .5; s += 1.45){
+      const [ax, ay] = P(x0 + dir[0] * s, y0 + dir[1] * s), [bx, by] = P(x0 + dir[0] * (s + .7), y0 + dir[1] * (s + .7));
+      const dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy); let nx = -dy / L, ny = dx / L; const flip = nx < 0; if (flip){ nx = -nx; ny = -ny; }   // bump points east (direction of motion)
+      g.beginPath();
+      if (kind === 'tri'){ g.moveTo(ax, ay); g.lineTo(bx, by); g.lineTo((ax + bx) / 2 + nx * L * .9, (ay + by) / 2 + ny * L * .9); }
+      else { const a = Math.atan2(dy, dx); g.arc((ax + bx) / 2, (ay + by) / 2, L / 2, a, a + Math.PI, flip); }
+      g.closePath(); g.fill();
+    }
+  }
+  function draw(){
+    const [g, W, H] = fit(cv), mapH = H * .62, sc = Math.min(W / 20, mapH / 10), cx = W / 2, cy = mapH / 2;
+    const P = (x, y) => [cx + x * sc, cy - y * sc], ink = css('--ink'), ink2 = css('--ink-2');
+    g.clearRect(0, 0, W, H);
+    g.fillStyle = css('--surface-2'); g.fillRect(0, 0, W, mapH);
+    g.save(); g.beginPath(); g.rect(0, 0, W, mapH); g.clip();
+    g.strokeStyle = css('--line'); g.lineWidth = 1; for (let x = -10; x <= 10; x += 2){ g.beginPath(); g.moveTo(...P(x, -6)); g.lineTo(...P(x, 6)); g.stroke(); } for (let y = -6; y <= 6; y += 2){ g.beginPath(); g.moveTo(...P(-11, y)); g.lineTo(...P(11, y)); g.stroke(); }
+    const lx = Lx(t);
+    // air mass shading: warm sector + cold air behind
+    g.fillStyle = 'rgba(249,115,22,.16)'; g.beginPath(); g.moveTo(...P(lx, LY)); g.lineTo(...P(lx + WD[0] * 14, LY + WD[1] * 14)); g.lineTo(...P(lx + CD[0] * 12, LY + CD[1] * 12)); g.closePath(); g.fill();
+    g.fillStyle = 'rgba(59,130,246,.14)'; g.beginPath(); g.moveTo(...P(lx, LY)); g.lineTo(...P(lx + CD[0] * 12, LY + CD[1] * 12)); g.lineTo(...P(lx - 16, -8)); g.lineTo(...P(lx - 16, 8)); g.closePath(); g.fill();
+    // precipitation (green) ahead of warm front and along cold front
+    g.strokeStyle = 'rgba(34,197,94,.32)'; g.lineCap = 'round';
+    g.lineWidth = sc * 2.2; g.beginPath(); g.moveTo(...P(lx + 1 + WD[1] * -1, LY + 1 - WD[0] * 1)); g.lineTo(...P(lx + WD[0] * 10 - WD[1] * 1.2, LY + WD[1] * 10 + WD[0] * 1.2)); g.stroke();
+    g.lineWidth = sc * .8; g.beginPath(); g.moveTo(...P(lx + .2, LY - .3)); g.lineTo(...P(lx + CD[0] * 9 + .35, LY + CD[1] * 9)); g.stroke(); g.lineCap = 'butt';
+    frontPath(g, P, lx, LY, WD, 10, '#dc2626', 'semi');
+    frontPath(g, P, lx, LY, CD, 9, '#2563eb', 'tri');
+    g.font = `700 ${Math.max(24, sc * 1.4)}px Fredoka, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = '#dc2626'; g.fillText('L', ...P(lx, LY + .9)); g.fillStyle = '#2563eb'; g.fillText('H', ...P(lx - 8, -1)); g.fillText('H', ...P(lx + 12, 2.5));
+    // town
+    const [tx, ty] = P(...TOWN); g.fillStyle = ink; g.beginPath(); g.arc(tx, ty, 7, 0, 7); g.fill(); g.strokeStyle = css('--surface'); g.lineWidth = 3; g.stroke();
+    g.font = '800 14px Nunito, sans-serif'; g.fillStyle = ink; g.textBaseline = 'alphabetic'; g.fillText(Lab.L(o('Your town','你的城市')), tx, ty + 24);
+    g.font = '800 12px Nunito, sans-serif'; g.fillStyle = ink2; g.textAlign = 'left'; g.fillText(Lab.L(o('W ← → E · system moves east','西 ← → 东 · 系统向东移动')), 10, 18);
+    g.restore();
+    // strip chart
+    const top = mapH + 14, bot = H - 26, left = 46, right = W - 60, X = h => left + h / 48 * (right - left);
+    const YT = v => bot - (v - 0) / 30 * (bot - top), YP = v => bot - (v - 995) / 25 * (bot - top);
+    g.strokeStyle = css('--line'); g.lineWidth = 1; g.strokeRect(left, top, right - left, bot - top);
+    g.font = '700 11px Nunito, sans-serif'; g.fillStyle = ink2; g.textAlign = 'center';
+    for (let h = 0; h <= 48; h += 12) g.fillText(h + (Lab.lang === 'zh' ? '时' : 'h'), X(h), bot + 14);
+    g.textAlign = 'right'; g.fillStyle = '#e5484d'; g.fillText('30°C', left - 4, top + 8); g.fillText('0°C', left - 4, bot);
+    g.textAlign = 'left'; g.fillStyle = '#8b5cf6'; g.fillText('1020', right + 4, top + 8); g.fillText('995 hPa', right + 4, bot);
+    for (const [fn, col] of [[h => YT(wx(h).temp), '#e5484d'], [h => YP(wx(h).pres), '#8b5cf6']]){ g.strokeStyle = col; g.lineWidth = 2.5; g.beginPath(); for (let h = 0; h <= t + .01; h += .25) h === 0 ? g.moveTo(X(h), fn(h)) : g.lineTo(X(h), fn(h)); g.stroke(); }
+    g.strokeStyle = ink; g.setLineDash([4, 4]); g.beginPath(); g.moveTo(X(t), top); g.lineTo(X(t), bot); g.stroke(); g.setLineDash([]);
+    g.textAlign = 'left'; g.font = '800 12px Nunito, sans-serif'; g.fillStyle = '#e5484d'; g.fillText('— ' + Lab.L(o('temperature','气温')), left + 8, top + 14); g.fillStyle = '#8b5cf6'; g.fillText('— ' + Lab.L(o('pressure','气压')), left + 100, top + 14);
+  }
+  let last = performance.now();
+  (function loop(){ requestAnimationFrame(loop); const now = performance.now(), dt = Math.min(.05, (now - last) / 1000); last = now;
+    if (playing){ t += dt * 4; if (t >= 48){ t = 48; playing = false; lbl(); } Lab.$('#hour').value = t; side(); draw(); } })();
+  const lbl = () => Lab.$('#wPlay').textContent = Lab.L(playing ? o('⏸ Pause','⏸ 暂停') : o('▶ Play','▶ 播放'));
+  Lab.$('#hour').oninput = e => { t = +e.target.value; side(); draw(); };
+  Lab.$('#wPlay').onclick = () => { if (t >= 48) t = 0; playing = !playing; lbl(); };
+  Lab.$('#wReset').onclick = () => { t = 0; playing = false; Lab.$('#hour').value = 0; lbl(); side(); draw(); };
+  addEventListener('resize', draw); addEventListener('labtheme', draw);
+  Lab.onLang(() => { lbl(); side(); draw(); });
+})();
+
+/* ===== Forecast challenge ===== */
+(function(){
+  const S = [
+    { clues:o(['Barometer: falling slowly','Clouds: high cirrus thickening into a gray sheet','Wind: from the southeast'],['气压计：缓慢下降','云：高空卷云逐渐变厚，变成灰色云层','风向：东南风']),
+      opts:[o('Light, steady rain within a day: a warm front is coming','一天之内会下持续小雨：暖锋要来了'),o('Clear and cold for a week','一周内都晴朗寒冷'),o('A hurricane will hit tomorrow','明天将有飓风登陆')], a:0,
+      why:o('Cirrus that lowers and thickens, plus falling pressure, is the classic sign of an approaching warm front.','卷云逐渐降低变厚，同时气压下降，这是暖锋临近的典型信号。') },
+    { clues:o(['Air: warm, humid and muggy','Clouds: tall cumulonimbus towers building to the west','Barometer: at its lowest, about to rise'],['空气：温暖潮湿、闷热','云：西边高大的积雨云正在发展','气压计：降到最低，即将回升']),
+      opts:[o('Thunderstorms, then cooler and drier as the cold front passes','先有雷暴，冷锋过后转凉变干'),o('Days of drizzle and fog','连续几天毛毛雨和雾'),o('Hotter and more humid all week','整周越来越热越来越潮湿')], a:0,
+      why:o('A cold front lifts warm, moist air steeply, building cumulonimbus. Behind it comes cooler, drier air and rising pressure.','冷锋把暖湿空气陡峭抬升，形成积雨云；冷锋过后是更凉更干的空气，气压回升。') },
+    { clues:o(['Barometer: rising','Wind: shifted to the northwest','Humidity: dropping fast'],['气压计：上升','风向：转为西北风','湿度：迅速下降']),
+      opts:[o('Clearing skies and cooler, calmer weather','天空转晴，天气变凉、变平静'),o('Thunderstorms building this afternoon','今天下午雷暴发展'),o('Heavy snowstorm tonight','今晚有大暴雪')], a:0,
+      why:o('Rising pressure means sinking air in a high. Sinking air dries out, so clouds clear.','气压上升说明高气压中空气下沉，下沉空气变干，云就消散了。') },
+    { clues:o(['Ocean surface: 29 °C','A tropical low is spinning over the Atlantic','Wind shear: weak'],['海面温度：29 °C','大西洋上一个热带低压正在旋转','风切变：很弱']),
+      opts:[o('It may strengthen into a hurricane','它可能增强为飓风'),o('It will quickly turn into a blizzard','它会很快变成暴风雪'),o('It will fade because the water is too warm','海水太热，它会减弱消失')], a:0,
+      why:o('Water warmer than about 26.5 °C supplies the water vapor whose condensation powers a hurricane.','高于约 26.5 °C 的海水提供大量水汽，水汽凝结释放的热量为飓风提供能量。') },
+    { clues:o(['Surface air: very warm and humid','A strong cold front approaching','Winds change direction and speed with height'],['地面空气：非常温暖潮湿','一条强冷锋正在逼近','风向和风速随高度变化']),
+      opts:[o('Severe thunderstorms, possibly tornadoes','强雷暴，可能出现龙卷风'),o('Calm, sunny day','平静晴朗的一天'),o('Light drizzle only','只有毛毛雨')], a:0,
+      why:o('Unstable warm, moist air lifted by a strong cold front, plus winds that twist with height, can spawn tornadoes.','强冷锋抬升不稳定的暖湿空气，再加上随高度扭转的风，就可能产生龙卷风。') },
+    { clues:o(['A big “H” sits right over Georgia on the map','Barometer: high and steady','Wind: light'],['天气图上一个大大的“H”正好位于佐治亚州上空','气压计：很高且稳定','风：微风']),
+      opts:[o('Sunny and calm','晴朗平静'),o('Stormy and rainy','狂风暴雨'),o('Hurricane conditions','飓风天气')], a:0,
+      why:o('High pressure = sinking air = clear, settled weather.','高气压 = 空气下沉 = 晴朗稳定的天气。') }
+  ];
+  let i = 0, score = 0, picked = null, order = [];
+  function load(){ picked = null; order = Lab.shuffle(S[i].opts.map((_, k) => k)); render(); }
+  function render(){
+    const box = Lab.$('#fcBox');
+    if (i >= S.length){ box.innerHTML = `<div class="result good" style="margin-top:12px">${Lab.lang === 'zh' ? `🎉 完成!你答对了 ${score} / ${S.length} 个预报。` : `🎉 Done! You made ${score} of ${S.length} correct forecasts.`}</div><button class="btn" id="fcAgain">${Lab.L(o('Play again ↺','再来一轮 ↺'))}</button>`; Lab.$('#fcAgain').onclick = () => { i = 0; score = 0; load(); }; return; }
+    const s = S[i];
+    box.innerHTML = `<div class="clue"><small class="muted">${Lab.lang === 'zh' ? `情境 ${i + 1} / ${S.length}` : `Case ${i + 1} of ${S.length}`}</small><ul style="margin:4px 0 0;padding-left:20px">${Lab.L(s.clues).map(c => `<li>${c}</li>`).join('')}</ul></div>
+      <div class="fcopts">${order.map(k => `<button class="opt" data-k="${k}">${Lab.L(s.opts[k])}</button>`).join('')}</div>
+      <div class="result" id="fcMsg" style="margin-top:10px"></div><p class="muted" id="fcWhy" style="margin:4px 0"></p>
+      <button class="btn" id="fcNext" style="display:none">${Lab.L(o('Next case ▶','下一个情境 ▶'))}</button>`;
+    Lab.$$('#fcBox .opt').forEach(b => b.onclick = () => pick(+b.dataset.k));
+    Lab.$('#fcNext').onclick = () => { i++; i >= S.length ? render() : load(); };
+    if (picked != null) mark();
+  }
+  function pick(k){ if (picked != null) return; picked = k; if (k === S[i].a) score++; mark(); }
+  function mark(){
+    const s = S[i], ok = picked === s.a;
+    Lab.$$('#fcBox .opt').forEach(b => { const k = +b.dataset.k; b.disabled = true; if (k === s.a) b.classList.add('right'); else if (k === picked) b.classList.add('wrong'); });
+    const m = Lab.$('#fcMsg'); m.textContent = ok ? Lab.L(o('✅ Good forecast!','✅ 预报准确！')) : Lab.L(o('❌ Not quite.','❌ 不太对。')); m.className = 'result ' + (ok ? 'good' : 'bad');
+    Lab.$('#fcWhy').textContent = Lab.L(s.why); Lab.$('#fcNext').style.display = '';
+  }
+  load(); Lab.onLang(render);
+})();
+
+/* ===== Quiz ===== */
+/* ===== Real photos (Wikimedia Commons; licences checked with the Commons API helper, URLs exactly as returned) ===== */
+const PHOTOS = [
+  { part:'cumulonimbus', kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7c/Anvil_cloud_off_of_Taidong.jpg/960px-Anvil_cloud_off_of_Taidong.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A cumulonimbus (thunderstorm cloud) over Taiwan. Its top has spread out flat like a blacksmith’s anvil because it has hit the top of the troposphere.', zh:'台湾上空的积雨云（雷暴云）。云顶碰到了对流层顶，向四周摊平，像一块铁砧。', scale:{en:'Taitung, Taiwan',zh:'台湾台东'}, credit:'Jidanni', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Anvil_cloud_off_of_Taidong.jpg' },
+  { part:'cirrus', kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1f/Cirrus_uncinus_clouds_in_the_morning_sky.jpg/960px-Cirrus_uncinus_clouds_in_the_morning_sky.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Cirrus clouds, nicknamed “mares’ tails”. They are thin and wispy because they are made of ice crystals very high up.', zh:'卷云，俗称“马尾云”。它们又薄又像丝，因为是由高空的冰晶组成的。', scale:{en:'Himachal Pradesh, India',zh:'印度喜马偕尔邦'}, credit:'ADARSHluck', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Cirrus_uncinus_clouds_in_the_morning_sky.jpg' },
+  { part:'stratus', kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a9/Stratus_cloud_near_Mithapukur%2C_Rangpur_%281%29.jpg/960px-Stratus_cloud_near_Mithapukur%2C_Rangpur_%281%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Stratus cloud: a low, gray, flat sheet that covers the sky like a blanket.', zh:'层云：低低的、灰色的、平平的一整片，像毯子一样盖住天空。', scale:{en:'Rangpur, Bangladesh',zh:'孟加拉国朗布尔'}, credit:'Muntashir.islam', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Stratus_cloud_near_Mithapukur,_Rangpur_(1).jpg' },
+  { kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b0/Shelf_Cloud_over_Bay.jpg/960px-Shelf_Cloud_over_Bay.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A shelf cloud over a bay in Florida: the dark, low front edge of an approaching thunderstorm.', zh:'美国佛罗里达州一处海湾上空的滩云（陆架云）：雷暴来临时那道又黑又低的前缘。', scale:{en:'Miami-Dade County, Florida, USA',zh:'美国佛罗里达州迈阿密-戴德县'}, credit:'David Vergel', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Shelf_Cloud_over_Bay.jpg' },
+  { kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e6/High_Quality_Lightning_Strike.jpg/960px-High_Quality_Lightning_Strike.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A lightning strike in North Texas. Lightning is a giant electric spark between a storm cloud and the ground.', zh:'美国得克萨斯州北部的一道闪电。闪电是雷暴云和地面之间的一个巨大电火花。', scale:{en:'North Texas, USA',zh:'美国得克萨斯州北部'}, credit:'Rollingskyphoto', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:High_Quality_Lightning_Strike.jpg' },
+  { kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1d/Supercell_with_Tornado.jpg/960px-Supercell_with_Tornado.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A supercell thunderstorm producing a tornado near Stratton, Colorado.', zh:'美国科罗拉多州斯特拉顿附近，一个超级单体雷暴生成了龙卷风。', scale:{en:'Colorado, USA',zh:'美国科罗拉多州'}, credit:'BusyWikipedian', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Supercell_with_Tornado.jpg' },
+  { part:'rainbands', kind:{en:'Satellite image',zh:'卫星影像'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/Katrina_2005-08-28_1702Z.jpg/960px-Katrina_2005-08-28_1702Z.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Hurricane Katrina over the Gulf of Mexico on August 28, 2005, seen by a NASA satellite. Find the eye and the spiral rain bands.', zh:'2005 年 8 月 28 日墨西哥湾上空的飓风“卡特里娜”，由美国国家航空航天局的卫星拍摄。找一找风眼和螺旋雨带。', scale:{en:'Gulf of Mexico',zh:'墨西哥湾'}, credit:'Jeff Schmaltz, MODIS Rapid Response Team, NASA/GSFC', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Katrina_2005-08-28_1702Z.jpg' },
+  { part:'eye', kind:{en:'Astronaut photo',zh:'宇航员拍摄'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ac/Hurricane_Isabel_eye_from_ISS.jpg/960px-Hurricane_Isabel_eye_from_ISS.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Looking down into the eye of Hurricane Isabel from the International Space Station in 2003. Inside the eye the air is calm and nearly clear.', zh:'2003 年从国际空间站俯视飓风“伊莎贝尔”的风眼。风眼里面风平浪静，几乎没有云。', scale:{en:'Atlantic Ocean',zh:'大西洋'}, credit:'NASA astronaut Ed Lu', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Hurricane_Isabel_eye_from_ISS.jpg' },
+  { type:'video', kind:{en:'Satellite video',zh:'卫星影片'}, media:'https://upload.wikimedia.org/wikipedia/commons/b/b6/Hurricane_Larry_persists_as_a_major_hurricane_for_four_straight_days_%28CIRA_2021-09-08%29.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b6/Hurricane_Larry_persists_as_a_major_hurricane_for_four_straight_days_%28CIRA_2021-09-08%29.webm/500px--Hurricane_Larry_persists_as_a_major_hurricane_for_four_straight_days_%28CIRA_2021-09-08%29.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b6/Hurricane_Larry_persists_as_a_major_hurricane_for_four_straight_days_%28CIRA_2021-09-08%29.webm/500px--Hurricane_Larry_persists_as_a_major_hurricane_for_four_straight_days_%28CIRA_2021-09-08%29.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Watch: Hurricane Larry (2021) filmed by a weather satellite. See how the whole storm spins around its eye.', zh:'看一看：气象卫星拍下的飓风“拉里”（2021 年）。注意整个风暴是怎样绕着风眼旋转的。', credit:'GOES imagery: CSU/CIRA & NOAA', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Hurricane_Larry_persists_as_a_major_hurricane_for_four_straight_days_(CIRA_2021-09-08).webm' }
+];
+PHOTOS.forEach(it => { if (it.part && PARTS[it.part]) PARTS[it.part].photo = it; });
+LabPhotos.render(Lab.$('#gallery'), PHOTOS);
+
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('An air mass that forms over the Gulf of Mexico is…','在墨西哥湾上空形成的气团是……'), options:[o('Warm and humid (maritime tropical)','温暖潮湿的（海洋热带气团）'),o('Cold and dry (continental polar)','寒冷干燥的（大陆极地气团）'),o('Hot and dry (continental tropical)','炎热干燥的（大陆热带气团）'),o('Cool and humid (maritime polar)','凉爽潮湿的（海洋极地气团）')], answer:0, explain:o('Over water = humid (maritime); in the tropics = warm.','在海洋上形成 = 潮湿（海洋性）；在热带形成 = 温暖。')},
+  {q:o('A boundary between two different air masses is called a…','两个不同气团之间的分界面叫做……'), options:[o('Front','锋面'),o('Jet stream','急流'),o('Isobar','等压线'),o('Climate zone','气候带')], answer:0},
+  {q:o('Which front usually brings short, intense thunderstorms?','哪种锋面通常带来短暂而强烈的雷暴？'), options:[o('Cold front','冷锋'),o('Warm front','暖锋'),o('Stationary front','准静止锋'),o('No front','没有锋面')], answer:0, explain:o('The cold air lifts warm air steeply and quickly, building cumulonimbus clouds.','冷空气把暖空气陡峭而迅速地抬升，形成积雨云。')},
+  {q:o('On a weather map, a red line with half-circles shows a…','天气图上带半圆的红线表示……'), options:[o('Warm front','暖锋'),o('Cold front','冷锋'),o('Occluded front','锢囚锋'),o('High-pressure center','高压中心')], answer:0},
+  {q:o('What happens when a cold front catches up with a warm front?','当冷锋追上暖锋时会发生什么？'), options:[o('An occluded front forms and warm air is lifted off the ground','形成锢囚锋，暖空气被抬离地面'),o('The two air masses mix instantly into one','两个气团立即混合成一个'),o('A stationary front forms','形成准静止锋'),o('Nothing changes','什么也不会改变')], answer:0},
+  {q:o('Low-pressure systems usually bring…','低气压系统通常带来……'), options:[o('Clouds and precipitation, because air rises','云和降水，因为空气上升'),o('Clear skies, because air sinks','晴朗天空，因为空气下沉'),o('No wind at all','完全没有风'),o('Only cold weather','只有寒冷天气')], answer:0, explain:o('Rising air cools; water vapor condenses into clouds.','上升的空气冷却，水汽凝结成云。')},
+  {q:o('Which instrument measures air pressure?','哪种仪器用来测量气压？'), options:[o('Barometer','气压计'),o('Anemometer','风速计'),o('Hygrometer','湿度计'),o('Rain gauge','雨量器')], answer:0, explain:o('Anemometer = wind speed; hygrometer = humidity; rain gauge = rainfall.','风速计测风速，湿度计测湿度，雨量器测降雨量。')},
+  {q:o('Humidity is the amount of ___ in the air.','湿度是指空气中___的多少。'), options:[o('Water vapor','水汽'),o('Oxygen','氧气'),o('Dust','灰尘'),o('Carbon dioxide','二氧化碳')], answer:0},
+  {q:o('Where does a hurricane get its energy?','飓风的能量从哪里来？'), options:[o('Heat released when water vapor from warm ocean water condenses','温暖海水蒸发的水汽凝结时释放的热量'),o('Lightning inside the storm','风暴中的闪电'),o('Cold air from the poles','来自极地的冷空气'),o('The Moon’s gravity','月球的引力')], answer:0},
+  {q:o('Why does a hurricane weaken after it moves over land?','飓风登陆后为什么会减弱？'), options:[o('It loses its supply of warm, moist ocean air','失去了温暖潮湿的海洋空气供应'),o('Land is too windy','陆地上风太大'),o('Trees absorb the wind','树木吸收了风'),o('The eye closes','风眼闭合了')], answer:0},
+  {q:o('Where are a hurricane’s strongest winds?','飓风最强的风在哪里？'), options:[o('In the eyewall','在眼墙中'),o('In the eye','在风眼中'),o('At the outer edge','在最外缘'),o('Above the clouds','在云层上方')], answer:0, explain:o('The eye is calm; the ring of storms around it, the eyewall, has the fastest winds.','风眼很平静；围绕它的一圈风暴，即眼墙，风速最大。')},
+  {q:o('Tall, anvil-shaped clouds that bring lightning are…','带来闪电的高大砧状云是……'), options:[o('Cumulonimbus','积雨云'),o('Cirrus','卷云'),o('Stratus','层云'),o('Fog','雾')], answer:0}
+], { count:10 });
+
+/* ===== Sort game: clouds ===== */
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'ci',en:'Cirrus',zh:'卷云'},{id:'cu',en:'Cumulus',zh:'积云'},{id:'st',en:'Stratus',zh:'层云'},{id:'cb',en:'Cumulonimbus',zh:'积雨云'}],
+  items:[
+    {en:'Thin, wispy, high, made of ice',zh:'薄而纤细、很高，由冰晶组成',bin:'ci'},{en:'Feathery “mares’ tails”',zh:'羽毛状的“马尾云”',bin:'ci'},{en:'Early sign of a warm front',zh:'暖锋到来的早期信号',bin:'ci'},
+    {en:'Puffy, flat bottom, fair weather',zh:'蓬松、底部平坦，天气晴好',bin:'cu'},{en:'Looks like cotton balls',zh:'看起来像棉花团',bin:'cu'},
+    {en:'Gray blanket covering the sky',zh:'像灰色毯子一样盖住天空',bin:'st'},{en:'Fog is this cloud at ground level',zh:'雾就是贴近地面的这种云',bin:'st'},{en:'Drizzle on a dull gray day',zh:'阴沉的灰天里下毛毛雨',bin:'st'},
+    {en:'Huge tower with an anvil top',zh:'顶部呈砧状的巨大云塔',bin:'cb'},{en:'Lightning, thunder and hail',zh:'闪电、雷声和冰雹',bin:'cb'},{en:'Builds fast along a cold front',zh:'沿冷锋迅速发展',bin:'cb'}
+  ]
+});
+</script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const App = window.WX, V = THREE.Vector3, UP = new V(0, 1, 0);
+const ctx = Lab3D.stage('#stage', { THREE, OrbitControls, camera:[2, 10, 27], target:[0, 2.4, 0], minDistance:6, maxDistance:50 });
+const { scene, camera } = ctx;
+const POSE = { fronts:[[2, 10, 27], [0, 2.4, 0]], hurricane:[[0, 15, 19], [0, 1.2, 0]] };
+const home = () => ctx.flyToPose(...POSE[App.mode]);
+const rnd = (a, b) => a + Math.random() * (b - a), randn = () => (Math.random() + Math.random() + Math.random() - 1.5) / 1.5;
+const glowMats = {};                                          // part key → materials to pulse when selected
+const reg = (k, ...ms) => (glowMats[k] = (glowMats[k] || []).concat(ms));
+
+/* =================================================================== FRONTS DIORAMA */
+const FG = new THREE.Group(); scene.add(FG);
+{ const side = new THREE.MeshStandardMaterial({ color:'#8d6e4a', roughness:1 }), top = new THREE.MeshStandardMaterial({ color:'#6aa84f', roughness:1 });
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(24.4, .8, 10.4), [side, side, top, side, side, side]); slab.position.y = -.4; FG.add(slab);
+  const trunk = new THREE.MeshStandardMaterial({ color:'#6d4c41' }), leaf = new THREE.MeshStandardMaterial({ color:'#2e7d32', roughness:.9 });
+  for (let i = 0; i < 22; i++){ const t = new THREE.Group(), x = rnd(-11.5, 11.5), z = rnd(-4.8, 4.8), s = rnd(.6, 1);
+    const c = new THREE.Mesh(new THREE.CylinderGeometry(.05, .06, .3, 6), trunk); c.position.y = .15; t.add(c); const k = new THREE.Mesh(new THREE.ConeGeometry(.25, .6, 8), leaf); k.position.y = .55; t.add(k);
+    t.position.set(x, 0, z); t.scale.setScalar(s); FG.add(t); }
+  const wall = new THREE.MeshStandardMaterial({ color:'#eceff1' }), roof = new THREE.MeshStandardMaterial({ color:'#c62828' });
+  [[8.4, 3.2], [9.1, 3.6], [8.8, 2.4], [9.6, 2.8]].forEach(([x, z]) => { const h = new THREE.Mesh(new THREE.BoxGeometry(.4, .3, .4), wall); h.position.set(x, .15, z); FG.add(h); const r = new THREE.Mesh(new THREE.ConeGeometry(.34, .25, 4), roof); r.position.set(x, .42, z); r.rotation.y = Math.PI / 4; FG.add(r); }); }
+
+const airMat = (c, op) => new THREE.MeshStandardMaterial({ color:c, transparent:true, opacity:op, depthWrite:false, roughness:1, emissive:c, emissiveIntensity:.18, side:THREE.DoubleSide });
+const coldM = airMat('#3b82f6', .32), warmM = airMat('#f97316', .16), coolM = airMat('#38bdf8', .26);
+const coldMesh = new THREE.Mesh(new THREE.BufferGeometry(), coldM), warmMesh = new THREE.Mesh(new THREE.BufferGeometry(), warmM), coolMesh = new THREE.Mesh(new THREE.BufferGeometry(), coolM);
+warmMesh.renderOrder = 2; FG.add(coldMesh, warmMesh, coolMesh);
+ctx.pickable(coldMesh, 'coldAir'); ctx.pickable(warmMesh, 'warmAir'); ctx.pickable(coolMesh, 'coolAir');
+reg('coldAir', coldM); reg('warmAir', warmM); reg('coolAir', coolM); reg('coldFront', coldM); reg('warmFront', coolM);
+
+const X0 = -12, X1 = 12;
+let P = 15, Pt = 15, xc = 0, xw = 0, xj = null;
+const Hc = x => x <= xc ? 3.6 * (1 - Math.exp(-(xc - x) / 1.1)) : 0;
+const Hk = x => x >= xw ? Math.min(3.2, (x - xw) * .32) : 0;
+function extrude(pts){
+  const clean = pts.filter((p, i) => i === 0 || Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]) > 1e-3);
+  const g = new THREE.ExtrudeGeometry(new THREE.Shape(clean.map(p => new THREE.Vector2(p[0], p[1]))), { depth:10, bevelEnabled:false, curveSegments:1 });
+  g.translate(0, 0, -5); return g;
+}
+const range = (a, b, n = 70) => Array.from({ length:n + 1 }, (_, i) => a + (b - a) * i / n);
+
+/* clouds */
+const puffGeo = new THREE.SphereGeometry(1, 16, 12);
+const cbWhite = new THREE.MeshStandardMaterial({ color:'#ffffff', roughness:1, emissive:'#ffffff', emissiveIntensity:0 }), cbGray = new THREE.MeshStandardMaterial({ color:'#8a94a6', roughness:1 });
+const nsMat = new THREE.MeshStandardMaterial({ color:'#a3adbd', roughness:1, emissive:'#a3adbd', emissiveIntensity:0 });
+const ciMat = new THREE.MeshStandardMaterial({ color:'#ffffff', roughness:1, transparent:true, opacity:.8, emissive:'#ffffff', emissiveIntensity:0 });
+reg('cumulonimbus', cbWhite); reg('stratus', nsMat); reg('cirrus', ciMat);
+const puff = (m, x, y, z, sx, sy = sx, sz = sx) => { const p = new THREE.Mesh(puffGeo, m); p.position.set(x, y, z); p.scale.set(sx, sy, sz); return p; };
+const cbG = new THREE.Group(); FG.add(cbG);
+for (const z of [-3.3, 0, 3.3]){
+  cbG.add(puff(cbGray, 0, 1.5, z, 1.1, .6, 1.1));
+  for (let i = 0; i < 9; i++) cbG.add(puff(cbWhite, rnd(-.35, .35), 1.9 + i * .52, z + rnd(-.4, .4), rnd(.8, 1.05)));
+  for (let i = 0; i < 5; i++) cbG.add(puff(cbWhite, .2 + i * .6, 6.6 + rnd(-.1, .15), z + rnd(-.3, .3), 1.1, .32, 1.2));
+}
+ctx.pickable(cbG, 'cumulonimbus');
+const nsG = new THREE.Group(); FG.add(nsG);
+for (let x = .6; x <= 7; x += .55) for (const z of [-3.6, -1.2, 1.2, 3.6]) nsG.add(puff(nsMat, x + rnd(-.2, .2), .32 * x + 1.15 + rnd(-.08, .08), z + rnd(-.3, .3), 1.05, .38, 1.3));
+ctx.pickable(nsG, 'stratus');
+const ciG = new THREE.Group(); FG.add(ciG);
+for (let i = 0; i < 14; i++){ const c = puff(ciMat, rnd(7.5, 12), rnd(5.6, 6.4), rnd(-4.5, 4.5), rnd(.8, 1.4), .05, .16); c.rotation.y = rnd(-.4, .4); ciG.add(c); }
+ctx.pickable(ciG, 'cirrus');
+
+/* front symbols on the ground */
+function frontSym(kind){
+  const g = new THREE.Group(), m = new THREE.MeshBasicMaterial({ color:{ cold:'#2563eb', warm:'#dc2626', occ:'#9333ea' }[kind], side:THREE.DoubleSide });
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(.12, .05, 10), m)); g.children[0].position.y = .03;
+  for (let i = 0; i < 6; i++){
+    const tri = kind === 'cold' || (kind === 'occ' && i % 2 === 0);
+    const geo = tri ? new THREE.ShapeGeometry(new THREE.Shape([new THREE.Vector2(0, -.34), new THREE.Vector2(.55, 0), new THREE.Vector2(0, .34)])) : new THREE.CircleGeometry(.34, 18, -Math.PI / 2, Math.PI);
+    const s = new THREE.Mesh(geo, m); s.rotation.x = -Math.PI / 2; s.position.set(.05, .05, -4.2 + i * 1.68); g.add(s);
+  }
+  g.userData.mat = m; return g;
+}
+const symC = frontSym('cold'), symW = frontSym('warm'), symO = frontSym('occ'); FG.add(symC, symW, symO);
+ctx.pickable(symC, 'coldFront'); ctx.pickable(symW, 'warmFront'); ctx.pickable(symO, 'occluded');
+
+/* rain streaks */
+function rainSystem(n, color, len){
+  const pos = new Float32Array(n * 6), geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const ls = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color, transparent:true, opacity:.75 }));
+  ls.userData = { drops:Array.from({ length:n }, () => ({ x:0, y:-1, z:0, top:0, v:0 })), len }; ls.frustumCulled = false; return ls;
+}
+const rainHeavy = rainSystem(320, '#60a5fa', .45), rainLight = rainSystem(380, '#93c5fd', .25); FG.add(rainHeavy, rainLight);
+function stepRain(ls, dt, spawn){
+  const { drops, len } = ls.userData, a = ls.geometry.attributes.position.array;
+  drops.forEach((d, i) => { d.y -= d.v * dt; if (d.y < 0){ spawn(d); d.y = d.top * Math.random(); } a.set([d.x, d.y, d.z, d.x, d.y + len, d.z], i * 6); });
+  ls.geometry.attributes.position.needsUpdate = true;
+}
+/* lightning */
+const bolt = new THREE.Line(new THREE.BufferGeometry().setFromPoints(Array.from({ length:9 }, () => new V())), new THREE.LineBasicMaterial({ color:'#fff7ae' })); FG.add(bolt); bolt.visible = false;
+const flash = new THREE.PointLight('#dbeafe', 0, 18); FG.add(flash);
+let nextBolt = 2, boltT = 0;
+
+/* pressure signs (H / L) with spinning arrows and vertical air motion */
+function letterTex(ch, col){ const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); g.fillStyle = 'rgba(255,255,255,.92)'; g.beginPath(); g.arc(64, 64, 60, 0, 7); g.fill(); g.lineWidth = 6; g.strokeStyle = col; g.stroke(); g.fillStyle = col; g.font = '700 84px Fredoka, Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(ch, 64, 70); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; }
+function pressureSign(ch, col, low){
+  const g = new THREE.Group(), plate = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), new THREE.MeshBasicMaterial({ map:letterTex(ch, col), transparent:true, depthWrite:false }));
+  plate.renderOrder = 5; g.add(plate); g.userData.plate = plate;
+  const ring = new THREE.Group(), am = new THREE.MeshBasicMaterial({ color:col });
+  for (let i = 0; i < 8; i++){ const a = i / 8 * Math.PI * 2, p = new V(Math.cos(a), 0, -Math.sin(a)).multiplyScalar(1.45), tan = new V(-Math.sin(a), 0, -Math.cos(a)), inw = new V(-Math.cos(a), 0, Math.sin(a));
+    const d = low ? tan.add(inw.multiplyScalar(.45)) : tan.negate().add(inw.multiplyScalar(-.45)); const c = new THREE.Mesh(new THREE.ConeGeometry(.11, .38, 8), am); c.position.copy(p); c.quaternion.setFromUnitVectors(UP, d.normalize()); ring.add(c); }
+  g.add(ring); g.userData.ring = ring;
+  const vm = new THREE.MeshBasicMaterial({ color:low ? '#f97316' : '#3b82f6', transparent:true, opacity:.85 });
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(.07, .07, 1.3, 8), vm); shaft.position.y = -1.6; g.add(shaft);
+  const head = new THREE.Mesh(new THREE.ConeGeometry(.2, .4, 10), vm); head.position.y = low ? -.85 : -2.4; if (!low) head.rotation.x = Math.PI; g.add(head);
+  return g;
+}
+const signL = pressureSign('L', '#dc2626', true), signH = pressureSign('H', '#2563eb', false); FG.add(signL, signH);
+ctx.pickable(signL, 'low'); ctx.pickable(signH, 'high');
+signH.position.set(-8.3, 6.6, -.5);
+
+/* label anchors */
+const anchor = () => { const a = new THREE.Object3D(); FG.add(a); return a; };
+const A = {}; ORDERS.fronts.forEach(k => A[k] = anchor());
+const fLabels = ORDERS.fronts.map(k => { const L = ctx.label(PARTS[k].name, A[k]); L.visible = false; L.k = k; return L; });
+
+function updateFronts(){
+  if (P < 60){ xc = -6 + P / 60 * 8.4; xw = .5 + P / 60 * 2.5; } else { const u = (P - 60) / 40; xw = 3 + u; xc = 2.4 + u * 4.6; }
+  xj = null;
+  if (xc > xw){ let lo = xw, hi = xc; for (let i = 0; i < 30; i++){ const m = (lo + hi) / 2; Hc(m) > Hk(m) ? lo = m : hi = m; } xj = (lo + hi) / 2; }
+  const occ = xj != null, endC = occ ? xj : xc, startK = occ ? xj : xw, xL = Math.max(X0, xc - 3);
+  coldMesh.geometry.dispose(); coldMesh.geometry = extrude([[X0, 0], [endC, 0], ...range(endC, X0).map(x => [x, Hc(x)])]);
+  coolMesh.geometry.dispose(); coolMesh.geometry = extrude([[startK, 0], [X1, 0], ...range(X1, startK).map(x => [x, Hk(x)])]);
+  const hL = Hc(xL), top = x => x >= xc - 1.4 ? 5.4 : hL + (5.4 - hL) * Math.min(1, (x - xL) / 1.6);
+  warmMesh.geometry.dispose(); warmMesh.geometry = extrude([...range(xL, X1, 90).map(x => [x, Math.max(Hc(x), Hk(x))]), ...range(X1, xL, 90).map(x => [x, top(x)])]);
+  symC.visible = !occ; symW.visible = !occ; symO.visible = occ;
+  symC.position.x = xc; symW.position.x = xw; if (occ) symO.position.x = xj;
+  const cbx = occ ? xj + .5 : xc + .7; cbG.position.x = cbx; nsG.position.x = xw; ciG.position.x = xw - 7.5;
+  ciG.children.forEach(c => c.visible = c.position.x + ciG.position.x < 11.6 && c.position.x + ciG.position.x > -11.6);
+  nsG.children.forEach(c => c.visible = c.position.x + xw < 11.6);
+  signL.position.set(Math.min(10, (xc + xw) / 2 + .8), 7.7, -.5);
+  A.coldAir.position.set(xc - 6.5, 1.3, 5.2); A.warmAir.position.set(Math.min(9, (xc + xw) / 2 + 1), 4.6, 5.2); A.coolAir.position.set(Math.min(10.5, xw + 5), .8, 5.2);
+  A.coldFront.position.set(xc, .2, 5.4); A.warmFront.position.set(xw, .2, 5.4); A.occluded.position.set(xj ?? 0, .2, 5.4);
+  A.cumulonimbus.position.set(cbx, 7.3, 3.3); A.stratus.position.set(xw + 3.5, 2.6, 4.4); A.cirrus.position.set(Math.min(10.5, xw + 2), 6.5, 4.4);
+  A.low.position.copy(signL.position).add(new V(0, 1.1, 0)); A.high.position.copy(signH.position).add(new V(0, 1.1, 0));
+  fLabels.forEach(L => { L.el.dataset.occ = ''; });
+  Lab.$('#tVal').textContent = Math.round(P * .6) + (Lab.lang === 'zh' ? ' 小时' : ' h');
+  return occ;
+}
+let occNow = updateFronts();
+
+/* =================================================================== HURRICANE */
+const HG = new THREE.Group(); scene.add(HG); HG.visible = false;
+const oceanGeo = new THREE.PlaneGeometry(34, 34, 90, 90); oceanGeo.rotateX(-Math.PI / 2);
+const oceanMat = new THREE.MeshStandardMaterial({ color:'#1e6fb8', roughness:.35, metalness:.1, emissive:'#000000' });
+const ocean = new THREE.Mesh(oceanGeo, oceanMat); HG.add(ocean); ctx.pickable(ocean, 'warmOcean'); reg('warmOcean', oceanMat);
+const oBase = oceanGeo.attributes.position.array.slice();
+const softTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.5, 'rgba(255,255,255,.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+const sstGlow = new THREE.Mesh(new THREE.CircleGeometry(13, 64), new THREE.MeshBasicMaterial({ map:softTex, color:'#ff8a3d', transparent:true, opacity:.5, depthWrite:false, blending:THREE.AdditiveBlending }));
+sstGlow.rotation.x = -Math.PI / 2; sstGlow.position.y = .25; HG.add(sstGlow);
+const HC = new THREE.Group(); HG.add(HC);
+function cloudPoints(n, gen, size, color, op){
+  const pos = new Float32Array(n * 3); for (let i = 0; i < n; i++) pos.set(gen(i), i * 3);
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const m = new THREE.PointsMaterial({ map:softTex, size, color, transparent:true, opacity:op, depthWrite:false, sizeAttenuation:true });
+  const p = new THREE.Points(g, m); p.userData.n = n; return p;
+}
+const polar = (r, th, y) => [r * Math.cos(th), y, -r * Math.sin(th)];
+const eyewall = cloudPoints(1300, () => { const y = rnd(.4, 4.4), r = 1.65 + Math.random() * .9 + y * .13; return polar(r, Math.random() * Math.PI * 2, y); }, 1.05, '#ffffff', .9);
+const bands = cloudPoints(2600, i => { const arm = i % 4, s = Math.pow(Math.random(), .8), r = 2.3 + s * 9.5 + randn() * .45; return polar(r, arm * Math.PI / 2 - Math.log(r / 2.3) * 1.75 + randn() * .22, 1 + Math.random() * 1.7 * (1 - s * .5)); }, 1.5, '#f1f5f9', .78);
+const cdo = cloudPoints(900, () => polar(2.2 + Math.random() * 3.4, Math.random() * Math.PI * 2, rnd(4.1, 4.8)), 1.3, '#ffffff', .4);
+HC.add(eyewall, bands, cdo);
+ctx.pickable(eyewall, 'eyewall'); ctx.pickable(bands, 'rainbands'); ctx.pickable(cdo, 'eyewall');
+reg('eyewall', eyewall.material); reg('rainbands', bands.material);
+const eyeMat = new THREE.MeshBasicMaterial({ color:'#7dd3fc', transparent:true, opacity:.07, side:THREE.DoubleSide, depthWrite:false });
+const eye = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 5.8, 32, 1, true), eyeMat); eye.position.y = 2.9; HG.add(eye); ctx.pickable(eye, 'eye');
+/* circulating air parcels: in at the bottom, up the eyewall, out at the top */
+const WN = 520, wPos = new Float32Array(WN * 3), wP = Array.from({ length:WN }, () => ({ u:Math.random(), th:Math.random() * Math.PI * 2, s:rnd(.8, 1.2) }));
+const windPts = new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(wPos, 3)), new THREE.PointsMaterial({ color:'#facc15', size:.17, transparent:true, opacity:.95 }));
+HG.add(windPts); ctx.pickable(windPts, 'winds'); reg('winds', windPts.material); windPts.frustumCulled = false;
+function windPos(p){
+  const u = p.u; let r, y, th;
+  if (u < .6){ const f = u / .6; r = 11.5 - f * 9.5; y = .45; th = p.th + f * 3.2; }
+  else if (u < .75){ const f = (u - .6) / .15; r = 2 + f * .5; y = .45 + f * 4.4; th = p.th + 3.2 + f * 1.3; }
+  else { const f = (u - .75) / .25; r = 2.5 + f * 9.2; y = 5 + f * .4; th = p.th + 4.5 - f * 1.1; }
+  return polar(r, th, y);
+}
+const hRain = rainSystem(320, '#bfdbfe', .4); HC.add(hRain);
+const WIND_PTS = [[24, 40], [26, 63], [26.5, 75], [27, 122], [28, 158], [29, 185], [30, 215], [31, 255]];
+let sst = 29, k = 0, wind = 0;
+function category(w){
+  if (w < 63) return o('Tropical depression','热带低压'); if (w < 119) return o('Tropical storm','热带风暴');
+  const c = w < 154 ? 1 : w < 178 ? 2 : w < 209 ? 3 : w < 252 ? 4 : 5; return o(`Category ${c} hurricane`, `${c} 级飓风`);
+}
+function updateHurricane(){
+  wind = lerpWind(sst); k = Math.max(0, Math.min(1, (wind - 40) / 215));
+  eyewall.geometry.setDrawRange(0, Math.round(eyewall.userData.n * (.12 + .88 * k)));
+  bands.geometry.setDrawRange(0, Math.round(bands.userData.n * (.3 + .7 * k)));
+  cdo.geometry.setDrawRange(0, Math.round(cdo.userData.n * k));
+  const cool = new THREE.Color('#1e5aa8'), warm = new THREE.Color('#1aa3a3'); oceanMat.color.copy(cool).lerp(warm, Math.max(0, Math.min(1, (sst - 24) / 7)));
+  sstGlow.material.opacity = Math.max(0, (sst - 25.5) / 5.5) * .7;
+  Lab.$('#sstVal').textContent = sst.toFixed(1) + ' °C';
+  Lab.$('#catVal').textContent = '💨 ' + Math.round(wind) + ' km/h · ' + Lab.L(category(wind));
+}
+function lerpWind(T){ for (let i = 0; i < WIND_PTS.length - 1; i++) if (T <= WIND_PTS[i + 1][0]) return WIND_PTS[i][1] + (WIND_PTS[i + 1][1] - WIND_PTS[i][1]) * (T - WIND_PTS[i][0]) / (WIND_PTS[i + 1][0] - WIND_PTS[i][0]); return 255; }
+updateHurricane();
+const hAnchors = { eye:new V(0, 5.6, 0), eyewall:new V(2.3, 4.9, 0), rainbands:new V(-6, 3, 4), winds:new V(6, .6, 6), warmOcean:new V(9, .3, -8) };
+const hLabels = ORDERS.hurricane.map(key => { const L = ctx.label(PARTS[key].name, hAnchors[key]); L.visible = false; return L; });
+
+/* =================================================================== UI */
+let labelsOn = false, playing = false;
+function setLabels(on){ labelsOn = on; Lab.$('#labelBtn').classList.toggle('on', on);
+  fLabels.forEach(L => L.visible = on && App.mode === 'fronts' && (L.k === 'occluded' ? occNow : !(occNow && (L.k === 'coldFront' || L.k === 'warmFront'))));
+  hLabels.forEach(L => L.visible = on && App.mode === 'hurricane'); }
+Lab.$('#labelBtn').onclick = () => setLabels(!labelsOn);
+const setPlay = on => { playing = on; Lab.$('#playBtn').textContent = Lab.L(on ? o('⏸ Pause','⏸ 暂停') : o('▶ Play','▶ 播放')); };
+Lab.$('#playBtn').onclick = () => { if (story.active) story.stop(); setPlay(!playing); };
+Lab.onLang(() => { setPlay(playing); updateHurricane(); Lab.$('#tVal').textContent = Math.round(P * .6) + (Lab.lang === 'zh' ? ' 小时' : ' h'); });
+Lab.$('#tSlider').oninput = e => { if (story.active) story.stop(); setPlay(false); Pt = P = +e.target.value; occNow = updateFronts(); setLabels(labelsOn); };
+Lab.$('#sst').oninput = e => { if (story.active) story.stop(); sst = +e.target.value; updateHurricane(); };
+function setMode(m, keepStory){
+  if (!keepStory && story.active) story.stop();
+  App.mode = m; FG.visible = m === 'fronts'; HG.visible = m === 'hurricane';
+  Lab.$$('.modeseg button').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
+  Lab.$('#pillTime').classList.toggle('hidden', m !== 'fronts'); Lab.$('#playBtn').classList.toggle('hidden', m !== 'fronts');
+  Lab.$('#pillSst').classList.toggle('hidden', m !== 'hurricane'); Lab.$('#pillCat').classList.toggle('hidden', m !== 'hurricane');
+  setPlay(false); App.sel = null; renderInfo(); renderChips(); setLabels(labelsOn); home();
+}
+Lab.$$('.modeseg button').forEach(b => b.onclick = () => setMode(b.dataset.mode));
+Lab.$('#resetBtn').onclick = () => { story.stop(); Pt = P = 15; Lab.$('#tSlider').value = 15; occNow = updateFronts(); sst = 29; Lab.$('#sst').value = 29; updateHurricane(); App.select(null); setPlay(false); home(); };
+
+/* picking + focus */
+ctx.hoverText(key => Lab.L(PARTS[key].name));
+ctx.onPick(key => { if (key !== App.sel) App.select(key, true); });
+function setTime(p){ Pt = p; }
+function focus(key, from3D){
+  if (!key) return from3D ? null : home();
+  if (App.mode === 'fronts'){
+    if (key === 'occluded' && !occNow) setTime(88);
+    if ((key === 'coldFront' || key === 'warmFront') && occNow) setTime(25);
+    if (from3D) return;
+    const p = new V(); A[key].getWorldPosition(p); const x = Math.max(-6, Math.min(6, key === 'occluded' ? 6 : p.x));
+    ctx.flyToPose([x * .7 + 2, 9.5, 23], [x * .7, 2.6, 0]);
+  } else { if (from3D) return; const p = hAnchors[key].clone(); ctx.flyTo(p, key === 'warmOcean' ? 24 : 16); }
+}
+App.three = { focus };
+
+/* stories */
+const STORY = {
+  fronts:[
+    { en:'1 · Two air masses meet: cold, dry air from Canada (blue) and warm, humid air from the Gulf of Mexico (orange).', zh:'1 · 两个气团相遇：来自加拿大的寒冷干燥空气（蓝色）和来自墨西哥湾的温暖潮湿空气（橙色）。', p:8, k:'warmAir' },
+    { en:'2 · Cold front: dense cold air plows under the warm air and shoves it up steeply. Tall cumulonimbus clouds build into thunderstorms.', zh:'2 · 冷锋：密度大的冷空气插到暖空气下面，把它陡峭地向上推，形成高大的积雨云和雷暴。', p:22, k:'coldFront' },
+    { en:'3 · Warm front: warm air slides gently up over cooler air. Cirrus arrive first, then gray stratus with long, steady rain.', zh:'3 · 暖锋：暖空气沿着冷空气缓缓爬升。先出现卷云，然后是带来持续小雨的灰色层云。', p:30, k:'warmFront' },
+    { en:'4 · Cold fronts move faster. When one catches the warm front, the warm air is lifted off the ground: an occluded front.', zh:'4 · 冷锋移动得更快。当它追上暖锋时，暖空气被抬离地面，形成锢囚锋。', p:92, k:'occluded' },
+    { en:'5 · Under the L, air rises → clouds and rain. Under the H, air sinks → clear skies. Surface winds blow from high toward low pressure.', zh:'5 · 低压（L）下方空气上升 → 多云下雨；高压（H）下方空气下沉 → 晴朗。地面风从高压吹向低压。', p:40, k:'low' }
+  ],
+  hurricane:[
+    { en:'1 · Over ocean water warmer than about 26.5 °C, huge amounts of water evaporate into the air.', zh:'1 · 在温度高于约 26.5 °C 的海面上，大量海水蒸发进入空气。', T:29.5, k:'warmOcean' },
+    { en:'2 · The warm, moist air rises and cools. Its water vapor condenses into clouds and releases heat, so the air rises even faster.', zh:'2 · 温暖潮湿的空气上升并冷却，水汽凝结成云并释放热量，使空气上升得更快。', T:29.5, k:'eyewall' },
+    { en:'3 · Air rushes in at the surface to replace it. Earth’s rotation turns the inflow into a counterclockwise spin (Northern Hemisphere).', zh:'3 · 地面空气涌入补充。地球自转使流入的空气逆时针旋转起来（北半球）。', T:29.5, k:'winds' },
+    { en:'4 · The eyewall has the strongest winds and heaviest rain. In the eye, air sinks gently and it is calm.', zh:'4 · 眼墙中风最强、雨最大；风眼中空气缓慢下沉，十分平静。', T:30.5, k:'eye' },
+    { en:'5 · Over land or cooler water the fuel is cut off and the storm weakens. (Ocean temperature lowered to 25 °C.)', zh:'5 · 移到陆地或较冷的海面上，能量来源被切断，风暴减弱。（海水温度降到 25 °C。）', T:25, k:'warmOcean' }
+  ]
+};
+let story = Lab3D.story('#stage', STORY.fronts, () => {}, () => {});
+function makeStory(m){
+  story = Lab3D.story('#stage', STORY[m], (i, s) => {
+    setPlay(false);
+    if (m === 'fronts'){ setTime(s.p); App.select(s.k, true); ctx.flyToPose([2 + (i - 2) * 1.5, 8, 20], [0, 2.4, 0]); }
+    else { sst = s.T; Lab.$('#sst').value = s.T; updateHurricane(); App.select(s.k, true); ctx.flyToPose(i === 3 ? [0, 19, 9] : [0, 13, 20], [0, 1.5, 0]); }
+  }, () => {});
+}
+Lab.$('#storyBtn').onclick = () => { makeStory(App.mode); story.start(); };
+
+/* =================================================================== PER FRAME */
+ctx.onFrame((dt, t) => {
+  if (App.mode === 'fronts'){
+    if (playing){ Pt = (Pt + dt * 7) % 100; P = Pt; Lab.$('#tSlider').value = P; const o2 = updateFronts(); if (o2 !== occNow){ occNow = o2; setLabels(labelsOn); } }
+    else if (Math.abs(Pt - P) > .05){ P += (Pt - P) * Math.min(1, dt * 2.5); Lab.$('#tSlider').value = P; const o2 = updateFronts(); if (o2 !== occNow){ occNow = o2; setLabels(labelsOn); } }
+    const cbx = cbG.position.x;
+    stepRain(rainHeavy, dt, d => { d.x = cbx - .4 + Math.random() * 1.9; d.z = rnd(-4.8, 4.8); d.top = 1.3; d.v = rnd(7, 9); });
+    stepRain(rainLight, dt, d => { d.x = Math.min(11.8, xw + .8 + Math.random() * 5.6); d.z = rnd(-4.8, 4.8); d.top = Math.max(.6, Hk(d.x) + .9); d.v = rnd(3.5, 4.5); });
+    for (const s of [signL, signH]){ s.userData.plate.quaternion.copy(camera.quaternion); s.userData.ring.rotation.y += dt * (s === signL ? .8 : -.8); }
+    if (t > nextBolt){ boltT = .18; nextBolt = t + rnd(1.6, 3.6); const z = [-3.3, 0, 3.3][Math.random() * 3 | 0], pts = []; for (let i = 0; i < 9; i++) pts.push(new V(cbx + (i ? rnd(-.35, .35) : 0), 1.3 - i * .162, z + rnd(-.15, .15))); bolt.geometry.setFromPoints(pts); flash.position.set(cbx, 3, z); }
+    boltT -= dt; bolt.visible = boltT > 0; flash.intensity = boltT > 0 ? 40 : 0;
+  } else {
+    HC.rotation.y += dt * (.12 + k * .55);
+    const a = oceanGeo.attributes.position.array, amp = .06 + k * .14;
+    for (let i = 0; i < a.length; i += 3){ const x = oBase[i], z = oBase[i + 2]; a[i + 1] = amp * (Math.sin(x * .8 + t * 1.6) + Math.cos(z * .7 + t * 1.3)); }
+    oceanGeo.attributes.position.needsUpdate = true; oceanGeo.computeVertexNormals();
+    wP.forEach((p, i) => { p.u = (p.u + dt * (.04 + k * .09) * p.s) % 1; wPos.set(windPos(p), i * 3); });
+    windPts.geometry.attributes.position.needsUpdate = true;
+    stepRain(hRain, dt, d => { const r = 1.7 + Math.random() * 1.1, th = Math.random() * Math.PI * 2; d.x = r * Math.cos(th); d.z = -r * Math.sin(th); d.top = 1.2; d.v = rnd(5, 7); });
+    hRain.visible = k > .15; eyeMat.opacity = App.sel === 'eye' ? .22 + .1 * Math.sin(t * 5) : .07;
+  }
+  for (const key in glowMats){ const on = App.sel === key; for (const m of glowMats[key]){
+    if (m.isPointsMaterial){ m.size = (m.userData.s0 ??= m.size) * (on ? 1.25 + .15 * Math.sin(t * 5) : 1); continue; }
+    if (m.emissiveIntensity !== undefined) m.emissiveIntensity = on ? .45 + .3 * Math.sin(t * 5) : (m === coldM || m === warmM || m === coolM ? .18 : 0); } }
+  [symC, symW, symO].forEach((s, i) => { const key = ['coldFront', 'warmFront', 'occluded'][i]; s.scale.y = 1; s.children.forEach(c => c.scale.setScalar(App.sel === key ? 1.25 + .15 * Math.sin(t * 6) : 1)); s.children[0].scale.set(1, 1, 1); });
+});
+renderInfo(); renderChips();
+</script>
+</body>
+</html>

@@ -1,0 +1,910 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Solar System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/lab3d.js"></script>
+<script src="../shared/photos.js"></script>
+<style>
+/* page-specific styles */
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.stat{background:var(--surface-2);border-radius:10px;padding:6px 10px;font-weight:800;font-size:14px;line-height:1.3}
+.stat small{display:block;color:var(--ink-2);font-weight:700;font-size:11px;letter-spacing:.04em;text-transform:uppercase}
+.pill output{min-width:92px;font-variant-numeric:tabular-nums}
+.datepill{font-variant-numeric:tabular-nums}
+.pbtns{display:flex;flex-wrap:wrap;gap:6px}
+.pbtns button{border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:999px;padding:6px 12px;font-weight:800;font-size:14px;display:inline-flex;align-items:center;gap:6px}
+.pbtns button i{width:12px;height:12px;border-radius:50%;display:inline-block}
+.pbtns button.on{background:var(--ink);color:var(--surface)}
+#sizeBox{min-height:300px}
+.wrow{display:grid;grid-template-columns:96px minmax(0,1fr) 92px;align-items:center;gap:8px;font-weight:700;font-size:14px}
+.wrow .bar{height:16px;border-radius:999px;background:var(--surface-2);overflow:hidden}
+.wrow .bar div{height:100%;border-radius:999px;transition:width .35s}
+.wrow b{text-align:right;font-variant-numeric:tabular-nums}
+.wbars{display:flex;flex-direction:column;gap:7px}
+.inrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.inrow input[type=number]{width:110px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font:inherit;font-weight:800}
+.track{position:relative;height:70px;margin:8px 0 4px;border-radius:14px;background:linear-gradient(90deg,#3a2a10,#0b1430 8%,#070b18);overflow:hidden}
+.track span{position:absolute;top:50%;transform:translate(-50%,-50%);border-radius:50%}
+.track em{position:absolute;bottom:4px;transform:translateX(-50%);font-style:normal;font-size:11px;font-weight:800;color:#cfd8ee;white-space:nowrap}
+.scaletbl td,.scaletbl th{padding:7px 10px;font-size:15px}
+@media (max-width:560px){ .wrow{grid-template-columns:72px minmax(0,1fr) 78px} .pill input[type=range]{width:90px} #datePill{display:none} }
+</style>
+</head>
+<body data-subject="astronomy" data-topic="solar-system">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="天文 · 太阳系">Astronomy · Solar System</span>
+  <h1 data-zh-html="我们的<em>太阳系</em>">Our <em>Solar System</em></h1>
+  <p class="lead" data-zh="太阳里面能装下多少个地球？一颗恒星、八大行星、几颗矮行星，还有数不清的小行星和彗星，全都被太阳的引力牵引着。点击任意天体去认识它，加快时间看看行星如何公转，再打开“真实距离”，感受太空到底有多空旷！">How many Earths could fit inside the Sun? One star, eight planets, a few dwarf planets, and countless asteroids and comets, all held by the Sun’s gravity. Click any body to meet it, speed up time to watch the planets orbit, then switch on “True distances” to see how empty space really is!</p>
+</header>
+
+<section class="wrap" id="explore" data-nav="3D Solar System" data-nav-zh="3D 太阳系">
+  <div class="explorer">
+    <div class="stage card space" id="stage" data-3d>
+      <div class="toolbar">
+        <button class="tbtn on" id="playBtn" data-zh="⏸ 暂停">⏸ Pause</button>
+        <button class="tbtn" id="resetBtn" data-zh="⌂ 重置">⌂ Reset</button>
+        <button class="tbtn" id="tourBtn" data-zh="🚀 太阳系之旅（故事）">🚀 Grand tour (story)</button>
+        <button class="tbtn" id="scaleBtn" data-zh="📏 真实距离">📏 True distances</button>
+        <button class="tbtn on" id="labelBtn" data-zh="🏷 标签">🏷 Labels</button>
+        <button class="tbtn on" id="orbitBtn" data-zh="◯ 轨道">◯ Orbits</button>
+      </div>
+      <div class="bottombar">
+        <div class="pill"><span data-zh="⏩ 时间速度">⏩ Time speed</span><input id="speed" type="range" min="0" max="100" value="45"><output id="speedOut"></output></div>
+        <div class="pill datepill" id="datePill"></div>
+        <div class="tip" data-zh="拖动旋转 · 滚轮缩放 · 点击天体 · 选中后镜头会跟随它">Drag to rotate · Scroll to zoom · Click a body · the camera follows it</div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="chips" id="chips"></div>
+  <div class="mix" style="margin-top:16px"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="课本和海报上的太阳系图都没有按比例画：如果把行星画得能看见，它们之间的距离就必须大大缩短。打开“📏 真实距离”看看真实的间距（即使这样，行星仍被放大了几千倍）。">Posters of the solar system are never to scale: to make planets visible, the gaps between them must be squeezed. Try “📏 True distances” to see the real spacing (even then the planets are drawn thousands of times too big).</span></div>
+</section>
+
+<section class="wrap" id="compare" data-nav="Compare planets" data-nav-zh="比较行星">
+  <div class="sec-head">
+    <h2 data-zh="比较行星：大小、一天与一年">Compare the planets: size, day and year</h2>
+    <p data-zh="选一颗行星，按真实比例和地球比大小，并查看它的数据。然后输入你的体重，看看你在别的世界上会有多重。">Pick a planet to compare its true size with Earth and read its data. Then type your weight to see what a scale would read on other worlds.</p>
+  </div>
+  <div class="sim">
+    <div class="card simside">
+      <div class="pbtns" id="cmpBtns"></div>
+      <div class="simbox card" id="sizeBox" style="box-shadow:none"><canvas id="sizeCv"></canvas></div>
+      <label class="ctl" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="sunEdge"> <span data-zh="同时画出太阳的边缘（同一比例）">Also draw the edge of the Sun (same scale)</span></label>
+      <div class="result" id="sizeMsg"></div>
+      <div class="stats" id="cmpStats"></div>
+    </div>
+    <div class="card simside">
+      <h3 data-zh="⚖️ 你在其他世界有多重？">⚖️ Your weight on other worlds</h3>
+      <div class="inrow">
+        <span data-zh="我在地球上的体重：">My weight on Earth:</span>
+        <input type="number" id="wIn" value="45" min="1" max="500">
+        <div class="seg" id="unitSeg"><button data-u="kg" class="on">kg</button><button data-u="lb">lb</button></div>
+      </div>
+      <div class="wbars" id="wBars"></div>
+      <div class="counters">
+        <div class="counter"><b id="jumpOut">0.5 m</b><span id="jumpLbl"></span></div>
+        <div class="counter"><b id="massOut">45 kg</b><span data-zh="你的质量（到哪里都不变）">your mass (same everywhere)</span></div>
+      </div>
+      <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="质量是你身上“物质的多少”，永远不变；重量是引力拉你的力，换个星球就变了。">Mass is how much “stuff” you are made of and never changes; weight is gravity’s pull on you, and it changes from world to world.</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="scale" data-nav="Scale model" data-nav-zh="比例模型">
+  <div class="sec-head">
+    <h2 data-zh="口袋里的太阳系：比例模型计算器">Pocket solar system: scale-model calculator</h2>
+    <p data-zh="假如把太阳缩小成一个球，行星会有多大，又要放多远？拖动滑块改变太阳的大小。">If the Sun were shrunk to a ball, how big would the planets be and how far away would you place them? Drag the slider to change the size of the Sun.</p>
+  </div>
+  <div class="card simside">
+    <label class="ctl"><span><span data-zh="太阳球的直径：">Sun ball diameter:</span> <b id="sunCmOut">30 cm</b></span><input type="range" id="sunCm" min="5" max="100" value="30"></label>
+    <div class="track" id="track"></div>
+    <div class="table-wrap"><table class="lab scaletbl" id="scaleTbl"></table></div>
+    <div class="result" id="scaleMsg"></div>
+  </div>
+</section>
+
+<!--deep-->
+<section class="wrap" id="race">
+  <div class="sec-head">
+    <h2 data-zh="行星赛跑：真实的公转周期">The great planet race: real orbit times</h2>
+    <p data-zh="八颗行星从同一条起跑线出发，每颗都按自己真实的“一年”绕太阳跑。打开时间加速，看谁先跑完一圈，再挑战下面的预测题。">All eight planets start on the same line and circle the Sun at their true year lengths. Warp time, watch who laps whom, then try the prediction challenge.</p>
+  </div>
+  <div class="sim">
+    <div class="card simbox space" id="raceBox" style="min-height:460px;background:#070b18"><canvas id="raceCv" aria-label="Top view of the eight planets orbiting the Sun at their true periods"></canvas></div>
+    <div class="card simside">
+      <div class="timebar"><button id="raceRun" aria-label="Play">▶</button><input id="raceT" type="range" min="0" max="59800" step="1" value="0" aria-label="Elapsed time"><output id="raceOut">0 d</output></div>
+      <div><span class="muted" style="font-size:14px;font-weight:700" data-zh="⏩ 时间加速：每秒走过">⏩ Time warp: each second is</span>
+        <div class="seg" id="warpSeg" style="margin-top:6px"><button data-w="7" data-zh="1 周">1 week</button><button data-w="30" class="on" data-zh="1 个月">1 month</button><button data-w="365" data-zh="1 年">1 year</button><button data-w="3650" data-zh="10 年">10 years</button></div></div>
+      <label class="ctl" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="raceTrue"> <span data-zh="用真实距离画轨道（内行星会挤在一起）">Draw orbits at true distances (inner planets get crowded)</span></label>
+      <div class="table-wrap"><table class="lab" id="raceTbl" style="min-width:0"></table></div>
+      <div class="result" id="raceMsg"></div>
+    </div>
+  </div>
+  <div class="grid2" style="margin-top:18px">
+    <div class="card simside">
+      <h3 data-zh="🎯 预测挑战">🎯 Prediction challenge</h3>
+      <p id="predQ" style="font-weight:800;color:var(--ink)"></p>
+      <div class="btnrow" id="predOpts"></div>
+      <div class="result" id="predMsg"></div>
+      <div class="counters"><div class="counter"><b id="predScore">0 / 0</b><span data-zh="答对 / 已答">right / answered</span></div><div class="counter"><b id="predLeft">6</b><span data-zh="剩余题目">questions left</span></div></div>
+      <div class="btnrow"><button class="btn ghost" id="predNext" data-zh="下一题 ▶">Next question ▶</button></div>
+    </div>
+    <div class="card simside">
+      <h3 data-zh="☀️ 阳光要走多久？有多强？">☀️ How long does sunlight take, and how strong is it?</h3>
+      <p data-zh="光每秒走约 30 万千米。离太阳越远，阳光到达得越晚，而且按“平方反比”变弱：距离变成 2 倍，阳光只剩 1/4。">Light covers about 300,000 km every second. The farther a planet, the later sunlight arrives, and it fades by the inverse-square rule: twice as far means only 1/4 as bright.</p>
+      <div class="table-wrap"><table class="lab" id="lightTbl" style="min-width:0"></table></div>
+      <p class="muted" style="font-size:13px;margin:6px 0 0" data-zh="数据：NASA 行星数据表（平均距离，取整）；光行时间 = 距离 ÷ 光速，阳光强度 = 1 ÷ 距离²（以地球为 100%）。">Data: NASA Planetary Fact Sheet (mean distances, rounded). Light time = distance ÷ speed of light; sunlight strength = 1 ÷ distance² (Earth = 100%).</p>
+    </div>
+  </div>
+  <div class="mix" style="margin-top:16px"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="外行星“一年”更长，不只是因为路更长：它们本身也跑得更慢。海王星的速度（约 5.4 千米/秒）只有地球（约 29.8 千米/秒）的五分之一左右。">Outer planets don’t take longer only because their path is longer: they also move more slowly. Neptune (about 5.4 km/s) moves at roughly a fifth of Earth’s speed (about 29.8 km/s).</span></div>
+</section>
+<!--/deep-->
+
+<section class="wrap" id="real" data-nav="Real photos" data-nav-zh="真实影像">
+  <div id="gallery"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 太阳系测验">🧠 Solar system quiz</h3><p class="sub" data-zh="选出正确答案。">Pick the best answer.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分一分：内行星还是外行星？">🗂️ Sort it: inner or outer planet?</h3><p class="sub" data-zh="把每张卡片拖到（或先点再点方框）正确的组里。">Drag each card (or tap it, then tap a box) into the right group.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="对应佐治亚州标准 S6E1c（分析数据，比较各行星的大小、表面与大气特征、与太阳的相对距离以及支持生命的能力）、S6E1e（比较彗星、小行星和流星体的特征、组成和位置），并为 S6E1d（引力与惯性决定天体运动）打基础。建议：先在“简易视图”里让学生按顺序说出行星，再打开“真实距离”，请他们解释为什么海报不能按比例画。用时间滑块比较水星和海王星的公转快慢，引出“离太阳越远，一年越长”。比例模型计算器适合在操场上真的摆一次。">Supports GSE S6E1c (analyze and interpret data to compare and contrast the planets by size relative to Earth, surface and atmospheric features, relative distance from the Sun, and ability to support life) and S6E1e (compare the characteristics, composition and location of comets, asteroids and meteoroids), and sets up S6E1d (gravity and inertia govern motion in the solar system). Suggested flow: in the easy view have students name the planets in order, then switch on True distances and ask why posters cannot be drawn to scale. Use the time slider to compare how fast Mercury and Neptune orbit (“farther from the Sun → longer year”). The scale-model calculator works well as a real walk across the school field.</p>
+    <p data-zh="数据来源：NASA 行星数据表（取整）。卫星数量会随新发现而变化。">Data: NASA planetary fact sheets (rounded). Moon counts change as new moons are discovered.</p>
+  </details>
+</section>
+
+<!--deep-->
+<section class="wrap" id="further" data-nav="Go further" data-nav-zh="延伸探索">
+  <div class="sec-head"><h2 data-zh="走得更远：真实的天文工具">Go further: real astronomy tools</h2><p data-zh="下面是航天机构和科学家公开分享的真实网站，每个都会在新标签页中打开。">Real tools shared by space agencies and scientists. Each opens in a new tab.</p></div>
+  <div class="linkgrid">
+    <a class="linkcard" href="https://eyes.nasa.gov/apps/solar-system/" target="_blank" rel="noopener"><b data-zh="NASA 太阳系之眼">NASA Eyes on the Solar System</b><span data-zh="在真实的 3D 太阳系里飞行：选一颗行星或一艘探测器，拨动时间，看它们今天到底在哪里。">Fly through a real-time 3D solar system: pick a planet or spacecraft, change the date and see where everything really is today.</span><small>eyes.nasa.gov ↗</small></a>
+    <a class="linkcard" href="https://www.joshworth.com/dev/pixelspace/pixelspace_solarsystem.html" target="_blank" rel="noopener"><b data-zh="如果月球只有一个像素">If the Moon Were Only 1 Pixel</b><span data-zh="一张按真实比例画的太阳系长图：向右滚动，从太阳一路“走”到冥王星，体会太空有多空。">A to-scale map of the solar system: scroll sideways from the Sun all the way to Pluto and feel how empty space is.</span><small>joshworth.com ↗</small></a>
+    <a class="linkcard" href="https://nssdc.gsfc.nasa.gov/planetary/factsheet/" target="_blank" rel="noopener"><b data-zh="NASA 行星数据表">NASA Planetary Fact Sheet</b><span data-zh="科学家用的原始数据表：查每颗行星的质量、密度、公转速度和温度，自己做比较图。">The data table scientists use: look up each planet’s mass, density, orbital speed and temperature, and make your own charts.</span><small>nssdc.gsfc.nasa.gov ↗</small></a>
+    <a class="linkcard" href="https://science.nasa.gov/solar-system/" target="_blank" rel="noopener"><b data-zh="NASA 太阳系">NASA Solar System Exploration</b><span data-zh="每颗行星、卫星和矮行星的最新照片、任务和新闻。">Up-to-date photos, missions and news for every planet, moon and dwarf planet.</span><small>science.nasa.gov ↗</small></a>
+    <a class="linkcard" href="https://ssd.jpl.nasa.gov/" target="_blank" rel="noopener"><b data-zh="JPL 太阳系动力学">JPL Solar System Dynamics</b><span data-zh="NASA 喷气推进实验室的轨道数据库：查任何一颗小行星或彗星的轨道，看它何时离地球最近。">NASA JPL’s orbit database: look up the orbit of any asteroid or comet and when it passes closest to Earth.</span><small>ssd.jpl.nasa.gov ↗</small></a>
+  </div>
+  <h3 style="margin:26px 0 12px" data-zh="🔭 在本实验室继续深入">🔭 Go deeper in this lab</h3>
+  <div class="linkgrid" id="deeper" data-deeper="planets-moons,small-bodies,kepler-laws,scale-universe"></div>
+</section>
+<!--/deep-->
+
+<div id="lab-footer"></div>
+<script>
+/* ===== Bodies of the solar system (NASA fact-sheet values, rounded) =====
+   au: mean distance from Sun · d: equatorial diameter (km) · rot: one spin in hours (negative = backward)
+   yr: one orbit in Earth days · g: surface gravity (Earth = 1) · vol: volume in Earths */
+const o = (en, zh) => ({en, zh});
+/* ===== Real photos (Wikimedia Commons, free licences; rendered by shared/photos.js) ===== */
+const RP_KIND = { craft:o('Spacecraft photo','航天器照片'), tele:o('Space telescope photo','空间望远镜照片'), crew:o('Astronaut photo','宇航员拍摄的照片'), vid:o('Spacecraft video','航天器视频') };
+const RP = {
+  sun:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg/960px-The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg', credit:'NASA/SDO (AIA)', kind:RP_KIND.craft,
+    en:'The Sun in ultraviolet light, photographed by NASA’s Solar Dynamics Observatory. The colors are false: our eyes cannot see this kind of light.', zh:'美国航天局太阳动力学天文台拍到的紫外线下的太阳。颜色是人工加上去的，因为人眼看不见这种光。',
+    scale:o('1,392,700 km across · 109 Earths side by side','直径 1,392,700 千米 · 相当于 109 个地球排成一排') },
+  mercury:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d9/Mercury_in_color_-_Prockter07-edit1.jpg/960px-Mercury_in_color_-_Prockter07-edit1.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Mercury_in_color_-_Prockter07-edit1.jpg', credit:'NASA/Johns Hopkins University Applied Physics Laboratory', kind:RP_KIND.craft,
+    en:'Mercury, photographed by the MESSENGER spacecraft on its first flyby. The colors are boosted to show different kinds of rock.', zh:'“信使号”探测器第一次飞掠时拍到的水星。颜色经过增强，用来区分不同的岩石。',
+    scale:o('4,879 km across','直径 4,879 千米') },
+  venus:{ src:'https://upload.wikimedia.org/wikipedia/commons/e/e5/Venus-real_color.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Venus-real_color.jpg', credit:'NASA / Ricardo Nunes', kind:RP_KIND.craft,
+    en:'Venus in real color, made from Mariner 10 images. Thick clouds hide the whole surface.', zh:'用“水手 10 号”的图像合成的真彩色金星。厚厚的云层把整个表面都遮住了。',
+    scale:o('12,104 km across · almost Earth’s twin in size','直径 12,104 千米 · 大小和地球差不多') },
+  earth:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/97/The_Earth_seen_from_Apollo_17.jpg/960px-The_Earth_seen_from_Apollo_17.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:The_Earth_seen_from_Apollo_17.jpg', credit:'NASA / Apollo 17 crew', kind:RP_KIND.crew,
+    en:'Earth: the famous “Blue Marble” photo, taken by the Apollo 17 crew on their way to the Moon on December 7, 1972.', zh:'地球：著名的“蓝色弹珠”照片，由阿波罗 17 号的宇航员在 1972 年 12 月 7 日飞往月球途中拍摄。',
+    scale:o('12,756 km across','直径 12,756 千米') },
+  mars:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/02/OSIRIS_Mars_true_color.jpg/960px-OSIRIS_Mars_true_color.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'CC BY-SA 3.0 igo', page:'https://commons.wikimedia.org/wiki/File:OSIRIS_Mars_true_color.jpg', credit:'ESA & MPS for OSIRIS Team', kind:RP_KIND.craft,
+    en:'Mars in true color, photographed by the Rosetta spacecraft as it flew past in February 2007.', zh:'“罗塞塔号”探测器在 2007 年 2 月飞掠时拍到的真彩色火星。',
+    scale:o('6,792 km across · about half of Earth','直径 6,792 千米 · 约为地球的一半') },
+  jupiter:{ src:'https://upload.wikimedia.org/wikipedia/commons/2/2b/Jupiter_and_its_shrunken_Great_Red_Spot.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Jupiter_and_its_shrunken_Great_Red_Spot.jpg', credit:'NASA, ESA, and A. Simon (Goddard Space Flight Center)', kind:RP_KIND.tele,
+    en:'Jupiter and its Great Red Spot, photographed by the Hubble Space Telescope on April 21, 2014.', zh:'哈勃空间望远镜在 2014 年 4 月 21 日拍到的木星和大红斑。',
+    scale:o('142,984 km across · 11 Earths side by side','直径 142,984 千米 · 相当于 11 个地球排成一排') },
+  saturn:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c7/Saturn_during_Equinox.jpg/960px-Saturn_during_Equinox.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Saturn_during_Equinox.jpg', credit:'NASA / JPL / Space Science Institute', kind:RP_KIND.craft,
+    en:'Saturn and its rings in natural color, made from images the Cassini spacecraft took in 2008.', zh:'用“卡西尼号”探测器 2008 年拍的图像合成的自然色土星和光环。',
+    scale:o('120,536 km across (not counting the rings)','直径 120,536 千米（不算光环）') },
+  uranus:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Uranus2.jpg/960px-Uranus2.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Uranus2.jpg', credit:'NASA/JPL-Caltech', kind:RP_KIND.craft,
+    en:'Uranus, photographed by the Voyager 2 spacecraft in 1986.', zh:'“旅行者 2 号”探测器在 1986 年拍到的天王星。',
+    scale:o('51,118 km across · 4 Earths side by side','直径 51,118 千米 · 相当于 4 个地球排成一排') },
+  neptune:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/56/Neptune_Full.jpg/960px-Neptune_Full.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Neptune_Full.jpg', credit:'NASA', kind:RP_KIND.craft,
+    en:'Neptune in enhanced color, from the last whole-planet pictures taken by Voyager 2.', zh:'颜色经过增强的海王星，来自“旅行者 2 号”拍下的最后几张全球照片。',
+    scale:o('49,528 km across · 4.5 billion km from the Sun','直径 49,528 千米 · 距离太阳 45 亿千米') },
+  pluto:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ef/Pluto_in_True_Color_-_High-Res.jpg/960px-Pluto_in_True_Color_-_High-Res.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Pluto_in_True_Color_-_High-Res.jpg', credit:'NASA/Johns Hopkins University APL/Southwest Research Institute/Alex Parker', kind:RP_KIND.craft,
+    en:'Dwarf planet Pluto in true color, photographed by New Horizons on July 14, 2015 from 35,445 km away.', zh:'“新视野号”在 2015 年 7 月 14 日从 35,445 千米外拍到的真彩色矮行星冥王星。',
+    scale:o('2,377 km across · smaller than our Moon','直径 2,377 千米 · 比月球还小') },
+  comet:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/81/Comet_67P_on_19_September_2014_NavCam_mosaic.jpg/960px-Comet_67P_on_19_September_2014_NavCam_mosaic.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'CC BY-SA 3.0 igo', page:'https://commons.wikimedia.org/wiki/File:Comet_67P_on_19_September_2014_NavCam_mosaic.jpg', credit:'ESA/Rosetta/NAVCAM', kind:RP_KIND.craft,
+    en:'Comet 67P/Churyumov–Gerasimenko, photographed by the Rosetta spacecraft from only 28.6 km away in September 2014.', zh:'“罗塞塔号”探测器在 2014 年 9 月从仅 28.6 千米外拍到的 67P/丘留莫夫–格拉西缅科彗星。',
+    scale:o('about 4 km long · a mountain-sized ball of ice and dust','长约 4 千米 · 一座山那么大的冰和尘埃') },
+  spin:{ type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/1/1a/Jupiter_rotation_movie.ogv?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1a/Jupiter_rotation_movie.ogv/250px--Jupiter_rotation_movie.ogv.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Jupiter_rotation_movie.ogv', credit:'NASA/JPL', kind:RP_KIND.vid,
+    en:'Watch Jupiter spin: a movie made from Voyager 1 pictures. A day on Jupiter lasts only about 10 hours.', zh:'看木星自转：用“旅行者 1 号”的照片做成的影片。木星上的一天只有大约 10 小时。' }
+};
+const RP_PANEL = { sun:'sun', mercury:'mercury', venus:'venus', earth:'earth', mars:'mars', jupiter:'jupiter', saturn:'saturn', uranus:'uranus', neptune:'neptune', kuiper:'pluto', comet:'comet' };
+const realFig = k => RP[RP_PANEL[k]] ? LabPhotos.figure(RP[RP_PANEL[k]]) : '';
+LabPhotos.render('#gallery', ['venus','earth','mars','jupiter','saturn','neptune','pluto','comet','spin'].map(k => RP[k]), { title:o('See the real thing','看看真实的样子'),
+  sub:o('The 3D model is a simplified drawing. These are real pictures taken by spacecraft and telescopes. Click a picture to enlarge it; the video plays only when you press play.','3D 模型是简化的示意图，下面这些才是航天器和望远镜拍到的真实照片。点击图片可以放大；视频要你按下播放键才会播放。') });
+const TAGS = {
+  star:o('Star','恒星'), inner:o('Inner rocky planet','内行星 · 类地行星'), gas:o('Outer planet · gas giant','外行星 · 气态巨行星'),
+  ice:o('Outer planet · ice giant','外行星 · 冰巨星'), moon:o('Natural satellite','天然卫星'), small:o('Small bodies','小天体'), dwarf:o('Dwarf planets & icy bodies','矮行星与冰质天体')
+};
+const BODIES = {
+  sun:{kind:'star', color:'#ffb43a', name:o('The Sun','太阳'), job:o('The star at the center','位于中心的恒星'),
+    facts:{en:['The Sun is a star: a giant ball of hot gas (mostly hydrogen and helium) that makes its own light by nuclear fusion.','It holds 99.8% of all the mass in the solar system, so its gravity keeps everything in orbit.','About 109 Earths would fit across its face, and about 1.3 million Earths could fit inside it.','Sunlight takes about 8 minutes 20 seconds to reach Earth.'],
+           zh:['太阳是一颗恒星：一个由炽热气体（主要是氢和氦）组成的巨大球体，靠核聚变自己发光。','它占太阳系总质量的 99.8%，所以它的引力能让其他天体都绕着它运行。','太阳的直径约是地球的 109 倍，里面大约能装下 130 万个地球。','阳光大约需要 8 分 20 秒才能到达地球。']},
+    hint:o('The Sun is the only star in our solar system. Planets and moons shine only by reflecting its light.','太阳是太阳系里唯一的恒星，行星和卫星都是反射太阳光才“发亮”的。'),
+    mix:o('The Sun is not “on fire”. Nothing is burning; its energy comes from nuclear fusion in its core.','太阳并不是在“燃烧”，它的能量来自核心的核聚变。'),
+    xstats:[[o('Diameter','直径'),o('1,392,700 km','1,392,700 千米')],[o('Surface','表面温度'),o('≈ 5,500 °C','约 5,500 °C')],[o('Core','核心温度'),o('≈ 15 million °C','约 1500 万 °C')],[o('Age','年龄'),o('≈ 4.6 billion years','约 46 亿年')],[o('Gravity','引力'),o('28 × Earth','地球的 28 倍')],[o('Mass share','质量占比'),o('99.8% of solar system','太阳系的 99.8%')]]},
+  mercury:{kind:'inner', color:'#a7a3a0', au:.39, mkm:57.9, d:4879, rot:1408, yr:88, g:.38, moons:'0', temp:o('−180 to 430 °C','−180 至 430 °C'), vol:.056,
+    name:o('Mercury','水星'), job:o('Smallest and fastest planet','最小、公转最快的行星'),
+    facts:{en:['Closest planet to the Sun and the smallest of the eight planets.','It has almost no atmosphere to trap heat: days reach 430 °C, nights drop to −180 °C.','Its surface is covered in craters, a lot like our Moon.','Fastest planet: it circles the Sun in only 88 days.'],
+           zh:['离太阳最近，也是八大行星中最小的。','它几乎没有大气来保温：白天高达 430 °C，夜晚低至 −180 °C。','表面布满撞击坑，很像月球。','公转最快的行星：只需 88 天就绕太阳一圈。']},
+    hint:o('Mercury, named for the speedy messenger god, has the shortest year.','水星就像飞毛腿信使，一年最短。'),
+    mix:o('Mercury is closest to the Sun, but Venus is the hottest planet.','水星离太阳最近，但最热的行星却是金星。')},
+  venus:{kind:'inner', color:'#e3bb76', au:.72, mkm:108.2, d:12104, rot:-5832, yr:225, g:.91, moons:'0', temp:o('≈ 465 °C','约 465 °C'), vol:.857,
+    name:o('Venus','金星'), job:o('The hottest planet','最热的行星'),
+    facts:{en:['Similar in size to Earth, so it is sometimes called Earth’s “twin”.','A thick carbon dioxide atmosphere causes a runaway greenhouse effect: about 465 °C, hot enough to melt lead.','It spins backward and very slowly: one spin takes 243 Earth days, longer than its 225-day year.','It is the brightest planet in our night sky, often called the “morning star” or “evening star”.'],
+           zh:['大小和地球差不多，因此有时被称为地球的“孪生姐妹”。','浓厚的二氧化碳大气造成失控的温室效应：表面约 465 °C，足以熔化铅。','它的自转方向相反而且极慢：转一圈要 243 个地球日，比它的一年（225 天）还长。','它是夜空中最亮的行星，常被称为“启明星”或“长庚星”。']},
+    hint:o('Venus = very hot, very cloudy, very slow spin.','金星：超热、超多云、自转超慢。'),
+    mix:o('Venus is a planet, not a star, even though people call it the “evening star”.','金星虽被叫作“长庚星”，其实是行星，不是恒星。')},
+  earth:{kind:'inner', color:'#3f8fe0', au:1, mkm:149.6, d:12756, rot:23.9, yr:365.25, g:1, moons:'1', temp:o('≈ 15 °C (average)','平均约 15 °C'), vol:1,
+    name:o('Earth','地球'), job:o('Our home, the only known planet with life','我们的家园，已知唯一有生命的行星'),
+    facts:{en:['The only planet known to have life and liquid water on its surface (water covers about 71%).','Its atmosphere (mostly nitrogen and oxygen) protects us and keeps temperatures mild.','It sits in the “habitable zone”: not too hot and not too cold for liquid water.','The Earth–Sun distance is 1 astronomical unit (AU), about 150 million km.'],
+           zh:['目前已知唯一有生命、且表面有液态水的行星（约 71% 被水覆盖）。','大气（主要是氮气和氧气）保护着我们，并让气温保持适宜。','它位于“宜居带”：不太热也不太冷，水能保持液态。','地球到太阳的平均距离是 1 个天文单位（AU），约 1.5 亿千米。']},
+    hint:o('1 AU = the Earth–Sun distance. Astronomers use it as a measuring stick.','1 天文单位 = 日地距离，天文学家用它当“尺子”。'),
+    mix:o('Summer is not caused by Earth being closer to the Sun; seasons come from Earth’s 23.5° tilt.','夏天不是因为地球离太阳更近，四季是由地轴 23.5° 的倾斜造成的。')},
+  moon:{kind:'moon', color:'#c9c6bf', name:o('The Moon','月球'), job:o('Earth’s natural satellite','地球的天然卫星'), d:3475, g:.166,
+    facts:{en:['Earth’s only natural satellite; it orbits Earth about every 27.3 days.','It is about one quarter as wide as Earth, and its gravity is about 1/6 of Earth’s.','It always shows the same face to Earth.','This model draws the Moon far too close: in reality about 30 Earths would fit between Earth and the Moon.'],
+           zh:['地球唯一的天然卫星，大约每 27.3 天绕地球一圈。','它的直径约为地球的四分之一，引力约为地球的 1/6。','它总是以同一面朝向地球。','本模型把月球画得太近了：实际上地球和月球之间能排下约 30 个地球。']},
+    hint:o('A moon orbits a planet; a planet orbits a star.','卫星绕行星转，行星绕恒星转。'),
+    mix:o('The Moon makes no light of its own; moonlight is reflected sunlight.','月球自己不发光，月光是它反射的太阳光。'),
+    xstats:[[o('Diameter','直径'),o('3,475 km','3,475 千米')],[o('From Earth','距地球'),o('384,400 km','384,400 千米')],[o('One orbit','绕地球一圈'),o('27.3 days','27.3 天')],[o('Gravity','引力'),o('0.17 × Earth','地球的 0.17 倍')]]},
+  mars:{kind:'inner', color:'#d0603a', au:1.52, mkm:227.9, d:6792, rot:24.6, yr:687, g:.38, moons:'2', temp:o('≈ −65 °C (average)','平均约 −65 °C'), vol:.151,
+    name:o('Mars','火星'), job:o('The Red Planet','红色星球'),
+    facts:{en:['Its soil is rich in iron oxide (rust), which makes it look red.','It has Olympus Mons, the tallest volcano in the solar system (about 22 km high, about 2.5 times Mount Everest).','Thin carbon dioxide atmosphere; ice at its poles and dry riverbeds show liquid water once flowed.','A day on Mars is 24 h 37 min, almost the same as Earth’s. Rovers such as Perseverance explore it.'],
+           zh:['它的土壤富含氧化铁（铁锈），所以看起来是红色的。','这里有太阳系最高的火山——奥林帕斯山（高约 22 千米，约为珠穆朗玛峰的 2.5 倍）。','大气稀薄，主要是二氧化碳；两极有冰，干涸的河道说明这里曾有液态水流过。','火星的一天是 24 小时 37 分，和地球几乎一样。“毅力号”等火星车正在探索它。']},
+    hint:o('Mars = rust red, with two tiny moons (Phobos and Deimos).','火星：铁锈红，有两颗小卫星（火卫一、火卫二）。'),
+    mix:o('Mars is red because of rust in its dust, not because it is hot. It is actually very cold (about −65 °C).','火星发红是因为尘土里有铁锈，不是因为热；它其实很冷（平均约 −65 °C）。')},
+  belt:{kind:'small', color:'#9b8f7f', name:o('Asteroid belt','小行星带'), job:o('Rocky leftovers between Mars and Jupiter','火星与木星之间的岩石“边角料”'),
+    facts:{en:['Millions of rocky and metal chunks orbit the Sun between Mars and Jupiter.','They are leftover building material that never formed a planet, partly because of Jupiter’s strong gravity.','The largest object, Ceres (about 940 km wide), is a dwarf planet.','It is mostly empty space: spacecraft fly through without hitting anything.'],
+           zh:['数以百万计的岩石和金属碎块在火星和木星之间绕太阳运行。','它们是没能形成行星的“剩余建材”，部分原因是木星的引力太强。','其中最大的谷神星（直径约 940 千米）是一颗矮行星。','小行星带里大部分是空旷的空间，探测器飞过去也碰不到东西。']},
+    hint:o('Meteoroid (small rock in space) → meteor (streak of light in the air) → meteorite (rock that lands on the ground).','流星体（太空中的小石块）→ 流星（在大气中划出的亮光）→ 陨石（落到地面的石头）。'),
+    mix:o('The asteroid belt is not crowded like in movies; asteroids are usually about a million kilometers apart.','小行星带不像电影里那样拥挤，小行星之间通常相距约 100 万千米。'),
+    xstats:[[o('Location','位置'),o('2.2 – 3.2 AU','2.2 – 3.2 天文单位')],[o('Largest','最大成员'),o('Ceres, 940 km','谷神星，940 千米')],[o('Made of','组成'),o('rock and metal','岩石和金属')],[o('Total mass','总质量'),o('≈ 3% of our Moon','约为月球的 3%')]]},
+  jupiter:{kind:'gas', color:'#d8a878', au:5.2, mkm:778.5, d:142984, rot:9.9, yr:4331, g:2.36, moons:o('115 (2026)','115 颗（2026 年）'), temp:o('≈ −110 °C (cloud tops)','云顶约 −110 °C'), vol:1321,
+    name:o('Jupiter','木星'), job:o('The largest planet','最大的行星'),
+    facts:{en:['Largest planet: it has more than twice the mass of all the other planets combined.','A gas giant made mostly of hydrogen and helium, with no solid surface to stand on.','The Great Red Spot is a storm wider than Earth that has raged for hundreds of years.','Shortest day of any planet (under 10 hours). Its 115 known moons include Ganymede, the largest moon in the solar system.'],
+           zh:['最大的行星：质量是其他所有行星加起来的两倍多。','它是主要由氢和氦组成的气态巨行星，没有可以站立的固体表面。','大红斑是一个比地球还宽的风暴，已经持续了几百年。','自转最快（不到 10 小时一圈）。已知卫星有 115 颗，其中木卫三是太阳系最大的卫星。']},
+    hint:o('Jupiter = Jumbo: biggest planet, shortest day.','木星最“巨”：个头最大，一天最短。'),
+    mix:o('Jupiter has rings too, but they are thin and faint. Saturn simply has the brightest ones.','木星也有环，只是又细又暗；土星的环只是最亮而已。')},
+  saturn:{kind:'gas', color:'#e6cf8f', au:9.54, mkm:1432, d:120536, rot:10.7, yr:10747, g:.92, moons:o('293 (2026)','293 颗（2026 年）'), temp:o('≈ −140 °C (cloud tops)','云顶约 −140 °C'), vol:764,
+    name:o('Saturn','土星'), job:o('The ringed planet','戴着光环的行星'),
+    facts:{en:['Famous for bright rings made of billions of pieces of ice and rock, some as small as dust and some as big as houses.','The rings stretch about 280,000 km from the planet, yet the main rings are usually only about 10 m thick.','It is the least dense planet: it would float in a (giant) bathtub of water.','It has the most known moons. Titan has a thick atmosphere and lakes of liquid methane.'],
+           zh:['以明亮的光环闻名，光环由数十亿块冰和岩石组成，小的像尘埃，大的像房子。','光环从土星向外延伸约 28 万千米，主环的厚度却通常只有约 10 米。','它是密度最小的行星：如果有足够大的浴缸，它能浮在水面上。','它是已知卫星最多的行星。土卫六有浓厚的大气和液态甲烷湖。']},
+    hint:o('Saturn = Super rings.','土星 = 超级光环。'),
+    mix:o('Saturn’s rings are not one solid sheet; they are countless separate pieces, each orbiting the planet.','土星环不是一整块固体，而是无数独立的碎块，各自绕土星运行。')},
+  uranus:{kind:'ice', color:'#9fdbe0', au:19.2, mkm:2867, d:51118, rot:-17.2, yr:30589, g:.89, moons:o('29','29 颗'), temp:o('≈ −195 °C','约 −195 °C'), vol:63,
+    name:o('Uranus','天王星'), job:o('The sideways planet','“躺着”转的行星'),
+    facts:{en:['An ice giant: a deep atmosphere of hydrogen, helium and methane over an interior of water, ammonia and methane “ices”.','Methane gas absorbs red light, giving it a blue-green color.','It is tipped over about 98°, so it rolls around the Sun on its side, giving each pole about 42 years of daylight followed by 42 years of darkness.','The first planet discovered with a telescope (William Herschel, 1781).'],
+           zh:['冰巨星：由氢、氦和甲烷组成的厚大气层下，是水、氨和甲烷等“冰”组成的内部。','大气中的甲烷吸收红光，让它呈现蓝绿色。','它倾斜约 98°，几乎“躺着”绕太阳转，每个极点会经历约 42 年的白天和 42 年的黑夜。','第一颗用望远镜发现的行星（威廉·赫歇尔，1781 年）。']},
+    hint:o('Uranus rolls around the Sun like a ball on its side.','天王星像一个侧躺着的球，滚着绕太阳转。'),
+    mix:o('Ice giants are not giant ice cubes; their “ices” are hot, dense fluids deep inside.','冰巨星不是大冰块，它们内部的“冰”其实是炽热、致密的流体。')},
+  neptune:{kind:'ice', color:'#4b70dd', au:30.1, mkm:4515, d:49528, rot:16.1, yr:59800, g:1.12, moons:'16', temp:o('≈ −200 °C','约 −200 °C'), vol:58,
+    name:o('Neptune','海王星'), job:o('The farthest, windiest planet','最远、风最大的行星'),
+    facts:{en:['The farthest planet, about 30 AU from the Sun; one Neptune year lasts almost 165 Earth years.','The windiest planet: winds reach about 2,000 km/h.','A deep-blue ice giant. In 1846 it was predicted with math before anyone saw it through a telescope.','Its largest moon, Triton, orbits backward and has icy geysers.'],
+           zh:['最远的行星，距太阳约 30 天文单位；它的一年将近 165 个地球年。','风最大的行星：风速可达每小时约 2000 千米。','一颗深蓝色的冰巨星。1846 年，人们先用数学算出它的位置，才在望远镜里找到它。','最大的卫星海卫一逆向公转，表面有喷发冰物质的“间歇泉”。']},
+    hint:o('Planet order: “My Very Educated Mother Just Served Us Noodles” (Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune).','口诀“水金地火木土天海”：按离太阳由近到远排列。'),
+    mix:o('Pluto is no longer the “9th planet”. Since 2006 it has been a dwarf planet, so Neptune is the farthest planet.','冥王星已不再是“第九大行星”。2006 年起它被归为矮行星，所以海王星是最远的行星。')},
+  kuiper:{kind:'dwarf', color:'#b9a7d8', name:o('Kuiper belt & Pluto','柯伊伯带与冥王星'), job:o('Icy worlds beyond Neptune','海王星外的冰冷世界'),
+    facts:{en:['A huge doughnut-shaped region of icy bodies beyond Neptune, about 30–50 AU from the Sun.','Pluto lives here. It is a dwarf planet: it orbits the Sun and is round, but it has not cleared its orbit of other objects.','Pluto’s orbit is tilted and stretched; one Pluto year is 248 Earth years. In 2015 New Horizons photographed its heart-shaped glacier.','Many short-period comets come from here. Much farther out, the Oort Cloud may hold trillions of comets.'],
+           zh:['海王星轨道外一个巨大的“甜甜圈”形区域，布满冰质天体，距太阳约 30–50 天文单位。','冥王星就在这里。它是矮行星：绕太阳运行、形状近似球形，但没有清空轨道附近的其他天体。','冥王星的轨道倾斜而且偏扁，它的一年等于 248 个地球年。2015 年“新视野号”拍到了它心形的冰原。','许多短周期彗星来自这里；更远处的奥尔特云可能藏着上万亿颗彗星。']},
+    hint:o('A planet must 1) orbit the Sun, 2) be round, 3) clear its neighborhood. Pluto fails rule 3.','行星要满足三条：① 绕太阳运行 ② 近似球形 ③ 清空轨道附近。冥王星没做到第 ③ 条。'),
+    mix:o('Dwarf planets are not just “small planets”; they are a separate group (Pluto, Eris, Ceres, Haumea, Makemake).','矮行星不只是“小一点的行星”，而是单独的一类（冥王星、阋神星、谷神星、妊神星、鸟神星）。'),
+    xstats:[[o('Belt location','柯伊伯带位置'),o('30 – 50 AU','30 – 50 天文单位')],[o('Pluto diameter','冥王星直径'),o('2,376 km','2,376 千米')],[o('Pluto year','冥王星的一年'),o('248 Earth years','248 个地球年')],[o('Pluto gravity','冥王星引力'),o('0.06 × Earth','地球的 0.06 倍')],[o('Pluto moons','冥王星卫星'),o('5 (largest: Charon)','5 颗（最大：冥卫一）')],[o('Made of','组成'),o('ice and rock','冰和岩石')]]},
+  comet:{kind:'small', color:'#9fd8ff', name:o('Comet','彗星'), job:o('A dirty snowball with a tail','拖着尾巴的“脏雪球”'),
+    facts:{en:['A “dirty snowball” of ice, dust and rock, usually only a few kilometers wide.','Near the Sun its ice turns to gas, forming a glowing coma (head) and long tails.','The tail always points away from the Sun (pushed by sunlight and the solar wind), whichever way the comet is moving.','Comets travel on long, stretched (elliptical) orbits and speed up near the Sun. This one is like Halley’s Comet, which returns about every 76 years.'],
+           zh:['一个由冰、尘埃和岩石组成的“脏雪球”，通常只有几千米宽。','靠近太阳时，它的冰变成气体，形成发光的彗发（彗头）和长长的彗尾。','无论彗星朝哪个方向运动，彗尾总是背向太阳（被阳光和太阳风吹开）。','彗星沿细长的椭圆轨道运行，靠近太阳时会加速。这颗彗星类似哈雷彗星，约每 76 年回归一次。']},
+    hint:o('Comet = ice + tail. Asteroid = rock, no tail.','彗星 = 冰 + 尾巴；小行星 = 岩石，没有尾巴。'),
+    mix:o('A comet’s tail is not like smoke trailing behind a car; when the comet heads away from the Sun, its tail goes in front of it.','彗尾不像汽车尾气那样总拖在后面；彗星远离太阳时，彗尾反而在它前方。'),
+    xstats:[[o('Nucleus','彗核'),o('a few km wide','几千米宽')],[o('Made of','组成'),o('ice, dust, rock','冰、尘埃、岩石')],[o('Orbit','轨道'),o('long ellipse','细长的椭圆')],[o('This comet’s year','这颗彗星的周期'),o('≈ 76 years','约 76 年')]]}
+};
+const ORDER = ['sun','mercury','venus','earth','moon','mars','belt','jupiter','saturn','uranus','neptune','kuiper','comet'];
+const PLANETS = ['mercury','venus','earth','mars','jupiter','saturn','uranus','neptune'];
+
+/* ---------- number formatting (bilingual) ---------- */
+const zh = () => Lab.lang === 'zh';
+const num = n => n.toLocaleString('en-US');
+function fmtDist(b){ if (zh()) return `${b.au} 天文单位 · ${b.mkm < 100 ? Math.round(b.mkm * 100) + ' 万' : (b.mkm / 100).toFixed(1) + ' 亿'}千米`;
+  return `${b.au} AU · ${b.mkm < 1000 ? b.mkm : num(Math.round(b.mkm))} million km`; }
+function fmtRot(h){ const back = h < 0, a = Math.abs(h), s = a < 48 ? (zh() ? `${a} 小时` : `${a} hours`) : (zh() ? `${Math.round(a / 24)} 天` : `${Math.round(a / 24)} days`);
+  return s + (back ? (zh() ? '（逆向）' : ' (backward)') : ''); }
+function fmtYear(d){ return d < 1000 ? (zh() ? `${d} 天` : `${d} days`) : (zh() ? `${(d / 365.25).toFixed(1)} 年` : `${(d / 365.25).toFixed(1)} years`); }
+const fmtG = g => zh() ? `地球的 ${g} 倍` : `${g} × Earth`;
+function statsOf(k){
+  const b = BODIES[k];
+  if (b.xstats) return b.xstats.map(([l, v]) => [Lab.L(l), Lab.L(v)]);
+  return [[Lab.L(o('Diameter','直径')), `${num(b.d)} ${zh() ? '千米' : 'km'}`], [Lab.L(o('From the Sun','距太阳')), fmtDist(b)],
+    [Lab.L(o('One spin (day)','自转一周')), fmtRot(b.rot)], [Lab.L(o('One orbit (year)','公转一周')), fmtYear(b.yr)],
+    [Lab.L(o('Gravity','表面引力')), fmtG(b.g)], [Lab.L(o('Moons','卫星')), Lab.L(b.moons)], [Lab.L(o('Temperature','温度')), Lab.L(b.temp)]];
+}
+const statGrid = rows => `<div class="stats">${rows.map(([l, v]) => `<div class="stat"><small>${l}</small>${v}</div>`).join('')}</div>`;
+
+/* ===== Info panel / selection ===== */
+const App = window.SS = { sel:null, three:null, BODIES, ORDER, PLANETS };
+App.select = (k, from3D) => { App.sel = k; renderInfo(); renderChips(); if (!from3D && App.three) App.three.focus(k); };
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel;
+  if (!k){
+    box.innerHTML = `<span class="tag">${Lab.L(o('Our cosmic neighborhood','我们的宇宙家园'))}</span>
+      <h3>${Lab.L(o('1 star, 8 planets','1 颗恒星，8 颗行星'))}</h3>
+      <p class="muted" style="margin:0">${Lab.L(o('The four inner planets are small and rocky. The four outer planets are giants made mostly of gas and ice. Between them lies the asteroid belt; beyond Neptune, the icy Kuiper belt.','四颗内行星个头小、由岩石构成；四颗外行星是主要由气体和冰组成的巨行星。它们之间是小行星带；海王星外面是冰冷的柯伊伯带。'))}</p>
+      <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(o('The Sun’s gravity holds the solar system together. The farther a planet is from the Sun, the slower it moves and the longer its year.','太阳的引力把整个太阳系“拴”在一起。行星离太阳越远，运动越慢，一年也越长。'))}</div>
+      <div class="memory"><b>${Lab.L(o('💡 Planet order','💡 行星顺序'))}</b>${Lab.L(BODIES.neptune.hint)}</div>
+      <div class="nav"><button id="startBtn">${Lab.L(o('Start with the Sun ▶','从太阳开始 ▶'))}</button></div>`;
+    Lab.$('#startBtn').onclick = () => App.select('sun');
+    return;
+  }
+  const b = BODIES[k], i = ORDER.indexOf(k);
+  box.innerHTML = `<span class="tag">${Lab.L(TAGS[b.kind])}</span>
+    <h3><span class="dot" style="background:${b.color}"></span>${Lab.L(b.name)}</h3>
+    <div class="job">${Lab.L(b.job)}</div>
+    ${statGrid(statsOf(k))}
+    <ul>${Lab.L(b.facts).map(f => `<li>${f}</li>`).join('')}</ul>${realFig(k)}
+    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(b.hint)}</div>
+    ${b.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(b.mix)}</span></div>` : ''}
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(b.name), Lab.L(b.job), ...Lab.L(b.facts), Lab.L(b.hint)].join('. '));
+  Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
+  Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
+}
+function renderChips(){
+  Lab.$('#chips').innerHTML = ORDER.map(k => `<button class="chip ${App.sel === k ? 'on' : ''}" data-k="${k}"><i style="background:${BODIES[k].color}"></i>${Lab.L(BODIES[k].name)}</button>`).join('');
+  Lab.$$('#chips .chip').forEach(c => c.onclick = () => App.select(c.dataset.k));
+}
+Lab.onLang(() => { renderInfo(); renderChips(); });
+</script>
+<script>
+/* ===== Compare planets: true relative size + data ===== */
+const CMP = ['mercury','venus','earth','moon','mars','jupiter','saturn','uranus','neptune'];
+const VOL = { mercury:.056, venus:.857, earth:1, moon:.02, mars:.151, jupiter:1321, saturn:764, uranus:63, neptune:58 };
+let cmpSel = 'jupiter';
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+function renderCmpBtns(){
+  Lab.$('#cmpBtns').innerHTML = CMP.map(k => `<button class="${k === cmpSel ? 'on' : ''}" data-k="${k}"><i style="background:${BODIES[k].color}"></i>${Lab.L(BODIES[k].name)}</button>`).join('');
+  Lab.$$('#cmpBtns button').forEach(b => b.onclick = () => { cmpSel = b.dataset.k; renderCompare(); renderWeights(); });
+}
+function drawBall(g, x, y, r, col, rings){
+  if (rings){ g.save(); g.strokeStyle = 'rgba(230,207,143,.75)'; g.lineWidth = Math.max(1, r * .18); g.beginPath(); g.ellipse(x, y, r * 2.05, r * .5, -.25, Math.PI * 1.02, Math.PI * 1.98, false); g.stroke(); g.restore(); }
+  const gr = g.createRadialGradient(x - r * .35, y - r * .35, r * .1, x, y, r);
+  gr.addColorStop(0, '#ffffff'); gr.addColorStop(.18, col); gr.addColorStop(1, 'rgba(0,0,0,.55)');
+  g.fillStyle = col; g.beginPath(); g.arc(x, y, Math.max(r, .6), 0, 7); g.fill();
+  g.fillStyle = gr; g.globalAlpha = .55; g.beginPath(); g.arc(x, y, Math.max(r, .6), 0, 7); g.fill(); g.globalAlpha = 1;
+  if (rings){ g.save(); g.strokeStyle = 'rgba(230,207,143,.9)'; g.lineWidth = Math.max(1, r * .18); g.beginPath(); g.ellipse(x, y, r * 2.05, r * .5, -.25, -Math.PI * .02, Math.PI * 1.02, false); g.stroke(); g.restore(); }
+}
+function renderCompare(){
+  renderCmpBtns();
+  const cv = Lab.$('#sizeCv'), box = Lab.$('#sizeBox'), dpr = Math.min(devicePixelRatio, 2), W = box.clientWidth, H = box.clientHeight;
+  cv.width = W * dpr; cv.height = H * dpr; const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.fillStyle = '#070b18'; g.fillRect(0, 0, W, H);
+  for (let i = 0; i < 70; i++){ g.fillStyle = `rgba(255,255,255,${.2 + (i * 37 % 10) / 14})`; g.fillRect((i * 97.3) % W, (i * 53.7) % H, 1.2, 1.2); }
+  const a = BODIES[cmpSel], e = cmpSel === 'earth' ? BODIES.moon : BODIES.earth, sun = Lab.$('#sunEdge').checked;
+  const big = Math.max(a.d, e.d), left = sun ? W * .22 : 0, room = (W - left) / 2;
+  const scale = Math.min(H * .36, room * (a.d > e.d && cmpSel === 'saturn' ? .22 : .42)) / (big / 2);
+  const ra = a.d / 2 * scale, re = e.d / 2 * scale, y = H * .5;
+  if (sun){ const rs = 1392700 / 2 * scale, cx = left - rs; g.fillStyle = '#ffb43a'; g.shadowColor = '#ff9a2a'; g.shadowBlur = 30; g.beginPath(); g.arc(cx, y, rs, 0, 7); g.fill(); g.shadowBlur = 0;
+    g.fillStyle = '#3a2300'; g.font = '800 13px Nunito'; g.textAlign = 'right'; g.fillText(Lab.L(o('☀ edge of the Sun','☀ 太阳的边缘')), left - 8, H - 12); }
+  const xa = left + room * .5, xe = left + room * 1.5;
+  drawBall(g, xa, y, ra, a.color, cmpSel === 'saturn'); drawBall(g, xe, y, re, e.color, false);
+  g.fillStyle = '#eaf0fb'; g.font = '800 15px Nunito'; g.textAlign = 'center';
+  g.fillText(Lab.L(a.name), xa, Math.min(H - 10, y + Math.max(ra, 8) + 22)); g.fillText(Lab.L(e.name), xe, Math.min(H - 10, y + Math.max(re, 8) + 22));
+  g.font = '700 12px Nunito'; g.fillStyle = '#a6b3cf'; g.textAlign = 'right'; g.fillText(Lab.L(o('True relative sizes','真实的相对大小')), W - 10, 18);
+  const ratio = a.d / e.d, msg = Lab.$('#sizeMsg');
+  if (cmpSel === 'earth') msg.textContent = Lab.L(o('Earth is about 3.7 times as wide as the Moon; about 50 Moons would fill Earth.','地球的直径约是月球的 3.7 倍，大约 50 个月球才能填满地球。'));
+  else if (ratio > 1) msg.textContent = zh() ? `${Lab.L(a.name)}的直径是地球的 ${ratio.toFixed(1)} 倍,里面大约能装下 ${num(VOL[cmpSel])} 个地球。` : `${Lab.L(a.name)} is ${ratio.toFixed(1)} times as wide as Earth. About ${num(VOL[cmpSel])} Earths could fit inside it.`;
+  else msg.textContent = zh() ? `${Lab.L(a.name)}的直径只有地球的 ${ratio.toFixed(2)} 倍;大约 ${Math.round(1 / VOL[cmpSel])} 个${Lab.L(a.name)}才能填满地球。` : `${Lab.L(a.name)} is only ${ratio.toFixed(2)} times as wide as Earth; it would take about ${Math.round(1 / VOL[cmpSel])} of them to fill Earth.`;
+  msg.className = 'result good';
+  Lab.$('#cmpStats').innerHTML = statsOf(cmpSel).map(([l, v]) => `<div class="stat"><small>${l}</small>${v}</div>`).join('');
+}
+Lab.$('#sunEdge').onchange = renderCompare;
+new ResizeObserver(() => renderCompare()).observe(Lab.$('#sizeBox'));
+
+/* ===== Weight on other worlds ===== */
+const WORLDS = [['mercury',.38],['venus',.91],['earth',1],['moon',.166],['mars',.38],['jupiter',2.36],['saturn',.92],['uranus',.89],['neptune',1.12],['pluto',.063]];
+const PLUTO = { name:o('Pluto','冥王星'), color:'#d9c2a3' };
+let unit = 'kg';
+function renderWeights(){
+  const w = Math.max(0, +Lab.$('#wIn').value || 0), max = 2.36;
+  Lab.$('#wBars').innerHTML = WORLDS.map(([k, g]) => { const b = k === 'pluto' ? PLUTO : BODIES[k];
+    return `<div class="wrow"><span>${Lab.L(b.name)}</span><div class="bar"><div style="width:${g / max * 100}%;background:${b.color}"></div></div><b>${(w * g).toFixed(w * g < 10 ? 1 : 0)} ${unit}</b></div>`; }).join('');
+  const kg = unit === 'kg' ? w : w * .4536, gSel = WORLDS.find(x => x[0] === cmpSel)[1], nm = Lab.L(BODIES[cmpSel].name);
+  Lab.$('#massOut').textContent = `${kg.toFixed(0)} kg`;
+  Lab.$('#jumpOut').textContent = `${(.5 / gSel).toFixed(2)} m`;
+  Lab.$('#jumpLbl').textContent = zh() ? `在${nm}上能跳多高(地球上 0.5 米)` : `how high you could jump on ${nm} (0.5 m on Earth)`;
+  let note = Lab.$('#wNote'); if (!note){ note = document.createElement('p'); note.id = 'wNote'; note.className = 'muted'; note.style.fontSize = '14px'; Lab.$('#wBars').after(note); }
+  note.textContent = zh() ? `体重秤显示的是“千克”,但科学上重量是一种力,单位是牛顿(N)。你在地球上受到的重力约 ${Math.round(kg * 9.8)} N,在${nm}上约 ${Math.round(kg * 9.8 * gSel)} N。`
+    : `Bathroom scales show kg or lb, but in science weight is a force measured in newtons (N). Your weight is about ${Math.round(kg * 9.8)} N on Earth and about ${Math.round(kg * 9.8 * gSel)} N on ${nm}.`;
+}
+Lab.$('#wIn').oninput = renderWeights;
+Lab.$$('#unitSeg button').forEach(b => b.onclick = () => { if (unit === b.dataset.u) return; const w = +Lab.$('#wIn').value || 0;
+  Lab.$('#wIn').value = Math.round(b.dataset.u === 'lb' ? w / .4536 : w * .4536); unit = b.dataset.u;
+  Lab.$$('#unitSeg button').forEach(x => x.classList.toggle('on', x === b)); renderWeights(); });
+
+/* ===== Scale model calculator ===== */
+const SIZE_LIKE = [[1.3, o('a grain of sand','一粒沙子')],[2.2, o('a sesame seed','一粒芝麻')],[4, o('a peppercorn','一粒胡椒')],[8, o('a pea','一颗豌豆')],[18, o('a marble','一颗弹珠')],[45, o('a ping-pong ball','一个乒乓球')],[80, o('a tennis ball','一个网球')],[1e9, o('a softball','一个垒球')]];
+function renderScale(){
+  const s = +Lab.$('#sunCm').value, mmPerKm = s * 10 / 1392700, cmPerAU = 149.6e6 / 1392700 * s;
+  Lab.$('#sunCmOut').textContent = `${s} cm`;
+  const fmtLen = mm => mm < 10 ? `${mm.toFixed(mm < 1 ? 2 : 1)} mm` : `${(mm / 10).toFixed(1)} cm`;
+  const fmtM = cm => cm < 100 ? `${cm.toFixed(0)} cm` : cm < 100000 ? `${num(Math.round(cm / 100))} m` : `${(cm / 100000).toFixed(1)} km`;
+  Lab.$('#scaleTbl').innerHTML = `<tr><th>${Lab.L(o('Body','天体'))}</th><th>${Lab.L(o('Model size','模型大小'))}</th><th>${Lab.L(o('About as big as','大约像'))}</th><th>${Lab.L(o('Distance from the Sun ball','离“太阳球”的距离'))}</th></tr>` +
+    PLANETS.map(k => { const b = BODIES[k], mm = b.d * mmPerKm, like = SIZE_LIKE.find(x => mm < x[0])[1];
+      return `<tr><td><span class="dot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${b.color};margin-right:6px"></span>${Lab.L(b.name)}</td><td>${fmtLen(mm)}</td><td>${Lab.L(like)}</td><td><b>${fmtM(b.au * cmPerAU)}</b></td></tr>`; }).join('');
+  const nep = 30.1 * cmPerAU / 100, prox = 268000 * cmPerAU / 100000;
+  Lab.$('#scaleMsg').textContent = zh() ? `海王星要放在约 ${num(Math.round(nep))} 米外(约 ${(nep / 100).toFixed(1)} 个足球场长)。而离我们最近的另一颗恒星(比邻星)要放在约 ${num(Math.round(prox))} 千米外!`
+    : `Neptune would be about ${num(Math.round(nep))} m away (about ${(nep / 100).toFixed(1)} football fields). The nearest other star, Proxima Centauri, would be about ${num(Math.round(prox))} km away!`;
+  Lab.$('#scaleMsg').className = 'result good';
+  const tr = Lab.$('#track');
+  tr.innerHTML = `<span style="left:1.2%;width:22px;height:22px;background:#ffb43a;box-shadow:0 0 14px #ffb43a"></span>` +
+    PLANETS.map(k => { const b = BODIES[k], x = 2 + b.au / 30.1 * 95, sz = Math.max(5, Math.min(16, Math.sqrt(b.d / 12756) * 6));
+      return `<span title="${Lab.L(b.name)}" style="left:${x}%;width:${sz}px;height:${sz}px;background:${b.color}"></span>${b.au > 4 ? `<em style="left:${x}%">${Lab.L(b.name)}</em>` : ''}`; }).join('') +
+    `<em style="left:6%;bottom:auto;top:4px">${Lab.L(o('← all 4 inner planets!','← 四颗内行星都挤在这里！'))}</em>`;
+}
+Lab.$('#sunCm').oninput = renderScale;
+Lab.onLang(() => { renderCompare(); renderWeights(); renderScale(); });
+addEventListener('labtheme', renderCompare);
+
+/* ===== Quiz ===== */
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('Which planet is closest to the Sun?','哪颗行星离太阳最近？'), options:[o('Mercury','水星'),o('Venus','金星'),o('Earth','地球'),o('Mars','火星')], answer:0, explain:o('Order from the Sun: Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune.','离太阳由近到远：水星、金星、地球、火星、木星、土星、天王星、海王星。')},
+  {q:o('Which planet is the hottest?','哪颗行星最热？'), options:[o('Venus','金星'),o('Mercury','水星'),o('Mars','火星'),o('Jupiter','木星')], answer:0, explain:o('Venus’s thick carbon dioxide atmosphere traps heat (greenhouse effect), so it is hotter than Mercury.','金星浓厚的二氧化碳大气留住热量（温室效应），所以它比水星还热。')},
+  {q:o('Which planet is the largest?','哪颗行星最大？'), options:[o('Jupiter','木星'),o('Saturn','土星'),o('Neptune','海王星'),o('Earth','地球')], answer:0, explain:o('Jupiter is about 11 times as wide as Earth.','木星的直径约是地球的 11 倍。')},
+  {q:o('Which group lists only the inner rocky planets?','哪一组全部是内侧的岩质行星？'), options:[o('Mercury, Venus, Earth, Mars','水星、金星、地球、火星'),o('Jupiter, Saturn, Uranus, Neptune','木星、土星、天王星、海王星'),o('Earth, Mars, Jupiter, Pluto','地球、火星、木星、冥王星'),o('Venus, Saturn, Mars, Uranus','金星、土星、火星、天王星')], answer:0},
+  {q:o('Where is the asteroid belt?','小行星带在哪里？'), options:[o('Between Mars and Jupiter','火星和木星之间'),o('Between Earth and Mars','地球和火星之间'),o('Beyond Neptune','海王星外面'),o('Around Saturn','土星周围')], answer:0, explain:o('The icy region beyond Neptune is a different belt: the Kuiper belt.','海王星外的冰质区域是另一条带：柯伊伯带。')},
+  {q:o('Why is Pluto called a dwarf planet?','为什么冥王星被称为矮行星？'), options:[o('It has not cleared its orbit of other objects','它没有清空轨道附近的其他天体'),o('It does not orbit the Sun','它不绕太阳运行'),o('It is not round','它不是球形的'),o('It is made of gas','它由气体组成')], answer:0, explain:o('Pluto orbits the Sun and is round, but it shares its region with many Kuiper belt objects.','冥王星绕太阳运行、也近似球形，但它的轨道附近还有许多柯伊伯带天体。')},
+  {q:o('Which way does a comet’s tail point?','彗星的尾巴指向哪个方向？'), options:[o('Away from the Sun','背向太阳'),o('Always behind the comet','总是在彗星后面'),o('Toward the Sun','朝向太阳'),o('Toward Earth','朝向地球')], answer:0, explain:o('Sunlight and the solar wind push the gas and dust away from the Sun.','阳光和太阳风把气体和尘埃推离太阳。')},
+  {q:o('As planets get farther from the Sun, their year…','行星离太阳越远，它的“一年”就……'), options:[o('gets longer','越长'),o('gets shorter','越短'),o('stays the same','不变'),o('disappears','消失')], answer:0, explain:o('Farther planets travel a longer path and move more slowly: Mercury 88 days, Neptune about 165 years.','越远的行星路程越长、速度越慢：水星 88 天，海王星约 165 年。')},
+  {q:o('What is 1 astronomical unit (AU)?','1 个天文单位（AU）是什么？'), options:[o('The average Earth–Sun distance','地球到太阳的平均距离'),o('The distance light travels in a year','光一年走过的距离'),o('The width of the Sun','太阳的直径'),o('The Earth–Moon distance','地球到月球的距离')], answer:0, explain:o('1 AU ≈ 150 million km. The distance light travels in a year is a light-year.','1 AU ≈ 1.5 亿千米。光一年走过的距离叫光年。')},
+  {q:o('Which planet spins tipped over on its side?','哪颗行星是“躺着”自转的？'), options:[o('Uranus','天王星'),o('Neptune','海王星'),o('Venus','金星'),o('Mars','火星')], answer:0, explain:o('Uranus’s axis is tilted about 98°.','天王星的自转轴倾斜约 98°。')},
+  {q:o('What keeps the planets orbiting the Sun?','是什么让行星一直绕太阳运行？'), options:[o('The Sun’s gravity plus the planets’ forward motion (inertia)','太阳的引力加上行星向前运动的惯性'),o('Magnetism from the Sun','太阳的磁力'),o('Wind in space','太空中的风'),o('Nothing; they float freely','什么都没有，它们自由漂浮')], answer:0, explain:o('Gravity pulls planets toward the Sun while inertia carries them forward, so they curve around it.','引力把行星拉向太阳，惯性让它们继续向前，于是它们沿弯曲的轨道绕太阳运行。')},
+  {q:o('A 40 kg student goes to Mars (gravity 0.38 × Earth). What happens?','一个 40 千克的学生去了火星（引力是地球的 0.38 倍），会怎样？'), options:[o('Mass stays 40 kg; weight drops to about 38% of Earth weight','质量仍是 40 千克，重量变为地球上的约 38%'),o('Mass drops to 15 kg','质量变成 15 千克'),o('Mass and weight stay the same','质量和重量都不变'),o('Weight increases','重量变大')], answer:0, explain:o('Mass is the amount of matter and never changes. Weight is the pull of gravity, which is weaker on Mars.','质量是物质的多少，不会改变；重量是引力的拉力，火星上的引力更弱。')}
+], { count:10 });
+
+/* ===== Sort game ===== */
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'in',en:'Inner planets',zh:'内行星'},{id:'out',en:'Outer planets',zh:'外行星'}],
+  items:[
+    {en:'Mercury',zh:'水星',bin:'in',color:BODIES.mercury.color},{en:'Venus',zh:'金星',bin:'in',color:BODIES.venus.color},{en:'Earth',zh:'地球',bin:'in',color:BODIES.earth.color},{en:'Mars',zh:'火星',bin:'in',color:BODIES.mars.color},
+    {en:'Jupiter',zh:'木星',bin:'out',color:BODIES.jupiter.color},{en:'Saturn',zh:'土星',bin:'out',color:BODIES.saturn.color},{en:'Uranus',zh:'天王星',bin:'out',color:BODIES.uranus.color},{en:'Neptune',zh:'海王星',bin:'out',color:BODIES.neptune.color},
+    {en:'Rocky with a solid surface',zh:'由岩石构成，有固体表面',bin:'in'},{en:'Mostly gas and ice',zh:'主要由气体和冰组成',bin:'out'},{en:'All have rings',zh:'都有光环',bin:'out'},{en:'Few or no moons',zh:'卫星很少或没有',bin:'in'}
+  ]
+});
+</script>
+<script>/*deep*/
+(function(){
+  const o = (en, zh) => ({en, zh}), $ = Lab.$, isZh = () => Lab.lang === 'zh';
+  const cssv = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  /* ---- Go deeper cards from the catalog ---- */
+  const dp = document.getElementById('deeper'), AST = (window.LAB_CATALOG || []).find(s => s.id === 'astronomy');
+  if (dp && AST) dp.innerHTML = dp.dataset.deeper.split(',').map(id => { const t = AST.topics.find(x => x.id === id); return t ? `<a class="linkcard" href="${id}.html" data-lab-link><b data-zh="${t.zh}">${t.en}</b><span data-zh="${t.d.zh}">${t.d.en}</span><small data-zh="深入专题 →">Deep dive →</small></a>` : ''; }).join('');
+
+  /* ---- Planet race at true periods (NASA fact sheet: sidereal period in days, mean orbital speed km/s, mean distance AU) ---- */
+  const PL = [
+    {k:'mercury', T:88.0,   v:47.4, au:.387}, {k:'venus', T:224.7, v:35.0, au:.723}, {k:'earth', T:365.2, v:29.8, au:1},
+    {k:'mars', T:687.0, v:24.1, au:1.524}, {k:'jupiter', T:4331, v:13.1, au:5.20}, {k:'saturn', T:10747, v:9.7, au:9.58},
+    {k:'uranus', T:30589, v:6.8, au:19.2}, {k:'neptune', T:59800, v:5.4, au:30.1}
+  ];
+  const nm = k => Lab.L(BODIES[k].name), col = k => BODIES[k].color;
+  const st = { t:0, warp:30, run:false, target:null, last:0 };
+  const cv = $('#raceCv'), box = $('#raceBox'), tIn = $('#raceT'), out = $('#raceOut');
+  const fmtT = d => d < 730 ? (isZh() ? `${Math.round(d)} 天` : `${Math.round(d)} d`) : (isZh() ? `${(d / 365.25).toFixed(1)} 年` : `${(d / 365.25).toFixed(1)} yr`);
+  const fmtYr = d => d < 1000 ? (isZh() ? `${d} 天` : `${d} days`) : (isZh() ? `${(d / 365.25).toFixed(1)} 年` : `${(d / 365.25).toFixed(1)} yrs`);
+  function draw(){
+    const dpr = Math.min(devicePixelRatio || 1, 2), W = box.clientWidth, H = box.clientHeight;
+    if (!W || !H) return;
+    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)){ cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+    const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.fillStyle = '#070b18'; g.fillRect(0, 0, W, H);
+    for (let i = 0; i < 80; i++){ g.fillStyle = `rgba(255,255,255,${.15 + (i * 37 % 10) / 16})`; g.fillRect((i * 97.3) % W, (i * 53.7) % H, 1.1, 1.1); }
+    const cx = W / 2, cy = H / 2 + 8, Rmax = Math.min(W, H) / 2 - 22, R0 = 26, tru = $('#raceTrue').checked;
+    const rad = p => tru ? Math.max(4, Rmax * p.au / 30.1) : R0 + (Rmax - R0) * Math.sqrt(p.au) / Math.sqrt(30.1);
+    // start line
+    g.strokeStyle = 'rgba(255,255,255,.35)'; g.setLineDash([4, 4]); g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Rmax + 12, cy); g.stroke(); g.setLineDash([]);
+    g.fillStyle = '#a6b3cf'; g.font = '700 11px Nunito'; g.textAlign = 'right'; g.fillText(Lab.L(o('start / finish','起点 / 终点')), W - 8, cy - 6);
+    g.fillStyle = '#ffb43a'; g.shadowColor = '#ff9a2a'; g.shadowBlur = 16; g.beginPath(); g.arc(cx, cy, tru ? 5 : 9, 0, 7); g.fill(); g.shadowBlur = 0;
+    PL.forEach(p => {
+      const r = rad(p), a = -2 * Math.PI * (st.t / p.T);      // counter-clockwise seen from above the north pole
+      g.strokeStyle = 'rgba(160,180,220,.28)'; g.lineWidth = 1; g.beginPath(); g.arc(cx, cy, r, 0, 7); g.stroke();
+      // trail = how far through the current lap
+      const frac = (st.t / p.T) % 1;
+      g.strokeStyle = col(p.k); g.globalAlpha = .55; g.lineWidth = 3; g.beginPath(); g.arc(cx, cy, r, 0, -2 * Math.PI * frac, true); g.stroke(); g.globalAlpha = 1;
+      const x = cx + r * Math.cos(a), y = cy + r * Math.sin(a), s = p.k === 'jupiter' || p.k === 'saturn' ? 6 : p.k === 'uranus' || p.k === 'neptune' ? 5 : 4;
+      g.fillStyle = col(p.k); g.beginPath(); g.arc(x, y, s, 0, 7); g.fill();
+      if (!tru || p.au > 4){ g.fillStyle = '#dfe7f7'; g.font = '700 11px Nunito'; const tw = g.measureText(nm(p.k)).width, left = x + s + 3 + tw > W - 4;
+        g.textAlign = left ? "right" : "left"; const up = PL.indexOf(p) % 2 === 0; g.fillText(nm(p.k), left ? x - s - 3 : x + s + 3, up ? y - s : y + s + 10); }
+    });
+    g.fillStyle = '#a6b3cf'; g.font = '700 12px Nunito'; g.textAlign = 'left';
+    g.fillText(Lab.L(tru ? o('Orbits at true relative distances','轨道按真实的相对距离画') : o('Orbit sizes squeezed to fit · speeds are real','轨道大小经过压缩 · 速度是真实的')), 10, 18);
+  }
+  function table(){
+    $('#raceTbl').innerHTML = `<tr><th>${Lab.L(o('Planet','行星'))}</th><th>${Lab.L(o('One year','一年'))}</th><th>${Lab.L(o('Speed','速度'))}</th><th>${Lab.L(o('Laps','圈数'))}</th></tr>` +
+      PL.map(p => `<tr><td><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${col(p.k)};margin-right:6px"></i>${nm(p.k)}</td><td>${fmtYr(p.T)}</td><td>${p.v} ${isZh() ? '千米/秒' : 'km/s'}</td><td><b>${Math.floor(st.t / p.T + 1e-9)}</b></td></tr>`).join('');
+    const me = Math.floor(st.t / 88.0), ne = st.t / 59800;
+    $('#raceMsg').textContent = st.t < 1 ? Lab.L(o('Press ▶ or drag the time slider.','按 ▶ 或拖动时间滑块。')) :
+      (isZh() ? `已经过了 ${fmtT(st.t)}：水星跑了 ${me} 圈，海王星才跑完 ${(ne * 100).toFixed(ne < .1 ? 1 : 0)}% 圈。` : `${fmtT(st.t)} have passed: Mercury has done ${me} laps, Neptune only ${(ne * 100).toFixed(ne < .1 ? 1 : 0)}% of one lap.`);
+    $('#raceMsg').className = 'result good';
+  }
+  function setT(t){ st.t = Math.max(0, Math.min(59800, t)); tIn.value = Math.round(st.t); out.textContent = fmtT(st.t); table(); draw(); }
+  function setRun(r){ st.run = r; $('#raceRun').textContent = r ? '⏸' : '▶'; if (r && st.t >= 59800) setT(0); st.last = performance.now(); if (r) requestAnimationFrame(loop); }
+  function loop(now){
+    if (!st.run) return;
+    const dt = Math.min(.1, (now - st.last) / 1000); st.last = now;
+    if (st.target != null){ const step = Math.max(st.target / 2.5 * dt, 1); if (st.t + step >= st.target){ setT(st.target); st.target = null; setRun(false); predReveal(); return; } setT(st.t + step); }
+    else { setT(st.t + st.warp * dt); if (st.t >= 59800) return setRun(false); }
+    requestAnimationFrame(loop);
+  }
+  $('#raceRun').onclick = () => { st.target = null; setRun(!st.run); };
+  tIn.oninput = () => { st.target = null; setRun(false); setT(+tIn.value); };
+  Lab.$$('#warpSeg button').forEach(b => b.onclick = () => { st.warp = +b.dataset.w; Lab.$$('#warpSeg button').forEach(x => x.classList.toggle('on', x === b)); });
+  $('#raceTrue').onchange = draw;
+
+  /* ---- Prediction challenge: ratio of periods ---- */
+  const T = k => PL.find(p => p.k === k).T;
+  const PQ = [
+    {a:'jupiter', b:'earth', opts:['2','6','12','30'], ans:2},
+    {a:'mars', b:'earth', opts:['½','2','4','10'], ans:1},
+    {a:'earth', b:'mercury', opts:['1','2','4','12'], ans:2},
+    {a:'saturn', b:'jupiter', opts:['1','2½','5','12'], ans:1},
+    {a:'neptune', b:'saturn', opts:['2','5½','12','30'], ans:1},
+    {a:'uranus', b:'earth', opts:['12','30','84','165'], ans:2}
+  ];
+  const ps = { order:Lab.shuffle(PQ.map((_, i) => i)), i:0, right:0, done:0, picked:null };
+  function predRender(){
+    const q = PQ[ps.order[ps.i]];
+    $('#predQ').textContent = isZh() ? `${nm(q.a)}跑完 1 圈时，${nm(q.b)}大约跑了几圈？` : `When ${nm(q.a)} finishes 1 lap, about how many laps has ${nm(q.b)} done?`;
+    $('#predOpts').innerHTML = q.opts.map((t, i) => `<button class="btn ghost" data-i="${i}" ${ps.picked != null ? 'disabled' : ''} style="${ps.picked != null && i === q.ans ? 'outline:2px solid var(--good)' : ''}">${t}</button>`).join('');
+    Lab.$$('#predOpts button').forEach(b => b.onclick = () => predPick(+b.dataset.i));
+    $('#predScore').textContent = `${ps.right} / ${ps.done}`; $('#predLeft').textContent = PQ.length - ps.done;
+    if (ps.picked == null){ $('#predMsg').textContent = Lab.L(o('Pick an answer, then watch the race check it.','先选一个答案，再看赛跑来验证。')); $('#predMsg').className = 'result'; }
+  }
+  function predPick(i){
+    if (ps.picked != null) return; const q = PQ[ps.order[ps.i]]; ps.picked = i; ps.done++; if (i === q.ans) ps.right++;
+    predRender(); $('#predMsg').textContent = Lab.L(o('⏩ Running the race…','⏩ 比赛进行中……')); $('#predMsg').className = 'result';
+    setRun(false); setT(0); st.target = T(q.a); setRun(true);
+  }
+  function predReveal(){
+    if (ps.picked == null) return; const q = PQ[ps.order[ps.i]], ratio = T(q.a) / T(q.b), ok = ps.picked === q.ans;
+    $('#predMsg').textContent = (ok ? Lab.L(o('✅ Right! ','✅ 答对了！')) : Lab.L(o('❌ Not quite. ','❌ 不太对。'))) +
+      (isZh() ? `${nm(q.a)}的一年是 ${fmtYr(T(q.a))}，${nm(q.b)}的一年是 ${fmtYr(T(q.b))}，比值约 ${ratio.toFixed(1)}。` : `${nm(q.a)}’s year is ${fmtYr(T(q.a))} and ${nm(q.b)}’s is ${fmtYr(T(q.b))}: a ratio of about ${ratio.toFixed(1)}.`);
+    $('#predMsg').className = 'result ' + (ok ? 'good' : 'bad');
+  }
+  $('#predNext').onclick = () => { if (ps.done >= PQ.length){ ps.order = Lab.shuffle(PQ.map((_, i) => i)); ps.right = ps.done = 0; ps.i = 0; } else ps.i = (ps.i + 1) % PQ.length; ps.picked = null; st.target = null; setRun(false); predRender(); };
+
+  /* ---- Data figure: sunlight travel time and strength ---- */
+  function light(){
+    const maxMin = 30.1 * 8.317;
+    $('#lightTbl').innerHTML = `<tr><th>${Lab.L(o('Planet','行星'))}</th><th>${Lab.L(o('Sunlight arrives after','阳光到达需要'))}</th><th>${Lab.L(o('Sunlight strength','阳光强度'))}</th></tr>` +
+      PL.map(p => { const m = p.au * 8.317, pct = 100 / (p.au * p.au);
+        const tt = m < 60 ? (isZh() ? `${m.toFixed(1)} 分钟` : `${m.toFixed(1)} min`) : (isZh() ? `${(m / 60).toFixed(1)} 小时` : `${(m / 60).toFixed(1)} h`);
+        const bw = Math.max(2, (Math.log10(pct) + 1) / (Math.log10(700) + 1) * 100);   // log bar: 0.1% … 700%
+        return `<tr><td><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${col(p.k)};margin-right:6px"></i>${nm(p.k)}</td>
+          <td><div style="height:8px;border-radius:9px;background:var(--brand);width:${Math.max(2, m / maxMin * 100)}%;margin-bottom:3px"></div>${tt}</td>
+          <td><div style="height:8px;border-radius:9px;background:#f4b400;width:${bw}%;margin-bottom:3px"></div>${pct >= 10 ? Math.round(pct) : pct >= 1 ? pct.toFixed(1) : pct.toFixed(2)}%</td></tr>`; }).join('') +
+      `<tr><td colspan="3" class="muted" style="font-size:13px">${Lab.L(o('Yellow bars use a log scale: each step is 10× weaker.','黄色条使用对数刻度：每退一格就弱 10 倍。'))}</td></tr>`;
+  }
+  window.SSRace = { setT, run:() => setRun(true), pick:predPick, state:st };
+  new ResizeObserver(draw).observe(box);
+  Lab.onLang(() => { setT(st.t); predRender(); light(); });
+  addEventListener('labtheme', draw);
+})();
+/*/deep*/</script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const App = window.SS, B = App.BODIES, V = THREE.Vector3, TAU = Math.PI * 2, D2R = THREE.MathUtils.degToRad;
+const ctx = Lab3D.stage('#stage', { THREE, OrbitControls, camera:[0, 24, 44], minDistance:1, maxDistance:480, lights:false, fov:42, far:4000 });
+const { scene, camera, controls } = ctx;
+scene.add(new THREE.AmbientLight(0xffffff, .22));
+scene.add(new THREE.PointLight(0xfff4e0, 2.8, 0, 0));
+
+/* ---------- helpers: seeded random, canvas textures, starfield ---------- */
+let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+function tex(draw, w = 512, h = 256){ const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'); draw(g, w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; }
+const bands = (cols, turb = .1, extra) => (g, w, h) => {
+  const gr = g.createLinearGradient(0, 0, 0, h); cols.forEach((c, i) => gr.addColorStop(i / (cols.length - 1), c)); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 900; i++){ g.fillStyle = `rgba(${rnd() < .5 ? '70,40,20' : '255,250,235'},${rnd() * turb})`; g.beginPath(); g.ellipse(rnd() * w, rnd() * h, 10 + rnd() * 40, 1 + rnd() * 3, 0, 0, TAU); g.fill(); }
+  extra && extra(g, w, h); };
+const rocky = (base, dark, light, craters = 0, extra) => (g, w, h) => {
+  g.fillStyle = base; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 1600; i++){ g.fillStyle = rnd() < .5 ? dark : light; g.globalAlpha = rnd() * .25; g.beginPath(); g.arc(rnd() * w, rnd() * h, 1 + rnd() * 10, 0, TAU); g.fill(); }
+  g.globalAlpha = 1;
+  for (let i = 0; i < craters; i++){ const x = rnd() * w, y = h * .1 + rnd() * h * .8, r = 2 + rnd() * 9; g.strokeStyle = 'rgba(0,0,0,.28)'; g.lineWidth = 1.5; g.beginPath(); g.arc(x, y, r, 0, TAU); g.stroke(); g.fillStyle = 'rgba(255,255,255,.08)'; g.beginPath(); g.arc(x - r * .2, y - r * .2, r * .7, 0, TAU); g.fill(); }
+  extra && extra(g, w, h); };
+const caps = (g, w, h) => { g.fillStyle = 'rgba(255,255,255,.85)'; g.fillRect(0, 0, w, h * .06); g.fillRect(0, h * .95, w, h * .05); };
+function glowTex(c0 = 'rgba(255,245,210,1)', c1 = 'rgba(255,170,60,.35)', c2 = 'rgba(255,110,0,0)'){
+  return tex((g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, c0); gr.addColorStop(.22, c1); gr.addColorStop(1, c2); g.fillStyle = gr; g.fillRect(0, 0, w, w); }, 256, 256); }
+function starfield(n = 2600, R = 1500){
+  const p = new Float32Array(n * 3), c = new Float32Array(n * 3), col = new THREE.Color();
+  for (let i = 0; i < n; i++){ const u = rnd() * 2 - 1, a = rnd() * TAU, s = Math.sqrt(1 - u * u), r = R * (.85 + rnd() * .15);
+    p.set([r * s * Math.cos(a), r * u, r * s * Math.sin(a)], i * 3); const k = rnd(); col.setHSL(k < .2 ? .6 : k < .32 ? .08 : .13, k < .32 ? .7 : .15, .7 + rnd() * .3); c.set([col.r, col.g, col.b], i * 3); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(p, 3)); g.setAttribute('color', new THREE.BufferAttribute(c, 3));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ size:1.7, sizeAttenuation:false, vertexColors:true, transparent:true, opacity:.9, depthWrite:false })));
+}
+starfield();
+const addB = m => Object.assign(m, { blending:THREE.CustomBlending, blendEquation:THREE.AddEquation, blendSrc:THREE.SrcAlphaFactor, blendDst:THREE.OneFactor, blendSrcAlpha:THREE.ZeroFactor, blendDstAlpha:THREE.OneFactor });   // additive glow that keeps the canvas alpha
+
+/* ---------- distance mapping: easy (compressed) ↔ true (proportional to AU) ---------- */
+const ANCH = [[0,0],[.39,4.3],[.72,5.8],[1,7.3],[1.52,8.9],[2.1,10.1],[3.3,11.9],[5.2,14.6],[9.54,19.2],[19.2,23.8],[30.1,27.8],[50,35],[100,40],[400,46]];
+function easyR(au){ for (let i = 1; i < ANCH.length; i++) if (au <= ANCH[i][0]){ const [a0, r0] = ANCH[i - 1], [a1, r1] = ANCH[i]; return r0 + (r1 - r0) * (au - a0) / (a1 - a0); } return 46; }
+const KAU = 3.2;                 // true mode: 1 AU = 3.2 scene units
+let sMode = 0, sTarget = 0;      // 0 = easy view, 1 = true distances
+const mapR = au => easyR(au) * (1 - sMode) + au * KAU * sMode;
+
+/* ---------- the Sun (animated shader + glow) ---------- */
+const sunMat = new THREE.ShaderMaterial({
+  uniforms:{ uT:{ value:0 } },
+  vertexShader:`varying vec3 vP; varying vec3 vN; varying vec3 vV;
+    void main(){ vP = position; vN = normalize(normalMatrix * normal); vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`,
+  fragmentShader:`uniform float uT; varying vec3 vP; varying vec3 vN; varying vec3 vV;
+    float h(vec3 p){ return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+    float n3(vec3 p){ vec3 i = floor(p); vec3 f = fract(p); f = f * f * (3.0 - 2.0 * f);
+      return mix(mix(mix(h(i), h(i + vec3(1.0,0.0,0.0)), f.x), mix(h(i + vec3(0.0,1.0,0.0)), h(i + vec3(1.0,1.0,0.0)), f.x), f.y),
+                 mix(mix(h(i + vec3(0.0,0.0,1.0)), h(i + vec3(1.0,0.0,1.0)), f.x), mix(h(i + vec3(0.0,1.0,1.0)), h(i + vec3(1.0,1.0,1.0)), f.x), f.y), f.z); }
+    float fbm(vec3 p){ float s = 0.0; float a = 0.5; for (int i = 0; i < 5; i++){ s += a * n3(p); p *= 2.03; a *= 0.5; } return s; }
+    void main(){ vec3 p = normalize(vP) * 3.2;
+      float v = fbm(p + vec3(0.0, uT * 0.12, uT * 0.08)) * 0.7 + fbm(p * 2.6 - uT * 0.18) * 0.3;
+      vec3 col = mix(vec3(0.85, 0.28, 0.03), vec3(1.0, 0.72, 0.2), smoothstep(0.3, 0.62, v));
+      col = mix(col, vec3(1.0, 0.96, 0.78), smoothstep(0.6, 0.82, v));
+      float limb = pow(max(dot(vN, vV), 0.0), 0.45);
+      gl_FragColor = vec4(col * (0.6 + 0.55 * limb), 1.0); }`
+});
+const sun = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 48), sunMat); scene.add(sun); ctx.pickable(sun, 'sun');
+const glow = new THREE.Sprite(addB(new THREE.SpriteMaterial({ map:glowTex(), depthWrite:false, transparent:true }))); scene.add(glow);
+const sunAnchor = new THREE.Object3D(); scene.add(sunAnchor);
+const labels = [ctx.label(B.sun.name, sunAnchor)];
+
+/* ---------- planets ---------- */
+const SIZE = { mercury:.28, venus:.5, earth:.52, mars:.36, jupiter:1.35, saturn:1.12, uranus:.78, neptune:.75 };
+const TILT = { mercury:.03, venus:177.4, earth:23.4, mars:25.2, jupiter:3.1, saturn:26.7, uranus:97.8, neptune:28.3 };
+const START = { mercury:1.2, venus:3.9, earth:.5, mars:5.1, jupiter:2.3, saturn:4.4, uranus:.9, neptune:3.3 };
+const TEX = {
+  mercury: tex(rocky('#9c9893', '#55524f', '#d8d4cf', 90)),
+  venus:   tex(bands(['#f1dcae', '#e2bd7a', '#f3e2bc', '#d9ae68', '#efd7a2'], .14)),
+  earth:   tex((g, w, h) => { g.fillStyle = '#2a64c4'; g.fillRect(0, 0, w, h);
+             for (let i = 0; i < 26; i++){ g.fillStyle = rnd() < .7 ? '#3c9a4a' : '#b89a5b'; g.beginPath(); g.ellipse(rnd() * w, h * .2 + rnd() * h * .6, 12 + rnd() * 45, 8 + rnd() * 28, rnd() * 3, 0, TAU); g.fill(); }
+             caps(g, w, h); for (let i = 0; i < 60; i++){ g.fillStyle = 'rgba(255,255,255,.35)'; g.beginPath(); g.ellipse(rnd() * w, rnd() * h, 20 + rnd() * 30, 3 + rnd() * 5, 0, 0, TAU); g.fill(); } }),
+  mars:    tex(rocky('#c1502e', '#7a2e18', '#e48c5a', 20, caps)),
+  jupiter: tex(bands(['#e9dcc6', '#c99a6a', '#efe4d0', '#a86b43', '#f0e6d4', '#c49a6c', '#e8d8bc', '#9c6a45', '#e2d1b4', '#c9a27a'], .12,
+             (g, w, h) => { g.fillStyle = '#c0533a'; g.beginPath(); g.ellipse(w * .62, h * .64, 26, 13, 0, 0, TAU); g.fill(); g.fillStyle = 'rgba(255,220,200,.35)'; g.beginPath(); g.ellipse(w * .62, h * .64, 14, 6, 0, 0, TAU); g.fill(); })),
+  saturn:  tex(bands(['#f1e3b6', '#dcc387', '#efe0b0', '#cdb178', '#ead8a4', '#d6bd83'], .08)),
+  uranus:  tex(bands(['#c3f0f0', '#a3e1e6', '#93d7df', '#a3e1e6', '#bdeeee'], .03)),
+  neptune: tex(bands(['#5b84e8', '#3f66d6', '#4a74e0', '#2f55c4', '#557ee6'], .06, (g, w, h) => { g.fillStyle = '#1d327f'; g.beginPath(); g.ellipse(w * .3, h * .62, 18, 9, 0, 0, TAU); g.fill(); }))
+};
+const sphereG = new THREE.SphereGeometry(1, 48, 32);
+const circleG = new THREE.BufferGeometry().setFromPoints(Array.from({ length:256 }, (_, i) => new V(Math.cos(i / 256 * TAU), 0, Math.sin(i / 256 * TAU))));
+const hitMat = new THREE.MeshBasicMaterial({ transparent:true, opacity:0, depthWrite:false });
+const orbitLines = [];
+const P = {};
+for (const k of App.PLANETS){
+  const grp = new THREE.Group(); scene.add(grp);
+  const tilt = new THREE.Group(); tilt.rotation.z = D2R(TILT[k]); grp.add(tilt);
+  const mat = new THREE.MeshStandardMaterial({ map:TEX[k], roughness:.9, metalness:0 });
+  const mesh = new THREE.Mesh(sphereG, mat); tilt.add(mesh);
+  const hit = new THREE.Mesh(sphereG, hitMat); hit.scale.setScalar(1.9); grp.add(hit);
+  const orbit = new THREE.LineLoop(circleG, new THREE.LineBasicMaterial({ color:0x8090c0, transparent:true, opacity:.28 })); scene.add(orbit); orbitLines.push(orbit);
+  const anchor = new THREE.Object3D(); anchor.position.y = 1.7; grp.add(anchor);
+  labels.push(ctx.label(B[k].name, anchor));
+  P[k] = { grp, tilt, mesh, mat, orbit, theta:START[k] };
+  ctx.pickable(grp, k);
+}
+Lab3D.texture(THREE, Lab3D.TEX + 'planets/earth_atmos_2048.jpg', t => { if (t){ P.earth.mat.map = t; P.earth.mat.needsUpdate = true; } });
+
+/* Saturn's rings (planar UVs → concentric stripes) and Uranus's faint sideways ring */
+const RIN = 1.25, ROUT = 2.3;
+const ringTex = tex((g, w) => { const c = w / 2;
+  for (let r = 0; r <= c; r++){ const f = r / c; if (f < RIN / ROUT) continue; const t = (f - RIN / ROUT) / (1 - RIN / ROUT);
+    let a = .5 + .3 * Math.sin(t * 46) * .5 + rnd() * .15; if (t > .6 && t < .67) a = .04; if (t < .1) a *= t / .1; if (t > .93) a *= (1 - t) / .07;
+    g.strokeStyle = `rgba(${(225 - 50 * t) | 0},${(205 - 55 * t) | 0},${(160 - 50 * t) | 0},${a})`; g.lineWidth = 1.6; g.beginPath(); g.arc(c, c, r, 0, TAU); g.stroke(); } }, 512, 512);
+const ring = new THREE.Mesh(new THREE.RingGeometry(RIN, ROUT, 128, 1), new THREE.MeshStandardMaterial({ map:ringTex, transparent:true, side:THREE.DoubleSide, depthWrite:false, roughness:1 }));
+ring.rotation.x = -Math.PI / 2; P.saturn.tilt.add(ring);
+const uRing = new THREE.Mesh(new THREE.RingGeometry(1.7, 1.78, 96, 1), new THREE.MeshBasicMaterial({ color:0xbfe8ee, transparent:true, opacity:.35, side:THREE.DoubleSide, depthWrite:false }));
+uRing.rotation.x = -Math.PI / 2; P.uranus.tilt.add(uRing);
+ctx.pickable(ring, 'saturn');
+
+/* ---------- the Moon ---------- */
+const moonMat = new THREE.MeshStandardMaterial({ map:tex(rocky('#a9a7a2', '#6b6965', '#dedbd5', 70)), roughness:1 });
+const moonGrp = new THREE.Group(); scene.add(moonGrp);
+moonGrp.add(new THREE.Mesh(sphereG, moonMat)); const mHit = new THREE.Mesh(sphereG, hitMat); mHit.scale.setScalar(2.2); moonGrp.add(mHit);
+ctx.pickable(moonGrp, 'moon'); let moonTheta = 1;
+const moonAnchor = new THREE.Object3D(); moonAnchor.position.y = 2.2; moonGrp.add(moonAnchor);
+const moonLabel = ctx.label(B.moon.name, moonAnchor);
+Lab3D.texture(THREE, Lab3D.TEX + 'planets/moon_1024.jpg', t => { if (t){ moonMat.map = t; moonMat.needsUpdate = true; } });
+
+/* ---------- asteroid belt & Kuiper belt (Kepler speeds: ω ∝ a^-1.5) ---------- */
+function belt(n, a0, a1, thick, color, size, key){
+  const au = new Float32Array(n), th = new Float32Array(n), yy = new Float32Array(n), w = new Float32Array(n), pos = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++){ au[i] = a0 + (a1 - a0) * rnd(); th[i] = rnd() * TAU; yy[i] = (rnd() - .5) * thick * (rnd() + .3); w[i] = TAU / (365.25 * Math.pow(au[i], 1.5)); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const pts = new THREE.Points(g, new THREE.PointsMaterial({ color, size, sizeAttenuation:false, transparent:true, opacity:.85, depthWrite:false }));
+  scene.add(pts); ctx.pickable(pts, key);
+  const bt = { n, au, th, yy, w, pos, g };
+  bt.update = dd => { for (let i = 0; i < n; i++){ th[i] += w[i] * dd; const r = mapR(au[i]); pos[i * 3] = r * Math.cos(th[i]); pos[i * 3 + 1] = yy[i] * r; pos[i * 3 + 2] = -r * Math.sin(th[i]); }
+    g.attributes.position.needsUpdate = true; g.computeBoundingSphere(); };
+  return bt;
+}
+const asteroids = belt(1800, 2.15, 3.3, .05, 0xb8a993, 1.8, 'belt');
+const kuiper = belt(2600, 33, 50, .16, 0x9fb2ea, 1.6, 'kuiper');
+const beltAnchor = new THREE.Object3D(), kuiperAnchor = new THREE.Object3D(); scene.add(beltAnchor, kuiperAnchor);
+labels.push(ctx.label(B.belt.name, beltAnchor), ctx.label({ en:'Kuiper belt', zh:'柯伊伯带' }, kuiperAnchor));
+
+/* Pluto on its tilted orbit (17°) */
+const plutoPlane = new THREE.Group(); plutoPlane.rotation.x = D2R(17); scene.add(plutoPlane);
+const pluto = new THREE.Group(); plutoPlane.add(pluto);
+pluto.add(new THREE.Mesh(sphereG, new THREE.MeshStandardMaterial({ map:tex(rocky('#c9b08e', '#7d6450', '#f3e6d2', 10, (g, w, h) => { g.fillStyle = 'rgba(250,240,225,.9)'; g.beginPath(); g.ellipse(w * .55, h * .55, 40, 30, 0, 0, TAU); g.fill(); })), roughness:1 })));
+const pHit = new THREE.Mesh(sphereG, hitMat); pHit.scale.setScalar(3); pluto.add(pHit); ctx.pickable(pluto, 'kuiper');
+const plutoOrbit = new THREE.LineLoop(circleG, new THREE.LineBasicMaterial({ color:0xb9a7d8, transparent:true, opacity:.25 })); plutoPlane.add(plutoOrbit); orbitLines.push(plutoOrbit);
+const plutoAnchor = new THREE.Object3D(); plutoAnchor.position.y = 2.5; pluto.add(plutoAnchor);
+labels.push(ctx.label({ en:'Pluto', zh:'冥王星' }, plutoAnchor)); let plutoTheta = 2.2;
+
+/* ---------- comet on a Halley-like ellipse (solve Kepler's equation) ---------- */
+const CA = 17.8, CE = .967, CPER = 27500, CROT = 2.3, CINC = .22;
+let cM = TAU - .075;  // mean anomaly: starting about 330 days before perihelion
+function cometAU(M){
+  M = ((M % TAU) + TAU) % TAU; let E = Math.PI;
+  for (let i = 0; i < 18; i++) E -= (E - CE * Math.sin(E) - M) / (1 - CE * Math.cos(E));
+  const x = CA * (Math.cos(E) - CE), y = CA * Math.sqrt(1 - CE * CE) * Math.sin(E);
+  return new V(x * Math.cos(CROT) - y * Math.sin(CROT), 0, -(x * Math.sin(CROT) + y * Math.cos(CROT))).applyAxisAngle(new V(1, 0, 0), CINC);
+}
+const toScene = v => { const au = v.length(); return v.clone().normalize().multiplyScalar(mapR(au)); };
+const comet = new THREE.Group(); scene.add(comet);
+const cHead = new THREE.Mesh(new THREE.SphereGeometry(.16, 16, 12), new THREE.MeshBasicMaterial({ color:0xe8f6ff })); comet.add(cHead);
+const cGlow = new THREE.Sprite(addB(new THREE.SpriteMaterial({ map:glowTex('rgba(230,248,255,1)', 'rgba(140,210,255,.4)', 'rgba(80,160,255,0)'), depthWrite:false, transparent:true }))); cGlow.scale.setScalar(1.3); comet.add(cGlow);
+const cHit = new THREE.Mesh(sphereG, hitMat); cHit.scale.setScalar(.7); comet.add(cHit);
+const tailAlpha = tex((g, w, h) => { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#fff'); gr.addColorStop(1, '#000'); g.fillStyle = gr; g.fillRect(0, 0, w, h); }, 8, 128);
+tailAlpha.colorSpace = THREE.NoColorSpace;
+const coneG = new THREE.ConeGeometry(.35, 1, 24, 1, true); coneG.translate(0, -.5, 0); coneG.rotateX(-Math.PI / 2);   // tip at origin, opening along +z
+const tail = new THREE.Mesh(coneG, addB(new THREE.MeshBasicMaterial({ color:0x9fd8ff, alphaMap:tailAlpha, transparent:true, opacity:.75, depthWrite:false, side:THREE.DoubleSide })));
+const dust = new THREE.Mesh(coneG, addB(new THREE.MeshBasicMaterial({ color:0xffe2a8, alphaMap:tailAlpha, transparent:true, opacity:.4, depthWrite:false, side:THREE.DoubleSide })));
+comet.add(tail, dust); ctx.pickable(comet, 'comet');
+const cAnchor = new THREE.Object3D(); cAnchor.position.y = .7; comet.add(cAnchor);
+labels.push(ctx.label(B.comet.name, cAnchor));
+const CPATH = Array.from({ length:400 }, (_, i) => cometAU(i / 400 * TAU));
+const cPathG = new THREE.BufferGeometry().setFromPoints(CPATH.map(toScene));
+const cPath = new THREE.LineLoop(cPathG, new THREE.LineDashedMaterial({ color:0x9fd8ff, transparent:true, opacity:.3, dashSize:.5, gapSize:.35 }));
+cPath.computeLineDistances(); scene.add(cPath); orbitLines.push(cPath);
+function updCometPath(){ const a = cPathG.attributes.position; CPATH.forEach((v, i) => { const s = toScene(v); a.setXYZ(i, s.x, s.y, s.z); }); a.needsUpdate = true; cPath.computeLineDistances(); }
+
+/* ---------- time, scale, labels, orbits ---------- */
+let playing = true, days = 0, dps = 10, labelsOn = true, follow = null, lastUI = 0;
+const speedEl = Lab.$('#speed'); speedEl.value = 60;
+const readSpeed = () => { dps = Math.pow(10, (+speedEl.value - 40) / 20); };
+function uiText(){
+  const z = Lab.lang === 'zh', s = dps >= 365 ? (z ? `${(dps / 365.25).toFixed(1)} 年` : `${(dps / 365.25).toFixed(1)} yr`) : dps >= 1 ? (z ? `${dps.toFixed(dps < 10 ? 1 : 0)} 天` : `${dps.toFixed(dps < 10 ? 1 : 0)} days`) : (z ? `${(dps * 24).toFixed(1)} 小时` : `${(dps * 24).toFixed(1)} h`);
+  Lab.$('#speedOut').textContent = z ? `1 秒 = ${s}` : `1 s = ${s}`;
+  Lab.$('#datePill').textContent = z ? `📅 已过 ${Math.floor(days).toLocaleString()} 个地球日(约 ${(days / 365.25).toFixed(1)} 年)` : `📅 ${Math.floor(days).toLocaleString('en-US')} Earth days (≈ ${(days / 365.25).toFixed(1)} years)`;
+  const pb = Lab.$('#playBtn'); pb.dataset.en = playing ? '⏸ Pause' : '▶ Play'; pb.dataset.zh = playing ? '⏸ 暂停' : '▶ 播放'; pb.textContent = z ? pb.dataset.zh : pb.dataset.en; pb.classList.toggle('on', playing);
+}
+speedEl.oninput = () => { readSpeed(); uiText(); };
+readSpeed();
+Lab.$('#playBtn').onclick = () => { playing = !playing; uiText(); };
+Lab.$('#labelBtn').onclick = () => { labelsOn = !labelsOn; labels.forEach(L => L.visible = labelsOn); Lab.$('#labelBtn').classList.toggle('on', labelsOn); };
+Lab.$('#orbitBtn').onclick = e => { const on = !orbitLines[0].visible; orbitLines.forEach(l => l.visible = on); e.currentTarget.classList.toggle('on', on); };
+function setScale(on, moveCam = true){
+  sTarget = on ? 1 : 0; Lab.$('#scaleBtn').classList.toggle('on', on);
+  const cap = on ? { en:'True distances: 1 AU = 3.2 units. Planets are still drawn thousands of times too big!', zh:'真实距离：1 天文单位 = 3.2 个单位。即便如此，行星仍被画大了几千倍！' } : null;
+  ctx.caption(cap); if (cap) setTimeout(() => { if (ctx._cap === cap && !story.active) ctx.caption(null); }, 7000);
+  if (moveCam && !follow){ on ? ctx.flyToPose([0, 150, 250], [0, 0, 0], 1600) : ctx.home(); }
+}
+Lab.$('#scaleBtn').onclick = () => { if (story.active) story.stop(); setScale(sTarget < .5); };
+Lab.$('#resetBtn').onclick = () => { story.stop(); follow = null; App.select(null, true); setScale(false, false); ctx.home(); };
+Lab.onLang(uiText);
+
+/* ---------- picking, hover, camera follow ---------- */
+ctx.hoverText(k => Lab.L(B[k].name));
+ctx.onPick((k, h, e) => {
+  if (k === null) return;
+  const hits = ctx.raycast(e), best = hits.find(x => !x.object.isPoints) || hits[0];
+  const key = best ? best.object.userData.pickKey : k;
+  if (story.active) story.stop();
+  App.select(key, false);
+});
+const objFor = k => k === 'moon' ? moonGrp : k === 'comet' ? comet : P[k] ? P[k].grp : null;
+function focus(k){
+  follow = null;
+  if (!k) return ctx.home();
+  if (k === 'sun') return ctx.flyTo(new V(0, 0, 0), sMode > .5 ? 9 : 16);
+  if (k === 'belt' || k === 'kuiper'){ const r = mapR(k === 'belt' ? 2.7 : 42); return ctx.flyToPose([r * .25, r * 1.0, r * 1.45], [0, 0, 0], 1300); }
+  const fac = 1 - .55 * sTarget, size = k === 'moon' ? SIZE.earth * .27 : k === 'comet' ? 1.1 : SIZE[k];
+  follow = { obj:objFor(k), phase:0, dist:Math.max(2.2, size * fac * 7 + (k === 'saturn' ? 3 : 1.2)), last:null };
+}
+App.three = { focus, ctx, setScale: on => setScale(on) };
+const wp = new V(), tmp = new V();
+function updFollow(dt){
+  if (!follow) return;
+  follow.obj.getWorldPosition(wp);
+  if (follow.phase < 1.6){
+    follow.phase += dt; const k = 1 - Math.exp(-dt * 3.2);
+    const dir = tmp.copy(camera.position).sub(controls.target).normalize();
+    if (dir.y < .25){ dir.y = .35; dir.normalize(); }
+    controls.target.lerp(wp, k); camera.position.lerp(wp.clone().addScaledVector(dir, follow.dist), k);
+  } else if (follow.last){ tmp.copy(wp).sub(follow.last); controls.target.add(tmp); camera.position.add(tmp); }
+  follow.last = (follow.last || new V()).copy(wp);
+}
+controls.addEventListener('start', () => { if (follow && follow.phase < 1.6) follow.phase = 1.6; });
+
+/* ---------- guided story: grand tour ---------- */
+const TOUR = [
+  { en:'1 · The Sun: a star with 99.8% of the solar system’s mass. Its gravity holds everything in orbit.', zh:'1 · 太阳：一颗恒星，占太阳系质量的 99.8%。它的引力让一切都在轨道上运行。', k:'sun' },
+  { en:'2 · The inner planets (Mercury, Venus, Earth, Mars) are small, rocky and close to the Sun.', zh:'2 · 内行星（水星、金星、地球、火星）个头小、由岩石组成，离太阳很近。', k:'inner' },
+  { en:'3 · Earth: the only known world with liquid water on its surface and life.', zh:'3 · 地球：已知唯一表面有液态水、有生命的世界。', k:'earth' },
+  { en:'4 · The asteroid belt: rocky leftovers orbiting between Mars and Jupiter.', zh:'4 · 小行星带：在火星和木星之间运行的岩石“边角料”。', k:'belt' },
+  { en:'5 · Jupiter, a gas giant: more massive than all the other planets put together.', zh:'5 · 木星，一颗气态巨行星：质量比其他所有行星加起来还大。', k:'jupiter' },
+  { en:'6 · Saturn: a gas giant wearing bright rings of ice and rock.', zh:'6 · 土星：戴着明亮冰岩光环的气态巨行星。', k:'saturn' },
+  { en:'7 · Uranus and Neptune: cold blue ice giants. Neptune, the farthest planet, takes 165 years to orbit once.', zh:'7 · 天王星和海王星：寒冷的蓝色冰巨星。最远的海王星绕太阳一圈要 165 年。', k:'neptune' },
+  { en:'8 · Beyond Neptune lies the icy Kuiper belt, home of dwarf planet Pluto and many comets.', zh:'8 · 海王星外是冰冷的柯伊伯带，矮行星冥王星和许多彗星都住在这里。', k:'kuiper' },
+  { en:'9 · Now the TRUE distances: the outer planets are spread very far apart. Space is mostly empty!', zh:'9 · 现在看真实距离：外行星之间相隔非常遥远，太空大部分是空的！', k:'scale' }
+];
+const story = Lab3D.story('#stage', TOUR, i => {
+  const k = TOUR[i].k;
+  if (k === 'scale'){ follow = null; App.select(null, true); sTarget = 1; Lab.$('#scaleBtn').classList.add('on'); ctx.flyToPose([0, 150, 250], [0, 0, 0], 1800); return; }
+  if (sTarget) { sTarget = 0; Lab.$('#scaleBtn').classList.remove('on'); }
+  if (k === 'inner'){ follow = null; App.select(null, true); ctx.flyToPose([0, 13, 15], [0, 0, 0]); return; }
+  App.select(k, false);
+}, () => { setScale(false, false); follow = null; App.select(null, true); ctx.home(); });
+Lab.$('#tourBtn').onclick = () => story.start();
+
+/* ---------- per-frame ---------- */
+ctx.onFrame((dt, t) => {
+  const ds = sTarget - sMode, moving = Math.abs(ds) > 1e-4;
+  if (moving) sMode += Math.sign(ds) * Math.min(Math.abs(ds), dt * .55);
+  const dd = playing ? dps * dt : 0, fac = 1 - .55 * sMode, sel = App.sel; days += dd;
+  /* Sun */
+  sunMat.uniforms.uT.value = t;
+  const sr = 2.6 * (1 - sMode) + .75 * sMode; sun.scale.setScalar(sr);
+  glow.scale.setScalar(sr * 4.6 * (sel === 'sun' ? 1 + .07 * Math.sin(t * 4) : 1)); sunAnchor.position.set(0, sr * 1.3, 0);
+  /* planets */
+  for (const k of App.PLANETS){
+    const p = P[k], b = B[k], r = mapR(b.au);
+    p.theta += TAU / b.yr * dd;
+    p.grp.position.set(r * Math.cos(p.theta), 0, -r * Math.sin(p.theta)); p.grp.scale.setScalar(SIZE[k] * fac);
+    const w = TAU * 24 / b.rot; if (playing) p.mesh.rotation.y += Math.sign(w) * Math.min(Math.abs(w * dps), 2.5) * dt;
+    p.orbit.scale.setScalar(r);
+    const on = sel === k; p.orbit.material.opacity = on ? .85 : .28; p.orbit.material.color.set(on ? 0xffd27a : 0x8090c0);
+    p.mat.emissive.set(on ? b.color : '#000000').multiplyScalar(on ? .16 + .1 * Math.sin(t * 4) : 0);
+  }
+  /* Moon */
+  moonTheta += TAU / 27.3 * dd;
+  const ep = P.earth.grp.position, es = SIZE.earth * fac;
+  moonGrp.position.set(ep.x + Math.cos(moonTheta) * es * 2.7, 0, ep.z - Math.sin(moonTheta) * es * 2.7); moonGrp.scale.setScalar(es * .27);
+  moonLabel.visible = labelsOn && (sel === 'earth' || sel === 'moon');
+  /* belts */
+  asteroids.update(dd); kuiper.update(dd);
+  const rb = mapR(2.7), rk = mapR(42); beltAnchor.position.set(rb * Math.cos(2.4), 0, -rb * Math.sin(2.4)); kuiperAnchor.position.set(rk * Math.cos(.9), rk * .05, -rk * Math.sin(.9));
+  /* Pluto */
+  plutoTheta += TAU / 90560 * dd; const rp = mapR(39.5);
+  pluto.position.set(rp * Math.cos(plutoTheta), 0, -rp * Math.sin(plutoTheta)); pluto.scale.setScalar(.17 * fac); plutoOrbit.scale.setScalar(rp);
+  /* comet: speeds up near the Sun automatically (Kepler) */
+  cM += TAU / CPER * dd;
+  const cv = cometAU(cM), cau = cv.length(), cp = toScene(cv);
+  comet.position.copy(cp); cHead.scale.setScalar(fac); cHit.scale.setScalar(.7 * fac + .3);
+  const L = cau < 6 ? Math.min(7, 8 / cau) * fac : 0; tail.visible = dust.visible = L > .05;
+  if (L > .05){ const away = cp.clone().multiplyScalar(2); tail.scale.set(.25 + L * .1, .25 + L * .1, L); tail.lookAt(away);
+    dust.scale.set(.4 + L * .15, .4 + L * .15, L * .7); dust.lookAt(away.add(new V(cp.z, 0, -cp.x).normalize().multiplyScalar(L * 1.2))); }
+  cGlow.scale.setScalar((cau < 6 ? 1.2 + 2.5 / cau : .8) * fac);
+  if (moving) updCometPath();
+  cPath.material.opacity = sel === 'comet' ? .7 : .3;
+  /* camera follow + UI */
+  updFollow(dt);
+  if (t - lastUI > .2){ lastUI = t; uiText(); }
+});
+updCometPath();
+renderInfo(); renderChips();
+</script>
+</body>
+</html>

@@ -1,0 +1,825 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orbits, Kepler’s Laws &amp; Going to Mars</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/lab3d.js"></script>
+<script src="../shared/photos.js"></script>
+<style>
+/* page-specific styles */
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.stat{background:var(--surface-2);border-radius:10px;padding:6px 10px;font-weight:800;font-size:14px;line-height:1.3;font-variant-numeric:tabular-nums}
+.stat small{display:block;color:var(--ink-2);font-weight:700;font-size:11px;letter-spacing:.04em;text-transform:uppercase}
+.stat.wide{grid-column:1/-1}
+.pill output{min-width:70px;font-variant-numeric:tabular-nums}
+.tbtn.go{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.stage.space .tbtn{background:rgba(20,28,55,.85);color:#eaf0fb;border-color:rgba(255,255,255,.18)}
+.stage.space .tbtn.go{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.stage.space .tbtn.on{background:#eaf0fb;color:#0d1424}
+#ncStage{min-height:560px}
+.presets{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.presets .lbl{font-size:13px;font-weight:800;color:var(--ink-2)}
+.presets button{border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:999px;padding:4px 10px;font-weight:800;font-size:13px}
+.presets button:hover{border-color:var(--brand)}
+#kepBox{min-height:460px;background:#070c1c}
+#marsBox{min-height:520px;background:#070c1c}
+.figbox{position:relative;height:400px;padding:0;overflow:hidden}
+.figbox canvas{position:absolute;inset:0;width:100%;height:100%}
+.figcap{font-size:13px;color:var(--ink-2);margin:8px 4px 0}
+#t3Box{height:360px}
+#calBox{height:330px}
+.dtable{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+.dtable th,.dtable td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right}
+.dtable th:first-child,.dtable td:first-child{text-align:left}
+.dtable th{font-size:12px;color:var(--ink-2);text-transform:uppercase;letter-spacing:.04em}
+.modegrp[hidden]{display:none}
+.stars{font-size:22px;letter-spacing:2px;color:var(--warn)}
+.log{display:flex;flex-direction:column;gap:4px;font-size:14px;max-height:170px;overflow:auto}
+.log div{background:var(--surface-2);border-radius:10px;padding:5px 10px;font-weight:700}
+.timebar .nudge{width:32px;height:32px;font-size:13px}
+.timebar output{min-width:150px;font-size:19px}
+.row2{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:18px;margin-top:18px}
+.figpad{padding:16px}
+@media (max-width:980px){ .row2{grid-template-columns:1fr} }
+@media (max-width:560px){ .pill input[type=range]{width:90px} #kepBox{min-height:380px} #marsBox{min-height:400px} .figbox{height:340px} .timebar{flex-wrap:wrap} .timebar output{min-width:0;flex:1 1 100%;order:-1} }
+</style>
+</head>
+<body data-subject="astronomy" data-topic="kepler-laws">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="天文 · 深度探究">Astronomy · Deep dive</span>
+  <h1 data-zh-html="轨道、开普勒定律与<em>飞向火星</em>">Orbits, Kepler’s Laws &amp; <em>Going to Mars</em></h1>
+  <p class="lead" data-zh="为什么飞往火星不能想走就走，而要等上 26 个月？答案藏在 400 年前开普勒发现的三条定律里，也藏在牛顿的引力定律里。">Why can’t a spacecraft leave for Mars whenever it wants, but has to wait about 26 months for the next chance? The answer is hidden in three laws Johannes Kepler found 400 years ago, and in Newton’s law of gravity.</p>
+  <p class="lead" style="margin-top:8px" data-zh="学完后你能做到：预测一次发射会落地、绕地球转还是逃走；用真实数据检验开普勒三定律；自己挑选发射日，把探测器送上火星。">What you’ll be able to do: predict whether a launch falls, orbits or escapes; test all three of Kepler’s laws with real data; and pick your own launch day to send a probe to Mars.</p>
+</header>
+
+<!-- ============ 1. Newton's cannon ============ -->
+<section class="wrap" id="cannon" data-nav="Newton’s cannon" data-nav-zh="牛顿大炮">
+  <div class="sec-head">
+    <h2 data-zh="牛顿大炮：用真实地球的数字">Newton’s cannon, with real Earth numbers</h2>
+    <p data-zh="这次用的是真实地球：半径 6371 千米，真实的引力强度。程序每一瞬间都用牛顿万有引力定律计算炮弹受到的拉力，一步一步算出它的路径（这叫数值积分）。">This time it is the real Earth: radius 6,371 km and real gravity. At every instant the program uses Newton’s law of gravity to work out the pull on the cannonball, then moves it a tiny step, over and over (this is called numerical integration).</p>
+  </div>
+  <div class="explorer">
+    <div class="stage card space" id="ncStage">
+      <canvas id="ncCv" aria-label="Newton's cannon simulation"></canvas>
+      <div class="toolbar">
+        <button class="tbtn go" id="ncFire" data-zh="🚀 发射">🚀 Fire</button>
+        <button class="tbtn" id="ncClear" data-zh="🧹 清除轨迹">🧹 Clear trails</button>
+        <button class="tbtn" id="ncZoom" data-zh="🔍 山顶特写">🔍 Close-up</button>
+      </div>
+      <div class="bottombar">
+        <div class="pill"><span data-zh="💨 速度">💨 Speed</span><input id="ncV" type="range" min="0" max="12.5" step="0.05" value="6"><output id="ncVOut"></output></div>
+        <div class="pill"><span data-zh="⛰ 山高">⛰ Mountain</span><input id="ncH" type="range" min="10" max="2000" step="10" value="100"><output id="ncHOut"></output></div>
+        <div class="pill"><span data-zh="⏩ 时间">⏩ Time</span><input id="ncW" type="range" min="1" max="6" step="1" value="3"><output id="ncWOut"></output></div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="presets" style="margin-top:12px" id="ncPresets"></div>
+  <div class="chips" id="chips"></div>
+</section>
+
+<!-- ============ 2. Kepler's three laws lab ============ -->
+<section class="wrap" id="kepler" data-nav="Kepler’s laws" data-nav-zh="开普勒定律">
+  <div class="sec-head">
+    <h2 data-zh="开普勒三定律实验室">Kepler’s three laws lab</h2>
+    <p data-zh="开普勒没有望远镜数据，只有第谷·布拉赫二十多年的肉眼观测记录。他花了大约十年才算出三条规律。现在你用模拟来亲手检验它们。">Kepler had no telescope data, only Tycho Brahe’s 20-plus years of naked-eye measurements. It took him about ten years of calculations to find three rules. Now test them yourself.</p>
+  </div>
+  <div class="seg" id="kepSeg" role="tablist">
+    <button data-m="1" class="on" data-zh="第一定律：椭圆">1st law: ellipses</button>
+    <button data-m="2" data-zh="第二定律：等面积">2nd law: equal areas</button>
+    <button data-m="3" data-zh="第三定律：T² ∝ a³">3rd law: T² ∝ a³</button>
+  </div>
+  <div class="sim" style="margin-top:14px">
+    <div class="simbox card" id="kepBox"><canvas id="kepCv" aria-label="Kepler's laws simulation"></canvas></div>
+    <div class="card simside">
+      <div class="modegrp" data-mode="1">
+        <h3 data-zh="✏️ 用两枚图钉和一根线画椭圆">✏️ An ellipse = two pins and a loop of string</h3>
+        <p data-zh="拖动画面里的行星（或点按钮）。它到两个焦点的距离之和始终不变。太阳在一个焦点上，另一个焦点是空的。">Drag the planet around the orbit. Its distances to the two foci always add up to the same number. The Sun sits at one focus; the other focus is empty.</p>
+        <label class="ctl"><span><span data-zh="偏心率 e（有多扁）">Eccentricity e (how stretched)</span>: <b id="k1eOut"></b></span><input id="k1e" type="range" min="0" max="0.97" step="0.001" value="0.4"></label>
+        <div class="presets" id="k1Pre"></div>
+        <div class="counters">
+          <div class="counter"><b id="k1r1">–</b><span data-zh="到太阳的距离 r₁">distance to Sun r₁</span></div>
+          <div class="counter"><b id="k1r2">–</b><span data-zh="到空焦点的距离 r₂">distance to empty focus r₂</span></div>
+          <div class="counter"><b id="k1sum">–</b><span data-zh="r₁ + r₂（= 2a，长轴）">r₁ + r₂ (= 2a, the long axis)</span></div>
+          <div class="counter"><b id="k1ba">–</b><span data-zh="短轴 ÷ 长轴（b/a）">short ÷ long axis (b/a)</span></div>
+        </div>
+        <p class="muted" id="k1note" style="font-size:15px"></p>
+      </div>
+      <div class="modegrp" data-mode="2" hidden>
+        <h3 data-zh="🕐 每个月涂一块扇形">🕐 Shade one month at a time</h3>
+        <p data-zh="行星由真实的牛顿引力推动（数值积分）。按“涂一个月”，程序把行星和太阳的连线在 1/12 个周期内扫过的面积涂上颜色并算出面积。">The planet is pushed only by Newton’s gravity (numerically integrated). Press “Shade one month” and the program colours the area swept by the Sun–planet line in 1/12 of an orbit, and measures it.</p>
+        <label class="ctl"><span><span data-zh="偏心率 e">Eccentricity e</span>: <b id="k2eOut"></b></span><input id="k2e" type="range" min="0" max="0.9" step="0.01" value="0.6"></label>
+        <div class="btnrow"><button class="btn" id="k2shade" data-zh="🖌 涂一个月">🖌 Shade one month</button><button class="btn ghost" id="k2auto" data-zh="🔁 自动涂色">🔁 Auto-shade</button><button class="btn ghost" id="k2clear" data-zh="清除">Clear</button><button class="btn ghost" id="k2pause" data-zh="⏸ 暂停">⏸ Pause</button></div>
+        <div class="counters">
+          <div class="counter"><b id="k2v">–</b><span data-zh="现在的速度（千米/秒，a = 1 天文单位时）">speed now (km/s, if a = 1 AU)</span></div>
+          <div class="counter"><b id="k2r">–</b><span data-zh="到太阳的距离（天文单位）">distance from Sun (AU)</span></div>
+        </div>
+        <table class="dtable" id="k2tab"></table>
+      </div>
+      <div class="modegrp" data-mode="3" hidden>
+        <h3 data-zh="🪐 发射行星，测周期">🪐 Launch planets, time their years</h3>
+        <p data-zh="选一个离太阳的距离和发射速度，按“发射”。程序用牛顿引力算出轨道，测量它绕一圈的时间 T 和平均距离 a（半长轴），然后把点画到下面的图上。">Choose a distance from the Sun and a launch speed, then press Launch. The program integrates the orbit, times one full lap (T) and measures the average distance a (the semi-major axis), then plots your point below.</p>
+        <label class="ctl"><span><span data-zh="发射距离">Launch distance</span>: <b id="k3dOut"></b></span><input id="k3d" type="range" min="0" max="1" step="0.005" value="0.42"></label>
+        <label class="ctl"><span><span data-zh="发射速度（× 圆轨道速度）">Launch speed (× circular speed)</span>: <b id="k3fOut"></b></span><input id="k3f" type="range" min="0.8" max="1.25" step="0.01" value="1"></label>
+        <div class="btnrow"><button class="btn" id="k3go" data-zh="🚀 发射行星">🚀 Launch planet</button><button class="btn ghost" id="k3clear" data-zh="清除数据">Clear data</button></div>
+        <div class="result" id="k3msg"></div>
+      </div>
+      <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span id="kepHint"></span></div>
+    </div>
+  </div>
+  <div class="row2">
+    <div>
+      <div class="card figbox" id="t3Box"><canvas id="t3Cv" aria-label="T squared versus a cubed"></canvas></div>
+      <p class="figcap" data-zh="对数坐标：每格是 10 倍。空心圆 = 真实行星（数据：NASA 行星概况表）；实心点 = 你发射的行星。虚线 T² = a³（T 以年计，a 以天文单位计）。">Log–log axes: each grid step is ×10. Hollow circles = real planets (data: NASA Planetary Fact Sheet); filled dots = your launches. Dashed line: T² = a³ (T in years, a in AU).</p>
+    </div>
+    <div class="card figpad">
+      <h3 data-zh="📒 你的数据" style="font-size:20px;margin-bottom:8px">📒 Your data</h3>
+      <table class="dtable" id="k3tab"></table>
+      <p class="muted" style="font-size:14px;margin:10px 0 0" data-zh="如果开普勒第三定律成立，最后一列应该总是接近 1.00。">If Kepler’s 3rd law is right, the last column should always come out close to 1.00.</p>
+    </div>
+  </div>
+  <div style="margin-top:18px">
+    <div class="card figbox" id="f1Box"><canvas id="f1Cv" aria-label="Orbital period against distance for planets, moons of Jupiter and satellites of Earth"></canvas></div>
+    <p class="figcap" data-zh="图 1：真实轨道周期与距离（对数坐标）。三条平行线对应三个不同的“中心天体”：太阳、木星、地球。把鼠标移到点上查看数值。数据：NASA 行星与卫星概况表；人造卫星数值为近似值。">Figure 1: real orbital periods against distance (log–log). Three parallel lines for three different central bodies: the Sun, Jupiter and Earth. Hover over a dot for its numbers. Data: NASA Planetary and Satellite Fact Sheets; satellite values approximate.</p>
+  </div>
+</section>
+
+<!-- ============ 3. Mission to Mars ============ -->
+<section class="wrap" id="mars" data-nav="Mission to Mars" data-nav-zh="飞向火星">
+  <div class="sec-head">
+    <h2 data-zh="挑战：飞向火星（霍曼转移轨道）">Challenge: Mission to Mars (Hohmann transfer)</h2>
+    <p data-zh="最省燃料的路线是一条椭圆：近日点在地球轨道上，远日点在火星轨道上。探测器沿它飞半圈，大约 8.5 个月。难点是：出发时火星必须已经在前面等着，大约领先地球 44°。拖动发射日期，调好点火速度，然后发射！">The cheapest route is an ellipse that touches Earth’s orbit at one end and Mars’s orbit at the other. The probe coasts half of it, about 8.5 months. The catch: when you leave, Mars must already be ahead of Earth by about 44°, so it arrives at the meeting point at the same time you do. Pick a launch date, set your burn, and launch!</p>
+  </div>
+  <div class="sim">
+    <div class="simbox card" id="marsBox"><canvas id="marsCv" aria-label="Mission to Mars simulation"></canvas></div>
+    <div class="card simside">
+      <h3 data-zh="🛰 任务控制台">🛰 Mission control</h3>
+      <label class="ctl"><span><span data-zh="点火（离开地球后增加的速度）">Burn (extra speed after leaving Earth)</span>: <b id="mDvOut"></b></span><input id="mDv" type="range" min="2" max="6" step="0.01" value="2.6"></label>
+      <div class="btnrow"><button class="btn alt" id="mGo" data-zh="🚀 发射！">🚀 Launch!</button><button class="btn ghost" id="mReset" data-zh="重置">Reset</button><button class="btn ghost" id="mGhost" data-zh="👻 预告：隐藏">👻 Planner: on</button></div>
+      <div class="counters">
+        <div class="counter"><b id="mPhase">–</b><span data-zh="火星领先地球的角度（理想约 44°）">Mars ahead of Earth (ideal ≈ 44°)</span></div>
+        <div class="counter"><b id="mDist">–</b><span data-zh="地球到火星的距离">Earth–Mars distance</span></div>
+        <div class="counter"><b id="mMiss">–</b><span data-zh="预计最近距离">predicted closest approach</span></div>
+        <div class="counter"><b id="mTime">–</b><span data-zh="预计飞行时间">predicted flight time</span></div>
+      </div>
+      <div class="result" id="mMsg"></div>
+      <div class="stars" id="mStars"></div>
+      <div class="log" id="mLog"></div>
+    </div>
+  </div>
+  <div class="timebar" style="margin-top:12px">
+    <button id="mPlay" aria-label="play">▶</button>
+    <button class="nudge" id="mPrev" aria-label="one day earlier">−1</button>
+    <input id="mDay" type="range" min="0" max="2921" step="1" value="120" aria-label="launch date">
+    <button class="nudge" id="mNext" aria-label="one day later">+1</button>
+    <output id="mDayOut"></output>
+  </div>
+  <p class="figcap" data-zh="模型说明：地球和火星的轨道按真实大小和真实周期绘制，但简化为圆形（真实火星轨道略扁，e = 0.093）。只计算太阳的引力；“点火”是逃离地球引力之后相对地球的速度。目标区半径 450 万千米，比真实任务宽松得多。">Model notes: Earth’s and Mars’s orbits have their real sizes and periods but are simplified to circles (Mars’s real orbit is a little stretched, e = 0.093). Only the Sun’s gravity is computed; the “burn” is your speed relative to Earth after escaping Earth’s gravity. The target zone is 4.5 million km wide in radius, far more generous than a real mission.</p>
+  <div style="margin-top:18px">
+    <div class="card figbox" id="calBox"><canvas id="calCv" aria-label="Mars launch window calendar"></canvas></div>
+    <p class="figcap" data-zh="图 2：火星发射窗口日历。橙色条 = 用本页圆轨道模型算出的窗口（近似，真实窗口可能相差几周到两个月）；圆点 = 真实任务的发射日期。数据：NASA、ESA、ISRO、阿联酋航天局、中国国家航天局公开的发射日期。">Figure 2: Mars launch-window calendar. Orange bars = windows computed with this page’s circular-orbit model (approximate; real windows can differ by a few weeks to two months). Dots = real mission launch dates. Data: published launch dates from NASA, ESA, ISRO, the UAE Space Agency and CNSA.</p>
+  </div>
+</section>
+
+<!-- ============ 4. Gallery ============ -->
+<section class="wrap" id="real" data-nav="Real photos" data-nav-zh="真实影像">
+  <div id="gallery"></div>
+</section>
+
+<!-- ============ 5. Links ============ -->
+<section class="wrap" id="links" data-nav="Go further" data-nav-zh="继续探索">
+  <div class="sec-head">
+    <h2 data-zh="继续探索：真正的任务工具">Go further: tools real mission planners use</h2>
+    <p data-zh="这些网站都来自 NASA、ESA 等可靠机构（多数为英文）。每张卡片都写着你在那里可以做什么。">All from NASA, ESA and other reliable sources (mostly in English). Each card says what you can do there.</p>
+  </div>
+  <div class="linkgrid">
+    <a class="linkcard" href="https://eyes.nasa.gov/apps/solar-system/" target="_blank" rel="noopener"><b data-zh="NASA 太阳系之眼">NASA Eyes on the Solar System</b><span data-zh="在真实的 3D 太阳系里飞行，跟踪毅力号等航天器的真实轨道，还能把时间拨快拨慢。">Fly through a real-time 3D solar system, follow real spacecraft such as Perseverance along their actual paths, and speed time up or rewind it.</span><small>eyes.nasa.gov ↗</small></a>
+    <a class="linkcard" href="https://science.nasa.gov/learn/basics-of-space-flight/" target="_blank" rel="noopener"><b data-zh="NASA/JPL《航天飞行基础》">NASA/JPL “Basics of Space Flight”</b><span data-zh="JPL 培训工程师用的教程：读“轨迹”一章，看真正的霍曼转移和引力弹弓是怎么设计的。">JPL’s own tutorial for new engineers: read the “Trajectories” chapter to see how real Hohmann transfers and gravity assists are planned.</span><small>science.nasa.gov ↗</small></a>
+    <a class="linkcard" href="https://science.nasa.gov/learn/basics-of-space-flight/chapter4-1/" target="_blank" rel="noopener"><b data-zh="第 4 章：轨迹">Chapter 4: Trajectories</b><span data-zh="直接跳到讲霍曼转移和发射窗口的章节，配有图解。">Jump straight to the chapter on Hohmann transfers and launch windows, with diagrams.</span><small>science.nasa.gov ↗</small></a>
+    <a class="linkcard" href="https://science.nasa.gov/planetary-science/programs/mars-exploration/" target="_blank" rel="noopener"><b data-zh="NASA 火星探索计划">NASA Mars Exploration</b><span data-zh="查看正在火星工作的轨道器和火星车，以及下一个发射窗口的计划。">See which orbiters and rovers are working at Mars right now, and what is planned for the next launch windows.</span><small>science.nasa.gov ↗</small></a>
+    <a class="linkcard" href="https://science.nasa.gov/mission/mars-2020-perseverance/" target="_blank" rel="noopener"><b data-zh="毅力号火星车">Perseverance rover</b><span data-zh="毅力号在 2020 年的窗口发射，飞了约 7 个月。看它的最新照片和行驶路线。">Perseverance launched in the 2020 window and flew about 7 months. Browse its newest raw photos and its driving route.</span><small>science.nasa.gov ↗</small></a>
+    <a class="linkcard" href="https://phet.colorado.edu/en/simulations/keplers-laws" target="_blank" rel="noopener"><b data-zh="PhET：开普勒定律">PhET: Kepler’s Laws</b><span data-zh="科罗拉多大学的免费模拟：自己拖出轨道，测量面积和周期。">Free simulation from the University of Colorado: drag out your own orbits and measure the areas and periods.</span><small>phet.colorado.edu ↗</small></a>
+    <a class="linkcard" href="https://nssdc.gsfc.nasa.gov/planetary/factsheet/" target="_blank" rel="noopener"><b data-zh="NASA 行星概况表">NASA Planetary Fact Sheet</b><span data-zh="本页图表用的数据就来自这里。查出任何行星的轨道半长轴和周期，自己验证 T² = a³。">The data behind this page’s charts. Look up any planet’s orbit size and period and check T² = a³ yourself.</span><small>nssdc.gsfc.nasa.gov ↗</small></a>
+    <a class="linkcard" href="https://spotthestation.nasa.gov/" target="_blank" rel="noopener"><b data-zh="NASA 看空间站">NASA Spot the Station</b><span data-zh="查出国际空间站什么时候从你家上空飞过，然后用肉眼看一颗真正的“牛顿炮弹”。">Find out when the space station passes over your town, then watch a real “Newton’s cannonball” with your own eyes.</span><small>nasa.gov ↗</small></a>
+  </div>
+</section>
+
+<!-- ============ 6. Quiz ============ -->
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 轨道与开普勒定律测验">🧠 Orbits &amp; Kepler quiz</h3><p class="sub" data-zh="有几道题要用到上面的图表。">Some questions use the charts above.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分一分：这是开普勒的哪条定律？">🗂️ Sort it: which of Kepler’s laws?</h3><p class="sub" data-zh="把每张卡片拖到（或先点再点方框）正确的组里。">Drag each card (or tap it, then tap a box) into the right group.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="对应佐治亚州标准 S6E1（特别是 d 条：建立并使用模型，解释引力与惯性的相互作用如何支配太阳系中天体的运动），火星任务也联系到 S6E2（地月日系统与相对位置随时间的变化）。本课超出六年级要求：使用了真实的万有引力常数、数值积分、对数坐标图、开普勒三定律的定量形式（T² = a³）和霍曼转移轨道。建议流程：先在牛顿大炮中让学生预测 7.9 千米/秒和 11.2 千米/秒附近会发生什么；再用开普勒实验室逐条验证三定律（第三定律的表格让学生自己“发现”T²/a³ ≈ 1）；最后用图 1 讨论“为什么木星卫星在另一条线上”（中心天体质量不同），再进入火星挑战。">Supports GSE S6E1 (especially element d: develop and use a model to explain how gravity and inertia govern the motion of objects in the solar system); the Mars mission also connects to S6E2 (positions in the Earth–Moon–Sun system change over time in predictable ways). This lesson goes beyond grade 6: it uses the real gravitational constant, numerical integration, log–log graphs, the quantitative form of Kepler’s 3rd law (T² = a³) and Hohmann transfer orbits. Suggested flow: in Newton’s cannon, have students predict what happens near 7.9 km/s and 11.2 km/s; in the Kepler lab, test the laws one by one (the 3rd-law table lets students “discover” T²/a³ ≈ 1); use Figure 1 to discuss why Jupiter’s moons lie on a different line (a different central mass); then run the Mars challenge.</p>
+    <p data-zh="简化之处：牛顿大炮忽略空气阻力和地球自转；火星任务使用圆轨道、只计太阳引力，因此算出的窗口日期与真实窗口可能相差数周。图 2 的真实发射日期可用来检验模型的好坏，这本身就是很好的讨论题。">Simplifications: Newton’s cannon ignores air resistance and Earth’s spin; the Mars mission uses circular orbits and only the Sun’s gravity, so its window dates can be off from the real ones by weeks. Figure 2’s real launch dates let students judge how good the model is, which is a great discussion in itself.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+const o = (en, zh) => ({en, zh});
+const zh = () => Lab.lang === 'zh';
+const TAU = Math.PI * 2, D2R = Math.PI / 180;
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const dprOf = () => Math.min(window.devicePixelRatio || 1, 2);
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const nf = (x, d = 0) => (+x).toLocaleString('en-US', { minimumFractionDigits:d, maximumFractionDigits:d });
+function fit(box, cv){ const dpr = dprOf(), W = box.clientWidth, H = box.clientHeight;
+  if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)){ cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); return { g, W, H }; }
+function arrow(g, x0, y0, x1, y1, col, w = 3){ const an = Math.atan2(y1 - y0, x1 - x0); g.strokeStyle = g.fillStyle = col; g.lineWidth = w; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1 - 6 * Math.cos(an), y1 - 6 * Math.sin(an)); g.stroke();
+  g.beginPath(); g.moveTo(x1, y1); g.lineTo(x1 - 11 * Math.cos(an - .42), y1 - 11 * Math.sin(an - .42)); g.lineTo(x1 - 11 * Math.cos(an + .42), y1 - 11 * Math.sin(an + .42)); g.closePath(); g.fill(); }
+function tip(g, x, y, lines, W){ g.font = '700 12px Nunito, sans-serif'; const w = Math.max(...lines.map(s => g.measureText(s).width)) + 20, h = lines.length * 17 + 12;
+  const bx = clamp(x - w / 2, 6, W - w - 6), by = y - h - 12 < 6 ? y + 14 : y - h - 12;
+  g.fillStyle = css('--ink') || '#14213d'; g.beginPath(); g.roundRect(bx, by, w, h, 8); g.fill(); g.fillStyle = css('--surface') || '#fff'; g.textAlign = 'left';
+  lines.forEach((s, k) => { g.font = (k ? '700' : '800') + ' 12px Nunito, sans-serif'; g.fillText(s, bx + 10, by + 20 + k * 17); }); }
+const STARS = Array.from({ length:160 }, (_, i) => [((i * 7919) % 1000) / 1000, ((i * 104729) % 997) / 997, (i % 3) * .5 + .6]);
+function starfield(g, W, H){ g.fillStyle = '#070c1c'; g.fillRect(0, 0, W, H); g.fillStyle = 'rgba(220,230,255,.55)'; STARS.forEach(s => { g.fillRect(s[0] * W, s[1] * H, s[2], s[2]); }); }
+function visible(el){ const r = el.getBoundingClientRect(); return r.bottom > -50 && r.top < innerHeight + 50; }
+const kmUnit = () => zh() ? '千米' : 'km', ksUnit = () => zh() ? '千米/秒' : 'km/s';
+
+/* ===================== Info panel: key ideas ===================== */
+const TOPICS = {
+  newton:{ color:'#ffb347', name:o('Newton’s cannon','牛顿大炮'), job:o('Orbit = falling around the planet','轨道 = 绕着行星不停地下落'),
+    facts:{ en:['Just above Earth’s surface, a circular orbit needs about 7.9 km/s (about 17,700 mph). Higher up, less speed is needed because gravity is weaker there.','Escape speed is √2 ≈ 1.41 times the circular speed: about 11.2 km/s from the surface.','The International Space Station flies about 420 km up at about 7.66 km/s and goes around Earth in about 93 minutes.','Newton drew this thought experiment in a book published in 1728, just after his death; the law of gravity itself appeared in his Principia (1687).'],
+            zh:['紧贴地面做圆周运动，需要约 7.9 千米/秒（约每小时 2.8 万千米）。越往高处需要的速度越小，因为那里引力更弱。','逃逸速度是圆轨道速度的 √2 ≈ 1.41 倍：从地面出发约 11.2 千米/秒。','国际空间站在约 420 千米高处以约 7.66 千米/秒飞行，大约 93 分钟绕地球一圈。','牛顿把这个思想实验画在他去世后不久（1728 年）出版的书里；万有引力定律本身发表在 1687 年的《自然哲学的数学原理》中。'] },
+    hint:o('Slow → falls. 7.9 km/s → circle. Faster → ellipse. 11.2 km/s → gone for good.','慢了 → 落地；7.9 千米/秒 → 圆；更快 → 椭圆；11.2 千米/秒 → 一去不回。'),
+    mix:o('There is plenty of gravity at the space station’s height: about 89% of what you feel on the ground. Astronauts float because they are falling together with the station.','空间站高度的引力并不小：大约是地面的 89%。宇航员飘浮，是因为他们和空间站一起在下落。') },
+  k1:{ color:'#5b9dff', name:o('Kepler’s 1st law','开普勒第一定律'), job:o('Orbits are ellipses, with the Sun at one focus','轨道是椭圆，太阳在一个焦点上'),
+    facts:{ en:['Published in 1609 in Kepler’s book Astronomia Nova (“New Astronomy”).','The clue was Mars: Tycho Brahe’s measurements disagreed with a circular orbit by 8 arcminutes, about a quarter of the Moon’s width. Kepler trusted the data and gave up circles.','Eccentricity e measures how stretched an ellipse is: 0 is a circle; close to 1 is a long, thin oval.','Earth’s e is only 0.017, so its distance from the Sun only changes from about 147 to 152 million km.'],
+            zh:['1609 年发表在开普勒的《新天文学》一书中。','线索来自火星：第谷的测量和圆形轨道差了 8 角分，大约是月亮宽度的四分之一。开普勒相信数据，放弃了圆。','偏心率 e 表示椭圆有多扁：0 是圆；接近 1 就是又细又长的椭圆。','地球的 e 只有 0.017，它到太阳的距离只在约 1.47 亿到 1.52 亿千米之间变化。'] },
+    hint:o('Ellipse = two pins + a loop of string. The Sun is one pin.','椭圆 = 两枚图钉 + 一圈线。太阳就是其中一枚图钉。'),
+    mix:o('Seasons are NOT caused by Earth getting closer to the Sun: Earth is closest in early January, during northern winter. Seasons come from Earth’s tilt.','季节不是因为地球离太阳近了：地球在 1 月初离太阳最近，那时北半球正是冬天。季节来自地轴倾斜。') },
+  k2:{ color:'#3ed596', name:o('Kepler’s 2nd law','开普勒第二定律'), job:o('Equal areas in equal times','相同时间扫过相同面积'),
+    facts:{ en:['The line from the Sun to a planet sweeps out equal areas in equal times (also published in 1609).','So a planet moves fastest at perihelion (closest) and slowest at aphelion (farthest). Earth moves about 30.3 km/s in early January and 29.3 km/s in early July.','Halley’s Comet races past the Sun at about 55 km/s but crawls at under 1 km/s far beyond Neptune.','Newton explained why: gravity pulls straight toward the Sun, so it can speed a planet up or slow it down but never change its “spin” around the Sun (angular momentum stays the same).'],
+            zh:['从太阳到行星的连线在相同时间内扫过相同的面积（也在 1609 年发表）。','所以行星在近日点最快、远日点最慢。地球 1 月初约 30.3 千米/秒，7 月初约 29.3 千米/秒。','哈雷彗星掠过太阳时约 55 千米/秒，到了海王星以外却慢到不足 1 千米/秒。','牛顿解释了原因：引力始终指向太阳，只能让行星加速或减速，却不能改变它绕太阳“转动”的量（角动量守恒）。'] },
+    hint:o('Close = short, fat wedge, fast. Far = long, thin wedge, slow. Same area.','近 = 又短又胖的扇形、快；远 = 又细又长的扇形、慢；面积一样。'),
+    mix:o('Equal areas does not mean equal distances. Near perihelion the planet covers a much longer stretch of its orbit in the same time.','面积相等不等于路程相等。在近日点附近，行星在同样的时间里走过的路长得多。') },
+  k3:{ color:'#c08bff', name:o('Kepler’s 3rd law','开普勒第三定律'), job:o('T² = a³ (years and AU)','T² = a³（年和天文单位）'),
+    facts:{ en:['Published in 1619 in Harmonices Mundi (“The Harmony of the World”).','T is the orbital period in years; a is the semi-major axis (half the long axis, the “average” distance) in AU. For every planet, T² ≈ a³.','Example: Jupiter, a = 5.2 AU: a³ = 141, so T = √141 ≈ 11.9 years.','Newton showed the full rule: T² = 4π²a³ ÷ (GM), where M is the mass of the central body. Measure a moon’s orbit and you can weigh its planet!'],
+            zh:['1619 年发表在《世界的和谐》中。','T 是公转周期（年），a 是半长轴（长轴的一半，相当于“平均距离”，单位天文单位）。对每颗行星都有 T² ≈ a³。','例：木星 a = 5.2 天文单位，a³ = 141，所以 T = √141 ≈ 11.9 年。','牛顿给出了完整公式：T² = 4π²a³ ÷ （GM），M 是中心天体的质量。测出卫星的轨道，就能“称出”行星的质量！'] },
+    hint:o('Farther out → slower AND a longer path → a much longer year.','离得越远 → 跑得越慢、路也越长 → 一年长得多。'),
+    mix:o('The law uses a, the average distance (semi-major axis), not the starting distance. Launch from the same spot at different speeds and you get different a and different T.','定律里用的是半长轴 a（平均距离），不是出发点的距离。从同一点以不同速度发射，得到的 a 和 T 都不同。') },
+  hohmann:{ color:'#ff7a59', name:o('Hohmann transfer','霍曼转移轨道'), job:o('The fuel-saving road between two orbits','两条轨道之间最省燃料的路'),
+    facts:{ en:['Described by German engineer Walter Hohmann in 1925, decades before any spacecraft flew.','The transfer orbit is an ellipse with perihelion at Earth’s orbit (1 AU) and aphelion at Mars’s orbit (1.52 AU), so a = 1.26 AU.','By Kepler’s 3rd law its full period is 1.26^1.5 ≈ 1.42 years; the probe flies half of it: about 259 days, or 8.5 months.','Real missions often spend a bit more fuel to arrive sooner: Perseverance took about 203 days (launched July 30, 2020, landed February 18, 2021).'],
+            zh:['德国工程师瓦尔特·霍曼在 1925 年提出，比第一颗人造卫星早了几十年。','转移轨道是一个椭圆：近日点在地球轨道（1 天文单位），远日点在火星轨道（1.52 天文单位），所以 a = 1.26 天文单位。','根据开普勒第三定律，它绕一整圈要 1.26^1.5 ≈ 1.42 年；探测器只飞半圈：约 259 天，即 8.5 个月。','真实任务常多花一点燃料以便早点到达：毅力号大约飞了 203 天（2020 年 7 月 30 日发射，2021 年 2 月 18 日着陆）。'] },
+    hint:o('Speed up at Earth, coast half an ellipse, speed up again at Mars.','在地球处加速，滑行半个椭圆，到火星再加速。'),
+    mix:o('You don’t aim at where Mars is when you launch. You aim at where Mars WILL BE about 8.5 months later.','发射时不是瞄准火星现在的位置，而是瞄准火星 8.5 个月后会在的位置。') },
+  window:{ color:'#ff5a6e', name:o('Launch windows','发射窗口'), job:o('Every 26 months, Mars is in the right place','每 26 个月火星才会到达合适的位置'),
+    facts:{ en:['Earth laps Mars about once every 780 days (about 26 months). This is called the synodic period.','A Hohmann launch needs Mars about 44° ahead of Earth. That lines up for only a few weeks each synodic period.','In July 2020 three Mars missions launched within 11 days: the UAE’s Hope, China’s Tianwen-1 and NASA’s Perseverance.','Miss the window and you wait about two more years, which is why mission teams work around the clock before a launch.'],
+            zh:['地球大约每 780 天（约 26 个月）“套圈”火星一次，这叫会合周期。','霍曼转移发射时，火星需要领先地球约 44°，每个会合周期只有几周符合条件。','2020 年 7 月，11 天之内有三个火星任务先后发射：阿联酋的“希望号”、中国的“天问一号”和 NASA 的毅力号。','错过窗口就要再等约两年，所以发射前任务团队总是争分夺秒。'] },
+    hint:o('26 months: two years and two months between chances.','26 个月：两年零两个月才有一次机会。'),
+    mix:o('Mars is not closest to Earth on launch day. The probe launches months before the two planets are closest, and arrives months after.','发射那天火星并不是离地球最近。探测器在两颗行星最接近之前几个月出发，之后几个月才到达。') }
+};
+const TOPIC_ORDER = ['newton', 'k1', 'k2', 'k3', 'hohmann', 'window'];
+let topicSel = 'newton';
+function selectTopic(k){ topicSel = k; renderInfo(); renderChips(); }
+const statRow = (l, v, wide) => `<div class="stat${wide ? ' wide' : ''}"><small>${Lab.L(l)}</small>${v}</div>`;
+function renderInfo(){
+  const d = TOPICS[topicSel], i = TOPIC_ORDER.indexOf(topicSel), n = TOPIC_ORDER.length, box = Lab.$('#info');
+  box.innerHTML = `<span class="tag">${Lab.L(o('Key idea','核心概念'))} ${i + 1} / ${n}</span>
+    <h3><span class="dot" style="background:${d.color}"></span>${Lab.L(d.name)}</h3>
+    <div class="job">${Lab.L(d.job)}</div>
+    ${topicSel === 'newton' ? `<div id="ncLive"></div>` : ''}
+    <ul>${Lab.L(d.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(d.hint)}</div>
+    <div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(d.mix)}</span></div>
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(d.name), Lab.L(d.job), ...Lab.L(d.facts), Lab.L(d.hint), Lab.L(d.mix)].join('. '));
+  Lab.$('#pPrev').onclick = () => selectTopic(TOPIC_ORDER[(i - 1 + n) % n]);
+  Lab.$('#pNext').onclick = () => selectTopic(TOPIC_ORDER[(i + 1) % n]);
+  ncLive();
+}
+function renderChips(){
+  Lab.$('#chips').innerHTML = TOPIC_ORDER.map(k => `<button class="chip ${topicSel === k ? 'on' : ''}" data-k="${k}"><i style="background:${TOPICS[k].color}"></i>${Lab.L(TOPICS[k].name)}</button>`).join('');
+  Lab.$$('#chips .chip').forEach(c => c.onclick = () => selectTopic(c.dataset.k));
+}
+
+/* ===================== 1. Newton's cannon (real Earth, velocity-Verlet integration) ===================== */
+const GME = 398600.4418, RE = 6371;                      // km^3/s^2, km
+const WARP = [0, 30, 100, 300, 1000, 3000, 10000];
+const NCCOL = ['#ffc86a', '#7fd4ff', '#ff8fb0', '#9dff9d', '#c8a8ff'];
+const NC = { on:false, x:0, y:RE + 100, vx:0, vy:0, t:0, swept:0, ang:Math.PI / 2, cur:null, trails:[], n:0, ext:RE * 1.25, cx:0, cy:0, close:false, res:null, land:0, laps:0 };
+const ncEl = { v:Lab.$('#ncV'), h:Lab.$('#ncH'), w:Lab.$('#ncW') };
+const vCircAt = h => Math.sqrt(GME / (RE + h)), vEscAt = h => Math.sqrt(2 * GME / (RE + h));
+function ncPred(v, h){ const r0 = RE + h, eps = v * v / 2 - GME / r0, L = r0 * v;
+  if (eps >= 0) return { esc:true };
+  const a = -GME / (2 * eps), e = Math.sqrt(Math.max(0, 1 + 2 * eps * L * L / (GME * GME)));
+  return { a, e, rp:a * (1 - e), ra:a * (1 + e), T:TAU * Math.sqrt(a * a * a / GME) }; }
+function ncFire(){
+  const v = +ncEl.v.value, h = +ncEl.h.value;
+  Object.assign(NC, { on:true, x:0, y:RE + h, vx:v, vy:0, t:0, swept:0, ang:Math.PI / 2, res:null, land:0, laps:0 });
+  NC.cur = { pts:[[0, RE + h]], col:NCCOL[NC.n++ % NCCOL.length], v, h, pred:ncPred(v, h) };
+  NC.trails.push(NC.cur); if (NC.trails.length > 5) NC.trails.shift();
+  if (v < .01){ NC.on = false; NC.res = 'fall'; }
+  if (topicSel !== 'newton') selectTopic('newton'); else ncLive();
+}
+function ncStep(h){
+  let r = Math.hypot(NC.x, NC.y), k = -GME / (r * r * r); const ax = k * NC.x, ay = k * NC.y;
+  NC.x += NC.vx * h + .5 * ax * h * h; NC.y += NC.vy * h + .5 * ay * h * h;
+  r = Math.hypot(NC.x, NC.y); k = -GME / (r * r * r); NC.vx += .5 * (ax + k * NC.x) * h; NC.vy += .5 * (ay + k * NC.y) * h;
+  NC.t += h; return r;
+}
+function ncSim(dt){
+  let rem = dt * WARP[+ncEl.w.value];
+  for (let guard = 0; rem > 0 && guard < 4000; guard++){
+    const r0 = Math.hypot(NC.x, NC.y), hs = Math.min(rem, Math.max(.2, .003 * TAU * Math.sqrt(r0 * r0 * r0 / GME))); rem -= hs;
+    const r = ncStep(hs);
+    const a = Math.atan2(NC.y, NC.x); let d = a - NC.ang; d -= Math.round(d / TAU) * TAU; NC.swept += Math.abs(d); NC.ang = a;
+    if (r <= RE){ const f = RE / r; NC.x *= f; NC.y *= f; NC.cur.pts.push([NC.x, NC.y]); NC.on = false; NC.res = 'fall'; NC.land = NC.swept * RE; ncLive(); return; }
+    const pts = NC.cur.pts, last = pts[pts.length - 1];
+    if (Math.hypot(NC.x - last[0], NC.y - last[1]) > NC.ext * .006) pts.push([NC.x, NC.y]);
+    if (NC.swept >= TAU * (NC.laps + 1)){ NC.laps++; if (!NC.res) NC.res = 'orbit'; if (NC.laps >= 3){ NC.on = false; ncLive(); return; } }
+    const E = (NC.vx * NC.vx + NC.vy * NC.vy) / 2 - GME / r;
+    if (E >= 0 && r > RE * 3 && !NC.res) NC.res = 'escape';
+    if (r > RE * 70){ NC.on = false; ncLive(); return; }
+  }
+}
+function hms(s){ const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60); return h ? `${h} h ${String(m).padStart(2, '0')} min` : `${m} min`; }
+const hmsL = s => zh() ? hms(s).replace(' h ', ' 小时 ').replace('min', '分') : hms(s);
+function ncResultText(){
+  const c = NC.cur; if (!c) return Lab.L(o('Choose a speed and press Fire. Predict first!','选好速度再按“发射”。先预测一下！'));
+  const p = c.pred;
+  if (NC.res === 'fall') return zh() ? `落回地面，落点在 ${nf(NC.land)} 千米外（约 ${nf(NC.land * .6214)} 英里）。` : `Fell back to Earth ${nf(NC.land)} km away (about ${nf(NC.land * .6214)} miles).`;
+  if (!p.esc && p.rp < RE) return Lab.L(o('Flying… where will it land?','飞行中……它会落在哪里？'));
+  if (p.esc) return Lab.L(o('Escape! It has enough energy to leave Earth forever.','逃逸！它的能量足以永远离开地球。'));
+  const circ = p.e < .01;
+  return Lab.L(circ ? o('Circular orbit! ','圆形轨道！') : o('Elliptical orbit! ','椭圆轨道！')) +
+    (zh() ? `最低处高 ${nf(p.rp - RE)} 千米，最高处高 ${nf(p.ra - RE)} 千米，每 ${hmsL(p.T)}绕一圈。` : `Lowest point ${nf(p.rp - RE)} km up, highest ${nf(p.ra - RE)} km up, one lap every ${hms(p.T)}.`);
+}
+function ncLive(){
+  const el = Lab.$('#ncLive'); if (!el) return;
+  const h = +ncEl.h.value, r = Math.hypot(NC.x, NC.y), v = Math.hypot(NC.vx, NC.vy), fly = NC.cur && (NC.on || NC.res);
+  el.innerHTML = `<div class="stats">${statRow(o('Circular speed here','此高度圆轨道速度'), `${vCircAt(h).toFixed(2)} ${ksUnit()}`)}${statRow(o('Escape speed here','此高度逃逸速度'), `${vEscAt(h).toFixed(2)} ${ksUnit()}`)}
+    ${fly ? statRow(o('Now: height','现在：高度'), `${nf(Math.max(0, r - RE))} ${kmUnit()}`) + statRow(o('Now: speed','现在：速度'), `${v.toFixed(2)} ${ksUnit()}`) + statRow(o('Time since launch','发射后时间'), hmsL(NC.t)) + statRow(o('Distance around Earth','绕过的地面距离'), `${nf(NC.swept * RE)} ${kmUnit()}`) : ''}
+    ${statRow(o('Result','结果'), ncResultText(), true)}</div>`;
+}
+function ncOutputs(){
+  const v = +ncEl.v.value; Lab.$('#ncVOut').textContent = `${v.toFixed(2)} ${ksUnit()}`;
+  Lab.$('#ncHOut').textContent = `${nf(+ncEl.h.value)} ${kmUnit()}`; Lab.$('#ncWOut').textContent = '×' + nf(WARP[+ncEl.w.value]);
+  ncLive();
+}
+[ncEl.v, ncEl.h, ncEl.w].forEach(e => e.addEventListener('input', ncOutputs));
+ncEl.h.addEventListener('input', () => { if (!NC.on){ NC.x = 0; NC.y = RE + +ncEl.h.value; } ncPresets(); });
+function ncPresets(){
+  const h = +ncEl.h.value, vc = vCircAt(h), ve = vEscAt(h);
+  const P = [[3, o('3 km/s','3 千米/秒')], [7, o('7 km/s','7 千米/秒')], [+vc.toFixed(2), o(`circular ${vc.toFixed(2)}`, `圆轨道 ${vc.toFixed(2)}`)], [9.5, o('9.5 km/s','9.5 千米/秒')], [10.6, o('10.6 km/s','10.6 千米/秒')], [+(ve + .05).toFixed(2), o(`escape ${ve.toFixed(2)}`, `逃逸 ${ve.toFixed(2)}`)]];
+  Lab.$('#ncPresets').innerHTML = `<span class="lbl">${Lab.L(o('Try:','试试：'))}</span>` + P.map(p => `<button data-v="${p[0]}">${Lab.L(p[1])}</button>`).join('');
+  Lab.$$('#ncPresets button').forEach(b => b.onclick = () => { ncEl.v.value = b.dataset.v; ncOutputs(); ncFire(); });
+}
+Lab.$('#ncFire').onclick = ncFire;
+Lab.$('#ncClear').onclick = () => { NC.trails = NC.cur && NC.on ? [NC.cur] : []; if (!NC.on){ NC.cur = null; NC.res = null; NC.x = 0; NC.y = RE + +ncEl.h.value; NC.vx = NC.vy = 0; NC.t = 0; NC.swept = 0; } ncLive(); };
+Lab.$('#ncZoom').onclick = () => { NC.close = !NC.close; Lab.$('#ncZoom').classList.toggle('on', NC.close); };
+function niceBar(x){ const p = Math.pow(10, Math.floor(Math.log10(x))), m = x / p; return (m >= 5 ? 5 : m >= 2 ? 2 : 1) * p; }
+function ncDraw(dt){
+  const box = Lab.$('#ncStage'), { g, W, H } = fit(box, Lab.$('#ncCv')); if (!W) return;
+  const h0 = +ncEl.h.value, c = NC.cur, p = c && c.pred, r = Math.hypot(NC.x, NC.y);
+  let ext = RE * 1.25, cx = 0, cy = 0;
+  if (NC.close){ ext = Math.max(900, h0 * 2.2); cy = RE + h0 * .5; }
+  else if (c && NC.res !== 'fall'){ if (p.esc || NC.res === 'escape') ext = Math.min(RE * 70, Math.max(ext, r * 1.2)); else if (p.rp >= RE) ext = Math.max(ext, p.ra * 1.12); }
+  const k = Math.min(1, dt * 2.5); NC.ext += (ext - NC.ext) * k; NC.cx += (cx - NC.cx) * k; NC.cy += (cy - NC.cy) * k;
+  const top = 96, bot = 70, s = Math.min(W - 24, H - top - bot) / 2 / NC.ext, X = x => W / 2 + (x - NC.cx) * s, Y = y => top + (H - top - bot) / 2 - (y - NC.cy) * s;
+  starfield(g, W, H);
+  /* reference rings: ISS and the Moon */
+  g.setLineDash([4, 6]); g.lineWidth = 1;
+  const ring = (rad, col, lab) => { if (rad * s < 4 || rad * s > 6 * W) return; g.strokeStyle = col; g.beginPath(); g.arc(X(0), Y(0), rad * s, 0, TAU); g.stroke();
+    g.fillStyle = col; g.font = '700 11.5px Nunito, sans-serif'; g.textAlign = 'left'; const ax = X(0) + rad * s * Math.cos(-.6), ay = Y(0) + rad * s * Math.sin(-.6) * -1; if (ax < W - 150 && ay > top && ay < H - bot) g.fillText(Lab.L(lab), ax + 4, ay); };
+  if (!NC.close) ring(RE + 420, 'rgba(160,200,255,.6)', o('ISS orbit (~420 km up)','空间站轨道（高约 420 千米）'));
+  ring(384400, 'rgba(220,220,230,.55)', o('Moon’s orbit (384,400 km)','月球轨道（38.44 万千米）'));
+  g.setLineDash([]);
+  /* Earth (to scale) with a thin atmosphere */
+  const ex = X(0), ey = Y(0), er = RE * s;
+  const at = g.createRadialGradient(ex, ey, er, ex, ey, (RE + 100) * s + 2); at.addColorStop(0, 'rgba(120,180,255,.55)'); at.addColorStop(1, 'rgba(120,180,255,0)');
+  g.fillStyle = at; g.beginPath(); g.arc(ex, ey, (RE + 100) * s + 2, 0, TAU); g.fill();
+  const eg = g.createRadialGradient(ex - er * .35, ey - er * .35, er * .1, ex, ey, er); eg.addColorStop(0, '#6fb2ff'); eg.addColorStop(.7, '#2f6fca'); eg.addColorStop(1, '#183a78');
+  g.fillStyle = eg; g.beginPath(); g.arc(ex, ey, er, 0, TAU); g.fill();
+  if (er > 40 && er < 4 * W){ g.fillStyle = 'rgba(80,160,90,.55)'; [[-.3, .45, .28], [.35, .1, .22], [-.1, -.45, .2], [.5, -.5, .14]].forEach(b => { g.beginPath(); g.ellipse(ex + b[0] * er, ey - b[1] * er, b[2] * er, b[2] * er * .7, b[0], 0, TAU); g.fill(); }); }
+  /* mountain (height to scale) + cannon */
+  const half = Math.max(.004, h0 / RE * 1.4);
+  g.fillStyle = '#8a6a48'; g.beginPath(); g.moveTo(X(RE * Math.cos(Math.PI / 2 + half)), Y(RE * Math.sin(Math.PI / 2 + half))); g.lineTo(X(0), Y(RE + h0)); g.lineTo(X(RE * Math.cos(Math.PI / 2 - half)), Y(RE * Math.sin(Math.PI / 2 - half))); g.closePath(); g.fill();
+  g.fillStyle = '#333944'; g.fillRect(X(0) - 7, Y(RE + h0) - 4, 14, 5);
+  /* trails */
+  NC.trails.forEach(t => { const on = t === NC.cur; g.strokeStyle = t.col; g.globalAlpha = on ? 1 : .5; g.lineWidth = on ? 2.2 : 1.5; g.beginPath();
+    t.pts.forEach((q, i) => i ? g.lineTo(X(q[0]), Y(q[1])) : g.moveTo(X(q[0]), Y(q[1]))); if (on && NC.on) g.lineTo(X(NC.x), Y(NC.y)); g.stroke(); g.globalAlpha = 1; });
+  /* ball + arrows */
+  const bx = X(c ? NC.x : 0), by = Y(c ? NC.y : RE + h0);
+  if (NC.on || !c){ const vx = NC.on ? NC.vx : +ncEl.v.value, vy = NC.on ? NC.vy : 0, sp = Math.hypot(vx, vy);
+    if (sp > .05) arrow(g, bx, by, bx + vx / sp * (18 + sp * 5), by - vy / sp * (18 + sp * 5), '#3ed596');
+    if (NC.on){ const rr = Math.hypot(NC.x, NC.y), gl = 14 + 30 * Math.pow(RE / rr, 2); arrow(g, bx, by, bx - NC.x / rr * gl, by + NC.y / rr * gl, '#ff5a6e'); } }
+  const gl = g.createRadialGradient(bx, by, 0, bx, by, 10); gl.addColorStop(0, '#fff4d0'); gl.addColorStop(.4, '#ffc86a'); gl.addColorStop(1, 'rgba(255,190,90,0)'); g.fillStyle = gl; g.beginPath(); g.arc(bx, by, 10, 0, TAU); g.fill();
+  /* key + scale bar */
+  g.font = '700 12px Nunito, sans-serif'; g.textAlign = 'left'; g.fillStyle = '#c6d0e6';
+  g.fillText(Lab.L(o('Earth and mountain to scale · green = velocity · red = gravity','地球和山按比例绘制 · 绿 = 速度 · 红 = 引力')), 12, top - 30);
+  const sb = niceBar(NC.ext * .5); g.strokeStyle = '#c6d0e6'; g.lineWidth = 2; g.beginPath(); g.moveTo(12, top - 14); g.lineTo(12 + sb * s, top - 14); g.stroke();
+  g.fillText(`${nf(sb)} ${kmUnit()}`, 18 + sb * s, top - 10);
+}
+
+/* ===================== 2. Kepler's laws lab ===================== */
+const GMS = 4 * Math.PI * Math.PI;                       // Sun, in AU^3 / yr^2
+const KM_S = 4.7405;                                      // 1 AU/yr in km/s
+const REAL = [ // name, a (AU), T (yr), e  — NASA Planetary Fact Sheet (rounded)
+  [o('Mercury','水星'), .387, .241, .206], [o('Venus','金星'), .723, .615, .007], [o('Earth','地球'), 1, 1, .017], [o('Mars','火星'), 1.524, 1.881, .093],
+  [o('Ceres','谷神星'), 2.77, 4.60, .079], [o('Jupiter','木星'), 5.20, 11.86, .049], [o('Saturn','土星'), 9.58, 29.4, .052], [o('Uranus','天王星'), 19.2, 84.0, .047],
+  [o('Neptune','海王星'), 30.1, 164.8, .010], [o('Pluto','冥王星'), 39.5, 247.9, .249], [o('Halley’s Comet','哈雷彗星'), 17.8, 75.3, .967] ];
+const KP = { mode:1, E1:.6, drag:false, auto:true, pa:1, pname:null };
+function rk4(s, h, mu){            // s = [x, y, vx, vy]
+  const f = (x, y) => { const r = Math.hypot(x, y), k = -mu / (r * r * r); return [k * x, k * y]; };
+  const [x, y, vx, vy] = s;
+  const a1 = f(x, y);
+  const x2 = x + vx * h / 2, y2 = y + vy * h / 2, vx2 = vx + a1[0] * h / 2, vy2 = vy + a1[1] * h / 2, a2 = f(x2, y2);
+  const x3 = x + vx2 * h / 2, y3 = y + vy2 * h / 2, vx3 = vx + a2[0] * h / 2, vy3 = vy + a2[1] * h / 2, a3 = f(x3, y3);
+  const x4 = x + vx3 * h, y4 = y + vy3 * h, vx4 = vx + a3[0] * h, vy4 = vy + a3[1] * h, a4 = f(x4, y4);
+  return [x + h / 6 * (vx + 2 * vx2 + 2 * vx3 + vx4), y + h / 6 * (vy + 2 * vy2 + 2 * vy3 + vy4), vx + h / 6 * (a1[0] + 2 * a2[0] + 2 * a3[0] + a4[0]), vy + h / 6 * (a1[1] + 2 * a2[1] + 2 * a3[1] + a4[1])];
+}
+const HINTS = { 1:o('Ellipse = two pins + a loop of string. The Sun is one pin; the other pin is empty space.','椭圆 = 两枚图钉 + 一圈线。太阳是一枚图钉，另一枚图钉处什么也没有。'),
+  2:o('Close = short, fat wedge, fast. Far = long, thin wedge, slow. Same area each month.','近 = 又短又胖、跑得快；远 = 又细又长、跑得慢；每个月面积一样。'),
+  3:o('Square the years, cube the AU: they match. Example: 4 AU → 8 years, because 8² = 64 = 4³.','年数平方 = 距离立方。例：4 天文单位 → 8 年，因为 8² = 64 = 4³。') };
+function kepMode(m){ KP.mode = m; Lab.$$('#kepSeg button').forEach(b => b.classList.toggle('on', +b.dataset.m === m)); Lab.$$('.modegrp').forEach(g => g.hidden = +g.dataset.mode !== m);
+  Lab.$('#kepHint').textContent = Lab.L(HINTS[m]); if (m === 2) k2reset(); }
+Lab.$$('#kepSeg button').forEach(b => b.onclick = () => { kepMode(+b.dataset.m); selectTopic(['k1', 'k2', 'k3'][+b.dataset.m - 1]); });
+
+/* ---- law 1: string-and-pins ellipse ---- */
+const K1PRE = [[o('Circle','圆'), 0, 1], [o('Earth','地球'), .017, 1], [o('Mars','火星'), .093, 1.524], [o('Mercury','水星'), .206, .387], [o('Pluto','冥王星'), .249, 39.5], [o('Halley’s Comet','哈雷彗星'), .967, 17.8]];
+function k1Pre(){ Lab.$('#k1Pre').innerHTML = K1PRE.map((p, i) => `<button data-i="${i}">${Lab.L(p[0])}</button>`).join('');
+  Lab.$$('#k1Pre button').forEach(b => b.onclick = () => { const p = K1PRE[+b.dataset.i]; Lab.$('#k1e').value = p[1]; KP.pa = p[2]; KP.pname = p[0]; k1Out(); }); }
+Lab.$('#k1e').addEventListener('input', () => { KP.pname = null; KP.pa = 1; k1Out(); });
+function k1Geom(W, H){ const e = +Lab.$('#k1e').value, bq = Math.sqrt(1 - e * e), a = Math.min((W - 60) / 2, (H - 110) / 2 / bq); return { e, bq, a, b:a * bq, cx:W / 2, cy:H / 2 + 14 }; }
+function k1Out(){ const e = +Lab.$('#k1e').value, A = KP.pa, r1 = A * (1 - e * Math.cos(KP.E1)), r2 = A * (1 + e * Math.cos(KP.E1)), u = zh() ? ' 天文单位' : ' AU';
+  const dp = A > 10 ? 1 : 2;
+  Lab.$('#k1eOut').textContent = e.toFixed(3) + (KP.pname ? ` (${Lab.L(KP.pname)})` : '');
+  Lab.$('#k1r1').textContent = r1.toFixed(dp) + u; Lab.$('#k1r2').textContent = r2.toFixed(dp) + u; Lab.$('#k1sum').textContent = (r1 + r2).toFixed(dp) + u;
+  Lab.$('#k1ba').textContent = Math.sqrt(1 - e * e).toFixed(e < .05 ? 5 : 3);
+  const q = A * (1 - e), Q = A * (1 + e);
+  Lab.$('#k1note').textContent = zh() ? `半长轴 a = ${A}${u}。近日点 ${q.toFixed(dp)}${u}，远日点 ${Q.toFixed(dp)}${u}：远日点是近日点的 ${(Q / q).toFixed(e > .9 ? 0 : 2)} 倍。` + (e < .05 && e > 0 ? '偏心率这么小，肉眼几乎看不出它不是圆！' : '')
+    : `Semi-major axis a = ${A} AU. Perihelion ${q.toFixed(dp)} AU, aphelion ${Q.toFixed(dp)} AU: the far point is ${(Q / q).toFixed(e > .9 ? 0 : 2)}× the near point.` + (e < .05 && e > 0 ? ' So small an eccentricity that your eye can hardly tell it from a circle!' : ''); }
+function k1Draw(g, W, H){
+  const { e, a, b, cx, cy } = k1Geom(W, H), f1 = cx + a * e, f2 = cx - a * e, px = cx + a * Math.cos(KP.E1), py = cy - b * Math.sin(KP.E1);
+  g.strokeStyle = 'rgba(200,215,255,.25)'; g.lineWidth = 1; g.setLineDash([4, 5]); g.beginPath(); g.moveTo(cx - a - 10, cy); g.lineTo(cx + a + 10, cy); g.stroke(); g.setLineDash([]);
+  g.strokeStyle = 'rgba(200,215,255,.8)'; g.lineWidth = 2; g.beginPath(); g.ellipse(cx, cy, a, Math.max(.5, b), 0, 0, TAU); g.stroke();
+  g.lineWidth = 2.5; g.strokeStyle = '#ffc86a'; g.beginPath(); g.moveTo(f1, cy); g.lineTo(px, py); g.stroke(); g.strokeStyle = '#7fd4ff'; g.beginPath(); g.moveTo(f2, cy); g.lineTo(px, py); g.stroke();
+  g.font = '800 13px Nunito, sans-serif'; g.textAlign = 'center';
+  g.fillStyle = '#ffc86a'; g.fillText('r₁', (f1 + px) / 2 + 10, (cy + py) / 2 - 6); g.fillStyle = '#7fd4ff'; g.fillText('r₂', (f2 + px) / 2 - 10, (cy + py) / 2 - 6);
+  const sg = g.createRadialGradient(f1, cy, 0, f1, cy, 18); sg.addColorStop(0, '#fff6c8'); sg.addColorStop(.5, '#ffc845'); sg.addColorStop(1, 'rgba(255,170,40,0)'); g.fillStyle = sg; g.beginPath(); g.arc(f1, cy, 18, 0, TAU); g.fill();
+  g.fillStyle = '#7fd4ff'; g.beginPath(); g.arc(f2, cy, 4, 0, TAU); g.fill(); g.fillStyle = 'rgba(255,255,255,.6)'; g.beginPath(); g.arc(cx, cy, 2.5, 0, TAU); g.fill();
+  g.fillStyle = '#5b9dff'; g.beginPath(); g.arc(px, py, 9, 0, TAU); g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 2; g.stroke();
+  g.fillStyle = '#eaf0fb'; g.font = '800 12.5px Nunito, sans-serif';
+  g.fillText(Lab.L(o('Sun (focus 1)','太阳（焦点 1）')), f1, cy + 34); g.fillText(Lab.L(o('empty focus 2','空焦点 2')), f2, cy - 14);
+  if (e > .05){ g.fillText(Lab.L(o('perihelion','近日点')), Math.min(W - 40, cx + a), cy + 20); g.fillText(Lab.L(o('aphelion','远日点')), Math.max(40, cx - a), cy + 20); }
+  g.textAlign = 'left'; g.fillStyle = '#a6b3cf'; g.font = '700 12px Nunito, sans-serif';
+  g.fillText(Lab.L(o('Drag the blue planet · yellow + blue string = always the same length','拖动蓝色行星 · 黄线 + 蓝线 = 长度始终不变')), 12, 22);
+}
+function k1Pointer(ev){ const box = Lab.$('#kepBox'), b = box.getBoundingClientRect(), { a, b:bb, cx, cy } = k1Geom(box.clientWidth, box.clientHeight);
+  KP.E1 = Math.atan2(-(ev.clientY - b.top - cy) / Math.max(bb, 1), (ev.clientX - b.left - cx) / a); KP.auto = false; k1Out(); }
+Lab.$('#kepCv').addEventListener('pointerdown', ev => { if (KP.mode !== 1) return; KP.drag = true; Lab.$('#kepCv').setPointerCapture(ev.pointerId); k1Pointer(ev); });
+Lab.$('#kepCv').addEventListener('pointermove', ev => { if (KP.mode === 1 && KP.drag) k1Pointer(ev); });
+Lab.$('#kepCv').addEventListener('pointerup', () => KP.drag = false);
+
+/* ---- law 2: integrated orbit + equal-time sectors ---- */
+const K2 = { s:null, t:0, e:.6, sectors:[], cur:null, auto:false, paused:false, trail:[] };
+const SECCOL = ['rgba(255,200,106,.55)', 'rgba(127,212,255,.5)', 'rgba(255,143,176,.5)', 'rgba(157,255,157,.45)', 'rgba(200,168,255,.5)', 'rgba(255,122,89,.5)'];
+function k2reset(){ const e = +Lab.$('#k2e').value; K2.e = e; K2.s = [1 - e, 0, 0, Math.sqrt(GMS * (1 + e) / (1 - e))]; K2.t = 0; K2.sectors = []; K2.cur = null; k2table(); Lab.$('#k2eOut').textContent = e.toFixed(2); }
+function k2start(){ if (K2.cur) return; if (K2.sectors.length >= 12) K2.sectors = []; K2.cur = { t0:K2.t, pts:[[K2.s[0], K2.s[1]]], area:0, len:0, col:SECCOL[K2.sectors.length % SECCOL.length], n:K2.sectors.length + 1 }; K2.sectors.push(K2.cur); }
+function k2sim(dt){
+  if (K2.paused || !K2.s) return; let rem = dt * .1;              // one orbit per 10 s
+  while (rem > 0){ const r = Math.hypot(K2.s[0], K2.s[1]), h = Math.min(rem, .0015 * Math.pow(r, 1.5), K2.cur ? Math.max(1e-7, K2.cur.t0 + 1 / 12 - K2.t) : 1); rem -= h;
+    const p = K2.s; K2.s = rk4(p, h, GMS); K2.t += h;
+    if (K2.cur){ const c = K2.cur; c.area += .5 * Math.abs(p[0] * K2.s[1] - p[1] * K2.s[0]); c.len += Math.hypot(K2.s[0] - p[0], K2.s[1] - p[1]); c.pts.push([K2.s[0], K2.s[1]]);
+      if (K2.t - c.t0 >= 1 / 12 - 1e-6){ K2.cur = null; k2table(); if (K2.auto) k2start(); } } }
+}
+function k2table(){ const A = Math.PI * Math.sqrt(1 - K2.e * K2.e), done = K2.sectors.filter(s => s !== K2.cur);
+  Lab.$('#k2tab').innerHTML = `<tr><th>${Lab.L(o('Month','月份'))}</th><th>${Lab.L(o('Area swept','扫过的面积'))}</th><th>${Lab.L(o('Path length','走过的路程'))}</th></tr>` +
+    (done.length ? done.slice(-6).map(s => `<tr><td><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${s.col.replace(/[\d.]+\)$/, '1)')};margin-right:6px"></i>${s.n}</td><td>${(s.area / A * 100).toFixed(2)}%</td><td>${s.len.toFixed(3)} ${zh() ? '天文单位' : 'AU'}</td></tr>`).join('')
+      : `<tr><td colspan="3" style="text-align:left;color:var(--ink-2)">${Lab.L(o('No months shaded yet. Each month should cover 1/12 = 8.33% of the ellipse.','还没有涂色。每个月应该占椭圆面积的 1/12 = 8.33%。'))}</td></tr>`); }
+Lab.$('#k2e').addEventListener('input', k2reset);
+Lab.$('#k2shade').onclick = k2start;
+Lab.$('#k2auto').onclick = () => { K2.auto = !K2.auto; Lab.$('#k2auto').classList.toggle('alt', K2.auto); if (K2.auto) k2start(); };
+Lab.$('#k2clear').onclick = () => { K2.sectors = []; K2.cur = null; k2table(); };
+Lab.$('#k2pause').onclick = () => { K2.paused = !K2.paused; Lab.$('#k2pause').textContent = Lab.L(K2.paused ? o('▶ Play','▶ 继续') : o('⏸ Pause','⏸ 暂停')); };
+function k2Draw(g, W, H){
+  const e = K2.e, bq = Math.sqrt(1 - e * e), s = Math.min((W - 50) / 2, (H - 90) / 2 / bq), X = x => W / 2 + (x + e) * s, Y = y => H / 2 + 12 - y * s;
+  K2.sectors.forEach(c => { g.fillStyle = c.col; g.beginPath(); g.moveTo(X(0), Y(0)); c.pts.forEach(p => g.lineTo(X(p[0]), Y(p[1]))); g.closePath(); g.fill(); });
+  g.strokeStyle = 'rgba(200,215,255,.7)'; g.lineWidth = 1.5; g.beginPath(); g.ellipse(X(-e), Y(0), s, s * bq, 0, 0, TAU); g.stroke();
+  const sg = g.createRadialGradient(X(0), Y(0), 0, X(0), Y(0), 18); sg.addColorStop(0, '#fff6c8'); sg.addColorStop(.5, '#ffc845'); sg.addColorStop(1, 'rgba(255,170,40,0)'); g.fillStyle = sg; g.beginPath(); g.arc(X(0), Y(0), 18, 0, TAU); g.fill();
+  if (!K2.s) return; const [x, y, vx, vy] = K2.s, v = Math.hypot(vx, vy);
+  g.strokeStyle = 'rgba(255,255,255,.45)'; g.lineWidth = 1; g.beginPath(); g.moveTo(X(0), Y(0)); g.lineTo(X(x), Y(y)); g.stroke();
+  const L = 12 + v / (TAU * 3) * 40; arrow(g, X(x), Y(y), X(x) + vx / v * L, Y(y) - vy / v * L, '#3ed596');
+  g.fillStyle = '#5b9dff'; g.beginPath(); g.arc(X(x), Y(y), 8, 0, TAU); g.fill();
+  g.fillStyle = '#a6b3cf'; g.font = '700 12px Nunito, sans-serif'; g.textAlign = 'left';
+  g.fillText(Lab.L(o('Each coloured wedge = area swept in 1/12 of an orbit · green = velocity','每块彩色扇形 = 1/12 个周期扫过的面积 · 绿 = 速度')), 12, 22);
+  Lab.$('#k2v').textContent = (v * KM_S).toFixed(1); Lab.$('#k2r').textContent = Math.hypot(x, y).toFixed(3);
+}
+
+/* ---- law 3: launch planets, measure T and a ---- */
+const K3 = { run:null, orbits:[], data:[], view:3, n:0 };
+const k3r0 = () => .3 * Math.pow(40 / .3, +Lab.$('#k3d').value);
+function zoneName(r){ return r < .5 ? o('inside Mercury’s orbit','在水星轨道以内') : r < 1.3 ? o('near Venus and Earth','在金星和地球附近') : r < 2.1 ? o('near Mars','在火星附近') : r < 4 ? o('in the asteroid belt','在小行星带') : r < 7 ? o('near Jupiter','在木星附近') : r < 14 ? o('near Saturn','在土星附近') : r < 25 ? o('near Uranus','在天王星附近') : r < 35 ? o('near Neptune','在海王星附近') : o('out in the Kuiper Belt','在柯伊伯带'); }
+function k3Out(){ const r = k3r0(); Lab.$('#k3dOut').textContent = `${r < 10 ? r.toFixed(2) : r.toFixed(1)} ${zh() ? '天文单位' : 'AU'} (${Lab.L(zoneName(r))})`; Lab.$('#k3fOut').textContent = '×' + (+Lab.$('#k3f').value).toFixed(2); }
+['#k3d', '#k3f'].forEach(s => Lab.$(s).addEventListener('input', k3Out));
+const K3COL = ['#ffc86a', '#7fd4ff', '#ff8fb0', '#9dff9d', '#c8a8ff', '#ff7a59'];
+function k3go(){ const r0 = k3r0(), f = +Lab.$('#k3f').value, v0 = f * Math.sqrt(GMS / r0), aEst = 1 / (2 / r0 - v0 * v0 / GMS);
+  K3.run = { s:[r0, 0, 0, v0], t:0, swept:0, ang:0, rmin:r0, rmax:r0, pts:[[r0, 0]], rate:Math.pow(aEst, 1.5) / 4, col:K3COL[K3.n++ % K3COL.length], r0, f };
+  K3.view = Math.max(K3.view * .3, aEst * (1 + Math.abs(1 - f * f)) * 1.15, r0 * 1.15);
+  Lab.$('#k3msg').className = 'result'; Lab.$('#k3msg').textContent = Lab.L(o('Orbiting… timing one full lap.','运行中……正在计时绕一整圈。')); }
+function k3sim(dt){ const R = K3.run; if (!R) return; let rem = dt * R.rate;
+  while (rem > 0 && K3.run){ const r = Math.hypot(R.s[0], R.s[1]), h = Math.min(rem, .002 * Math.pow(r, 1.5)); rem -= h; R.s = rk4(R.s, h, GMS); R.t += h;
+    const rr = Math.hypot(R.s[0], R.s[1]), a = Math.atan2(R.s[1], R.s[0]); let d = a - R.ang; d -= Math.round(d / TAU) * TAU; R.swept += d; R.ang = a; R.rmin = Math.min(R.rmin, rr); R.rmax = Math.max(R.rmax, rr);
+    const lp = R.pts[R.pts.length - 1]; if (Math.hypot(R.s[0] - lp[0], R.s[1] - lp[1]) > R.r0 * .01) R.pts.push([R.s[0], R.s[1]]);
+    if (R.swept >= TAU){ const over = (R.swept - TAU) / Math.max(1e-9, d), T = R.t - over * h, A = (R.rmin + R.rmax) / 2;
+      R.pts.push([R.pts[0][0], R.pts[0][1]]); K3.orbits.push({ pts:R.pts, col:R.col }); if (K3.orbits.length > 6) K3.orbits.shift();
+      K3.data.push({ a:A, T, col:R.col }); K3.run = null; k3table(); drawT3();
+      Lab.$('#k3msg').className = 'result good';
+      Lab.$('#k3msg').textContent = zh() ? `测得：a = ${A.toFixed(2)} 天文单位，T = ${T.toFixed(2)} 年。T² ÷ a³ = ${(T * T / (A * A * A)).toFixed(3)}` : `Measured: a = ${A.toFixed(2)} AU, T = ${T.toFixed(2)} years. T² ÷ a³ = ${(T * T / (A * A * A)).toFixed(3)}`; } } }
+function k3table(){ Lab.$('#k3tab').innerHTML = `<tr><th>#</th><th>a (${zh() ? '天文单位' : 'AU'})</th><th>T (${zh() ? '年' : 'yr'})</th><th>a³</th><th>T²</th><th>T² ÷ a³</th></tr>` +
+  (K3.data.length ? K3.data.slice(-8).map((d, i) => `<tr><td><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${d.col};margin-right:6px"></i>${K3.data.length > 8 ? K3.data.length - 8 + i + 1 : i + 1}</td><td>${d.a.toFixed(2)}</td><td>${d.T.toFixed(2)}</td><td>${sig(d.a ** 3)}</td><td>${sig(d.T ** 2)}</td><td><b>${(d.T * d.T / d.a ** 3).toFixed(3)}</b></td></tr>`).join('')
+   : `<tr><td colspan="6" style="text-align:left;color:var(--ink-2)">${Lab.L(o('Launch a planet to fill the table. Try at least three very different distances.','发射一颗行星来填表。至少试三个相差很大的距离。'))}</td></tr>`); }
+const sig = x => x >= 100 ? nf(x) : x >= 10 ? x.toFixed(1) : x.toFixed(2);
+Lab.$('#k3go').onclick = k3go;
+Lab.$('#k3clear').onclick = () => { K3.data = []; K3.orbits = []; K3.run = null; K3.view = 3; k3table(); drawT3(); Lab.$('#k3msg').textContent = ''; };
+function k3Draw(g, W, H){
+  const R = K3.run, want = R ? K3.view : K3.view; const s = Math.min(W - 40, H - 70) / 2 / want, X = x => W / 2 + x * s, Y = y => H / 2 + 12 - y * s;
+  g.lineWidth = 1; g.font = '700 11px Nunito, sans-serif'; g.textAlign = 'left';
+  REAL.slice(0, 10).forEach(p => { const rp = p[1] * s; if (rp < 6 || rp > W) return; g.strokeStyle = 'rgba(160,180,230,.22)'; g.beginPath(); g.arc(X(0), Y(0), rp, 0, TAU); g.stroke(); g.fillStyle = 'rgba(180,195,235,.6)'; g.fillText(Lab.L(p[0]), X(0) + rp * .7 + 3, Y(0) - rp * .7); });
+  K3.orbits.forEach(ob => { g.strokeStyle = ob.col; g.globalAlpha = .55; g.lineWidth = 1.6; g.beginPath(); ob.pts.forEach((p, i) => i ? g.lineTo(X(p[0]), Y(p[1])) : g.moveTo(X(p[0]), Y(p[1]))); g.stroke(); g.globalAlpha = 1; });
+  const sg = g.createRadialGradient(X(0), Y(0), 0, X(0), Y(0), 14); sg.addColorStop(0, '#fff6c8'); sg.addColorStop(.5, '#ffc845'); sg.addColorStop(1, 'rgba(255,170,40,0)'); g.fillStyle = sg; g.beginPath(); g.arc(X(0), Y(0), 14, 0, TAU); g.fill();
+  if (R){ g.strokeStyle = R.col; g.lineWidth = 2.2; g.beginPath(); R.pts.forEach((p, i) => i ? g.lineTo(X(p[0]), Y(p[1])) : g.moveTo(X(p[0]), Y(p[1]))); g.lineTo(X(R.s[0]), Y(R.s[1])); g.stroke();
+    g.fillStyle = R.col; g.beginPath(); g.arc(X(R.s[0]), Y(R.s[1]), 7, 0, TAU); g.fill();
+    g.fillStyle = '#eaf0fb'; g.font = '800 13px Nunito, sans-serif'; g.fillText(zh() ? `计时：${R.t.toFixed(2)} 年` : `Timer: ${R.t.toFixed(2)} years`, 12, H - 16); }
+  else { const r0 = k3r0(); g.fillStyle = '#ffffff'; g.globalAlpha = .7; g.beginPath(); g.arc(X(r0), Y(0), 5, 0, TAU); g.fill(); g.globalAlpha = 1; }
+  g.fillStyle = '#a6b3cf'; g.font = '700 12px Nunito, sans-serif'; g.textAlign = 'left';
+  g.fillText(Lab.L(o('Faint rings = real planet orbits · time is sped up so every lap takes about 4 s','淡色圆圈 = 真实行星轨道 · 时间已加快，每圈约 4 秒')), 12, 22);
+}
+function kepDraw(dt){
+  const box = Lab.$('#kepBox'), { g, W, H } = fit(box, Lab.$('#kepCv')); if (!W) return;
+  starfield(g, W, H);
+  if (KP.mode === 1){ if (KP.auto && !KP.drag){ KP.E1 += dt * .5; if (Math.floor(KP.E1 * 4) !== Math.floor((KP.E1 - dt * .5) * 4)) k1Out(); } k1Draw(g, W, H); }
+  else if (KP.mode === 2){ k2sim(dt); k2Draw(g, W, H); }
+  else { k3sim(dt); k3Draw(g, W, H); }
+}
+
+/* ---- T² vs a³ plot (log–log) ---- */
+const T3 = { hover:null };
+function drawT3(){
+  const box = Lab.$('#t3Box'), { g, W, H } = fit(box, Lab.$('#t3Cv')); if (!W) return;
+  const ink = css('--ink') || '#14213d', ink2 = css('--ink-2') || '#4a5878', line = css('--line') || '#d9e2ee', brand = css('--brand') || '#5b5bd6', acc = css('--accent') || '#ff7a59';
+  g.fillStyle = css('--surface') || '#fff'; g.fillRect(0, 0, W, H);
+  const pad = { l:58, r:16, t:40, b:46 }, L0 = -2, L1 = 6, X = v => pad.l + (Math.log10(v) - L0) / (L1 - L0) * (W - pad.l - pad.r), Y = v => H - pad.b - (Math.log10(v) - L0) / (L1 - L0) * (H - pad.t - pad.b);
+  g.fillStyle = ink; g.font = '600 17px Fredoka, Nunito, sans-serif'; g.textAlign = 'left'; g.fillText(Lab.L(o('Kepler’s 3rd law: T² against a³','开普勒第三定律：T² 与 a³')), 14, 24);
+  g.font = '700 11.5px Nunito, sans-serif'; g.strokeStyle = line; g.lineWidth = 1;
+  for (let k = L0; k <= L1; k++){ const x = X(10 ** k), y = Y(10 ** k); g.beginPath(); g.moveTo(x, pad.t); g.lineTo(x, H - pad.b); g.stroke(); g.beginPath(); g.moveTo(pad.l, y); g.lineTo(W - pad.r, y); g.stroke();
+    g.fillStyle = ink2; g.textAlign = 'center'; if (k % (W < 480 ? 2 : 1) === 0) g.fillText(tenPow(k), x, H - pad.b + 15); g.textAlign = 'right'; if (k % 2 === 0) g.fillText(tenPow(k), pad.l - 6, y + 4); }
+  g.fillStyle = ink2; g.textAlign = 'center'; g.fillText(Lab.L(o('a³ (semi-major axis in AU, cubed)','a³（半长轴，天文单位，立方）')), (pad.l + W - pad.r) / 2, H - 10);
+  g.save(); g.translate(14, (pad.t + H - pad.b) / 2 + 6); g.rotate(-Math.PI / 2); g.fillText(Lab.L(o('T² (period in years, squared)','T²（周期，年，平方）')), 0, 0); g.restore();
+  g.strokeStyle = brand; g.globalAlpha = .55; g.setLineDash([6, 5]); g.lineWidth = 2; g.beginPath(); g.moveTo(X(10 ** L0), Y(10 ** L0)); g.lineTo(X(10 ** L1), Y(10 ** L1)); g.stroke(); g.setLineDash([]); g.globalAlpha = 1;
+  T3.pts = [];
+  REAL.forEach((p, i) => { const x = X(p[1] ** 3), y = Y(p[2] ** 2); g.strokeStyle = brand; g.lineWidth = 2; g.fillStyle = css('--surface') || '#fff'; g.beginPath(); g.arc(x, y, 5, 0, TAU); g.fill(); g.stroke();
+    if ([0, 2, 5, 8, 10].includes(i)){ g.fillStyle = ink2; g.font = '700 11px Nunito, sans-serif'; g.textAlign = 'left'; g.fillText(Lab.L(p[0]), x + 8, y + 12); }
+    T3.pts.push({ x, y, lines:[Lab.L(p[0]), `a = ${p[1]} ${zh() ? '天文单位' : 'AU'}, T = ${p[2]} ${zh() ? '年' : 'yr'}`, `a³ = ${sig(p[1] ** 3)}, T² = ${sig(p[2] ** 2)}`] }); });
+  K3.data.forEach((d, i) => { const x = X(d.a ** 3), y = Y(d.T ** 2); g.fillStyle = d.col; g.strokeStyle = ink; g.lineWidth = 1.5; g.beginPath(); g.arc(x, y, 6, 0, TAU); g.fill(); g.stroke();
+    T3.pts.push({ x, y, lines:[Lab.L(o(`Your planet #${i + 1}`, `你的行星 #${i + 1}`)), `a = ${d.a.toFixed(2)}, T = ${d.T.toFixed(2)}`, `T² ÷ a³ = ${(d.T * d.T / d.a ** 3).toFixed(3)}`] }); });
+  if (T3.hover){ const p = T3.pts.find(q => Math.hypot(q.x - T3.hover[0], q.y - T3.hover[1]) < 12); if (p) tip(g, p.x, p.y, p.lines, W); }
+}
+function tenPow(k){ return k === 0 ? '1' : k === 1 ? '10' : k < 0 ? (10 ** k).toString() : '10' + String(k).split('').map(c => '⁰¹²³⁴⁵⁶⁷⁸⁹'[+c]).join(''); }
+Lab.$('#t3Cv').addEventListener('pointermove', e => { const b = e.currentTarget.getBoundingClientRect(); T3.hover = [e.clientX - b.left, e.clientY - b.top]; drawT3(); });
+Lab.$('#t3Cv').addEventListener('pointerleave', () => { T3.hover = null; drawT3(); });
+
+/* ---- Figure 1: period vs distance for three central bodies (log–log) ---- */
+const F1G = [ // central body, GM (km^3/s^2), colour, members [name, a (km), T (days)]
+  { body:o('around the Sun','绕太阳'), GM:1.32712e11, col:'#e0a030', m:[[o('Mercury','水星'), 57.9e6, 88.0], [o('Venus','金星'), 108.2e6, 224.7], [o('Earth','地球'), 149.6e6, 365.2], [o('Mars','火星'), 227.9e6, 687.0], [o('Jupiter','木星'), 778.5e6, 4331], [o('Saturn','土星'), 1432e6, 10747], [o('Uranus','天王星'), 2867e6, 30589], [o('Neptune','海王星'), 4515e6, 59800], [o('Pluto','冥王星'), 5906e6, 90560]] },
+  { body:o('around Jupiter','绕木星'), GM:1.26687e8, col:'#c0784a', m:[[o('Io','木卫一'), 421700, 1.769], [o('Europa','木卫二'), 671034, 3.551], [o('Ganymede','木卫三'), 1070412, 7.155], [o('Callisto','木卫四'), 1882709, 16.689]] },
+  { body:o('around Earth','绕地球'), GM:398600.4, col:'#4f8fe8', m:[[o('ISS (≈420 km up)','国际空间站（高约 420 千米）'), 6791, .0645], [o('GPS satellites','GPS 卫星'), 26560, .4986], [o('Geostationary satellites','地球静止轨道卫星'), 42164, .9973], [o('The Moon','月球'), 384400, 27.32]] } ];
+const F1 = { hover:null };
+function drawF1(){
+  const box = Lab.$('#f1Box'), { g, W, H } = fit(box, Lab.$('#f1Cv')); if (!W) return;
+  const ink = css('--ink') || '#14213d', ink2 = css('--ink-2') || '#4a5878', line = css('--line') || '#d9e2ee', surf = css('--surface') || '#fff';
+  g.fillStyle = surf; g.fillRect(0, 0, W, H);
+  const pad = { l:76, r:40, t:44, b:46 }, xa = 3.5, xb = 10, ya = -2, yb = 5;
+  const X = a => pad.l + (Math.log10(a) - xa) / (xb - xa) * (W - pad.l - pad.r), Y = t => H - pad.b - (Math.log10(t) - ya) / (yb - ya) * (H - pad.t - pad.b);
+  g.fillStyle = ink; g.font = '600 17px Fredoka, Nunito, sans-serif'; g.textAlign = 'left'; g.fillText(Lab.L(o('Farther = longer period, for planets, moons and satellites','距离越远，周期越长：行星、卫星、人造卫星都一样')), 14, 26);
+  g.font = '700 11.5px Nunito, sans-serif'; g.strokeStyle = line; g.lineWidth = 1;
+  const xl = { 4:'10,000 km', 5:'100,000', 6:'1 million', 7:'10 million', 8:'100 million', 9:'1 billion', 10:'10 billion' }, xlz = { 4:'1 万千米', 5:'10 万', 6:'100 万', 7:'1000 万', 8:'1 亿', 9:'10 亿', 10:'100 亿' };
+  for (let k = 4; k <= 10; k++){ const x = X(10 ** k); g.beginPath(); g.moveTo(x, pad.t); g.lineTo(x, H - pad.b); g.stroke(); if (W > 560 || k % 2 === 0){ g.fillStyle = ink2; g.textAlign = 'center'; g.fillText((zh() ? xlz : xl)[k], x, H - pad.b + 15); } }
+  const yl = { '-2':o('15 min','15 分钟'), '-1':o('2.4 h','2.4 小时'), 0:o('1 day','1 天'), 1:o('10 days','10 天'), 2:o('100 days','100 天'), 3:o('2.7 yr','2.7 年'), 4:o('27 yr','27 年'), 5:o('274 yr','274 年') };
+  for (let k = ya; k <= yb; k++){ const y = Y(10 ** k); g.beginPath(); g.moveTo(pad.l, y); g.lineTo(W - pad.r, y); g.stroke(); g.fillStyle = ink2; g.textAlign = 'right'; g.fillText(Lab.L(yl[k]), pad.l - 5, y + 4); }
+  g.fillStyle = ink2; g.textAlign = 'center'; g.fillText(Lab.L(o('Distance from the centre of the body it orbits (km)','到所绕天体中心的距离（千米）')), (pad.l + W - pad.r) / 2, H - 10);
+  g.save(); g.translate(12, (pad.t + H - pad.b) / 2); g.rotate(-Math.PI / 2); g.fillText(Lab.L(o('Orbital period','轨道周期')), 0, 0); g.restore();
+  F1.pts = [];
+  F1G.forEach(G => { const Tof = a => TAU * Math.sqrt(a ** 3 / G.GM) / 86400, a0 = G.m[0][1] / 2.5, a1 = G.m[G.m.length - 1][1] * 2.5;
+    g.strokeStyle = G.col; g.globalAlpha = .5; g.lineWidth = 2; g.setLineDash([6, 5]); g.beginPath();
+    for (let k = 0; k <= 40; k++){ const a = a0 * (a1 / a0) ** (k / 40), x = X(a), y = Y(Tof(a)); k ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke(); g.setLineDash([]); g.globalAlpha = 1;
+    const lx = X(a1 / 1.8), ly = Y(Tof(a1 / 1.8)); g.fillStyle = G.col; g.font = '800 12.5px Nunito, sans-serif'; g.textAlign = 'right'; g.fillText(Lab.L(G.body), lx - 8, ly - 12);
+    G.m.forEach(p => { const x = X(p[1]), y = Y(p[2]); g.fillStyle = G.col; g.strokeStyle = surf; g.lineWidth = 2; g.beginPath(); g.arc(x, y, 5.5, 0, TAU); g.fill(); g.stroke();
+      const T = p[2], tl = T < 1 ? (zh() ? `${(T * 24).toFixed(T < .1 ? 2 : 1)} 小时` : `${(T * 24).toFixed(T < .1 ? 2 : 1)} hours`) : T < 400 ? (zh() ? `${T} 天` : `${T} days`) : (zh() ? `${(T / 365.25).toFixed(1)} 年` : `${(T / 365.25).toFixed(1)} years`);
+      F1.pts.push({ x, y, lines:[Lab.L(p[0]) + ` (${Lab.L(G.body)})`, zh() ? `距离 ${nf(p[1])} 千米` : `distance ${nf(p[1])} km`, zh() ? `周期 ${tl}` : `period ${tl}`] }); }); });
+  if (F1.hover){ const p = F1.pts.find(q => Math.hypot(q.x - F1.hover[0], q.y - F1.hover[1]) < 12); if (p) tip(g, p.x, p.y, p.lines, W); }
+}
+Lab.$('#f1Cv').addEventListener('pointermove', e => { const b = e.currentTarget.getBoundingClientRect(); F1.hover = [e.clientX - b.left, e.clientY - b.top]; drawF1(); });
+Lab.$('#f1Cv').addEventListener('pointerleave', () => { F1.hover = null; drawF1(); });
+
+/* ===================== 3. Mission to Mars (Hohmann transfer, RK4 in AU & days) ===================== */
+const J2000 = Date.UTC(2000, 0, 1, 12), DAY = 864e5, BASE = Date.UTC(2026, 0, 1);
+const GMD = (TAU / 365.256) ** 2, AUD = 1731.457, MKM = 149.598;     // AU^3/day^2; AU/day → km/s; AU → million km
+const PL = { E:{ a:1, L0:100.464, n:360 / 365.256 }, M:{ a:1.5237, L0:355.433, n:360 / 686.980 } };   // mean longitudes at J2000 (circular model)
+const lonOf = (p, d) => (p.L0 + p.n * d) * D2R;
+const posOf = (p, d) => { const L = lonOf(p, d); return [p.a * Math.cos(L), p.a * Math.sin(L)]; };
+const velOf = (p, d) => { const L = lonOf(p, d), v = Math.sqrt(GMD / p.a); return [-v * Math.sin(L), v * Math.cos(L)]; };
+const AT = (1 + PL.M.a) / 2, TTR = Math.PI * Math.sqrt(AT ** 3 / GMD), PHI = 180 - PL.M.n * TTR;
+const HO = { dv1:(Math.sqrt(GMD * (2 - 1 / AT)) - Math.sqrt(GMD)) * AUD, dv2:(Math.sqrt(GMD / PL.M.a) - Math.sqrt(GMD * (2 / PL.M.a - 1 / AT))) * AUD };
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const dayJ = v => (BASE - J2000) / DAY + +v;
+function fmtDate(dj, short){ const d = new Date(J2000 + dj * DAY), y = d.getUTCFullYear(), m = d.getUTCMonth(), dd = d.getUTCDate();
+  return short ? (zh() ? `${y}年${m + 1}月` : `${MON[m]} ${y}`) : (zh() ? `${y}年${m + 1}月${dd}日` : `${MON[m]} ${dd}, ${y}`); }
+function phaseAt(dj){ const p = (lonOf(PL.M, dj) - lonOf(PL.E, dj)) / D2R; return ((p % 360) + 540) % 360 - 180; }
+function plan(dj, dv){
+  const p = posOf(PL.E, dj), v = velOf(PL.E, dj), k = 1 + dv / AUD / Math.hypot(v[0], v[1]);
+  let s = [p[0], p[1], v[0] * k, v[1] * k]; const h = .5, pts = [[s[0], s[1]]]; let minD = 1e9, tMin = 0, relV = 0, cross = null;
+  for (let i = 1; i <= 1400; i++){ s = rk4(s, h, GMD); const t = i * h; pts.push([s[0], s[1]]);
+    const m = posOf(PL.M, dj + t), d = Math.hypot(s[0] - m[0], s[1] - m[1]);
+    if (d < minD){ minD = d; tMin = t; const mv = velOf(PL.M, dj + t); relV = Math.hypot(s[2] - mv[0], s[3] - mv[1]) * AUD; }
+    if (!cross && Math.hypot(s[0], s[1]) >= PL.M.a - .015) cross = { t, x:s[0], y:s[1] };
+    if (minD < .05 && d > minD + .3) break; }
+  return { pts, h, minD, tMin, relV, cross, dj, dv, ok:minD <= .03 };
+}
+const MS = { plan:null, fly:null, ghost:true, play:false, best:0, log:[] };
+const mEl = { day:Lab.$('#mDay'), dv:Lab.$('#mDv') };
+function mUpdate(){
+  const dj = dayJ(mEl.day.value), dv = +mEl.dv.value;
+  Lab.$('#mDayOut').textContent = fmtDate(dj); Lab.$('#mDvOut').textContent = `${dv.toFixed(2)} ${ksUnit()}`;
+  MS.plan = plan(dj, dv);
+  const ph = phaseAt(dj), e = posOf(PL.E, dj), m = posOf(PL.M, dj);
+  Lab.$('#mPhase').textContent = `${ph.toFixed(1)}°`;
+  Lab.$('#mDist').textContent = zh() ? `${nf(Math.hypot(e[0] - m[0], e[1] - m[1]) * MKM)} 百万千米` : `${nf(Math.hypot(e[0] - m[0], e[1] - m[1]) * MKM)} million km`;
+  const P = MS.plan;
+  if (MS.ghost){
+    Lab.$('#mMiss').textContent = !P.cross ? Lab.L(o('never reaches Mars’s orbit','到不了火星轨道')) : zh() ? `${nf(P.minD * MKM, 1)} 百万千米` : `${nf(P.minD * MKM, 1)} million km`;
+    Lab.$('#mTime').textContent = P.cross ? (zh() ? `${Math.round(P.ok ? P.tMin : P.cross.t)} 天` : `${Math.round(P.ok ? P.tMin : P.cross.t)} days`) : '–';
+  } else { Lab.$('#mMiss').textContent = '?'; Lab.$('#mTime').textContent = '?'; }
+}
+mEl.day.addEventListener('input', () => { if (MS.fly) MS.fly = null; mUpdate(); });
+mEl.dv.addEventListener('input', () => { if (MS.fly && !MS.fly.done) return; MS.fly = null; mUpdate(); });
+Lab.$('#mPrev').onclick = () => { mEl.day.value = +mEl.day.value - 1; MS.fly = null; mUpdate(); };
+Lab.$('#mNext').onclick = () => { mEl.day.value = +mEl.day.value + 1; MS.fly = null; mUpdate(); };
+Lab.$('#mPlay').onclick = () => { MS.play = !MS.play; Lab.$('#mPlay').textContent = MS.play ? '⏸' : '▶'; if (MS.play) MS.fly = null; };
+Lab.$('#mGhost').onclick = () => { MS.ghost = !MS.ghost; ghostLabel(); mUpdate(); };
+function ghostLabel(){ Lab.$('#mGhost').textContent = Lab.L(MS.ghost ? o('👻 Planner: on','👻 预告：开') : o('👻 Planner: off','👻 预告：关')); }
+Lab.$('#mReset').onclick = () => { MS.fly = null; MS.play = false; Lab.$('#mPlay').textContent = '▶'; mEl.day.value = 120; mEl.dv.value = 2.6; Lab.$('#mMsg').textContent = ''; Lab.$('#mStars').textContent = ''; mUpdate(); };
+Lab.$('#mGo').onclick = () => { if (MS.fly && !MS.fly.done) return; MS.play = false; Lab.$('#mPlay').textContent = '▶'; mUpdate();
+  const P = MS.plan; MS.fly = { P, t:0, end:P.ok ? P.tMin : Math.min(700, (P.pts.length - 1) * P.h), done:false };
+  Lab.$('#mMsg').className = 'result'; Lab.$('#mMsg').textContent = Lab.L(o('🚀 Launched! Coasting on the transfer orbit…','🚀 已发射！正沿转移轨道滑行……')); Lab.$('#mStars').textContent = ''; };
+function mScore(P){ const tot = P.dv + P.relV, ideal = HO.dv1 + HO.dv2, fuel = Math.min(70, 70 * ideal / tot), time = 30 * Math.min(1, TTR / P.tMin); return { tot, pts:Math.round(fuel + time) }; }
+function mFinish(){ const F = MS.fly, P = F.P; F.done = true; const msg = Lab.$('#mMsg');
+  if (P.ok){ const sc = mScore(P), stars = sc.pts >= 90 ? 3 : sc.pts >= 75 ? 2 : 1; MS.best = Math.max(MS.best, sc.pts);
+    msg.className = 'result good';
+    msg.textContent = zh() ? `✅ 抵达火星！飞行 ${Math.round(P.tMin)} 天（约 ${(P.tMin / 30.44).toFixed(1)} 个月）。出发点火 ${P.dv.toFixed(2)} + 到达减速 ${P.relV.toFixed(2)} = ${sc.tot.toFixed(2)} 千米/秒。得分 ${sc.pts}/100（最高 ${MS.best}）。`
+      : `✅ Arrived at Mars! Flight time ${Math.round(P.tMin)} days (about ${(P.tMin / 30.44).toFixed(1)} months). Departure burn ${P.dv.toFixed(2)} + braking at Mars ${P.relV.toFixed(2)} = ${sc.tot.toFixed(2)} km/s. Score ${sc.pts}/100 (best ${MS.best}).`;
+    Lab.$('#mStars').textContent = '★'.repeat(stars) + '☆'.repeat(3 - stars);
+    MS.log.unshift(`${fmtDate(P.dj)} · ${P.dv.toFixed(2)} ${ksUnit()} → ✅ ${Math.round(P.tMin)} ${zh() ? '天' : 'd'} · ${sc.pts}/100`);
+  } else { msg.className = 'result bad';
+    msg.textContent = !P.cross ? Lab.L(o('❌ The probe never got out as far as Mars’s orbit. Burn harder (a Hohmann transfer needs about 2.9 km/s).','❌ 探测器根本没飞到火星轨道。加大点火（霍曼转移约需 2.9 千米/秒）。'))
+      : zh() ? `❌ 错过了！最近时离火星 ${nf(P.minD * MKM, 1)} 百万千米。看看火星领先地球的角度，接近 44° 再试。` : `❌ Missed! Closest approach ${nf(P.minD * MKM, 1)} million km from Mars. Check how far Mars is ahead of Earth: try again nearer 44°.`;
+    MS.log.unshift(`${fmtDate(P.dj)} · ${P.dv.toFixed(2)} ${ksUnit()} → ❌ ${nf(P.minD * MKM, 1)} ${zh() ? '百万千米' : 'M km'}`); }
+  MS.log = MS.log.slice(0, 8); Lab.$('#mLog').innerHTML = MS.log.map(s => `<div>${s}</div>`).join(''); }
+function marsDraw(dt){
+  const box = Lab.$('#marsBox'), { g, W, H } = fit(box, Lab.$('#marsCv')); if (!W) return;
+  if (MS.play){ const v = +mEl.day.value + 2; if (v > +mEl.day.max){ MS.play = false; Lab.$('#mPlay').textContent = '▶'; } else { mEl.day.value = v; mUpdate(); } }
+  const F = MS.fly; if (F && !F.done){ F.t = Math.min(F.end, F.t + dt * 45); if (F.t >= F.end) mFinish(); }
+  const dj0 = dayJ(mEl.day.value), day = dj0 + (F ? F.t : 0), P = F ? F.P : MS.plan;
+  starfield(g, W, H);
+  const s = Math.min(W, H - 30) / 2 / 1.72, cx = W / 2, cy = H / 2 + 10, X = x => cx + x * s, Y = y => cy - y * s;
+  g.lineWidth = 1.2; g.strokeStyle = 'rgba(120,170,255,.45)'; g.beginPath(); g.arc(cx, cy, s, 0, TAU); g.stroke();
+  g.strokeStyle = 'rgba(255,140,100,.45)'; g.beginPath(); g.arc(cx, cy, PL.M.a * s, 0, TAU); g.stroke();
+  const sg = g.createRadialGradient(cx, cy, 0, cx, cy, 20); sg.addColorStop(0, '#fff6c8'); sg.addColorStop(.5, '#ffc845'); sg.addColorStop(1, 'rgba(255,170,40,0)'); g.fillStyle = sg; g.beginPath(); g.arc(cx, cy, 20, 0, TAU); g.fill();
+  const e = posOf(PL.E, F ? F.P.dj : dj0), eNow = posOf(PL.E, day), mNow = posOf(PL.M, day);
+  /* phase angle (only before launch) */
+  if (!F){ const aE = Math.atan2(e[1], e[0]), aM = Math.atan2(mNow[1], mNow[0]);
+    g.strokeStyle = 'rgba(255,224,102,.8)'; g.lineWidth = 2; g.beginPath(); const ph = phaseAt(dj0) * D2R; g.arc(cx, cy, s * .45, -aE, -(aE + ph), ph > 0); g.stroke();
+    g.setLineDash([3, 5]); g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 1; [aE, aM].forEach(a => { g.beginPath(); g.moveTo(cx, cy); g.lineTo(X(1.62 * Math.cos(a)), Y(1.62 * Math.sin(a))); g.stroke(); });
+    const ai = aE + PHI * D2R; g.strokeStyle = 'rgba(62,213,150,.8)'; g.beginPath(); g.moveTo(cx, cy); g.lineTo(X(1.62 * Math.cos(ai)), Y(1.62 * Math.sin(ai))); g.stroke(); g.setLineDash([]);
+    g.fillStyle = '#3ed596'; g.font = '800 11.5px Nunito, sans-serif'; g.textAlign = 'center'; g.fillText(Lab.L(o('ideal Mars spot (44°)','理想火星位置（44°）')), X(1.66 * Math.cos(ai)), Y(1.66 * Math.sin(ai)));
+    g.fillStyle = '#ffe066'; const am = aE + ph / 2; g.fillText(`${phaseAt(dj0).toFixed(0)}°`, X(.6 * Math.cos(am)), Y(.6 * Math.sin(am)) + 4); }
+  /* preview path */
+  if (P && (MS.ghost || F)){ const n = F ? Math.floor(F.t / P.h) : (P.ok ? Math.ceil(P.tMin / P.h) : P.pts.length - 1);
+    if (!F && MS.ghost){ g.setLineDash([5, 6]); g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 1.5; g.beginPath(); P.pts.slice(0, n + 1).forEach((q, i) => i ? g.lineTo(X(q[0]), Y(q[1])) : g.moveTo(X(q[0]), Y(q[1]))); g.stroke(); g.setLineDash([]);
+      const ma = posOf(PL.M, P.dj + P.tMin), pa = P.pts[Math.round(P.tMin / P.h)];
+      g.strokeStyle = '#ff8a5c'; g.lineWidth = 2; g.beginPath(); g.arc(X(ma[0]), Y(ma[1]), 8, 0, TAU); g.stroke();
+      g.fillStyle = '#ffb394'; g.font = '700 11px Nunito, sans-serif'; g.textAlign = 'center'; g.fillText(Lab.L(o('Mars when you get there','你到达时的火星')), X(ma[0]), Y(ma[1]) - 13);
+      if (pa){ g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.moveTo(X(pa[0]) - 5, Y(pa[1]) - 5); g.lineTo(X(pa[0]) + 5, Y(pa[1]) + 5); g.moveTo(X(pa[0]) + 5, Y(pa[1]) - 5); g.lineTo(X(pa[0]) - 5, Y(pa[1]) + 5); g.stroke(); } }
+    if (F){ g.strokeStyle = '#ffe066'; g.lineWidth = 2.2; g.beginPath(); P.pts.slice(0, n + 1).forEach((q, i) => i ? g.lineTo(X(q[0]), Y(q[1])) : g.moveTo(X(q[0]), Y(q[1]))); g.stroke();
+      const q = P.pts[Math.min(n, P.pts.length - 1)]; g.fillStyle = '#fff'; g.beginPath(); g.arc(X(q[0]), Y(q[1]), 4.5, 0, TAU); g.fill();
+      g.strokeStyle = 'rgba(255,140,100,.5)'; g.setLineDash([2, 3]); g.beginPath(); g.arc(X(mNow[0]), Y(mNow[1]), .03 * s, 0, TAU); g.stroke(); g.setLineDash([]); } }
+  const planet = (p, col, r, lab) => { g.fillStyle = col; g.beginPath(); g.arc(X(p[0]), Y(p[1]), r, 0, TAU); g.fill(); g.fillStyle = '#eaf0fb'; g.font = '800 12.5px Nunito, sans-serif'; g.textAlign = 'center'; g.fillText(Lab.L(lab), X(p[0]), Y(p[1]) + r + 15); };
+  planet(eNow, '#4f8fe8', 7, o('Earth','地球')); planet(mNow, '#e0704a', 6, o('Mars','火星'));
+  g.fillStyle = '#a6b3cf'; g.font = '700 12px Nunito, sans-serif'; g.textAlign = 'left';
+  g.fillText(F ? (zh() ? `任务第 ${Math.round(F.t)} 天 · ${fmtDate(day)}` : `Mission day ${Math.round(F.t)} · ${fmtDate(day)}`) : Lab.L(o('Seen from above the Sun’s north pole · orbits to scale','从太阳北极上方俯视 · 轨道按比例')), 12, 22);
+  if (W > 560) g.fillText(zh() ? `霍曼转移：约 ${HO.dv1.toFixed(2)} 千米/秒出发，${Math.round(TTR)} 天到达` : `Hohmann: about ${HO.dv1.toFixed(2)} km/s to leave, ${Math.round(TTR)} days to arrive`, 12, H - 12);
+}
+
+/* ---- Figure 2: launch-window calendar ---- */
+const MISSIONS = [ // [name, date (UTC), agency]
+  [o('Curiosity','好奇号'), '2011-11-26', o('NASA','美国 NASA')], [o('Mangalyaan','曼加里安号'), '2013-11-05', o('ISRO (India)','印度 ISRO')], [o('MAVEN','MAVEN'), '2013-11-18', o('NASA','美国 NASA')],
+  [o('ExoMars TGO','ExoMars 微量气体轨道器'), '2016-03-14', o('ESA & Roscosmos','欧洲 ESA 与俄罗斯')], [o('InSight','洞察号'), '2018-05-05', o('NASA','美国 NASA')],
+  [o('Hope','希望号'), '2020-07-19', o('UAE','阿联酋')], [o('Tianwen-1','天问一号'), '2020-07-23', o('CNSA (China)','中国国家航天局')], [o('Perseverance','毅力号'), '2020-07-30', o('NASA','美国 NASA')] ];
+const CAL = { hover:null };
+function windows(y0, y1){ const rate = PL.E.n - PL.M.n, out = [], d0 = (Date.UTC(y0, 0, 1) - J2000) / DAY, d1 = (Date.UTC(y1, 0, 1) - J2000) / DAY;
+  let ph0 = ((PL.M.L0 - PL.E.L0) % 360 + 360) % 360, first = (((ph0 - PHI) % 360) + 360) % 360 / rate, syn = 360 / rate;
+  for (let d = first; d < d1; d += syn) if (d >= d0) out.push(d); for (let d = first - syn; d >= d0; d -= syn) out.unshift(d); return out; }
+function drawCal(){
+  const box = Lab.$('#calBox'), { g, W, H } = fit(box, Lab.$('#calCv')); if (!W) return;
+  const ink = css('--ink') || '#14213d', ink2 = css('--ink-2') || '#4a5878', line = css('--line') || '#d9e2ee', surf = css('--surface') || '#fff', brand = css('--brand') || '#5b5bd6', acc = css('--accent') || '#ff7a59';
+  g.fillStyle = surf; g.fillRect(0, 0, W, H);
+  const y0 = 2011, y1 = 2034, pad = { l:20, r:20 }, X = dj => pad.l + (dj - (Date.UTC(y0, 0, 1) - J2000) / DAY) / ((Date.UTC(y1, 0, 1) - Date.UTC(y0, 0, 1)) / DAY) * (W - pad.l - pad.r), axY = H * .52;
+  g.fillStyle = ink; g.font = '600 17px Fredoka, Nunito, sans-serif'; g.textAlign = 'left'; g.fillText(Lab.L(o('Mars launch windows open about every 26 months','火星发射窗口大约每 26 个月打开一次')), 14, 26);
+  g.strokeStyle = line; g.lineWidth = 2; g.beginPath(); g.moveTo(pad.l, axY); g.lineTo(W - pad.r, axY); g.stroke();
+  g.font = '700 11px Nunito, sans-serif'; g.fillStyle = ink2; g.textAlign = 'center';
+  for (let y = y0; y <= y1; y++){ const x = X((Date.UTC(y, 0, 1) - J2000) / DAY); g.strokeStyle = line; g.lineWidth = 1; g.beginPath(); g.moveTo(x, axY - 4); g.lineTo(x, axY + 4); g.stroke(); if (y % (W < 600 ? 4 : 2) === 1 || y === y1) g.fillText(y, x, axY + 18); }
+  CAL.pts = [];
+  windows(y0, y1).forEach((d, i) => { const xa = X(d - 21), xb = X(d + 21); g.fillStyle = acc; g.globalAlpha = .85; g.fillRect(xa, axY - 9, Math.max(4, xb - xa), 18); g.globalAlpha = 1;
+    g.fillStyle = ink; g.font = '800 11px Nunito, sans-serif'; g.textAlign = 'center'; if (W > 640 || i % 2 === 0) g.fillText(fmtDate(d, true), (xa + xb) / 2, axY + 34 + (i % 2) * 14);
+    CAL.pts.push({ x:(xa + xb) / 2, y:axY, lines:[Lab.L(o('Window (model)','窗口（模型）')), Lab.L(o('around ','约 ')) + fmtDate(d), Lab.L(o('Mars ≈ 44° ahead of Earth','火星领先地球约 44°'))] }); });
+  let lastX = -99, row = 0;
+  MISSIONS.forEach(m => { const d = (Date.parse(m[1]) - J2000) / DAY, x = X(d); row = x - lastX < 70 ? row + 1 : 0; lastX = x; const y = axY - 26 - row * 20;
+    g.strokeStyle = brand; g.lineWidth = 1; g.beginPath(); g.moveTo(x, axY - 9); g.lineTo(x, y + 4); g.stroke();
+    g.fillStyle = brand; g.beginPath(); g.arc(x, y, 4.5, 0, TAU); g.fill(); g.fillStyle = ink; g.font = '700 11px Nunito, sans-serif'; g.textAlign = 'left'; if (W > 520 || row === 0) g.fillText(Lab.L(m[0]), x + 7, y + 4);
+    CAL.pts.push({ x, y, lines:[Lab.L(m[0]) + ' · ' + Lab.L(m[2]), Lab.L(o('launched ','发射：')) + fmtDate(d)] }); });
+  const today = (Date.now() - J2000) / DAY, tx = X(today); if (tx > pad.l && tx < W - pad.r){ g.strokeStyle = ink2; g.setLineDash([3, 4]); g.beginPath(); g.moveTo(tx, 40); g.lineTo(tx, H - 24); g.stroke(); g.setLineDash([]); g.fillStyle = ink2; g.font = '800 11px Nunito, sans-serif'; g.textAlign = 'center'; g.fillText(Lab.L(o('today','今天')), tx, H - 10); }
+  g.fillStyle = ink2; g.font = '700 11.5px Nunito, sans-serif'; g.textAlign = 'left'; g.fillText(Lab.L(o('● real launches   ▬ computed windows (approximate)','● 真实发射   ▬ 计算出的窗口（近似）')), 14, H - 10 - (tx > W - 160 ? 14 : 0));
+  if (CAL.hover){ const p = CAL.pts.find(q => Math.hypot(q.x - CAL.hover[0], q.y - CAL.hover[1]) < 12); if (p) tip(g, p.x, p.y, p.lines, W); }
+}
+Lab.$('#calCv').addEventListener('pointermove', e => { const b = e.currentTarget.getBoundingClientRect(); CAL.hover = [e.clientX - b.left, e.clientY - b.top]; drawCal(); });
+Lab.$('#calCv').addEventListener('pointerleave', () => { CAL.hover = null; drawCal(); });
+
+/* ===================== Real photos (Wikimedia Commons, free licences; rendered by shared/photos.js) ===================== */
+const KIND = { hist:o('Historical document','历史文献'), port:o('Historical portrait','历史肖像'), craft:o('Spacecraft photo','航天器拍摄'), crew:o('Astronaut photo','宇航员拍摄'), tele:o('Telescope photo','望远镜照片'), photo:o('Photo','照片'), vid:o('Rover time-lapse','火星车延时视频') };
+const RP = [
+  { src:'https://upload.wikimedia.org/wikipedia/commons/8/80/Johannes_Kepler1.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', page:'https://commons.wikimedia.org/wiki/File:Johannes_Kepler1.jpg', credit:'Unknown author', license:'Public domain', kind:KIND.port,
+    en:'Johannes Kepler (1571–1630) in an old engraving. He worked out his three laws from Tycho Brahe’s measurements, with no telescope data and no calculator.', zh:'一幅古老版画中的约翰内斯·开普勒（1571–1630）。他根据第谷的观测数据推出了三定律，既没有望远镜数据，也没有计算器。' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/6/62/Astronomia_Nova.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', page:'https://commons.wikimedia.org/wiki/File:Astronomia_Nova.jpg', credit:'Johannes Kepler', license:'Public domain', kind:KIND.hist,
+    en:'Title page of Astronomia Nova (“New Astronomy”, 1609), the book where Kepler published his 1st and 2nd laws, worked out from the orbit of Mars.', zh:'《新天文学》（1609 年）的扉页。开普勒在这本书里发表了由火星轨道推出的第一、第二定律。', scale:o('Printed in 1609','1609 年印刷') },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f4/Harmonices_Mundi_0001-lg.jpg/960px-Harmonices_Mundi_0001-lg.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', page:'https://commons.wikimedia.org/wiki/File:Harmonices_Mundi_0001-lg.jpg', credit:'Johannes Kepler', license:'Public domain', kind:KIND.hist,
+    en:'Front cover of Harmonices Mundi (“The Harmony of the World”, 1619). Inside is Kepler’s 3rd law: the squares of the periods match the cubes of the distances.', zh:'《世界的和谐》（1619 年）的封面。书中写着开普勒第三定律：周期的平方与距离的立方成正比。', scale:o('Printed in 1619','1619 年印刷') },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cc/ISS_from_the_SpaceX_Crew_Dragon_Endeavor_during_Flyaround_%28iss066e079893%29.jpg/960px-ISS_from_the_SpaceX_Crew_Dragon_Endeavor_during_Flyaround_%28iss066e079893%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', page:'https://commons.wikimedia.org/wiki/File:ISS_from_the_SpaceX_Crew_Dragon_Endeavor_during_Flyaround_(iss066e079893).jpg', credit:'NASA Johnson Space Center / Thomas Pesquet', license:'Public domain', kind:KIND.crew,
+    en:'The International Space Station seen from a SpaceX Crew Dragon during a fly-around on November 8, 2021. Both are “Newton’s cannonballs”, falling around Earth together.', zh:'2021 年 11 月 8 日，从 SpaceX 载人龙飞船绕飞时拍到的国际空间站。它们都是“牛顿的炮弹”，一起绕着地球下落。', scale:o('About 420 km up · about 7.7 km/s','高约 420 千米 · 约 7.7 千米/秒') },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a0/Mars_2020_Perseverance_Launch_%28NHQ202007300006%29.jpg/960px-Mars_2020_Perseverance_Launch_%28NHQ202007300006%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', page:'https://commons.wikimedia.org/wiki/File:Mars_2020_Perseverance_Launch_(NHQ202007300006).jpg', credit:'Joel Kowsky (NASA)', license:'Public domain', kind:KIND.photo,
+    en:'An Atlas V rocket launches NASA’s Perseverance rover from Cape Canaveral, Florida, on July 30, 2020, right inside the 2020 Mars launch window.', zh:'2020 年 7 月 30 日，宇宙神 5 号火箭从美国佛罗里达州卡纳维拉尔角发射 NASA 的毅力号火星车，正好在 2020 年的火星发射窗口之内。', scale:o('Arrived at Mars February 18, 2021','2021 年 2 月 18 日抵达火星') },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/56/Mars_Valles_Marineris.jpeg/960px-Mars_Valles_Marineris.jpeg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', page:'https://commons.wikimedia.org/wiki/File:Mars_Valles_Marineris.jpeg', credit:'NASA / USGS', license:'Public domain', kind:KIND.craft,
+    en:'Mars from orbit: a mosaic of 102 images taken by the Viking 1 orbiter. The long scar across the middle is Valles Marineris, a canyon system as long as the United States is wide.', zh:'从轨道上看火星：由“海盗 1 号”轨道器拍摄的 102 张照片拼成。中间那道长长的“伤疤”是水手号峡谷，长度和美国的东西宽度差不多。', scale:o('Mars: 6,779 km wide, about half of Earth','火星直径 6779 千米，约为地球的一半') },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/27/Mars%2C_image_taken_by_NASA%27s_Hubble_Space_Telescope%2C_July_2018.png/960px-Mars%2C_image_taken_by_NASA%27s_Hubble_Space_Telescope%2C_July_2018.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', page:'https://commons.wikimedia.org/wiki/File:Mars,_image_taken_by_NASA%27s_Hubble_Space_Telescope,_July_2018.png', credit:'NASA, ESA, and STScI', license:'Public domain', kind:KIND.tele,
+    en:'Mars photographed by the Hubble Space Telescope on July 18, 2018, near its closest approach to Earth since 2003. Mars was wrapped in a planet-wide dust storm.', zh:'2018 年 7 月 18 日哈勃空间望远镜拍摄的火星，当时火星接近 2003 年以来离地球最近的位置。整个火星正被全球性沙尘暴笼罩。', scale:o('Mars was about 59 million km away','当时火星距离约 5900 万千米') },
+  { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/1/14/Mars_Analemma_Time_Lapse_Opportunity.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/14/Mars_Analemma_Time_Lapse_Opportunity.webm/500px--Mars_Analemma_Time_Lapse_Opportunity.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', page:'https://commons.wikimedia.org/wiki/File:Mars_Analemma_Time_Lapse_Opportunity.webm', credit:'Jashandeep Sohi (images: NASA/JPL, Opportunity rover)', license:'CC BY-SA 3.0', kind:KIND.vid,
+    en:'The first time-lapse of an analemma on Mars, made from the Opportunity rover’s sundial camera images taken around midday. An analemma is the loop the midday Sun traces over a year; its shape depends on the planet’s tilt and on how stretched its elliptical orbit is (Kepler’s 1st and 2nd laws at work).', zh:'第一部火星上的“日行迹”延时视频，用机遇号火星车日晷相机在正午前后拍的照片做成。日行迹是正午太阳的位置在一年里画出的环形，它的形状取决于行星的自转轴倾斜，以及它的椭圆轨道有多扁（开普勒第一、第二定律在起作用）。' }
+];
+LabPhotos.render('#gallery', RP, { title:o('See the real thing','看看真实的样子'),
+  sub:o('Kepler’s own books, a real “Newton’s cannonball”, and the journey to Mars. Click a picture to enlarge it; the video plays only when you press play.','开普勒的原著、真实的“牛顿炮弹”，还有飞往火星的旅程。点击图片可放大；视频要你按下播放键才会播放。') });
+
+
+/* ===================== Quiz & sort ===================== */
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('About how fast must something move sideways to orbit just above Earth’s surface?','物体要贴着地面绕地球运行，横向速度大约要多快？'), options:[o('About 7.9 km/s','约 7.9 千米/秒'),o('About 0.3 km/s, the speed of a jet','约 0.3 千米/秒，喷气式飞机的速度'),o('About 11.2 km/s','约 11.2 千米/秒'),o('About 30 km/s','约 30 千米/秒')], answer:0, explain:o('7.9 km/s gives a circular orbit; 11.2 km/s is escape speed.','7.9 千米/秒是圆轨道速度；11.2 千米/秒是逃逸速度。')},
+  {q:o('Escape speed is about how many times the circular-orbit speed at the same height?','同一高度的逃逸速度大约是圆轨道速度的几倍？'), options:[o('√2 ≈ 1.41 times','√2 ≈ 1.41 倍'),o('2 times','2 倍'),o('10 times','10 倍'),o('The same','一样')], answer:0},
+  {q:o('Kepler’s 1st law says a planet’s orbit is…','开普勒第一定律说，行星的轨道是……'), options:[o('An ellipse with the Sun at one focus','一个椭圆，太阳在一个焦点上'),o('A perfect circle centred on the Sun','以太阳为圆心的正圆'),o('An ellipse with the Sun at the exact centre','一个椭圆，太阳正好在中心'),o('A spiral','一条螺旋线')], answer:0},
+  {q:o('What is at the other focus of a planet’s elliptical orbit?','行星椭圆轨道的另一个焦点上有什么？'), options:[o('Nothing: it is empty space','什么也没有，是空的'),o('A second, hidden Sun','另一个看不见的太阳'),o('The planet’s moon','行星的卫星'),o('Jupiter','木星')], answer:0},
+  {q:o('By Kepler’s 2nd law, where does a comet move fastest?','根据开普勒第二定律，彗星在哪里运动得最快？'), options:[o('Closest to the Sun (perihelion)','离太阳最近处（近日点）'),o('Farthest from the Sun (aphelion)','离太阳最远处（远日点）'),o('Halfway out','正好在一半远的地方'),o('It always moves at the same speed','速度始终不变')], answer:0, explain:o('Equal areas in equal times: a short, fat wedge near the Sun needs a long stretch of orbit in the same time.','相同时间扫过相同面积：靠近太阳的扇形又短又胖，同样时间里要走更长的路。')},
+  {q:o('Using T² = a³: a planet orbits 4 AU from its sun (a Sun-like star). How long is its year?','用 T² = a³：一颗行星绕一颗类似太阳的恒星运行，半长轴 4 天文单位。它的一年有多长？'), options:[o('8 years','8 年'),o('4 years','4 年'),o('16 years','16 年'),o('64 years','64 年')], answer:0, explain:o('a³ = 64, so T² = 64 and T = 8 years.','a³ = 64，所以 T² = 64，T = 8 年。')},
+  {q:o('In the T² vs a³ table, what number does T² ÷ a³ come out to (years and AU)?','在 T² 与 a³ 的表里，T² ÷ a³（以年和天文单位计）总是接近多少？'), options:[o('About 1','约 1'),o('About 0','约 0'),o('About 365','约 365'),o('It is different for every planet','每颗行星都不一样')], answer:0},
+  {q:o('Figure 1: Jupiter’s moons lie on a different line from the planets. Why?','图 1：木星的卫星和行星不在同一条线上，为什么？'), options:[o('Jupiter has much less mass than the Sun, so orbits at the same distance are slower','木星的质量比太阳小得多，同样距离的轨道运动得更慢'),o('Moons don’t obey gravity','卫星不受引力作用'),o('Jupiter’s moons are made of ice','木星的卫星是冰做的'),o('The data are wrong','数据错了')], answer:0, explain:o('T² = 4π²a³ ÷ (GM): a smaller central mass M gives a longer period at the same distance.','T² = 4π²a³ ÷ （GM）：中心质量 M 越小，同样距离的周期越长。')},
+  {q:o('Figure 1: about how long does the space station take to go once around Earth?','图 1：国际空间站绕地球一圈大约要多久？'), options:[o('About 1.5 hours','约 1.5 小时'),o('About 1 day','约 1 天'),o('About 27 days','约 27 天'),o('About 1 year','约 1 年')], answer:0, explain:o('About 93 minutes, about 16 laps a day.','约 93 分钟，一天大约绕 16 圈。')},
+  {q:o('Figure 2: how often do Mars launch windows open?','图 2：火星发射窗口多久打开一次？'), options:[o('About every 26 months','大约每 26 个月'),o('Every month','每个月'),o('Every 12 months','每 12 个月'),o('Every 10 years','每 10 年')], answer:0, explain:o('Earth laps Mars every ~780 days, so the same line-up comes back about every 26 months.','地球每约 780 天“套圈”火星一次，同样的位置关系大约每 26 个月出现一次。')},
+  {q:o('A Hohmann transfer from Earth to Mars takes about…','从地球到火星的霍曼转移大约要飞多久？'), options:[o('8.5 months','8.5 个月'),o('3 days','3 天'),o('2 years','2 年'),o('26 months','26 个月')], answer:0, explain:o('Half of an ellipse with a = 1.26 AU: half of 1.42 years ≈ 259 days.','半个 a = 1.26 天文单位的椭圆：1.42 年的一半 ≈ 259 天。')},
+  {q:o('At launch on a Hohmann transfer, where should Mars be?','按霍曼转移发射时，火星应该在哪里？'), options:[o('About 44° ahead of Earth in its orbit','在轨道上领先地球约 44°'),o('Exactly lined up with Earth and the Sun','与地球、太阳正好排成一线'),o('On the far side of the Sun','在太阳的另一侧'),o('Behind Earth','落后于地球')], answer:0, explain:o('Mars needs a head start so it reaches the meeting point exactly when the probe does.','火星要“先走一步”，才能和探测器同时到达会合点。')}
+], { count:12 });
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'a',en:'1st law: shape',zh:'第一定律：形状'},{id:'b',en:'2nd law: speed & areas',zh:'第二定律：速度与面积'},{id:'c',en:'3rd law: period & distance',zh:'第三定律：周期与距离'}],
+  items:[
+    {en:'Orbits are ellipses',zh:'轨道是椭圆',bin:'a'},{en:'The Sun sits at one focus',zh:'太阳在一个焦点上',bin:'a'},{en:'The other focus is empty',zh:'另一个焦点是空的',bin:'a'},{en:'Halley’s Comet has a long, thin orbit',zh:'哈雷彗星的轨道又细又长',bin:'a'},
+    {en:'Equal areas in equal times',zh:'相同时间扫过相同面积',bin:'b'},{en:'Fastest at perihelion',zh:'在近日点最快',bin:'b'},{en:'Earth moves a little faster in January than in July',zh:'地球 1 月比 7 月跑得稍快',bin:'b'},{en:'Comets crawl when far from the Sun',zh:'彗星远离太阳时慢慢“爬”',bin:'b'},
+    {en:'T² = a³',zh:'T² = a³',bin:'c'},{en:'Neptune’s year is about 165 Earth years',zh:'海王星的一年约等于 165 个地球年',bin:'c'},{en:'A planet at 4 AU takes 8 years per orbit',zh:'4 天文单位处的行星绕一圈要 8 年',bin:'c'},{en:'Farther planets have longer years',zh:'越远的行星一年越长',bin:'c'}
+  ]
+});
+
+/* ===================== Start-up, resize, theme, language ===================== */
+const redrawFigs = () => { drawT3(); drawF1(); drawCal(); };
+['#t3Box', '#f1Box', '#calBox'].forEach(s => new ResizeObserver(() => requestAnimationFrame(redrawFigs)).observe(Lab.$(s)));
+addEventListener('labtheme', redrawFigs);
+Lab.onLang(() => { renderInfo(); renderChips(); ncOutputs(); ncPresets(); k1Pre(); k1Out(); k2table(); k3Out(); k3table(); kepMode(KP.mode); ghostLabel(); mUpdate();
+  Lab.$('#k2pause').textContent = Lab.L(K2.paused ? o('▶ Play','▶ 继续') : o('⏸ Pause','⏸ 暂停')); redrawFigs(); });
+let lastT = performance.now();
+(function loop(now){ const dt = Math.min(.05, (now - lastT) / 1000); lastT = now;
+  if (visible(Lab.$('#ncStage'))){ if (NC.on) ncSim(dt); ncDraw(dt); if (NC.on && Math.floor(now / 250) !== Math.floor((now - dt * 1000) / 250)) ncLive(); }
+  if (visible(Lab.$('#kepBox'))) kepDraw(dt);
+  if (visible(Lab.$('#marsBox'))) marsDraw(dt);
+  requestAnimationFrame(loop); })(lastT);
+window.KEP = { NC, K2, K3, MS, plan, phaseAt, dayJ, HO, TTR, PHI, windows, fmtDate, ncFire, k3go, kepMode };
+
+</script>
+</body>
+</html>

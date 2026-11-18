@@ -1,0 +1,600 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Soil Formation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/lab3d.js"></script>
+<script src="../shared/photos.js"></script>
+<style>
+/* page-specific styles */
+.comp{display:grid;grid-template-columns:200px minmax(0,1fr);gap:18px;align-items:center}
+.donutwrap{position:relative;width:200px;height:200px}
+.donut{width:200px;height:200px;border-radius:50%;transition:background .3s}
+.donut::after{content:"";position:absolute;inset:44px;border-radius:50%;background:var(--surface)}
+.dcenter{position:absolute;inset:0;display:grid;place-items:center;text-align:center;z-index:1;font-weight:800;font-size:14px;color:var(--ink-2);padding:56px}
+.dcenter b{display:block;font-family:Fredoka;font-size:30px;color:var(--ink)}
+.complist{display:flex;flex-direction:column;gap:8px}
+.complist button{display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:var(--surface-2);border-radius:12px;padding:8px 12px;font-weight:800;text-align:left}
+.complist button.on{box-shadow:0 0 0 2px var(--ink) inset}
+.complist i{width:14px;height:14px;border-radius:4px;flex:none}
+.complist span{margin-left:auto;color:var(--ink-2)}
+.sizes{display:flex;align-items:flex-end;justify-content:space-around;gap:10px;margin:14px 0 6px;min-height:130px}
+.sizes div{text-align:center;font-weight:800;font-size:14px}
+.sizes .g{border-radius:50%;margin:0 auto 6px;box-shadow:inset -4px -4px 0 rgba(0,0,0,.15)}
+.factors{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-top:16px}
+.factors .box h3{font-size:19px}
+.protect{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+.protect ul{margin:8px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:4px;color:var(--ink-2);font-size:15px}
+.ptable{width:100%;border-collapse:collapse;font-size:14px}
+.ptable th,.ptable td{padding:6px 6px;border-bottom:1px solid var(--line);text-align:right}
+.ptable th:first-child,.ptable td:first-child{text-align:left}
+.ptable th{font-size:12px;color:var(--ink-2);text-transform:uppercase;letter-spacing:.04em}
+.ptable td i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+#percBox{min-height:430px}
+.toggle{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px;color:var(--ink)}
+.toggle input{width:18px;height:18px;accent-color:var(--brand)}
+#stage .pill input[type=range]{width:105px}
+#stage .tip{max-width:170px}
+@media (max-width:760px){.comp{grid-template-columns:1fr;justify-items:center}.protect{grid-template-columns:1fr}}
+</style>
+</head>
+<body data-subject="earth" data-topic="soil">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="地球科学 · 地表">Earth Science · Earth’s Surface</span>
+  <h1 data-zh-html="土壤：<em>地球的活皮肤</em>">Soil: <em>Earth’s Living Skin</em></h1>
+  <p class="lead" data-zh="大自然要花多久，才能造出大拇指那么厚的一层土壤？（提示：比你的年龄长得多。）土壤不只是“泥巴”。它由风化的岩石、腐烂的生物、空气和水组成，要花几百年甚至几千年才能形成。挖开下面的 3D 土壤剖面，点一点每一层，再看看土壤是怎样一点一点形成的！">How long does nature need to make a layer of soil as thick as your thumb? (Hint: far longer than you have been alive.) Soil is not “just dirt”. It is a mix of weathered rock, decayed living things, air and water, and it takes hundreds to thousands of years to form. Dig into the 3D soil profile below, click each layer, and watch soil build up step by step!</p>
+</header>
+
+<section class="wrap" id="explore" data-nav="3D Soil" data-nav-zh="3D 土壤">
+  <div class="explorer">
+    <div class="stage card" id="stage" data-3d>
+      <div class="toolbar">
+        <button class="tbtn" id="rotBtn" data-zh="⟳ 旋转">⟳ Spin</button>
+        <button class="tbtn" id="resetBtn" data-zh="⌂ 重置">⌂ Reset</button>
+        <button class="tbtn" id="storyBtn" data-zh="🌱 土壤如何形成（故事）">🌱 How soil forms (story)</button>
+        <button class="tbtn on" id="labelBtn" data-zh="🏷 标签">🏷 Labels</button>
+        <button class="tbtn" id="rainBtn" data-zh="🌧 下雨">🌧 Rain</button>
+      </div>
+      <div class="bottombar">
+        <div class="pill"><span data-zh="⏳ 土壤年龄">⏳ Soil age</span><input id="age" type="range" min="0" max="100" value="100"><b id="ageVal" style="min-width:74px"></b></div>
+        <div class="pill"><span data-zh="↕ 分开土层">↕ Separate layers</span><input id="explode" type="range" min="0" max="100" value="0"></div>
+        <div class="tip" data-zh="拖动旋转 · 滚轮缩放 · 点击任意土层">Drag to rotate · Scroll to zoom · Click any layer</div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="chips" id="chips"></div>
+</section>
+
+<section class="wrap" id="recipe" data-nav="What is soil?" data-nav-zh="土壤是什么？">
+  <div class="sec-head">
+    <h2 data-zh="土壤的“配方”">The recipe for soil</h2>
+    <p data-zh="土壤 = 风化的岩石颗粒 + 腐殖质（分解后的有机物）+ 水 + 空气。点击每种成分了解更多。">Soil = weathered rock particles + humus (decayed organic matter) + water + air. Click each ingredient to learn more.</p>
+  </div>
+  <div class="grid2">
+    <div class="card box">
+      <h3 data-zh="一块健康土壤里有什么？（按体积）">What is in a healthy soil? (by volume)</h3>
+      <div class="comp" style="margin-top:12px">
+        <div class="donutwrap"><div class="donut" id="donut" role="img" aria-label="Soil composition: 45% minerals, 25% water, 25% air, 5% organic matter"></div><div class="dcenter" id="dcenter"></div></div>
+        <div class="complist" id="complist"></div>
+      </div>
+      <p class="muted" id="compText" style="margin:12px 0 0;font-size:15px;min-height:48px"></p>
+    </div>
+    <div class="card box">
+      <h3 data-zh="矿物颗粒：砂粒、粉粒和黏粒">Mineral grains: sand, silt and clay</h3>
+      <div class="sizes">
+        <div><div class="g" style="width:110px;height:110px;background:#e2c48a"></div><span data-zh="砂粒">Sand</span><br><small class="muted" data-zh="0.05–2 毫米 · 粗糙">0.05–2 mm · gritty</small></div>
+        <div><div class="g" style="width:30px;height:30px;background:#b09a7a"></div><span data-zh="粉粒">Silt</span><br><small class="muted" data-zh="0.002–0.05 毫米 · 像面粉">0.002–0.05 mm · floury</small></div>
+        <div><div class="g" style="width:8px;height:8px;background:#b5603a"></div><span data-zh="黏粒">Clay</span><br><small class="muted" data-zh="小于 0.002 毫米 · 黏手">&lt; 0.002 mm · sticky</small></div>
+      </div>
+      <p class="muted" style="margin:6px 0 0;font-size:15px" data-zh="颗粒大小决定了土壤的质地。大颗粒之间的孔隙大，水流得快；小颗粒挤得很紧，水流得慢，但能保住更多的水。三者混合、再加上腐殖质的土壤叫壤土，最适合种植物。">Grain size gives soil its texture. Big grains leave big pores, so water drains fast; tiny grains pack tightly, so water moves slowly but more of it is held. A mix of all three plus humus is called loam, the best soil for growing plants.</p>
+      <div class="memory" style="margin-top:12px"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="砂粒像沙滩上的沙子，粉粒像面粉，黏粒像橡皮泥：从大到小，从“漏水”到“存水”。">Sand feels like beach sand, silt like flour, clay like modeling clay: biggest to smallest, from “leaky” to “holds water”.</span></div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:28px;font-size:24px" data-zh="影响土壤形成的五个因素">Five factors that control how soil forms</h3>
+  <div class="factors">
+    <div class="card box"><div class="ico">🪨</div><h3 data-zh="母岩（母质）">Parent rock</h3><p data-zh="土壤的矿物来自哪种岩石。花岗岩风化后多砂，页岩风化后多黏土。">The rock the minerals come from. Granite weathers into sandy soil; shale weathers into clay-rich soil.</p></div>
+    <div class="card box"><div class="ico">🌦️</div><h3 data-zh="气候">Climate</h3><p data-zh="温暖湿润的地方（如佐治亚州）风化和分解快，土壤形成也快；寒冷干燥的地方很慢。">Warm, wet places (like Georgia) weather and decompose quickly, so soil forms faster. Cold, dry places are slow.</p></div>
+    <div class="card box"><div class="ico">🪱</div><h3 data-zh="生物">Living things</h3><p data-zh="植物、动物、真菌和细菌加入有机物、翻动土壤、分泌酸来风化岩石。">Plants, animals, fungi and bacteria add organic matter, mix the soil, and release acids that weather rock.</p></div>
+    <div class="card box"><div class="ico">⛰️</div><h3 data-zh="地形（坡度）">Slope (landform)</h3><p data-zh="陡坡上的土壤容易被冲走，所以很薄；平地和谷底的土壤更厚。">Soil on steep slopes washes away, so it stays thin. Flat land and valleys collect thicker soil.</p></div>
+    <div class="card box"><div class="ico">⏳</div><h3 data-zh="时间">Time</h3><p data-zh="形成 2.5 厘米的表土可能需要几百年。土壤越老，土层越多、越清楚。">2.5 cm of topsoil can take hundreds of years. Older soils have more, clearer layers.</p></div>
+  </div>
+
+  <div class="protect">
+    <div class="card box"><h3 data-zh="⚠️ 人类活动如何破坏土壤">⚠️ How people can damage soil</h3>
+      <ul><li data-zh="砍伐森林，让土地裸露，雨水和风把表土带走。">Clearing forests leaves soil bare, so rain and wind carry topsoil away.</li><li data-zh="过度放牧，牲畜吃光植物并踩实土壤。">Overgrazing: animals strip plants and trample the soil.</li><li data-zh="重型机械和建筑把土壤压实，雨水只能在地表流走。">Heavy machines and construction compact soil, so rain runs off.</li><li data-zh="顺着山坡上下翻耕，形成雨水冲刷的沟槽。">Plowing straight up and down hills makes channels for runoff.</li></ul></div>
+    <div class="card box"><h3 data-zh="✅ 如何保护土壤">✅ How people protect soil</h3>
+      <ul><li data-zh="等高耕作和修建梯田，减慢坡面上的水流。">Contour plowing and terraces slow water on slopes.</li><li data-zh="种植覆盖作物、保留作物残茬，让土壤一直有“被子”。">Cover crops and leftover crop stalks keep soil covered.</li><li data-zh="种植防风林，挡住吹走土壤的风。">Windbreaks (rows of trees) block soil-carrying wind.</li><li data-zh="堆肥，把厨余和落叶变回腐殖质。">Composting turns food scraps and leaves back into humus.</li></ul></div>
+  </div>
+  <div class="mix" style="margin-top:16px"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="土壤可以再生，但非常慢。对人的一生来说，被冲走的表土几乎无法补回来，所以保护土壤非常重要。">Soil is renewable, but only very slowly. In a human lifetime, lost topsoil is practically gone for good, which is why conserving it matters.</span></div>
+</section>
+
+<section class="wrap" id="lab" data-nav="Percolation lab" data-nav-zh="渗水实验">
+  <div class="sec-head">
+    <h2 data-zh="实验：水能多快穿过土壤？">Lab: how fast does water soak through soil?</h2>
+    <p data-zh="向四种土壤样品同时倒入相同体积的水。观察哪一种先滴水、收集到的水最多、保留的水最多。">Pour the same amount of water onto four soil samples at once. Which one drips first? Which collects the most water? Which holds on to the most?</p>
+  </div>
+  <div class="sim">
+    <div class="card simbox" id="percBox"><canvas id="percCv"></canvas></div>
+    <div class="card simside">
+      <h3 data-zh="控制台">Controls</h3>
+      <label class="ctl"><span><span data-zh="每次倒水量">Water per pour</span>: <b id="volVal">100 mL</b></span><input id="vol" type="range" min="40" max="200" step="10" value="100"></label>
+      <label class="toggle"><input type="checkbox" id="compact"><span data-zh="🚜 土壤被重型机械压实">🚜 Soil compacted by heavy machines</span></label>
+      <label class="toggle"><input type="checkbox" id="ff"><span data-zh="⏩ 快进 ×4">⏩ Fast-forward ×4</span></label>
+      <div class="btnrow"><button class="btn" id="pour" data-zh="💧 倒水">💧 Pour water</button><button class="btn ghost" id="percReset" data-zh="↺ 清空">↺ Empty</button></div>
+      <table class="ptable"><thead><tr><th data-zh="土壤">Soil</th><th data-zh="首次滴水">First drip</th><th data-zh="流出">Drained</th><th data-zh="保留">Held</th></tr></thead><tbody id="ptbody"></tbody></table>
+      <div class="result" id="percMsg"></div>
+      <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="透水性 = 水“透过”土壤的能力。颗粒越大，孔隙越大，透水越快。">Permeability = how easily water “permeates” (passes through). Bigger grains → bigger pores → faster flow.</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real Photos" data-nav-zh="真实照片">
+  <div class="sec-head">
+    <h2 data-zh="看看真实的样子">See the real thing</h2>
+    <p data-zh="3D 剖面画得很整齐，真实的土壤更杂乱，也更有生命。点击照片可以放大。">The 3D profile is tidy. Real soil is messier and more alive. Click a photo to enlarge it.</p>
+  </div>
+  <div id="gallery"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 土壤测验">🧠 Soil quiz</h3><p class="sub" data-zh="选出正确答案。">Pick the best answer.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 它在哪一层？">🗂️ Which layer is it in?</h3><p class="sub" data-zh="把每样东西拖到（或先点再点方框）它最可能出现的土层。">Drag each item (or tap it, then tap a box) to the layer where you would most likely find it.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="对应佐治亚州标准 S6E5（尤其是 S6E5e）：建立模型，说明风化、侵蚀、沉积等自然过程以及人类活动如何改变岩石和地表；土壤由风化的岩石和分解的有机物组成。建议：先用“土壤年龄”滑块从 0 拉到 100，让学生预测哪一层最先出现（C 层）、哪一层最后出现（O 层和 B 层）；再在渗水实验中打开“压实”选项，讨论建筑工地和过度放牧为什么会加剧水土流失。">Supports GSE S6E5 (especially S6E5e): develop a model of how natural processes (weathering, erosion, deposition) and human activity change rocks and Earth’s surface; soil is made of weathered rock and decomposed organic material. Suggested use: drag the Soil age slider from 0 to 100 and have students predict which horizon appears first (C) and last (O and B). Then turn on “compacted” in the percolation lab and discuss why construction sites and overgrazing increase runoff and erosion.</p>
+    <p data-zh="常见误区：土壤是“死的”；所有土壤都一样；植物“吃”土长大；风化和侵蚀是同一件事。">Common misconceptions: soil is “dead”; all soil is the same; plants “eat” soil to grow; weathering and erosion are the same thing.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+/* ===== Soil parts (bilingual) ===== */
+const PARTS = {
+  O:{color:'#7a5532', short:{en:'O · Organic layer',zh:'O 层 · 有机层'}, name:{en:'O horizon · organic layer',zh:'O 层 · 有机层（枯枝落叶层）'}, job:{en:'Leaf litter and decaying matter',zh:'落叶和正在分解的有机物'},
+    facts:{en:['The very top layer: fallen leaves, twigs, dead insects and animal waste.','Decomposers such as fungi, bacteria and earthworms break this material down into dark, crumbly humus.','Thick in forests; thin or missing in deserts and plowed fields.'],
+           zh:['最上面的一层：落叶、树枝、死去的昆虫和动物粪便。','真菌、细菌和蚯蚓等分解者把这些物质分解成黑色、松软的腐殖质。','森林里这一层很厚；沙漠和翻耕过的农田里很薄，甚至没有。']},
+    hint:{en:'O = Organic: things that were once alive.',zh:'O = Organic（有机的）：曾经活着的东西。'}},
+  A:{color:'#3f2a1a', short:{en:'A · Topsoil',zh:'A 层 · 表土层'}, name:{en:'A horizon · topsoil',zh:'A 层 · 表土层（腐殖质层）'}, job:{en:'The richest, most alive layer',zh:'最肥沃、生命最多的一层'},
+    facts:{en:['A mix of humus and small mineral grains (sand, silt and clay). Humus makes it dark.','Most plant roots, earthworms and microorganisms live here.','Farmers grow crops in topsoil. Forming just 2.5 cm of it can take hundreds of years.','Some soils have a pale E layer under A, where water has washed minerals out.'],
+           zh:['由腐殖质和细小的矿物颗粒（砂粒、粉粒、黏粒）混合而成，腐殖质让它呈深色。','大多数植物的根、蚯蚓和微生物都生活在这里。','农民在表土层里种庄稼。形成仅仅 2.5 厘米厚的表土，可能就需要几百年。','有些土壤在 A 层下面还有一层颜色较浅的 E 层（淋溶层），那里的矿物质被水带走了。']},
+    hint:{en:'A = Alive: the layer full of life.',zh:'A = Alive（活的）：生命最多的一层。'},
+    mix:{en:'Soil is not “just dirt”. One spoonful of healthy topsoil holds more microorganisms than there are people on Earth.',zh:'土壤不只是“泥巴”。一小勺肥沃的表土中，微生物的数量比地球上的人口还多。'}},
+  B:{color:'#b0532f', short:{en:'B · Subsoil',zh:'B 层 · 心土层'}, name:{en:'B horizon · subsoil',zh:'B 层 · 心土层（淀积层）'}, job:{en:'Where washed-down clay and minerals collect',zh:'从上面淋洗下来的黏土和矿物在此积累'},
+    facts:{en:['Rainwater soaking down washes (leaches) clay, iron and other minerals out of the upper layers; they build up here.','It has little humus, so it is lighter than topsoil. Iron oxides (like rust) can make it red or orange.','Georgia’s famous red clay is B-horizon subsoil exposed where topsoil has eroded away.','Only deep roots reach this layer.'],
+           zh:['向下渗的雨水把上层的黏土、铁等矿物质淋洗下来（淋溶作用），它们在这一层积累。','这里腐殖质很少，所以颜色比表土浅。氧化铁（和铁锈类似）会让它呈红色或橙色。','佐治亚州著名的红黏土，就是表土被侵蚀后露出地表的 B 层心土。','只有扎得很深的根才能到达这一层。']},
+    hint:{en:'B = Below the topsoil, and Built up from what washes down.',zh:'B 层在表土之下（Below），由上面淋洗下来的物质堆积（Built up）而成。'}},
+  C:{color:'#bba27b', short:{en:'C · Parent material',zh:'C 层 · 母质层'}, name:{en:'C horizon · parent material',zh:'C 层 · 母质层'}, job:{en:'Broken, partly weathered rock',zh:'破碎的、部分风化的岩石'},
+    facts:{en:['Chunks and grains of rock that are slowly being weathered.','Almost no organic matter or living things.','The minerals in the soil above came from this material, so a soil often “inherits” traits of the rock it formed from.'],
+           zh:['正在慢慢风化的岩块和岩石颗粒。','几乎没有有机物和生物。','上面土层中的矿物质来自这层母质，所以土壤常常“继承”了形成它的岩石的特点。']},
+    hint:{en:'C = Chunks of Crumbling rock.',zh:'C 层：一块块正在碎裂的岩石（Chunks）。'},
+    mix:{en:'Weathering (breaking rock down in place) is not the same as erosion (carrying the pieces away).',zh:'风化（岩石在原地破碎）不等于侵蚀（把碎屑搬运走）。'}},
+  R:{color:'#7d8590', short:{en:'R · Bedrock',zh:'R 层 · 基岩'}, name:{en:'R horizon · bedrock',zh:'R 层 · 基岩'}, job:{en:'Solid rock at the bottom',zh:'底部坚硬的岩石'},
+    facts:{en:['Solid, unweathered rock such as granite, limestone or sandstone.','Soil that forms right on top of its own bedrock is called residual soil.','Some soil is carried in from far away by rivers, wind or glaciers (transported soil), so it may not match the bedrock below.','Groundwater often collects and flows through cracks in bedrock.'],
+           zh:['尚未风化的坚硬岩石，如花岗岩、石灰岩或砂岩。','直接在自己的基岩上形成的土壤叫残积土。','有些土壤是被河流、风或冰川从远处搬运来的（运积土），所以它可能和下面的基岩不一样。','地下水常常在基岩的裂隙中聚集和流动。']},
+    hint:{en:'R = Rock: the floor under everything.',zh:'R = Rock（岩石）：一切土层的“地板”。'}},
+  roots:{color:'#5aa845', short:{en:'Plants & roots',zh:'植物与根'}, name:{en:'Plants, lichens & roots',zh:'植物、地衣与根'}, job:{en:'Break rock and hold soil in place',zh:'使岩石破碎，把土壤固定住'},
+    facts:{en:['Roots grow into cracks and slowly pry rock apart. This is mechanical (physical) weathering.','Lichens and roots release weak acids that dissolve minerals: chemical weathering.','When plants die, they add organic matter that becomes humus.','Roots hold soil together, protecting it from erosion by wind and water.'],
+           zh:['根伸进岩石裂缝，慢慢把岩石撑开，这属于物理风化（机械风化）。','地衣和植物的根会分泌弱酸，溶解矿物，这属于化学风化。','植物死亡后会增加有机物，这些有机物最终变成腐殖质。','根把土壤牢牢抓住，保护它不被风和水侵蚀。']},
+    hint:{en:'Roots are slow-motion rock breakers.',zh:'根是“慢动作”的碎石机。'},
+    mix:{en:'Plants do not “eat” soil. They take in water and dissolved minerals, but they make their food by photosynthesis.',zh:'植物并不“吃”土。它们从土壤中吸收水和溶解的矿物质，但食物是通过光合作用自己制造的。'}},
+  worm:{color:'#e58b9a', short:{en:'Earthworm',zh:'蚯蚓'}, name:{en:'Earthworms & decomposers',zh:'蚯蚓与分解者'}, job:{en:'Recycle dead matter and mix the soil',zh:'分解死去的生物，翻动土壤'},
+    facts:{en:['Earthworms, insects, fungi and bacteria break dead plants and animals down into nutrients.','Their burrows let air and water move into the soil.','Worm castings (droppings) are rich in nutrients that plants need.','By mixing the layers, burrowing animals carry humus deeper into the soil.'],
+           zh:['蚯蚓、昆虫、真菌和细菌把死去的动植物分解成养分。','它们挖的洞让空气和水进入土壤。','蚯蚓粪富含植物需要的养分。','通过翻动土层，打洞的动物把腐殖质带到更深处。']},
+    hint:{en:'Decomposers are nature’s recyclers.',zh:'分解者是大自然的“回收员”。'}},
+  pores:{color:'#4f8ff0', short:{en:'Water in pores',zh:'孔隙中的水'}, name:{en:'Air & water in pores',zh:'孔隙中的空气和水'}, job:{en:'About half of soil is open space!',zh:'土壤里大约一半是空隙！'},
+    facts:{en:['A healthy soil is about 45% minerals, 5% organic matter, 25% water and 25% air.','Water and air fill the spaces (pores) between grains. Roots and soil animals need both.','Permeability is how easily water flows through soil: fast through sand, slow through clay.','Watch the rain: water slows down in the clay-rich B horizon and collects above the bedrock as groundwater.'],
+           zh:['健康土壤大约含 45% 矿物质、5% 有机物、25% 水和 25% 空气。','水和空气填充在颗粒之间的空隙（孔隙）里，植物的根和土壤动物两者都需要。','透水性是指水穿过土壤的难易程度：在砂土中快，在黏土中慢。','看看雨水：它在富含黏土的 B 层中变慢，最后在基岩上方汇集成地下水。']},
+    hint:{en:'Turn on 🌧 Rain and follow the drops.',zh:'打开“🌧 下雨”，跟着水滴走。'},
+    mix:{en:'Packed-down (compacted) soil has fewer pores, so rain runs off instead of soaking in, and erosion gets worse.',zh:'被压实的土壤孔隙变少，雨水无法渗入而在地表流走，侵蚀会更严重。'}}
+};
+const ORDER = ['O','A','B','C','R','roots','worm','pores'];
+
+/* ===== Story: how soil forms ===== */
+const FORM_STEPS = [
+  {en:'1 · It starts as bare bedrock. Water freezes in cracks and expands (ice wedging), and rain carries weak acids that attack minerals.',zh:'1 · 一开始只有裸露的基岩。水在裂缝中结冰膨胀（冰劈作用），雨水中的弱酸也在侵蚀矿物。',age:0,sel:'R'},
+  {en:'2 · The rock cracks into chunks and grains: the C horizon (parent material). Tough lichens grow on the surface and release acids.',zh:'2 · 岩石碎裂成岩块和颗粒，形成 C 层（母质层）。顽强的地衣在表面生长，并分泌酸。',age:.33,sel:'C'},
+  {en:'3 · Plants move in. Dead leaves and roots are broken down by decomposers into dark humus, and topsoil (A) forms.',zh:'3 · 植物开始生长。落叶和死根被分解者分解成黑色的腐殖质，形成表土层（A 层）。',age:.62,sel:'A'},
+  {en:'4 · Rainwater soaks down, carrying clay and minerals out of the topsoil. They collect lower down in the subsoil (B horizon).',zh:'4 · 雨水向下渗透，把黏土和矿物质从表土中带走，它们在下面的心土层（B 层）积累。',age:.86,sel:'B',rain:true},
+  {en:'5 · A mature soil profile: O, A, B, C and R. Building just 2.5 cm of topsoil can take hundreds of years, so soil is precious!',zh:'5 · 一个成熟的土壤剖面：O、A、B、C、R 层。形成 2.5 厘米表土可能需要几百年，所以土壤非常宝贵！',age:1,sel:'O'}
+];
+const ageText = a => { if (a < .05) return Lab.L({en:'bare rock',zh:'裸露岩石'}); const y = Math.round(Math.pow(a, 1.6) * 10000 / 100) * 100; return Lab.lang === 'zh' ? `约 ${y.toLocaleString()} 年` : `~${y.toLocaleString()} yrs`; };
+
+/* ===== Info panel / selection ===== */
+const App = window.SOIL = { sel:null, three:null };
+App.select = (k, from3D) => { App.sel = k; renderInfo(); renderChips(); if (!from3D && App.three) App.three.focus(k); };
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel;
+  if (!k){
+    box.innerHTML = `<span class="tag">${Lab.L({en:'Soil profile',zh:'土壤剖面'})}</span>
+      <h3>${Lab.L({en:'Soil comes in layers',zh:'土壤是分层的'})}</h3>
+      <p class="muted" style="margin:0">${Lab.L({en:'Dig a deep hole and the wall shows stripes called horizons. From top to bottom: O (organic), A (topsoil), B (subsoil), C (parent material) and R (bedrock). Click a layer to meet it.',zh:'挖一个深坑，坑壁上会出现一条条的“带子”，叫做土层。从上到下依次是：O 层（有机层）、A 层（表土层）、B 层（心土层）、C 层（母质层）和 R 层（基岩）。点击一层来认识它。'})}</p>
+      <div class="memory"><b>${Lab.L({en:'💡 Memory hint',zh:'💡 记忆小窍门'})}</b>${Lab.L({en:'Top to bottom: “Old Apples Bring Crunchy Rocks” → O, A, B, C, R.',zh:'从上到下：O、A、B、C、R。上面“新”（有机物多），下面“老”（岩石多）。'})}</div>
+      <div class="mix"><b>${Lab.L({en:'⚠️ Common mix-up:',zh:'⚠️ 容易混淆：'})}</b><span>${Lab.L({en:'Soil forms from the bottom up AND the top down: rock weathers below while organic matter is added from above.',zh:'土壤是“上下同时”形成的：下面的岩石不断风化，上面的有机物不断加入。'})}</span></div>
+      <div class="nav"><button id="startBtn">${Lab.L({en:'Start at the top ▶',zh:'从最上层开始 ▶'})}</button></div>`;
+    Lab.$('#startBtn').onclick = () => App.select('O');
+    return;
+  }
+  const p = PARTS[k], i = ORDER.indexOf(k), isLayer = 'OABCR'.includes(k);
+  box.innerHTML = `<span class="tag">${Lab.L(isLayer ? {en:'Soil horizon',zh:'土层'} : {en:'Life & water in soil',zh:'土壤中的生命和水'})}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    ${p.photo ? LabPhotos.figure(p.photo) : ''}
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L({en:'💡 Memory hint',zh:'💡 记忆小窍门'})}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${Lab.L({en:'⚠️ Common mix-up:',zh:'⚠️ 容易混淆：'})}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="pPrev">${Lab.L({en:'◀ Previous',zh:'◀ 上一个'})}</button><button id="pNext">${Lab.L({en:'Next ▶',zh:'下一个 ▶'})}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. '));
+  Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
+  Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
+}
+function renderChips(){
+  Lab.$('#chips').innerHTML = ORDER.map(k => `<button class="chip ${App.sel===k?'on':''}" data-k="${k}"><i style="background:${PARTS[k].color}"></i>${Lab.L(PARTS[k].short)}</button>`).join('');
+  Lab.$$('#chips .chip').forEach(c => c.onclick = () => App.select(c.dataset.k));
+}
+Lab.onLang(() => { renderInfo(); renderChips(); });
+
+/* ===== Composition donut ===== */
+(function(){
+  const COMP = [
+    {k:'min', pct:45, color:'#c49a63', name:{en:'Minerals',zh:'矿物质'}, d:{en:'Sand, silt and clay grains from weathered rock. This is the “skeleton” of the soil.',zh:'来自风化岩石的砂粒、粉粒和黏粒，是土壤的“骨架”。'}},
+    {k:'water', pct:25, color:'#4f8ff0', name:{en:'Water',zh:'水'}, d:{en:'Held in the small pores. It carries dissolved nutrients to plant roots.',zh:'保存在小孔隙中，把溶解的养分输送给植物的根。'}},
+    {k:'air', pct:25, color:'#8fd3f2', name:{en:'Air',zh:'空气'}, d:{en:'Fills the larger pores. Roots, worms and microbes need its oxygen to breathe.',zh:'填充在较大的孔隙中。根、蚯蚓和微生物需要其中的氧气来呼吸。'}},
+    {k:'org', pct:5, color:'#4a3222', name:{en:'Organic matter (humus)',zh:'有机物（腐殖质）'}, d:{en:'Only about 5%, but it holds water, feeds plants and glues grains into crumbs.',zh:'只占约 5%，却能保水、为植物提供养分，还能把颗粒黏成团粒。'}}
+  ];
+  let sel = null;
+  function draw(){
+    const surf = 'var(--surface)'; let a = 0; const stops = [];
+    COMP.forEach(c => { const col = !sel || sel === c.k ? c.color : `color-mix(in srgb, ${c.color} 25%, var(--surface))`; const b = a + c.pct * 3.6;
+      stops.push(`${col} ${a + .8}deg ${b - .8}deg`, `${surf} ${b - .8}deg ${b + .8}deg`); a = b; });
+    Lab.$('#donut').style.background = `conic-gradient(${surf} 0deg .8deg, ${stops.join(',')})`;
+    const c = COMP.find(x => x.k === sel);
+    Lab.$('#dcenter').innerHTML = c ? `<div><b>${c.pct}%</b>${Lab.L(c.name)}</div>` : `<div><b>50%</b>${Lab.L({en:'is pore space!',zh:'是孔隙！'})}</div>`;
+    Lab.$('#complist').innerHTML = COMP.map(x => `<button class="${sel===x.k?'on':''}" data-k="${x.k}"><i style="background:${x.color}"></i>${Lab.L(x.name)}<span>${x.pct}%</span></button>`).join('');
+    Lab.$$('#complist button').forEach(b => { b.onclick = () => { sel = sel === b.dataset.k ? null : b.dataset.k; draw(); }; b.onmouseenter = () => { if (!sel){ Lab.$('#compText').textContent = Lab.L(COMP.find(x => x.k === b.dataset.k).d); } }; });
+    Lab.$('#compText').textContent = c ? Lab.L(c.d) : Lab.L({en:'Water + air together fill about half the volume of soil. Click an ingredient.',zh:'水和空气加起来大约占土壤体积的一半。点击一种成分看看。'});
+  }
+  Lab.onLang(draw);
+})();
+
+/* ===== Percolation lab ===== */
+(function(){
+  const cv = Lab.$('#percCv'), g = cv.getContext('2d'), box = Lab.$('#percBox');
+  const SOILS = [
+    {k:'sand', name:{en:'Sand',zh:'砂土'}, rate:38, hold:12, col:'#e2c48a', dot:'#c9a265', grains:[[110,3.2,5.5]]},
+    {k:'silt', name:{en:'Silt',zh:'粉砂土'}, rate:8, hold:34, col:'#b8a283', dot:'#8f7b5f', grains:[[420,1.5,2.4]]},
+    {k:'clay', name:{en:'Clay',zh:'黏土'}, rate:2.2, hold:46, col:'#b5603a', dot:'#8d4325', grains:[[900,.8,1.3]]},
+    {k:'loam', name:{en:'Loam',zh:'壤土'}, rate:13, hold:28, col:'#7a5636', dot:'#a88458', grains:[[40,3,4.5],[160,1.5,2.2],[300,.8,1.2],[50,1.5,2.5,'#2b1b10']]}
+  ];
+  let W = 0, H = 0, simT = 0, running = false, reported = true;
+  SOILS.forEach(s => { s.pts = []; s.grains.forEach(([n, r0, r1, c]) => { for (let i = 0; i < n; i++) s.pts.push([Math.random(), Math.random(), r0 + Math.random() * (r1 - r0), c]); }); s.drops = []; });
+  function reset(){ SOILS.forEach(s => { s.pond = 0; s.soil = 0; s.out = 0; s.first = null; s.t0 = null; s.drops = []; }); simT = 0; reported = true; msg(''); table(); }
+  const msg = (t, good) => { const m = Lab.$('#percMsg'); m.textContent = t; m.className = 'result ' + (good ? 'good' : ''); };
+  function table(){
+    Lab.$('#ptbody').innerHTML = SOILS.map(s => `<tr><td><i style="background:${s.col}"></i>${Lab.L(s.name)}</td><td>${s.first == null ? '—' : s.first.toFixed(1) + (Lab.lang==='zh'?' 秒':' s')}</td><td>${Math.round(s.out)} mL</td><td>${Math.round(s.soil)} mL</td></tr>`).join('');
+  }
+  function resize(){ const b = box.getBoundingClientRect(), d = Math.min(devicePixelRatio, 2); W = b.width; H = b.height; cv.width = W * d; cv.height = H * d; g.setTransform(d, 0, 0, d, 0, 0); }
+  new ResizeObserver(resize).observe(box); resize();
+  Lab.$('#vol').oninput = e => Lab.$('#volVal').textContent = e.target.value + ' mL';
+  Lab.$('#pour').onclick = () => { const v = +Lab.$('#vol').value; SOILS.forEach(s => { s.pond += v; if (s.t0 == null) s.t0 = simT; }); reported = false; msg(''); };
+  Lab.$('#percReset').onclick = reset;
+  function step(dt){
+    const k = Lab.$('#compact').checked ? .3 : 1;
+    let busy = false;
+    SOILS.forEach(s => {
+      const rate = s.rate * k, inflow = Math.min(s.pond, rate * dt); s.pond -= inflow; s.soil += inflow;
+      const extra = s.soil - s.hold;
+      if (extra > 0){ const o = Math.min(extra, rate * 1.3 * dt); s.soil -= o; s.out += o; if (s.first == null && s.out > .3) s.first = simT - s.t0;
+        if (Math.random() < Math.min(1, o * 1.5)) s.drops.push({y:0, v:0}); }
+      if (s.pond > .01 || s.soil - s.hold > .05) busy = true;
+      s.drops.forEach(d => { d.v += 3 * dt; d.y += d.v * dt; }); s.drops = s.drops.filter(d => d.y < 1);
+    });
+    if (!busy && !reported){
+      reported = true;
+      const comp = Lab.$('#compact').checked;
+      msg(Lab.L({en:'Sand drained first: big grains leave big pores. Clay held the most water: tiny grains pack tightly. Loam is in between: it drains well AND holds water, which is why gardeners love it.',zh:'砂土最先滴水：大颗粒之间孔隙大。黏土保留的水最多：细小颗粒挤得很紧。壤土介于两者之间，既能排水又能保水，所以最受园丁喜爱。'}) + (comp ? ' ' + Lab.L({en:'Compaction slowed every sample. On real land, that extra water runs off the surface and causes erosion.',zh:'压实让每种土壤都变慢了。在真实的土地上，渗不下去的水会在地表流走，造成侵蚀。'}) : ''), true);
+    }
+  }
+  function draw(){
+    const css = getComputedStyle(document.documentElement), ink = css.getPropertyValue('--ink').trim(), ink2 = css.getPropertyValue('--ink-2').trim(), line = css.getPropertyValue('--line').trim(), surf2 = css.getPropertyValue('--surface-2').trim();
+    g.clearRect(0, 0, W, H);
+    const n = SOILS.length, cw = Math.min(92, W / n * .62), top = H * .2, sh = H * .3, by = H * .7, bh = H * .2;
+    g.textAlign = 'center'; g.font = '800 14px Nunito, sans-serif';
+    SOILS.forEach((s, i) => {
+      const cx = W / n * (i + .5), x0 = cx - cw / 2;
+      g.fillStyle = ink; g.fillText(Lab.L(s.name), cx, 22);
+      // tube walls (water space above soil)
+      g.strokeStyle = line; g.lineWidth = 2; g.strokeRect(x0, top - H * .12, cw, sh + H * .12);
+      // ponded water
+      const ph = Math.min(H * .12, s.pond / 200 * H * .12);
+      if (ph > .5){ g.fillStyle = 'rgba(79,143,240,.55)'; g.fillRect(x0 + 1, top - ph, cw - 2, ph); }
+      // soil and grains
+      g.fillStyle = s.col; g.fillRect(x0 + 1, top, cw - 2, sh);
+      g.save(); g.beginPath(); g.rect(x0 + 1, top, cw - 2, sh); g.clip();
+      for (const [u, v, r, c] of s.pts){ g.fillStyle = c || s.dot; g.beginPath(); g.arc(x0 + u * cw, top + v * sh, r, 0, 6.283); g.fill(); }
+      const wet = Math.min(1, s.soil / s.hold), wh = wet * sh;
+      if (wh > .5){ g.fillStyle = 'rgba(30,80,190,.28)'; g.fillRect(x0, top, cw, wh); }
+      g.restore();
+      // funnel
+      g.fillStyle = surf2; g.strokeStyle = line; g.beginPath(); g.moveTo(x0, top + sh); g.lineTo(x0 + cw, top + sh); g.lineTo(cx + 5, top + sh + 22); g.lineTo(cx - 5, top + sh + 22); g.closePath(); g.fill(); g.stroke();
+      // drops
+      g.fillStyle = '#4f8ff0';
+      const y0 = top + sh + 24, fall = by + bh - y0;
+      s.drops.forEach(d => { g.beginPath(); g.arc(cx, y0 + d.y * fall * .9, 3, 0, 6.283); g.fill(); });
+      // beaker
+      const bw = cw * .9, bx = cx - bw / 2, lvl = Math.min(1, s.out / 300) * bh;
+      g.fillStyle = 'rgba(79,143,240,.6)'; g.fillRect(bx + 2, by + bh - lvl, bw - 4, lvl);
+      g.strokeStyle = ink2; g.lineWidth = 2; g.beginPath(); g.moveTo(bx, by); g.lineTo(bx, by + bh); g.lineTo(bx + bw, by + bh); g.lineTo(bx + bw, by); g.stroke();
+      g.fillStyle = ink2; g.font = '700 12px Nunito, sans-serif';
+      g.fillText(Math.round(s.out) + ' mL', cx, by + bh + 16);
+      g.font = '800 14px Nunito, sans-serif';
+    });
+    g.textAlign = 'center'; g.fillStyle = ink2; g.font = '700 12px Nunito, sans-serif';
+    g.fillText(Lab.L({en:'Blue on top = water waiting to soak in · bluish shading = wet soil · beaker = water that drained through',zh:'上方蓝色 = 等待渗入的积水 · 蓝色阴影 = 湿润的土壤 · 烧杯 = 渗出的水'}), W / 2, H - 8);
+  }
+  let last = performance.now(), acc = 0;
+  function loop(now){
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    const sp = Lab.$('#ff').checked ? 4 : 1;
+    for (let k = 0; k < sp; k++){ simT += dt; step(dt); }
+    acc += dt; if (acc > .12){ acc = 0; table(); }
+    draw(); requestAnimationFrame(loop);
+  }
+  reset(); Lab.onLang(table); requestAnimationFrame(loop);
+})();
+
+/* ===== Quiz ===== */
+const o = (en, zh) => ({en, zh});
+/* ===== Real photos (Wikimedia Commons; licences checked with the Commons API helper, URLs exactly as returned) ===== */
+const PHOTOS = [
+  { part:'B', kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/82/Soil_Profile_Containing_an_Argillic_Horizon.jpg/960px-Soil_Profile_Containing_an_Argillic_Horizon.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A real soil profile dug near Raleigh, North Carolina. Can you see where one layer ends and the next begins? This soil has a clay-rich subsoil (B horizon).', zh:'在美国北卡罗来纳州罗利附近挖出的真实土壤剖面。你能看出一层在哪里结束、下一层从哪里开始吗？这种土壤的心土层（B 层）含有很多黏土。', scale:{en:'near Raleigh, North Carolina, USA',zh:'美国北卡罗来纳州罗利附近'}, credit:'Cjrufe', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Soil_Profile_Containing_an_Argillic_Horizon.jpg' },
+  { part:'O', kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c9/Forest_floor_with_small_mushrooms_and_a_fallen_orange_maple_leaf%2C_Potawatomi_State_Park%2C_Wisconsin.jpg/960px-Forest_floor_with_small_mushrooms_and_a_fallen_orange_maple_leaf%2C_Potawatomi_State_Park%2C_Wisconsin.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A forest floor covered with fallen leaves and small mushrooms. This litter is the O horizon; fungi are already turning it into humus.', zh:'铺满落叶、长着小蘑菇的森林地面。这层枯枝落叶就是 O 层，真菌正在把它变成腐殖质。', scale:{en:'Potawatomi State Park, Wisconsin, USA',zh:'美国威斯康星州波塔瓦托米州立公园'}, credit:'Z3lvs', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Forest_floor_with_small_mushrooms_and_a_fallen_orange_maple_leaf,_Potawatomi_State_Park,_Wisconsin.jpg' },
+  { part:'R', kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b4/Lichen_on_rock.jpg/960px-Lichen_on_rock.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Lichen growing on bare rock. Lichens are among the first living things to settle on rock, and they slowly help break it down, the first step toward soil.', zh:'长在裸露岩石上的地衣。地衣是最早在岩石上安家的生物之一，它们慢慢帮助岩石分解——这是形成土壤的第一步。', scale:{en:'Shawnee National Forest, Illinois, USA',zh:'美国伊利诺伊州肖尼国家森林'}, credit:'Daniel Schwen', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Lichen_on_rock.jpg' },
+  { part:'worm', kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/19/Earthworm_in_a_home_farm.jpg/960px-Earthworm_in_a_home_farm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'An earthworm found just under the soil surface. Worms eat dead plant material and mix it into the soil.', zh:'在土表下面发现的一条蚯蚓。蚯蚓吃掉枯死的植物，并把它们拌进土壤里。', credit:'Zmu\'az4Z', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Earthworm_in_a_home_farm.jpg' },
+  { part:'pores', kind:{en:'Lab image',zh:'实验室图像'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/14/Earthworm_burrows_in_a_soil_column.jpg/960px-Earthworm_burrows_in_a_soil_column.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Earthworm burrows in a column of soil after 28 days. These tunnels are pathways for air and water.', zh:'一段土柱里的蚯蚓洞穴（28 天后）。这些孔道是空气和水的通道。', credit:'W. M. Heinze, D. M. Mitrano, E. Lahive, J. Koestel, G. Cornelis', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Earthworm_burrows_in_a_soil_column.jpg' },
+  { kind:{en:'Close-up photo',zh:'特写照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bb/Polygonal_cracks_in_drought-dried_soil_near_La_Guardia%2C_Margarita_Island%2C_Venezuela.jpg/960px-Polygonal_cracks_in_drought-dried_soil_near_La_Guardia%2C_Margarita_Island%2C_Venezuela.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Clay soil dried out by drought. Clay shrinks as it loses water, so it cracks into polygons and curls up.', zh:'被干旱晒干的黏土。黏土失水会收缩，于是裂成一块块多边形，边缘还翘了起来。', scale:{en:'Margarita Island, Venezuela',zh:'委内瑞拉玛格丽塔岛'}, credit:'Wilfredor', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Polygonal_cracks_in_drought-dried_soil_near_La_Guardia,_Margarita_Island,_Venezuela.jpg' },
+  { kind:{en:'Photo · 1935',zh:'照片 · 1935 年'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d2/Dust_storm_approaching_Stratford%2C_Texas.jpg/960px-Dust_storm_approaching_Stratford%2C_Texas.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A dust storm rolls toward Stratford, Texas, in 1935, during the Dust Bowl. Plowed, dried-out topsoil with no plants to hold it simply blew away.', zh:'1935 年“黑色风暴”时期，沙尘暴扑向美国得克萨斯州的斯特拉特福德。翻耕过又干透的表土没有植物固定，就被风刮走了。', scale:{en:'Stratford, Texas, USA',zh:'美国得克萨斯州斯特拉特福德'}, credit:'George Everett Marsh Jr.', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Dust_storm_approaching_Stratford,_Texas.jpg' },
+  { kind:{en:'Aerial photo',zh:'航拍照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/52/NRCSIA99359_-_Iowa_%283411%29%28NRCS_Photo_Gallery%29.jpg/960px-NRCSIA99359_-_Iowa_%283411%29%28NRCS_Photo_Gallery%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Protecting soil today: strips of alfalfa and corn planted along the curves of the hills in Iowa, so rain cannot wash the topsoil straight downhill.', zh:'今天怎样保护土壤：美国艾奥瓦州的农田沿着山坡的等高线，一条苜蓿、一条玉米地间隔种植，雨水就不能把表土直接冲下坡。', scale:{en:'northeast Iowa, USA',zh:'美国艾奥瓦州东北部'}, credit:'Tim McCabe, USDA NRCS', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:NRCSIA99359_-_Iowa_(3411)(NRCS_Photo_Gallery).jpg' }
+];
+PHOTOS.forEach(it => { if (it.part && PARTS[it.part]) PARTS[it.part].photo = it; });
+LabPhotos.render(Lab.$('#gallery'), PHOTOS);
+
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('Which soil horizon is made mostly of fallen leaves and decaying matter?','哪一个土层主要由落叶和正在分解的有机物组成？'), options:[o('O horizon','O 层'),o('B horizon','B 层'),o('C horizon','C 层'),o('R horizon','R 层')], answer:0, explain:o('O stands for organic: leaf litter on top of the soil.','O 代表有机（organic）：覆盖在土壤最上面的落叶层。')},
+  {q:o('Which layer is the dark, fertile topsoil where most roots and earthworms live?','哪一层是颜色深、最肥沃、大多数根和蚯蚓生活的表土层？'), options:[o('A horizon','A 层'),o('B horizon','B 层'),o('C horizon','C 层'),o('R horizon','R 层')], answer:0, explain:o('Humus makes the A horizon dark and rich in nutrients.','腐殖质使 A 层颜色深、养分丰富。')},
+  {q:o('What is at the very bottom of a soil profile?','土壤剖面的最底部是什么？'), options:[o('Solid bedrock','坚硬的基岩'),o('Humus','腐殖质'),o('Leaf litter','落叶'),o('Groundwater only','只有地下水')], answer:0},
+  {q:o('Soil forms mainly from…','土壤主要由什么形成？'), options:[o('Weathered rock and decomposed organic matter','风化的岩石和分解的有机物'),o('Sand washed up from the ocean only','只来自海边冲上来的沙子'),o('Melted ice','融化的冰'),o('Dust from outer space','来自太空的尘埃')], answer:0, explain:o('Rock breaks down into mineral grains, and decomposers turn dead organisms into humus.','岩石破碎成矿物颗粒，分解者把死去的生物变成腐殖质。')},
+  {q:o('Water poured on which soil will drain through fastest?','把水倒在哪种土壤上，水流下去最快？'), options:[o('Sand','砂土'),o('Clay','黏土'),o('Silt','粉砂土'),o('Compacted clay','被压实的黏土')], answer:0, explain:o('Large sand grains leave large pores, so sand has high permeability.','大的砂粒之间孔隙大，所以砂土透水性高。')},
+  {q:o('Which soil holds the most water but drains very slowly?','哪种土壤保水最多，但排水非常慢？'), options:[o('Clay','黏土'),o('Sand','砂土'),o('Gravel','砾石'),o('Loam','壤土')], answer:0},
+  {q:o('Gardeners usually prefer loam because it…','园丁通常更喜欢壤土，因为它……'), options:[o('Mixes sand, silt, clay and humus, so it drains well and holds water','混合了砂粒、粉粒、黏粒和腐殖质，既能排水又能保水'),o('Is pure clay','是纯黏土'),o('Contains no living things','不含任何生物'),o('Never needs water','从来不需要浇水')], answer:0},
+  {q:o('What is humus?','什么是腐殖质？'), options:[o('Dark, decomposed organic matter','黑色的、已分解的有机物'),o('A type of bedrock','一种基岩'),o('Pure sand','纯沙子'),o('Ice inside soil','土壤里的冰')], answer:0},
+  {q:o('A tree root grows into a crack in a rock and splits it. This is…','树根伸进岩石的裂缝并把它撑裂，这属于……'), options:[o('Mechanical weathering','物理（机械）风化'),o('Chemical weathering','化学风化'),o('Deposition','沉积'),o('Erosion by wind','风力侵蚀')], answer:0, explain:o('The rock is broken into pieces without changing what it is made of.','岩石被破碎成小块，但组成成分没有改变。')},
+  {q:o('Why is the B horizon often red or orange in Georgia?','为什么佐治亚州的 B 层常常是红色或橙色的？'), options:[o('Iron minerals washed down from above collect there','从上面淋洗下来的含铁矿物在那里积累'),o('It is full of fallen leaves','它满是落叶'),o('It is made of melted lava','它是由熔岩构成的'),o('Earthworms paint it','蚯蚓把它染了色')], answer:0},
+  {q:o('Which practice helps PROTECT soil from erosion?','哪种做法有助于保护土壤、防止侵蚀？'), options:[o('Planting cover crops and windbreaks','种植覆盖作物和防风林'),o('Removing all the plants','清除所有植物'),o('Letting animals overgraze','让牲畜过度放牧'),o('Driving heavy machines on wet soil','在湿土上开重型机械')], answer:0},
+  {q:o('About how much of a healthy soil’s volume is pore space (air + water)?','健康土壤的体积中，孔隙（空气 + 水）大约占多少？'), options:[o('About half','大约一半'),o('Almost none','几乎没有'),o('About 5%','大约 5%'),o('All of it','全部')], answer:0, explain:o('Roughly 25% water + 25% air, with 45% minerals and 5% organic matter.','大约 25% 是水、25% 是空气，另外 45% 是矿物质、5% 是有机物。')}
+], { count:10 });
+
+/* ===== Sort game ===== */
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'O',en:'O · organic layer',zh:'O 层 · 有机层'},{id:'A',en:'A · topsoil',zh:'A 层 · 表土层'},{id:'B',en:'B · subsoil',zh:'B 层 · 心土层'},{id:'CR',en:'C & R · rock',zh:'C 层和 R 层 · 岩石'}],
+  items:[
+    {en:'Freshly fallen leaves',zh:'刚落下的树叶',bin:'O',color:PARTS.O.color},{en:'Twigs and pine needles',zh:'树枝和松针',bin:'O',color:PARTS.O.color},{en:'Half-rotted plant bits',zh:'半腐烂的植物碎片',bin:'O',color:PARTS.O.color},
+    {en:'Dark humus mixed with minerals',zh:'混有矿物的黑色腐殖质',bin:'A',color:PARTS.A.color},{en:'Most plant roots',zh:'大部分植物的根',bin:'A',color:PARTS.A.color},{en:'Lots of earthworms',zh:'很多蚯蚓',bin:'A',color:PARTS.A.color},
+    {en:'Clay washed down from above',zh:'从上面淋洗下来的黏土',bin:'B',color:PARTS.B.color},{en:'Red iron minerals',zh:'红色的含铁矿物',bin:'B',color:PARTS.B.color},{en:'A few deep roots',zh:'少量深根',bin:'B',color:PARTS.B.color},
+    {en:'Chunks of weathered rock',zh:'风化的岩块',bin:'CR',color:PARTS.C.color},{en:'Solid unbroken rock',zh:'完整坚硬的岩石',bin:'CR',color:PARTS.R.color},{en:'Almost no living things',zh:'几乎没有生物',bin:'CR',color:PARTS.R.color}
+  ]
+});
+</script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const App = window.SOIL, V = THREE.Vector3;
+const ctx = Lab3D.stage('#stage', { THREE, OrbitControls, camera:[9.5, 3.6, 17.5], target:[0, -.3, 0], minDistance:4, maxDistance:40 });
+const { scene } = ctx;
+const W = 6, D = 4, TOP = 3, BOT = -4, HT = TOP - BOT, FZ = D / 2;
+const rnd = (a, b) => a + Math.random() * (b - a);
+const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+const root = new THREE.Group(); scene.add(root);
+
+/* ---------- procedural canvas textures for each horizon ---------- */
+function tex(base, dots, opt = {}){
+  const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
+  g.fillStyle = base; g.fillRect(0, 0, 256, 256);
+  if (opt.bands) for (let i = 0; i < 14; i++){ g.fillStyle = `rgba(0,0,0,${rnd(.03, .09)})`; g.fillRect(0, rnd(0, 256), 256, rnd(2, 10)); }
+  for (const [n, r0, r1, cols] of dots) for (let i = 0; i < n; i++){ g.fillStyle = cols[i % cols.length]; g.beginPath(); g.arc(rnd(0, 256), rnd(0, 256), rnd(r0, r1), 0, 6.283); g.fill(); }
+  if (opt.cracks){ g.strokeStyle = 'rgba(30,30,40,.5)'; g.lineWidth = 2; for (let i = 0; i < 8; i++){ let x = rnd(0, 256), y = rnd(0, 256); g.beginPath(); g.moveTo(x, y); for (let k = 0; k < 6; k++){ x += rnd(-30, 30); y += rnd(-30, 30); g.lineTo(x, y); } g.stroke(); } }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
+}
+const TEX = {
+  O: tex('#6e4b2a', [[300, 2, 6, ['#a0662e', '#c98a3a', '#4d331c', '#8a5a2b', '#d1a04a']]]),
+  A: tex('#3b281a', [[600, 1, 2.6, ['#2a1b10', '#5a4030', '#6b5040', '#4a3424']]]),
+  B: tex('#a9512e', [[450, 1, 2.6, ['#c0653a', '#8c3f22', '#d07a48']]], { bands:true }),
+  C: tex('#b49d78', [[130, 3, 10, ['#8f8a80', '#a39a88', '#c8b591', '#6f6a62']]]),
+  R: tex('#7b828c', [[220, 1, 3, ['#6a7078', '#8f969e', '#737a83']]], { cracks:true })
+};
+
+/* ---------- horizons: one group per layer ---------- */
+const LY = {}, boxG = new THREE.BoxGeometry(W, 1, D), icoG = new THREE.IcosahedronGeometry(1, 0);
+const PEB = { O:null, A:{ n:16, r:[.05, .09], c:'#6b5a4a' }, B:{ n:20, r:[.05, .1], c:'#c27a4e' }, C:{ n:36, r:[.12, .3], c:'#9c9284' }, R:null };
+for (const k of 'RCBAO'){
+  const g = new THREE.Group(); root.add(g);
+  const m = ctx.mat('#ffffff', 1, { map:TEX[k], transparent:true, roughness:.95, clearcoat:0 });
+  const box = new THREE.Mesh(boxG, m); g.add(box);
+  const L = LY[k] = { g, box, mats:[m], th:0, y0:0, y1:0 };
+  if (PEB[k]){
+    const P = PEB[k], pm = ctx.mat(P.c, 1, { transparent:true, roughness:.8, clearcoat:.1 });
+    L.peb = new THREE.InstancedMesh(icoG, pm, P.n); L.pebData = [];
+    for (let i = 0; i < P.n; i++) L.pebData.push({ face:Math.random() < .62 ? 0 : 1, u:rnd(.04, .96), v:rnd(.12, .88), r:rnd(...P.r), rx:rnd(0, 6), ry:rnd(0, 6) });
+    g.add(L.peb); L.mats.push(pm);
+  }
+  L.anchor = new THREE.Object3D(); L.anchor.position.set(W / 2, 0, FZ); g.add(L.anchor);
+  ctx.pickable(g, k);
+}
+
+/* ---------- surface life: lichens, leaf litter, grass, a young tree ---------- */
+const life = new THREE.Group(); root.add(life);
+const lichenM = ctx.mat('#a3b06a', 1, { transparent:true, roughness:.9, clearcoat:0 });
+const lichens = new THREE.Group(); life.add(lichens);
+for (let i = 0; i < 16; i++){ const c = new THREE.Mesh(new THREE.CircleGeometry(rnd(.12, .32), 10), lichenM); c.rotation.x = -Math.PI / 2; c.position.set(rnd(-W / 2 + .4, W / 2 - .4), .015, rnd(-D / 2 + .4, D / 2 - .4)); lichens.add(c); }
+ctx.pickable(lichens, 'roots');
+const litterM = ctx.mat('#ffffff', 1, { transparent:true, roughness:.9, clearcoat:0 });
+const litter = new THREE.InstancedMesh(new THREE.BoxGeometry(.22, .02, .12), litterM, 150), dummy = new THREE.Object3D(), col = new THREE.Color();
+for (let i = 0; i < 150; i++){ dummy.position.set(rnd(-W / 2 + .12, W / 2 - .12), .02, rnd(-D / 2 + .12, D / 2 - .12)); dummy.rotation.set(rnd(-.2, .2), rnd(0, 6), rnd(-.2, .2)); dummy.scale.set(1, 1, 1); dummy.updateMatrix(); litter.setMatrixAt(i, dummy.matrix); litter.setColorAt(i, col.set(['#b5702f', '#d79b3d', '#8a5a2b', '#c9b14a', '#7a4a22'][i % 5])); }
+life.add(litter); ctx.pickable(litter, 'O');
+const grassM = ctx.mat('#5aa845', 1, { transparent:true, roughness:.7, clearcoat:0 });
+const grass = new THREE.InstancedMesh(new THREE.ConeGeometry(.035, .5, 4), grassM, 320); const grassData = [];
+for (let i = 0; i < 320; i++) grassData.push([rnd(-W / 2 + .1, W / 2 - .1), rnd(-D / 2 + .1, D / 2 - .1), rnd(.6, 1.3), rnd(-.25, .25)]);
+life.add(grass); ctx.pickable(grass, 'roots');
+const tree = new THREE.Group(); life.add(tree); tree.position.set(1.4, 0, .9);
+const trunkM = ctx.mat('#7a5230', 1, { transparent:true, roughness:.8 }), crownM = ctx.mat('#3f9a4a', 1, { transparent:true, roughness:.7 });
+const trunk = new THREE.Mesh(new THREE.CylinderGeometry(.09, .14, 1.6, 8), trunkM); trunk.position.y = .8; tree.add(trunk);
+[[0, 1.9, 0, .75], [.35, 1.6, .2, .5], [-.35, 1.65, -.15, .55]].forEach(([x, y, z, r]) => { const c = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 1), crownM); c.position.set(x, y, z); tree.add(c); });
+ctx.pickable(tree, 'roots');
+
+/* ---------- roots on the cut face (unit depth, scaled to topsoil + subsoil) ---------- */
+const rootM = ctx.mat('#ead8b0', 1, { transparent:true, roughness:.7 });
+const roots = new THREE.Group(); root.add(roots);
+const P2 = (x, y) => new V(x, y, FZ + .025);
+const ROOTS = [
+  [[1.4, 0], [1.5, -.3], [1.3, -.6], [1.45, -1]], [[1.45, -.25], [1.9, -.45], [2.3, -.7]], [[1.35, -.4], [.9, -.6], [.6, -.85]], [[1.5, -.6], [1.9, -.8], [2.0, -.95]],
+  [[-2.2, 0], [-2.25, -.2], [-2.1, -.35]], [[-1.1, 0], [-1.0, -.18], [-1.15, -.32]], [[-.2, 0], [-.3, -.25], [-.15, -.4]], [[2.5, 0], [2.6, -.2], [2.45, -.33]], [[-2.6, 0], [-2.7, -.15], [-2.5, -.28]]
+];
+ROOTS.forEach((pts, i) => roots.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => P2(...p))), 24, i < 4 ? (i ? .03 : .05) : .02, 5), rootM)));
+ctx.pickable(roots, 'roots');
+
+/* ---------- earthworms in the A horizon ---------- */
+const wormM = ctx.mat('#e58b9a', 1, { transparent:true, roughness:.5 });
+const worms = [0, 1].map(w => { const grp = new THREE.Group(); LY.A.g.add(grp); const segs = []; for (let i = 0; i < 14; i++){ const s = new THREE.Mesh(new THREE.SphereGeometry(i ? .07 : .085, 10, 8), wormM); grp.add(s); segs.push(s); } ctx.pickable(grp, 'worm'); return { grp, segs, cx:w ? 1.2 : -1.6, ph:w * 2.1, sp:w ? .8 : 1 }; });
+
+/* ---------- rain + infiltration particles ---------- */
+const NR = 260, rp = new Float32Array(NR * 3), drops = [];
+const rainG = new THREE.BufferGeometry(); rainG.setAttribute('position', new THREE.BufferAttribute(rp, 3));
+const rainM = new THREE.PointsMaterial({ color:'#4f9bff', size:.14, transparent:true, opacity:.95, depthWrite:false });
+const rain = new THREE.Points(rainG, rainM); rain.visible = false; root.add(rain); ctx.pickable(rain, 'pores');
+const spawn = (d, high) => { d.st = 0; d.front = Math.random() < .6; d.x = rnd(-W / 2 + .15, W / 2 - .15); d.z = d.front ? FZ + .07 : rnd(-D / 2, D / 2); d.y = surfY + (high ? rnd(.5, 7) : rnd(4, 7)); };
+let surfY = TOP;
+for (let i = 0; i < NR; i++){ const d = {}; spawn(d, true); drops.push(d); }
+
+/* ---------- labels ---------- */
+let labelsOn = true;
+const labels = [];
+for (const k of 'OABCR') labels.push(ctx.label(PARTS[k].short, LY[k].anchor, { offset:[1.25, 0, 0] }));
+labels.push(ctx.label(PARTS.roots.short, trunk, { offset:[-.9, 1.6, 0] }), ctx.label(PARTS.worm.short, worms[0].segs[0], { offset:[0, .35, 0] }));
+const setLabels = on => { labelsOn = on; labels.forEach(L => L.visible = on); Lab.$('#labelBtn').classList.toggle('on', on); };
+Lab.$('#labelBtn').onclick = () => setLabels(!labelsOn);
+
+/* ---------- layout: thickness of each horizon from soil age, plus explode gap ---------- */
+const state = { age:1, ex:0 }, target = { age:1, ex:0 };
+function layout(){
+  const a = state.age, th = { O:.32 * smooth(.62, 1, a), A:1.45 * smooth(.38, .82, a), B:1.4 * smooth(.66, .98, a), C:1.5 * smooth(.05, .5, a) };
+  th.R = HT - th.O - th.A - th.B - th.C;
+  const gap = state.ex * .8; let y = BOT, top = BOT;
+  for (const k of 'RCBAO'){
+    const L = LY[k], t = th[k]; L.th = t; L.g.visible = t > .03;
+    L.g.position.y = y + t / 2; L.box.scale.y = Math.max(t, .001); L.y0 = y; L.y1 = y + t;
+    TEX[k].repeat.set(1.5, Math.max(t, .05) / 1.6);
+    if (L.peb){
+      L.pebData.forEach((p, i) => { const r = Math.max(.001, Math.min(p.r, t * .33)), ly = (p.v - .5) * t;
+        if (p.face === 0) dummy.position.set(-W / 2 + p.u * W, ly, FZ - r * .35); else dummy.position.set(W / 2 - r * .35, ly, -D / 2 + p.u * D);
+        dummy.rotation.set(p.rx, p.ry, 0); dummy.scale.setScalar(r); dummy.updateMatrix(); L.peb.setMatrixAt(i, dummy.matrix); });
+      L.peb.instanceMatrix.needsUpdate = true;
+    }
+    if (t > .03){ top = y + t; y += t + gap; }
+  }
+  surfY = top; life.position.y = surfY; roots.position.y = surfY;
+  // life appears in stages
+  lichens.visible = a > .15; lichens.scale.setScalar(Math.max(.01, smooth(.15, .4, a)));
+  litter.visible = th.O > .03;
+  const gs = smooth(.45, .75, a); grass.visible = gs > .01;
+  grassData.forEach(([x, z, h, tilt], i) => { dummy.position.set(x, .25 * h * gs, z); dummy.rotation.set(tilt, 0, tilt * .6); dummy.scale.set(1, h * gs + .001, 1); dummy.updateMatrix(); grass.setMatrixAt(i, dummy.matrix); });
+  grass.instanceMatrix.needsUpdate = true;
+  const ts = smooth(.7, 1, a); tree.visible = ts > .01; tree.scale.setScalar(Math.max(.01, ts));
+  roots.visible = a > .5 && state.ex < .12; roots.scale.set(1, Math.max(.01, th.A + th.B * .85 + th.O), 1);
+  worms.forEach(w => w.grp.visible = th.A > .6);
+}
+layout();
+
+/* ---------- controls ---------- */
+const ageEl = Lab.$('#age'), exEl = Lab.$('#explode');
+let spin = false, rainOn = false;
+const setSpin = on => { spin = on; Lab.$('#rotBtn').classList.toggle('on', on); };
+const setRain = on => { rainOn = on; rain.visible = on; Lab.$('#rainBtn').classList.toggle('on', on); };
+Lab.$('#rotBtn').onclick = () => setSpin(!spin);
+Lab.$('#rainBtn').onclick = () => setRain(!rainOn);
+ageEl.oninput = () => { if (story.active) story.stop(); target.age = ageEl.value / 100; };
+exEl.oninput = () => { target.ex = exEl.value / 100; };
+Lab.$('#resetBtn').onclick = () => { story.stop(); App.select(null); target.age = 1; target.ex = 0; ageEl.value = 100; exEl.value = 0; root.rotation.y = 0; setSpin(false); ctx.home(); };
+
+/* ---------- selection + focus ---------- */
+ctx.hoverText(k => Lab.L(PARTS[k].name));
+ctx.onPick(k => { if (k !== App.sel) App.select(k, false); });
+const wp = new V();
+function focus(k){
+  if (!k) return ctx.home();
+  if ('OABCR'.includes(k)){ const L = LY[k]; if (!L.g.visible){ target.age = 1; ageEl.value = 100; } L.anchor.getWorldPosition(wp); wp.x -= W / 2; return ctx.flyTo(wp.clone(), 10); }
+  if (k === 'worm'){ if (LY.A.th < .6){ target.age = 1; ageEl.value = 100; } worms[0].segs[0].getWorldPosition(wp); return ctx.flyTo(wp.clone(), 6); }
+  if (k === 'roots'){ trunk.getWorldPosition(wp); wp.y -= 1.2; return ctx.flyTo(wp.clone(), 9); }
+  if (k === 'pores'){ setRain(true); LY.B.anchor.getWorldPosition(wp); wp.x -= W / 2; return ctx.flyTo(wp.clone(), 10); }
+}
+App.three = { focus };
+const SELMATS = { O:[...LY.O.mats, litterM], A:LY.A.mats, B:LY.B.mats, C:LY.C.mats, R:LY.R.mats, roots:[rootM, grassM, trunkM, crownM, lichenM], worm:[wormM], pores:[rainM] };
+const BASECOL = { O:PARTS.O.color, A:'#7a5a40', B:PARTS.B.color, C:PARTS.C.color, R:'#9aa3ad' };
+
+/* ---------- story: soil formation ---------- */
+const story = Lab3D.story('#stage', FORM_STEPS, (i, s) => {
+  setSpin(false); target.age = s.age; ageEl.value = s.age * 100; target.ex = 0; exEl.value = 0;
+  setRain(!!s.rain); App.select(s.sel, true); ctx.home();
+}, () => { target.age = 1; ageEl.value = 100; setRain(false); });
+Lab.$('#storyBtn').onclick = () => story.start();
+
+/* ---------- per-frame ---------- */
+const ageVal = Lab.$('#ageVal');
+function layerAt(y){ for (const k of 'OABC'){ const L = LY[k]; if (L.th > .03 && y <= L.y1 && y >= L.y0) return k; } return null; }
+const SPEED = { O:1.6, A:1.0, B:.28, C:.6 };
+ctx.onFrame((dt, t) => {
+  if (spin) root.rotation.y += dt * .3;
+  let moved = false;
+  for (const k of ['age', 'ex']){ const d = target[k] - state[k]; if (Math.abs(d) > .001){ state[k] += Math.sign(d) * Math.min(Math.abs(d), dt * (k === 'age' ? .3 : .9)); moved = true; } }
+  if (moved) layout();
+  ageVal.textContent = ageText(state.age);
+  // worms crawl
+  worms.forEach(w => { if (!w.grp.visible) return; const th = LY.A.th; w.segs.forEach((s, i) => { const tt = t * w.sp - i * .1; s.position.set(w.cx + 1.2 * Math.sin(tt * .45 + w.ph), th * .28 * Math.sin(tt * 1.1 + w.ph), FZ + .01); }); });
+  // rain → infiltration → groundwater
+  if (rainOn){
+    const rTop = LY.R.y1;
+    drops.forEach((d, i) => {
+      if (d.st === 0){ d.y -= 7 * dt; if (d.y <= surfY){ if (!d.front) spawn(d); else { d.st = 1; d.y = surfY - .02; } } }
+      else if (d.st === 1){ const k = layerAt(d.y); d.y -= (k ? SPEED[k] : 3) * dt; d.x += Math.sin(t * 3 + i) * .08 * dt; if (d.y <= rTop + .12){ d.st = 2; d.y = rTop + rnd(.04, .16); } }
+      else { d.x += .9 * dt; if (d.x > W / 2 + .1) spawn(d); }
+      rp[i * 3] = d.x; rp[i * 3 + 1] = d.y; rp[i * 3 + 2] = d.z;
+    });
+    rainG.attributes.position.needsUpdate = true;
+  }
+  // highlight selected part, dim the others
+  const sel = App.sel;
+  for (const k in SELMATS){
+    const on = sel === k, dim = sel && !on;
+    SELMATS[k].forEach(m => {
+      if (m.emissive){ const glow = on ? .28 + .14 * Math.sin(t * 4) : 0; m.emissive.set(BASECOL[k] || m.color).multiplyScalar(glow); }
+      m.opacity += ((dim ? .28 : (k === 'pores' ? .95 : 1)) - m.opacity) * Math.min(1, dt * 8);
+    });
+  }
+});
+setLabels(true);
+renderInfo(); renderChips();
+</script>
+</body>
+</html>

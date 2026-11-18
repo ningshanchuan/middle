@@ -1,0 +1,691 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Speed, Velocity &amp; Acceleration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/lab3d.js"></script>
+<script src="../shared/photos.js"></script>
+<style>
+/* page-specific styles */
+.racegrid{display:grid;grid-template-columns:320px minmax(0,1fr);gap:18px;margin-top:18px}
+.carcol{display:flex;flex-direction:column;gap:14px}
+.carcard{padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.carcard h3{font-size:21px;display:flex;align-items:center;gap:10px}
+.carcard h3 .dot{width:18px;height:18px;border-radius:6px;flex:none}
+.carcard .presets{display:flex;flex-wrap:wrap;gap:6px}
+.carcard .presets button{border:1px solid var(--line);background:var(--surface-2);border-radius:999px;padding:3px 10px;font-size:13px;font-weight:700}
+.readout{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.readout div{background:var(--surface-2);border-radius:10px;padding:5px 8px;font-size:12px;color:var(--ink-2);font-weight:700;line-height:1.25}
+.readout b{display:block;white-space:nowrap;font-family:Fredoka;font-size:15px;color:var(--ink);font-weight:600}
+.status{font-size:13px;font-weight:800;color:var(--ink-2);min-height:20px}
+.graphcard{padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.graphs{display:grid;grid-template-columns:1fr;gap:14px}
+.gbox{position:relative;height:310px;background:var(--surface-2);border-radius:14px;overflow:hidden}
+.gbox canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.toggle{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px;color:var(--ink-2)}
+.toggle input{width:18px;height:18px;accent-color:var(--brand)}
+.racemsg{font-weight:800;min-height:24px}
+.formula{font-family:Fredoka;font-size:20px;background:var(--surface-2);border-radius:12px;padding:8px 12px;text-align:center}
+.targets{display:flex;flex-wrap:wrap;gap:6px}
+.targets button{border:1px solid var(--line);background:var(--surface-2);border-radius:999px;padding:4px 11px;font-weight:800;font-size:13px}
+.targets button.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.stars{font-size:26px;letter-spacing:3px;min-height:34px}
+.slope{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.slope .box svg{width:100%;height:90px;display:block}
+@media (max-width:980px){.racegrid{grid-template-columns:1fr}.graphs{grid-template-columns:1fr}}
+@media (max-width:560px){.readout{grid-template-columns:repeat(2,minmax(0,1fr))}.slope{grid-template-columns:1fr}}
+</style>
+</head>
+<body data-subject="physics" data-topic="motion">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="物理 · 运动">Physics · Motion</span>
+  <h1 data-zh-html="速度与<em>加速度</em>">Speed, Velocity &amp; <em>Acceleration</em></h1>
+  <p class="lead" data-zh="谁会赢得比赛：起步就快的车，还是越跑越快的车？在 100 米直道上举办一场赛车比赛！给每辆车设定初速度和加速度，按下“开始”，观察它们怎样运动，并看着路程–时间图像和速度–时间图像实时画出来。">Who wins a race: the car that starts fast, or the car that keeps speeding up? Hold a race on a 100-meter drag strip! Give each car a starting speed and an acceleration, press Run, and watch how they move while the distance–time and speed–time graphs draw themselves live.</p>
+</header>
+
+<section class="wrap" id="explore" data-nav="3D Race" data-nav-zh="3D 赛道">
+  <div class="explorer">
+    <div class="stage card" id="stage" data-3d>
+      <div class="toolbar">
+        <button class="tbtn on" id="runBtn" data-zh="▶ 开始">▶ Run</button>
+        <button class="tbtn" id="resetBtn" data-zh="↺ 重置">↺ Reset</button>
+        <button class="tbtn" id="tourBtn" data-zh="🎬 导览（故事）">🎬 Guided tour</button>
+        <button class="tbtn on" id="labelBtn" data-zh="🏷 标签">🏷 Labels</button>
+        <button class="tbtn" id="chaseBtn" data-zh="🎥 跟随镜头">🎥 Chase cam</button>
+      </div>
+      <div class="bottombar">
+        <div class="pill"><span data-zh="⏱ 时间">⏱ Time</span><b id="tPill">0.00 s</b></div>
+        <div class="pill"><span data-zh="🐢 慢放">🐢 Slow-mo</span><input id="simSpeed" type="range" min="25" max="100" value="100" step="25"><b id="simSpeedVal">1×</b></div>
+        <div class="tip" data-zh="拖动旋转 · 滚轮缩放 · 点击赛车、箭头或秒表">Drag to rotate · Scroll to zoom · Click a car, an arrow or the stopwatch</div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="chips" id="chips"></div>
+
+  <div class="racegrid">
+    <div class="carcol">
+      <div class="card carcard" id="cardA"></div>
+      <div class="card carcard" id="cardB"></div>
+      <label class="toggle"><input type="checkbox" id="revChk"> <span data-zh="允许倒车（速度可以变成负值）">Allow reversing (velocity can go negative)</span></label>
+    </div>
+    <div class="card graphcard">
+      <h3 data-zh="📈 实时运动图像">📈 Live motion graphs</h3>
+      <div class="graphs">
+        <div><div class="gbox"><canvas id="gDist"></canvas></div></div>
+        <div><div class="gbox"><canvas id="gVel"></canvas></div></div>
+      </div>
+      <div class="legend"><span><i style="background:#e5484d"></i><span data-zh="A 车">Car A</span></span><span><i style="background:#3b82f6"></i><span data-zh="B 车">Car B</span></span><span data-zh="路程–时间图像：斜率 = 速度 · 速度–时间图像：斜率 = 加速度">distance–time: slope = speed · speed–time: slope = acceleration</span></div>
+      <div class="racemsg" id="raceMsg"></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="graphs" data-nav="Reading graphs" data-nav-zh="读懂图像">
+  <div class="sec-head">
+    <h2 data-zh="三种形状，三种运动">Three shapes, three motions</h2>
+    <p data-zh="在路程–时间图像中，线越陡，物体运动得越快。在速度–时间图像中，线越陡，速度变化得越快（加速度越大）。">On a distance–time graph, a steeper line means faster motion. On a speed–time graph, a steeper line means the speed is changing faster (bigger acceleration).</p>
+  </div>
+  <div class="slope" id="slopeCards"></div>
+  <div class="mix" style="margin-top:16px"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="在路程–时间图像中，水平线表示物体静止；而在速度–时间图像中，水平线表示物体在匀速运动。先看清纵轴是什么！">A flat line on a distance–time graph means the object is STOPPED. A flat line on a speed–time graph means it is moving at a STEADY speed. Always read the y-axis first!</span></div>
+</section>
+
+<section class="wrap" id="match" data-nav="Graph match" data-nav-zh="图像匹配">
+  <div class="sec-head">
+    <h2 data-zh="游戏：走出这条图像">Game: walk the graph</h2>
+    <p data-zh="你是一名站在运动传感器前的学生。拖动滑块（或在画面上拖动小人、用 ← → 键）来移动，让你画出的路程–时间曲线和目标虚线重合。">You are a student standing in front of a motion sensor. Move with the slider (or drag the walker, or use the ← → keys) so that your distance–time line matches the dashed target line.</p>
+  </div>
+  <div class="sim">
+    <div class="simbox card"><canvas id="matchCv"></canvas></div>
+    <div class="card simside">
+      <h3 data-zh="选择目标图像">Pick a target graph</h3>
+      <div class="targets" id="targets"></div>
+      <p id="targetDesc"></p>
+      <label class="ctl"><span data-zh="我离传感器的距离">My distance from the sensor</span><input type="range" id="walkPos" min="0" max="10" step="0.05" value="1"><b id="walkVal">1.0 m</b></label>
+      <div class="btnrow"><button class="btn" id="matchGo" data-zh="▶ 开始（10 秒）">▶ Start (10 s)</button><button class="btn ghost" id="matchHint" data-zh="提示">Hint</button></div>
+      <div class="stars" id="stars"></div>
+      <div class="result" id="matchMsg"></div>
+      <div class="counters">
+        <div class="counter"><b id="mBest">–</b><span data-zh="本图最佳匹配度">best match (this graph)</span></div>
+        <div class="counter"><b id="mDone">0</b><span data-zh="已完成的图像（≥80%）">graphs mastered (≥80%)</span></div>
+      </div>
+      <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="“陡 = 快，平 = 停，向下 = 往回走。”">“Steep = fast, flat = stopped, going down = coming back.”</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real photos" data-nav-zh="真实影像">
+  <div id="gallery"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 运动测验">🧠 Motion quiz</h3><p class="sub" data-zh="选出正确答案。有些题需要简单计算。">Pick the best answer. Some questions need a quick calculation.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分一分">🗂️ Sort it</h3><p class="sub" data-zh="这句话描述的是速率、速度，还是加速度？把它拖到（或先点再点方框）正确的组里。">Does each example describe speed, velocity or acceleration? Drag it (or tap it, then tap a box) into the right group.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="对应佐治亚州标准 S8P3a：分析和解释数据，找出速率与路程、速度与加速度之间关系的规律（包括分析运动图像）。建议：先让学生预测“B 车从静止出发、a = 2.5 m/s²，能否追上 10 m/s 匀速行驶的 A 车？在哪里追上？”，再运行赛道验证（t = 8 s,80 m 处）。然后打开“允许倒车”，比较路程和位移。标准说明中不要求学生计算速度或加速度，本页的计算题可作为拓展。">Supports GSE S8P3a: analyze and interpret data to identify patterns in the relationships between speed and distance, and velocity and acceleration (including motion graphs). Try: ask students to predict whether Car B (from rest, a = 2.5 m/s²) catches Car A (steady 10 m/s) and where; then run it (t = 8 s at 80 m). Next, turn on “Allow reversing” and compare distance with displacement. The GSE clarification does not require calculating velocity or acceleration, so treat the calculation questions as enrichment.</p>
+    <p data-zh="物理说明：赛道用固定时间步长（1/200 s）和匀加速公式 x = x₀ + vt + ½at² 计算，误差小于 1 毫米。速度–时间图像中画的是带方向的速度（负值表示向后）。">Physics note: the race uses a fixed time step (1/200 s) with the constant-acceleration update x = x₀ + vt + ½at², accurate to under 1 mm. The speed–time graph plots signed velocity (negative = backwards).</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+/* ===== Concepts shown in the 3D race (bilingual) ===== */
+const o = (en, zh) => ({en, zh});
+const PARTS = {
+  distance:{color:'#64748b', name:o('Distance','路程'), job:o('How much ground is covered','物体运动路线的总长度'),
+    facts:{en:['Distance is the total length of the path an object travels. Its SI unit is the meter (m).','Distance never goes down: even driving backwards adds to it, like a car’s odometer.','The marker posts on this track are 10 m apart, and the whole strip is 100 m long.'],
+           zh:['路程是物体运动路线的总长度，国际单位是米（m）。','路程只会增加：即使倒车，路程也会继续累加，就像汽车的里程表。','这条赛道上的标志杆每隔 10 m 一根，整条直道长 100 m。']},
+    hint:o('Distance = the odometer. It only counts up.','路程就像里程表：只增不减。')},
+  displacement:{color:'#06b6d4', name:o('Displacement','位移'), job:o('Change in position, with a direction','位置的变化（有方向）'),
+    facts:{en:['Displacement tells how far and in which direction you end up from your starting point.','The cyan arrow on the track points from the start line to each car: that is the car’s displacement.','If you come back to where you started, your displacement is 0 m, even though your distance is not.'],
+           zh:['位移表示你最终离出发点有多远，以及在哪个方向。','赛道上青色的箭头从起跑线指向每辆车，它就是这辆车的位移。','如果你回到了出发点，位移就是 0 m，但路程并不是 0。']},
+    hint:o('Displacement = one straight arrow from start to finish.','位移 = 一根从起点指向终点的直箭头。'),
+    mix:o('Run one 400 m lap and stop where you began: distance = 400 m, displacement = 0 m. Turn on “Allow reversing” to see this on the track.','绕 400 m 跑道跑一圈回到起点：路程 = 400 m，位移 = 0 m。打开“允许倒车”，在赛道上亲眼看看。')},
+  speed:{color:'#e5484d', name:o('Speed','速率'), job:o('How fast: distance ÷ time','快慢：路程 ÷ 时间'),
+    facts:{en:['Speed = distance ÷ time. The SI unit is meters per second (m/s).','Average speed = total distance ÷ total time. Instantaneous speed is the speed at one moment, like a speedometer reading.','10 m/s is 36 km/h, about as fast as a quick bicycle.'],
+           zh:['速率 = 路程 ÷ 时间，国际单位是米每秒（m/s）。','平均速率 = 总路程 ÷ 总时间；瞬时速率是某一时刻的速率，就像车速表上的读数。','10 m/s 等于 36 km/h，大约是骑自行车飞快时的速度。']},
+    hint:o('Use the D–S–T triangle: Distance on top, Speed × Time on the bottom. Cover what you want to find.','用“路程–速率–时间”三角形：路程在上，速率 × 时间在下，遮住你要求的那个量。'),
+    mix:o('Speed has no direction. 10 m/s north and 10 m/s south are the same SPEED but different VELOCITIES.','速率没有方向。向北 10 m/s 和向南 10 m/s 速率相同，但速度不同。')},
+  velocity:{color:'#22c55e', name:o('Velocity','速度'), job:o('Speed in a direction','有方向的快慢'),
+    facts:{en:['Velocity is speed together with its direction, for example 10 m/s east.','The green arrow above each car shows its velocity: a longer arrow means faster, and it points the way the car moves.','When a car reverses, its velocity becomes negative: the arrow flips to point backwards.'],
+           zh:['速度是带有方向的快慢，例如“向东 10 m/s”。','每辆车上方的绿色箭头表示它的速度：箭头越长越快，箭头指向运动方向。','汽车倒车时速度变为负值，箭头会翻转指向后方。']},
+    hint:o('Velocity = speed + direction. It is drawn as an arrow.','速度 = 速率 + 方向，用箭头表示。'),
+    mix:o('A car driving around a curve at a steady 20 m/s has a constant speed but a CHANGING velocity, because its direction keeps changing.','汽车以 20 m/s 匀速转弯时，速率不变，但速度在变，因为方向一直在改变。')},
+  accel:{color:'#f97316', name:o('Acceleration','加速度'), job:o('How fast velocity changes','速度变化的快慢'),
+    facts:{en:['Acceleration = change in velocity ÷ time: a = (v_end − v_start) ÷ t. Unit: m/s² (meters per second, every second).','a = 2.5 m/s² means the velocity grows by 2.5 m/s every second.','Slowing down is also acceleration (pointing backwards, negative). Turning is acceleration too.'],
+           zh:['加速度 = 速度的变化量 ÷ 时间：a = （v末 − v初） ÷ t。单位是 m/s²（每秒钟速度改变多少米每秒）。','a = 2.5 m/s² 表示速度每秒增加 2.5 m/s。','减速也是有加速度（方向向后，为负值）；转弯同样有加速度。']},
+    hint:o('Three ways to accelerate: speed up, slow down, or change direction.','产生加速度的三种方式：加速、减速、改变方向。'),
+    mix:o('Acceleration does not mean “going fast”. A car cruising at a steady 30 m/s has ZERO acceleration.','加速度大不等于速度快。以 30 m/s 匀速行驶的汽车，加速度为零。')},
+  time:{color:'#a855f7', name:o('Time','时间'), job:o('Measured with the stopwatch','用秒表测量'),
+    facts:{en:['Time is measured in seconds (s), the SI unit.','On motion graphs, time always goes on the horizontal x-axis.','To find a speed you need two measurements: a distance AND the time it took.'],
+           zh:['时间的国际单位是秒（s）。','在运动图像中，时间总是画在水平的横轴上。','要求速率，必须测两个量：路程和所用的时间。']},
+    hint:o('Time marches along the bottom (x-axis) of every motion graph.','时间总是沿着图像底部（横轴）前进。')}
+};
+const ORDER = ['distance','displacement','speed','velocity','accel','time'];
+
+/* ===== App state + info panel ===== */
+const TRACK = 100, TMAX = 30, H = 1/200;
+const CARS = [
+  {key:'A', color:'#e5484d', name:o('Car A','A 车'), v0:10, a:0},
+  {key:'B', color:'#3b82f6', name:o('Car B','B 车'), v0:0, a:2.5}];
+const App = window.MOTION = { sel:null, three:null, running:false, t:0, reverse:false, speed:1, cars:CARS, hist:[], over:false, pass:null };
+App.select = (k, from3D) => { App.sel = k; renderInfo(); renderChips(); if (!from3D && App.three) App.three.focus(k); };
+/* ===== Real photos (Wikimedia Commons, freely licensed) ===== */
+const PHOTOS = [
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3c/Bouncing_ball_strobe_edit.jpg/960px-Bouncing_ball_strobe_edit.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A bouncing ball lit by a strobe flashing 25 times a second. Images far apart = fast. Images bunched up (top of each bounce) = slow.', zh:'频闪灯每秒闪25次拍下的弹跳小球。相邻的球影离得远，说明球运动得快；在每次弹起的最高点球影挤在一起，说明球运动得慢。', kind:{en:'Strobe photo', zh:'频闪照片'}, credit:'MichaelMaggs, edit by Richard Bartz', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Bouncing_ball_strobe_edit.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/0/02/Falling_ball.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Click to see the whole tall photo: a ball dropped from rest, lit by a flashing strobe. The gaps get bigger on the way down, so the ball is speeding up. That is acceleration.', zh:'点击可以看到完整的长照片：频闪灯下从静止开始下落的小球。越往下，相邻球影的间隔越大：小球越落越快，这就是加速度。', kind:{en:'Strobe photo', zh:'频闪照片'}, credit:'MichaelMaggs', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Falling_ball.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d2/The_Horse_in_Motion_high_res.jpg/960px-The_Horse_in_Motion_high_res.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'“The Horse in Motion” (1878). Eadweard Muybridge froze a galloping horse in a row of photos, so people could study fast motion one step at a time.', zh:'《奔跑中的马》（1878年）。迈布里奇用一组连续照片把飞奔的马“定格”下来，让人们可以一步一步地研究快速运动。', kind:{en:'Historic photos, 1878', zh:'1878年的历史照片'}, credit:'Eadweard Muybridge', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:The_Horse_in_Motion_high_res.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a7/The_1952_Summer_Olympics_in_Helsinki_100_metres_%28JOKAVIU4D-6%29.tif/lossy-page1-960px-The_1952_Summer_Olympics_in_Helsinki_100_metres_%28JOKAVIU4D-6%29.tif.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The start of a 100-meter heat at the 1952 Olympics in Helsinki. The runners begin at rest, so they must accelerate hard to reach top speed.', zh:'1952年赫尔辛基奥运会男子100米预赛起跑。运动员从静止出发，必须拼命加速才能达到最高速度。', kind:{en:'Photo', zh:'照片'}, credit:'Olympia-kuva Oy', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:The_1952_Summer_Olympics_in_Helsinki_100_metres_(JOKAVIU4D-6).tif' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d1/Drag_racing_christmas_tree.jpg/960px-Drag_racing_christmas_tree.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The starting lights of a drag strip, nicknamed the “Christmas tree”. On green, the cars accelerate from rest down a straight track, just like the race in the 3D model.', zh:'直线加速赛道的发车信号灯，绰号“圣诞树”。绿灯一亮，赛车就从静止开始沿直道加速，和3D模型里的比赛一样。', kind:{en:'Photo', zh:'照片'}, credit:'Dwerg85', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Drag_racing_christmas_tree.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3a/Speedometer_-_2013_Lexus_LS_460_%289864204196%29.jpg/960px-Speedometer_-_2013_Lexus_LS_460_%289864204196%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A car’s speedometer shows your speed right now (instantaneous speed), not your average speed for the whole trip.', zh:'汽车的速度表显示的是此刻的速度（瞬时速度），而不是整段路程的平均速度。', kind:{en:'Photo', zh:'照片'}, credit:'Michael Sheehan', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Speedometer_-_2013_Lexus_LS_460_(9864204196).jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/43/Light_trails_on_a_suburban_highway_%28Unsplash%29.jpg/960px-Light_trails_on_a_suburban_highway_%28Unsplash%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Car lights on a highway in Atlanta, smeared into lines by a long camera exposure. Each line traces the path a car traveled while the shutter was open.', zh:'亚特兰大公路上的车灯，在长时间曝光下被拉成一条条光带。每条光带都记录了快门打开期间一辆车走过的路径。', kind:{en:'Long-exposure photo', zh:'长时间曝光照片'}, credit:'Joey Kyber', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Light_trails_on_a_suburban_highway_(Unsplash).jpg' },
+  { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/8/8f/Horse_in_Motion_-_Sallie_Gardner_%28animation%29.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8f/Horse_in_Motion_-_Sallie_Gardner_%28animation%29.webm/960px--Horse_in_Motion_-_Sallie_Gardner_%28animation%29.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8f/Horse_in_Motion_-_Sallie_Gardner_%28animation%29.webm/960px--Horse_in_Motion_-_Sallie_Gardner_%28animation%29.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Video: Muybridge’s 1878 photos played one after another. The still pictures turn back into a galloping horse.', zh:'视频：把迈布里奇1878年的照片一张接一张连续播放，静止的画面又变回了飞奔的马。', kind:{en:'Video', zh:'视频'}, credit:'Eadweard Muybridge', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Horse_in_Motion_-_Sallie_Gardner_(animation).webm' }
+];
+LabPhotos.render('#gallery', PHOTOS, { title:{en:'See the real thing', zh:'看看真实的样子'}, sub:{en:'Real photos of this physics in everyday life and in the lab. Click any picture to enlarge it; nothing plays until you press play.', zh:'生活中和实验室里的真实照片。点击图片可以放大；视频和音频不会自动播放。'} });
+/* photos shown inside the info panel */
+PARTS.speed.photo = PHOTOS[0]; PARTS.distance.photo = PHOTOS[3];
+/* ===== end real photos ===== */
+
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel;
+  if (!k){
+    box.innerHTML = `<span class="tag">${Lab.L(o('Drag strip','直道赛车'))}</span>
+      <h3>${Lab.L(o('Describe motion with numbers','用数字描述运动'))}</h3>
+      <p class="muted" style="margin:0">${Lab.L(o('To describe how something moves, physicists ask: how far? how fast? which way? is it speeding up? Click a car, an arrow, the track or the stopwatch to meet each idea.','描述物体怎样运动，物理学家会问：走了多远？有多快？朝哪个方向？在加速吗？点击赛车、箭头、赛道或秒表，逐个认识这些概念。'))}</p>
+      <div class="formula">v = d ÷ t &nbsp;·&nbsp; a = Δv ÷ t</div>
+      <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(o('Speed tells how fast. Velocity adds the direction. Acceleration tells how quickly the velocity is changing.','速率告诉你有多快，速度再加上方向，加速度告诉你速度变化得有多快。'))}</div>
+      <div class="nav"><button id="startBtn">${Lab.L(o('Start with distance ▶','从路程开始 ▶'))}</button></div>`;
+    Lab.$('#startBtn').onclick = () => App.select('distance');
+    return;
+  }
+  const p = PARTS[k], i = ORDER.indexOf(k);
+  box.innerHTML = `<span class="tag">${Lab.L(o('Describing motion','描述运动'))}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    ${p.photo ? LabPhotos.figure(p.photo) : ''}
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. '));
+  Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
+  Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
+}
+function renderChips(){
+  Lab.$('#chips').innerHTML = ORDER.map(k => `<button class="chip ${App.sel===k?'on':''}" data-k="${k}"><i style="background:${PARTS[k].color}"></i>${Lab.L(PARTS[k].name)}</button>`).join('');
+  Lab.$$('#chips .chip').forEach(c => c.onclick = () => App.select(c.dataset.k));
+}
+
+/* ===== Race physics (fixed time step, exact constant-acceleration update) ===== */
+const PRESETS = [
+  {name:o('Steady 10 m/s','匀速 10 m/s'), v0:10, a:0}, {name:o('From rest, a = 2.5','从静止加速 a = 2.5'), v0:0, a:2.5},
+  {name:o('Braking','刹车'), v0:20, a:-2.5}, {name:o('Slow 5 m/s','慢速 5 m/s'), v0:5, a:0}];
+const fx = (n, d = 1) => (Math.abs(n) < 1e-9 ? 0 : n).toFixed(d);
+function resetRun(){
+  App.running = false; App.over = false; App.t = 0; App.pass = null; App.lastSample = 0;
+  CARS.forEach(c => Object.assign(c, { x:0, v:c.v0, dist:0, done:false, status:null, aNow:c.a }));
+  CARS.forEach(c => { if (c.v0 === 0 && c.a <= 0) { c.done = true; c.aNow = 0; c.status = {type:'rest'}; } });
+  App.hist = [{ t:0, x:[0, 0], v:CARS.map(c => c.v) }];
+  updateUI(); drawGraphs(); setRunBtn();
+}
+function stepCar(c, h){
+  if (c.done) return;
+  const x0 = c.x, v0 = c.v;
+  let v1 = v0 + c.a * h, hh = h;
+  if (!App.reverse && v0 > 0 && v1 <= 0){ hh = v0 / -c.a; v1 = 0; }           // brakes: stop exactly at v = 0
+  const dx = v0 * hh + .5 * c.a * hh * hh;
+  c.x = x0 + dx; c.v = v1; c.dist += Math.abs(dx);
+  if (c.x >= TRACK){ const f = (TRACK - x0) / (dx || 1); c.x = TRACK; c.done = true; c.aNow = 0; c.status = {type:'finish', t:App.t + f * h}; return; }
+  if (c.x <= 0 && c.v < 0){ c.x = 0; c.v = 0; c.done = true; c.aNow = 0; c.status = {type:'back', t:App.t + h}; return; }
+  if (hh < h){ c.done = true; c.aNow = 0; c.status = {type:'stop', t:App.t + hh, x:c.x}; }
+}
+function stepAll(h){
+  const before = CARS[0].x - CARS[1].x;
+  CARS.forEach(c => stepCar(c, h));
+  App.t += h;
+  const after = CARS[0].x - CARS[1].x;
+  if (!App.pass && App.t > .05 && Math.sign(before) !== Math.sign(after) && Math.abs(before) > 1e-6 && Math.abs(after) > 1e-6)
+    App.pass = { t:App.t, x:(CARS[0].x + CARS[1].x) / 2, who:after > 0 ? 0 : 1 };
+  if (App.t - App.lastSample >= .05){ App.lastSample = App.t; App.hist.push({ t:App.t, x:CARS.map(c => c.x), v:CARS.map(c => c.v) }); }
+  if (CARS.every(c => c.done) || App.t >= TMAX - 1e-9){
+    App.running = false; App.over = true;
+    App.hist.push({ t:App.t, x:CARS.map(c => c.x), v:CARS.map(c => c.v) });
+    setRunBtn(); raceMessage();
+  }
+}
+App.run = () => { if (App.over) resetRun(); App.running = true; setRunBtn(); raceMessage(); };
+App.pause = () => { App.running = false; setRunBtn(); };
+App.reset = resetRun;
+App.setCar = (i, v0, a) => { CARS[i].v0 = v0; CARS[i].a = a; renderCards(); resetRun(); };
+App.setReverse = on => { App.reverse = on; Lab.$('#revChk').checked = on; resetRun(); };
+function setRunBtn(){ const b = Lab.$('#runBtn'); b.textContent = App.running ? Lab.L(o('⏸ Pause','⏸ 暂停')) : Lab.L(o('▶ Run','▶ 开始')); b.classList.toggle('on', !App.running); }
+function statusText(c){
+  const s = c.status; if (!s) return App.running ? Lab.L(o('🏎️ Racing…','🏎️ 行驶中……')) : '';
+  if (s.type === 'finish') return Lab.L(o('🏁 Finished in ','🏁 到达终点，用时 ')) + s.t.toFixed(2) + ' s';
+  if (s.type === 'stop') return Lab.L(o('🛑 Stopped at ','🛑 停在 ')) + s.x.toFixed(1) + ' m (t = ' + s.t.toFixed(2) + ' s)';
+  if (s.type === 'back') return Lab.L(o('↩️ Back at the start at t = ','↩️ 回到起点，t = ')) + s.t.toFixed(2) + ' s';
+  return Lab.L(o('😴 Not moving (v₀ = 0 and it cannot speed up forward)','😴 不动（v₀ = 0，也不会向前加速）'));
+}
+function raceMessage(){
+  const m = Lab.$('#raceMsg'); m.className = 'racemsg';
+  if (!App.over){ m.textContent = App.running ? '' : Lab.L(o('Set the sliders, predict who wins, then press ▶ Run.','调好滑块，先预测谁会赢，再按 ▶ 开始。')); return; }
+  const fin = CARS.map(c => c.status && c.status.type === 'finish' ? c.status.t : Infinity);
+  let s;
+  if (fin[0] === Infinity && fin[1] === Infinity){ const far = CARS[0].x >= CARS[1].x ? 0 : 1; s = Lab.L(o('Nobody reached the finish. ','没有车到达终点。')) + Lab.L(CARS[far].name) + Lab.L(o(' ended farther from the start.',' 最终离起点更远。')); }
+  else if (Math.abs(fin[0] - fin[1]) < .005) s = Lab.L(o('🤝 A tie!','🤝 平局！'));
+  else { const w = fin[0] < fin[1] ? 0 : 1; s = '🏆 ' + Lab.L(CARS[w].name) + Lab.L(o(' wins!',' 获胜！')); }
+  if (App.pass) s += ' ' + Lab.L(CARS[App.pass.who].name) + Lab.L(o(' overtook at t = ',' 在 t = ')) + App.pass.t.toFixed(2) + Lab.L(o(' s, ',' s 时超车，位置约 ')) + App.pass.x.toFixed(1) + ' m.';
+  m.textContent = s; m.classList.add('good');
+}
+function renderCards(){
+  CARS.forEach((c, i) => {
+    const el = Lab.$('#card' + c.key);
+    el.innerHTML = `<h3><span class="dot" style="background:${c.color}"></span>${Lab.L(c.name)}</h3>
+      <label class="ctl"><span>${Lab.L(o('Starting speed v₀','初速度 v₀'))}: <b class="v0v"></b></span><input type="range" class="v0" min="0" max="20" step="1" value="${c.v0}"></label>
+      <label class="ctl"><span>${Lab.L(o('Acceleration a','加速度 a'))}: <b class="av"></b></span><input type="range" class="ac" min="-4" max="4" step="0.5" value="${c.a}"></label>
+      <div class="presets">${PRESETS.map((p, k) => `<button data-k="${k}">${Lab.L(p.name)}</button>`).join('')}</div>
+      <div class="readout">
+        <div>${Lab.L(o('displacement','位移'))}<b class="rx"></b></div><div>${Lab.L(o('distance','路程'))}<b class="rd"></b></div><div>${Lab.L(o('speed','速率'))}<b class="rs"></b></div>
+        <div>${Lab.L(o('velocity','速度'))}<b class="rv"></b></div><div>${Lab.L(o('acceleration','加速度'))}<b class="ra"></b></div><div>${Lab.L(o('avg. speed','平均速率'))}<b class="rav"></b></div>
+      </div><div class="status"></div>`;
+    Lab.$('.v0', el).oninput = e => { c.v0 = +e.target.value; resetRun(); };
+    Lab.$('.ac', el).oninput = e => { c.a = +e.target.value; resetRun(); };
+    Lab.$$('.presets button', el).forEach(b => b.onclick = () => { const p = PRESETS[+b.dataset.k]; App.setCar(i, p.v0, p.a); });
+  });
+  updateUI();
+}
+function updateUI(){
+  CARS.forEach(c => {
+    const el = Lab.$('#card' + c.key); if (!el || !Lab.$('.rx', el)) return;
+    Lab.$('.v0v', el).textContent = c.v0 + ' m/s'; Lab.$('.av', el).textContent = fx(c.a) + ' m/s²';
+    Lab.$('.v0', el).value = c.v0; Lab.$('.ac', el).value = c.a;
+    Lab.$('.rx', el).textContent = fx(c.x) + ' m'; Lab.$('.rd', el).textContent = fx(c.dist) + ' m';
+    Lab.$('.rs', el).textContent = fx(Math.abs(c.v)) + ' m/s';
+    Lab.$('.rv', el).textContent = (c.v > 1e-9 ? '→ ' : c.v < -1e-9 ? '← ' : '') + fx(c.v) + ' m/s';
+    Lab.$('.ra', el).textContent = fx(c.done ? 0 : c.a) + ' m/s²';
+    Lab.$('.rav', el).textContent = App.t > 0 ? fx(c.dist / Math.min(App.t, c.status && c.status.t ? c.status.t : App.t)) + ' m/s' : '–';
+    Lab.$('.status', el).textContent = statusText(c);
+  });
+  Lab.$('#tPill').textContent = App.t.toFixed(2) + ' s';
+}
+
+/* ===== Canvas graph helpers (colors from CSS tokens → dark mode works) ===== */
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function fit(cv){
+  const r = cv.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2), w = Math.max(1, Math.round(r.width * d)), h = Math.max(1, Math.round(r.height * d));
+  if (cv.width !== w || cv.height !== h){ cv.width = w; cv.height = h; }
+  const g = cv.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0); return { g, W:r.width, H:r.height };
+}
+function niceStep(range){ const raw = range / 5, p = Math.pow(10, Math.floor(Math.log10(raw))), n = raw / p; return (n < 1.5 ? 1 : n < 3.5 ? 2 : n < 7.5 ? 5 : 10) * p; }
+function axes(g, W, H, opt){
+  const P = { l:50, r:14, t:30, b:38 }, iw = W - P.l - P.r, ih = H - P.t - P.b;
+  const X = t => P.l + (t - (opt.xmin || 0)) / (opt.xmax - (opt.xmin || 0)) * iw, Y = y => P.t + ih - (y - opt.ymin) / (opt.ymax - opt.ymin) * ih;
+  g.clearRect(0, 0, W, H);
+  const ink = css('--ink'), ink2 = css('--ink-2'), line = css('--line');
+  g.font = '700 11px Nunito, sans-serif'; g.lineWidth = 1;
+  const sx = niceStep(opt.xmax - (opt.xmin || 0)), sy = niceStep(opt.ymax - opt.ymin);
+  g.strokeStyle = line; g.fillStyle = ink2; g.textAlign = 'center'; g.textBaseline = 'top';
+  for (let t = (opt.xmin || 0); t <= opt.xmax + 1e-9; t += sx){ g.beginPath(); g.moveTo(X(t), P.t); g.lineTo(X(t), P.t + ih); g.stroke(); g.fillText(+t.toFixed(2), X(t), P.t + ih + 4); }
+  g.textAlign = 'right'; g.textBaseline = 'middle';
+  for (let y = Math.ceil(opt.ymin / sy) * sy; y <= opt.ymax + 1e-9; y += sy){ g.beginPath(); g.moveTo(P.l, Y(y)); g.lineTo(P.l + iw, Y(y)); g.stroke(); g.fillText(+y.toFixed(2), P.l - 5, Y(y)); }
+  g.strokeStyle = ink2; g.lineWidth = 1.6; g.beginPath(); g.moveTo(P.l, P.t); g.lineTo(P.l, P.t + ih); g.lineTo(P.l + iw, P.t + ih); g.stroke();
+  if (opt.ymin < 0){ g.beginPath(); g.moveTo(P.l, Y(0)); g.lineTo(P.l + iw, Y(0)); g.stroke(); }
+  g.fillStyle = ink; g.font = '600 14px Fredoka, Nunito, sans-serif'; g.textAlign = 'left'; g.textBaseline = 'top'; g.fillText(opt.title, P.l, 7);
+  g.fillStyle = ink2; g.font = '700 11px Nunito, sans-serif'; g.textAlign = 'right'; g.textBaseline = 'bottom'; g.fillText(opt.xlab, P.l + iw, H - 2);
+  g.save(); g.translate(12, P.t + ih / 2); g.rotate(-Math.PI / 2); g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(opt.ylab, 0, 0); g.restore();
+  return { X, Y, P, iw, ih };
+}
+function polyline(g, pts, X, Y, color, w = 3, dash = null){
+  if (!pts.length) return; g.strokeStyle = color; g.lineWidth = w; g.lineJoin = 'round'; g.setLineDash(dash || []);
+  g.beginPath(); pts.forEach(([a, b], i) => i ? g.lineTo(X(a), Y(b)) : g.moveTo(X(a), Y(b))); g.stroke(); g.setLineDash([]);
+}
+function drawGraphs(){
+  const tm = Math.min(TMAX, Math.max(10, Math.ceil((App.t + .001) / 5) * 5));
+  { const { g, W, H } = fit(Lab.$('#gDist'));
+    const A = axes(g, W, H, { xmax:tm, ymin:0, ymax:110, title:Lab.L(o('Distance–time graph','路程–时间图像')), xlab:Lab.L(o('time (s)','时间（s）')), ylab:Lab.L(o('distance from start (m)','离起点的距离（m）')) });
+    g.strokeStyle = css('--ink-2'); g.setLineDash([6, 5]); g.lineWidth = 1.4; g.beginPath(); g.moveTo(A.X(0), A.Y(100)); g.lineTo(A.X(tm), A.Y(100)); g.stroke(); g.setLineDash([]);
+    g.fillStyle = css('--ink-2'); g.textAlign = 'left'; g.textBaseline = 'bottom'; g.fillText('🏁 100 m', A.X(0) + 4, A.Y(100) - 2);
+    CARS.forEach((c, i) => { const pts = App.hist.map(h => [h.t, h.x[i]]); pts.push([App.t, c.x]); polyline(g, pts, A.X, A.Y, c.color); g.fillStyle = c.color; g.beginPath(); g.arc(A.X(App.t), A.Y(c.x), 4.5, 0, 7); g.fill(); });
+    if (App.pass){ g.strokeStyle = css('--ink'); g.lineWidth = 2; g.beginPath(); g.arc(A.X(App.pass.t), A.Y(App.pass.x), 8, 0, 7); g.stroke(); }
+  }
+  { const { g, W, H } = fit(Lab.$('#gVel'));
+    let mx = 10, mn = 0; App.hist.forEach(h => h.v.forEach(v => { mx = Math.max(mx, v); mn = Math.min(mn, v); })); CARS.forEach(c => { mx = Math.max(mx, c.v0, c.v); mn = Math.min(mn, c.v); });
+    const ymax = Math.ceil((mx + 1) / 5) * 5, ymin = mn < 0 ? -Math.ceil((-mn + 1) / 5) * 5 : 0;
+    const A = axes(g, W, H, { xmax:tm, ymin, ymax, title:Lab.L(o('Speed–time graph','速度–时间图像')), xlab:Lab.L(o('time (s)','时间（s）')), ylab:Lab.L(o('velocity (m/s)','速度（m/s）')) });
+    CARS.forEach((c, i) => { const pts = App.hist.map(h => [h.t, h.v[i]]); pts.push([App.t, c.v]); polyline(g, pts, A.X, A.Y, c.color); g.fillStyle = c.color; g.beginPath(); g.arc(A.X(App.t), A.Y(c.v), 4.5, 0, 7); g.fill(); });
+  }
+}
+
+/* ===== Mini graph cards (SVG) ===== */
+const SHAPES = [
+  {name:o('Constant speed','匀速运动'), d:'M8 82 L112 14', v:'M8 40 L112 40', txt:o('Distance–time: straight sloped line. Speed–time: flat line above zero. Acceleration = 0.','路程–时间：倾斜的直线。速度–时间：零线上方的水平线。加速度 = 0。')},
+  {name:o('Stopped','静止'), d:'M8 50 L112 50', v:'M8 82 L112 82', txt:o('Distance–time: flat line (position not changing). Speed–time: line on zero.','路程–时间：水平线（位置不变）。速度–时间：贴着零线。')},
+  {name:o('Speeding up','加速运动'), d:'M8 82 Q70 80 112 14', v:'M8 82 L112 14', txt:o('Distance–time: curve that gets steeper. Speed–time: line sloping up. Positive acceleration.','路程–时间：越来越陡的曲线。速度–时间：向上倾斜的直线。加速度为正。')},
+  {name:o('Slowing down','减速运动'), d:'M8 82 Q50 18 112 14', v:'M8 14 L112 82', txt:o('Distance–time: curve that flattens out. Speed–time: line sloping down to zero. Negative acceleration.','路程–时间：逐渐变平的曲线。速度–时间：向下倾斜到零。加速度为负。')}
+];
+function renderSlopes(){
+  const ax = '<path d="M8 6 L8 82 L114 82" fill="none" stroke="var(--ink-2)" stroke-width="2"/>';
+  const svg = (p, lab) => `<div style="flex:1;min-width:0"><svg viewBox="0 0 120 92">${ax}<path d="${p}" fill="none" stroke="var(--brand)" stroke-width="4" stroke-linecap="round"/></svg><div class="muted" style="font-size:12px;font-weight:800;text-align:center">${lab}</div></div>`;
+  Lab.$('#slopeCards').innerHTML = SHAPES.map(s => `<div class="box card"><h3>${Lab.L(s.name)}</h3><div style="display:flex;gap:8px;margin:8px 0">${svg(s.d, Lab.L(o('distance–time','路程–时间')))}${svg(s.v, Lab.L(o('speed–time','速度–时间')))}</div><p>${Lab.L(s.txt)}</p></div>`).join('');
+}
+Lab.$('#slopeCards').className = 'grid4';
+
+/* ===== Toolbar + main loop ===== */
+Lab.$('#runBtn').onclick = () => App.running ? App.pause() : App.run();
+Lab.$('#resetBtn').onclick = () => { tour.stop(); resetRun(); App.select(null); if (App.three) App.three.home(); };
+Lab.$('#revChk').onchange = e => App.setReverse(e.target.checked);
+Lab.$('#simSpeed').oninput = e => { App.speed = e.target.value / 100; Lab.$('#simSpeedVal').textContent = App.speed + '×'; };
+const TOUR = [
+  {en:'1 · Constant speed: Car A drives at a steady 10 m/s, Car B at 5 m/s. No acceleration, so both distance–time lines are straight. Car A’s line is twice as steep.', zh:'1 · 匀速：A 车以 10 m/s 匀速行驶，B 车以 5 m/s 匀速行驶。没有加速度，所以两条路程–时间图线都是直线，A 车的线陡一倍。'},
+  {en:'2 · Speeding up: Car B starts from rest with a = 2.5 m/s². Its green velocity arrow grows 2.5 m/s every second, and its distance–time line curves upward. It catches Car A at t = 8 s, 80 m!', zh:'2 · 加速：B 车从静止出发，a = 2.5 m/s²。绿色速度箭头每秒增长 2.5 m/s，路程–时间图线向上弯曲。它在 t = 8 s、80 m 处追上 A 车！'},
+  {en:'3 · Slowing down: Car A starts at 20 m/s with a = −2.5 m/s² (the orange arrow points backward). It stops after 8 s, 80 m down the track. Its speed–time line slopes down to zero.', zh:'3 · 减速：A 车以 20 m/s 出发，a = −2.5 m/s²（橙色箭头指向后方）。8 s 后停在 80 m 处，速度–时间图线向下倾斜到零。'},
+  {en:'4 · Distance vs displacement: reversing is now allowed. Car A goes 80 m forward, then rolls back to the start at t = 16 s. Distance traveled = 160 m, but displacement = 0 m!', zh:'4 · 路程与位移：现在允许倒车。A 车向前 80 m 后又倒回起点（t = 16 s）。路程 = 160 m，位移却 = 0 m!'},
+  {en:'5 · Reading graphs: on a distance–time graph the slope is the speed; on a speed–time graph the slope is the acceleration. Now design your own race with the sliders!', zh:'5 · 读图：路程–时间图像的斜率是速度；速度–时间图像的斜率是加速度。现在用滑块设计你自己的比赛吧！'}
+];
+const tour = Lab3D.story('#stage', TOUR, i => {
+  const set = (a, b, rev) => { CARS[0].v0 = a[0]; CARS[0].a = a[1]; CARS[1].v0 = b[0]; CARS[1].a = b[1]; App.reverse = rev; Lab.$('#revChk').checked = rev; renderCards(); resetRun(); App.run(); };
+  if (i === 0){ set([10, 0], [5, 0], false); App.select('speed', true); }
+  if (i === 1){ set([10, 0], [0, 2.5], false); App.select('accel', true); }
+  if (i === 2){ set([20, -2.5], [10, 0], false); App.select('accel', true); }
+  if (i === 3){ set([20, -2.5], [5, 0], true); App.select('displacement', true); }
+  if (i === 4){ App.select('velocity', true); }
+  if (App.three) App.three.home();
+});
+Lab.$('#tourBtn').onclick = () => tour.start();
+
+let lastT = performance.now(), acc = 0;
+function loop(now){
+  requestAnimationFrame(loop);
+  const dt = Math.min(.05, Math.max(0, (now - lastT) / 1000)); lastT = now;
+  if (App.running){ acc += dt * App.speed; while (acc >= H && App.running){ acc -= H; stepAll(H); } updateUI(); drawGraphs(); } else acc = 0;
+  Match.frame(dt);
+}
+
+/* ===== Graph-matching game ===== */
+const Match = (function(){
+  const TG = [
+    {name:o('Steady walk','匀速走开'), f:t => 1 + .5 * t, desc:o('Walk away from the sensor at a slow, steady speed: from 1 m to 6 m in 10 s (0.5 m/s).','以缓慢均匀的速度离开传感器：10 s 内从 1 m 走到 6 m（0.5 m/s）。')},
+    {name:o('Wait, then go','先停后走'), f:t => t < 4 ? 2 : 2 + (t - 4) * 7 / 6, desc:o('Stand still at 2 m for 4 s (flat line), then walk away quickly to 9 m (steep line).','先在 2 m 处站 4 s（水平线），再快步走到 9 m（陡线）。')},
+    {name:o('There and back','走过去再回来'), f:t => t < 4 ? 1 + 1.5 * t : t < 6 ? 7 : 7 - (t - 6) * 1.25, desc:o('Walk away from 1 m to 7 m in 4 s, stop for 2 s, then walk back toward the sensor to 2 m.','4 s 内从 1 m 走到 7 m，停 2 s，再朝传感器往回走到 2 m。')},
+    {name:o('Speeding up','越走越快'), f:t => 1 + .08 * t * t, desc:o('Start slowly at 1 m and keep speeding up so you reach 9 m at 10 s (the line curves upward).','从 1 m 处慢慢出发，越走越快，10 s 时到达 9 m（曲线向上弯）。')},
+    {name:o('Fast, then slow','先快后慢'), f:t => t < 3 ? 9 - 2 * t : 3 - (t - 3) * 2 / 7, desc:o('Start far away at 9 m, walk quickly toward the sensor to 3 m in 3 s, then slowly to 1 m.','从 9 m 远处出发，3 s 内快速走向传感器到 3 m，再慢慢走到 1 m。')}
+  ];
+  const st = { k:0, pos:1, mode:'idle', t:0, trace:[], ghost:false, best:{}, done:new Set(), drag:false, keys:{} };
+  const cv = Lab.$('#matchCv'), slider = Lab.$('#walkPos');
+  function renderTargets(){
+    Lab.$('#targets').innerHTML = TG.map((g, i) => `<button class="${i === st.k ? 'on' : ''}" data-i="${i}">${st.done.has(i) ? '✅ ' : ''}${Lab.L(g.name)}</button>`).join('');
+    Lab.$$('#targets button').forEach(b => b.onclick = () => { if (st.mode !== 'idle') return; st.k = +b.dataset.i; st.trace = []; st.ghost = false; renderTargets(); msg(''); stars(''); draw(); });
+    Lab.$('#targetDesc').textContent = Lab.L(TG[st.k].desc);
+    Lab.$('#mBest').textContent = st.best[st.k] != null ? st.best[st.k] + '%' : '–'; Lab.$('#mDone').textContent = st.done.size + ' / ' + TG.length;
+    Lab.$('#matchGo').textContent = st.mode === 'idle' ? Lab.L(o('▶ Start (10 s)','▶ 开始（10 秒）')) : Lab.L(o('■ Stop','■ 停止'));
+  }
+  const msg = (t, c) => { const m = Lab.$('#matchMsg'); m.textContent = t; m.className = 'result ' + (c || ''); };
+  const stars = s => Lab.$('#stars').textContent = s;
+  function setPos(p){ st.pos = Math.max(0, Math.min(10, p)); slider.value = st.pos; Lab.$('#walkVal').textContent = st.pos.toFixed(1) + ' m'; if (st.mode === 'idle') draw(); }
+  slider.oninput = e => setPos(+e.target.value);
+  const L = { strip:84 };
+  function geo(){ const r = cv.getBoundingClientRect(); return { x0:62, x1:r.width - 22 }; }
+  function fromEvent(e){ const r = cv.getBoundingClientRect(), G = geo(); return (e.clientX - r.left - G.x0) / (G.x1 - G.x0) * 10; }
+  cv.addEventListener('pointerdown', e => { st.drag = true; cv.setPointerCapture(e.pointerId); setPos(fromEvent(e)); });
+  cv.addEventListener('pointermove', e => { if (st.drag) setPos(fromEvent(e)); });
+  cv.addEventListener('pointerup', () => st.drag = false);
+  cv.style.touchAction = 'none';
+  const inView = () => { const r = Lab.$('#match').getBoundingClientRect(); return r.top < innerHeight && r.bottom > 0; };
+  document.addEventListener('keydown', e => { if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && inView() && document.activeElement.tagName !== 'INPUT'){ st.keys[e.key] = true; e.preventDefault(); } });
+  document.addEventListener('keyup', e => { st.keys[e.key] = false; });
+  Lab.$('#matchGo').onclick = () => {
+    if (st.mode !== 'idle'){ st.mode = 'idle'; msg(Lab.L(o('Stopped. Press Start to try again.','已停止。按“开始”再试一次。'))); renderTargets(); draw(); return; }
+    st.mode = 'ready'; st.t = 0; st.trace = []; stars(''); msg(Lab.L(o('Get ready… move to the green start dot!','准备……先移动到绿色起点！'))); renderTargets();
+  };
+  Lab.$('#matchHint').onclick = () => { st.ghost = !st.ghost; msg(st.ghost ? Lab.L(o('Hint on: a faint ghost walker shows where you should be during the run.','提示已打开：运行时会有一个半透明的“影子”告诉你应该在哪里。')) : ''); draw(); };
+  function finish(){
+    st.mode = 'idle';
+    let err = 0, worst = 0, wt = 0, ws = 0;
+    st.trace.forEach(([t, x]) => { const d = x - TG[st.k].f(t); err += Math.abs(d); if (Math.abs(d) > worst){ worst = Math.abs(d); wt = t; ws = d; } });
+    err /= Math.max(1, st.trace.length);
+    const score = Math.max(0, Math.round(100 - err * 30));
+    st.best[st.k] = Math.max(st.best[st.k] || 0, score); if (score >= 80) st.done.add(st.k);
+    stars(score >= 90 ? '⭐⭐⭐' : score >= 75 ? '⭐⭐' : score >= 50 ? '⭐' : '💪');
+    let s = Lab.L(o('Match: ','匹配度：')) + score + '%. ';
+    if (worst > .6) s += Lab.L(o(`Biggest gap near t = ${wt.toFixed(1)} s: you were ${ws > 0 ? 'too far from' : 'too close to'} the sensor.`, `最大偏差在 t = ${wt.toFixed(1)} s 附近:你离传感器${ws > 0 ? '太远' : '太近'}了。`));
+    else s += Lab.L(o('Excellent: your motion matches the graph!','太棒了：你的运动和图像完全吻合！'));
+    msg(s, score >= 75 ? 'good' : 'bad'); renderTargets(); draw();
+  }
+  function frame(dt){
+    const k = st.keys; if (k.ArrowLeft || k.ArrowRight) setPos(st.pos + (k.ArrowRight ? 1 : -1) * 3 * dt);
+    if (st.mode === 'ready'){ st.t += dt; if (st.t >= 2){ st.mode = 'run'; st.t = 0; msg(Lab.L(o('Go! Follow the dashed line.','开始！沿着虚线走。'))); } draw(); }
+    else if (st.mode === 'run'){ st.t = Math.min(10, st.t + dt); st.trace.push([st.t, st.pos]); if (st.t >= 10) finish(); else draw(); }
+  }
+  function draw(){
+    const { g, W, H: Ht } = fit(cv); if (W < 10) return;
+    const G = geo(), X = x => G.x0 + x / 10 * (G.x1 - G.x0), ink = css('--ink'), ink2 = css('--ink-2'), brand = css('--brand'), accent = css('--accent');
+    g.clearRect(0, 0, W, Ht);
+    // floor strip with sensor + walker
+    g.fillStyle = css('--surface-2'); g.fillRect(0, 0, W, L.strip);
+    g.strokeStyle = ink2; g.lineWidth = 2; g.beginPath(); g.moveTo(X(0), 70); g.lineTo(X(10), 70); g.stroke();
+    g.fillStyle = ink2; g.font = '700 10px Nunito, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'top';
+    for (let m = 0; m <= 10; m += 2) g.fillText(m + ' m', X(m), 73);
+    g.font = '24px sans-serif'; g.textBaseline = 'middle'; g.fillText('📡', 26, 48);
+    const walker = (x, col, alpha) => { g.globalAlpha = alpha; g.strokeStyle = col; g.fillStyle = col; g.lineWidth = 3; const px = X(x);
+      g.beginPath(); g.arc(px, 24, 7, 0, 7); g.fill(); g.beginPath(); g.moveTo(px, 31); g.lineTo(px, 52); g.moveTo(px - 9, 40); g.lineTo(px + 9, 40); g.moveTo(px, 52); g.lineTo(px - 7, 67); g.moveTo(px, 52); g.lineTo(px + 7, 67); g.stroke(); g.globalAlpha = 1; };
+    const T = TG[st.k];
+    if (st.mode === 'ready'){ g.fillStyle = css('--good'); g.beginPath(); g.arc(X(T.f(0)), 70, 7, 0, 7); g.fill(); }
+    if (st.ghost && st.mode === 'run') walker(T.f(st.t), brand, .3);
+    walker(st.pos, accent, 1);
+    // graph
+    g.save(); g.translate(0, L.strip + 4);
+    const A = axes(g, W, Ht - L.strip - 4, { xmax:10, ymin:0, ymax:10, title:Lab.L(o('Distance–time graph: you vs target','路程–时间图像：你 vs 目标')), xlab:Lab.L(o('time (s)','时间（s）')), ylab:Lab.L(o('distance (m)','距离（m）')) });
+    const tp = []; for (let t = 0; t <= 10.001; t += .1) tp.push([t, T.f(t)]);
+    polyline(g, tp, A.X, A.Y, brand, 3, [8, 6]);
+    polyline(g, st.trace, A.X, A.Y, accent, 3.5);
+    if (st.mode === 'run'){ g.strokeStyle = ink; g.lineWidth = 1; g.beginPath(); g.moveTo(A.X(st.t), A.Y(0)); g.lineTo(A.X(st.t), A.Y(10)); g.stroke(); }
+    if (st.mode === 'ready'){ g.fillStyle = ink; g.font = '700 40px Fredoka, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(Math.ceil(2 - st.t), A.X(5), A.Y(5)); }
+    g.restore();
+  }
+  new ResizeObserver(() => draw()).observe(cv);
+  return { frame, draw, renderTargets };
+})();
+
+/* ===== Re-render on language / theme ===== */
+Lab.onLang(() => { renderInfo(); renderChips(); renderCards(); setRunBtn(); raceMessage(); renderSlopes(); drawGraphs(); Match.renderTargets(); Match.draw(); });
+window.addEventListener('labtheme', () => { drawGraphs(); Match.draw(); });
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { drawGraphs(); Match.draw(); });
+new ResizeObserver(() => drawGraphs()).observe(Lab.$('#gDist'));
+resetRun();
+requestAnimationFrame(loop);
+
+/* ===== Quiz ===== */
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('A runner covers 100 m in 20 s. What is her average speed?','一名跑步者 20 s 跑了 100 m，她的平均速率是多少？'), options:[o('5 m/s','5 m/s'),o('2,000 m/s','2000 m/s'),o('0.2 m/s','0.2 m/s'),o('120 m/s','120 m/s')], answer:0, explain:o('Speed = distance ÷ time = 100 m ÷ 20 s = 5 m/s.','速率 = 路程 ÷ 时间 = 100 m ÷ 20 s = 5 m/s。')},
+  {q:o('What is the difference between speed and velocity?','速率和速度有什么区别？'), options:[o('Velocity includes direction','速度包含方向'),o('Speed includes direction','速率包含方向'),o('Velocity is always bigger','速度总是更大'),o('There is no difference','没有区别')], answer:0, explain:o('Velocity = speed + direction, e.g. 15 m/s north.','速度 = 速率 + 方向，例如“向北 15 m/s”。')},
+  {q:o('A car speeds up from 0 to 20 m/s in 5 s. What is its acceleration?','一辆车在 5 s 内从 0 加速到 20 m/s，它的加速度是多少？'), options:[o('4 m/s²','4 m/s²'),o('100 m/s²','100 m/s²'),o('25 m/s²','25 m/s²'),o('0.25 m/s²','0.25 m/s²')], answer:0, explain:o('a = (20 − 0) m/s ÷ 5 s = 4 m/s².','a = (20 − 0) m/s ÷ 5 s = 4 m/s²。')},
+  {q:o('On a distance–time graph, a flat (horizontal) line means the object is…','在路程–时间图像中，一条水平线表示物体……'), options:[o('Not moving','静止不动'),o('Moving at constant speed','匀速运动'),o('Speeding up','正在加速'),o('Slowing down','正在减速')], answer:0, explain:o('Time passes but the distance does not change, so the object is at rest.','时间在流逝，但距离没有变化，所以物体是静止的。')},
+  {q:o('Two straight lines on a distance–time graph: line A is steeper than line B. Which is true?','路程–时间图像中有两条直线，A 比 B 更陡。哪种说法正确？'), options:[o('A is moving faster','A 运动得更快'),o('B is moving faster','B 运动得更快'),o('A is accelerating','A 在加速'),o('Both are stopped','两者都静止')], answer:0, explain:o('The slope of a distance–time graph is the speed; steeper = faster. Straight lines mean constant speed.','路程–时间图像的斜率就是速度：越陡越快。直线表示匀速。')},
+  {q:o('Which of these is NOT accelerating?','下面哪个物体没有加速度？'), options:[o('A car cruising straight at a steady 25 m/s','以 25 m/s 匀速直线行驶的汽车'),o('A bike braking to a stop','刹车停下的自行车'),o('A car turning a corner at 10 m/s','以 10 m/s 转弯的汽车'),o('A ball falling faster and faster','越落越快的小球')], answer:0, explain:o('Acceleration means velocity changes: speeding up, slowing down or turning. Constant speed in a straight line has zero acceleration.','加速度意味着速度在变化：加速、减速或转弯。匀速直线运动的加速度为零。')},
+  {q:o('You walk 30 m east, then 30 m west. What are your distance and displacement?','你向东走 30 m，再向西走 30 m。你的路程和位移分别是多少？'), options:[o('Distance 60 m, displacement 0 m','路程 60 m，位移 0 m'),o('Distance 0 m, displacement 60 m','路程 0 m，位移 60 m'),o('Both 60 m','都是 60 m'),o('Both 0 m','都是 0 m')], answer:0, explain:o('You covered 60 m of ground but ended where you started, so displacement is 0.','你一共走了 60 m，但回到了出发点，所以位移为 0。')},
+  {q:o('On a speed–time graph, a horizontal line above zero means…','在速度–时间图像中，零线上方的一条水平线表示……'), options:[o('Constant speed (zero acceleration)','匀速运动（加速度为零）'),o('The object is stopped','物体静止'),o('Speeding up','正在加速'),o('Moving backward','向后运动')], answer:0, explain:o('The speed is not changing, so the acceleration is zero, but the object IS moving.','速度没有变化，所以加速度为零，但物体确实在运动。')},
+  {q:o('A bike slows from 12 m/s to 4 m/s in 4 s. What is its acceleration?','一辆自行车在 4 s 内从 12 m/s 减速到 4 m/s，它的加速度是多少？'), options:[o('−2 m/s²','−2 m/s²'),o('2 m/s²','2 m/s²'),o('−8 m/s²','−8 m/s²'),o('4 m/s²','4 m/s²')], answer:0, explain:o('a = (4 − 12) m/s ÷ 4 s = −8 ÷ 4 = −2 m/s². Negative means slowing down.','a = (4 − 12) m/s ÷ 4 s = −2 m/s²，负号表示在减速。')},
+  {q:o('A car moves at a constant 15 m/s for 4 s. How far does it go?','一辆车以 15 m/s 匀速行驶 4 s，走了多远？'), options:[o('60 m','60 m'),o('3.75 m','3.75 m'),o('19 m','19 m'),o('11 m','11 m')], answer:0, explain:o('Distance = speed × time = 15 m/s × 4 s = 60 m.','路程 = 速率 × 时间 = 15 m/s × 4 s = 60 m。')},
+  {q:o('What is the SI unit of acceleration?','加速度的国际单位是什么？'), options:[o('m/s²','m/s²'),o('m/s','m/s'),o('m','m'),o('s/m','s/m')], answer:0, explain:o('Acceleration is the change in velocity (m/s) per second, so m/s ÷ s = m/s².','加速度是每秒的速度变化量，m/s ÷ s = m/s²。')},
+  {q:o('Car B starts from rest with a = 2.5 m/s². What is its speed after 4 s?','B 车从静止出发，a = 2.5 m/s²。4 s 后它的速率是多少？'), options:[o('10 m/s','10 m/s'),o('2.5 m/s','2.5 m/s'),o('6.5 m/s','6.5 m/s'),o('1.6 m/s','1.6 m/s')], answer:0, explain:o('Speed grows 2.5 m/s every second: 2.5 × 4 = 10 m/s. Try it on the race track!','速度每秒增加 2.5 m/s:2.5 × 4 = 10 m/s。可以在赛道上验证！')}
+], { count:10 });
+
+/* ===== Sort game ===== */
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'s',en:'Speed (how fast)',zh:'速率（多快）'},{id:'v',en:'Velocity (speed + direction)',zh:'速度（快慢 + 方向）'},{id:'a',en:'Acceleration (velocity changing)',zh:'加速度（速度在变）'}],
+  items:[
+    {en:'A cheetah runs at 30 m/s',zh:'猎豹以 30 m/s 奔跑',bin:'s'},{en:'The speedometer reads 50 km/h',zh:'车速表显示 50 km/h',bin:'s'},{en:'A snail moves 1 mm per second',zh:'蜗牛每秒爬 1 mm',bin:'s'},
+    {en:'A plane flies 250 m/s due north',zh:'飞机以 250 m/s 向正北飞行',bin:'v'},{en:'Wind blows 10 m/s toward the east',zh:'风以 10 m/s 向东吹',bin:'v'},{en:'A train heads west at 30 m/s',zh:'火车以 30 m/s 向西行驶',bin:'v'},
+    {en:'A car speeds up from 0 to 20 m/s',zh:'汽车从 0 加速到 20 m/s',bin:'a'},{en:'A bike brakes to a stop',zh:'自行车刹车停下',bin:'a'},{en:'A car goes around a curve at a steady speed',zh:'汽车以不变的速率转弯',bin:'a'},{en:'A dropped ball falls faster and faster',zh:'松手的小球越落越快',bin:'a'}
+  ]
+});
+</script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const App = window.MOTION, V = THREE.Vector3;
+const ctx = Lab3D.stage('#stage', { THREE, OrbitControls, camera:[-.6, 5.4, 11.8], target:[0, .2, -.4], minDistance:3, maxDistance:30, fov:40 });
+const { scene, controls, camera } = ctx;
+const S = .12, X0 = -6, LANES = [-.75, .75];      // 1 m = 0.12 scene units; start line at x = −6
+const tx = m => X0 + m * S;
+
+/* ---------- force/motion arrows: ArrowHelper with a thick lit shaft ---------- */
+const SHAFT = new THREE.CylinderGeometry(1, 1, 1, 14).translate(0, .5, 0), CONE = new THREE.ConeGeometry(.5, 1, 18).translate(0, -.5, 0);
+function makeArrow(color, r = .05){
+  const a = new THREE.ArrowHelper(new V(1, 0, 0), new V(), 1, color, .3, .2);
+  a.line.visible = false; a.cone.geometry = CONE;
+  a.cone.material = ctx.mat(color, 1, { emissive:new THREE.Color(color).multiplyScalar(.15) });
+  a.shaft = new THREE.Mesh(SHAFT, a.cone.material); a.add(a.shaft); a.r = r; scene.add(a); return a;
+}
+function setArrow(a, origin, vec, head = .3){
+  const L = vec.length(); if (L < .02){ a.visible = false; return; }
+  a.visible = true; a.position.copy(origin); a.setDirection(vec.clone().normalize());
+  const h = Math.min(head, L * .55); a.setLength(L, h, h * .8); a.shaft.scale.set(a.r, Math.max(1e-4, L - h), a.r);
+}
+
+/* ---------- scenery: grass, track, lane lines, markers, finish arch ---------- */
+const ground = new THREE.Mesh(new THREE.CircleGeometry(18, 56), new THREE.MeshStandardMaterial({ color:'#79b86c', roughness:.95 }));
+ground.rotation.x = -Math.PI / 2; ground.position.y = -.04; scene.add(ground);
+const trackMat = new THREE.MeshStandardMaterial({ color:'#3b404c', roughness:.9 });
+const track = new THREE.Mesh(new THREE.BoxGeometry(14.6, .06, 3), trackMat); track.position.y = -.03; scene.add(track); ctx.pickable(track, 'distance');
+const white = new THREE.MeshStandardMaterial({ color:'#ffffff', roughness:.6 });
+for (const z of [-1.44, 1.44]){ const l = new THREE.Mesh(new THREE.BoxGeometry(14.6, .012, .05), white); l.position.set(0, .006, z); scene.add(l); }
+for (let m = -8; m < 112; m += 5){ const d = new THREE.Mesh(new THREE.BoxGeometry(2.5 * S, .012, .04), white); d.position.set(tx(m + 1.25), .006, 0); scene.add(d); }
+const startLine = new THREE.Mesh(new THREE.BoxGeometry(.07, .014, 2.88), white); startLine.position.set(tx(0), .008, 0); scene.add(startLine);
+const chk = document.createElement('canvas'); chk.width = 64; chk.height = 512; { const g = chk.getContext('2d'); for (let i = 0; i < 2; i++) for (let j = 0; j < 16; j++){ g.fillStyle = (i + j) % 2 ? '#111' : '#fff'; g.fillRect(i * 32, j * 32, 32, 32); } }
+const chkTex = new THREE.CanvasTexture(chk); chkTex.colorSpace = THREE.SRGBColorSpace;
+const chkMat = new THREE.MeshStandardMaterial({ map:chkTex, roughness:.7 });
+const finish = new THREE.Mesh(new THREE.PlaneGeometry(.28, 2.88), chkMat); finish.rotation.x = -Math.PI / 2; finish.position.set(tx(100), .009, 0); scene.add(finish); ctx.pickable(finish, 'distance');
+const postMat = ctx.mat('#64748b'), arch = new THREE.Group(); scene.add(arch);
+for (const z of [-1.65, 1.65]){ const p = new THREE.Mesh(new THREE.CylinderGeometry(.07, .07, 1.9, 12), postMat); p.position.set(tx(100), .95, z); arch.add(p); }
+const banner = new THREE.Mesh(new THREE.BoxGeometry(.12, .34, 3.4), [chkMat, chkMat, postMat, postMat, postMat, postMat]); banner.position.set(tx(100), 1.85, 0); arch.add(banner);
+ctx.pickable(arch, 'distance');
+const markerMat = ctx.mat('#94a3b8'), posts = new THREE.Group(); scene.add(posts);
+for (let m = 0; m <= 100; m += 10){
+  const p = new THREE.Mesh(new THREE.CylinderGeometry(.035, .035, m % 50 ? .35 : .6, 8), markerMat); p.position.set(tx(m), m % 50 ? .175 : .3, -1.78); posts.add(p);
+  const b = new THREE.Mesh(new THREE.SphereGeometry(m % 50 ? .07 : .1, 12, 8), markerMat); b.position.set(tx(m), m % 50 ? .37 : .62, -1.78); posts.add(b);
+}
+ctx.pickable(posts, 'distance');
+const treeMat = ctx.mat('#2f8f4e'), trunkMat = ctx.mat('#8a5a33');
+[[-9, -6], [-5, -7.5], [1, -8], [6, -6.5], [10, -5], [-11, 2], [11, 3.5], [-8, 6.5], [4, 7.5], [9, 8]].forEach(([x, z], i) => {
+  const t = new THREE.Group(), h = .9 + (i % 3) * .35;
+  const c = new THREE.Mesh(new THREE.ConeGeometry(.55, h * 1.4, 10), treeMat); c.position.y = h * .7 + .35; t.add(c);
+  const s = new THREE.Mesh(new THREE.CylinderGeometry(.09, .12, .4, 8), trunkMat); s.position.y = .2; t.add(s); t.position.set(x, 0, z); scene.add(t);
+});
+
+/* ---------- stopwatch tower (time) ---------- */
+const clock = new THREE.Group(); clock.position.set(tx(-6), 0, -3.1); scene.add(clock);
+const purple = ctx.mat('#a855f7');
+const pole = new THREE.Mesh(new THREE.CylinderGeometry(.07, .09, 1.5, 12), postMat); pole.position.y = .75; clock.add(pole);
+const faceCv = document.createElement('canvas'); faceCv.width = faceCv.height = 256;
+{ const g = faceCv.getContext('2d'); g.fillStyle = '#fff'; g.beginPath(); g.arc(128, 128, 126, 0, 7); g.fill(); g.strokeStyle = '#334'; g.fillStyle = '#334';
+  for (let i = 0; i < 60; i++){ const a = i / 60 * Math.PI * 2, r0 = i % 5 ? 108 : 96; g.lineWidth = i % 5 ? 2 : 5; g.beginPath(); g.moveTo(128 + Math.sin(a) * r0, 128 - Math.cos(a) * r0); g.lineTo(128 + Math.sin(a) * 120, 128 - Math.cos(a) * 120); g.stroke(); }
+  g.font = 'bold 26px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; [0, 15, 30, 45].forEach(n => { const a = n / 60 * Math.PI * 2; g.fillText(n, 128 + Math.sin(a) * 74, 128 - Math.cos(a) * 74); }); }
+const faceTex = new THREE.CanvasTexture(faceCv); faceTex.colorSpace = THREE.SRGBColorSpace;
+const rim = new THREE.Mesh(new THREE.CylinderGeometry(.62, .62, .14, 40), purple); rim.rotation.x = Math.PI / 2; rim.position.y = 2.1; clock.add(rim);
+const face = new THREE.Mesh(new THREE.CircleGeometry(.55, 40), new THREE.MeshBasicMaterial({ map:faceTex })); face.position.set(0, 2.1, .075); clock.add(face);
+const knob = new THREE.Mesh(new THREE.CylinderGeometry(.09, .09, .2, 12), purple); knob.position.y = 2.82; clock.add(knob);
+const hand = new THREE.Group(); hand.position.set(0, 2.1, .09); clock.add(hand);
+const handBar = new THREE.Mesh(new THREE.BoxGeometry(.035, .46, .02), new THREE.MeshBasicMaterial({ color:'#e5484d' })); handBar.position.y = .2; hand.add(handBar);
+ctx.pickable(clock, 'time');
+
+/* ---------- race cars ---------- */
+const tire = new THREE.MeshStandardMaterial({ color:'#1d1f24', roughness:.8 }), glass = ctx.mat('#1e293b', .9), hubMat = new THREE.MeshStandardMaterial({ color:'#d7dce3' });
+const WR = .13;
+function makeCar(color){
+  const g = new THREE.Group(), body = ctx.mat(color), wheels = [];
+  const add = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); g.add(m); return m; };
+  add(new THREE.BoxGeometry(.95, .2, .5), body, 0, .25, 0);
+  add(new THREE.BoxGeometry(.3, .12, .44), body, .55, .2, 0);
+  add(new THREE.BoxGeometry(.42, .18, .4), glass, -.08, .44, 0);
+  add(new THREE.BoxGeometry(.06, .16, .06), body, -.48, .42, .2); add(new THREE.BoxGeometry(.06, .16, .06), body, -.48, .42, -.2);
+  add(new THREE.BoxGeometry(.2, .03, .6), body, -.5, .51, 0);
+  for (const [x, z] of [[.36, .27], [.36, -.27], [-.32, .27], [-.32, -.27]]){
+    const w = new THREE.Group(); w.position.set(x, WR, z); g.add(w);
+    const t = new THREE.Mesh(new THREE.CylinderGeometry(WR, WR, .1, 20), tire); t.rotation.x = Math.PI / 2; w.add(t);
+    const hub = new THREE.Mesh(new THREE.BoxGeometry(.05, WR * 1.6, .105), hubMat); w.add(hub); wheels.push(w);
+  }
+  scene.add(g); return { g, wheels, body };
+}
+const cars = App.cars.map((c, i) => {
+  const m = makeCar(c.color); m.g.position.set(tx(0), 0, LANES[i]); ctx.pickable(m.g, 'speed');
+  m.vel = makeArrow('#22c55e', .05); m.acc = makeArrow('#f97316', .05); m.disp = makeArrow('#06b6d4', .045);
+  ctx.pickable(m.vel, 'velocity'); ctx.pickable(m.acc, 'accel'); ctx.pickable(m.disp, 'displacement');
+  m.vTip = new V(); m.aTip = new V();
+  m.name = ctx.label(() => Lab.L(c.name), m.g, { offset:[0, 1.55, 0] });
+  m.vL = ctx.label('v', m.vTip, { cls:'' }); m.aL = ctx.label('a', m.aTip); m.lastTxt = '';
+  return m;
+});
+const lab = {
+  start:ctx.label({ en:'Start · 0 m', zh:'起点 · 0 m' }, new V(tx(0), .12, 1.9)),
+  half:ctx.label("50 m", new V(tx(50), .78, -1.78)),
+  fin:ctx.label({ en:'Finish · 100 m', zh:'终点 · 100 m' }, new V(tx(100), 2.3, 0)),
+  clock:ctx.label('t = 0.00 s', clock, { offset:[0, 3.15, 0] })
+};
+let labelsOn = true;
+const setLabels = on => { labelsOn = on; [lab.start, lab.half, lab.fin].forEach(L => L.visible = on); cars.forEach(m => m.name.visible = on); Lab.$('#labelBtn').classList.toggle('on', on); };
+Lab.$('#labelBtn').onclick = () => setLabels(!labelsOn);
+let chase = false;
+Lab.$('#chaseBtn').onclick = () => { chase = !chase; Lab.$('#chaseBtn').classList.toggle('on', chase); if (!chase) ctx.home(); };
+
+/* ---------- picking, hover, focus ---------- */
+ctx.hoverText(k => Lab.L(PARTS[k].name));
+ctx.onPick(k => { if (k !== App.sel) App.select(k, true); });
+function focus(k){
+  if (!k) return ctx.home();
+  const p = new V();
+  if (k === 'time') clock.getWorldPosition(p).add(new V(0, 2, 0));
+  else if (k === 'distance') p.set(0, 0, 0);
+  else { cars[0].g.getWorldPosition(p); p.y += k === 'speed' ? .3 : k === 'displacement' ? 0 : 1; if (k === 'displacement') p.x = (tx(0) + p.x) / 2; }
+  ctx.flyTo(p, k === 'distance' ? 15 : k === 'displacement' ? 9 : 6);
+}
+App.three = { focus, home:() => ctx.home() };
+
+/* ---------- selection glow ---------- */
+const GLOW = { distance:[trackMat, markerMat, postMat], displacement:cars.map(m => m.disp.cone.material), speed:cars.map(m => m.body), velocity:cars.map(m => m.vel.cone.material), accel:cars.map(m => m.acc.cone.material), time:[purple] };
+for (const k in GLOW) GLOW[k].forEach(m => m.userData.e0 = m.emissive.clone());
+
+/* ---------- per frame: read the physics state from the classic script ---------- */
+const tmp = new V();
+let lastAspect = 0;
+ctx.onFrame((dt, t) => {
+  if (camera.aspect !== lastAspect){ lastAspect = camera.aspect; camera.fov = Math.max(34, Math.min(68, 2 * Math.atan(.54 / camera.aspect) * 180 / Math.PI)); camera.updateProjectionMatrix(); }   // keep the whole track in view when the stage is tall
+  App.cars.forEach((c, i) => {
+    const m = cars[i], x = tx(c.x), z = LANES[i];
+    m.g.position.x = x;
+    m.wheels.forEach(w => w.rotation.z = -c.x * S / WR);
+    setArrow(m.vel, tmp.set(x, .85, z), new V(c.v * .08, 0, 0));
+    const aNow = c.done ? 0 : c.a;
+    setArrow(m.acc, tmp.set(x, 1.15, z), new V(aNow * .3, 0, 0), .22);
+    setArrow(m.disp, tmp.set(tx(0), .05, z - .42), new V(c.x * S, 0, 0), .35);
+    m.vTip.set(x + c.v * .08 + Math.sign(c.v || 1) * .22, .85, z); m.aTip.set(x + aNow * .3 + Math.sign(aNow || 1) * .22, 1.15, z);
+    m.vL.visible = labelsOn && m.vel.visible; m.aL.visible = labelsOn && m.acc.visible;
+    const txt = Lab.L(c.name) + ' · ' + Math.abs(c.v).toFixed(1) + ' m/s';
+    if (txt !== m.lastTxt){ m.lastTxt = txt; m.name.set(txt); }
+  });
+  hand.rotation.z = -App.t / 60 * Math.PI * 2;
+  const ct = 't = ' + App.t.toFixed(2) + ' s'; if (lab.clock.text !== ct) lab.clock.set(ct);
+  if (chase){
+    const mid = (tx(App.cars[0].x) + tx(App.cars[1].x)) / 2, dx = (mid - controls.target.x) * Math.min(1, dt * 3);
+    controls.target.x += dx; camera.position.x += dx;
+  }
+  for (const k in GLOW){ const on = App.sel === k, f = on ? .35 + .2 * Math.sin(t * 5) : 0;
+    GLOW[k].forEach(m => { m.emissive.copy(m.userData.e0); if (on) m.emissive.add(m.color.clone().multiplyScalar(f)); }); }
+});
+setLabels(true);
+</script>
+</body>
+</html>

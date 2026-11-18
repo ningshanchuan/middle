@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Classification &amp; Dichotomous Keys</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/photos.js"></script>
+<script src="../shared/lab3d.js"></script>
+<style>
+/* page-specific styles */
+#explore .explorer{align-items:start}
+#stage{height:640px}
+#info{max-height:640px;min-height:0;overflow:auto}
+@media (max-width:980px){#stage{height:540px}#info{max-height:none}}
+.storybar button{white-space:nowrap}
+@media (max-width:560px){.storybar{bottom:112px}.storybar button{padding:7px 10px}}
+.toolbar .seg button{padding:5px 11px}
+.lab-label3d.lvl{font-size:12px}
+.lab-label3d.lvl.cur{background:var(--ink);color:var(--surface);border-color:var(--ink);font-size:13px}
+.lab-label3d.head{font-size:13px;color:var(--brand)}
+.lab-label3d.big{font-size:15px;font-family:Fredoka;background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.now{background:var(--surface-2);border-radius:12px;padding:9px 12px;font-weight:700;font-size:15px}
+.traits{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:14px;background:var(--surface-2);border-radius:12px;padding:10px 12px}
+.traits b{color:var(--ink-2);font-weight:800}
+.members{display:flex;flex-wrap:wrap;gap:4px;font-size:22px;line-height:1.2}
+/* KPCOFGS ladder */
+.ladder{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px}
+.rung{border-radius:14px;padding:10px 6px;text-align:center;color:#fff;box-shadow:inset 0 -4px 0 rgba(0,0,0,.15)}
+.rung b{display:block;font-family:Fredoka;font-size:26px;line-height:1}
+.rung span{display:block;font-weight:800;font-size:13px}
+.rung small{display:block;font-size:12px;opacity:.95;font-style:italic}
+@media (max-width:980px){.ladder{grid-template-columns:repeat(4,minmax(0,1fr))}}
+/* dichotomous key */
+.mystery{font-size:96px;text-align:center;line-height:1.1}
+.qbox{font-weight:800;font-size:20px;text-align:center}
+.yn{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.yn button{border:2px solid var(--line);background:var(--surface-2);border-radius:14px;padding:14px;font-weight:800;font-size:16px;color:var(--ink)}
+.yn button:hover{border-color:var(--brand)}
+.crumbs{display:flex;flex-wrap:wrap;gap:6px;font-size:13px;font-weight:800;color:var(--ink-2)}
+.crumbs span{background:var(--surface-2);border-radius:999px;padding:3px 9px}
+.orgpick{display:flex;flex-wrap:wrap;gap:6px}
+.orgpick button{font-size:26px;width:52px;height:52px;border-radius:14px;border:2px solid var(--line);background:var(--surface-2);position:relative}
+.orgpick button.on{border-color:var(--brand);box-shadow:0 0 0 2px var(--brand)}
+.orgpick button.done::after{content:"✓";position:absolute;right:-4px;top:-6px;font-size:13px;background:var(--good);color:#fff;border-radius:50%;width:18px;height:18px;line-height:18px;font-weight:800}
+.keylist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.keylist li{border:1px solid var(--line);border-radius:12px;padding:7px 10px;background:var(--surface)}
+.keylist li.cur{border-color:var(--brand);box-shadow:0 0 0 2px var(--brand)}
+.keylist li.path{background:color-mix(in srgb,var(--brand) 10%,var(--surface))}
+.keylist .n{font-family:Fredoka;font-weight:700;color:var(--brand);margin-right:6px}
+.keylist .go{float:right;font-weight:800;color:var(--ink-2)}
+/* build-a-key */
+.tree{display:flex;flex-direction:column;gap:8px}
+.node{border:2px dashed var(--line);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.node.leaf{border-style:solid;border-color:var(--good);background:color-mix(in srgb,var(--good) 8%,var(--surface))}
+.node .orgs{font-size:30px;line-height:1.1}
+.node select{font:inherit;font-weight:700;border:1px solid var(--line);border-radius:10px;padding:6px 8px;background:var(--surface);color:var(--ink);max-width:100%}
+.node .split{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.node .qlabel{font-weight:800;color:var(--brand)}
+.node .yes,.node .no{font-size:12px;font-weight:800;color:var(--ink-2)}
+@media (max-width:560px){.node .split{grid-template-columns:1fr}}
+</style>
+</head>
+<body data-subject="biology" data-topic="classification">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="生物 · 分类">Biology · Classification</span>
+  <h1 data-zh-html="生物分类与<em>二歧检索表</em>">Classification &amp; <em>Dichotomous Keys</em></h1>
+  <p class="lead" data-zh="鲨鱼和海豚长得很像，科学家为什么把它们分在不同的类群里？地球上已经被命名的物种约有 200 万种。科学家怎样给它们分组？顺着 3D 分类“漏斗”一级一级往下走，从“所有生物”一直到一个物种；再认识六界，并用二歧检索表鉴定神秘生物！">A shark and a dolphin look alike. So why do scientists put them in different groups? Scientists have named about 2 million species. How do they sort them all? Ride the 3D classification “funnel” down level by level, from all life to a single species; meet the six kingdoms; then use dichotomous keys to identify mystery creatures!</p>
+</header>
+
+<section class="wrap" id="explore" data-nav="3D Model" data-nav-zh="3D 模型">
+  <div class="explorer">
+    <div class="stage card" id="stage" data-3d>
+      <div class="toolbar">
+        <div class="seg" id="viewSeg"></div>
+        <div class="seg" id="targetSeg"></div>
+        <button class="tbtn" id="storyBtn" data-zh="📖 给狼分类（故事）">📖 Classify a wolf</button>
+        <button class="tbtn" id="resetBtn" data-zh="⌂ 重置">⌂ Reset</button>
+      </div>
+      <div class="bottombar">
+        <div class="pill" id="levelPill"><span data-zh="🔽 分类等级">🔽 Level</span><input id="level" type="range" min="0" max="8" value="0"><b id="levelName" style="min-width:70px"></b></div>
+        <div class="pill" id="domPill" style="display:none"><button class="tbtn" id="domBtn" style="box-shadow:none" data-zh="🌐 显示三域">🌐 Show 3 domains</button></div>
+        <div class="tip" data-zh="拖动旋转 · 滚轮缩放 · 点击任意部分">Drag to rotate · Scroll to zoom · Click any part</div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="chips" id="chips"></div>
+</section>
+
+<section class="wrap" id="why">
+  <div class="sec-head">
+    <h2 data-zh="为什么要分类？">Why classify?</h2>
+    <p data-zh="分类让科学家能有条理地研究生物、交流信息，并看出生物之间的亲缘关系。">Classification lets scientists study living things in an organized way, share information clearly, and see how organisms are related.</p>
+  </div>
+  <div class="grid3">
+    <div class="box card"><div class="ico">📜</div><h3 data-zh="林奈（1707–1778）">Carolus Linnaeus (1707–1778)</h3><p data-zh="瑞典科学家，建立了分等级的分类系统，被称为“分类学之父”。早期的分类主要依据生物的外形等身体特征。">Swedish scientist who created the ranked classification system, the “father of taxonomy”. Early classification was based mainly on physical traits like body shape.</p></div>
+    <div class="box card"><div class="ico">🏷️</div><h3 data-zh="双名法">Binomial nomenclature</h3><p data-zh-html="每个物种有一个由两部分组成的拉丁学名：属名 + 种加词，例如 <i>Homo sapiens</i>（人）。属名首字母大写，学名用斜体书写。">Every species gets a two-part Latin name: genus + species, e.g. <i>Homo sapiens</i> (humans). The genus is capitalized and the name is written in italics.</p></div>
+    <div class="box card"><div class="ico">🧬</div><h3 data-zh="今天：还看 DNA">Today: DNA too</h3><p data-zh="现代科学家除了比较身体特征，还比较 DNA。正是 DNA 研究发现古细菌与细菌差别很大，于是有了“三域”系统。">Modern scientists compare DNA as well as physical traits. DNA studies showed archaea are very different from bacteria, which led to the three-domain system.</p></div>
+  </div>
+  <div class="sec-head" style="margin-top:24px"><h3 style="font-size:24px" data-zh="八个分类等级（以狼为例）">The eight levels (example: gray wolf)</h3></div>
+  <div class="ladder" id="ladder"></div>
+  <div class="memory" style="margin-top:14px"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="英文口诀“Dear King Philip Came Over For Good Soup”；中文可以记“域界门纲目科属种”——越往下，成员越少，彼此越相似。">“Dear King Philip Came Over For Good Soup” = Domain, Kingdom, Phylum, Class, Order, Family, Genus, Species. The lower you go, the fewer members and the more alike they are.</span></div>
+</section>
+
+<section class="wrap" id="key" data-nav="Dichotomous Key" data-nav-zh="二歧检索表">
+  <div class="sec-head">
+    <h2 data-zh="使用二歧检索表">Use a dichotomous key</h2>
+    <p data-zh="“二歧”就是“分成两条路”。每一步只回答一个“是/否”问题，沿着检索表走，最后就能知道生物的名字。选一个神秘生物开始吧！">“Dichotomous” means “dividing in two”. At each step you answer one yes/no question and follow the key until you reach the organism’s name. Pick a mystery organism to start!</p>
+  </div>
+  <div class="sim">
+    <div class="card simside">
+      <div class="orgpick" id="orgPick"></div>
+      <div class="mystery" id="mystery"></div>
+      <div class="qbox" id="keyQ"></div>
+      <div class="yn" id="keyYN"></div>
+      <div class="crumbs" id="keyCrumbs"></div>
+      <div class="result" id="keyMsg"></div>
+    </div>
+    <div class="card simside">
+      <h3 data-zh="检索表">The key</h3>
+      <ol class="keylist" id="keyList"></ol>
+      <div class="counters"><div class="counter"><b id="keyDone">0/8</b><span data-zh="已鉴定">identified</span></div><div class="counter"><b id="keyErr">0</b><span data-zh="答错次数">wrong answers</span></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="build" data-nav="Build a Key" data-nav-zh="自编检索表">
+  <div class="sec-head">
+    <h2 data-zh="自己编一个检索表">Build your own key</h2>
+    <p data-zh="为这 6 种海洋动物编写二歧检索表。为每一组选择一个问题，把它分成“是”和“否”两组，直到每种动物都单独在一组里。好的问题能把一组分成两半！">Write a dichotomous key for these 6 sea animals. For each group, choose a question that splits it into “yes” and “no”, until every animal is alone. A good question splits a group into two parts!</p>
+  </div>
+  <div class="card simside">
+    <div class="tree" id="tree"></div>
+    <div class="btnrow"><button class="btn ghost" id="treeReset" data-zh="↺ 重新编写">↺ Start over</button></div>
+    <div class="result" id="treeMsg"></div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real photos" data-nav-zh="真实影像">
+  <div id="gallery"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 分类测验">🧠 Classification quiz</h3><p class="sub" data-zh="选出正确答案。">Pick the best answer.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分到六界">🗂️ Sort into six kingdoms</h3><p class="sub" data-zh="把每种生物拖到（或先点再点）它所属的界。">Drag each organism (or tap it, then tap a box) into its kingdom.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="对应佐治亚州标准 S7L1a（建立模型——如二歧检索表——说明生物群体之间的关系）和 S7L1b（评价历史上和现在的分类模型，如六界系统与三域系统，了解早期分类依据身体特征）。建议：用 3D 漏斗的“分类等级”滑块，让学生预测下一级会剩下哪些生物，并说明为什么同属的生物比同目的生物更相似。">Supports GSE S7L1a (develop a model, such as a dichotomous key, that demonstrates relationships among groups of organisms) and S7L1b (evaluate historical and current classification models, e.g. six kingdoms and three domains; early systems used physical traits). Tip: with the funnel’s Level slider, have students predict which organisms survive to the next level and explain why organisms in the same genus share more traits than those in the same order.</p>
+    <p data-zh-html="说明：狗有时被归为狼的一个亚种（<i>Canis lupus familiaris</i>）；这里采用常见的 <i>Canis familiaris</i>。六界系统中“原生生物界”是一个“杂物箱”，现代分类正在重新划分它。">Note: dogs are sometimes classified as a subspecies of wolf (<i>Canis lupus familiaris</i>); this app uses the common <i>Canis familiaris</i>. The six-kingdom “Protista” is a catch-all group that modern taxonomy is reorganizing.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<!--REAL-PHOTOS-->
+<script>
+/* ===== See the real thing: real photos / clips (Wikimedia Commons, freely licensed; credit shown under each) ===== */
+(function(){
+const P = [
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3a/E._coli_Bacteria_%287316101966%29.jpg/960px-E._coli_Bacteria_%287316101966%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Kingdom Bacteria: Escherichia coli bacteria grown in a lab, seen with a scanning electron microscope.', zh:'细菌界：实验室里培养的大肠杆菌（Escherichia coli），用扫描电子显微镜拍摄。', kind:{en:'Electron micrograph (SEM)',zh:'扫描电镜照片'}, credit:'NIAID', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:E._coli_Bacteria_(7316101966).jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/a/a1/Halobacteria.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Kingdom Archaea: a cluster of Halobacterium cells. Despite the name, they are archaea, not bacteria.', zh:'古菌界：一团盐杆菌（Halobacterium）细胞。别看名字里有“杆菌”，它们其实是古菌，不是细菌。', kind:{en:'Micrograph',zh:'显微照片'}, credit:'NASA', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Halobacteria.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/c/cb/Paramecium.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Kingdom Protista: Paramecium aurelia, a single-celled ciliate. The bubbles inside the cell are vacuoles.', zh:'原生生物界：双小核草履虫（Paramecium aurelia），一种单细胞的纤毛虫。细胞里的“小泡泡”是液泡。', kind:{en:'Light micrograph',zh:'光学显微镜照片'}, credit:'Barfooz (English Wikipedia)', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Paramecium.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/32/Amanita_muscaria_3_vliegenzwammen_op_rij.jpg/960px-Amanita_muscaria_3_vliegenzwammen_op_rij.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Kingdom Fungi: three fly agaric mushrooms (Amanita muscaria) in a row.', zh:'真菌界：排成一排的三朵毒蝇伞（Amanita muscaria）。', kind:{en:'Photo',zh:'照片'}, credit:'Onderwijsgek', license:'CC BY-SA 3.0 nl', page:'https://commons.wikimedia.org/wiki/File:Amanita_muscaria_3_vliegenzwammen_op_rij.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e9/Herbarium_specimen.jpg/960px-Herbarium_specimen.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Kingdom Plantae: a herbarium specimen. Scientists press, dry and label plants like this so they can compare and classify them.', zh:'植物界：一份植物标本。科学家把植物压平、晾干并贴上标签，方便比较和分类。', kind:{en:'Photo',zh:'照片'}, credit:'GeorgieMcD', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Herbarium_specimen.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/70/Front_view_of_a_resting_Canis_lupus_ssp.jpg/960px-Front_view_of_a_resting_Canis_lupus_ssp.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Kingdom Animalia: a gray wolf. Its scientific name, Canis lupus, has two parts: the genus and the species.', zh:'动物界：一只灰狼。它的学名 Canis lupus 由两部分组成：属名和种名。', kind:{en:'Photo',zh:'照片'}, credit:'Gary Kramer', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Front_view_of_a_resting_Canis_lupus_ssp.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/a/ae/Linnaeus1758-title-page.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Where it began: the title page of “Systema Naturae” (10th edition, 1758) by Carl Linnaeus, who gave living things two-part names.', zh:'一切从这里开始：卡尔·林奈《自然系统》第 10 版（1758 年）的扉页。林奈用“双名法”给生物命名。', kind:{en:'Historical book',zh:'历史书页'}, credit:'Carl Linnaeus', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Linnaeus1758-title-page.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/71/Colourful_Thermophilic_Archaebacteria_Stain_in_Midway_Geyser_Basin.jpg/960px-Colourful_Thermophilic_Archaebacteria_Stain_in_Midway_Geyser_Basin.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Life in extreme heat: these colorful mats in Midway Geyser Basin (Yellowstone) are made by heat-loving microbes, mostly bacteria such as cyanobacteria. Heat-loving archaea live in these hot springs too.', zh:'极端高温中的生命：黄石公园中途间歇泉盆地里这些彩色的“垫子”，是由嗜热微生物形成的，主要是蓝细菌等细菌。嗜热的古菌也生活在这些温泉里。', kind:{en:'Photo',zh:'照片'}, credit:'Wing-Chi Poon', license:'CC BY-SA 2.5', page:'https://commons.wikimedia.org/wiki/File:Colourful_Thermophilic_Archaebacteria_Stain_in_Midway_Geyser_Basin.jpg' },
+  { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/8/8d/Tardigrade_FlynnBurhoe.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8d/Tardigrade_FlynnBurhoe.webm/500px--Tardigrade_FlynnBurhoe.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8d/Tardigrade_FlynnBurhoe.webm/500px--Tardigrade_FlynnBurhoe.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Video: a tardigrade (“water bear”) from garden compost. It is too small to see clearly without a microscope, but it is an animal with eight legs. Which kingdom is that?', zh:'视频：花园堆肥里的一只缓步动物（“水熊虫”）。它小得要用显微镜才能看清，却是一种长着八条腿的动物。它属于哪个界？', kind:{en:'Microscope video',zh:'显微镜视频'}, credit:'Maureen Flynn-Burhoe', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Tardigrade_FlynnBurhoe.webm' }
+];
+window.REALFIG = { animalia:P[5], archaea:P[1], bacteria:P[0], fungi:P[3], plantae:P[4], protista:P[2] };
+if (window.LabPhotos) LabPhotos.render('#gallery', P.filter(p => !p._x), { title:{en:'See the real thing',zh:'看看真实的样子'}, sub:{en:'One real example from each of the six kingdoms, plus the tools scientists use to classify living things. Click any picture to enlarge it; the video plays only when you press play.',zh:'六个界各有一个真实的例子，还有科学家给生物分类时用的工具。点击图片可以放大；视频要按下播放键才会播放。'} });
+})();
+</script>
+<!--/REAL-PHOTOS-->
+<script>
+const o = (en, zh) => ({en, zh});
+/* ===== Taxonomy levels ===== */
+const LCOL = ['#7a8ba8', '#4f8ff0', '#2fb3c9', '#2fb36d', '#8fc43a', '#e0a800', '#f2853a', '#e5484d', '#c0569b'];
+const LEVELS = [
+  {name:o('All life','所有生物'), w:'', facts:{en:['Every living thing starts here: about 2 million named species, and millions more not yet named.','Each ring below holds fewer organisms that share more traits.'], zh:['所有生物都从这里开始：已命名的物种约 200 万种，还有数百万种尚未命名。','越往下的圆环，生物越少，共同特征越多。']}},
+  {name:o('Domain','域'), w:'Dear', facts:{en:['The broadest level. There are 3 domains: Bacteria, Archaea and Eukarya.','Eukarya = every organism whose cells have a nucleus.'], zh:['最大的分类等级，共有 3 个域：细菌域、古菌域和真核生物域。','真核生物域 = 细胞有细胞核的所有生物。']}, mix:o('Bacteria and archaea look alike under a microscope, but their chemistry and DNA are so different that they are in separate domains.','细菌和古菌在显微镜下看起来很像，但它们的化学组成和 DNA 差别很大，所以分属不同的域。')},
+  {name:o('Kingdom','界'), w:'King', facts:{en:['Six kingdoms: Eubacteria, Archaebacteria, Protista, Fungi, Plantae and Animalia.','Kingdoms are based on cell type, number of cells and how the organism gets food.'], zh:['六界：真细菌界、古细菌界、原生生物界、真菌界、植物界和动物界。','界的划分依据：细胞类型、细胞数量以及获取食物的方式。']}},
+  {name:o('Phylum','门'), w:'Philip', facts:{en:['A phylum groups organisms with the same basic body plan.','Example: Arthropoda (insects, spiders, crabs) all have jointed legs and an exoskeleton.'], zh:['同一个门的生物具有相同的基本身体结构。','例如节肢动物门（昆虫、蜘蛛、螃蟹）都有分节的足和外骨骼。']}},
+  {name:o('Class','纲'), w:'Came', facts:{en:['Classes divide a phylum further.','Mammals, birds, reptiles, amphibians and bony fish are different classes of chordates.'], zh:['纲是对门的进一步划分。','哺乳动物、鸟类、爬行动物、两栖动物和硬骨鱼是脊索动物门中的不同纲。']}},
+  {name:o('Order','目'), w:'Over', facts:{en:['Orders split a class using more specific traits, such as teeth, feet or diet.','Carnivores, primates and rodents are orders of mammals.'], zh:['目用更具体的特征（如牙齿、足、食性）来划分纲。','食肉目、灵长目、啮齿目都是哺乳纲中的目。']}},
+  {name:o('Family','科'), w:'For', facts:{en:['A family contains closely related genera.','Example: the dog family (Canidae) and the cat family (Felidae).'], zh:['科包含亲缘关系很近的几个属。','例如犬科和猫科。']}},
+  {name:o('Genus','属'), w:'Good', facts:{en:['A genus holds very closely related species.','The genus is the first word of a scientific name and is always capitalized.'], zh:['属包含亲缘关系非常近的物种。','属名是学名的第一个词，首字母总是大写。']}, mix:o('Organisms in the same genus share MORE traits than organisms that only share an order. The lower the shared level, the closer the relationship.','同一个属的生物比只同一个目的生物有更多共同特征。共同的等级越低，亲缘关系越近。')},
+  {name:o('Species','种'), w:'Soup', facts:{en:['A species is a group of organisms that can breed together and produce fertile offspring.','Its scientific name has two words: Genus + species, like Canis lupus.'], zh:['物种是能够相互交配并产生可育后代的一群生物。','它的学名由两个词组成：属名 + 种加词，例如 Canis lupus。']}, mix:o('The species name is not just the second word. “lupus” alone means nothing; the species is “Canis lupus”.','种名不只是第二个词。单独的“lupus”没有意义，物种名是“Canis lupus”。')}
+];
+const TAXA = {
+  Eukarya:{zh:'真核生物域', d:o('Cells with a nucleus','细胞有细胞核')}, Animalia:{zh:'动物界', d:o('Many cells, no cell walls, eats other organisms','多细胞，无细胞壁，摄食其他生物')},
+  Chordata:{zh:'脊索动物门', d:o('A nerve cord along the back; most have a backbone','背部有神经索，大多数有脊椎')}, Mammalia:{zh:'哺乳纲', d:o('Hair or fur, feeds its young milk','有毛发，用乳汁哺育后代')},
+  Carnivora:{zh:'食肉目', d:o('Meat-eating mammals with sharp canine teeth','有锋利犬齿的食肉哺乳动物')}, Primates:{zh:'灵长目', d:o('Grasping hands, forward-facing eyes, big brains','能抓握的手、朝前的眼睛、较大的脑')},
+  Canidae:{zh:'犬科', d:o('Dog family: long snouts, built for running','犬科：长吻，善于奔跑')}, Felidae:{zh:'猫科', d:o('Cat family: retractable claws, stalk and pounce','猫科：爪子能伸缩，潜行扑食')}, Hominidae:{zh:'人科', d:o('Great apes: large bodies, no tail','大型类人猿：体型大，没有尾巴')},
+  Canis:{zh:'犬属', d:o('Wolves, dogs, coyotes and jackals','狼、狗、郊狼和豺')}, Panthera:{zh:'豹属', d:o('Big cats that can roar','能吼叫的大型猫科动物')}, Homo:{zh:'人属', d:o('Only one living species: us!','现存只有一个物种：我们！')},
+  'Canis lupus':{zh:'狼', d:o('The gray wolf','灰狼')}, 'Panthera leo':{zh:'狮', d:o('The lion','狮子')}, 'Homo sapiens':{zh:'智人', d:o('Modern humans ("wise human")','现代人（“智慧的人”）')}
+};
+const A = (...r) => ['Eukarya', 'Animalia', ...r];
+const ORGS = [
+  {id:'wolf', e:'🐺', n:o('Gray wolf','狼'), p:A('Chordata','Mammalia','Carnivora','Canidae','Canis','Canis lupus')},
+  {id:'dog', e:'🐕', n:o('Dog','狗'), p:A('Chordata','Mammalia','Carnivora','Canidae','Canis','Canis familiaris')},
+  {id:'fox', e:'🦊', n:o('Red fox','赤狐'), p:A('Chordata','Mammalia','Carnivora','Canidae','Vulpes','Vulpes vulpes')},
+  {id:'lion', e:'🦁', n:o('Lion','狮'), p:A('Chordata','Mammalia','Carnivora','Felidae','Panthera','Panthera leo')},
+  {id:'tiger', e:'🐅', n:o('Tiger','虎'), p:A('Chordata','Mammalia','Carnivora','Felidae','Panthera','Panthera tigris')},
+  {id:'leopard', e:'🐆', n:o('Leopard','豹'), p:A('Chordata','Mammalia','Carnivora','Felidae','Panthera','Panthera pardus')},
+  {id:'cat', e:'🐈', n:o('House cat','家猫'), p:A('Chordata','Mammalia','Carnivora','Felidae','Felis','Felis catus')},
+  {id:'bear', e:'🐻', n:o('Brown bear','棕熊'), p:A('Chordata','Mammalia','Carnivora','Ursidae','Ursus','Ursus arctos')},
+  {id:'raccoon', e:'🦝', n:o('Raccoon','浣熊'), p:A('Chordata','Mammalia','Carnivora','Procyonidae','Procyon','Procyon lotor')},
+  {id:'human', e:'🧑', n:o('Human','人'), p:A('Chordata','Mammalia','Primates','Hominidae','Homo','Homo sapiens')},
+  {id:'gorilla', e:'🦍', n:o('Gorilla','大猩猩'), p:A('Chordata','Mammalia','Primates','Hominidae','Gorilla','Gorilla gorilla')},
+  {id:'orangutan', e:'🦧', n:o('Orangutan','猩猩'), p:A('Chordata','Mammalia','Primates','Hominidae','Pongo','Pongo pygmaeus')},
+  {id:'monkey', e:'🐒', n:o('Rhesus monkey','猕猴'), p:A('Chordata','Mammalia','Primates','Cercopithecidae','Macaca','Macaca mulatta')},
+  {id:'mouse', e:'🐁', n:o('House mouse','小家鼠'), p:A('Chordata','Mammalia','Rodentia','Muridae','Mus','Mus musculus')},
+  {id:'rabbit', e:'🐇', n:o('Rabbit','兔'), p:A('Chordata','Mammalia','Lagomorpha','Leporidae','Oryctolagus','Oryctolagus cuniculus')},
+  {id:'horse', e:'🐎', n:o('Horse','马'), p:A('Chordata','Mammalia','Perissodactyla','Equidae','Equus','Equus caballus')},
+  {id:'cow', e:'🐄', n:o('Cow','牛'), p:A('Chordata','Mammalia','Artiodactyla','Bovidae','Bos','Bos taurus')},
+  {id:'eagle', e:'🦅', n:o('Golden eagle','金雕'), p:A('Chordata','Aves','Accipitriformes','Accipitridae','Aquila','Aquila chrysaetos')},
+  {id:'frog', e:'🐸', n:o('Common frog','林蛙'), p:A('Chordata','Amphibia','Anura','Ranidae','Rana','Rana temporaria')},
+  {id:'salmon', e:'🐟', n:o('Atlantic salmon','大西洋鲑'), p:A('Chordata','Actinopterygii','Salmoniformes','Salmonidae','Salmo','Salmo salar')},
+  {id:'snake', e:'🐍', n:o('Garter snake','束带蛇'), p:A('Chordata','Reptilia','Squamata','Colubridae','Thamnophis','Thamnophis sirtalis')},
+  {id:'butterfly', e:'🦋', n:o('Monarch butterfly','帝王蝶'), p:A('Arthropoda','Insecta','Lepidoptera','Nymphalidae','Danaus','Danaus plexippus')},
+  {id:'bee', e:'🐝', n:o('Honeybee','西方蜜蜂'), p:A('Arthropoda','Insecta','Hymenoptera','Apidae','Apis','Apis mellifera')},
+  {id:'octopus', e:'🐙', n:o('Octopus','章鱼'), p:A('Mollusca','Cephalopoda','Octopoda','Octopodidae','Octopus','Octopus vulgaris')},
+  {id:'snail', e:'🐌', n:o('Garden snail','蜗牛'), p:A('Mollusca','Gastropoda','Stylommatophora','Helicidae','Cornu','Cornu aspersum')},
+  {id:'oak', e:'🌳', n:o('Oak tree','橡树'), p:['Eukarya','Plantae']},
+  {id:'sunflower', e:'🌻', n:o('Sunflower','向日葵'), p:['Eukarya','Plantae']},
+  {id:'cactus', e:'🌵', n:o('Cactus','仙人掌'), p:['Eukarya','Plantae']},
+  {id:'fern', e:'🌿', n:o('Fern','蕨'), p:['Eukarya','Plantae']},
+  {id:'mushroom', e:'🍄', n:o('Mushroom','蘑菇'), p:['Eukarya','Fungi']},
+  {id:'amoeba', e:'amoeba', n:o('Amoeba','变形虫'), p:['Eukarya','Protista']},
+  {id:'ecoli', e:'🦠', n:o('E. coli bacterium','大肠杆菌'), p:['Bacteria','Eubacteria']},
+  {id:'archaea', e:'♨️', n:o('Hot-spring archaea','温泉古菌'), p:['Archaea','Archaebacteria']}
+];
+const TARGETS = { wolf:ORGS[0], lion:ORGS[3], human:ORGS[9] };
+const inGroup = (org, T, i) => { for (let j = 0; j < i; j++) if (org.p[j] !== T.p[j]) return false; return true; };
+const members = (T, i) => ORGS.filter(g => inGroup(g, T, i));
+const taxName = t => Lab.lang === 'zh' && TAXA[t] ? `${TAXA[t].zh} ${t}` : t;
+
+/* ===== Six kingdoms ===== */
+const DOMAINS = { Bacteria:{name:o('Domain Bacteria','细菌域'), color:'#4f8ff0'}, Archaea:{name:o('Domain Archaea','古菌域'), color:'#f2853a'}, Eukarya:{name:o('Domain Eukarya','真核生物域'), color:'#2fb36d'} };
+const pro = o('Prokaryote (no nucleus)','原核生物（没有细胞核）'), euk = o('Eukaryote (has a nucleus)','真核生物（有细胞核）');
+const KING = {
+  bacteria:{dom:'Bacteria', color:'#4f8ff0', e:'🦠', name:o('Eubacteria','真细菌界'), job:o('Tiny single cells found almost everywhere','几乎无处不在的微小单细胞'),
+    facts:{en:['Live in soil, water, air and inside your body (trillions in your gut).','A few cause disease (strep throat), but most are harmless or helpful: making yogurt, helping digestion, recycling dead matter.','No nucleus: the DNA floats freely in the cytoplasm.'], zh:['生活在土壤、水、空气中，也生活在你体内（肠道里有数万亿个）。','少数会致病（如链球菌咽炎），但大多数无害或有益：制作酸奶、帮助消化、分解死去的生物。','没有细胞核：DNA 直接漂浮在细胞质中。']},
+    t:[pro, o('Unicellular','单细胞'), o('Autotroph or heterotroph','自养或异养'), o('Yes (peptidoglycan)','有（肽聚糖）')], ex:o('E. coli, Streptococcus, Lactobacillus, cyanobacteria','大肠杆菌、链球菌、乳酸菌、蓝细菌'),
+    hint:o('PRO-karyote: “pro” = before. These cells came before the nucleus existed.','原核生物：“原”= 原始，还没有真正的细胞核。'), mix:o('Not all bacteria are “germs”. Most bacteria do not make people sick.','细菌不全是“病菌”，大多数细菌不会让人生病。')},
+  archaea:{dom:'Archaea', color:'#f2853a', e:'♨️', name:o('Archaebacteria','古细菌界'), job:o('Single cells that love extreme places','喜欢极端环境的单细胞生物'),
+    facts:{en:['Many live where little else can: boiling hot springs, very salty lakes, places with no oxygen.','Methanogens live in swamps and even in cows’ stomachs and give off methane gas.','Carl Woese showed in 1977 that their DNA is very different from bacteria, so they got their own domain.'], zh:['许多古菌生活在别的生物难以生存的地方：沸腾的温泉、极咸的湖泊、没有氧气的环境。','产甲烷菌生活在沼泽甚至牛的胃里，会释放甲烷气体。','1977 年，沃斯发现它们的 DNA 与细菌差别很大，于是它们有了自己的域。']},
+    t:[pro, o('Unicellular','单细胞'), o('Autotroph or heterotroph','自养或异养'), o('Yes (no peptidoglycan)','有（不含肽聚糖）')], ex:o('Methanogens, halophiles (salt lovers), thermophiles (heat lovers)','产甲烷菌、嗜盐菌、嗜热菌'),
+    hint:o('Archaea = “ancient” extremists: heat, salt, no oxygen.','古细菌 = 古老的“极限挑战者”：高温、高盐、无氧。'), mix:o('Archaea are not a kind of bacteria, even though both are prokaryotes. They are as different from bacteria as you are!','古菌不是细菌的一种，尽管它们都是原核生物。它们和细菌的差别，就像细菌和你的差别一样大！')},
+  protista:{dom:'Eukarya', color:'#2fb3c9', e:'🔬', name:o('Protista','原生生物界'), job:o('The “everything else” eukaryotes','“其他所有”真核生物'),
+    facts:{en:['Eukaryotes that are not plants, animals or fungi: a very mixed group.','Most live in water. Some make food like plants (algae, euglena); others hunt like animals (amoeba, paramecium).','The protist Plasmodium causes malaria.'], zh:['不属于植物、动物或真菌的真核生物，是一个非常混杂的类群。','大多数生活在水中。有的像植物一样制造食物（藻类、眼虫），有的像动物一样捕食（变形虫、草履虫）。','原生生物疟原虫会引起疟疾。']},
+    t:[euk, o('Mostly unicellular (some multicellular)','多数单细胞（少数多细胞）'), o('Autotroph or heterotroph','自养或异养'), o('Some do','有些有')], ex:o('Amoeba, paramecium, euglena, algae, kelp','变形虫、草履虫、眼虫、藻类、海带'),
+    hint:o('Protist ≈ “proto” = first: simple early eukaryotes.','原生生物 ≈ “最原始的”真核生物。'), mix:o('Not all protists are microscopic: giant kelp can grow more than 30 m long.','原生生物不全是微小的：巨型海藻可以长到 30 多米长。')},
+  fungi:{dom:'Eukarya', color:'#c0569b', e:'🍄', name:o('Fungi','真菌界'), job:o('Decomposers that absorb their food','靠吸收获取营养的分解者'),
+    facts:{en:['Fungi cannot make their own food. They release digestive juices and absorb the nutrients.','Important decomposers that recycle dead plants and animals.','The body is a web of threads called hyphae; a mushroom is only the part that makes spores.'], zh:['真菌不能自己制造食物，它们分泌消化液，再吸收养分。','它们是重要的分解者，分解死去的动植物，让物质循环利用。','真菌的身体是由菌丝组成的网；蘑菇只是它产生孢子的部分。']},
+    t:[euk, o('Mostly multicellular (yeast is unicellular)','多数多细胞（酵母菌是单细胞）'), o('Heterotroph (absorbs food)','异养（吸收营养）'), o('Yes (chitin)','有（几丁质）')], ex:o('Mushrooms, molds, yeast','蘑菇、霉菌、酵母菌'),
+    hint:o('Fungi “eat” from the outside in: digest first, then absorb.','真菌“先消化、再吸收”，在身体外面消化食物。'), mix:o('Mushrooms are not plants. They have no chlorophyll, and their cell walls are made of chitin, like insect shells.','蘑菇不是植物：它们没有叶绿素，细胞壁由几丁质构成，和昆虫外壳的成分一样。')},
+  plantae:{dom:'Eukarya', color:'#2fb36d', e:'🌳', name:o('Plantae','植物界'), job:o('Producers that make food from sunlight','利用阳光制造食物的生产者'),
+    facts:{en:['Plants make their own food by photosynthesis using chlorophyll.','They cannot move from place to place.','Includes nonvascular plants (mosses) and vascular plants (ferns, conifers, flowering plants).'], zh:['植物利用叶绿素进行光合作用，自己制造食物。','它们不能从一个地方移动到另一个地方。','包括无维管植物（苔藓）和维管植物（蕨类、松柏、开花植物）。']},
+    t:[euk, o('Multicellular','多细胞'), o('Autotroph (photosynthesis)','自养（光合作用）'), o('Yes (cellulose)','有（纤维素）')], ex:o('Mosses, ferns, pine trees, sunflowers, oak trees','苔藓、蕨类、松树、向日葵、橡树'),
+    hint:o('Plants: sunlight in, sugar out.','植物：吸收阳光，制造糖分。')},
+  animalia:{dom:'Eukarya', color:'#e5484d', e:'🐟', name:o('Animalia','动物界'), job:o('Consumers that eat other organisms','摄食其他生物的消费者'),
+    facts:{en:['Animals must eat (ingest) other organisms to get energy.','Most can move on their own for at least part of their life.','About 95% of animal species are invertebrates (no backbone).'], zh:['动物必须摄食其他生物来获得能量。','大多数动物至少在生命的某个阶段能够自主运动。','约 95% 的动物物种是无脊椎动物（没有脊椎）。']},
+    t:[euk, o('Multicellular','多细胞'), o('Heterotroph (eats food)','异养（摄食）'), o('No','没有')], ex:o('Sponges, insects, fish, birds, humans','海绵、昆虫、鱼、鸟、人'),
+    hint:o('Animals: no cell walls, and they eat their food.','动物：没有细胞壁，靠“吃”获取食物。'), mix:o('Animals are not only furry creatures: sponges, corals, worms and insects are animals too.','动物不只是毛茸茸的生物：海绵、珊瑚、蠕虫和昆虫也都是动物。')}
+};
+const KORDER = ['bacteria', 'archaea', 'protista', 'fungi', 'plantae', 'animalia'];
+const TROWS = [o('Cell type','细胞类型'), o('Number of cells','细胞数量'), o('Gets food by','获取食物'), o('Cell wall','细胞壁')];
+
+/* ===== App state shared with the 3D module ===== */
+const App = window.CLS = { view:'funnel', target:'wolf', level:0, sel:null, three:null, domains:false };
+App.select = (k, from3D) => {
+  App.sel = k;
+  if (k && k[0] === 'L'){ App.level = +k.slice(1); Lab.$('#level').value = App.level; if (App.three) App.three.level(App.level); }
+  renderInfo(); renderChips(); renderBar();
+  if (!from3D && App.three) App.three.focus(k);
+};
+App.setView = v => { App.view = v; App.sel = null; if (v === 'funnel') App.sel = 'L' + App.level; renderAll(); if (App.three) App.three.view(v); };
+App.setTarget = t => { App.target = t; renderAll(); if (App.three) App.three.target(); };
+const memoryLine = i => 'Dear King Philip Came Over For Good Soup'.split(' ').map((w, j) => j + 1 === i ? `<b style="color:${LCOL[i]};display:inline;font-size:inherit;letter-spacing:0;text-transform:none">${w}</b>` : w).join(' ');
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel, T = TARGETS[App.target];
+  if (App.view === 'funnel' && k && k[0] === 'L'){
+    const i = +k.slice(1), L = LEVELS[i], mem = members(T, i), prev = i ? members(T, i - 1) : [], out = prev.filter(g => !mem.includes(g)), tax = i ? T.p[i - 1] : null;
+    box.innerHTML = `<span class="tag" style="color:${LCOL[i]};background:color-mix(in srgb,${LCOL[i]} 15%,transparent)">${Lab.L(o('Level','等级'))} ${i} / 8</span>
+      <h3><span class="dot" style="background:${LCOL[i]}"></span>${Lab.L(L.name)}${tax ? ': ' + taxName(tax) : ''}</h3>
+      ${tax && TAXA[tax] ? `<div class="job">${Lab.L(TAXA[tax].d)}</div>` : ''}
+      <ul>${Lab.L(L.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+      <div class="now">${Lab.lang === 'zh' ? `这一组里有 <b>${mem.length}</b> 种(共 ${ORGS.length} 种):` : `<b>${mem.length}</b> of our ${ORGS.length} organisms are in this group:`}<div class="members">${mem.map(g => `<span title="${Lab.L(g.n)}">${g.e === 'amoeba' ? '🔬' : g.e}</span>`).join('')}</div>
+        ${out.length ? `<div style="margin-top:6px;color:var(--ink-2)">${Lab.L(o('Left out at this level:','在这一级被分出去的：'))} ${out.map(g => g.e === 'amoeba' ? '🔬' : g.e).join(' ')}</div>` : ''}</div>
+      ${i ? `<div class="memory"><b>${Lab.L({en:'💡 Memory hint',zh:'💡 记忆小窍门'})}</b>${memoryLine(i)}<br>${Lab.L(o('Chinese： 域 界 门 纲 目 科 属 种','中文：域 界 门 纲 目 科 属 种'))}</div>` : ''}
+      ${L.mix ? `<div class="mix"><b>${Lab.L({en:'⚠️ Common mix-up:',zh:'⚠️ 容易混淆：'})}</b><span>${Lab.L(L.mix)}</span></div>` : ''}
+      <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+      <div class="nav"><button id="pPrev">${Lab.L({en:'▲ Up a level',zh:'▲ 上一级'})}</button><button id="pNext">${Lab.L({en:'Down a level ▼',zh:'下一级 ▼'})}</button></div>`;
+    Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(L.name), tax || '', ...Lab.L(L.facts)].join('. '));
+    Lab.$('#pPrev').onclick = () => App.select('L' + Math.max(0, i - 1));
+    Lab.$('#pNext').onclick = () => App.select('L' + Math.min(8, i + 1));
+    return;
+  }
+  if (App.view === 'kingdoms' && k && KING[k]){
+    const K = KING[k], D = DOMAINS[K.dom], i = KORDER.indexOf(k);
+    box.innerHTML = `<span class="tag" style="color:${D.color};background:color-mix(in srgb,${D.color} 15%,transparent)">${Lab.L(D.name)}</span>
+      <h3><span class="dot" style="background:${K.color}"></span>${Lab.L(K.name)}</h3>
+      <div class="job">${Lab.L(K.job)}</div>
+      <ul>${Lab.L(K.facts).map(f => `<li>${f}</li>`).join('')}</ul>${window.REALFIG && REALFIG[k] ? LabPhotos.figure(REALFIG[k]) : ''}
+      <div class="traits">${TROWS.map((r, j) => `<b>${Lab.L(r)}</b><span>${Lab.L(K.t[j])}</span>`).join('')}<b>${Lab.L(o('Examples','例子'))}</b><span>${Lab.L(K.ex)}</span></div>
+      <div class="memory"><b>${Lab.L({en:'💡 Memory hint',zh:'💡 记忆小窍门'})}</b>${Lab.L(K.hint)}</div>
+      ${K.mix ? `<div class="mix"><b>${Lab.L({en:'⚠️ Common mix-up:',zh:'⚠️ 容易混淆：'})}</b><span>${Lab.L(K.mix)}</span></div>` : ''}
+      <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+      <div class="nav"><button id="pPrev">${Lab.L({en:'◀ Previous',zh:'◀ 上一个'})}</button><button id="pNext">${Lab.L({en:'Next ▶',zh:'下一个 ▶'})}</button></div>`;
+    Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(K.name), Lab.L(K.job), ...Lab.L(K.facts), Lab.L(K.hint)].join('. '));
+    Lab.$('#pPrev').onclick = () => App.select(KORDER[(i + 5) % 6]);
+    Lab.$('#pNext').onclick = () => App.select(KORDER[(i + 1) % 6]);
+    return;
+  }
+  box.innerHTML = `<span class="tag">${Lab.L(o('Six kingdoms · three domains','六界 · 三域'))}</span>
+    <h3>${Lab.L(o('Sorting life into groups','给生物分门别类'))}</h3>
+    <p class="muted" style="margin:0">${Lab.L(o('Each pedestal holds a model of one kingdom. Click a model to compare its cells and how it gets food. Press “Show 3 domains” to see the even bigger groups.','每个展台上是一个界的代表模型。点击模型，比较它们的细胞和获取食物的方式。点“显示三域”可以看到更大的分组。'))}</p>
+    <div class="memory"><b>${Lab.L({en:'💡 Big idea',zh:'💡 核心概念'})}</b>${Lab.L(o('Kingdoms are sorted by three questions: Does the cell have a nucleus? One cell or many? Does it make, absorb or eat its food?','划分“界”主要看三个问题：细胞有没有细胞核？单细胞还是多细胞？食物是自己制造、吸收还是摄食？'))}</div>
+    <div class="nav"><button id="startBtn">${Lab.L(o('Start with bacteria ▶','从细菌开始 ▶'))}</button></div>`;
+  Lab.$('#startBtn').onclick = () => App.select('bacteria');
+}
+function renderChips(){
+  const keys = App.view === 'funnel' ? LEVELS.map((_, i) => 'L' + i) : KORDER, T = TARGETS[App.target];
+  Lab.$('#chips').innerHTML = keys.map(k => {
+    const fun = k[0] === 'L', i = fun ? +k.slice(1) : 0, col = fun ? LCOL[i] : KING[k].color;
+    const label = fun ? `${Lab.L(LEVELS[i].name)}${i ? ' · ' + (Lab.lang === 'zh' && TAXA[T.p[i - 1]] ? TAXA[T.p[i - 1]].zh : T.p[i - 1]) : ''}` : Lab.L(KING[k].name);
+    return `<button class="chip ${App.sel === k ? 'on' : ''}" data-k="${k}"><i style="background:${col}"></i>${label}</button>`;
+  }).join('');
+  Lab.$$('#chips .chip').forEach(c => c.onclick = () => App.select(c.dataset.k));
+}
+function renderBar(){
+  const f = App.view === 'funnel';
+  Lab.$('#viewSeg').innerHTML = [['funnel', o('🌀 Taxonomy funnel','🌀 分类漏斗')], ['kingdoms', o('👑 Six kingdoms','👑 六界')]].map(([v, n]) => `<button data-v="${v}" class="${App.view === v ? 'on' : ''}">${Lab.L(n)}</button>`).join('');
+  Lab.$$('#viewSeg button').forEach(b => b.onclick = () => App.setView(b.dataset.v));
+  const ts = Lab.$('#targetSeg'); ts.style.display = f ? '' : 'none';
+  ts.innerHTML = Object.keys(TARGETS).map(t => `<button data-t="${t}" class="${App.target === t ? 'on' : ''}" title="${Lab.L(TARGETS[t].n)}">${TARGETS[t].e} ${Lab.L(TARGETS[t].n)}</button>`).join('');
+  Lab.$$('#targetSeg button').forEach(b => b.onclick = () => App.setTarget(b.dataset.t));
+  Lab.$('#levelPill').style.display = f ? '' : 'none'; Lab.$('#domPill').style.display = f ? 'none' : '';
+  Lab.$('#storyBtn').style.display = f ? '' : 'none';
+  Lab.$('#levelName').textContent = Lab.L(LEVELS[App.level].name);
+  Lab.$('#domBtn').classList.toggle('on', App.domains);
+}
+function renderLadder(){
+  const T = ORGS[0];
+  Lab.$('#ladder').innerHTML = LEVELS.slice(1).map((L, j) => `<div class="rung" style="background:${LCOL[j + 1]}"><b>${L.w[0]}</b><span>${Lab.L(L.name)}</span><small>${T.p[j]}</small>${Lab.lang === 'zh' && TAXA[T.p[j]] ? `<span style="font-size:12px">${TAXA[T.p[j]].zh}</span>` : ''}</div>`).join('');
+}
+function renderAll(){ renderInfo(); renderChips(); renderBar(); }
+Lab.$('#level').oninput = e => App.select('L' + e.target.value);
+Lab.$('#domBtn').onclick = () => { App.domains = !App.domains; renderBar(); if (App.three) App.three.domains(App.domains); };
+App.sel = 'L0';
+Lab.onLang(() => { renderAll(); renderLadder(); });
+/* ===== Dichotomous key: identify 8 animals ===== */
+const KEYN = {
+  n1:{q:o('Does it have a backbone?','它有脊椎（脊柱）吗？'), t:'backbone', yes:'n2', no:'n6'},
+  n2:{q:o('Does it have feathers?','它有羽毛吗？'), t:'feathers', yes:'eagle', no:'n3'},
+  n3:{q:o('Does it have fur or hair?','它有毛发吗？'), t:'fur', yes:'cat', no:'n4'},
+  n4:{q:o('Does it have fins?','它有鳍吗？'), t:'fins', yes:'trout', no:'n5'},
+  n5:{q:o('Does it have legs?','它有腿吗？'), t:'legs', yes:'frog', no:'snake'},
+  n6:{q:o('Does it have legs?','它有足（腿）吗？'), t:'legs', yes:'n7', no:'worm'},
+  n7:{q:o('Does it have 6 legs and wings?','它有 6 条腿和翅膀吗？'), t:'six', yes:'butterfly', no:'spider'}
+};
+const KNUM = { n1:1, n2:2, n3:3, n4:4, n5:5, n6:6, n7:7 };
+const KORG = {
+  eagle:{e:'🦅', n:o('Golden eagle','金雕'), sci:'Aquila chrysaetos', backbone:1, feathers:1, fur:0, fins:0, legs:1, six:0},
+  cat:{e:'🐈', n:o('House cat','家猫'), sci:'Felis catus', backbone:1, feathers:0, fur:1, fins:0, legs:1, six:0},
+  trout:{e:'🐟', n:o('Rainbow trout','虹鳟'), sci:'Oncorhynchus mykiss', backbone:1, feathers:0, fur:0, fins:1, legs:0, six:0},
+  frog:{e:'🐸', n:o('Common frog','林蛙'), sci:'Rana temporaria', backbone:1, feathers:0, fur:0, fins:0, legs:1, six:0},
+  snake:{e:'🐍', n:o('Garter snake','束带蛇'), sci:'Thamnophis sirtalis', backbone:1, feathers:0, fur:0, fins:0, legs:0, six:0},
+  butterfly:{e:'🦋', n:o('Monarch butterfly','帝王蝶'), sci:'Danaus plexippus', backbone:0, feathers:0, fur:0, fins:0, legs:1, six:1},
+  spider:{e:'🕷️', n:o('Garden spider','十字园蛛'), sci:'Araneus diadematus', backbone:0, feathers:0, fur:0, fins:0, legs:1, six:0},
+  worm:{e:'🪱', n:o('Earthworm','蚯蚓'), sci:'Lumbricus terrestris', backbone:0, feathers:0, fur:0, fins:0, legs:0, six:0}
+};
+const TNAME = { backbone:o('a backbone','脊椎'), feathers:o('feathers','羽毛'), fur:o('fur or hair','毛发'), fins:o('fins','鳍'), legs:o('legs','腿'), six:o('6 legs and wings','6 条腿和翅膀') };
+const DK = { org:null, node:'n1', path:[], done:new Set(), err:0, order:Lab.shuffle(Object.keys(KORG)) };
+function dkPick(id){ DK.org = id; DK.node = 'n1'; DK.path = []; Lab.$('#keyMsg').textContent = ''; dkRender(); }
+function dkAnswer(yes){
+  const N = KEYN[DK.node], O = KORG[DK.org], truth = !!O[N.t], m = Lab.$('#keyMsg');
+  if (yes !== truth){
+    DK.err++;
+    m.textContent = Lab.lang === 'zh' ? `❌ 再仔细看看:${Lab.L(O.n)}${truth ? '确实有' : '没有'}${Lab.L(TNAME[N.t])}。` : `❌ Look again: a ${Lab.L(O.n).toLowerCase()} ${truth ? 'DOES have' : 'does NOT have'} ${Lab.L(TNAME[N.t])}.`;
+    m.className = 'result bad'; dkRender(); return;
+  }
+  DK.path.push({ node:DK.node, yes });
+  const nx = yes ? N.yes : N.no;
+  if (KEYN[nx]){ DK.node = nx; m.textContent = ''; m.className = 'result'; }
+  else {
+    DK.node = null; DK.done.add(DK.org);
+    m.innerHTML = (Lab.lang === 'zh' ? `🎉 鉴定成功:<b>${Lab.L(KORG[nx].n)}</b>,学名 <i>${KORG[nx].sci}</i>` : `🎉 Identified: <b>${Lab.L(KORG[nx].n)}</b>, scientific name <i>${KORG[nx].sci}</i>`) + (DK.done.size === 8 ? Lab.L(o(' · All 8 identified!',' · 8 种全部鉴定完成！')) : '');
+    m.className = 'result good';
+  }
+  dkRender();
+}
+function dkRender(){
+  Lab.$('#orgPick').innerHTML = DK.order.map((id, i) => `<button data-id="${id}" class="${DK.org === id ? 'on' : ''} ${DK.done.has(id) ? 'done' : ''}" title="${Lab.L(o('Mystery','神秘生物'))} ${i + 1}">${KORG[id].e}</button>`).join('');
+  Lab.$$('#orgPick button').forEach(b => b.onclick = () => dkPick(b.dataset.id));
+  const O = DK.org && KORG[DK.org];
+  Lab.$('#mystery').textContent = O ? O.e : '❓';
+  if (!O){ Lab.$('#keyQ').textContent = Lab.L(o('Choose a mystery organism above.','请在上面选择一个神秘生物。')); Lab.$('#keyYN').innerHTML = ''; }
+  else if (DK.node){
+    Lab.$('#keyQ').textContent = `${KNUM[DK.node]}. ${Lab.L(KEYN[DK.node].q)}`;
+    Lab.$('#keyYN').innerHTML = `<button data-y="1">✅ ${Lab.L(o('Yes','是'))} (${KNUM[DK.node]}a)</button><button data-y="0">❌ ${Lab.L(o('No','否'))} (${KNUM[DK.node]}b)</button>`;
+    Lab.$$('#keyYN button').forEach(b => b.onclick = () => dkAnswer(b.dataset.y === '1'));
+  } else { Lab.$('#keyQ').textContent = Lab.L(o('Pick another mystery organism!','再选一个神秘生物吧！')); Lab.$('#keyYN').innerHTML = ''; }
+  Lab.$('#keyCrumbs').innerHTML = DK.path.map(s => `<span>${KNUM[s.node]}${s.yes ? 'a' : 'b'}</span>`).join('→');
+  const onPath = new Set(DK.path.map(s => s.node));
+  const dest = id => KEYN[id] ? `${Lab.L(o('go to','转到'))} ${KNUM[id]}` : `${KORG[id].e} ${Lab.L(KORG[id].n)}`;
+  Lab.$('#keyList').innerHTML = Object.keys(KEYN).map(id => {
+    const N = KEYN[id], q = Lab.L(N.q).replace(/[??]$/, '');
+    return `<li class="${DK.node === id ? 'cur' : ''} ${onPath.has(id) ? 'path' : ''}"><span class="n">${KNUM[id]}a</span>${Lab.L(o('Yes','是'))}: ${q}<span class="go">→ ${dest(N.yes)}</span><br><span class="n">${KNUM[id]}b</span>${Lab.L(o('No','否'))}<span class="go">→ ${dest(N.no)}</span></li>`;
+  }).join('');
+  Lab.$('#keyDone').textContent = DK.done.size + '/8'; Lab.$('#keyErr').textContent = DK.err;
+}
+Lab.onLang(dkRender);
+
+/* ===== Build your own key ===== */
+const SEA = {
+  shark:{e:'🦈', n:o('Shark','鲨鱼'), backbone:1, lungs:0, feathers:0, shell:0, arms:0, gills:1, milk:0},
+  dolphin:{e:'🐬', n:o('Dolphin','海豚'), backbone:1, lungs:1, feathers:0, shell:0, arms:0, gills:0, milk:1},
+  penguin:{e:'🐧', n:o('Penguin','企鹅'), backbone:1, lungs:1, feathers:1, shell:0, arms:0, gills:0, milk:0},
+  turtle:{e:'🐢', n:o('Sea turtle','海龟'), backbone:1, lungs:1, feathers:0, shell:1, arms:0, gills:0, milk:0},
+  octopus:{e:'🐙', n:o('Octopus','章鱼'), backbone:0, lungs:0, feathers:0, shell:0, arms:1, gills:1, milk:0},
+  crab:{e:'🦀', n:o('Crab','螃蟹'), backbone:0, lungs:0, feathers:0, shell:1, arms:0, gills:1, milk:0}
+};
+const SEAQ = { backbone:o('Does it have a backbone?','它有脊椎吗？'), lungs:o('Does it breathe air with lungs?','它用肺呼吸空气吗？'), gills:o('Does it breathe with gills?','它用鳃呼吸吗？'),
+  feathers:o('Does it have feathers?','它有羽毛吗？'), shell:o('Does it have a hard shell?','它有坚硬的外壳吗？'), arms:o('Does it have 8 arms?','它有 8 条腕吗？'), milk:o('Does it feed its young milk?','它用乳汁哺育幼崽吗？') };
+let TREE;
+function treeReset(){ TREE = { ids:Object.keys(SEA) }; Lab.$('#treeMsg').textContent = ''; treeRender(); }
+function depth(n){ return n.q ? 1 + Math.max(depth(n.y), depth(n.n)) : 0; }
+function allLeaves(n){ return n.q ? allLeaves(n.y) && allLeaves(n.n) : n.ids.length === 1; }
+function nodeHTML(n, path){
+  if (n.ids.length === 1) return `<div class="node leaf"><div class="orgs">${SEA[n.ids[0]].e}</div><b>${Lab.L(SEA[n.ids[0]].n)}</b></div>`;
+  const orgs = `<div class="orgs">${n.ids.map(id => `<span title="${Lab.L(SEA[id].n)}">${SEA[id].e}</span>`).join(' ')}</div>`;
+  if (!n.q) return `<div class="node">${orgs}<select data-path="${path}"><option value="">${Lab.L(o('— choose a question to split this group —','—— 选择一个问题来分开这一组 ——'))}</option>${Object.keys(SEAQ).map(q => `<option value="${q}">${Lab.L(SEAQ[q])}</option>`).join('')}</select></div>`;
+  return `<div class="node">${orgs}<div class="qlabel">${Lab.L(SEAQ[n.q])} <button class="tbtn" data-undo="${path}" style="box-shadow:none;padding:2px 9px;font-size:12px">↺</button></div>
+    <div class="split"><div><div class="yes">✅ ${Lab.L(o('Yes','是'))}</div>${nodeHTML(n.y, path + 'y')}</div><div><div class="no">❌ ${Lab.L(o('No','否'))}</div>${nodeHTML(n.n, path + 'n')}</div></div></div>`;
+}
+const nodeAt = path => [...path].reduce((n, c) => c === 'y' ? n.y : n.n, TREE);
+function treeRender(){
+  const el = Lab.$('#tree'); el.innerHTML = nodeHTML(TREE, '');
+  el.querySelectorAll('select').forEach(s => s.onchange = () => {
+    const n = nodeAt(s.dataset.path), q = s.value; if (!q) return;
+    const y = n.ids.filter(id => SEA[id][q]), no = n.ids.filter(id => !SEA[id][q]), m = Lab.$('#treeMsg');
+    if (!y.length || !no.length){ m.textContent = Lab.L(o('🤔 Everyone in this group gives the same answer, so that question does not split it. Try another!','🤔 这一组的成员答案都一样，这个问题分不开它们。换一个试试！')); m.className = 'result bad'; s.value = ''; return; }
+    n.q = q; n.y = { ids:y }; n.n = { ids:no }; m.textContent = ''; m.className = 'result';
+    treeRender();
+  });
+  el.querySelectorAll('[data-undo]').forEach(b => b.onclick = () => { const n = nodeAt(b.dataset.undo); delete n.q; delete n.y; delete n.n; treeRender(); });
+  if (allLeaves(TREE)){ const m = Lab.$('#treeMsg'); const c = depth(TREE); m.textContent = Lab.lang === "zh" ? `🎉 你的检索表成功了!最长的一条路要回答 ${c} 个问题。${c > 3 ? "能把最长的路缩短到 3 个问题吗？提示：先选一个能把 6 种动物分成 3 + 3 的问题。" : "这已经是最短的了，太棒了！"}` : `🎉 Your key works! The longest path takes ${c} questions. ${c > 3 ? "Can you get it down to 3? Hint: start with a question that splits the 6 animals 3 + 3." : "That is the shortest possible. Excellent!"}`; m.className = 'result good'; }
+}
+Lab.$('#treeReset').onclick = treeReset;
+Lab.onLang(() => { if (!TREE) treeReset(); else treeRender(); });
+/* ===== Quiz ===== */
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('Who created the ranked classification system and binomial nomenclature?','谁建立了分等级的分类系统和双名法？'), options:[o('Carolus Linnaeus','林奈'),o('Charles Darwin','达尔文'),o('Gregor Mendel','孟德尔'),o('Robert Hooke','胡克')], answer:0, explain:o('Linnaeus (1700s) is called the father of taxonomy.','林奈（18 世纪）被称为“分类学之父”。')},
+  {q:o('Which scientific name is written correctly?','下面哪个学名的写法是正确的？'), options:[o('Canis lupus','Canis lupus'),o('canis Lupus','canis Lupus'),o('Canis Lupus','Canis Lupus'),o('CANIS LUPUS','CANIS LUPUS')], answer:0, explain:o('Genus capitalized, species lowercase, both in italics.','属名首字母大写，种加词小写，都用斜体。')},
+  {q:o('What is the correct order from broadest to most specific?','从最大到最小，分类等级的正确顺序是？'), options:[o('Domain, Kingdom, Phylum, Class, Order, Family, Genus, Species','域、界、门、纲、目、科、属、种'),o('Kingdom, Domain, Class, Phylum, Order, Genus, Family, Species','界、域、纲、门、目、属、科、种'),o('Species, Genus, Family, Order, Class, Phylum, Kingdom, Domain','种、属、科、目、纲、门、界、域'),o('Domain, Phylum, Kingdom, Order, Class, Genus, Family, Species','域、门、界、目、纲、属、科、种')], answer:0, explain:o('Dear King Philip Came Over For Good Soup.','口诀：域界门纲目科属种。')},
+  {q:o('Which level contains the MOST different kinds of organisms?','哪个分类等级包含的生物种类最多？'), options:[o('Domain','域'),o('Species','种'),o('Genus','属'),o('Family','科')], answer:0, explain:o('Domain is the broadest level; species is the most specific.','域是最大的等级，种是最小的等级。')},
+  {q:o('Organisms in the same ___ are the most closely related.','同一个___的生物亲缘关系最近。'), options:[o('Genus','属'),o('Order','目'),o('Class','纲'),o('Kingdom','界')], answer:0, explain:o('Of these choices, genus is the lowest (most specific) level.','这几个选项中，属是最低（最具体）的等级。')},
+  {q:o('What are the three domains?','三个域分别是什么？'), options:[o('Bacteria, Archaea, Eukarya','细菌域、古菌域、真核生物域'),o('Plants, Animals, Fungi','植物、动物、真菌'),o('Protista, Fungi, Plantae','原生生物、真菌、植物'),o('Vertebrates, Invertebrates, Microbes','脊椎动物、无脊椎动物、微生物')], answer:0},
+  {q:o('Which kingdom has prokaryotes that often live in extreme places like hot springs?','哪个界的原核生物常常生活在温泉等极端环境中？'), options:[o('Archaebacteria','古细菌界'),o('Protista','原生生物界'),o('Fungi','真菌界'),o('Plantae','植物界')], answer:0},
+  {q:o('Why are mushrooms classified as fungi and not plants?','为什么蘑菇被归为真菌而不是植物？'), options:[o('They absorb food and cannot photosynthesize','它们靠吸收获取营养，不能进行光合作用'),o('They are green','它们是绿色的'),o('They have no cells','它们没有细胞'),o('They are prokaryotes','它们是原核生物')], answer:0, explain:o('Fungi have no chlorophyll; they are heterotrophs with chitin cell walls.','真菌没有叶绿素，是异养生物，细胞壁含几丁质。')},
+  {q:o('An amoeba is a single-celled eukaryote that is not a plant, animal or fungus. Its kingdom is…','变形虫是单细胞真核生物，不是植物、动物或真菌。它属于……'), options:[o('Protista','原生生物界'),o('Eubacteria','真细菌界'),o('Animalia','动物界'),o('Archaebacteria','古细菌界')], answer:0},
+  {q:o('A dichotomous key works by…','二歧检索表的使用方法是……'), options:[o('Choosing between two statements at each step','每一步在两个描述中选择一个'),o('Guessing the name right away','直接猜名字'),o('Counting the organism’s cells','数生物有多少个细胞'),o('Comparing four choices at once','一次比较四个选项')], answer:0, explain:o('“Dichotomous” means dividing into two parts.','“二歧”就是分成两条路。')},
+  {q:o('Early classification systems (like Linnaeus’s) were mainly based on…','早期的分类系统（例如林奈的）主要依据……'), options:[o('Physical traits such as body structure','身体结构等外部特征'),o('DNA sequences','DNA 序列'),o('Where the organism lives only','只看生物生活在哪里'),o('Color only','只看颜色')], answer:0, explain:o('DNA comparisons came much later and led to changes such as the three-domain system.','DNA 比较是后来才有的，它促成了三域系统等改变。')},
+  {q:o('Lions (Panthera leo) and tigers (Panthera tigris) are in the same…','狮(Panthera leo)和虎(Panthera tigris)属于同一个……'), options:[o('Genus','属'),o('Species','种'),o('Neither family nor genus','既不同科也不同属'),o('Only domain','只同域')], answer:0, explain:o('They share the first word of the name, Panthera, so they are in the same genus (and family, order...).','它们学名的第一个词都是 Panthera，所以同属（当然也同科、同目……）。')}
+], { count:10 });
+
+/* ===== Sort game: six kingdoms ===== */
+Lab.sort(Lab.$('#sort'), {
+  bins:KORDER.map(k => ({id:k, en:KING[k].name.en, zh:KING[k].name.zh})),
+  items:[
+    {en:'E. coli',zh:'大肠杆菌',bin:'bacteria'},{en:'Streptococcus (strep throat)',zh:'链球菌（咽炎）',bin:'bacteria'},
+    {en:'Methanogen in a cow’s gut',zh:'牛胃里的产甲烷菌',bin:'archaea'},{en:'Salt-loving halophile',zh:'嗜盐菌',bin:'archaea'},
+    {en:'Paramecium',zh:'草履虫',bin:'protista'},{en:'Kelp (seaweed)',zh:'海带',bin:'protista'},
+    {en:'Yeast',zh:'酵母菌',bin:'fungi'},{en:'Bread mold',zh:'面包霉',bin:'fungi'},
+    {en:'Moss',zh:'苔藓',bin:'plantae'},{en:'Pine tree',zh:'松树',bin:'plantae'},
+    {en:'Sponge',zh:'海绵',bin:'animalia'},{en:'Jellyfish',zh:'水母',bin:'animalia'}
+  ]
+});
+</script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const App = window.CLS, V = THREE.Vector3, C = c => new THREE.Color(c), PI = Math.PI;
+const ctx = Lab3D.stage('#stage', { THREE, OrbitControls, camera:[0, 10, 19], target:[0, 3.8, 0], minDistance:3, maxDistance:50 });
+const { scene } = ctx;
+const ALL = [];
+function mat(key, color, op = 1, extra = {}){ const m = ctx.mat(color, op, { transparent:true, ...extra }); m.userData = { key, op, e0:m.emissive.clone() }; ALL.push(m); return m; }
+
+/* ---------- emoji / icon sprites ---------- */
+const texCache = {};
+function iconTex(e){
+  if (texCache[e]) return texCache[e];
+  const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+  g.beginPath(); g.arc(64, 64, 60, 0, PI * 2); g.fillStyle = 'rgba(255,255,255,.88)'; g.fill(); g.lineWidth = 4; g.strokeStyle = 'rgba(20,33,61,.25)'; g.stroke();
+  if (e === 'amoeba'){
+    g.beginPath(); for (let i = 0; i <= 40; i++){ const a = i / 40 * PI * 2, r = 38 + 10 * Math.sin(a * 3) + 6 * Math.sin(a * 5 + 1); g.lineTo(64 + Math.cos(a) * r, 64 + Math.sin(a) * r); }
+    g.fillStyle = '#7fd6a4'; g.fill(); g.strokeStyle = '#2f9e66'; g.stroke(); g.beginPath(); g.arc(58, 60, 12, 0, PI * 2); g.fillStyle = '#2f7a55'; g.fill();
+  } else { g.font = '76px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(e, 64, 70); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return texCache[e] = t;
+}
+
+/* ---------- 1. taxonomy funnel ---------- */
+const funnel = new THREE.Group(); scene.add(funnel);
+const YL = i => 8.2 - i * .95, RL = i => 5.3 - i * .57;
+const rings = LEVELS.map((L, i) => {
+  const g = new THREE.Group(); g.position.y = YL(i); funnel.add(g);
+  const disc = new THREE.Mesh(new THREE.CylinderGeometry(RL(i), RL(i), .07, 72), mat('L' + i, LCOL[i], .32, { depthWrite:false })); g.add(disc);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(RL(i), .065, 10, 96), mat('L' + i, LCOL[i], 1, { emissive:C(LCOL[i]).multiplyScalar(.25) })); rim.rotation.x = PI / 2; g.add(rim);
+  ctx.pickable(g, 'L' + i);
+  const spin = new THREE.Group(); g.add(spin);
+  const lab = ctx.label(() => { const T = TARGETS[App.target]; return `${Lab.L(L.name)}${i ? ': ' + taxName(T.p[i - 1]) : ''}`; }, new V(RL(i) + .35, YL(i), 0), { cls:'lvl' });
+  lab.el.style.transform = 'translate(0,-50%)';
+  return { g, spin, lab, sprites:[] };
+});
+const wall = new THREE.Mesh(new THREE.LatheGeometry(LEVELS.map((_, i) => new THREE.Vector2(RL(i) + .02, YL(i))).reverse(), 72),
+  new THREE.MeshPhysicalMaterial({ color:'#9fb4d8', transparent:true, opacity:.07, side:THREE.DoubleSide, depthWrite:false })); funnel.add(wall);
+const speciesLab = ctx.label(() => { const T = TARGETS[App.target]; return `${Lab.L(T.n)} · ${T.p[7]}`; }, new V(0, YL(8) - .75, 0), { cls:'big' });
+function buildSprites(){
+  const T = TARGETS[App.target];
+  rings.forEach((R, i) => {
+    R.sprites.forEach(s => { R.spin.remove(s); s.material.dispose(); }); R.sprites = [];
+    const mem = members(T, i), n = mem.length, rad = i === 8 ? 0 : RL(i) * .8, size = i === 8 ? 1.2 : Math.min(.82, .3 + RL(i) * .14);
+    mem.forEach((org, j) => {
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map:iconTex(org.e), transparent:true, depthWrite:false }));
+      const a = j / n * PI * 2 + i * .4; s.position.set(Math.cos(a) * rad, size * .55 + .05, Math.sin(a) * rad); s.scale.setScalar(size);
+      s.userData.org = org; R.spin.add(s); R.sprites.push(s);
+    });
+  });
+}
+buildSprites();
+
+/* ---------- 2. six kingdoms on pedestals ---------- */
+const kings = new THREE.Group(); kings.visible = false; scene.add(kings);
+const KC = new V(0, 0, 5), KR = 7, kAng = k => (-62.5 + k * 25) * PI / 180, kPos = k => new V(Math.sin(kAng(k)) * KR, 0, -Math.cos(kAng(k)) * KR + 5);
+const PEDN = C('#c9d3e3'), ped = {}, anim = {}, kLabels = [];
+KORDER.forEach((k, idx) => {
+  const g = new THREE.Group(); g.position.copy(kPos(idx)); g.lookAt(0, 0, 14); kings.add(g);
+  const pm = mat(k, '#c9d3e3', .9, { roughness:.4 }); ped[k] = pm;
+  const p = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.28, .4, 44), pm); p.position.y = .2; g.add(p);
+  const m = new THREE.Group(); m.position.y = .4; g.add(m);
+  ({ bacteria:BUILD_bacteria, archaea:BUILD_archaea, protista:BUILD_protista, fungi:BUILD_fungi, plantae:BUILD_plantae, animalia:BUILD_animalia })[k](m, k);
+  ctx.pickable(g, k);
+  const kl = ctx.label(KING[k].name, new V(g.position.x, -.35, g.position.z + 1.3), { cls:'head' }); kl.visible = false; kLabels.push(kl);
+});
+/* domain arcs */
+const domArcs = [], domLabels = [];
+[['Bacteria', 0, 0], ['Archaea', 1, 1], ['Eukarya', 2, 5]].forEach(([d, a, b]) => {
+  const a1 = kAng(a) - .17, a2 = kAng(b) + .17, pts = [];
+  for (let i = 0; i <= 24; i++){ const t = a1 + (a2 - a1) * i / 24; pts.push(new V(Math.sin(t) * (KR - 1.75), .06, -Math.cos(t) * (KR - 1.75) + 5)); }
+  const arc = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 60, .13, 8), new THREE.MeshPhysicalMaterial({ color:DOMAINS[d].color, emissive:C(DOMAINS[d].color).multiplyScalar(.3), transparent:true, opacity:.85 }));
+  arc.visible = false; kings.add(arc); domArcs.push(arc);
+  const mid = (a1 + a2) / 2, L = ctx.label(DOMAINS[d].name, new V(Math.sin(mid) * KR, 3.1, -Math.cos(mid) * KR + 5), { cls:'big' }); L.visible = false; domLabels.push(L);
+});
+/* ---------- kingdom model builders ---------- */
+function BUILD_bacteria(m, k){
+  const g = new THREE.Group(); g.position.y = 1.15; g.rotation.z = .35; m.add(g); anim.bac = g;
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(.34, 1.0, 10, 28), mat(k, '#7fb4f8', .6, { depthWrite:false, clearcoat:1 })); body.rotation.z = PI / 2; g.add(body);
+  const dna = new THREE.Mesh(new THREE.TorusKnotGeometry(.16, .03, 80, 8, 2, 5), mat(k, '#ff9f43')); dna.scale.set(1.6, 1, 1); g.add(dna);
+  const fc = new THREE.CatmullRomCurve3(Array.from({length:10}, (_, i) => new V(-.8 - i * .17, Math.sin(i * 1.3) * .12, Math.cos(i * 1.3) * .12)));
+  g.add(new THREE.Mesh(new THREE.TubeGeometry(fc, 50, .025, 6), mat(k, '#4f7fc0')));
+  const pm = mat(k, '#a7c8f5');
+  for (let i = 0; i < 14; i++){ const a = i / 14 * PI * 2, x = -.5 + (i % 7) * .17, d = new V(0, Math.cos(a), Math.sin(a)); const p = new THREE.Mesh(new THREE.CylinderGeometry(.012, .012, .22, 4), pm); p.position.set(x, 0, 0).addScaledVector(d, .42); p.quaternion.setFromUnitVectors(new V(0, 1, 0), d); g.add(p); }
+}
+function BUILD_archaea(m, k){
+  const pool = new THREE.Mesh(new THREE.CylinderGeometry(.95, .95, .06, 36), mat(k, '#3fc1c9', .7)); pool.position.y = .04; m.add(pool);
+  const geo = new THREE.IcosahedronGeometry(.5, 3), pa = geo.attributes.position, v = new V();
+  for (let i = 0; i < pa.count; i++){ v.fromBufferAttribute(pa, i); const f = 1 + .14 * Math.sin(v.x * 9) * Math.sin(v.y * 7 + 1) * Math.sin(v.z * 8); v.multiplyScalar(f); pa.setXYZ(i, v.x, v.y, v.z); }
+  geo.computeVertexNormals();
+  const cellA = new THREE.Mesh(geo, mat(k, '#f2784b', .9, { clearcoat:.8 })); cellA.position.y = .85; m.add(cellA); anim.arc = cellA;
+  const steamMat = new THREE.MeshPhysicalMaterial({ color:'#ffffff', transparent:true, opacity:.35, depthWrite:false });
+  anim.steam = Array.from({length:9}, (_, i) => { const s = new THREE.Mesh(new THREE.SphereGeometry(.09 + Math.random() * .07, 10, 8), steamMat.clone()); s.position.set((Math.random() - .5) * 1.4, 0, (Math.random() - .5) * 1.2); s.userData.ph = Math.random(); m.add(s); return s; });
+}
+function BUILD_protista(m, k){
+  const geo = new THREE.SphereGeometry(.62, 48, 32); geo.userData.base = geo.attributes.position.array.slice();
+  const cellP = new THREE.Mesh(geo, mat(k, '#7fd6a4', .6, { depthWrite:false, clearcoat:1 })); cellP.position.y = 1.0; cellP.scale.set(1.25, .8, 1.1); m.add(cellP); anim.amoeba = cellP;
+  const nuc = new THREE.Mesh(new THREE.SphereGeometry(.18, 20, 14), mat(k, '#2f7a55')); nuc.position.set(-.1, 1.0, 0); m.add(nuc);
+  const vac = new THREE.Mesh(new THREE.SphereGeometry(.1, 16, 12), mat(k, '#d6f5ff', .9)); vac.position.set(.3, 1.08, .15); m.add(vac);
+}
+function BUILD_fungi(m, k){
+  const stalk = new THREE.Mesh(new THREE.CylinderGeometry(.17, .24, 1.1, 20), mat(k, '#f3e6cf')); stalk.position.y = .55; m.add(stalk);
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(.8, 36, 18, 0, PI * 2, 0, PI / 2), mat(k, '#c0392b', 1, { clearcoat:.9 })); cap.scale.y = .62; cap.position.y = 1.05; m.add(cap);
+  const gills = new THREE.Mesh(new THREE.RingGeometry(.2, .8, 40, 1), mat(k, '#ead7b5', 1, { side:THREE.DoubleSide })); gills.rotation.x = PI / 2; gills.position.y = 1.05; m.add(gills);
+  const spot = mat(k, '#ffffff');
+  for (let i = 0; i < 9; i++){ const a = i * 2.4, r = .25 + (i % 3) * .17, y = Math.sqrt(Math.max(0, .64 - r * r)) * .62; const s = new THREE.Mesh(new THREE.SphereGeometry(.07, 10, 8), spot); s.scale.y = .4; s.position.set(Math.cos(a) * r, 1.05 + y, Math.sin(a) * r); m.add(s); }
+  const hm = mat(k, '#f5efe2');
+  for (let i = 0; i < 7; i++){ const a = i / 7 * PI * 2, pts = []; for (let j = 0; j < 6; j++) pts.push(new V(Math.cos(a + Math.sin(j) * .3) * (.2 + j * .17), .02, Math.sin(a + Math.sin(j) * .3) * (.2 + j * .17))); m.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 20, .018, 5), hm)); }
+}
+function BUILD_plantae(m, k){
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(.13, .2, 1.1, 14), mat(k, '#8a5a36', 1, { roughness:.9 })); trunk.position.y = .55; m.add(trunk);
+  const lm = mat(k, '#3fae55', 1, { flatShading:true, roughness:.7 });
+  [[0, 1.45, 0, .62], [-.35, 1.2, .1, .45], [.38, 1.25, -.05, .48], [.05, 1.85, .05, .42]].forEach(([x, y, z, r]) => { const f = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 1), lm); f.position.set(x, y, z); m.add(f); });
+}
+function BUILD_animalia(m, k){
+  const g = new THREE.Group(); g.position.y = 1.05; m.add(g); anim.fish = g;
+  const body = new THREE.Mesh(new THREE.SphereGeometry(.5, 32, 20), mat(k, '#ff8c42', 1, { clearcoat:1 })); body.scale.set(1.15, .7, .42); g.add(body);
+  const white = mat(k, '#ffffff');
+  for (const x of [-.15, .22]){ const s = new THREE.Mesh(new THREE.TorusGeometry(.3, .05, 8, 28), white); s.rotation.y = PI / 2; s.position.x = x; s.scale.set(.5, 1.1, .7); g.add(s); }
+  const tail = new THREE.Group(); tail.position.x = -.55; g.add(tail); anim.tail = tail;
+  const tf = new THREE.Mesh(new THREE.ConeGeometry(.3, .45, 3), mat(k, '#ff6b1a')); tf.rotation.z = PI / 2; tf.scale.z = .25; tf.position.x = -.18; tail.add(tf);
+  const df = new THREE.Mesh(new THREE.ConeGeometry(.16, .3, 3), mat(k, '#ff6b1a')); df.scale.z = .2; df.position.set(0, .38, 0); g.add(df);
+  for (const z of [-.2, .2]){ const e = new THREE.Mesh(new THREE.SphereGeometry(.07, 12, 10), white); e.position.set(.38, .08, z); g.add(e); const p = new THREE.Mesh(new THREE.SphereGeometry(.035, 8, 8), mat(k, '#111111')); p.position.set(.43, .08, z * 1.1); g.add(p); }
+}
+
+/* ---------- API ---------- */
+const KHOME = [[0, 8.5, 19.5], [0, 1, .5]];
+function levelPose(i){ return [[0, YL(i) + 3.2 + RL(i) * .55, RL(i) * 1.5 + 5.5], [0, YL(i) - .2, 0]]; }
+function setLevel(i){ rings.forEach((R, j) => R.lab.el.classList.toggle('cur', j === i)); }
+function focus(k){
+  if (!k) return App.view === 'funnel' ? ctx.home() : ctx.flyToPose(...KHOME);
+  if (k[0] === 'L'){ const i = +k.slice(1); return i === 0 ? ctx.home() : ctx.flyToPose(...levelPose(i)); }
+  const p = kPos(KORDER.indexOf(k)); ctx.flyToPose([p.x * 1.05, 3.4, p.z + 5], [p.x, 1.2, p.z]);
+}
+function view(v){
+  funnel.visible = v === 'funnel'; kings.visible = v === 'kingdoms';
+  rings.forEach(R => R.lab.visible = funnel.visible); speciesLab.visible = funnel.visible; kLabels.forEach(L => L.visible = kings.visible);
+  domLabels.forEach(L => L.visible = kings.visible && App.domains);
+  if (v === 'funnel') focus(App.sel); else ctx.flyToPose(...KHOME);
+}
+function domains(on){ domArcs.forEach(a => a.visible = on); domLabels.forEach(L => L.visible = on && kings.visible); }
+function target(){ buildSprites(); rings.forEach(R => R.lab.set(R.lab.text)); speciesLab.set(speciesLab.text); }
+App.three = { level:setLevel, focus, view, domains, target };
+ctx.hoverText(k => k[0] === 'L' ? Lab.L(LEVELS[+k.slice(1)].name) : Lab.L(KING[k].name));
+ctx.onPick(k => { if (k && k !== App.sel) App.select(k, false); });
+Lab.$('#resetBtn').onclick = () => { story.stop(); App.domains = false; domains(false); App.target = 'wolf'; target(); App.level = 0; App.setView('funnel'); App.select('L0'); };
+
+/* ---------- story: classify a wolf ---------- */
+const W = ORGS[0];
+const STEPS = LEVELS.map((L, i) => {
+  const n = members(W, i).length, t = i ? W.p[i - 1] : '';
+  if (!i) return { en:`Let’s classify the gray wolf! We start with all life: ${n} organisms in our collection.`, zh:`我们来给狼分类!从“所有生物”开始:我们的收藏里共有 ${n} 种生物。` };
+  const d = TAXA[t] ? TAXA[t].d : { en:'', zh:'' };
+  return { en:`${L.w} → ${L.name.en}: ${t}. ${d.en}. ${n} left.`, zh:`${L.name.zh}:${TAXA[t] ? TAXA[t].zh : ''} ${t}。${d.zh}。还剩 ${n} 种。` };
+});
+const story = Lab3D.story('#stage', STEPS, i => {
+  if (App.view !== 'funnel') App.setView('funnel');
+  if (App.target !== 'wolf') App.setTarget('wolf');
+  App.select('L' + i, false);
+}, () => {});
+Lab.$('#storyBtn').onclick = () => story.start();
+
+/* ---------- per frame ---------- */
+const tmpC = new THREE.Color();
+ctx.onFrame((dt, t) => {
+  const zw = Math.min(1, ctx.camera.aspect / 1.4); if (Math.abs(ctx.camera.zoom - zw) > .005){ ctx.camera.zoom = zw; ctx.camera.updateProjectionMatrix(); }
+  const lv = App.level;
+  rings.forEach((R, i) => { R.spin.rotation.y += dt * (.05 + i * .012); R.sprites.forEach(s => { const op = i < lv ? .12 : i === lv ? 1 : .55; s.material.opacity += (op - s.material.opacity) * Math.min(1, dt * 6); }); });
+  if (kings.visible){
+    anim.bac.position.y = 1.15 + Math.sin(t * 1.4) * .08; anim.bac.rotation.x = t * .4;
+    anim.arc.rotation.y = t * .3;
+    anim.steam.forEach(s => { const u = (t * .25 + s.userData.ph) % 1; s.position.y = .1 + u * 2; s.material.opacity = .4 * Math.sin(PI * u); });
+    const ag = anim.amoeba.geometry, b = ag.userData.base, arr = ag.attributes.position.array;
+    for (let i = 0; i < arr.length; i += 3){ const x = b[i], y = b[i + 1], z = b[i + 2], f = 1 + .22 * Math.max(0, Math.sin(Math.atan2(z, x) * 3 + t * .9)) * (1 - Math.abs(y) / .62) + .05 * Math.sin(y * 8 + t * 2); arr[i] = x * f; arr[i + 1] = y; arr[i + 2] = z * f; }
+    ag.attributes.position.needsUpdate = true; ag.computeVertexNormals();
+    anim.fish.position.y = 1.05 + Math.sin(t * 1.8) * .07; anim.tail.rotation.y = Math.sin(t * 7) * .45; anim.fish.rotation.y = Math.sin(t * .8) * .25;
+    KORDER.forEach(k => ped[k].color.lerp(App.domains ? tmpC.set(DOMAINS[KING[k].dom].color) : PEDN, Math.min(1, dt * 4)));
+  }
+  const sel = App.sel;
+  for (const m of ALL){
+    const on = sel && m.userData.key === sel, dim = sel && !on;
+    m.emissive.copy(m.color).multiplyScalar(on ? .28 + .14 * Math.sin(t * 4) : 0).add(m.userData.e0);
+    m.opacity += ((dim ? m.userData.op * .35 : m.userData.op) - m.opacity) * Math.min(1, dt * 8);
+  }
+});
+setLevel(App.level); renderAll();
+</script>
+</body>
+</html>

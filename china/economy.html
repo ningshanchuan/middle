@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>China’s Economy: Transport, Agriculture &amp; Industry</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/photos.js"></script>
+<script src="../shared/chinamap.js"></script>
+<style>
+/* page-specific only: 2D map stage, strip under the map, transport cards */
+#stage canvas{touch-action:auto;cursor:pointer}
+.mapmsg{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;font-weight:800;color:var(--ink-2);z-index:2;pointer-events:none}
+.layerseg{flex-wrap:wrap;border-radius:18px;flex:0 1 auto;max-width:100%}
+.stage .toolbar{padding-right:50px}
+.pill output{min-width:40px;font-weight:800;color:var(--brand)}
+.pill .mini{border:0;background:var(--surface-2);color:var(--ink);border-radius:999px;padding:3px 10px;font-weight:800;font-size:13px}
+.strip{margin-top:12px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.strip .cap{font-weight:800}
+.strip .here{color:var(--ink-2);font-size:15px;min-height:24px}
+.strip .legend i{border-radius:3px}
+.strip .chips{margin-top:0;gap:6px}
+.strip .chip{font-size:13px;padding:4px 10px}
+.quest{display:flex;flex-wrap:wrap;gap:10px;align-items:center;border-top:1px solid var(--line);padding-top:10px}
+.quest .qprog{flex:1 1 120px;margin:0}
+.quest b{font-size:16px}
+.modes{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:18px;align-items:start}
+.modes details{padding:14px}
+.modes summary{cursor:pointer;font-weight:800;list-style:none;display:flex;flex-direction:column;gap:2px}
+.modes summary::-webkit-details-marker{display:none}
+.modes summary .e{font-size:30px}
+.modes summary small{color:var(--ink-2);font-weight:700}
+.modes p{margin:8px 0 0;font-size:14px;color:var(--ink-2)}
+.scen{font-family:Fredoka,Nunito,"PingFang SC","Microsoft YaHei",sans-serif;font-size:21px;font-weight:600;min-height:92px}
+.pick{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.pick button{border:2px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:14px;padding:10px 4px;font-weight:800;font-size:14px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.pick button .e{font-size:24px}
+.pick button.right{border-color:var(--good);background:color-mix(in srgb,var(--good) 16%,var(--surface))}
+.pick button.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,var(--surface))}
+@media (max-width:980px){.modes{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.scen{font-size:18px}.pick button{font-size:12px;padding:8px 2px}.pill input[type=range]{width:96px}}
+</style>
+</head>
+<body data-subject="china" data-topic="economy">
+<div id="lab-nav"></div>
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="地理 · 八年级上册 · 第四章 中国的经济发展">Geography · Grade 8 · China’s Economy</span>
+  <h1 data-zh-html="中国的经济发展：<em>交通、农业与工业</em>">China’s Economy: <em>Transport, Farms &amp; Factories</em></h1>
+  <p class="lead" data-zh="2008 年，我国第一条高速铁路刚刚通车；十几年后，高铁网的长度已经超过绕地球赤道一圈。这是怎么做到的？拖动年份滑块，看高铁一条条点亮；再看看哪里种水稻、哪里放牧、工厂集中在哪里，并说说为什么。">In 2008 China opened its first high-speed rail line. Fifteen years later it had enough high-speed track to circle the Earth at the equator. How do you move 1.4 billion people — and their food, coal and phones — around a country the size of the USA? Drag the year slider and watch the network light up, then find out where the rice, the sheep and the factories are, and why.</p>
+</header>
+
+<section class="wrap" id="explore" data-nav="Economy Map" data-nav-zh="经济地图">
+  <div class="explorer">
+    <div>
+      <div class="stage card" id="stage">
+        <canvas id="mapcv"></canvas>
+        <div class="toolbar">
+          <div class="seg layerseg" id="layerSeg">
+            <button data-l="hsr" class="on" data-zh="🚄 高铁">🚄 High-speed rail</button>
+            <button data-l="rail" data-zh="🚂 铁路干线">🚂 Main railways</button>
+            <button data-l="farm" data-zh="🌾 农业">🌾 Farming</button>
+            <button data-l="ind" data-zh="🏭 工业">🏭 Industry</button>
+          </div>
+          <button class="tbtn" id="planBtn" data-zh="“八纵八横”规划">8 + 8 plan</button>
+        </div>
+        <div class="mapmsg" id="mapMsg"></div>
+        <div class="bottombar">
+          <div class="pill" id="yearPill"><span data-zh="年份">Year</span><input id="yIn" type="range" min="2008" max="2023" step="1" value="2008" aria-label="Year"><output id="yOut">2008</output><button class="mini" id="playBtn">▶</button></div>
+          <div class="tip" data-zh="点击线路、地区或圆点查看详情">Click a line, a region or a dot for details</div>
+        </div>
+      </div>
+      <div class="card strip">
+        <div class="cap" id="cap"></div>
+        <div class="legend" id="legend"></div>
+        <div class="chips" id="corr" hidden></div>
+        <div class="here" id="here"></div>
+        <div class="quest">
+          <button class="btn" id="qBtn" data-zh="🎯 地图挑战">🎯 Map challenge</button>
+          <b id="qText"></b>
+          <div class="qprog" id="qProg" hidden><div id="qBar"></div></div>
+          <span class="muted" id="qScore" style="font-weight:800"></span>
+        </div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="chips" id="chips"></div>
+  <p class="muted" style="font-size:14px;margin:10px 0 0" data-zh="示意图：铁路线路在城市之间用直线连接，农业区和工业基地的范围均为示意。高铁通车年份按主要区段开通时间标注，里程为年末约数。地图含台湾省和南海诸岛。">Schematic map: railways are drawn as straight links between cities, and farming regions and industrial bases are approximate. High-speed lines are dated by the opening of their main sections; network lengths are rounded year-end totals. The map includes Taiwan Province and the South China Sea Islands.</p>
+</section>
+
+<section class="wrap" id="transport" data-nav="Pick the Transport" data-nav-zh="运输方式">
+  <div class="sec-head">
+    <h2 data-zh="游戏：选择合适的运输方式">Game: pick the right way to ship it</h2>
+    <p data-zh="先点开五张卡片，了解每种运输方式的特点；再根据货物的性质、数量、距离和时间要求，帮每位“客户”选出最合适的方式。">First open the five cards to see what each kind of transport is good at. Then help each customer: think about what is being moved, how much, how far and how fast.</p>
+  </div>
+  <div class="modes" id="modes"></div>
+  <div class="sim">
+    <div class="card simside">
+      <div class="qprog"><div id="tBar"></div></div>
+      <small class="muted" id="tCount" style="font-weight:800"></small>
+      <div class="scen" id="tScen"></div>
+      <div class="pick" id="tPick"></div>
+      <div class="result" id="tMsg"></div>
+      <div class="btnrow"><button class="btn" id="tNext" hidden></button></div>
+    </div>
+    <div class="card simside">
+      <h3 data-zh="记分板">Scoreboard</h3>
+      <div class="counters">
+        <div class="counter"><b id="tOk">0</b><span data-zh="答对">correct</span></div>
+        <div class="counter"><b id="tStreak">0</b><span data-zh="连对">in a row</span></div>
+      </div>
+      <div class="memory"><b data-zh="💡 选择口诀">💡 Rule of thumb</b><span data-zh="贵重急需量不大，航空运输最快捷；鲜活短途用公路，门到门来最灵活；大宗笨重远距离，水运铁路最经济。">Small, valuable, urgent → fly it. Fresh and nearby → truck it, door to door. Big, heavy, far → ship it or rail it.</span></div>
+      <div class="mix"><b data-zh="⚠️ 易错点：">⚠️ Common mistake:</b><span data-zh="水运最便宜、运量最大，但速度最慢，还要有通航的河流或海港才行。">Water is the cheapest and carries the most, but it is the slowest — and it only works where there is a river or seaport.</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real Photos" data-nav-zh="真实照片">
+  <div class="sec-head">
+    <h2 data-zh="看看真实的样子">See the real thing</h2>
+    <p data-zh="点击照片放大。影片和录音不会自动播放。">Click a photo to enlarge it. Videos and sound never start by themselves.</p>
+  </div>
+  <div id="gallery"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 中考模拟题">🧠 Exam-style quiz</h3><p class="sub" data-zh="选出正确答案，看看解析。">Pick the best answer and read the explanation.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 牧区、粮仓还是工业基地？">🗂️ Pasture, breadbasket or factory belt?</h3><p class="sub" data-zh="把每个地名拖到（或先点再点方框）正确的组里。">Drag each place (or tap it, then tap a box) into the right group.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="对应《义务教育地理课程标准（2022年版）》“认识中国”主题：运用地图和资料，说明我国交通运输网络的分布特点及交通运输对经济社会发展的影响；说明我国农业、工业的分布特点，举例说明因地制宜发展农业的必要性。教材：八年级上册 第四章《中国的经济发展》第一节《交通运输》、第二节《农业》、第三节《工业》。">Supports the 2022 Compulsory-Education Geography Curriculum Standard (“Understanding China”): use maps and data to explain the pattern of China’s transport network and how transport shapes the economy and society; explain where farming and industry are found, and why farming must suit local conditions. Textbook: Grade 8 Vol. 1, Ch. 4 China’s Economic Development, §1 Transport, §2 Agriculture, §3 Industry.</p>
+    <p data-zh="建议：①拖动年份滑块，让学生描述高铁网“先东部、后中西部”的扩展过程，并讨论原因（人口、城市、地形）；②在“铁路干线”图层找出郑州、徐州、株洲、兰州等枢纽分别是哪些线路的交会点；③在“农业”图层，把 400 毫米等降水量线、秦岭—淮河线与“东耕西牧、南稻北麦”对应起来；④在“工业”图层讨论工业基地为什么多在沿海、沿江、沿铁路线；⑤用“地图挑战”当堂检测。“八纵八横”出自《中长期铁路网规划》（2016 年），作为拓展内容。面向美国学生时，可与美国的州际公路网、中西部玉米带、五大湖工业带作比较。">Ideas: ① drag the year slider and have students describe how the network grew east first, then west, and why (people, cities, terrain); ② on the Main railways layer find which lines cross at the hubs Zhengzhou, Xuzhou, Zhuzhou and Lanzhou; ③ on the Farming layer connect the 400 mm rainfall line and the Qinling–Huaihe Line to “crops in the east, herds in the west; rice in the south, wheat in the north”; ④ on the Industry layer discuss why factories cluster on the coast, along the Yangtze and along railways; ⑤ use the Map challenge as a quick check. The “8 vertical + 8 horizontal” grid comes from the 2016 national rail plan and is enrichment. For US students, compare with the Interstate Highway System, the Corn Belt and the Great Lakes manufacturing belt.</p>
+  </details>
+</section>
+<div id="lab-footer"></div>
+
+<script>
+/* ============ DATA ============ */
+const o = (en, zh) => ({en, zh});
+Lab.ready(() => { const s = document.querySelector('.lab-footer p span[data-zh]'); if (s){ s.dataset.zh = '课标 / 教材章节'; s.dataset.en = 'Curriculum / textbook chapter'; } });
+const C = {  // cities: lon, lat, en, zh
+  bj:[116.4,39.9,'Beijing','北京'], tj:[117.2,39.1,'Tianjin','天津'], sh:[121.47,31.23,'Shanghai','上海'], gz:[113.26,23.13,'Guangzhou','广州'], sz:[114.06,22.54,'Shenzhen','深圳'], hk:[114.17,22.3,'Hong Kong','香港'],
+  heb:[126.63,45.75,'Harbin','哈尔滨'], cc:[125.32,43.82,'Changchun','长春'], sy:[123.43,41.8,'Shenyang','沈阳'], dl:[121.6,38.9,'Dalian','大连'], jz:[121.13,41.1,'Jinzhou','锦州'], qhd:[119.6,39.93,'Qinhuangdao','秦皇岛'], cde:[117.9,40.97,'Chengde','承德'],
+  qqhr:[123.95,47.35,'Qiqihar','齐齐哈尔'], mdj:[129.63,44.55,'Mudanjiang','牡丹江'], sfh:[131.15,44.4,'Suifenhe','绥芬河'], hlr:[119.75,49.2,'Hailar','海拉尔'], mzl:[117.38,49.6,'Manzhouli','满洲里'],
+  jn:[117,36.67,'Jinan','济南'], qd:[120.38,36.07,'Qingdao','青岛'], xz:[117.2,34.26,'Xuzhou','徐州'], lyg:[119.22,34.6,'Lianyungang','连云港'], nj:[118.78,32.06,'Nanjing','南京'], hz:[120.15,30.27,'Hangzhou','杭州'], nb:[121.55,29.87,'Ningbo','宁波'], wz:[120.7,28,'Wenzhou','温州'],
+  fz:[119.3,26.08,'Fuzhou','福州'], xm:[118.1,24.48,'Xiamen','厦门'], hf:[117.23,31.82,'Hefei','合肥'], nc:[115.86,28.68,'Nanchang','南昌'], jj:[116,29.7,'Jiujiang','九江'], gan:[114.93,25.83,'Ganzhou','赣州'], sr:[117.97,28.45,'Shangrao','上饶'], yt:[117,28.2,'Yingtan','鹰潭'],
+  sjz:[114.5,38.04,'Shijiazhuang','石家庄'], hs:[115.7,37.73,'Hengshui','衡水'], ty:[112.55,37.87,'Taiyuan','太原'], dt:[113.3,40.08,'Datong','大同'], zjk:[114.88,40.82,'Zhangjiakou','张家口'], hhht:[111.75,40.84,'Hohhot','呼和浩特'], bt:[109.84,40.66,'Baotou','包头'],
+  zz:[113.65,34.75,'Zhengzhou','郑州'], jzo:[113.24,35.22,'Jiaozuo','焦作'], ly:[112.45,34.62,'Luoyang','洛阳'], sq:[115.65,34.41,'Shangqiu','商丘'], fy:[115.82,32.89,'Fuyang','阜阳'], xy:[112.12,32.01,'Xiangyang','襄阳'], wh:[114.3,30.6,'Wuhan','武汉'], ych:[111.3,30.7,'Yichang','宜昌'],
+  cs:[112.94,28.23,'Changsha','长沙'], zhz:[113.13,27.83,'Zhuzhou','株洲'], hh:[110,27.55,'Huaihua','怀化'], cd2:[111.7,29.03,'Changde','常德'], zjj:[110.48,29.12,'Zhangjiajie','张家界'], gl:[110.29,25.27,'Guilin','桂林'], lzh:[109.4,24.33,'Liuzhou','柳州'],
+  nn:[108.37,22.82,'Nanning','南宁'], zj:[110.36,21.27,'Zhanjiang','湛江'], hko:[110.33,20.03,'Haikou','海口'], bh:[109.12,21.48,'Beihai','北海'], bs:[106.6,23.9,'Baise','百色'],
+  xa:[108.94,34.34,'Xi’an','西安'], bjc:[107.14,34.36,'Baoji','宝鸡'], ya:[109.49,36.6,'Yan’an','延安'], yin:[106.23,38.49,'Yinchuan','银川'], lz:[103.83,36.06,'Lanzhou','兰州'], xn:[101.78,36.62,'Xining','西宁'],
+  ww:[102.6,37.9,'Wuwei','武威'], zy:[100.45,38.93,'Zhangye','张掖'], jyg:[98.3,39.8,'Jiayuguan','嘉峪关'], hm:[93.5,42.8,'Hami','哈密'], tlf:[89.2,42.95,'Turpan','吐鲁番'], wlmq:[87.62,43.83,'Urumqi','乌鲁木齐'], alsk:[82.57,45.17,'Alashankou','阿拉山口'],
+  cd:[104.07,30.57,'Chengdu','成都'], cq:[106.55,29.56,'Chongqing','重庆'], wzh:[108.4,30.8,'Wanzhou','万州'], qj:[108.77,29.53,'Qianjiang','黔江'], yb:[104.6,28.77,'Yibin','宜宾'], gy:[106.63,26.65,'Guiyang','贵阳'], km:[102.83,24.88,'Kunming','昆明'], pzh:[101.7,26.58,'Panzhihua','攀枝花'],
+  geermu:[94.9,36.4,'Golmud','格尔木'], lasa:[91.13,29.65,'Lhasa','拉萨'], dy:[118.67,37.43,'Dongying','东营'], yc2:[120.15,33.35,'Yancheng','盐城'], lyn:[117.02,25.08,'Longyan','龙岩'], wzs:[111.3,23.48,'Wuzhou','梧州']
+};
+const pts = s => s.split(' ').map(k => C[k]);
+const cn = k => o(C[k][2], C[k][3]);
+const route = s => { const a = s.split(' '); return { en:a.map(k => C[k][2]).join(' – '), zh:a.map(k => C[k][3]).join('—') }; };
+
+/* ---- high-speed lines by opening year (main sections) ---- */
+const HSR = [
+  [2008,'bj tj'], [2008,'jn qd'], [2009,'wh cs gz'], [2009,'sjz ty'], [2009,'nb wz fz'], [2009,'nj hf wh'],
+  [2010,'zz ly xa'], [2010,'sh nj'], [2010,'sh hz'], [2010,'fz xm'],
+  [2011,'bj jn xz nj sh', o('Beijing–Shanghai High-Speed Railway: 1,318 km (819 mi) in about 4½ hours — about as far as New York to Chicago.','京沪高速铁路：全长 1318 千米，最快约 4.5 小时到达。')], [2011,'gz sz'],
+  [2012,'bj sjz zz wh', o('With this section the Beijing–Guangzhou line was complete: 2,298 km (1,428 mi), farther than New York to Miami, in about 8 hours.','这一段通车后，京广高铁全线贯通：全长 2298 千米，约 8 小时到达。')], [2012,'heb cc sy dl', o('Harbin–Dalian: the world’s first high-speed line built for bitterly cold winters.','哈大高铁：世界上第一条高寒地区高速铁路。')],
+  [2013,'hz nb'], [2013,'nj hz'], [2013,'xm sz'], [2013,'xa bjc'], [2013,'tj qhd jz sy'],
+  [2014,'lz xn zy jyg hm tlf wlmq', o('Lanzhou–Xinjiang: 1,776 km across deserts and wind-swept Gobi to Urumqi.','兰新高铁：全长 1776 千米，穿越戈壁和大风区到达乌鲁木齐。')], [2014,'gy gl gz'], [2014,'nn wzs gz'], [2014,'ty xa'], [2014,'hz sr nc cs'], [2014,'wh ych wzh cq'],
+  [2015,'cd cq'], [2015,'hf sr fz'], [2015,'heb qqhr'], [2015,'cs hh gy'],
+  [2016,'gy km', o('With this section the Shanghai–Kunming line was complete: 2,252 km across five provinces and Shanghai.','这一段通车后，沪昆高铁全线贯通，全长 2252 千米。')], [2016,'zz xz'], [2016,'nn bs km'],
+  [2017,'bjc lz'], [2017,'xa cd', o('Xi’an–Chengdu: the first high-speed line to tunnel through the Qinling Mountains.','西成高铁：我国第一条穿越秦岭的高速铁路。')], [2017,'sjz jn'],
+  [2018,'sz hk', o('The Hong Kong section links Hong Kong to the national network.','广深港高铁香港段通车，香港接入全国高铁网。')], [2018,'heb mdj'],
+  [2019,'bj zjk hhht', o('Beijing–Zhangjiakou: the first “smart” railway with self-driving trains at 350 km/h, built for the 2022 Winter Olympics.','京张高铁：世界上第一条时速 350 千米的智能化高速铁路，服务 2022 年北京冬奥会。')], [2019,'cd yb gy'], [2019,'nc gan'],
+  [2020,'yin xa'], [2021,'bj cde sy'], [2021,'lyg xz'], [2021,'gan sz'], [2022,'zz xy wzh cq'], [2023,'gy nn']
+].map(([y, s, note]) => ({ y, s, p:pts(s), note }));
+const KM = {2008:700,2009:2700,2010:5100,2011:6600,2012:9400,2013:11000,2014:16500,2015:19800,2016:23000,2017:25200,2018:29900,2019:35400,2020:37900,2021:40100,2022:42200,2023:45000};
+
+/* ---- the "8 vertical + 8 horizontal" plan (2016) ---- */
+const CORR = [
+  ['v', o('Coastal','沿海通道'), 'dl jz qhd tj dy qd lyg yc2 sh nb wz fz xm sz zj bh'], ['v', o('Beijing–Shanghai','京沪通道'), 'bj tj jn xz nj sh'], ['v', o('Beijing–Hong Kong (Taipei)','京港（台）通道'), 'bj hs sq fy hf jj nc gan sz hk'],
+  ['v', o('Harbin–Beijing–Hong Kong (Macao)','京哈—京港澳通道'), 'heb cc sy bj sjz zz wh cs gz sz hk'], ['v', o('Hohhot–Nanning','呼南通道'), 'hhht dt ty jzo zz xy cd2 gl nn'], ['v', o('Beijing–Kunming','京昆通道'), 'bj sjz ty xa cd km'],
+  ['v', o('Baotou (Yinchuan)–Haikou','包（银）海通道'), 'bt ya xa cq gy nn zj hko'], ['v', o('Lanzhou (Xining)–Guangzhou','兰（西）广通道'), 'lz cd gy gz'],
+  ['h', o('Suifenhe–Manzhouli','绥满通道'), 'sfh mdj heb qqhr hlr mzl'], ['h', o('Beijing–Lanzhou','京兰通道'), 'bj hhht yin lz'], ['h', o('Qingdao–Yinchuan','青银通道'), 'qd jn sjz ty yin'], ['h', o('Land Bridge','陆桥通道'), 'lyg xz zz xa bjc lz xn zy jyg hm tlf wlmq'],
+  ['h', o('Along the Yangtze','沿江通道'), 'sh nj hf wh ych cq cd'], ['h', o('Shanghai–Kunming','沪昆通道'), 'sh hz nc cs gy km'], ['h', o('Xiamen–Chongqing','厦渝通道'), 'xm lyn gan cs cd2 zjj qj cq'], ['h', o('Guangzhou–Kunming','广昆通道'), 'gz nn km']
+].map(([d, n, s]) => ({ d, n, s, p:pts(s) }));
+
+/* ---- classic trunk railways: "five vertical, three horizontal" ---- */
+const RAIL = [
+  ['v', o('Jinghu Line (Beijing–Shanghai)','京沪线'), 'bj tj jn xz nj sh', o('Links the capital with China’s biggest city and port.','连接首都和我国最大的城市、港口上海。')],
+  ['v', o('Jingjiu Line (Beijing–Kowloon)','京九线'), 'bj hs sq fy jj nc gan sz hk', o('Runs between the Jinghu and Jingguang lines to Kowloon (九龙) in Hong Kong.','位于京沪线和京广线之间，终点是香港九龙。')],
+  ['v', o('Jingha–Jingguang Line (Harbin–Beijing–Guangzhou)','京哈—京广线'), 'heb cc sy qhd bj sjz zz wh zhz gz', o('The north–south backbone of the country, like Interstate 95 on the US East Coast.','纵贯南北的交通大动脉。')],
+  ['v', o('Taijiao–Jiaoliu Line (Taiyuan–Liuzhou)','太焦—焦柳线'), 'ty jzo ly xy hh lzh', o('Carries Shanxi coal south through the mountains of central China.','把山西的煤炭运往南方。')],
+  ['v', o('Baocheng–Chengkun Line (Baoji–Chengdu–Kunming)','宝成—成昆线'), 'bjc cd pzh km', o('Crosses the Qinling Mountains into Sichuan, then on to Yunnan.','翻越秦岭进入四川，再通往云南。')],
+  ['h', o('Jingbao–Baolan Line (Beijing–Baotou–Lanzhou)','京包—包兰线'), 'bj dt hhht bt yin lz', o('Follows the Yellow River’s great bend across Inner Mongolia and Ningxia.','沿黄河“几”字形大弯，经过内蒙古和宁夏。')],
+  ['h', o('Longhai–Lanxin Line (Lianyungang–Urumqi)','陇海—兰新线'), 'lyg xz zz ly xa bjc lz ww zy jyg hm tlf wlmq alsk', o('The longest east–west line: from the Yellow Sea to Xinjiang’s border, then on to Europe as part of the “New Eurasian Land Bridge”.','最长的东西向干线：从黄海之滨到新疆边境，向西可通往欧洲，是“新亚欧大陆桥”的一部分。')],
+  ['h', o('Hukun Line (Shanghai–Kunming)','沪昆线'), 'sh hz yt zhz hh gy km', o('Crosses the hills of South China to the southwest.','横贯江南丘陵，通往西南地区。')]
+].map(([d, n, s, t]) => ({ d, n, s, t, p:pts(s) }));
+const HUBS = [['bj', o('Beijing: the biggest hub — Jinghu, Jingjiu, Jingguang, Jingha and Jingbao lines all start here.','北京：全国最大的铁路枢纽，京沪、京九、京广、京哈、京包等线在此交会。')], ['zz', o('Zhengzhou: where the north–south Jingguang line crosses the east–west Longhai line.','郑州：京广线与陇海线在此交会。')], ['xz', o('Xuzhou: where the Jinghu line crosses the Longhai line.','徐州：京沪线与陇海线在此交会。')], ['zhz', o('Zhuzhou: where the Jingguang line crosses the Hukun line.','株洲：京广线与沪昆线在此交会。')], ['lz', o('Lanzhou: gateway to the northwest — Longhai, Lanxin and Baolan lines meet here.','兰州：陇海线、兰新线、包兰线等在此交会，是通往西北的门户。')], ['cd', o('Chengdu: hub of the southwest — Baocheng and Chengkun lines meet here.','成都：宝成线、成昆线等在此交会，是西南地区的枢纽。')]];
+
+/* ---- farming ---- */
+const QH = [[104.6,33.7],[106,33.9],[108,33.9],[110,33.7],[112,33.2],[114,32.6],[116,32.6],[118,33],[119.2,33.6],[120.4,34.1]];
+const L400 = [[120.5,54],[120.5,50],[119.5,47],[118,44.5],[115,41],[112,39.5],[109.5,38],[106.5,36.8],[103.8,36.05],[101,35],[98,33.2],[94.5,31.5],[91.1,29.65],[88,28.5],[86,27.6]];
+const EAST = [...L400, [86,0], [140,0], [140,54]];
+const SOUTH = [[125,34.1], ...QH.slice().reverse(), [103.5,32.6],[102.6,31],[101.6,29.5],[99.5,28.4],[97,28.5],[95,29.2],[93,28.4],[91,27.3],[91,0],[140,0],[140,34.1]];
+const inPoly = (x, y, r) => { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++){ const a = r[i], b = r[j]; if (((a[1] > y) !== (b[1] > y)) && x < (b[0] - a[0]) * (y - a[1]) / (b[1] - a[1]) + a[0]) c = !c; } return c; };
+const PAST = {
+  150000:{p:[112,43.3], e:'🐎', n:o('Inner Mongolia pastoral region','内蒙古牧区'), t:o('China’s biggest grassland pasture — think Montana or Wyoming. Famous for Sanhe horses and Sanhe cattle.','我国最大的牧区，优良畜种有三河马、三河牛。')},
+  650000:{p:[85,41.5], e:'🐑', n:o('Xinjiang pastoral region','新疆牧区'), t:o('Herds graze mountain meadows in summer and valleys in winter. Famous for Xinjiang fine-wool sheep.','山地牧场随季节转场放牧，优良畜种有新疆细毛羊。')},
+  630000:{p:[96,35.6], e:'🐂', n:o('Qinghai pastoral region','青海牧区'), t:o('A cold, high-plateau pasture. Its animals are yaks — shaggy cattle built for thin air — and Tibetan sheep.','高寒牧区，主要畜种有牦牛、藏绵羊。')},
+  540000:{p:[88,31.5], e:'🐂', n:o('Tibet pastoral region','西藏牧区'), t:o('The highest pasture on Earth: yaks, Tibetan sheep and Tibetan goats.','世界上海拔最高的牧区，主要畜种有牦牛、藏绵羊、藏山羊。')}
+};
+const GRAIN = [[132.5,47,o('Sanjiang Plain','三江平原')],[125,46.6,o('Songnen Plain','松嫩平原')],[117.6,32.4,o('Jianghuai region','江淮地区')],[120.3,31.3,o('Taihu Plain','太湖平原')],[116.3,28.9,o('Poyang Lake Plain','鄱阳湖平原')],[113,30.3,o('Jianghan Plain','江汉平原')],[112.5,29.1,o('Dongting Lake Plain','洞庭湖平原')],[104,30.7,o('Chengdu Plain','成都平原')],[113.4,22.9,o('Pearl River Delta','珠江三角洲')]];
+const CROPS = [[127,44.5,'🌽',o('corn, soybeans, spring wheat, sugar beet','玉米、大豆、春小麦、甜菜')],[115.5,36.3,'🌾',o('winter wheat, cotton','冬小麦、棉花')],[113.5,27.3,'🍚',o('rice, rapeseed, tea','水稻、油菜、茶叶')],[109.3,23.3,'🎋',o('rice, sugar cane','水稻、甘蔗')]];
+
+/* ---- industry ---- */
+const BASES = [
+  {k:'lzn', p:[122.9,40.8], r:2.3, c:'#8a5a9e', n:o('Central–Southern Liaoning','辽中南工业基地'), cities:o('Shenyang, Dalian, Anshan','沈阳、大连、鞍山'), t:o('China’s famous heavy-industry base: steel, machinery, ships and petrochemicals, built on local coal and iron ore. Think Pittsburgh and Detroit.','我国著名的重工业基地，以钢铁、机械、石油化工等为主，附近煤、铁资源丰富。')},
+  {k:'jjt', p:[117.3,39.5], r:2, c:'#c0633a', n:o('Beijing–Tianjin–Tangshan','京津唐工业基地'), cities:o('Beijing, Tianjin, Tangshan','北京、天津、唐山'), t:o('The largest all-round industrial base in northern China: steel, machinery, chemicals, electronics.','我国北方最大的综合性工业基地。')},
+  {k:'hnh', p:[120.4,31.3], r:2.2, c:'#2f7fd0', n:o('Shanghai–Nanjing–Hangzhou','沪宁杭工业基地'), cities:o('Shanghai, Nanjing, Hangzhou','上海、南京、杭州'), t:o('China’s LARGEST all-round industrial base, at the mouth of the Yangtze: cars, steel, chips, textiles, ships.','我国最大的综合性工业基地，位于长江入海口。')},
+  {k:'zsj', p:[113.6,22.8], r:1.7, c:'#2a9d8f', n:o('Pearl River Delta','珠江三角洲工业基地'), cities:o('Guangzhou, Shenzhen, Zhuhai','广州、深圳、珠海'), t:o('An all-round base led by light industry — electronics, appliances, toys, clothes — next to Hong Kong and Macao. Your phone may have been built here.','以轻工业为主的综合性工业基地，毗邻港澳，电子、家电、服装等产业发达。')}
+];
+const TECH = [['bj', o('Zhongguancun, Beijing: China’s “Silicon Valley”, beside top universities.','北京中关村：我国第一个国家级高新技术产业开发区，被称为“中国硅谷”。')], ['sh', o('Zhangjiang, Shanghai: chips and medicines.','上海张江：集成电路、生物医药。')], ['sz', o('Shenzhen: home of many phone, drone and electric-car makers.','深圳：通信设备、无人机、新能源汽车等企业云集。')], ['wh', o('Wuhan “Optics Valley”: fibre optics and lasers.','武汉东湖（“中国光谷”）：光纤、激光。')], ['xa', o('Xi’an: aerospace and software.','西安：航空航天、软件。')], ['cd', o('Chengdu: electronics and software.','成都：电子信息、软件。')], ['hf', o('Hefei: displays and quantum research.','合肥：新型显示、量子信息。')]];
+
+/* ---- key ideas ---- */
+const TOPICS = {
+  modes:{layer:'rail', color:'#64748b', tag:o('Transport','交通运输'), name:o('Five ways to move things','五种运输方式'), job:o('Rail, road, water, air, pipeline','铁路、公路、水运、航空、管道'),
+    facts:{en:['Transport is the “pioneer” of the economy: nothing can be sold until it can be moved.','Each mode trades off speed, price and how much it can carry. Rail is the workhorse of long-distance travel in China.','The network is dense in the east and sparse in the west, because the west is mountainous, dry and thinly populated.'],
+           zh:['交通运输是经济发展的“先行官”。','各种运输方式在速度、运价、运量上各有优缺点；铁路运输是我国最重要的运输方式。','我国交通运输网的分布特点：东部稠密，西部稀疏。']},
+    hint:o('Fast and dear: air. Cheap and slow: water. In between: rail and road.','航空最快也最贵，水运最慢最便宜，铁路公路居中间。'), mix:o('“Cheapest” does not mean “best”: fresh milk shipped by slow boat would spoil.','最便宜不等于最合适：要根据货物性质、数量、距离和时间综合选择。')},
+  rail:{layer:'rail', color:'#2f5fb0', tag:o('Transport','交通运输'), name:o('Main railways: 5 down, 3 across','铁路干线：“五纵三横”'), job:o('The classic grid of trunk lines','南北五条，东西三条'),
+    facts:{en:['Lines are named after the short names of their two ends: Jinghu = Jing (京 Beijing) + Hu (沪 Shanghai).','Five north–south lines: Jinghu, Jingjiu, Jingha–Jingguang, Taijiao–Jiaoliu, Baocheng–Chengkun.','Three east–west lines: Jingbao–Baolan, Longhai–Lanxin, Hukun. Click a line on the map.'],
+           zh:['铁路线多用起止点城市或省区的简称命名，如京沪线（北京—上海）。','“五纵”：京沪线、京九线、京哈—京广线、太焦—焦柳线、宝成—成昆线。','“三横”：京包—包兰线、陇海—兰新线、沪昆线。点击地图上的线路看看。']},
+    hint:o('Many lines start with “Jing” — because Beijing is the hub of the whole web.','京字开头线路多，北京是全国最大的枢纽。'), mix:o('The Jingjiu line ends at Kowloon (九龙) in Hong Kong, not at Jiujiang (九江).','京九线的“九”是香港九龙，不是江西九江。')},
+  hubs:{layer:'rail', color:'#e0475b', tag:o('Transport','交通运输'), name:o('Railway hubs','铁路枢纽'), job:o('Where the lines cross','干线交会的地方'),
+    facts:{en:['A hub is a city where two or more trunk lines meet, so trains — and businesses — gather there. Chicago is the classic US example.','Zhengzhou: Jingguang × Longhai. Xuzhou: Jinghu × Longhai. Zhuzhou: Jingguang × Hukun.','Lanzhou is the gateway to the northwest; Beijing is the largest hub of all.'],
+           zh:['两条或多条铁路干线交会的城市叫铁路枢纽。','郑州：京广线 × 陇海线；徐州：京沪线 × 陇海线；株洲：京广线 × 沪昆线。','兰州是通往西北的门户；北京是全国最大的铁路枢纽。']},
+    hint:o('Zheng–Xu–Zhu: three crossings on the map’s middle.','郑州徐州株洲，十字交叉记心头。'), mix:o('Zhengzhou and Xuzhou are both on the Longhai line — Zhengzhou crosses Jingguang, Xuzhou crosses Jinghu.','郑州和徐州都在陇海线上：郑州交京广线，徐州交京沪线，不要弄混。')},
+  hsr:{layer:'hsr', color:'#d1495b', tag:o('Transport','交通运输'), name:o('High-speed rail: 8 down, 8 across','高速铁路：“八纵八横”'), job:o('From 1 line in 2008 to the world’s largest network','从 2008 年第一条到世界最大的高铁网'),
+    facts:{en:['High-speed trains run at 250–350 km/h (155–217 mph). China’s first, Beijing–Tianjin, opened in 2008 just before the Olympics.','By the end of 2023 the network was about 45,000 km (28,000 mi) — more than the rest of the world combined.','The 2016 national plan lays out a grid of 8 north–south and 8 east–west corridors linking almost every big city. Press “8 + 8 plan”.'],
+           zh:['高速铁路列车时速一般为 250—350 千米。我国第一条高速铁路京津城际铁路于 2008 年通车。','到 2023 年底，全国高铁营业里程约 4.5 万千米，居世界第一。','2016 年《中长期铁路网规划》提出建设“八纵八横”高速铁路主通道，连接全国主要城市。点击“八纵八横”规划看看。']},
+    hint:o('Drag the years: east first, then west; the dots become a web.','先东后西连成网，八纵八横通全国。'), mix:o('“5 down, 3 across” describes the ordinary trunk railways; “8 down, 8 across” is the high-speed grid.','“五纵三横”说的是普通铁路干线，“八纵八横”说的是高速铁路主通道。')},
+  farm:{layer:'farm', color:'#7cae5a', tag:o('Agriculture','农业'), name:o('Crops in the east, herds in the west','东耕西牧'), job:o('Divided by the 400 mm rainfall line','以 400 毫米年等降水量线为界'),
+    facts:{en:['East of the 400 mm (16 in) rainfall line there is enough rain for crops; farming, forestry and fishing are found there.','West of it the land is too dry or too high for most crops, so people raise animals on grassland — like the ranch country of the US West.','Exception: irrigated oases and river valleys in the west grow cotton, wheat and melons.'],
+           zh:['400 毫米年等降水量线以东降水较多，以种植业、林业、渔业为主。','以西气候干旱或高寒，草原广布，以畜牧业为主。','西部的绿洲和河谷有灌溉农业，种植棉花、小麦、瓜果等。']},
+    hint:o('400 mm: crops on the wet side, herds on the dry side.','四百毫米分东西，东耕西牧各相宜。'), mix:o('The east–west farming divide is the 400 mm line; the north–south (wheat–rice) divide is the Qinling–Huaihe Line.','东西差异看 400 毫米线，南北差异看秦岭—淮河线，不要混淆。')},
+  pasture:{layer:'farm', color:'#b7c97a', tag:o('Agriculture','农业'), name:o('The four great pastoral regions','四大牧区'), job:o('Inner Mongolia, Xinjiang, Qinghai, Tibet','内蒙古、新疆、青海、西藏'),
+    facts:{en:['Inner Mongolia: Sanhe horses and Sanhe cattle on rolling steppe.','Xinjiang: fine-wool sheep on mountain pastures.','Qinghai and Tibet: yaks, Tibetan sheep and Tibetan goats on cold, high grassland.'],
+           zh:['内蒙古牧区：三河马、三河牛。','新疆牧区：新疆细毛羊。','青海牧区和西藏牧区：牦牛、藏绵羊、藏山羊。']},
+    hint:o('Mongolia: horses. Xinjiang: sheep. The plateau: yaks.','内蒙古马牛，新疆细毛羊，青藏高原牦牛壮。'), mix:o('Yaks belong to the high plateau (Qinghai, Tibet), not to Inner Mongolia.','牦牛是青藏高原的畜种，不是内蒙古牧区的。')},
+  crops:{layer:'farm', color:'#e0b84a', tag:o('Agriculture','农业'), name:o('Rice in the south, wheat in the north','南稻北麦'), job:o('Divided by the Qinling–Huaihe Line','以秦岭—淮河一线为界'),
+    facts:{en:['South of the Qinling–Huaihe Line (秦岭—淮河) it is warm and wet: flooded paddies of rice, plus rapeseed, tea and sugar cane.','North of it: dry fields of wheat, corn and soybeans — China’s version of Kansas and Iowa.','Sugar: cane in the south, beet in the north. Cotton: Xinjiang, the Yellow River and Yangtze plains.'],
+           zh:['秦岭—淮河一线以南以水田为主，粮食作物是水稻，还有油菜、茶叶、甘蔗等。','以北以旱地为主，粮食作物是小麦，还有玉米、大豆等。','糖料作物“南甘北甜”；棉花主要产于新疆、黄河流域和长江流域。']},
+    hint:o('South rice, north wheat; south cane, north beet.','南稻北麦，南甘北甜。'), mix:o('The Northeast also grows excellent rice (one crop a year) — “south rice, north wheat” is the general pattern, not a wall.','东北也种水稻（一年一熟），“南稻北麦”说的是总体格局。')},
+  adapt:{layer:'farm', color:'#3d8c6f', tag:o('Agriculture','农业'), name:o('Farm to fit the land','因地制宜发展农业'), job:o('Use each place for what it does best','宜粮则粮，宜林则林，宜牧则牧，宜渔则渔'),
+    facts:{en:['Flat, fertile plains → crops. Steep mountain slopes → forests and orchards. Dry grassland → grazing. Rivers, lakes and coasts → fishing.','Nine major commercial grain bases (the dots on the map) sell grain to the rest of the country.','Ploughing steep slopes or over-grazing grassland destroys the soil — so some farmland is being returned to forest and grass.'],
+           zh:['平原地区发展种植业，山地发展林业，草原发展畜牧业，河湖海洋发展渔业。','我国建有九大商品粮基地（地图上的圆点），为全国提供商品粮。','陡坡开荒、过度放牧会破坏生态，因此要退耕还林、还草。']},
+    hint:o('Plains plough, hills plant trees, grass grazes, water fishes.','平原种粮山种树，草原放牧水养鱼。'), mix:o('More farmland is not always better: farming the wrong land causes erosion and deserts.','耕地不是越多越好：不合理开垦会造成水土流失和土地荒漠化。')},
+  ind:{layer:'ind', color:'#7a6fb0', tag:o('Industry','工业'), name:o('Where the factories are','工业的分布'), job:o('Along the coast, the Yangtze and the railways','沿海、沿江、沿铁路线'),
+    facts:{en:['Industry leads the national economy: it makes the machines, materials and goods everyone else uses.','Factories cluster where transport is easy: along the coast, along the Yangtze River and along main railways.','Four big bases: Central–Southern Liaoning, Beijing–Tianjin–Tangshan, Shanghai–Nanjing–Hangzhou and the Pearl River Delta. Click them on the map.'],
+           zh:['工业是国民经济的主导产业。','我国工业主要分布在沿海、沿长江、沿铁路线等交通便利的地带。','四大工业基地：辽中南、京津唐、沪宁杭、珠江三角洲。点击地图上的基地看看。']},
+    hint:o('Liaoning: heavy. Beijing–Tianjin: north’s biggest. Shanghai: biggest of all. Pearl River: light.','辽中南重工业，京津唐北方大，沪宁杭全国最大，珠三角轻工业。'), mix:o('The largest all-round base is Shanghai–Nanjing–Hangzhou; Beijing–Tianjin–Tangshan is the largest in the NORTH.','全国最大的综合性工业基地是沪宁杭；京津唐是北方最大的。')},
+  tech:{layer:'ind', color:'#e07a3a', tag:o('Industry','工业'), name:o('High-tech industry','高新技术产业'), job:o('Brains instead of coal','依靠科技和人才'),
+    facts:{en:['High-tech industry — chips, software, medicines, aerospace, new energy — depends on scientists and engineers, so it grows next to universities in big cities.','Zhongguancun (中关村) in Beijing, beside Peking and Tsinghua universities, is called China’s Silicon Valley.','Its products change fast, and research spending is high. “Made in China” is becoming “Created in China”.'],
+           zh:['高新技术产业（电子信息、生物医药、航空航天、新能源等）依靠科技和人才，多依附于大城市。','北京中关村靠近北京大学、清华大学等高校，被称为“中国硅谷”。','特点：科技人员比重大，研发投入多，产品更新换代快。从“中国制造”走向“中国创造”。']},
+    hint:o('High-tech follows talent: big cities, good universities.','高新技术靠人才，大城市里高校旁。'), mix:o('High-tech zones are “scattered widely, clustered locally” — mostly in the east, but also in Xi’an, Chengdu and Wuhan.','高新技术产业开发区呈“大分散、小集中”，东部多，但西安、成都、武汉等中西部城市也有。')}
+};
+const ORDER = ['hsr','modes','rail','hubs','farm','pasture','crops','adapt','ind','tech'];
+</script>
+
+<script>
+/* ============ MAP ENGINE (2D canvas on shared/chinamap.js) ============ */
+function MapView(box, opt){
+  const cv = box.querySelector('canvas'), g = cv.getContext('2d'), base = document.createElement('canvas'), bg = base.getContext('2d');
+  const P = ChinaMap.projector({ center:[104.5, 36] }), B = opt.bounds || [73, 17.3, 135.5, 54], INS = !opt.bounds;
+  const V = { geo:null, W:0, H:0, dpr:1, dirty:true, land:null, dark:false, pal:{} };
+  let k = 1, ox = 0, oy = 0, raf = 0, running = false;
+  V.toS = pt => { const q = P(pt); return [ox + q[0] * k, oy - q[1] * k]; };
+  V.toLL = (x, y) => P.inv([(x - ox) / k, (oy - y) / k]);
+  V.path = (c, pts, close) => { c.beginPath(); pts.forEach((p, i) => { const s = V.toS(p); i ? c.lineTo(s[0], s[1]) : c.moveTo(s[0], s[1]); }); if (close) c.closePath(); };
+  V.text = (c, str, pt, s = {}) => { const q = V.toS(pt); c.font = `${s.w || 800} ${s.size || 12}px Nunito,"PingFang SC","Microsoft YaHei",sans-serif`; c.textAlign = s.align || 'center'; c.textBaseline = 'middle';
+    c.lineJoin = 'round'; c.lineWidth = 3; c.strokeStyle = V.pal.halo; c.strokeText(str, q[0] + (s.dx || 0), q[1] + (s.dy || 0)); c.fillStyle = s.color || V.pal.ink; c.fillText(str, q[0] + (s.dx || 0), q[1] + (s.dy || 0)); };
+  V.fit = () => { const r = box.getBoundingClientRect(); if (r.width < 10) return; V.dpr = Math.min(2, window.devicePixelRatio || 1); V.W = r.width; V.H = r.height;
+    [cv, base].forEach(c => { c.width = Math.round(V.W * V.dpr); c.height = Math.round(V.H * V.dpr); });
+    const pd = opt.pad ? opt.pad(V.W, V.H) : [8, 8, 8, 8], a = P([B[0], B[1]]), b = P([B[2], B[3]]), w = V.W - pd[1] - pd[3], h = V.H - pd[0] - pd[2];
+    k = Math.min(w / (b[0] - a[0]), h / (b[1] - a[1])); ox = pd[3] + (w - (b[0] - a[0]) * k) / 2 - a[0] * k; oy = pd[0] + (h - (b[1] - a[1]) * k) / 2 + b[1] * k;
+    V.land = null;
+    if (V.geo){ V.land = new Path2D(); V.geo.features.forEach(f => { if (f.geometry.type === 'MultiLineString') return;
+      ChinaMap.rings(f).forEach(poly => { const ring = poly[0]; ring.forEach((pt, i) => { const s = V.toS(pt); i ? V.land.lineTo(s[0], s[1]) : V.land.moveTo(s[0], s[1]); }); V.land.closePath(); }); }); }
+    V.redraw(); };
+  V.redraw = () => { V.dirty = true; if (!running) V.draw(0); };
+  V.draw = t => { if (!V.W) return; const d = V.dpr;
+    if (V.dirty){ V.dirty = false; const r = document.documentElement; V.dark = r.dataset.theme ? r.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+      V.pal = V.dark ? { land:'#2a3856', border:'rgba(200,215,240,.35)', ink:'#eaf0fb', halo:'rgba(13,20,36,.85)', line:'#eaf0fb' } : { land:'#f1ead6', border:'rgba(70,60,45,.4)', ink:'#14213d', halo:'rgba(255,255,255,.9)', line:'#14213d' };
+      bg.setTransform(d, 0, 0, d, 0, 0); bg.clearRect(0, 0, V.W, V.H);
+      if (V.geo){ bg.save(); if (INS){ bg.beginPath(); bg.rect(0, 0, V.W, V.toS([100, 17.2])[1]); bg.clip(); }
+        bg.save(); bg.clip(V.land); bg.fillStyle = V.pal.land; bg.fillRect(0, 0, V.W, V.H); if (opt.under) opt.under(bg, V); bg.restore();
+        ChinaMap.draw2D(bg, V.geo, V.toS, { stroke:V.pal.border, lineWidth:.7 }); bg.restore(); if (INS) inset(); if (opt.over) opt.over(bg, V); } }
+    g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cv.width, cv.height); g.drawImage(base, 0, 0); g.setTransform(d, 0, 0, d, 0, 0); if (opt.live && V.geo) opt.live(g, V, t); };
+  function inset(){            // South China Sea Islands inset, as on standard maps of China
+    const w = Math.max(62, Math.min(118, V.W * .15)), kk = w / 16.6, h = 22.5 * kk, x0 = V.W - 10 - w, y0 = V.H - 70 - h, cl = Math.cos(13 * Math.PI / 180), t2 = pt => [x0 + (pt[0] - 106.5) * cl * kk, y0 + (25 - pt[1]) * kk];
+    bg.save(); bg.beginPath(); bg.rect(x0, y0, w, h); bg.fillStyle = V.dark ? '#16223a' : '#eaf2f8'; bg.fill(); bg.clip(); ChinaMap.draw2D(bg, V.geo, t2, { fill:V.pal.land, stroke:V.pal.border, lineWidth:.6 }); bg.restore();
+    bg.lineWidth = 1; bg.strokeStyle = V.pal.ink; bg.strokeRect(x0, y0, w, h); bg.font = '700 9.5px Nunito,"PingFang SC","Microsoft YaHei",sans-serif'; bg.textAlign = 'right'; bg.textBaseline = 'bottom'; bg.fillStyle = V.pal.ink;
+    bg.fillText(Lab.lang === 'zh' ? '南海诸岛' : (w < 90 ? '南海诸岛' : 'South China Sea Is.'), x0 + w - 4, y0 + h - 3); }
+  V.run = on => { if (on === running) return; running = on; cancelAnimationFrame(raf); let last = 0;
+    const loop = ms => { if (!running) return; const t = ms / 1000; V.dt = Math.min(.05, last ? t - last : 0); last = t; V.draw(t); raf = requestAnimationFrame(loop); }; if (on) raf = requestAnimationFrame(loop); };
+  cv.addEventListener('click', e => { if (!V.geo || !opt.click) return; const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, ll = V.toLL(x, y); opt.click(ll[0], ll[1], x, y); });
+  new ResizeObserver(V.fit).observe(box);
+  window.addEventListener('labtheme', V.redraw); matchMedia('(prefers-color-scheme: dark)').addEventListener('change', V.redraw);
+  Lab.onLang(V.redraw);
+  V.setGeo = geo => { V.geo = geo; V.fit(); };
+  return V;
+}
+const GEO = ChinaMap.load();
+
+/* ============ ECONOMY MAP ============ */
+const App = { layer:'hsr', year:2008, plan:false, corr:null, pick:null, sel:null, here:null, quest:null };
+const stroke = (c, V, p, color, w, pattern) => { V.path(c, p); c.setLineDash(pattern || []); c.lineWidth = w; c.strokeStyle = color; c.lineJoin = c.lineCap = 'round'; c.stroke(); c.setLineDash([]); };
+const fillPoly = (c, V, p, color) => { V.path(c, p, true); c.fillStyle = color; c.fill(); };
+const dot = (c, V, p, r, fill, line) => { const s = V.toS(p); c.beginPath(); c.arc(s[0], s[1], r, 0, 7); c.fillStyle = fill; c.fill(); if (line){ c.lineWidth = 2; c.strokeStyle = line; c.stroke(); } };
+const COL = { v:'#7b5ea7', h:'#2a9d8f', old:'#3f6fc4', fresh:'#d1495b', wheat:'#ecd98a', rice:'#a9d3a0', past:'#cdd9a0' };
+const LABELS = { hsr:'bj sh gz heb wlmq cd km xa wh zz lz sy hk nn', rail:'bj sh gz heb wlmq cd km xz zz lz zhz hk lzh', small:'bj sh gz wlmq cd heb' };
+const nearLine = (V, x, y, list) => { let best = null, bd = 12; list.forEach(l => { for (let i = 1; i < l.p.length; i++){ const a = V.toS(l.p[i - 1]), b = V.toS(l.p[i]), dx = b[0] - a[0], dy = b[1] - a[1], t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / (dx * dx + dy * dy || 1))), d = Math.hypot(a[0] + t * dx - x, a[1] + t * dy - y); if (d < bd){ bd = d; best = l; } } }); return best; };
+const nearPt = (V, x, y, list, get, r) => { let best = null, bd = r || 16; list.forEach(it => { const s = V.toS(get(it)), d = Math.hypot(s[0] - x, s[1] - y); if (d < bd){ bd = d; best = it; } }); return best; };
+
+const map = MapView(Lab.$('#stage'), {
+  pad:(W) => [W < 520 ? 104 : 62, 8, 62, 8],
+  under(c, V){
+    if (App.layer === 'farm'){ c.globalAlpha = V.dark ? .7 : 1; c.save(); V.path(c, EAST, true); c.clip(); c.fillStyle = COL.wheat; c.fillRect(0, 0, V.W, V.H); fillPoly(c, V, SOUTH, COL.rice); c.restore();
+      ChinaMap.draw2D(c, { features:V.geo.features.filter(f => PAST[f.properties.adcode]) }, V.toS, { fill:COL.past }); c.globalAlpha = 1; }
+    if (App.layer === 'ind') BASES.forEach(b => { const s = V.toS(b.p), e = V.toS([b.p[0], b.p[1] + b.r]); c.beginPath(); c.arc(s[0], s[1], Math.abs(e[1] - s[1]), 0, 7); c.fillStyle = b.c; c.globalAlpha = App.pick === b.k ? .85 : .5; c.fill(); c.globalAlpha = 1; });
+  },
+  over(c, V){
+    const small = V.W < 520, fs = small ? 10.5 : 12, L = App.layer;
+    const cities = keys => keys.split(' ').forEach(k => { dot(c, V, C[k], 2.6, V.pal.ink); V.text(c, Lab.L(cn(k)), C[k], { size:fs, dy:k === "xz" || k === "hk" ? 11 : -10, w:700 }); });
+    if (L === 'hsr'){
+      if (App.plan) CORR.forEach(k => stroke(c, V, k.p, COL[k.d], App.corr === k ? 5 : 1.6, App.corr === k ? null : [5, 4]));
+      HSR.filter(s => s.y < App.year).forEach(s => stroke(c, V, s.p, COL.old, 2.4));
+      HSR.filter(s => s.y === App.year).forEach(s => stroke(c, V, s.p, COL.fresh, 4));
+      if (App.pick) stroke(c, V, App.pick.p, V.pal.ink, 1.2);
+      cities(small ? LABELS.small : LABELS.hsr);
+    }
+    if (L === 'rail'){
+      RAIL.forEach(r => stroke(c, V, r.p, COL[r.d], App.pick === r ? 5.5 : 2.6));
+      stroke(c, V, pts('xn geermu lasa'), V.pal.ink, 1.4, [4, 4]); V.text(c, Lab.L(o('Qinghai–Tibet Railway','青藏铁路')), [93.5, 33.6], { size:fs, w:700 });
+      HUBS.forEach(h => dot(c, V, C[h[0]], 5.5, '#e0475b', '#fff'));
+      cities(small ? LABELS.small : LABELS.rail);
+    }
+    if (L === 'farm'){
+      stroke(c, V, L400, V.dark ? '#cfe0ff' : '#1d4f91', 2, [7, 5]); stroke(c, V, QH, V.dark ? '#ffb199' : '#a3341a', 3);
+      V.text(c, '400 mm', [111.3, 40.6], { size:fs, color:V.dark ? '#cfe0ff' : '#1d4f91' }); V.text(c, Lab.L(o('Qinling–Huaihe','秦岭—淮河')), [112.5, 34.6], { size:fs, color:V.dark ? '#ffb199' : '#a3341a' });
+      Object.values(PAST).forEach(p => { V.text(c, p.e, p.p, { size:small ? 16 : 20 }); if (!small) V.text(c, Lab.L(p.n).replace(' pastoral region', ''), p.p, { size:fs, dy:17 }); });
+      CROPS.forEach(([x, y, e]) => V.text(c, e, [x, y], { size:small ? 14 : 18 }));
+      GRAIN.forEach(gb => dot(c, V, gb, 4.5, '#c98a22', '#fff'));
+      V.text(c, Lab.L(o('WHEAT','小麦')), [116.5, 38.6], { size:fs + 1 }); V.text(c, Lab.L(o('RICE','水稻')), [116, 29.8], { size:fs + 1 });
+    }
+    if (L === 'ind'){
+      stroke(c, V, pts("dl jz qhd tj dy qd lyg sh nb fz xm sz zj"), V.dark ? 'rgba(255,255,255,.35)' : 'rgba(20,33,61,.3)', 7); stroke(c, V, pts('sh nj wh cq'), V.dark ? 'rgba(120,180,255,.5)' : 'rgba(47,127,208,.4)', 7);
+      BASES.forEach(b => V.text(c, Lab.L(b.n).replace(/工业基地| industrial base/, ''), b.p, ({ lzn:{ size:fs, dy:-32 }, jjt:{ size:fs, align:"right", dx:-26 }, hnh:{ size:fs, align:"left", dx:28, dy:-6 }, zsj:{ size:fs, dy:30 } })[b.k]));
+      TECH.forEach(t => dot(c, V, C[t[0]], 5, '#e07a3a', '#fff'));
+      if (!small){ V.text(c, Lab.L(o('coastal belt','沿海工业带')), [125.3, 27], { size:fs, w:700 }); V.text(c, Lab.L(o('Yangtze belt','沿江工业带')), [110.5, 31.9], { size:fs, w:700 }); }
+    }
+    if (App.mark){ dot(c, V, App.mark.p, 7, App.mark.good ? '#1aa36b' : '#e0475b', '#fff'); }
+    V.text(c, Lab.L(o('Schematic map','示意图')), V.toLL(12, V.H - 72), { size:11, align:'left', w:700 });
+  },
+  click(lon, lat, x, y){
+    if (App.quest && !App.quest.done) return questClick(lon, lat, x, y);
+    const L = App.layer, V = map; App.pick = null; App.here = null; App.mark = null;
+    if (L === 'hsr'){ const s = nearLine(V, x, y, HSR.filter(s => s.y <= App.year)), k = !s && App.plan ? nearLine(V, x, y, CORR) : null;
+      if (s){ App.pick = s; const r = route(s.s); App.here = { en:`🚄 ${r.en} — opened ${s.y}. ${s.note ? s.note.en : ''}`, zh:`🚄 ${r.zh}——${s.y} 年通车。${s.note ? s.note.zh : ''}` }; }
+      else if (k) return pickCorr(k); }
+    if (L === 'rail'){ const h = nearPt(V, x, y, HUBS, h => C[h[0]], 12), r = h ? null : nearLine(V, x, y, RAIL);
+      if (h){ App.here = { en:'🔴 ' + h[1].en, zh:'🔴 ' + h[1].zh }; App.sel = 'hubs'; }
+      else if (r){ App.pick = r; const rt = route(r.s); App.here = { en:`🚂 ${r.n.en}: ${rt.en}. ${r.t.en}`, zh:`🚂 ${r.n.zh}：${rt.zh}。${r.t.zh}` }; App.sel = 'rail'; } }
+    if (L === 'farm'){ const gb = nearPt(V, x, y, GRAIN, g => g, 12), f = ChinaMap.hit(V.geo, lon, lat), code = f && f.properties.adcode;
+      if (gb){ App.here = { en:`🟠 Commercial grain base: ${gb[2].en}. It grows far more grain than its people eat and sells the rest.`, zh:`🟠 商品粮基地：${gb[2].zh}。这里生产的粮食大量供应全国其他地区。` }; App.sel = 'adapt'; }
+      else if (PAST[code]){ const p = PAST[code]; App.here = { en:`${p.e} ${p.n.en}. ${p.t.en}`, zh:`${p.e} ${p.n.zh}。${p.t.zh}` }; App.sel = 'pasture'; }
+      else if (code && ChinaMap.NAMES[code]){ const n = ChinaMap.NAMES[code], east = inPoly(lon, lat, EAST), south = inPoly(lon, lat, SOUTH); App.sel = east ? 'crops' : 'farm';
+        App.here = !east ? { en:`📍 ${n.en} (${n.zh}): west of the 400 mm line — mostly grazing, with irrigated farming in oases and valleys.`, zh:`📍 ${n.zh}：位于 400 毫米年等降水量线以西，以畜牧业为主，绿洲和河谷有灌溉农业。` }
+          : south ? { en:`📍 ${n.en} (${n.zh}): south of the Qinling–Huaihe Line — flooded paddies; rice is the main grain.`, zh:`📍 ${n.zh}：位于秦岭—淮河一线以南，以水田为主，主要粮食作物是水稻。` }
+          : { en:`📍 ${n.en} (${n.zh}): north of the Qinling–Huaihe Line — dry fields; wheat is the main grain.`, zh:`📍 ${n.zh}：位于秦岭—淮河一线以北，以旱地为主，主要粮食作物是小麦。` }; } }
+    if (L === 'ind'){ const t = nearPt(V, x, y, TECH, t => C[t[0]], 11), b = t ? null : BASES.find(b => Math.hypot((lon - b.p[0]) * .8, lat - b.p[1]) < b.r);
+      if (t){ App.here = { en:'🟠 ' + t[1].en, zh:'🟠 ' + t[1].zh }; App.sel = 'tech'; }
+      else if (b){ App.pick = b.k; App.here = { en:`🏭 ${b.n.en} (${b.cities.en}). ${b.t.en}`, zh:`🏭 ${b.n.zh}（${b.cities.zh}）。${b.t.zh}` }; App.sel = 'ind'; } }
+    renderAll();
+  }
+});
+function pickCorr(k){ App.corr = App.corr === k ? null : k; const r = k && route(k.s); App.pick = null;
+  App.here = App.corr ? { en:`${k.d === 'v' ? '↕ North–south' : '↔ East–west'} corridor “${k.n.en}”: ${r.en}.`, zh:`${k.d === 'v' ? '↕ 纵向' : '↔ 横向'}“${k.n.zh}”：${r.zh}。` } : null; renderAll(); }
+
+/* ---- strip: caption, legend, corridor chips ---- */
+function renderStrip(){
+  const L = App.layer, sw = (c, t) => `<span><i style="background:${c}"></i>${t}</span>`, y = App.year, km = KM[y];
+  const fresh = HSR.filter(s => s.y === y).map(s => { const a = s.s.split(' '); return Lab.lang === 'zh' ? C[a[0]][3] + '—' + C[a[a.length - 1]][3] : C[a[0]][2] + '–' + C[a[a.length - 1]][2]; }).join(Lab.lang === 'zh' ? '、' : ', ');
+  Lab.$('#cap').textContent = L === 'hsr' ? Lab.L(o(`${y}: about ${km.toLocaleString('en')} km (${(Math.round(km * .621 / 100) * 100).toLocaleString('en')} mi) of high-speed rail. New this year: ${fresh}.`, `${y} 年：全国高铁里程约 ${km} 千米。当年新通车：${fresh}。`))
+    : L === 'rail' ? Lab.L(o('The classic network: five north–south lines and three east–west lines. Red dots are hubs where lines cross.','普通铁路干线“五纵三横”：五条南北向、三条东西向。红点是干线交会的铁路枢纽。'))
+    : L === 'farm' ? Lab.L(o('Two lines explain Chinese farming: the 400 mm rainfall line (crops | herds) and the Qinling–Huaihe Line (wheat | rice).','两条线读懂我国农业：400 毫米年等降水量线（东耕西牧）和秦岭—淮河线（南稻北麦）。'))
+    : Lab.L(o('Factories follow transport: the coast, the Yangtze River and the main railways. Circles are the four great industrial bases.','工业沿海、沿江、沿铁路线分布。圆圈是四大工业基地。'));
+  Lab.$('#legend').innerHTML = L === 'hsr' ? sw(COL.fresh, Lab.L(o('opened this year','当年新通车'))) + sw(COL.old, Lab.L(o('opened earlier','此前已通车'))) + (App.plan ? sw(COL.v, Lab.L(o('8 north–south corridors (plan)','“八纵”通道（规划）'))) + sw(COL.h, Lab.L(o('8 east–west corridors (plan)','“八横”通道（规划）'))) : '')
+    : L === 'rail' ? sw(COL.v, Lab.L(o('north–south (“vertical”) line','纵向干线'))) + sw(COL.h, Lab.L(o('east–west (“horizontal”) line','横向干线'))) + sw('#e0475b', Lab.L(o('hub','铁路枢纽')))
+    : L === 'farm' ? sw(COL.past, Lab.L(o('four pastoral regions','四大牧区'))) + sw(COL.wheat, Lab.L(o('dry fields: wheat','旱地：小麦'))) + sw(COL.rice, Lab.L(o('paddies: rice','水田：水稻'))) + sw('#c98a22', Lab.L(o('commercial grain base','商品粮基地')))
+    : BASES.map(b => sw(b.c, Lab.L(b.n))).join('') + sw('#e07a3a', Lab.L(o('high-tech zone','高新技术产业开发区')));
+  const cr = Lab.$('#corr'); cr.hidden = !(L === 'hsr' && App.plan);
+  cr.innerHTML = CORR.map((k, i) => `<button class="chip ${App.corr === k ? 'on' : ''}" data-i="${i}"><i style="background:${COL[k.d]}"></i>${Lab.L(k.n)}</button>`).join('');
+  Lab.$$('#corr .chip').forEach(b => b.onclick = () => pickCorr(CORR[+b.dataset.i]));
+  Lab.$('#here').textContent = App.here ? Lab.L(App.here) : Lab.L(o('Tip: click the map.','提示：点击地图。'));
+  Lab.$('#yOut').textContent = y; Lab.$('#yearPill').style.visibility = L === 'hsr' ? 'visible' : 'hidden';
+  Lab.$('#planBtn').hidden = L !== 'hsr'; Lab.$('#planBtn').classList.toggle('on', App.plan);
+  Lab.$$('#layerSeg button').forEach(b => b.classList.toggle('on', b.dataset.l === L));
+}
+function renderAll(){ renderStrip(); renderInfo(); renderChips(); map.redraw(); }
+function setLayer(l){ if (App.layer !== l){ App.pick = null; App.here = null; App.mark = null; } App.layer = l; if (l !== 'hsr') stopPlay(); renderStrip(); map.redraw(); }
+function stopPlay(){ clearInterval(App.timer); App.timer = 0; Lab.$('#playBtn').textContent = '▶'; }
+Lab.$$('#layerSeg button').forEach(b => b.onclick = () => { if (App.quest && !App.quest.done) return; setLayer(b.dataset.l); });
+Lab.$('#planBtn').onclick = () => { App.plan = !App.plan; if (!App.plan) App.corr = null; if (App.plan && App.year < 2023 && !App.timer){ App.year = 2023; Lab.$('#yIn').value = 2023; } renderStrip(); map.redraw(); };
+Lab.$('#yIn').oninput = e => { App.year = +e.target.value; App.pick = null; App.here = null; renderStrip(); map.redraw(); };
+Lab.$('#playBtn').onclick = () => { if (App.timer) return stopPlay(); if (App.year >= 2023) App.year = 2007; Lab.$('#playBtn').textContent = '⏸';
+  App.timer = setInterval(() => { App.year++; Lab.$('#yIn').value = App.year; App.pick = null; App.here = null; renderStrip(); map.redraw(); if (App.year >= 2023) stopPlay(); }, 1200); };
+
+/* ---- map challenge: click-to-place ---- */
+const near = (k, r) => (lon, lat) => Math.hypot((lon - C[k][0]) * .8, lat - C[k][1]) < (r || 2.2);
+const base = k => (lon, lat) => { const b = BASES.find(b => b.k === k); return Math.hypot((lon - b.p[0]) * .8, lat - b.p[1]) < b.r + .6; };
+const prov = (...codes) => (lon, lat) => { const f = ChinaMap.hit(map.geo, lon, lat); return !!f && codes.includes(f.properties.adcode); };
+const TASKS = [
+  ['farm', o('Click one of the four great pastoral regions.','点击四大牧区中的任意一个。'), prov(150000, 650000, 630000, 540000), o('Inner Mongolia, Xinjiang, Qinghai and Tibet.','四大牧区：内蒙古、新疆、青海、西藏。')],
+  ['farm', o('Click a place where RICE is the main grain.','点击一个以水稻为主要粮食作物的地方。'), (x, y) => inPoly(x, y, SOUTH) && inPoly(x, y, EAST) && !!ChinaMap.hit(map.geo, x, y), o('Rice grows south of the Qinling–Huaihe Line.','水稻主要分布在秦岭—淮河一线以南。')],
+  ['farm', o('Click a place where WHEAT is the main grain.','点击一个以小麦为主要粮食作物的地方。'), (x, y) => !inPoly(x, y, SOUTH) && inPoly(x, y, EAST) && !prov(150000)(x, y) && !!ChinaMap.hit(map.geo, x, y), o('Wheat grows north of the Qinling–Huaihe Line and east of the 400 mm line.','小麦主要分布在秦岭—淮河一线以北、400 毫米年等降水量线以东。')],
+  ['farm', o('Click the pastoral region famous for fine-wool sheep.','点击以细毛羊闻名的牧区。'), prov(650000), o('Xinjiang fine-wool sheep.','新疆细毛羊产于新疆牧区。')],
+  ['farm', o('Click a pastoral region where yaks graze.','点击一个放牧牦牛的牧区。'), prov(630000, 540000), o('Yaks live on the Qinghai–Tibet Plateau.','牦牛生活在青藏高原：青海牧区和西藏牧区。')],
+  ['ind', o('Click China’s LARGEST all-round industrial base.','点击我国最大的综合性工业基地。'), base('hnh'), o('Shanghai–Nanjing–Hangzhou, at the mouth of the Yangtze.','沪宁杭工业基地，位于长江入海口。')],
+  ['ind', o('Click the famous heavy-industry base of the northeast.','点击东北著名的重工业基地。'), base('lzn'), o('Central–Southern Liaoning: Shenyang, Dalian, Anshan.','辽中南工业基地：沈阳、大连、鞍山。')],
+  ['ind', o('Click the light-industry base next to Hong Kong.','点击毗邻香港、以轻工业为主的工业基地。'), base('zsj'), o('The Pearl River Delta.','珠江三角洲工业基地。')],
+  ['ind', o('Click the largest industrial base of northern China.','点击我国北方最大的综合性工业基地。'), base('jjt'), o('Beijing–Tianjin–Tangshan.','京津唐工业基地。')],
+  ['rail', o('Click the hub where the Jingguang and Longhai lines cross.','点击京广线与陇海线交会的铁路枢纽。'), near('zz'), o('Zhengzhou, in Henan.','河南郑州。')],
+  ['rail', o('Click the hub where the Jinghu and Longhai lines cross.','点击京沪线与陇海线交会的铁路枢纽。'), near('xz'), o('Xuzhou, in Jiangsu.','江苏徐州。')],
+  ['rail', o('Click the western end city of the Lanxin line.','点击兰新线西端的城市。'), near('wlmq', 3), o('Urumqi, capital of Xinjiang.','新疆的乌鲁木齐。')],
+  ['rail', o('Click the southern end of the Jingguang line.','点击京广线的南端终点。'), near('gz'), o('Guangzhou (广州):“guang” in Jingguang.','广州：京广线的“广”。')]
+];
+function questStart(){ stopPlay(); App.quest = { list:Lab.shuffle(TASKS).slice(0, 8), i:0, ok:0, done:false, wait:false }; App.pick = null; App.here = null; App.mark = null; setLayer(App.quest.list[0][0]); renderQuest(); }
+function questClick(lon, lat){ const q = App.quest; if (q.wait) return; const t = q.list[q.i], good = !!t[2](lon, lat); if (good) q.ok++; q.wait = true;
+  App.mark = { p:[lon, lat], good }; App.here = { en:(good ? '✅ Yes! ' : '❌ Not quite. ') + t[3].en, zh:(good ? '✅ 正确！' : '❌ 不对。') + t[3].zh }; renderStrip(); map.redraw(); renderQuest(); }
+function questNext(){ const q = App.quest; q.i++; q.wait = false; App.mark = null; App.here = null; if (q.i >= q.list.length){ q.done = true; renderStrip(); map.redraw(); } else setLayer(q.list[q.i][0]); renderQuest(); }
+function renderQuest(){ const q = App.quest, on = q && !q.done;
+  Lab.$('#qProg').hidden = !q; Lab.$('#qBar').style.width = q ? (q.i + (q.wait ? 1 : 0)) / q.list.length * 100 + '%' : '0';
+  Lab.$('#qBtn').textContent = Lab.L(!q ? o('🎯 Map challenge','🎯 地图挑战') : q.done ? o('↺ Play again','↺ 再玩一次') : q.wait ? o('Next ▶','下一题 ▶') : o('✕ Quit','✕ 退出'));
+  Lab.$('#qText').textContent = !q ? Lab.L(o('8 places to find — can you click them all?','找出 8 个地方，你能全部点对吗？')) : q.done ? Lab.L(o(`Finished: ${q.ok} of ${q.list.length} found!`, `完成：${q.list.length} 题答对 ${q.ok} 题！`)) : `${q.i + 1}/${q.list.length} · ` + Lab.L(q.list[q.i][1]);
+  Lab.$('#qScore').textContent = on ? Lab.L(o(`Score ${q.ok}`, `得分 ${q.ok}`)) : ''; }
+Lab.$('#qBtn').onclick = () => { const q = App.quest; if (!q || q.done) return questStart(); if (q.wait) return questNext(); App.quest = null; App.mark = null; App.here = null; renderQuest(); renderStrip(); map.redraw(); };
+
+/* ---- info panel + chips ---- */
+App.select = k => { App.sel = k; if (!(App.quest && !App.quest.done)) setLayer(TOPICS[k].layer); renderInfo(); renderChips(); };
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel;
+  if (!k){ box.innerHTML = `<span class="tag">${Lab.L(o('Economy map','经济地图'))}</span>
+      <h3>${Lab.L(o('Rails, rice and robots','铁路、稻田与工厂'))}</h3>
+      <p class="muted" style="margin:0">${Lab.L(o('Transport, farming and industry depend on each other — and on the land. Switch layers, drag the year slider, then try the Map challenge.','交通运输、农业和工业相互联系，又都受自然条件影响。切换图层、拖动年份滑块，再试试“地图挑战”。'))}</p>
+      <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(o('East: dense transport, crops and factories. West: sparse transport and herding. Geography explains why.','东部：交通稠密、种植业和工业集中；西部：交通稀疏、以畜牧业为主。'))}</div>
+      <div class="nav"><button id="startBtn">${Lab.L(o('Start ▶','开始学习 ▶'))}</button></div>`;
+    Lab.$('#startBtn').onclick = () => App.select(ORDER[0]); return; }
+  const p = TOPICS[k], i = ORDER.indexOf(k);
+  box.innerHTML = `<span class="tag">${Lab.L(p.tag)}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L(o('💡 Memory hook','💡 记忆口诀'))}</b>${Lab.L(p.hint)}</div>
+    <div class="mix"><b>${Lab.L(o('⚠️ Common mistake:','⚠️ 易错点：'))}</b><span>${Lab.L(p.mix)}</span></div>
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts), Lab.L(p.hint)].join(Lab.lang === 'zh' ? '。' : '. '));
+  Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
+  Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
+}
+function renderChips(){
+  Lab.$('#chips').innerHTML = ORDER.map(k => `<button class="chip ${App.sel === k ? 'on' : ''}" data-k="${k}"><i style="background:${TOPICS[k].color}"></i>${Lab.L(TOPICS[k].name)}</button>`).join('');
+  Lab.$$('#chips .chip').forEach(c => c.onclick = () => App.select(c.dataset.k));
+}
+Lab.onLang(() => { renderInfo(); renderChips(); renderStrip(); renderQuest(); });
+
+let mapState = 'loading';
+const MSG = { loading:o('Loading the map of China…','正在加载中国地图…'), error:o('⚠️ The map of China needs an internet connection to load. The rest of this page still works.','⚠️ 中国地图需要联网才能加载。本页其他内容仍可正常使用。') };
+const showMsg = () => { const el = Lab.$('#mapMsg'); el.hidden = mapState === 'ok'; el.textContent = mapState === 'ok' ? '' : Lab.L(MSG[mapState]); };
+Lab.onLang(showMsg);
+GEO.then(geo => { mapState = 'ok'; showMsg(); map.setGeo(geo); }).catch(() => { mapState = 'error'; showMsg(); });
+
+/* ============ GAME: pick the transport ============ */
+(function(){
+  const MODES = {
+    rail:{e:'🚆', n:o('Rail','铁路'), s:o('big loads, long distances','运量大，适合长途'), d:o('Carries a lot, fairly fast, fairly cheap, and runs in almost any weather. China’s most important mode. Needs expensive track.','运量大、速度较快、运价较低，受天气影响小、连续性好，是我国最重要的运输方式；但修建铁路造价高。')},
+    road:{e:'🚚', n:o('Road','公路'), s:o('flexible, door to door','机动灵活，“门到门”'), d:o('Trucks go anywhere there is a road, right to the door. Best for short trips and fresh goods. Small loads; costly over long distances.','机动灵活、周转快，可以“门到门”，适合短途和鲜活货物；但运量小，长途运价较高。')},
+    water:{e:'🚢', n:o('Water','水运'), s:o('huge loads, cheapest, slowest','运量最大，运价最低，速度慢'), d:o('Ships carry the most for the least money — ideal for heavy bulk cargo such as ore, grain and coal. Slow, and needs a river or seaport.','运量大、运价低，适合大宗笨重货物；但速度慢，受河流、港口等自然条件限制。')},
+    air:{e:'✈️', n:o('Air','航空'), s:o('fastest, most expensive','速度最快，运价最高'), d:o('Nothing is faster. Best for people in a hurry and small, valuable or urgent cargo. Tiny loads, high price.','速度最快，适合贵重、急需、数量不大的货物和长途客运；但运量小、运价高。')},
+    pipe:{e:'🛢️', n:o('Pipeline','管道'), s:o('liquids and gas, non-stop','运输液体和气体，连续不断'), d:o('Moves oil and natural gas day and night with almost no loss. It can carry nothing else and goes only where the pipe goes.','主要运输石油、天然气等，连续性强、损耗小、安全；但只能运输特定货物，线路固定。')}
+  };
+  const SC = [
+    ['air', o('A hospital in Urumqi needs one box of rare medicine from Guangzhou — 3,300 km (2,000 mi) away — by tonight.','乌鲁木齐的一家医院今晚急需一箱特效药，药品在 3300 千米外的广州。'), o('Small, valuable and urgent: fly it.','贵重、急需、数量不大：选航空。')],
+    ['rail', o('Every week, 500,000 tons of coal must go from the mines at Datong to the port of Qinhuangdao, 650 km overland.','每周要把 50 万吨煤从山西大同运到 650 千米外的秦皇岛港，全程是陆地。'), o('Huge, heavy and overland: rail. The Daqin Railway does exactly this.','大宗笨重、陆上长途：选铁路。大秦铁路就是专门运煤的。')],
+    ['road', o('A dairy farm delivers 2 tons of fresh milk to supermarkets 40 km (25 mi) away every morning.','奶牛场每天早晨要把 2 吨鲜牛奶送到 40 千米外的各家超市。'), o('Fresh, small and close, with many stops: trucks, door to door.','鲜活、量小、短途，还要送到各家门口：选公路。')],
+    ['water', o('A steel mill in Wuhan ships 20,000 tons of steel to Shanghai. No rush — and both cities are on the Yangtze.','武汉的钢铁厂要把 2 万吨钢材运到上海，不赶时间，两座城市都在长江边。'), o('Heavy bulk cargo with a river handy: water is cheapest.','大宗笨重、不赶时间、有长江航道：选水运最经济。')],
+    ['pipe', o('Natural gas from Xinjiang must reach kitchens in Shanghai, 4,000 km away, every hour of every day.','新疆的天然气要全年不间断地送到 4000 千米外的上海。'), o('Gas flowing non-stop: a pipeline — the West–East Gas Pipeline (西气东输).','气体、连续运输：选管道。这就是“西气东输”工程。')],
+    ['water', o('A steel mill near Shanghai buys 200,000 tons of iron ore from Brazil.','上海附近的钢铁厂从巴西进口 20 万吨铁矿石。'), o('Across an ocean with a mountain of ore: only a ship will do.','跨越大洋的大宗货物：选水运（海运）。')],
+    ['rail', o('A family of four is going from Beijing to Shanghai (1,300 km) for vacation. They want city centre to city centre in about 5 hours, at a fair price.','一家四口从北京去上海（约 1300 千米）旅游，希望 5 小时左右从市中心到市中心，票价适中。'), o('High-speed rail: 4½ hours, downtown to downtown.','选铁路（高铁）：约 4.5 小时，从市中心到市中心。')],
+    ['air', o('Flower growers in Kunming must get cut roses to shops in Beijing, 2,100 km away, by tomorrow morning.','昆明的花农要在明天早晨把鲜切玫瑰送到 2100 千米外的北京花店。'), o('Light, perishable, far and urgent: air.','鲜活易腐、路途遥远、时间紧：选航空。')],
+    ['road', o('A furniture store delivers one sofa to a customer’s apartment across town.','家具店要把一张沙发送到同城顾客的家里。'), o('One item, short trip, to the door: road.','量小、短途、送货上门：选公路。')],
+    ['pipe', o('Crude oil from the Daqing oil field flows to refineries in Dalian all year round.','大庆油田的原油要常年不断地输送到大连的炼油厂。'), o('Liquid, continuous, fixed route: pipeline.','液体、连续、线路固定：选管道。')],
+    ['rail', o('3,000 tons of Xinjiang cotton must reach textile mills in Zhengzhou, 2,800 km inland. No river connects them.','3000 吨新疆棉花要运到 2800 千米外的郑州纺织厂，两地之间没有通航河流。'), o('Bulky, long-distance and inland: rail (the Lanxin–Longhai line).','量大、长途、内陆：选铁路（兰新线—陇海线）。')],
+    ['water', o('10,000 tons of corn go from the port of Dalian to the port of Guangzhou. Cheapest wins.','1 万吨玉米要从大连港运到广州港，要求运费最低。'), o('Port to port, bulky, cost matters: by sea.','两地都是海港、大宗货物、讲求便宜：选水运（海运）。')]
+  ];
+  const KEYS = Object.keys(MODES); let deck = [], i = 0, ok = 0, streak = 0, ans = null;
+  function modeCards(){ Lab.$('#modes').innerHTML = KEYS.map(k => { const m = MODES[k]; return `<details class="card"><summary><span class="e">${m.e}</span>${Lab.L(m.n)}<small>${Lab.L(m.s)}</small></summary><p>${Lab.L(m.d)}</p></details>`; }).join(''); }
+  function start(){ deck = Lab.shuffle(SC).slice(0, 8); i = 0; ok = 0; streak = 0; ans = null; render(); }
+  function render(){
+    const fin = i >= deck.length, c = deck[i];
+    Lab.$('#tBar').style.width = (fin ? 100 : (i + (ans ? 1 : 0)) / deck.length * 100) + '%';
+    Lab.$('#tCount').textContent = fin ? '' : Lab.L(o(`Customer ${i + 1} of ${deck.length}`, `第 ${i + 1} / ${deck.length} 位客户`));
+    Lab.$('#tScen').textContent = fin ? Lab.L(o(`All delivered: ${ok} of ${deck.length} correct!`, `全部完成：${deck.length} 题答对 ${ok} 题！`)) : Lab.L(c[1]);
+    Lab.$('#tPick').innerHTML = fin ? '' : KEYS.map(k => `<button data-k="${k}" class="${ans ? (k === c[0] ? 'right' : k === ans ? 'wrong' : '') : ''}" ${ans ? 'disabled' : ''}><span class="e">${MODES[k].e}</span>${Lab.L(MODES[k].n)}</button>`).join('');
+    Lab.$$('#tPick button').forEach(b => b.onclick = () => { ans = b.dataset.k; if (ans === c[0]){ ok++; streak++; } else streak = 0; render(); });
+    const m = Lab.$('#tMsg'); m.textContent = ans && !fin ? (ans === c[0] ? '✅ ' : '❌ ') + Lab.L(c[2]) : ''; m.className = 'result ' + (ans === (c && c[0]) ? 'good' : 'bad');
+    Lab.$('#tOk').textContent = ok; Lab.$('#tStreak').textContent = streak;
+    const n = Lab.$('#tNext'); n.hidden = !(ans || fin); n.textContent = Lab.L(fin ? o('Play again ↺','再玩一次 ↺') : o('Next customer ▶','下一位客户 ▶'));
+  }
+  Lab.$('#tNext').onclick = () => { if (i >= deck.length) return start(); i++; ans = null; render(); };
+  Lab.onLang(() => { modeCards(); if (deck.length) render(); });
+  start();
+})();
+
+/* ============ REAL MEDIA ============ */
+/* Wikimedia Commons files, licences checked with the Commons API helper; URLs exactly as returned by the API */
+const Q = '?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', TH = 'https://thumb.wikimedia.org/wikipedia/commons/thumb/', CP = 'https://commons.wikimedia.org/wiki/File:';
+const ph = (kind, zhKind) => ({ kind:o(kind, zhKind) });
+LabPhotos.render(Lab.$('#gallery'), [
+  { ...ph('High-speed rail','高速铁路'), src:TH + '0/0a/CR400AF_Fuxing_EMU.jpg/960px-CR400AF_Fuxing_EMU.jpg' + Q, en:'A Fuxing (复兴号 “Rejuvenation”) CR400AF train, designed and built in China to run at 350 km/h (217 mph).', zh:'“复兴号”CR400AF 型动车组，我国自主研发，运营时速 350 千米。', credit:'Samson Ng . D201@EAL', license:'CC BY-SA 4.0', page:CP + 'CR400AF_Fuxing_EMU.jpg' },
+  { type:'video', ...ph('Video','影片'), media:'https://upload.wikimedia.org/wikipedia/commons/2/26/China_Railway_High-speed_train_passing_through_station.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:TH + '2/26/China_Railway_High-speed_train_passing_through_station.webm/500px--China_Railway_High-speed_train_passing_through_station.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:TH + '2/26/China_Railway_High-speed_train_passing_through_station.webm/500px--China_Railway_High-speed_train_passing_through_station.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Watch and listen: a high-speed train passes through a station without stopping.', zh:'看一看、听一听：高速列车不停站通过车站。', credit:'Anna Frodesiak', license:'CC BY-SA 3.0', page:CP + 'China_Railway_High-speed_train_passing_through_station.webm' },
+  { ...ph('Sea transport','海洋运输'), src:TH + 'e/ef/Yangshan-Port-Containers.jpg/960px-Yangshan-Port-Containers.jpg' + Q, en:'Containers and cranes at Yangshan, part of the Port of Shanghai — the busiest container port in the world.', zh:'上海港洋山港区的集装箱和岸桥。上海港是世界上集装箱吞吐量最大的港口。', credit:'Reb42', license:'CC BY 3.0', page:CP + 'Yangshan-Port-Containers.jpg' },
+  { ...ph('River transport','内河运输'), src:TH + 'a/ae/Yangtze-Ships.JPG/960px-Yangtze-Ships.JPG' + Q, en:'Cargo ships on the Yangtze at Nanjing: slow, but they carry huge loads cheaply.', zh:'南京江面上的货船：水运速度慢，但运量大、运价低。', credit:'Ryu, Cheol', license:'CC BY-SA 3.0', page:CP + 'Yangtze-Ships.JPG' },
+  { ...ph('Rice in the south','南方的水稻'), src:TH + 'e/e4/Longsheng_Rice_Terraces_November_2017_003.jpg/960px-Longsheng_Rice_Terraces_November_2017_003.jpg' + Q, en:'Rice terraces at Longsheng, Guangxi. Farmers shaped the hillsides into steps to hold water: farming that fits the land.', zh:'广西龙胜的梯田。人们把山坡修成一级级台阶来蓄水种稻，这就是因地制宜。', credit:'King of Hearts', license:'CC BY-SA 4.0', page:CP + 'Longsheng_Rice_Terraces_November_2017_003.jpg' },
+  { ...ph('Pastoral region','牧区'), src:TH + 'c/c5/Herdsman_in_Heshigten_Banner.jpg/960px-Herdsman_in_Heshigten_Banner.jpg' + Q, en:'Herders in Heshigten Banner, Inner Mongolia, China’s largest pastoral region.', zh:'内蒙古克什克腾旗的牧民。内蒙古牧区是我国最大的牧区。', credit:'Muzzleflash', license:'CC0', page:CP + 'Herdsman_in_Heshigten_Banner.jpg' },
+  { ...ph('Plateau herding','高原牧业'), src:TH + '7/7f/Herders_moving_home%2C_Yaks_crossing_road_%2811622424524%29.jpg/960px-Herders_moving_home%2C_Yaks_crossing_road_%2811622424524%29.jpg' + Q, en:'Herders moving camp with their yaks on the Tibetan Plateau.', zh:'青藏高原上，牧民赶着牦牛转场。', credit:'Matt Ming', license:'CC BY 2.0', page:CP + 'Herders_moving_home,_Yaks_crossing_road_(11622424524).jpg' },
+  { ...ph('High-tech industry','高新技术产业'), src:TH + '1/11/Zhongguancun_Street_from_Haidian_Huangzhuang_North_%2820201214123508%29.jpg/960px-Zhongguancun_Street_from_Haidian_Huangzhuang_North_%2820201214123508%29.jpg' + Q, en:'Zhongguancun Street in Beijing, the heart of China’s “Silicon Valley”.', zh:'北京中关村大街——“中国硅谷”的中心。', credit:'N509FZ', license:'CC BY-SA 4.0', page:CP + 'Zhongguancun_Street_from_Haidian_Huangzhuang_North_(20201214123508).jpg' },
+  { ...ph('Pearl River Delta','珠江三角洲'), src:TH + 'c/c0/Skyline_in_Shenzhen_%2820250327%29.jpg/960px-Skyline_in_Shenzhen_%2820250327%29.jpg' + Q, en:'Shenzhen: a fishing town in 1980, now a city of over 17 million and a world centre for electronics.', zh:'深圳：1980 年还是一个边陲小镇，如今是人口超过 1700 万的现代化大都市和世界电子产业中心。', credit:'Fumikas Sagisavas', license:'CC0', page:CP + 'Skyline_in_Shenzhen_(20250327).jpg' }
+], { title:o('Transport, farms and factories in real life','真实的交通、农业和工业'), sub:o('Photos and video from Wikimedia Commons','照片和影片来自维基共享资源') });
+
+/* ============ QUIZ (中考 style) ============ */
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('A box of urgently needed vaccine must travel 3,000 km. The best choice is','一箱急需的疫苗要运往 3000 千米外，最合适的运输方式是'), options:[o('Air','航空运输'),o('Water','水路运输'),o('Rail','铁路运输'),o('Pipeline','管道运输')], answer:0, explain:o('Small, valuable and urgent goods go by air.','贵重、急需、数量不大的货物选择航空运输。')},
+  {q:o('Which mode carries the most at the lowest price, but is the slowest?','运量大、运价低，但速度最慢的运输方式是'), options:[o('Water','水路运输'),o('Road','公路运输'),o('Air','航空运输'),o('Rail','铁路运输')], answer:0, explain:o('Ships are ideal for heavy bulk cargo that is not in a hurry.','水运适合运输大宗笨重、不急需的货物。')},
+  {q:o('How is China’s transport network distributed?','我国交通运输网的分布特点是'), options:[o('Dense in the east, sparse in the west','东部稠密，西部稀疏'),o('Dense in the west, sparse in the east','西部稠密，东部稀疏'),o('Even everywhere','全国分布均匀'),o('Dense in the north only','只有北方稠密')], answer:0, explain:o('The east has flatter land, more people and a stronger economy.','东部地形平坦、人口稠密、经济发达。')},
+  {q:o('Zhengzhou is a major hub because two lines cross there. Which two?','郑州是重要的铁路枢纽，在此交会的两条干线是'), options:[o('Jingguang and Longhai','京广线和陇海线'),o('Jinghu and Longhai','京沪线和陇海线'),o('Jingguang and Hukun','京广线和沪昆线'),o('Jingjiu and Jingbao','京九线和京包线')], answer:0, explain:o('Xuzhou is Jinghu × Longhai; Zhuzhou is Jingguang × Hukun.','徐州：京沪线 × 陇海线；株洲：京广线 × 沪昆线。')},
+  {q:o('The Jingjiu line runs from Beijing to','京九线的起止点是北京和'), options:[o('Kowloon, Hong Kong','香港九龙'),o('Jiujiang, Jiangxi','江西九江'),o('Jiuquan, Gansu','甘肃酒泉'),o('Guangzhou','广州')], answer:0, explain:o('“Jiu” stands for Kowloon (九龙 Jiǔlóng).','“九”指香港九龙。')},
+  {q:o('The “8 vertical, 8 horizontal” grid refers to China’s','“八纵八横”指的是我国的'), options:[o('High-speed rail corridors','高速铁路主通道'),o('Expressways','高速公路网'),o('Canals','运河网'),o('Oil pipelines','输油管道')], answer:0, explain:o('It comes from the 2016 Medium- and Long-Term Railway Network Plan.','出自 2016 年《中长期铁路网规划》。')},
+  {q:o('The line that separates “crops in the east” from “herds in the west” is roughly','我国种植业区与畜牧业区的分界线大致是'), options:[o('The 400 mm yearly rainfall line','400 毫米年等降水量线'),o('The 800 mm yearly rainfall line','800 毫米年等降水量线'),o('The Qinling–Huaihe Line','秦岭—淮河一线'),o('The Yangtze River','长江')], answer:0, explain:o('West of the 400 mm line it is too dry for most crops without irrigation.','400 毫米线以西降水少，以畜牧业为主。')},
+  {q:o('Which pairing of pastoral region and animal is correct?','下列牧区与优良畜种的搭配，正确的是'), options:[o('Xinjiang — fine-wool sheep','新疆牧区——细毛羊'),o('Inner Mongolia — yak','内蒙古牧区——牦牛'),o('Tibet — Sanhe horse','西藏牧区——三河马'),o('Qinghai — Sanhe cattle','青海牧区——三河牛')], answer:0, explain:o('Sanhe horses and cattle: Inner Mongolia. Yaks: Qinghai and Tibet.','三河马、三河牛在内蒙古牧区；牦牛在青海、西藏牧区。')},
+  {q:o('“Rice in the south, wheat in the north” — the dividing line is','“南稻北麦”的分界线大致是'), options:[o('The Qinling–Huaihe Line','秦岭—淮河一线'),o('The Yellow River','黄河'),o('The 400 mm rainfall line','400 毫米年等降水量线'),o('The Great Wall','长城')], answer:0, explain:o('South of it: warm, wet paddies. North of it: dry fields.','以南水田为主种水稻，以北旱地为主种小麦。')},
+  {q:o('A county has steep, forested mountains. Following “farm to fit the land”, it should mainly develop','某县多陡峭的山地。按照因地制宜的原则，这里最适合发展'), options:[o('Forestry','林业'),o('Grain farming','种植业'),o('Fishing','渔业'),o('Cotton farming','棉花种植')], answer:0, explain:o('Ploughing steep slopes causes soil erosion; forests protect them.','陡坡开垦会造成水土流失，山地适宜发展林业。')},
+  {q:o('China’s largest all-round industrial base is','我国最大的综合性工业基地是'), options:[o('Shanghai–Nanjing–Hangzhou','沪宁杭工业基地'),o('Beijing–Tianjin–Tangshan','京津唐工业基地'),o('Central–Southern Liaoning','辽中南工业基地'),o('The Pearl River Delta','珠江三角洲工业基地')], answer:0, explain:o('Beijing–Tianjin–Tangshan is the largest in the north; Liaoning is heavy industry; the Pearl River Delta is led by light industry.','京津唐是北方最大；辽中南是重工业基地；珠江三角洲以轻工业为主。')},
+  {q:o('Why did Zhongguancun in Beijing become a high-tech centre?','北京中关村发展高新技术产业最主要的优势是'), options:[o('Many universities and researchers nearby','高校和科研机构集中，科技人才多'),o('Rich coal and iron ore','煤、铁资源丰富'),o('A large seaport','有大型海港'),o('Cheap farmland','土地价格低')], answer:0, explain:o('High-tech industry depends on knowledge and talent.','高新技术产业主要依靠科技和人才。')}
+], { count:10 });
+
+/* ============ SORT ============ */
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'p',en:'Pastoral region',zh:'四大牧区'},{id:'g',en:'Commercial grain base',zh:'商品粮基地'},{id:'i',en:'Industrial base',zh:'工业基地'}],
+  items:[
+    {en:'Inner Mongolia',zh:'内蒙古',bin:'p'},{en:'Xinjiang',zh:'新疆',bin:'p'},{en:'Qinghai',zh:'青海',bin:'p'},{en:'Tibet',zh:'西藏',bin:'p'},
+    {en:'Sanjiang Plain',zh:'三江平原',bin:'g'},{en:'Songnen Plain',zh:'松嫩平原',bin:'g'},{en:'Chengdu Plain',zh:'成都平原',bin:'g'},{en:'Jianghan Plain',zh:'江汉平原',bin:'g'},{en:'Dongting Lake Plain',zh:'洞庭湖平原',bin:'g'},
+    {en:'Central–Southern Liaoning',zh:'辽中南',bin:'i'},{en:'Beijing–Tianjin–Tangshan',zh:'京津唐',bin:'i'},{en:'Shanghai–Nanjing–Hangzhou',zh:'沪宁杭',bin:'i'}
+  ]
+});
+</script>
+</body>
+</html>

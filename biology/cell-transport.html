@@ -1,0 +1,683 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diffusion &amp; Osmosis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/photos.js"></script>
+<script src="../shared/lab3d.js"></script>
+<style>
+/* page-specific styles */
+.readout{font-family:Fredoka;font-weight:600}
+.tbtn.view.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.pill .val{font-family:Fredoka;min-width:44px;text-align:right}
+#atpPill{display:none}
+.tonic{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.tonic .box{display:flex;flex-direction:column;gap:6px}
+.tonic .box .row{display:flex;gap:8px;align-items:flex-start;font-size:15px;color:var(--ink-2)}
+.tonic .box .row b{color:var(--ink);white-space:nowrap}
+.tonic .pic{height:86px;display:flex;align-items:center;justify-content:center;gap:16px}
+.tonic svg{width:84px;height:84px}
+.predict{padding:22px;display:flex;flex-direction:column;gap:12px}
+.predict .scen{font-weight:800;font-size:19px;min-height:56px}
+.predict .ans{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.predict .ans button{border:2px solid var(--line);background:var(--surface-2);border-radius:14px;padding:12px;font-weight:800}
+.predict .ans button.right{border-color:var(--good);background:color-mix(in srgb,var(--good) 16%,var(--surface))}
+.predict .ans button.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,var(--surface))}
+.difbox{min-height:340px}
+.graphbox{position:relative;height:170px;margin-top:14px}
+.graphbox canvas{position:absolute;inset:0;width:100%;height:100%}
+@media (max-width:980px){.tonic{grid-template-columns:1fr}}
+@media (max-width:560px){.predict .ans{grid-template-columns:1fr}}
+</style>
+</head>
+<body data-subject="biology" data-topic="cell-transport">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="生物 · 细胞">Biology · Cells</span>
+  <h1 data-zh-html="扩散与<em>渗透作用</em>">Diffusion &amp; <em>Osmosis</em></h1>
+  <p class="lead" data-zh="蔫了的生菜叶泡进清水里，为什么又会变得脆挺？细胞膜就像一位挑剔的门卫：有的物质可以自由通过，有的需要“通道”，有的还得花能量“搬运”。把一个红细胞泡进盐水或清水里，看看水分子怎样进进出出！">Why does a wilted lettuce leaf turn crisp again in a bowl of water? The cell membrane is a picky gatekeeper: some things slip through freely, some need a “tunnel”, and some must be pumped in using energy. Drop a red blood cell into salty or fresh water and watch the water rush in and out!</p>
+</header>
+
+<section class="wrap" id="explore" data-nav="3D Osmosis" data-nav-zh="3D 渗透">
+  <div class="explorer">
+    <div class="stage card" id="stage" data-3d>
+      <div class="toolbar">
+        <button class="tbtn view on" data-view="rbc" data-zh="🔴 红细胞">🔴 Red blood cell</button>
+        <button class="tbtn view" data-view="plant" data-zh="🌿 植物细胞">🌿 Plant cell</button>
+        <button class="tbtn view" data-view="mem" data-zh="🧱 细胞膜特写">🧱 Membrane close-up</button>
+        <button class="tbtn" id="storyBtn" data-zh="🎬 被动与主动运输（故事）">🎬 Passive vs active (story)</button>
+        <button class="tbtn" id="labelBtn" data-zh="🏷 标签">🏷 Labels</button>
+        <button class="tbtn" id="resetBtn" data-zh="⌂ 重置">⌂ Reset</button>
+      </div>
+      <div class="bottombar">
+        <div class="pill" id="saltPill"><span data-zh="🧂 外界盐浓度">🧂 Salt outside</span><input id="salt" type="range" min="0" max="300" value="90" aria-label="Salt concentration outside"><span class="val" id="saltVal">0.9%</span></div>
+        <div class="pill" id="atpPill"><span data-zh="⚡ ATP 供能">⚡ ATP supply</span><button class="tbtn on" id="atpBtn" data-zh="开">ON</button></div>
+        <div class="pill readout" id="flowRead">—</div>
+        <div class="tip" data-zh="拖动旋转 · 点击任意部分">Drag to rotate · Click any part</div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="chips" id="chips"></div>
+</section>
+
+<section class="wrap" id="tonicity" data-nav="Salt or fresh?" data-nav-zh="盐水还是清水？">
+  <div class="sec-head">
+    <h2 data-zh="三种溶液，三种结果">Three solutions, three results</h2>
+    <p data-zh="水总是从溶质（如盐）浓度低的一侧，穿过细胞膜流向溶质浓度高的一侧。换句话说：水会“追着盐跑”。">Water always moves across the membrane from where there is LESS dissolved stuff (like salt) to where there is MORE. In other words: water follows salt.</p>
+  </div>
+  <div class="tonic" id="tonicCards"></div>
+  <div class="memory" style="margin-top:16px"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="“水往盐处流”：哪边盐多，水就往哪边跑。细胞在清水里会胀大，在浓盐水里会皱缩。">“Water follows salt”: whichever side has more salt, water moves toward it. Cells swell in fresh water and shrivel in very salty water.</span></div>
+  <div class="card predict" style="margin-top:18px">
+    <h3 data-zh="🔮 预测一下：水会往哪里流？">🔮 Predict it: which way does the water go?</h3>
+    <div class="scen" id="pScen"></div>
+    <div class="ans" id="pAns"></div>
+    <div class="result" id="pMsg"></div>
+    <div class="btnrow"><button class="btn" id="pNext" data-zh="下一个情境 ▶">Next situation ▶</button><span class="muted" id="pScore" style="align-self:center;font-weight:800"></span></div>
+  </div>
+</section>
+
+<section class="wrap" id="diffusion" data-nav="Diffusion lab" data-nav-zh="扩散实验">
+  <div class="sec-head">
+    <h2 data-zh="扩散实验室：滴一滴染料">Diffusion lab: add a drop of dye</h2>
+    <p data-zh="粒子总是在不停地随机运动，结果就是从浓度高的地方扩散到浓度低的地方，直到分布均匀。试着改变温度和细胞膜的通透性。">Particles never stop moving randomly, so they spread from high concentration to low concentration until they are evenly mixed. Try changing the temperature and how permeable the membrane is.</p>
+  </div>
+  <div class="sim">
+    <div>
+      <div class="card simbox difbox" id="difBox"><canvas id="difCv" aria-label="Diffusion simulation"></canvas></div>
+      <div class="card graphbox"><canvas id="graphCv" aria-label="Concentration graph"></canvas></div>
+    </div>
+    <div class="card simside">
+      <h3 data-zh="控制面板">Controls</h3>
+      <div class="btnrow"><button class="btn" id="dropBtn" data-zh="💧 滴入染料">💧 Drop dye</button><button class="btn alt" id="starchBtn" data-zh="🔵 加入淀粉（大分子）">🔵 Add starch (big)</button><button class="btn ghost" id="difReset" data-zh="↺ 重置">↺ Reset</button></div>
+      <label class="ctl"><span><span data-zh="温度">Temperature</span>: <b id="tVal">25 °C</b></span><input id="temp" type="range" min="0" max="80" value="25"></label>
+      <label class="ctl"><span><span data-zh="细胞膜通透性（小孔数量）">Membrane permeability (number of pores)</span>: <b id="pVal">50%</b></span><input id="perm" type="range" min="0" max="100" value="50"></label>
+      <div class="counters">
+        <div class="counter"><b id="cLeft">—</b><span data-zh="染料在左侧">dye on the left</span></div>
+        <div class="counter"><b id="cRight">—</b><span data-zh="染料在右侧">dye on the right</span></div>
+        <div class="counter"><b id="cTime">0 s</b><span data-zh="时间">time</span></div>
+        <div class="counter"><b id="cStarch">—</b><span data-zh="淀粉穿过膜">starch that crossed</span></div>
+      </div>
+      <div class="result" id="difMsg"></div>
+      <div class="legend"><span><i style="background:#9b5de5"></i><span data-zh="染料（小分子）">dye (small)</span></span><span><i style="background:#3f7ee8"></i><span data-zh="淀粉（大分子）">starch (big)</span></span></div>
+      <div class="mix"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="达到平衡后，粒子并没有停止运动！它们仍在两侧之间来回穿梭，只是进出的数量相等。">At equilibrium the particles do NOT stop moving! They keep crossing both ways; the numbers going each way are just equal.</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real photos" data-nav-zh="真实影像">
+  <div id="gallery"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 物质运输测验">🧠 Cell transport quiz</h3><p class="sub" data-zh="选出正确答案。">Pick the best answer.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分一分：被动还是主动？">🗂️ Sort it: passive or active?</h3><p class="sub" data-zh="需要消耗能量（ATP）的是主动运输。把每个例子拖到（或先点再点方框）正确的组里。">If it needs energy (ATP), it is active transport. Drag each example (or tap it, then tap a box) into the right group.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="对应佐治亚州标准 S7L2（细胞的结构与功能，尤其是细胞膜控制物质进出）。建议：先在 3D 红细胞视图中把盐浓度从 0.9% 拖到 0% 和 3%，让学生描述水的净流动方向；再切换到植物细胞，讨论为什么植物细胞不会胀破（细胞壁）以及蔬菜为什么会萎蔫。用“细胞膜特写”和故事模式区分简单扩散、协助扩散（通道蛋白）和需要 ATP 的主动运输（载体蛋白/泵）。扩散实验可以让学生控制变量：只改变温度，记录达到平衡所需的时间。">Supports GSE S7L2 (cell structures and functions, especially how the cell membrane controls what enters and leaves). Suggested flow: in the 3D red-blood-cell view drag the salt from 0.9% to 0% and to 3% and ask students to describe the net direction of water; switch to the plant cell and discuss why plant cells don’t burst (cell wall) and why vegetables wilt. Use the membrane close-up and the story to separate simple diffusion, facilitated diffusion (channel proteins) and active transport (pumps that use ATP). The diffusion lab supports a controlled experiment: change only the temperature and time how long it takes to reach equilibrium.</p>
+    <p data-zh="常见误区：盐分子会穿过细胞膜进入细胞（渗透中移动的是水）；平衡时粒子停止运动；主动运输就是“更快的扩散”。">Common misconceptions: salt moves into the cell during osmosis (it is the WATER that moves); particles stop moving at equilibrium; active transport is just “faster diffusion”.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<!--REAL-PHOTOS-->
+<script>
+/* ===== See the real thing: real photos / clips (Wikimedia Commons, freely licensed; credit shown under each) ===== */
+(function(){
+const P = [
+  { src:'https://upload.wikimedia.org/wikipedia/commons/2/21/Rhoeo_Discolor_epidermis.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'BEFORE: leaf skin (epidermis) cells of the plant Rhoeo discolor. The pink vacuoles are full of water and fill each whole cell.', zh:'失水之前：紫背万年青（Rhoeo discolor）的叶表皮细胞。粉红色的液泡装满了水，撑满了整个细胞。', kind:{en:'Light micrograph',zh:'光学显微镜照片'}, scale:{en:'field of view about 450 µm (less than half a millimeter)',zh:'视野宽约 450 微米（不到半毫米）'}, credit:'Mnolf', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Rhoeo_Discolor_epidermis.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/01/Rhoeo_Discolor_-_Plasmolysis.jpg/960px-Rhoeo_Discolor_-_Plasmolysis.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'AFTER: the same kind of cells after plasmolysis. Water has left by osmosis, so the pink vacuoles have shrunk, but the cell walls keep their shape.', zh:'失水之后：同一种细胞发生了质壁分离。水通过渗透作用离开细胞，粉红色的液泡缩小了，细胞壁却保持着原来的形状。', kind:{en:'Light micrograph',zh:'光学显微镜照片'}, scale:{en:'field of view about 450 µm',zh:'视野宽约 450 微米'}, credit:'Mnolf', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Rhoeo_Discolor_-_Plasmolysis.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/df/%D0%9F%D0%BB%D0%B0%D0%B7%D0%BC%D0%BE%D0%BB%D0%B8%D0%B7_%D0%BA%D1%80%D0%B0%D1%81%D0%BD%D0%BE%D0%B3%D0%BE_%D0%BB%D1%83%D0%BA%D0%B0.jpg/960px-%D0%9F%D0%BB%D0%B0%D0%B7%D0%BC%D0%BE%D0%BB%D0%B8%D0%B7_%D0%BA%D1%80%D0%B0%D1%81%D0%BD%D0%BE%D0%B3%D0%BE_%D0%BB%D1%83%D0%BA%D0%B0.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Plasmolysis in red onion cells. Can you see where the colored cell contents have pulled away from the cell wall?', zh:'紫洋葱细胞的质壁分离。你能看出带颜色的细胞内容物从哪里离开了细胞壁吗？', kind:{en:'Light micrograph',zh:'光学显微镜照片'}, credit:'Suchkova', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:%D0%9F%D0%BB%D0%B0%D0%B7%D0%BC%D0%BE%D0%BB%D0%B8%D0%B7_%D0%BA%D1%80%D0%B0%D1%81%D0%BD%D0%BE%D0%B3%D0%BE_%D0%BB%D1%83%D0%BA%D0%B0.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/2/24/Red_White_Blood_cells.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Real blood cells, colored by computer. From left to right: a red blood cell (like the one in the beaker above), a platelet and a white blood cell.', zh:'真实的血细胞（颜色是电脑加上去的）。从左到右：红细胞（就像上面烧杯里的那个）、血小板和白细胞。', kind:{en:'Electron micrograph (SEM)',zh:'扫描电镜照片'}, credit:'Electron Microscopy Facility, National Cancer Institute at Frederick', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Red_White_Blood_cells.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f2/Neutrophil_with_anthrax_copy.jpg/960px-Neutrophil_with_anthrax_copy.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Too big for any channel or pump! This white blood cell (a neutrophil, yellow) is wrapping its membrane around anthrax bacteria (orange) to swallow them whole.', zh:'太大了，任何通道和泵都运不进去！这个白细胞（中性粒细胞，黄色）正用细胞膜把炭疽杆菌（橙色）整个包起来“吞”进去。', kind:{en:'Electron micrograph (SEM)',zh:'扫描电镜照片'}, scale:{en:'scale bar = 5 µm',zh:'比例尺 = 5 微米'}, credit:'Volker Brinkmann', license:'CC BY 2.5', page:'https://commons.wikimedia.org/wiki/File:Neutrophil_with_anthrax_copy.jpg' },
+  { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/f/fc/%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D0%B0_%D1%81%D0%BE%D0%BA%D1%80%D0%B0%D1%82%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE%D0%B9_%D0%B2%D0%B0%D0%BA%D1%83%D0%BE%D0%BB%D0%B8_%D0%B8%D0%BD%D1%84%D1%83%D0%B7%D0%BE%D1%80%D0%B8%D0%B8_%D1%82%D1%83%D1%84%D0%B5%D0%BB%D1%8C%D0%BA%D0%B8.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fc/%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D0%B0_%D1%81%D0%BE%D0%BA%D1%80%D0%B0%D1%82%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE%D0%B9_%D0%B2%D0%B0%D0%BA%D1%83%D0%BE%D0%BB%D0%B8_%D0%B8%D0%BD%D1%84%D1%83%D0%B7%D0%BE%D1%80%D0%B8%D0%B8_%D1%82%D1%83%D1%84%D0%B5%D0%BB%D1%8C%D0%BA%D0%B8.webm/960px--%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D0%B0_%D1%81%D0%BE%D0%BA%D1%80%D0%B0%D1%82%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE%D0%B9_%D0%B2%D0%B0%D0%BA%D1%83%D0%BE%D0%BB%D0%B8_%D0%B8%D0%BD%D1%84%D1%83%D0%B7%D0%BE%D1%80%D0%B8%D0%B8_%D1%82%D1%83%D1%84%D0%B5%D0%BB%D1%8C%D0%BA%D0%B8.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fc/%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D0%B0_%D1%81%D0%BE%D0%BA%D1%80%D0%B0%D1%82%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE%D0%B9_%D0%B2%D0%B0%D0%BA%D1%83%D0%BE%D0%BB%D0%B8_%D0%B8%D0%BD%D1%84%D1%83%D0%B7%D0%BE%D1%80%D0%B8%D0%B8_%D1%82%D1%83%D1%84%D0%B5%D0%BB%D1%8C%D0%BA%D0%B8.webm/960px--%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D0%B0_%D1%81%D0%BE%D0%BA%D1%80%D0%B0%D1%82%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE%D0%B9_%D0%B2%D0%B0%D0%BA%D1%83%D0%BE%D0%BB%D0%B8_%D0%B8%D0%BD%D1%84%D1%83%D0%B7%D0%BE%D1%80%D0%B8%D0%B8_%D1%82%D1%83%D1%84%D0%B5%D0%BB%D1%8C%D0%BA%D0%B8.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Video: the contractile vacuole of a Paramecium at work. Water keeps entering this pond-dwelling cell by osmosis, so the vacuole keeps pumping it out.', zh:'视频：草履虫的伸缩泡在工作。草履虫生活在池塘的淡水里，水不断通过渗透作用进入细胞，伸缩泡就不停地把水排出去。', kind:{en:'Microscope video',zh:'显微镜视频'}, credit:'Andrei Savitsky', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D0%B0_%D1%81%D0%BE%D0%BA%D1%80%D0%B0%D1%82%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE%D0%B9_%D0%B2%D0%B0%D0%BA%D1%83%D0%BE%D0%BB%D0%B8_%D0%B8%D0%BD%D1%84%D1%83%D0%B7%D0%BE%D1%80%D0%B8%D0%B8_%D1%82%D1%83%D1%84%D0%B5%D0%BB%D1%8C%D0%BA%D0%B8.webm' }
+];
+window.REALFIG = { vacuole:P[0], wall:P[1] };
+if (window.LabPhotos) LabPhotos.render('#gallery', P.filter(p => !p._x), { title:{en:'See the real thing',zh:'看看真实的样子'}, sub:{en:'Real cells gaining and losing water, and real cells doing transport work. Click any picture to enlarge it; the video plays only when you press play.',zh:'真实的细胞在吸水和失水，也在忙着运输物质。点击图片可以放大；视频要按下播放键才会播放。'} });
+})();
+</script>
+<!--/REAL-PHOTOS-->
+<script>
+const o = (en, zh) => ({en, zh});
+/* ===== Generic info-panel + chips explorer ===== */
+function makeExplorer(cfg){
+  const E = { sel:null, focus:null };
+  E.select = (k, from3D) => { E.sel = k; render(); cfg.onSelect && cfg.onSelect(k, from3D); if (!from3D && E.focus) E.focus(k); };
+  function render(){
+    const box = Lab.$(cfg.info), k = E.sel, I = cfg.intro;
+    if (!k){
+      box.innerHTML = `<span class="tag">${Lab.L(I.tag)}</span><h3>${Lab.L(I.title)}</h3>
+        <p class="muted" style="margin:0">${Lab.L(I.text)}</p>
+        <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(I.big)}</div>
+        <div class="nav"><button data-a="start">${Lab.L(I.start)}</button></div>`;
+      box.querySelector('[data-a=start]').onclick = () => E.select(cfg.order[0]);
+    } else {
+      const p = cfg.parts[k], i = cfg.order.indexOf(k), n = cfg.order.length;
+      box.innerHTML = `<span class="tag">${Lab.L(p.tag || cfg.tag)}</span>
+        <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+        <div class="job">${Lab.L(p.job)}</div>
+        <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>${window.REALFIG && REALFIG[k] ? LabPhotos.figure(REALFIG[k]) : ''}
+        <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(p.hint)}</div>
+        ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+        <button class="speak" data-a="speak">${Lab.L(Lab.UI.listen)}</button>
+        <div class="nav"><button data-a="prev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button data-a="next">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
+      box.querySelector('[data-a=speak]').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. ').replace(/<[^>]+>/g, ''));
+      box.querySelector('[data-a=prev]').onclick = () => E.select(cfg.order[(i - 1 + n) % n]);
+      box.querySelector('[data-a=next]').onclick = () => E.select(cfg.order[(i + 1) % n]);
+    }
+    Lab.$(cfg.chips).innerHTML = cfg.order.map(c => `<button class="chip ${E.sel === c ? 'on' : ''}" data-k="${c}"><i style="background:${cfg.parts[c].color}"></i>${Lab.L(cfg.parts[c].name)}</button>`).join('');
+    Lab.$$(cfg.chips + ' .chip').forEach(c => c.onclick = () => E.select(c.dataset.k));
+  }
+  E.render = render;
+  Lab.onLang(render);
+  return E;
+}
+
+/* ===== Parts of the transport model ===== */
+const PARTS = {
+  membrane:{view:'any', color:'#ff8fa3', name:o('Cell membrane','细胞膜'), job:o('Semi-permeable gatekeeper','选择透过性的“门卫”'),
+    facts:o(['Every cell is wrapped in a thin, flexible membrane that controls what enters and leaves.','It is semi-permeable (selectively permeable): water and small molecules pass easily, while big or charged particles need help.','In osmosis, water crosses the membrane but the salt particles cannot.'],
+            ['每个细胞外面都包着一层又薄又软的细胞膜，控制物质进出细胞。','细胞膜具有选择透过性：水和小分子容易通过，大分子或带电的粒子需要“帮忙”才能通过。','在渗透作用中，水能穿过细胞膜，而盐粒子不能。']),
+    hint:o('Semi-permeable = “some things may pass”.','选择透过性 = “有的能过，有的不能过”。')},
+  water:{view:'any', color:'#3fb6e0', name:o('Water molecules (osmosis)','水分子（渗透作用）'), job:o('Move from fewer solutes to more solutes','从溶质少的一侧流向溶质多的一侧'),
+    facts:o(['Osmosis is the diffusion of WATER across a semi-permeable membrane.','Water moves toward the side with MORE dissolved particles (less water), until both sides are balanced.','Water molecules always cross in BOTH directions. What matters is the NET direction.'],
+            ['渗透作用是“水”穿过选择透过性膜的扩散。','水会流向溶解粒子“更多”（水相对更少）的一侧，直到两侧达到平衡。','水分子总是双向穿过细胞膜，关键是看“净”流动的方向。']),
+    hint:o('Water follows salt.','水往盐处流。'),
+    mix:o('In osmosis the salt does NOT move into the cell. The water moves.','渗透作用中，盐并没有进入细胞，移动的是水。')},
+  solute:{view:'any', color:'#f59f00', name:o('Salt particles (solute)','盐粒子（溶质）'), job:o('Dissolved particles that cannot cross','溶解在水中、不能穿过细胞膜的粒子'),
+    facts:o(['A solute is the stuff dissolved in a liquid; the liquid (water) is the solvent.','Body cells contain about 0.9% salt, so 0.9% salt water is “balanced” (isotonic) for them.','Saltier outside (hypertonic) → water leaves the cell. Fresher outside (hypotonic) → water enters.'],
+            ['溶质是溶解在液体里的物质，溶解它的液体（水）叫溶剂。','人体细胞内大约含 0.9% 的盐，所以 0.9% 的盐水（生理盐水）对细胞来说是“平衡的”（等渗）。','外面更咸（高渗）→ 水流出细胞；外面更淡（低渗）→ 水流入细胞。']),
+    hint:o('HYPER = too much salt outside (cell shrinks). HYPO = too little salt outside (cell swells, like a hippo!).','“高渗”外面盐多，细胞皱缩；“低渗”外面盐少，细胞胀大。')},
+  cytoplasm:{view:'cell', color:'#e5484d', name:o('Cytoplasm','细胞质'), job:o('The watery inside of the cell','细胞内部的“水环境”'),
+    facts:o(['Cytoplasm is mostly water with many dissolved substances.','A red blood cell’s cytoplasm is packed with hemoglobin, the red protein that carries oxygen.','When water leaves, the cytoplasm shrinks and the cell looks wrinkled (crenated).'],
+            ['细胞质大部分是水，还溶解着许多物质。','红细胞的细胞质里充满了血红蛋白，这种红色的蛋白质负责运输氧气。','水分流失时，细胞质缩小，细胞看起来皱巴巴的。']),
+    hint:o('Red blood cells: a bag of hemoglobin.','红细胞 = 一袋血红蛋白。')},
+  wall:{view:'plant', color:'#4caf50', name:o('Cell wall (plant)','细胞壁（植物）'), job:o('Rigid box that stops bursting','坚硬的“盒子”，防止细胞胀破'),
+    facts:o(['Plant cells have a stiff cell wall outside the membrane. Water and salt pass through it freely.','In fresh water the cell swells and presses against the wall. This pressure (turgor) keeps plants firm.','Animal cells have no wall, so in fresh water they can burst.'],
+            ['植物细胞在细胞膜外还有一层坚硬的细胞壁，水和盐都能自由通过它。','在清水中，细胞吸水膨胀，紧紧压在细胞壁上。这种压力（膨压）让植物挺立。','动物细胞没有细胞壁，所以在清水中可能会胀破。']),
+    hint:o('Wall = no bursting. Firm celery = full cells.','有壁不会破。脆脆的芹菜 = 吸饱水的细胞。')},
+  vacuole:{view:'plant', color:'#6aa9ff', name:o('Central vacuole','中央液泡'), job:o('Water storage tank','储存水分的“水箱”'),
+    facts:o(['A large sac filled with water (cell sap). It can take up most of a plant cell.','In salty water the vacuole loses water and the membrane pulls away from the wall: this is called plasmolysis.','When vacuoles lose water, the plant wilts.'],
+            ['一个装满细胞液的大囊泡，可以占据植物细胞的大部分空间。','在浓盐水中，液泡失水，细胞膜和细胞壁分离，这叫质壁分离。','液泡失水后，植物就会萎蔫。']),
+    hint:o('Wilting = empty water tanks.','萎蔫 = 水箱空了。')},
+  lipid:{view:'mem', color:'#ffc4a3', name:o('Lipid bilayer','磷脂双分子层'), job:o('The two-layer “skin” of the membrane','细胞膜的基本骨架'),
+    facts:o(['The membrane is two layers of lipid (fat) molecules: heads face the water, tails hide in the middle.','Small molecules like oxygen and carbon dioxide slip straight through the lipids by simple diffusion.','No energy is needed: they move from high concentration to low.'],
+            ['细胞膜由两层磷脂分子构成：亲水的“头部”朝向两侧的水，疏水的“尾部”藏在中间。','氧气、二氧化碳等小分子可以直接穿过磷脂层，这是简单扩散（自由扩散）。','这个过程不需要能量：分子从高浓度处移向低浓度处。']),
+    hint:o('Heads out, tails in, like a sandwich.','头朝外，尾朝内，像一个三明治。')},
+  channel:{view:'mem', color:'#9b5de5', name:o('Channel protein','通道蛋白'), job:o('A tunnel for passive transport','被动运输的“隧道”'),
+    facts:o(['Some particles are too big or charged to pass through the lipids, so they use protein channels.','This is facilitated diffusion: still from high to low concentration and still NO energy.','Special water channels (aquaporins) let water cross the membrane quickly.'],
+            ['有些粒子太大或带电，不能直接穿过磷脂层，就要借助通道蛋白。','这叫协助扩散：仍然是从高浓度到低浓度，仍然“不需要”能量。','细胞膜上还有专门的水通道蛋白，让水快速进出。']),
+    hint:o('Channel = open tunnel, downhill, free ride.','通道 = 敞开的隧道，顺浓度“下坡”，免费通行。')},
+  pump:{view:'mem', color:'#14b8a6', name:o('Protein pump','载体蛋白（泵）'), job:o('Active transport: moves particles uphill','主动运输：把粒子“搬上坡”'),
+    facts:o(['A pump moves particles from LOW concentration to HIGH concentration, against the gradient.','This is active transport, and it needs energy from ATP.','Example: nerve cells pump sodium out and potassium in; root cells pump in minerals from soil.'],
+            ['载体蛋白（泵）把粒子从“低浓度”运到“高浓度”，也就是逆浓度梯度运输。','这就是主动运输，需要 ATP 提供能量。','例如：神经细胞把钠离子泵出、把钾离子泵入；根细胞从土壤中吸收矿质元素。']),
+    hint:o('Pushing a ball uphill takes energy.','把球推上坡需要能量。'),
+    mix:o('Active transport is not just “faster diffusion”: it moves things the OPPOSITE way, against the gradient.','主动运输不是“更快的扩散”，而是方向“相反”的运输：逆浓度梯度。')},
+  atp:{view:'mem', color:'#ffd84d', name:o('ATP (energy)','ATP（能量）'), job:o('The cell’s energy currency','细胞的“能量货币”'),
+    facts:o(['ATP is a molecule that stores energy. Mitochondria make it during cellular respiration.','When ATP gives up one phosphate (becoming ADP), it releases energy that powers the pump.','Turn ATP off in the model: the pump stops, but diffusion keeps going!'],
+            ['ATP 是储存能量的分子，主要在线粒体进行呼吸作用时产生。','ATP 释放出一个磷酸基团（变成 ADP）时会放出能量，为泵提供动力。','在模型中关掉 ATP：泵停止工作，但扩散照样进行！']),
+    hint:o('ATP = A Tiny Power pack.','ATP = 细胞里的“小电池”。')}
+};
+const ORDER = ['membrane','water','solute','cytoplasm','wall','vacuole','lipid','channel','pump','atp'];
+const STORY = [
+  {en:'1 · The membrane is a double layer of lipids. It is semi-permeable: some things pass, others can’t.', zh:'1 · 细胞膜由两层磷脂分子构成，具有选择透过性：有的物质能通过，有的不能。', k:'lipid', view:'mem'},
+  {en:'2 · Simple diffusion: tiny oxygen molecules (red) slip between the lipids from HIGH to LOW concentration. No energy needed.', zh:'2 · 简单扩散：很小的氧分子（红色）从磷脂之间穿过，由高浓度到低浓度，不需要能量。', k:'lipid', view:'mem'},
+  {en:'3 · Facilitated diffusion: glucose (green) is too big, so it passes through a channel protein. Still high → low, still free.', zh:'3 · 协助扩散：葡萄糖（绿色）太大，要通过通道蛋白。仍然是高 → 低，仍然不耗能。', k:'channel', view:'mem'},
+  {en:'4 · Active transport: the pump uses ATP to move pink particles from LOW to HIGH concentration, against the gradient.', zh:'4 · 主动运输：泵利用 ATP，把粉色粒子从低浓度运到高浓度，逆浓度梯度运输。', k:'pump', view:'mem'},
+  {en:'5 · ATP is switched off: the pump stops, but diffusion keeps going. Passive transport needs no energy!', zh:'5 · 关掉 ATP：泵停止了，但扩散照常进行。被动运输不需要能量！', k:'atp', view:'mem', atp:false},
+  {en:'6 · Osmosis is diffusion of water. In very salty water (3%), water leaves the red blood cell and it shrivels.', zh:'6 · 渗透作用是水的扩散。在很咸的盐水（3%）中，水从红细胞中流出，细胞皱缩。', k:'water', view:'rbc', salt:300},
+  {en:'7 · In fresh water (0%), water rushes in: the cell swells and can burst. A plant cell would not burst: its wall holds it in.', zh:'7 · 在清水（0%）中，水大量涌入：细胞胀大，甚至破裂。植物细胞有细胞壁保护，不会胀破。', k:'water', view:'rbc', salt:0}
+];
+const APP = window.APP = { view:'rbc', setView:null };
+const EX = makeExplorer({ info:'#info', chips:'#chips', parts:PARTS, order:ORDER, tag:o('Cell transport','物质运输'),
+  intro:{ tag:o('Osmosis lab','渗透实验'), title:o('A cell in a beaker','烧杯里的细胞'),
+    text:o('This red blood cell floats in salt water. Drag the Salt slider: below 0.9% the water outside is “fresher” than inside; above 0.9% it is saltier. Blue dots are water molecules crossing the membrane.','这个红细胞浮在盐水中。拖动“外界盐浓度”滑块：低于 0.9%，外面的水比细胞内“淡”；高于 0.9%，外面更“咸”。蓝色小点是正在穿过细胞膜的水分子。'),
+    big:o('Passive transport (diffusion, osmosis) moves things from high to low concentration for free. Active transport moves things from low to high and costs energy.','被动运输（扩散、渗透）从高浓度到低浓度，不耗能；主动运输从低浓度到高浓度，需要消耗能量。'),
+    start:o('Meet the membrane ▶','认识细胞膜 ▶') },
+  onSelect:(k, from3D) => { if (!k || !APP.setView) return; const v = PARTS[k].view; if (v === 'plant' || v === 'mem') APP.setView(v); else if (v === 'cell' && APP.view === 'mem') APP.setView('rbc'); } });
+
+/* ===== Hypotonic / isotonic / hypertonic cards ===== */
+function cellSVG(kind, s){   // s = -1 shrink, 0 normal, 1 swell
+  const ar = s > 0 ? '↘' : s < 0 ? '↗' : '⇄';
+  if (kind === 'animal'){
+    const r = s > 0 ? 34 : s < 0 ? 22 : 28, path = s < 0 ? Array.from({length:16}, (_, i) => { const a = i / 16 * 6.283, rr = i % 2 ? r : r + 6; return `${42 + Math.cos(a) * rr},${42 + Math.sin(a) * rr}`; }).join(' ') : null;
+    return `<svg viewBox="0 0 84 84">${path ? `<polygon points="${path}" fill="#ff8fa3" stroke="#c8323f" stroke-width="2"/>` : `<circle cx="42" cy="42" r="${r}" fill="#ff8fa3" stroke="#c8323f" stroke-width="2"/>`}<circle cx="42" cy="42" r="${s < 0 ? 9 : 11}" fill="#e5484d" opacity=".5"/></svg>`;
+  }
+  const m = s > 0 ? 4 : s < 0 ? 18 : 8, v = s > 0 ? 20 : s < 0 ? 8 : 15;
+  return `<svg viewBox="0 0 84 84"><rect x="4" y="10" width="76" height="64" rx="8" fill="none" stroke="#4caf50" stroke-width="4"/><rect x="${4 + m}" y="${10 + m}" width="${76 - 2 * m}" height="${64 - 2 * m}" rx="7" fill="#c8f0c0" stroke="#ff8fa3" stroke-width="2"/><ellipse cx="42" cy="42" rx="${v * 1.4}" ry="${v}" fill="#6aa9ff" opacity=".7"/></svg>`;
+}
+const TONIC = [
+  {k:'hypo', s:1, name:o('Hypotonic (fresh water)','低渗溶液（清水）'), salt:o('Less salt outside than inside','外界盐浓度 < 细胞内'), water:o('Net flow INTO the cell','水净流入细胞'),
+    an:o('Swells, may burst (lysis)','胀大，甚至破裂（溶血）'), pl:o('Swells and becomes firm (turgid)','吸水膨胀，变得硬挺')},
+  {k:'iso', s:0, name:o('Isotonic (0.9% salt)','等渗溶液（0.9% 盐水）'), salt:o('Same salt inside and outside','内外盐浓度相同'), water:o('No NET flow (in = out)','没有净流动（进 = 出）'),
+    an:o('Stays normal','保持正常形态'), pl:o('Slightly limp (flaccid)','略显松软')},
+  {k:'hyper', s:-1, name:o('Hypertonic (very salty)','高渗溶液（浓盐水）'), salt:o('More salt outside than inside','外界盐浓度 > 细胞内'), water:o('Net flow OUT of the cell','水净流出细胞'),
+    an:o('Shrivels (crenation)','皱缩'), pl:o('Membrane pulls off the wall (plasmolysis)','质壁分离')}
+];
+function renderTonic(){
+  Lab.$('#tonicCards').innerHTML = TONIC.map(t => `<div class="box card"><div class="pic">${cellSVG('animal', t.s)}${cellSVG('plant', t.s)}</div>
+    <h3>${Lab.L(t.name)}</h3><div class="row"><b>🧂</b>${Lab.L(t.salt)}</div><div class="row"><b>💧</b>${Lab.L(t.water)}</div>
+    <div class="row"><b>${Lab.L(o('Animal cell:','动物细胞：'))}</b>${Lab.L(t.an)}</div><div class="row"><b>${Lab.L(o('Plant cell:','植物细胞：'))}</b>${Lab.L(t.pl)}</div></div>`).join('');
+}
+Lab.onLang(renderTonic);
+
+/* ===== Predict-it mini game ===== */
+(function(){
+  const A = { in:o('💧➡️ Into the cells','💧➡️ 流入细胞'), out:o('⬅️💧 Out of the cells','⬅️💧 流出细胞'), none:o('⇄ No net change','⇄ 没有净变化') };
+  const SC = [
+    {q:o('Red blood cells are placed in pure (distilled) water.','把红细胞放进蒸馏水（纯水）里。'), a:'in', why:o('The cells have more solutes than pure water, so water rushes in. They swell and can burst.','细胞内的溶质比纯水多，水大量流入，细胞胀大甚至破裂。')},
+    {q:o('Someone sprinkles salt on a garden slug.','有人往花园里的蛞蝓身上撒盐。'), a:'out', why:o('The salt outside is very concentrated, so water leaves the slug’s cells. That is why it shrivels.','外面盐浓度很高，水从蛞蝓的细胞里流出，所以它会皱缩。')},
+    {q:o('A wilted stalk of celery is put in a glass of fresh water.','把一根萎蔫的芹菜放进一杯清水里。'), a:'in', why:o('Water moves into the cells and fills the vacuoles. The celery becomes crisp again (turgor).','水进入细胞，装满液泡，芹菜又变得脆挺（膨压）。')},
+    {q:o('Red blood cells are placed in 0.9% salt solution (saline).','把红细胞放进 0.9% 的生理盐水中。'), a:'none', why:o('0.9% matches the inside of the cells (isotonic). Water crosses both ways equally.','0.9% 与细胞内浓度相同（等渗），水双向进出的量相等。')},
+    {q:o('Raisins soak in a bowl of water overnight.','葡萄干在一碗清水里泡了一夜。'), a:'in', why:o('Raisins are full of sugar, so water moves into them and they plump up.','葡萄干含糖很多，水进入细胞，葡萄干就鼓起来了。')},
+    {q:o('Lettuce sits in salty dressing for hours.','生菜在咸咸的沙拉酱里泡了几个小时。'), a:'out', why:o('The dressing is hypertonic. Water leaves the lettuce cells, so the leaves go limp.','沙拉酱是高渗的，水从生菜细胞流出，叶子就软塌了。')},
+    {q:o('A freshwater pond plant is moved into seawater.','把淡水池塘里的水草移到海水里。'), a:'out', why:o('Seawater is much saltier, so the plant cells lose water and plasmolysis happens.','海水咸得多，水草细胞失水，发生质壁分离。')},
+    {q:o('A cell is placed in a solution with exactly the same salt concentration as its cytoplasm.','把细胞放进与细胞质盐浓度完全相同的溶液中。'), a:'none', why:o('Equal concentrations: dynamic equilibrium, no net movement.','两边浓度相等：处于动态平衡，没有净流动。')},
+    {q:o('Potato slices are dropped into very salty water.','把土豆片放进很咸的盐水里。'), a:'out', why:o('Water leaves the potato cells, so the slices become soft and bendy.','水从土豆细胞中流出，土豆片变软、能弯曲。')}
+  ];
+  let order = Lab.shuffle(SC.map((_, i) => i)), idx = 0, picked = null, score = 0, done = 0;
+  function render(){
+    const s = SC[order[idx]];
+    Lab.$('#pScen').textContent = Lab.L(s.q);
+    Lab.$('#pAns').innerHTML = ['in','out','none'].map(k => `<button data-a="${k}" class="${picked ? (k === s.a ? 'right' : k === picked ? 'wrong' : '') : ''}" ${picked ? 'disabled' : ''}>${Lab.L(A[k])}</button>`).join('');
+    Lab.$$('#pAns button').forEach(b => b.onclick = () => { picked = b.dataset.a; done++; if (picked === s.a) score++; render(); });
+    const m = Lab.$('#pMsg');
+    if (picked){ const ok = picked === s.a; m.textContent = (ok ? Lab.L(o('✅ Correct! ','✅ 正确！')) : Lab.L(o('❌ Not quite. ','❌ 不对。'))) + Lab.L(s.why); m.className = 'result ' + (ok ? 'good' : 'bad'); }
+    else { m.textContent = ''; m.className = 'result'; }
+    Lab.$('#pScore').textContent = Lab.lang === 'zh' ? `得分:${score} / ${done}` : `Score: ${score} / ${done}`;
+  }
+  Lab.$('#pNext').onclick = () => { idx = (idx + 1) % SC.length; if (!idx) order = Lab.shuffle(order); picked = null; render(); };
+  Lab.onLang(render);
+})();
+/* ===== Diffusion lab (2D canvas + graph) ===== */
+(function(){
+  const cv = Lab.$('#difCv'), host = Lab.$('#difBox'), g = cv.getContext('2d'), gc = Lab.$('#graphCv'), gg = gc.getContext('2d');
+  const ui = { temp:Lab.$('#temp'), perm:Lab.$('#perm') };
+  const H = 340, NP = 12; let W = 600, P = [], t = 0, hist = [], histT = 0, eqT = null, starchCross = 0, vis = false, last = performance.now();
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) * 1.15;
+  function poreArr(){ const n = Math.round(+ui.perm.value / 100 * NP), a = new Array(NP).fill(false); for (let k = 0; k < n; k++) a[Math.floor((k + .5) * NP / n)] = true; return a; }
+  function size(){ const b = host.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2);
+    if (b.width && (cv.width !== Math.round(b.width * d) || cv.height !== Math.round(b.height * d))){ cv.width = Math.round(b.width * d); cv.height = Math.round(b.height * d); W = H * b.width / b.height; P.forEach(p => p.x = Math.min(p.x, W - 4)); }
+    const gb = gc.getBoundingClientRect(); if (gb.width && gc.width !== Math.round(gb.width * d)){ gc.width = Math.round(gb.width * d); gc.height = Math.round(gb.height * d); } }
+  function add(n, big){ for (let i = 0; i < n; i++){ const x = big ? 20 + Math.random() * (W / 2 - 40) : W * .2 + gauss() * 14, y = big ? 20 + Math.random() * (H - 40) : H * .5 + gauss() * 14;
+    P.push({ x:Math.max(8, Math.min(W / 2 - 8, x)), y:Math.max(8, Math.min(H - 8, y)), a:Math.random() * 6.283, s:.6 + Math.random() * .8, big }); } eqT = null; }
+  Lab.$('#dropBtn').onclick = () => add(260, false);
+  Lab.$('#starchBtn').onclick = () => add(36, true);
+  Lab.$('#difReset').onclick = () => { P = []; t = 0; hist = []; histT = 0; eqT = null; starchCross = 0; status(); };
+  ui.temp.oninput = () => { Lab.$('#tVal').textContent = ui.temp.value + ' °C'; };
+  ui.perm.oninput = () => { Lab.$('#pVal').textContent = ui.perm.value + '%'; eqT = null; };
+  function step(dt){
+    const pores = poreArr(), slot = H / NP, half = slot * .36, mid = W / 2, sp = 55 * Math.sqrt((+ui.temp.value + 273) / 298) * (.35 + +ui.temp.value / 60);
+    for (const p of P){
+      p.a += (Math.random() - .5) * 1.6;
+      const v = sp * p.s * (p.big ? .35 : 1), r = p.big ? 6 : 2.6, ox = p.x;
+      p.x += Math.cos(p.a) * v * dt; p.y += Math.sin(p.a) * v * dt;
+      if (p.x < r){ p.x = r; p.a = Math.PI - p.a; } if (p.x > W - r){ p.x = W - r; p.a = Math.PI - p.a; }
+      if (p.y < r){ p.y = r; p.a = -p.a; } if (p.y > H - r){ p.y = H - r; p.a = -p.a; }
+      if ((ox - mid) * (p.x - mid) < 0 || Math.abs(p.x - mid) < r){
+        const k = Math.min(NP - 1, Math.floor(p.y / slot)), ok = !p.big && pores[k] && Math.abs(p.y - (k + .5) * slot) < half - r;
+        if (!ok && Math.abs(p.x - mid) < r + 3){ p.x = ox < mid ? mid - r - 3 : mid + r + 3; p.a = Math.PI - p.a; }
+        else if (ok && p.big) starchCross++;
+      }
+    }
+  }
+  const frac = big => { const s = P.filter(p => p.big === big); return s.length ? s.filter(p => p.x < W / 2).length / s.length : null; };
+  function status(){
+    const L = frac(false), S = frac(true), m = Lab.$('#difMsg');
+    Lab.$('#cLeft').textContent = L == null ? '—' : Math.round(L * 100) + '%';
+    Lab.$('#cRight').textContent = L == null ? '—' : Math.round((1 - L) * 100) + '%';
+    Lab.$('#cTime').textContent = Math.round(t) + ' s';
+    Lab.$('#cStarch').textContent = S == null ? '—' : String(P.filter(p => p.big && p.x > W / 2).length);
+    let msg, cls = '';
+    if (L == null) msg = o('Press “Drop dye” to start the experiment.','点击“滴入染料”开始实验。');
+    else if (+ui.perm.value === 0) { msg = o('🚫 No pores: the dye cannot cross the membrane.','🚫 没有小孔：染料无法穿过细胞膜。'); cls = 'bad'; }
+    else if (eqT != null) { msg = o(`⚖️ Equilibrium after about ${Math.round(eqT)} s. The particles keep moving both ways!`, `⚖️ 大约 ${Math.round(eqT)} 秒后达到平衡。粒子仍在双向运动!`); cls = 'good'; }
+    else msg = o('➡️ The dye is spreading from HIGH concentration (left) to LOW concentration (right)…','➡️ 染料正从高浓度（左侧）向低浓度（右侧）扩散……');
+    if (S != null && L == null) msg = o('🔵 Starch molecules are too big for the pores. The membrane is semi-permeable!','🔵 淀粉分子太大，钻不过小孔。细胞膜具有选择透过性！');
+    m.textContent = Lab.L(msg); m.className = 'result ' + cls;
+  }
+  function draw(){
+    const d = cv.width / W; g.setTransform(d, 0, 0, d, 0, 0);
+    g.fillStyle = css('--surface'); g.fillRect(0, 0, W, H); g.fillStyle = 'rgba(63,182,224,.10)'; g.fillRect(0, 0, W, H);
+    g.fillStyle = css('--ink-2'); g.font = '700 13px Nunito, sans-serif'; g.textAlign = 'center';
+    g.fillText(Lab.L(o('Left side','左侧')), W * .25, 18); g.fillText(Lab.L(o('Right side','右侧')), W * .75, 18);
+    const pores = poreArr(), slot = H / NP, half = slot * .36;
+    g.fillStyle = '#ff8fa3';
+    for (let k = 0; k < NP; k++){ const y0 = k * slot, y1 = y0 + slot; if (pores[k]){ g.fillRect(W / 2 - 3, y0, 6, slot / 2 - half); g.fillRect(W / 2 - 3, y0 + slot / 2 + half, 6, slot / 2 - half); } else g.fillRect(W / 2 - 3, y0, 6, slot); }
+    for (const p of P){ g.fillStyle = p.big ? '#3f7ee8' : '#9b5de5'; g.beginPath(); g.arc(p.x, p.y, p.big ? 6 : 2.6, 0, 6.283); g.fill(); }
+  }
+  function graph(){
+    const w = gc.width, h = gc.height, d = Math.min(devicePixelRatio || 1, 2), pad = 34 * d, ink = css('--ink-2'), line = css('--line');
+    gg.setTransform(1, 0, 0, 1, 0, 0); gg.fillStyle = css('--surface'); gg.fillRect(0, 0, w, h);
+    const X = tt => pad + (w - pad - 10 * d) * tt / Math.max(30, t), Y = f => h - 22 * d - (h - 34 * d) * f;
+    gg.strokeStyle = line; gg.lineWidth = d; gg.beginPath(); gg.moveTo(pad, Y(0)); gg.lineTo(w - 10 * d, Y(0)); gg.moveTo(pad, Y(0)); gg.lineTo(pad, Y(1)); gg.stroke();
+    gg.setLineDash([4 * d, 4 * d]); gg.beginPath(); gg.moveTo(pad, Y(.5)); gg.lineTo(w - 10 * d, Y(.5)); gg.stroke(); gg.setLineDash([]);
+    gg.fillStyle = ink; gg.font = `700 ${11 * d}px Nunito, sans-serif`; gg.textAlign = 'right';
+    gg.fillText('100%', pad - 4 * d, Y(1) + 4 * d); gg.fillText('50%', pad - 4 * d, Y(.5) + 4 * d); gg.fillText('0%', pad - 4 * d, Y(0) + 4 * d);
+    gg.textAlign = 'left'; gg.fillText(Lab.L(o('% of particles on the LEFT vs time (s)','左侧粒子所占百分比 随时间（秒）变化')), pad + 6 * d, 13 * d);
+    gg.textAlign = 'right'; gg.fillText(Math.round(Math.max(30, t)) + ' s', w - 10 * d, h - 6 * d);
+    for (const [key, col] of [['L', '#9b5de5'], ['S', '#3f7ee8']]){
+      gg.strokeStyle = col; gg.lineWidth = 2.5 * d; gg.beginPath(); let on = false;
+      for (const hpt of hist){ if (hpt[key] == null){ on = false; continue; } const x = X(hpt.t), y = Y(hpt[key]); on ? gg.lineTo(x, y) : gg.moveTo(x, y); on = true; }
+      gg.stroke();
+    }
+  }
+  new IntersectionObserver(es => es.forEach(e => vis = e.isIntersecting)).observe(host);
+  let acc = 0;
+  (function loop(){
+    requestAnimationFrame(loop);
+    const now = performance.now(), dt = Math.min(.05, (now - last) / 1000); last = now;
+    if (!vis) return;
+    size();
+    if (P.length){ step(dt); t += dt; histT += dt;
+      if (histT > .25){ histT = 0; hist.push({ t, L:frac(false), S:frac(true) }); if (hist.length > 1200) hist.shift(); }
+      const L = frac(false); if (eqT == null && L != null && Math.abs(L - .5) < .05 && t > 1) eqT = t; }
+    draw(); acc += dt; if (acc > .2){ acc = 0; graph(); status(); }
+  })();
+  Lab.onLang(() => { status(); });
+})();
+/* ===== Quiz ===== */
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('Diffusion is the movement of particles from…','扩散是指粒子从……'), options:[o('High concentration to low concentration','高浓度处移向低浓度处'),o('Low concentration to high concentration','低浓度处移向高浓度处'),o('Inside the nucleus only','只在细胞核内移动'),o('Cold places to hot places only','只从冷处移向热处')], answer:0},
+  {q:o('Osmosis is the diffusion of which substance across a membrane?','渗透作用是哪种物质穿过细胞膜的扩散？'), options:[o('Water','水'),o('Salt','盐'),o('Oxygen','氧气'),o('Protein','蛋白质')], answer:0},
+  {q:o('A red blood cell is put in pure water. What happens?','把红细胞放进纯水中，会发生什么？'), options:[o('Water enters; the cell swells and may burst','水进入细胞，细胞胀大甚至破裂'),o('Water leaves; the cell shrivels','水流出，细胞皱缩'),o('Nothing happens','什么也不会发生'),o('Salt enters the cell','盐进入细胞')], answer:0, explain:o('Pure water has fewer solutes than the cell, so water moves in.','纯水中的溶质比细胞内少，所以水流入细胞。')},
+  {q:o('A plant cell in very salty water will…','植物细胞放在很咸的盐水里会……'), options:[o('Lose water; the membrane pulls away from the wall','失水，细胞膜与细胞壁分离'),o('Burst open','胀破'),o('Gain water and become firm','吸水变硬'),o('Grow a new cell wall','长出新的细胞壁')], answer:0, explain:o('This is plasmolysis, and it is why plants wilt in salty soil.','这就是质壁分离，也是植物在盐碱地里会萎蔫的原因。')},
+  {q:o('Why don’t plant cells burst in fresh water?','为什么植物细胞在清水中不会胀破？'), options:[o('The cell wall pushes back','细胞壁的支撑和保护'),o('They have no membrane','它们没有细胞膜'),o('Water cannot enter plant cells','水不能进入植物细胞'),o('Chloroplasts absorb the water','叶绿体把水吸收了')], answer:0},
+  {q:o('Which process needs energy (ATP)?','下列哪个过程需要能量（ATP）?'), options:[o('Active transport','主动运输'),o('Diffusion','扩散'),o('Osmosis','渗透作用'),o('Facilitated diffusion','协助扩散')], answer:0},
+  {q:o('Active transport moves particles…','主动运输把粒子……'), options:[o('From low to high concentration (against the gradient)','从低浓度运到高浓度（逆浓度梯度）'),o('From high to low concentration','从高浓度运到低浓度'),o('Only out of the nucleus','只从细胞核里运出'),o('Without any help from proteins','不需要任何蛋白质帮助')], answer:0},
+  {q:o('“Semi-permeable” means the membrane…','细胞膜具有“选择透过性”，意思是……'), options:[o('Lets some substances through but not others','让一些物质通过，而另一些不能通过'),o('Lets everything through','什么都能通过'),o('Lets nothing through','什么都不能通过'),o('Is only half finished','只完成了一半')], answer:0},
+  {q:o('A cell in 0.9% salt water (isotonic) will…','细胞在 0.9% 的盐水（等渗溶液）中会……'), options:[o('Stay the same size: water moves in and out equally','大小不变：水进出的量相等'),o('Swell and burst','胀大破裂'),o('Shrink a lot','严重皱缩'),o('Stop all water movement','水完全停止移动')], answer:0, explain:o('Water still crosses, but the amounts in and out are equal (dynamic equilibrium).','水仍在进出，只是进出的量相等（动态平衡）。')},
+  {q:o('What happens to diffusion when the temperature rises?','温度升高时，扩散会怎样？'), options:[o('It speeds up','变快'),o('It slows down','变慢'),o('It stops','停止'),o('It reverses direction','方向相反')], answer:0, explain:o('Particles move faster when they are warmer.','温度越高，粒子运动越快。')},
+  {q:o('Oxygen enters your blood cells in the lungs by…','肺里的氧气进入血液，靠的是……'), options:[o('Diffusion (high to low)','扩散（从高到低）'),o('Active transport','主动运输'),o('Osmosis','渗透作用'),o('A protein pump using ATP','消耗 ATP 的泵')], answer:0},
+  {q:o('Why does a slug shrivel when salt is put on it?','为什么在蛞蝓身上撒盐，它会皱缩？'), options:[o('Water leaves its cells by osmosis','水通过渗透作用从它的细胞中流出'),o('Salt enters and burns its cells','盐进入细胞把它烧坏'),o('Its cells gain too much water','它的细胞吸水太多'),o('Salt blocks its breathing only','盐只是堵住了它的呼吸')], answer:0}
+], { count:10 });
+
+/* ===== Sort game ===== */
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'passive',en:'Passive transport (no energy)',zh:'被动运输（不耗能）'},{id:'active',en:'Active transport (uses ATP)',zh:'主动运输（消耗 ATP）'}],
+  items:[
+    {en:'Oxygen diffusing into blood',zh:'氧气扩散进入血液',bin:'passive'},{en:'CO₂ leaving a cell',zh:'二氧化碳离开细胞',bin:'passive'},{en:'Water entering a root by osmosis',zh:'水通过渗透作用进入根',bin:'passive'},
+    {en:'Glucose through a channel protein (high → low)',zh:'葡萄糖经通道蛋白由高到低运输',bin:'passive'},{en:'Perfume smell spreading in a room',zh:'香水味在房间里散开',bin:'passive'},
+    {en:'Sodium–potassium pump in nerve cells',zh:'神经细胞的钠钾泵',bin:'active'},{en:'Root cells taking in minerals from soil with fewer minerals',zh:'根细胞从矿质元素更少的土壤中吸收矿质',bin:'active'},
+    {en:'White blood cell engulfing bacteria',zh:'白细胞吞噬细菌',bin:'active'},{en:'Moving particles from low to high concentration',zh:'把粒子从低浓度运到高浓度',bin:'active'},{en:'Kidney cells pulling back glucose against the gradient',zh:'肾小管细胞逆浓度重吸收葡萄糖',bin:'active'}
+  ]
+});
+</script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+const V = THREE.Vector3;
+const ctx = Lab3D.stage('#stage', { THREE, OrbitControls, camera:[0, 5.5, 19], target:[0, -.6, 0], minDistance:5, maxDistance:40 });
+const { scene } = ctx;
+const MATS = {};
+const mat = (key, color, op = 1, extra = {}) => { const m = ctx.mat(color, op, { transparent:true, ...extra }); m.userData.op = op; m.userData.fixed = !!extra.emissive; (MATS[key] = MATS[key] || []).push(m); return m; };
+const dummy = new THREE.Object3D();
+const S = { view:'rbc', salt:.9, sw:0, pv:0, burst:0, atp:true, inR:0, outR:0, pas:0, act:0, atpUsed:0 };
+const C0 = new V(0, -.9, 0);
+
+/* =================== beaker =================== */
+const beakerG = new THREE.Group(); scene.add(beakerG);
+const glass = new THREE.MeshPhysicalMaterial({ color:'#e6f6ff', transparent:true, opacity:.13, roughness:.05, clearcoat:1, side:THREE.DoubleSide, depthWrite:false });
+const gm = new THREE.Mesh(new THREE.CylinderGeometry(6.3, 6.3, 9.6, 72, 1, true), glass); gm.position.y = -.1; beakerG.add(gm);
+const rim = new THREE.Mesh(new THREE.TorusGeometry(6.3, .09, 10, 90), glass.clone()); rim.material.opacity = .4; rim.rotation.x = Math.PI / 2; rim.position.y = 4.7; beakerG.add(rim);
+const waterM = new THREE.MeshPhysicalMaterial({ color:'#8fd3f4', transparent:true, opacity:.12, roughness:.1, depthWrite:false, side:THREE.DoubleSide });
+const wm = new THREE.Mesh(new THREE.CylinderGeometry(6.2, 6.2, 7.6, 72, 1, true), waterM); wm.position.y = -.9; beakerG.add(wm);
+const surfM = waterM.clone(); surfM.opacity = .22;
+const ws = new THREE.Mesh(new THREE.CircleGeometry(6.2, 72), surfM); ws.rotation.x = -Math.PI / 2; ws.position.y = 2.9; beakerG.add(ws);
+const wb = new THREE.Mesh(new THREE.CircleGeometry(6.3, 72), glass); wb.rotation.x = -Math.PI / 2; wb.position.y = -4.7; beakerG.add(wb);
+
+/* =================== red blood cell =================== */
+const rbcG = new THREE.Group(); rbcG.position.copy(C0); rbcG.rotation.set(.55, 0, .15); beakerG.add(rbcG);
+const rbcGeo = new THREE.SphereGeometry(1, 72, 54), posA = rbcGeo.attributes.position, U = [];
+for (let i = 0; i < posA.count; i++) U.push(new V().fromBufferAttribute(posA, i));
+function rbcSurf(u, sw, out){
+  const R = 2.6, x = u.x, y = u.y, z = u.z, rr = Math.min(1, Math.hypot(x, z));
+  const h = Math.sign(y) * .5 * Math.sqrt(Math.max(0, 1 - rr * rr)) * (.207 + 2.003 * rr * rr - 1.123 * rr ** 4);
+  out.set(x * R, h * R, z * R);
+  if (sw >= 0){ const sR = R * .84; out.x += (x * sR - out.x) * sw; out.y += (y * sR - out.y) * sw; out.z += (z * sR - out.z) * sw; }
+  else { const k = -sw, th = Math.atan2(z, x), ph = Math.acos(Math.max(-1, Math.min(1, y)));
+    const sp = Math.pow(Math.max(0, Math.cos(9 * th)) * Math.max(0, Math.cos(6 * ph)), 2) + .6 * Math.pow(Math.max(0, Math.cos(9 * th + 1.6)) * Math.max(0, -Math.cos(6 * ph)), 2);
+    const len = out.length() || 1; out.multiplyScalar(1 - .2 * k).addScaledVector(out.clone().divideScalar(len), sp * .55 * k * Math.min(1, rr * 1.5)); }
+  return out;
+}
+const tmp = new V(); let lastSw = 99;
+function updateRBC(){ for (let i = 0; i < U.length; i++){ rbcSurf(U[i], S.sw, tmp); posA.setXYZ(i, tmp.x, tmp.y, tmp.z); } posA.needsUpdate = true; rbcGeo.computeVertexNormals(); rbcGeo.computeBoundingSphere(); lastSw = S.sw; }
+const memRBC = mat('membrane', '#e5484d', .82, { roughness:.35, clearcoat:.8, side:THREE.DoubleSide });
+const rbc = new THREE.Mesh(rbcGeo, memRBC); rbcG.add(rbc); ctx.pickable(rbc, 'membrane');
+const hemoM = mat('cytoplasm', '#b3202f', 1);
+const hemo = new THREE.InstancedMesh(new THREE.SphereGeometry(.09, 8, 6), hemoM, 70); hemo.visible = false; rbcG.add(hemo); ctx.pickable(hemo, 'cytoplasm');
+const hemoD = Array.from({length:70}, () => new V(Math.random() - .5, (Math.random() - .5) * .5, Math.random() - .5).normalize());
+updateRBC();
+
+/* =================== plant cell =================== */
+const plantG = new THREE.Group(); plantG.position.copy(C0); plantG.rotation.y = -.45; plantG.visible = false; beakerG.add(plantG);
+const PA = [3.5, 2.3, 2.3];
+const wallPane = mat('wall', '#4caf50', .26, { side:THREE.DoubleSide, depthWrite:false });
+plantG.add(new THREE.Mesh(new RoundedBoxGeometry(7.3, 4.9, 4.9, 4, .5), wallPane));
+const edgeM = mat('wall', '#2e8b3a', .95);
+{ const hx = 3.6, hy = 2.4, hz = 2.4, eg = (L) => new THREE.CylinderGeometry(.09, .09, L, 8);
+  for (const sy of [-1, 1]) for (const sz of [-1, 1]){ const e = new THREE.Mesh(eg(2 * hx - .4), edgeM); e.rotation.z = Math.PI / 2; e.position.set(0, sy * hy, sz * hz); plantG.add(e); ctx.pickable(e, 'wall'); }
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]){ const e = new THREE.Mesh(eg(2 * hy - .4), edgeM); e.position.set(sx * hx, 0, sz * hz); plantG.add(e); ctx.pickable(e, 'wall'); }
+  for (const sx of [-1, 1]) for (const sy of [-1, 1]){ const e = new THREE.Mesh(eg(2 * hz - .4), edgeM); e.rotation.x = Math.PI / 2; e.position.set(sx * hx, sy * hy, 0); plantG.add(e); ctx.pickable(e, 'wall'); } }
+const pmem = new THREE.Mesh(new RoundedBoxGeometry(7.0, 4.6, 4.6, 4, .55), mat('membrane', '#a6dc8c', .5, { side:THREE.DoubleSide, depthWrite:false })); plantG.add(pmem);
+const vac = new THREE.Mesh(new RoundedBoxGeometry(6.2, 3.9, 3.9, 4, 1.0), mat('vacuole', '#6aa9ff', .42, { depthWrite:false })); plantG.add(vac); ctx.pickable(vac, 'vacuole');
+const nucP = new THREE.Mesh(new THREE.SphereGeometry(.5, 24, 16), mat('cytoplasm', '#7b5ea7', .95)); plantG.add(nucP);
+const chlM = mat('cytoplasm', '#2fb36d', .95), chlG = new THREE.SphereGeometry(1, 16, 10);
+const chl = Array.from({length:16}, (_, i) => { const m = new THREE.Mesh(chlG, chlM); m.scale.set(.32, .17, .22); m.userData.u = new V(Math.cos(i * 2.4) * 1.0, Math.sin(i * 1.7) * .9, Math.sin(i * 2.4 + 1) * .9).normalize(); plantG.add(m); return m; });
+const boxSurf = (u, sc, out) => out.copy(u).divideScalar(Math.max(Math.abs(u.x) / PA[0], Math.abs(u.y) / PA[1], Math.abs(u.z) / PA[2])).multiplyScalar(sc);
+const memScale = () => S.pv >= 0 ? .9 + .075 * S.pv : .9 - .32 * -S.pv;
+const vacScale = () => S.pv >= 0 ? .72 + .2 * S.pv : .72 - .44 * -S.pv;
+
+/* =================== particles in the beaker =================== */
+const NS = 180, saltM = mat('solute', '#f59f00', 1);
+const salt = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(.13, 0), saltM, NS); beakerG.add(salt); ctx.pickable(salt, 'solute');
+const saltP = Array.from({length:NS}, () => { const a = Math.random() * 6.283, r = Math.sqrt(Math.random()) * 5.8; return new V(Math.cos(a) * r, -4.4 + Math.random() * 7.1, Math.sin(a) * r); });
+const NI = 54, inSalt = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(.13, 0), saltM, NI); beakerG.add(inSalt); ctx.pickable(inSalt, 'solute');
+const inP = Array.from({length:NI}, () => ({ u:new V(Math.random() - .5, Math.random() - .5, Math.random() - .5).normalize(), l:.2 + Math.random() * .6 }));
+const NW = 64, waterPM = mat('water', '#3fb6e0', 1, { emissive:new THREE.Color('#2a9fd0'), emissiveIntensity:.35 });
+const wat = new THREE.InstancedMesh(new THREE.SphereGeometry(.11, 10, 8), waterPM, NW); beakerG.add(wat); ctx.pickable(wat, 'water');
+const pIn = () => S.salt < .9 ? .5 + .47 * (.9 - S.salt) / .9 : .5 - .47 * Math.min(1, (S.salt - .9) / 1.5);
+const wP = Array.from({length:NW}, () => ({ u:new V(Math.random() - .5, Math.random() - .5, Math.random() - .5).normalize(), p:Math.random(), inward:Math.random() < .5, v:.35 + Math.random() * .3 }));
+function surfWorld(u, f, out){      // point on current cell surface (scaled by f), in beaker coordinates
+  if (S.view === 'plant'){ boxSurf(u, memScale() * f, out); out.applyQuaternion(plantG.quaternion); }
+  else { rbcSurf(u, S.sw, out).multiplyScalar(f); out.applyQuaternion(rbcG.quaternion); }
+  return out.add(C0);
+}
+
+/* =================== membrane close-up =================== */
+const memG = new THREE.Group(); memG.visible = false; scene.add(memG);
+const CH = new V(-3.2, 0, 0), PU = new V(3.2, 0, 0);
+const lip = []; for (let i = 0; i < 22; i++) for (let k = 0; k < 11; k++){ const x = -5.8 + i * .55, z = -2.75 + k * .55; if (Math.hypot(x - CH.x, z) < 1.05 || Math.hypot(x - PU.x, z) < 1.3) continue; lip.push([x, z]); }
+const heads = new THREE.InstancedMesh(new THREE.SphereGeometry(.24, 14, 10), mat('lipid', '#ff9f6b', 1), lip.length * 2);
+const tails = new THREE.InstancedMesh(new THREE.CylinderGeometry(.045, .045, .72, 6), mat('lipid', '#ffe08a', 1), lip.length * 4);
+lip.forEach(([x, z], i) => { [1, -1].forEach((s, l) => {
+  dummy.position.set(x, s * 1.05, z); dummy.rotation.set(0, 0, 0); dummy.scale.setScalar(1); dummy.updateMatrix(); heads.setMatrixAt(i * 2 + l, dummy.matrix);
+  [-.08, .08].forEach((dx, t) => { dummy.position.set(x + dx, s * .55, z); dummy.updateMatrix(); tails.setMatrixAt(i * 4 + l * 2 + t, dummy.matrix); }); }); });
+memG.add(heads, tails); ctx.pickable(heads, 'lipid'); ctx.pickable(tails, 'lipid');
+const chanM = mat('channel', '#9b5de5', 1), cg = new THREE.CylinderGeometry(.27, .27, 2.6, 16);
+for (let i = 0; i < 6; i++){ const a = i / 6 * 6.283, m = new THREE.Mesh(cg, chanM); m.position.set(CH.x + Math.cos(a) * .6, 0, Math.sin(a) * .6); memG.add(m); ctx.pickable(m, 'channel'); }
+const pumpM = mat('pump', '#14b8a6', 1), halves = [-1, 1].map(s => { const g = new THREE.Group(); g.position.copy(PU); memG.add(g);
+  const m = new THREE.Mesh(new RoundedBoxGeometry(.85, 2.6, 1.8, 3, .3), pumpM); m.position.x = s * .5; g.add(m); ctx.pickable(m, 'pump'); g.userData.s = s; return g; });
+const atpM = mat('atp', '#ffd84d', 1, { emissive:new THREE.Color('#ffb800'), emissiveIntensity:.6 });
+const atpG = new THREE.Group(); memG.add(atpG);
+const atpA = new THREE.Mesh(new THREE.SphereGeometry(.3, 16, 12), atpM); atpG.add(atpA);
+const phos = [0, 1, 2].map(i => { const m = new THREE.Mesh(new THREE.SphereGeometry(.15, 12, 8), atpM); m.position.set(.4 + i * .3, 0, 0); atpG.add(m); return m; });
+ctx.pickable(atpG, 'atp');
+const PT = { o2:{ geo:new THREE.SphereGeometry(.14, 12, 8), m:mat('lipid', '#e5484d', 1), key:'lipid' }, glu:{ geo:new THREE.OctahedronGeometry(.22), m:mat('channel', '#2fb36d', 1), key:'channel' }, ion:{ geo:new THREE.SphereGeometry(.16, 12, 8), m:mat('pump', '#ff5fa2', 1), key:'pump' } };
+const MP = [];
+function spawn(type, side){ const d = PT[type], m = new THREE.Mesh(d.geo, d.m); memG.add(m); ctx.pickable(m, d.key); const p = { m, type, side, t:Math.random() * 3, v:new V(), mv:null, fade:0 }; place(p, side); MP.push(p); return p; }
+function place(p, side){ p.side = side; p.m.position.set(-5.6 + Math.random() * 11.2, side === 'top' ? 1.8 + Math.random() * 2.2 : -1.8 - Math.random() * 2.2, -2.6 + Math.random() * 5.2); }
+for (let i = 0; i < 20; i++) spawn('o2', 'top'); for (let i = 0; i < 4; i++) spawn('o2', 'bot');
+for (let i = 0; i < 12; i++) spawn('glu', 'top'); for (let i = 0; i < 3; i++) spawn('glu', 'bot');
+for (let i = 0; i < 16; i++) spawn('ion', 'top'); for (let i = 0; i < 8; i++) spawn('ion', 'bot');
+const count = (type, side) => MP.filter(p => p.type === type && p.side === side && !p.mv).length;
+const pick = (type, side) => { const a = MP.filter(p => p.type === type && p.side === side && !p.mv && !p.fade); return a.length ? a[Math.random() * a.length | 0] : null; };
+function send(p, pts, dur, newSide, kind){ p.mv = { pts:[p.m.position.clone(), ...pts], u:0, dur, newSide, kind }; }
+const T = { o2:0, glu:0, pump:-1, pumpP:null, leak:0 };
+
+/* =================== labels =================== */
+const lbl = [];
+const L3 = (txt, at, view) => { const L = ctx.label(txt, at); L.visible = false; lbl.push({ L, view }); };
+L3(o('Red blood cell','红细胞'), new V(0, 1.4, 0).add(C0), 'rbc'); L3(o('Salt particles (solute)','盐粒子（溶质）'), new V(4.2, 2.2, 2), 'cell'); L3(o('Water molecules','水分子'), new V(-3.8, .5, 2.2), 'cell');
+L3(o('Cell wall','细胞壁'), new V(-2.5, 2.1, 2.9), 'plant'); L3(o('Central vacuole','中央液泡'), new V(0, -.9, 0), 'plant'); L3(o('Cell membrane','细胞膜'), new V(2.2, 1.4, 2.4), 'plant');
+L3(o('OUTSIDE the cell','细胞外'), new V(-5.2, 4.4, 0), 'mem'); L3(o('INSIDE the cell (cytoplasm)','细胞内（细胞质）'), new V(-5.2, -4.4, 0), 'mem');
+L3(o('Lipid bilayer','磷脂双分子层'), new V(0, 1.5, 3.2), 'mem'); L3(PARTS.channel.name, new V(-3.2, 1.9, .9), 'mem'); L3(PARTS.pump.name, new V(3.2, 1.9, 1.2), 'mem'); L3(o('ATP','ATP'), new V(4.9, -2.6, 1.4), 'mem');
+L3(o('High concentration','高浓度'), new V(1.5, 4.5, 0), 'mem'); L3(o('Low concentration','低浓度'), new V(1.5, -4.5, 0), 'mem');
+let labelsOn = false;
+Lab.$('#labelBtn').onclick = () => { labelsOn = !labelsOn; Lab.$('#labelBtn').classList.toggle('on', labelsOn); };
+
+/* =================== UI wiring =================== */
+const POSE = { rbc:[[0, 5.5, 19], [0, -.6, 0]], plant:[[0, 6, 19.5], [0, -.6, 0]], mem:[[2, 4.5, 15], [0, 0, 0]] };
+function setView(v, keepCam){
+  S.view = APP.view = v;
+  beakerG.visible = v !== 'mem'; memG.visible = v === 'mem'; rbcG.visible = v === 'rbc'; plantG.visible = v === 'plant';
+  Lab.$$('.tbtn.view').forEach(b => b.classList.toggle('on', b.dataset.view === v));
+  Lab.$('#saltPill').style.display = v === 'mem' ? 'none' : ''; Lab.$('#atpPill').style.display = v === 'mem' ? 'flex' : 'none';
+  if (!keepCam) ctx.flyToPose(...POSE[v]);
+}
+APP.setView = v => { if (S.view !== v) setView(v); };
+Lab.$$('.tbtn.view').forEach(b => b.onclick = () => { story.stop(); setView(b.dataset.view); });
+const saltEl = Lab.$('#salt');
+function setSalt(v){ S.salt = v / 100; saltEl.value = v; Lab.$('#saltVal').textContent = S.salt.toFixed(1) + '%'; waterM.color.set('#8fd3f4').lerp(new THREE.Color('#f3e2a6'), S.salt / 3 * .7); }
+saltEl.oninput = () => { if (story.active) story.stop(); setSalt(+saltEl.value); };
+function setATP(on){ S.atp = on; const b = Lab.$('#atpBtn'); b.classList.toggle('on', on); b.textContent = Lab.L(on ? o('ON','开') : o('OFF','关')); }
+Lab.$('#atpBtn').onclick = () => setATP(!S.atp);
+Lab.onLang(() => setATP(S.atp));
+Lab.$('#resetBtn').onclick = () => { story.stop(); EX.select(null, true); setSalt(90); setATP(true); S.burst = 0; S.sw = 0; S.pv = 0; setView('rbc'); };
+ctx.hoverText(k => Lab.L(PARTS[k].name));
+ctx.onPick(k => { if (k !== EX.sel) EX.select(k, true); });
+const FOC = { lipid:[[0, 2.5, 9], [0, 0, 0]], channel:[[-3.2, 2.2, 7], [-3.2, 0, 0]], pump:[[3.2, 2, 7], [3.2, 0, 0]], atp:[[4.2, -1, 7], [3.5, -1.8, 0]] };
+EX.focus = k => { if (!k) return ctx.flyToPose(...POSE[S.view]); if (FOC[k]) ctx.flyToPose(...FOC[k]); else ctx.flyToPose(...POSE[S.view]); };
+const story = Lab3D.story('#stage', STORY, (i, st) => {
+  setView(st.view, true); EX.select(st.k, true);
+  if (st.view === 'mem') setATP(st.atp !== false);
+  if (st.salt != null) setSalt(st.salt);
+  if (FOC[st.k] && i > 0) ctx.flyToPose(...FOC[st.k]); else ctx.flyToPose(...POSE[st.view]);
+}, () => { setATP(true); });
+Lab.$('#storyBtn').onclick = () => story.start();
+setSalt(90);
+
+function tonicName(){ return S.salt < .85 ? o('Hypotonic','低渗') : S.salt > .95 ? o('Hypertonic','高渗') : o('Isotonic','等渗'); }
+let readT = 0;
+function readout(){
+  const el = Lab.$('#flowRead');
+  if (S.view === 'mem'){ el.textContent = Lab.lang === 'zh' ? `被动 ↓ ${S.pas} · 主动 ↑ ${S.act} · 消耗 ATP ${S.atpUsed}` : `Passive ↓ ${S.pas} · Active ↑ ${S.act} · ATP used ${S.atpUsed}`; return; }
+  const pin = pIn(), dir = Math.abs(pin - .5) < .04 ? o('in = out ⇄','进 = 出 ⇄') : pin > .5 ? o('net IN ➜','净流入 ➜') : o('net OUT ➜','净流出 ➜');
+  el.textContent = `${Lab.L(tonicName())} · 💧 ${Lab.L(dir)} (${Math.round(S.inR)}↘ ${Math.round(S.outR)}↗)`;
+}
+
+/* =================== animation =================== */
+const wv = new V(), wv2 = new V();
+ctx.onFrame((dt, t) => {
+  /* --- cell size follows the water balance --- */
+  const tSw = S.salt <= .9 ? (.9 - S.salt) / .9 : -Math.min(1, (S.salt - .9) / 1.2);
+  S.sw += (tSw - S.sw) * Math.min(1, dt * .9); S.pv += (tSw - S.pv) * Math.min(1, dt * .9);
+  if (S.view === 'rbc'){
+    if (!S.burst && S.salt < .2 && S.sw > .93){ S.burst = .001; ctx.caption(o('💥 The cell burst! Too much water rushed in (lysis).','💥 细胞破裂了！涌入的水太多（溶血）。')); }
+    if (S.burst && S.salt >= .5){ S.burst = 0; ctx.caption(o('A fresh red blood cell takes its place.','一个新的红细胞出现了。')); setTimeout(() => { if (!story.active) ctx.caption(null); }, 2500); }
+    if (Math.abs(S.sw - lastSw) > .002) updateRBC();
+  }
+  if (S.burst) S.burst = Math.min(1, S.burst + dt * .8);
+  rbc.visible = S.burst < 1; memRBC.userData.burstOp = 1 - S.burst;
+  hemo.visible = S.burst > 0;
+  if (S.burst > 0) hemoD.forEach((d, i) => { dummy.position.copy(d).multiplyScalar(1 + S.burst * (3 + (i % 7) * .4)); dummy.scale.setScalar(1); dummy.rotation.set(0, 0, 0); dummy.updateMatrix(); hemo.setMatrixAt(i, dummy.matrix); });
+  hemo.instanceMatrix.needsUpdate = true;
+  /* --- plant cell --- */
+  if (S.view === 'plant'){
+    const ms = memScale(), vs = vacScale(); pmem.scale.setScalar(ms); vac.scale.setScalar(vs);
+    chl.forEach((m, i) => { boxSurf(m.userData.u, ms * (.84 + .03 * Math.sin(t + i)), m.position); m.lookAt(0, 0, 0); });
+    boxSurf(new V(.75, .5, .55).normalize(), ms * .78, nucP.position);
+  }
+  /* --- beaker particles --- */
+  if (beakerG.visible){
+    const n = Math.round(S.salt / 3 * NS); salt.count = n;
+    const ex = S.view === 'plant' ? null : 3.1, invQ = plantG.quaternion.clone().invert();
+    for (let i = 0; i < n; i++){ const p = saltP[i]; p.x += (Math.random() - .5) * dt * 2.2; p.y += (Math.random() - .5) * dt * 2.2; p.z += (Math.random() - .5) * dt * 2.2;
+      const r = Math.hypot(p.x, p.z); if (r > 5.85){ p.x *= 5.85 / r; p.z *= 5.85 / r; } p.y = Math.max(-4.45, Math.min(2.75, p.y));
+      wv.copy(p).sub(C0);
+      if (ex){ const L = wv.length(); if (L < ex) p.copy(C0).addScaledVector(wv.normalize(), ex); }
+      else { wv.applyQuaternion(invQ); if (Math.abs(wv.x) < 3.85 && Math.abs(wv.y) < 2.65 && Math.abs(wv.z) < 2.65){ const ax = Math.abs(wv.x) / 3.85 > Math.abs(wv.y) / 2.65 ? 'x' : 'y'; wv[ax] = Math.sign(wv[ax] || 1) * (ax === 'x' ? 3.9 : 2.7); p.copy(wv.applyQuaternion(plantG.quaternion)).add(C0); } }
+      dummy.position.copy(p); dummy.rotation.set(t + i, i, 0); dummy.scale.setScalar(1); dummy.updateMatrix(); salt.setMatrixAt(i, dummy.matrix); }
+    salt.instanceMatrix.needsUpdate = true;
+    inSalt.visible = !S.burst;
+    inP.forEach((q, i) => { q.u.x += (Math.random() - .5) * dt; q.u.y += (Math.random() - .5) * dt; q.u.z += (Math.random() - .5) * dt; q.u.normalize(); q.l = Math.max(.15, Math.min(.75, q.l + (Math.random() - .5) * dt * .5));
+      surfWorld(q.u, q.l, dummy.position); dummy.rotation.set(t, i, 0); dummy.updateMatrix(); inSalt.setMatrixAt(i, dummy.matrix); });
+    inSalt.instanceMatrix.needsUpdate = true;
+    const pin = pIn(); let ins = 0, outs = 0;
+    wP.forEach((w, i) => {
+      w.p += dt * w.v;
+      if (w.p >= 1){ if (w.inward) ins++; else outs++; w.p = 0; w.inward = Math.random() < pin; w.u.set(Math.random() - .5, Math.random() - .5, Math.random() - .5).normalize(); }
+      const f = w.inward ? w.p : 1 - w.p, a = surfWorld(w.u, 1.5, wv), b = surfWorld(w.u, .45, wv2);
+      dummy.position.lerpVectors(a, b, f); dummy.scale.setScalar(S.burst ? 0 : Math.pow(Math.sin(w.p * Math.PI), .4)); dummy.rotation.set(0, 0, 0); dummy.updateMatrix(); wat.setMatrixAt(i, dummy.matrix);
+    });
+    wat.instanceMatrix.needsUpdate = true;
+    S.inR += (ins / Math.max(dt, .001) - S.inR) * Math.min(1, dt * 1.5); S.outR += (outs / Math.max(dt, .001) - S.outR) * Math.min(1, dt * 1.5);
+  }
+  /* --- membrane close-up --- */
+  if (memG.visible){
+    T.o2 += dt; T.glu += dt; T.leak += dt;
+    if (T.o2 > 1.1){ T.o2 = 0; const top = count('o2', 'top'), bot = count('o2', 'bot'), down = Math.random() < top / (top + bot + .001); const p = pick('o2', down ? 'top' : 'bot');
+      if (p){ const x = p.m.position.x, z = p.m.position.z, sy = down ? 1 : -1; send(p, [new V(x, 1.5 * sy, z), new V(x, -1.5 * sy, z), new V(x, -2.3 * sy, z)], 1.8, down ? 'bot' : 'top', down ? 'pas' : ''); } }
+    if (T.glu > 1.6){ T.glu = 0; const top = count('glu', 'top'), bot = count('glu', 'bot'), down = Math.random() < top / (top + bot + .001); const p = pick('glu', down ? 'top' : 'bot'), sy = down ? 1 : -1;
+      if (p) send(p, [new V(CH.x, 2.1 * sy, 0), new V(CH.x, -2.1 * sy, 0), new V(CH.x + (Math.random() - .5) * 3, -3 * sy, (Math.random() - .5) * 3)], 2.2, down ? 'bot' : 'top', down ? 'pas' : ''); }
+    /* pump cycle: dock ATP → particle enters from inside → flip → release outside */
+    let open = -1;
+    if (T.pump < 0 && S.atp && T.pumpP === null){ const p = pick('ion', 'bot'); if (p){ T.pump = 0; T.pumpP = p; send(p, [new V(PU.x, -2.1, 0), new V(PU.x, -.9, 0)], 1.0, 'mid', ''); } }
+    if (T.pump >= 0){
+      T.pump += dt / 3.2; const u = T.pump;
+      atpG.visible = true;
+      if (u < .3){ atpG.position.lerpVectors(new V(6, -4, 1.5), new V(PU.x + .9, -1.75, .9), u / .3); phos[2].position.set(1.0, 0, 0); atpG.scale.setScalar(1); }
+      else if (u < .55){ open = (u - .3) / .25 * 2 - 1; phos[2].position.set(1.0 + (u - .3) * 8, -(u - .3) * 4, 0); if (T.pumpP && !T.pumpP.mv) T.pumpP.m.position.lerpVectors(new V(PU.x, -.9, 0), new V(PU.x, .9, 0), (u - .3) / .25); }
+      else { open = 1; atpG.scale.setScalar(Math.max(.01, 1 - (u - .55) * 2.2)); atpG.position.x += dt * .8;
+        if (T.pumpP && !T.pumpP.mv && T.pumpP.side === 'mid'){ send(T.pumpP, [new V(PU.x, 2.2, 0), new V(PU.x + (Math.random() - .5) * 4, 3.2, (Math.random() - .5) * 3)], 1.0, 'top', 'act'); S.atpUsed++; } }
+      if (u >= 1){ T.pump = -1; T.pumpP = null; atpG.visible = false; }
+    } else atpG.visible = S.atp;
+    if (T.pump < 0 && S.atp){ atpG.position.set(6, -4, 1.5); atpG.scale.setScalar(1); }
+    halves.forEach(g => { const tg = g.userData.s * .16 * open; g.rotation.z += (tg - g.rotation.z) * Math.min(1, dt * 6); });
+    if (T.leak > 4 && count('ion', 'bot') < 4){ T.leak = 0; const p = pick('ion', 'top'); if (p) p.fade = .001; }
+    for (const p of MP){
+      if (p.mv){ const mv = p.mv; mv.u += dt / mv.dur; const segs = mv.pts.length - 1, s = Math.min(segs - 1e-6, mv.u * segs), k = Math.floor(s);
+        p.m.position.lerpVectors(mv.pts[k], mv.pts[k + 1], s - k);
+        if (mv.u >= 1){ p.mv = null; p.side = mv.newSide; p.t = 0; if (mv.kind === 'pas') S.pas++; if (mv.kind === 'act') S.act++; }
+        continue; }
+      if (p.side === 'mid') continue;
+      p.t += dt;
+      if (p.fade){ p.fade += dt * 1.5; p.m.scale.setScalar(Math.max(.01, 1 - p.fade));
+        if (p.fade >= 1){ p.fade = 0; place(p, p.type === 'ion' ? 'bot' : 'top'); p.m.scale.setScalar(1); } continue; }
+      if ((p.type === 'o2' || p.type === 'glu') && p.side === 'bot' && p.t > 7 && Math.random() < dt * .5) p.fade = .001;   // the cell uses it up
+      p.v.x += (Math.random() - .5) * dt * 6; p.v.y += (Math.random() - .5) * dt * 6; p.v.z += (Math.random() - .5) * dt * 6; p.v.multiplyScalar(.96);
+      const q = p.m.position; q.addScaledVector(p.v, dt);
+      const y0 = p.side === 'top' ? 1.75 : -4.3, y1 = p.side === 'top' ? 4.3 : -1.75;
+      if (q.x < -5.8 || q.x > 5.8) p.v.x *= -1; if (q.z < -2.8 || q.z > 2.8) p.v.z *= -1; if (q.y < y0 || q.y > y1) p.v.y *= -1;
+      q.x = Math.max(-5.8, Math.min(5.8, q.x)); q.z = Math.max(-2.8, Math.min(2.8, q.z)); q.y = Math.max(y0, Math.min(y1, q.y));
+      p.m.rotation.x += dt; p.m.rotation.y += dt * .7;
+    }
+  }
+  /* --- labels, readout, highlight --- */
+  for (const { L, view } of lbl) L.visible = labelsOn && (view === S.view || (view === 'cell' && S.view !== 'mem'));
+  readT += dt; if (readT > .3){ readT = 0; readout(); }
+  const sel = EX.sel;
+  for (const k in MATS) for (const m of MATS[k]){
+    const on = sel === k, dim = sel && !on;
+    if (!m.userData.fixed) m.emissive.set(m.color).multiplyScalar(on ? .3 + .15 * Math.sin(t * 4) : 0);
+    else m.emissiveIntensity = on ? .9 + .3 * Math.sin(t * 4) : .4;
+    let target = m.userData.op * (dim ? .3 : 1); if (m === memRBC) target *= memRBC.userData.burstOp ?? 1;
+    m.opacity += (target - m.opacity) * Math.min(1, dt * 8);
+  }
+});
+setView('rbc', true);
+</script>
+</body>
+</html>

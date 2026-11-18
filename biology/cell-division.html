@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mitosis &amp; Meiosis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/photos.js"></script>
+<script src="../shared/lab3d.js"></script>
+<style>
+/* page-specific styles */
+.readout{font-family:Fredoka;font-weight:600}
+.tbtn.mode.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.pill input#phase{width:200px}
+.phasebar{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.phasebar button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 11px;font-weight:800;font-size:13px;color:var(--ink-2)}
+.phasebar button.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.order{padding:22px}
+.slots,.pool2{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+.pool2{margin-bottom:14px;min-height:150px}
+.pcard{border:2px solid var(--line);background:var(--surface-2);border-radius:14px;padding:6px;text-align:center;cursor:pointer;transition:transform .15s,border-color .15s;position:relative}
+.pcard:hover{transform:translateY(-2px);border-color:var(--brand)}
+.pcard canvas{width:100%;aspect-ratio:1/1;display:block}
+.pcard .nm{font-weight:800;font-size:12px;min-height:16px;color:var(--ink-2)}
+.slot{border:2px dashed var(--line);border-radius:14px;min-height:150px;position:relative;display:flex;align-items:stretch}
+.slot>.num{position:absolute;top:6px;left:9px;font-family:Fredoka;font-weight:700;color:var(--ink-2);z-index:1}
+.slot .pcard{flex:1;border-style:solid}
+.slot.good{border-color:var(--good)} .slot.bad{border-color:var(--bad)}
+.slot.good .pcard{border-color:var(--good)} .slot.bad .pcard{border-color:var(--bad)}
+.counterbox{padding:22px;display:flex;flex-direction:column;gap:14px}
+.cellrow{display:flex;justify-content:center;align-items:center;gap:14px;flex-wrap:wrap;min-height:130px}
+.ccell{width:104px;height:104px;border-radius:50%;display:grid;place-items:center;text-align:center;font-family:Fredoka;font-weight:700;font-size:26px;line-height:1.05;color:#fff;box-shadow:inset -6px -8px 0 rgba(0,0,0,.15);transition:transform .5s,opacity .5s}
+.ccell small{display:block;font-size:12px;font-family:Nunito;font-weight:800;opacity:.9}
+.ccell.parent{background:#9b5de5}
+.ccell.kid{background:#2fb36d;width:84px;height:84px;font-size:22px}
+.ccell.kid.hap{background:#f2a33a}
+.ccell.hide{transform:scale(.2);opacity:0}
+.arrow{font-size:32px;color:var(--ink-2);font-weight:800}
+.predict{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.predict input{width:110px;font:inherit;font-weight:800;padding:9px 12px;border-radius:12px;border:2px solid var(--line);background:var(--surface);color:var(--ink)}
+.ctlrow{display:flex;flex-wrap:wrap;gap:6px}
+.ctlrow .chip.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand);box-shadow:none}
+@media (max-width:980px){.slots,.pool2{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:560px){.pill input#phase{width:120px}}
+</style>
+</head>
+<body data-subject="biology" data-topic="cell-division">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="生物 · 遗传">Biology · Heredity</span>
+  <h1 data-zh-html="有丝分裂与<em>减数分裂</em>">Mitosis &amp; <em>Meiosis</em></h1>
+  <p class="lead" data-zh="你是怎么长高的？擦破的膝盖又是怎么愈合的？你由一个受精卵发育而来，它分裂了几万亿次！观察染色体如何复制、排队、被拉开：有丝分裂产生两个相同的细胞，减数分裂产生四个各不相同的生殖细胞。">How do you grow taller, and how does a scraped knee heal? You started as ONE cell that divided trillions of times! Watch chromosomes copy, line up and get pulled apart: mitosis makes two identical cells, while meiosis makes four unique sex cells.</p>
+</header>
+
+<section class="wrap" id="explore" data-nav="3D Cell division" data-nav-zh="3D 细胞分裂">
+  <div class="explorer">
+    <div class="stage card" id="stage" data-3d>
+      <div class="toolbar">
+        <button class="tbtn mode on" data-mode="mito" data-zh="有丝分裂">Mitosis</button>
+        <button class="tbtn mode" data-mode="meio" data-zh="减数分裂">Meiosis</button>
+        <button class="tbtn" id="playBtn" data-zh="▶ 播放">▶ Play</button>
+        <button class="tbtn" id="storyBtn" data-zh="🎬 分步讲解（故事）">🎬 Step by step (story)</button>
+        <button class="tbtn" id="labelBtn" data-zh="🏷 标签">🏷 Labels</button>
+        <button class="tbtn" id="resetBtn" data-zh="⌂ 重置">⌂ Reset</button>
+      </div>
+      <div class="bottombar">
+        <div class="pill"><span data-zh="⏱ 时期">⏱ Phase</span><input id="phase" type="range" min="0" max="600" value="0" aria-label="Phase timeline"></div>
+        <div class="pill readout" id="phaseRead">—</div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="phasebar" id="phasebar"></div>
+  <div class="chips" id="chips"></div>
+</section>
+
+<section class="wrap" id="order" data-nav="Phase game" data-nav-zh="排序游戏">
+  <div class="sec-head">
+    <h2 data-zh="游戏：把有丝分裂排好顺序">Game: put mitosis in order</h2>
+    <p data-zh="点击下面的图片，把它们依次放进 1–6 号格子（再点一次可以拿回来），然后点“检查”。">Tap the pictures to place them in boxes 1–6 in order (tap again to take one back), then press Check.</p>
+  </div>
+  <div class="card order">
+    <div class="pool2" id="pool"></div>
+    <div class="slots" id="slots"></div>
+    <div class="btnrow" style="margin-top:14px"><button class="btn" id="checkBtn" data-zh="✔ 检查">✔ Check</button><button class="btn ghost" id="shuffleBtn" data-zh="↺ 重新开始">↺ Start over</button></div>
+    <div class="result" id="orderMsg" style="margin-top:10px"></div>
+    <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="前、中、后、末：前期染色体出现，中期排在中间，后期分向两极，末期形成两个核。英文口诀 IPMAT:I Prefer Mashed Avocado Toast。">I-P-M-A-T: “I Prefer Mashed Avocado Toast”: Interphase, Prophase, Metaphase (Middle), Anaphase (Apart), Telophase (Two nuclei), then cytokinesis.</span></div>
+  </div>
+</section>
+
+<section class="wrap" id="count" data-nav="Chromosome counter" data-nav-zh="染色体计数">
+  <div class="sec-head">
+    <h2 data-zh="染色体计数器：46 → ?">Chromosome counter: 46 → ?</h2>
+    <p data-zh="选择一种生物和一种分裂方式，先预测每个子细胞有几条染色体，再点“分裂”看看。">Choose an organism and a type of division. Predict how many chromosomes each new cell gets, then press Divide.</p>
+  </div>
+  <div class="sim">
+    <div class="card counterbox">
+      <div class="cellrow" id="cellRow"></div>
+      <div class="result" id="countMsg" style="text-align:center"></div>
+    </div>
+    <div class="card simside">
+      <h3 data-zh="生物">Organism</h3>
+      <div class="ctlrow" id="orgRow"></div>
+      <h3 data-zh="分裂方式">Type of division</h3>
+      <div class="ctlrow" id="procRow"></div>
+      <div class="predict"><label class="ctl" style="flex-direction:row;align-items:center;gap:8px"><span data-zh="我预测每个子细胞有">My prediction per new cell:</span><input id="guess" type="number" min="0" max="200" inputmode="numeric"></label><button class="btn" id="divideBtn" data-zh="✂️ 分裂">✂️ Divide</button></div>
+      <div class="counters">
+        <div class="counter"><b id="cKids">—</b><span data-zh="子细胞数">new cells</span></div>
+        <div class="counter"><b id="cEach">—</b><span data-zh="每个细胞的染色体数">chromosomes in each</span></div>
+      </div>
+      <div class="mix"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="减数分裂前 DNA 也只复制一次，但细胞要连续分裂两次，所以染色体数目减半。">Before meiosis the DNA is copied only ONCE, but the cell divides TWICE, so the chromosome number is cut in half.</span></div>
+    </div>
+  </div>
+  <div class="card table-wrap" style="margin-top:18px">
+    <table class="lab" id="cmpTable"></table>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real photos" data-nav-zh="真实影像">
+  <div id="gallery"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 细胞分裂测验">🧠 Cell division quiz</h3><p class="sub" data-zh="选出正确答案。">Pick the best answer.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分一分：有丝分裂还是减数分裂？">🗂️ Sort it: mitosis or meiosis?</h3><p class="sub" data-zh="把每个说法拖到（或先点再点方框）正确的组里。">Drag each fact (or tap it, then tap a box) into the right group.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="对应佐治亚州标准 S7L3：学生构建解释，说明有性生殖和无性生殖中遗传信息如何传递（S7L3a 基因和染色体的作用；S7L3b 有丝分裂与减数分裂产生的细胞的区别）。模型中用 2n = 4（两对同源染色体：红色来自母方，蓝色来自父方）代替人类的 46 条，便于观察。建议：先在有丝分裂模式下拖动时间轴，让学生描述每个时期染色体的位置；再切换到减数分裂，指出前期 I 的交叉互换（颜色交换）和中期 I 同源染色体成对排列，讨论为什么减数分裂产生的配子各不相同（交叉互换 + 自由组合）。">Supports GSE S7L3: students construct an explanation of how genetic information is passed on in sexual and asexual reproduction (S7L3a role of genes and chromosomes; S7L3b how cells made by mitosis and meiosis differ). The model uses 2n = 4 (two homologous pairs: red from mom, blue from dad) instead of a human’s 46 so students can follow every chromosome. Suggested flow: scrub the mitosis timeline and have students describe where the chromosomes are in each phase; switch to meiosis and point out crossing over in prophase I (the color swap) and homologous pairs lining up in metaphase I; discuss why every gamete is different (crossing over + independent assortment).</p>
+    <p data-zh="常见误区：减数分裂前 DNA 复制两次；有丝分裂会改变染色体数目；姐妹染色单体就是同源染色体。">Common misconceptions: DNA is copied twice before meiosis; mitosis changes the chromosome number; sister chromatids are the same thing as homologous chromosomes.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<!--REAL-PHOTOS-->
+<script>
+/* ===== See the real thing: real photos / clips (Wikimedia Commons, freely licensed; credit shown under each) ===== */
+(function(){
+const P = [
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e3/Mitosis_%28261_13%29_Pressed%3B_root_meristem_of_onion_%28cells_in_prophase%2C_metaphase%2C_anaphase%2C_telophase%29.jpg/960px-Mitosis_%28261_13%29_Pressed%3B_root_meristem_of_onion_%28cells_in_prophase%2C_metaphase%2C_anaphase%2C_telophase%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A squashed onion root tip, where cells divide fast. Look for cells in prophase, metaphase, anaphase and telophase: the dark threads are chromosomes.', zh:'压片后的洋葱根尖，这里的细胞分裂得很快。找一找处于前期、中期、后期和末期的细胞：深色的丝状物就是染色体。', kind:{en:'Light micrograph',zh:'光学显微镜照片'}, credit:'Josef Reischig', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Mitosis_(261_13)_Pressed;_root_meristem_of_onion_(cells_in_prophase,_metaphase,_anaphase,_telophase).jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d3/Onion_root_mitosis.jpg/960px-Onion_root_mitosis.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Stained cells from an onion root tip. All the stages of mitosis are visible. How many dividing cells can you count?', zh:'染色后的洋葱根尖细胞，有丝分裂的各个时期都能看到。你能数出多少个正在分裂的细胞？', kind:{en:'Light micrograph',zh:'光学显微镜照片'}, credit:'staticd', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Onion_root_mitosis.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/2/25/Kinetochore.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'The spindle in a dividing human cell: spindle fibers (microtubules) in green, chromosomes (DNA) in blue, and the attachment points (kinetochores) in red.', zh:'正在分裂的人体细胞中的纺锤体：绿色是纺锤丝（微管），蓝色是染色体（DNA），红色是纺锤丝连接染色体的位置（动粒）。', kind:{en:'Fluorescence micrograph',zh:'荧光显微镜照片'}, credit:'Afunguy (English Wikipedia)', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Kinetochore.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/9/91/Anaphase_IF.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'A cell going into anaphase: the copies of each chromosome are being pulled apart toward opposite ends of the cell.', zh:'一个正在进入后期的细胞：每条染色体的两份拷贝正被拉向细胞的两端。', kind:{en:'Fluorescence micrograph',zh:'荧光显微镜照片'}, credit:'Roy van Heesbeen', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Anaphase_IF.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/1/1b/HumanChromosomesChromomycinA3.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Real chromosomes from a human white blood cell (a female lymphocyte) in metaphase, stained so that they glow under the microscope.', zh:'一位女性淋巴细胞（一种白细胞）在中期时的真实染色体，染色后在显微镜下发出荧光。', kind:{en:'Fluorescence micrograph',zh:'荧光显微镜照片'}, credit:'Steffen Dietzel', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:HumanChromosomesChromomycinA3.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/df/Human_male_karyotpe_high_resolution.jpg/960px-Human_male_karyotpe_high_resolution.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A karyotype: all the chromosomes of a human male, photographed and lined up in matching pairs. Count the pairs!', zh:'核型图：把一位男性的全部染色体拍下来，再按相同的一对一对排好。数一数有多少对！', kind:{en:'Light micrograph',zh:'光学显微镜照片'}, scale:{en:'46 chromosomes = 23 pairs',zh:'46 条染色体 = 23 对'}, credit:'National Human Genome Research Institute', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Human_male_karyotpe_high_resolution.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/37/Wilson1900Fig2.jpg/960px-Wilson1900Fig2.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Before photography was easy, scientists drew what they saw. This 1900 drawing by Edmund B. Wilson shows cells in a growing onion root tip.', zh:'在照相还不方便的年代，科学家把看到的东西画下来。这是埃德蒙·威尔逊 1900 年画的洋葱根尖生长区细胞。', kind:{en:'Historical drawing',zh:'历史手绘图'}, scale:{en:'enlarged 800 times',zh:'放大 800 倍'}, credit:'Edmund Beecher Wilson', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Wilson1900Fig2.jpg' },
+  { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/a/a8/Video_20220223_125657.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a8/Video_20220223_125657.webm/960px--Video_20220223_125657.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a8/Video_20220223_125657.webm/960px--Video_20220223_125657.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Video: onion cells in mitosis, filmed through a classroom-style microscope. Look for cells whose chromosomes are bunched up or being pulled apart.', zh:'视频：透过显微镜拍到的洋葱细胞有丝分裂。找一找染色体聚成一团或正被拉开的细胞。', kind:{en:'Microscope video',zh:'显微镜视频'}, credit:'Tnadafwork', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Video_20220223_125657.webm' }
+];
+window.REALFIG = { chromosome:P[0], homologs:P[5], spindle:P[2] };
+if (window.LabPhotos) LabPhotos.render('#gallery', P.filter(p => !p._x), { title:{en:'See the real thing',zh:'看看真实的样子'}, sub:{en:'The 3D model shows one tidy cell. Here are real dividing cells, caught in the act under the microscope. Click any picture to enlarge it; the video plays only when you press play.',zh:'3D 模型里只有一个整齐的细胞。下面是显微镜下正在分裂的真实细胞。点击图片可以放大；视频要按下播放键才会播放。'} });
+})();
+</script>
+<!--/REAL-PHOTOS-->
+<script>
+const o = (en, zh) => ({en, zh});
+/* ===== Generic info-panel + chips explorer ===== */
+function makeExplorer(cfg){
+  const E = { sel:null, focus:null };
+  E.select = (k, from3D) => { E.sel = k; render(); cfg.onSelect && cfg.onSelect(k, from3D); if (!from3D && E.focus) E.focus(k); };
+  function render(){
+    const box = Lab.$(cfg.info), k = E.sel, I = cfg.intro;
+    if (!k){
+      box.innerHTML = `<span class="tag">${Lab.L(I.tag)}</span><h3>${Lab.L(I.title)}</h3>
+        <p class="muted" style="margin:0">${Lab.L(I.text)}</p>
+        <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(I.big)}</div>
+        <div class="nav"><button data-a="start">${Lab.L(I.start)}</button></div>`;
+      box.querySelector('[data-a=start]').onclick = () => E.select(cfg.order[0]);
+    } else {
+      const p = cfg.parts[k], i = cfg.order.indexOf(k), n = cfg.order.length;
+      box.innerHTML = `<span class="tag">${Lab.L(p.tag || cfg.tag)}</span>
+        <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+        <div class="job">${Lab.L(p.job)}</div>
+        <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>${window.REALFIG && REALFIG[k] ? LabPhotos.figure(REALFIG[k]) : ''}
+        <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(p.hint)}</div>
+        ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+        <button class="speak" data-a="speak">${Lab.L(Lab.UI.listen)}</button>
+        <div class="nav"><button data-a="prev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button data-a="next">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
+      box.querySelector('[data-a=speak]').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. ').replace(/<[^>]+>/g, ''));
+      box.querySelector('[data-a=prev]').onclick = () => E.select(cfg.order[(i - 1 + n) % n]);
+      box.querySelector('[data-a=next]').onclick = () => E.select(cfg.order[(i + 1) % n]);
+    }
+    Lab.$(cfg.chips).innerHTML = cfg.order.map(c => `<button class="chip ${E.sel === c ? 'on' : ''}" data-k="${c}"><i style="background:${cfg.parts[c].color}"></i>${Lab.L(cfg.parts[c].name)}</button>`).join('');
+    Lab.$$(cfg.chips + ' .chip').forEach(c => c.onclick = () => E.select(c.dataset.k));
+  }
+  E.render = render;
+  Lab.onLang(render);
+  return E;
+}
+
+/* ===== Parts of a dividing cell ===== */
+const PARTS = {
+  chromatin:{color:'#c9a0dc', name:o('Chromatin','染色质'), job:o('Loose DNA during interphase','间期时松散的 DNA'),
+    facts:o(['Most of the time (interphase) DNA is spread out as thin threads called chromatin, so the cell can read its genes.','During the S phase of interphase the cell copies ALL of its DNA.','Interphase is the longest part of the cell cycle: the cell grows, works and gets ready to divide.'],
+            ['大部分时间（间期）DNA 以细丝状的染色质形式分散在细胞核中，方便细胞读取基因。','在间期的 S 期，细胞把全部 DNA 复制一份。','间期是细胞周期中最长的阶段：细胞生长、工作，并为分裂做准备。']),
+    hint:o('Chromatin = loose spaghetti; chromosome = tightly wound spaghetti.','染色质像散开的面条，染色体像卷紧的面条团。'),
+    mix:o('Interphase is NOT a “resting” phase. The cell is busy growing and copying its DNA.','间期并不是“休息期”，细胞正忙着生长和复制 DNA。')},
+  chromosome:{color:'#e5484d', name:o('Chromosome (sister chromatids)','染色体（姐妹染色单体）'), job:o('Packaged DNA that is easy to move','包装紧密、便于移动的 DNA'),
+    facts:o(['Before dividing, DNA coils tightly into chromosomes that you can see with a microscope.','A copied chromosome has two identical halves called sister chromatids, joined at the centromere.','Human body cells have 46 chromosomes (23 pairs). This model shows only 4 (2 pairs) to keep it simple.'],
+            ['分裂前，DNA 高度螺旋化，缩短变粗成为在显微镜下可见的染色体。','复制后的染色体由两条完全相同的姐妹染色单体组成，它们在着丝粒处相连。','人的体细胞有 46 条染色体（23 对）。为了便于观察，本模型只画了 4 条（2 对）。']),
+    hint:o('Red = from mom, blue = from dad.','红色来自母亲，蓝色来自父亲。'),
+    mix:o('Sister chromatids are identical copies. Homologous chromosomes are a matching pair: one from mom, one from dad.','姐妹染色单体是完全相同的复制品；同源染色体是一对“配对”的染色体，一条来自母方，一条来自父方。')},
+  centromere:{color:'#ffd84d', name:o('Centromere','着丝粒'), job:o('Holds sister chromatids together','把姐妹染色单体连在一起'),
+    facts:o(['The pinched “waist” where two sister chromatids are joined.','Spindle fibers attach near the centromere to pull chromatids apart.','In anaphase of mitosis the centromere splits and each chromatid becomes its own chromosome.'],
+            ['两条姐妹染色单体相连的“腰部”。','纺锤丝附着在着丝粒附近，把染色单体拉开。','有丝分裂后期，着丝粒分裂，每条染色单体都成为一条独立的染色体。']),
+    hint:o('Centro = center: the middle button of the X.','着丝粒就是“X”中间的那颗纽扣。')},
+  spindle:{color:'#8fd3c8', name:o('Spindle fibers','纺锤丝（纺锤体）'), job:o('Ropes that move chromosomes','移动染色体的“绳子”'),
+    facts:o(['Spindle fibers are made of protein tubes that grow from the poles of the cell.','They line the chromosomes up in the middle, then pull chromatids to opposite ends.','The spindle disappears after division.'],
+            ['纺锤丝由蛋白质细管构成，从细胞两极发出，形成纺锤体。','它们先把染色体排列在细胞中央，再把染色单体拉向两极。','分裂结束后，纺锤体消失。']),
+    hint:o('A tug-of-war team pulling from both ends.','像两头同时拔河的队伍。')},
+  centriole:{color:'#14b8a6', name:o('Centrioles (poles)','中心体（两极）'), job:o('Organize the spindle in animal cells','在动物细胞中组织纺锤体'),
+    facts:o(['In animal cells, a pair of centrioles moves to each end (pole) of the cell during prophase.','Spindle fibers grow out from these poles.','Plant cells make a spindle without centrioles.'],
+            ['动物细胞中，前期时两组中心粒分别移向细胞两端（两极）。','纺锤丝从两极发出。','植物细胞没有中心体，由细胞两极直接发出纺锤丝。']),
+    hint:o('Poles = the two ends of the tug-of-war.','两极 = 拔河绳的两端。')},
+  nucleus:{color:'#9b5de5', name:o('Nuclear envelope','核膜'), job:o('Breaks down, then re-forms','先消失，再重新出现'),
+    facts:o(['The nuclear envelope surrounds the DNA during interphase.','It breaks apart in prophase so spindle fibers can reach the chromosomes.','In telophase a new envelope forms around each set of chromosomes, making two nuclei.'],
+            ['间期时，核膜包裹着 DNA。','前期核膜解体，纺锤丝才能接触到染色体。','末期，在每组染色体周围重新形成核膜，出现两个细胞核。']),
+    hint:o('Telophase = Two nuclei.','末期 = 两个新细胞核。')},
+  membrane:{color:'#ff8fa3', name:o('Cell membrane (cytokinesis)','细胞膜（胞质分裂）'), job:o('Pinches the cell in two','把细胞一分为二'),
+    facts:o(['Cytokinesis is the splitting of the cytoplasm after the nucleus has divided.','In animal cells the membrane pinches in like a drawstring (a cleavage furrow).','In plant cells a new cell plate forms in the middle and becomes a new cell wall.'],
+            ['胞质分裂是在细胞核分裂之后，细胞质一分为二的过程。','动物细胞的细胞膜从中部向内凹陷，像拉紧口袋绳一样把细胞缢裂成两个。','植物细胞在中央形成细胞板，逐渐形成新的细胞壁。']),
+    hint:o('Cyto = cell, kinesis = movement: the cell moves apart.','胞质分裂：细胞质“分家”。')},
+  homologs:{color:'#3f7ee8', name:o('Homologous pairs & crossing over','同源染色体与交叉互换'), job:o('Why meiosis makes variety','减数分裂产生多样性的原因'),
+    facts:o(['Homologous chromosomes are a matching pair with the same genes: one from each parent.','In prophase I of meiosis the pairs line up side by side and swap pieces. This is crossing over (watch the red and blue swap).','In metaphase I each pair lines up randomly (independent assortment), so every sex cell gets a different mix.'],
+            ['同源染色体是一对含有相同基因的染色体，一条来自父方，一条来自母方。','减数分裂前期 I，同源染色体两两配对（联会），并交换部分片段，这就是交叉互换（观察红蓝颜色的交换）。','中期 I 每对同源染色体随机排列（自由组合），所以每个生殖细胞得到的组合都不同。']),
+    hint:o('Shuffle (crossing over) + random deal (independent assortment) = unique gametes.','“洗牌”（交叉互换）+“随机发牌”（自由组合）= 独一无二的配子。'),
+    mix:o('Crossing over happens only in meiosis, not in mitosis.','交叉互换只发生在减数分裂中，有丝分裂中没有。')}
+};
+const ORDER = ['chromatin','chromosome','centromere','spindle','centriole','nucleus','membrane','homologs'];
+const PH = {
+  mito:[
+    {n:o('Interphase (G1)','间期（G1 期）'), c:o('Interphase: the cell grows and does its job. DNA is loose chromatin.','间期：细胞生长并完成日常工作，DNA 呈松散的染色质状态。'), cells:1, chr:'4 (2n)', k:'chromatin'},
+    {n:o('Interphase (S & G2)','间期（S 期和 G2 期）'), c:o('S phase: every chromosome is copied, so each now has two sister chromatids.','S 期：每条染色体都复制一份，于是每条都含有两条姐妹染色单体。'), cells:1, chr:'4 (2n) ×2', k:'chromatin'},
+    {n:o('Prophase','前期'), c:o('Prophase: chromosomes coil up and become visible, the nuclear envelope breaks down and the spindle forms.','前期：染色体缩短变粗而可见，核膜消失，纺锤体形成。'), cells:1, chr:'4 (2n)', k:'chromosome'},
+    {n:o('Metaphase','中期'), c:o('Metaphase: spindle fibers line the chromosomes up in the MIDDLE of the cell.','中期：纺锤丝把染色体排列在细胞“中央”。'), cells:1, chr:'4 (2n)', k:'spindle'},
+    {n:o('Anaphase','后期'), c:o('Anaphase: the centromeres split and sister chromatids are pulled APART to opposite poles.','后期：着丝粒分裂，姐妹染色单体被拉“开”，移向两极。'), cells:1, chr:'8 → 4 + 4', k:'centromere'},
+    {n:o('Telophase','末期'), c:o('Telophase: two new nuclear envelopes form, one around each set of chromosomes.','末期：在两组染色体周围各形成一个新的核膜。'), cells:1, chr:'4 + 4', k:'nucleus'},
+    {n:o('Cytokinesis','胞质分裂'), c:o('Cytokinesis: the cell pinches in two. Result: 2 identical cells, each with 4 chromosomes (2n), just like the parent.','胞质分裂：细胞一分为二。结果：2 个完全相同的细胞，每个都有 4 条染色体（2n），和亲代细胞一样。'), cells:2, chr:'4 (2n)', k:'membrane'}
+  ],
+  meio:[
+    {n:o('Interphase (G1)','间期（G1 期）'), c:o('Interphase: a cell in the ovary or testis grows. DNA is loose chromatin.','间期：卵巢或睾丸中的一个细胞生长，DNA 呈松散的染色质状态。'), cells:1, chr:'4 (2n)', k:'chromatin'},
+    {n:o('Interphase (S & G2)','间期（S 期和 G2 期）'), c:o('S phase: the DNA is copied ONCE. Each chromosome now has two sister chromatids.','S 期：DNA 只复制“一次”，每条染色体含有两条姐妹染色单体。'), cells:1, chr:'4 (2n) ×2', k:'chromatin'},
+    {n:o('Prophase I','前期 I'), c:o('Prophase I: homologous pairs line up side by side and swap pieces: crossing over!','前期 I：同源染色体两两配对，并交换部分片段：交叉互换！'), cells:1, chr:'4 (2n)', k:'homologs'},
+    {n:o('Metaphase I','中期 I'), c:o('Metaphase I: the PAIRS line up in the middle. Which side each one faces is random.','中期 I：同源染色体“成对”排列在细胞中央，每对朝向哪一极是随机的。'), cells:1, chr:'4 (2n)', k:'homologs'},
+    {n:o('Anaphase I','后期 I'), c:o('Anaphase I: the homologous pairs separate. Sister chromatids stay together.','后期 I：同源染色体分离，姐妹染色单体仍连在一起。'), cells:1, chr:'2 + 2', k:'spindle'},
+    {n:o('Telophase I & cytokinesis','末期 I 与胞质分裂'), c:o('Telophase I: the cell divides into 2 cells, each with only 2 chromosomes (n). The number is halved!','末期 I：细胞分裂成 2 个，每个只有 2 条染色体（n），染色体数目减半了！'), cells:2, chr:'2 (n)', k:'membrane'},
+    {n:o('Metaphase II','中期 II'), c:o('Meiosis II (no DNA copying!): in each cell the chromosomes line up in the middle.','减数第二次分裂（不再复制 DNA!）：每个细胞中的染色体排列在中央。'), cells:2, chr:'2 (n)', k:'spindle'},
+    {n:o('Anaphase II','后期 II'), c:o('Anaphase II: sister chromatids are pulled apart, just like in mitosis.','后期 II：姐妹染色单体被拉开，和有丝分裂类似。'), cells:2, chr:'2 + 2', k:'centromere'},
+    {n:o('Telophase II & cytokinesis','末期 II 与胞质分裂'), c:o('Result: 4 cells, each with 2 chromosomes (n). Thanks to crossing over, every one is genetically different. These are sex cells (gametes).','结果：4 个细胞，每个有 2 条染色体（n）。由于交叉互换，它们的遗传组成各不相同。这些就是生殖细胞（配子）。'), cells:4, chr:'2 (n)', k:'homologs'}
+  ]
+};
+const APP = window.APP = { mode:'mito', setU:null, setMode:null };
+const EX = makeExplorer({ info:'#info', chips:'#chips', parts:PARTS, order:ORDER, tag:o('Cell division','细胞分裂'),
+  intro:{ tag:o('Cell cycle','细胞周期'), title:o('One cell becomes two','一个细胞变成两个'),
+    text:o('Drag the Phase slider (or press Play) to watch a cell divide. Switch between Mitosis and Meiosis. Red chromosomes came from mom, blue from dad.','拖动“时期”滑块（或点“播放”）观察细胞分裂。可以在有丝分裂和减数分裂之间切换。红色染色体来自母亲，蓝色来自父亲。'),
+    big:o('Mitosis: 1 cell → 2 identical body cells (growth & repair). Meiosis: 1 cell → 4 different sex cells with half the chromosomes.','有丝分裂：1 个细胞 → 2 个相同的体细胞（生长和修复）。减数分裂：1 个细胞 → 4 个各不相同、染色体数目减半的生殖细胞。'),
+    start:o('Start with chromatin ▶','从染色质开始 ▶') },
+  onSelect:(k, from3D) => { if (k === 'homologs' && !from3D && APP.mode !== 'meio' && APP.setMode){ APP.setMode('meio'); APP.setU(2); } } });
+function renderPhasebar(cur){
+  const list = PH[APP.mode];
+  Lab.$('#phasebar').innerHTML = list.map((p, i) => `<button class="${i === cur ? 'on' : ''}" data-i="${i}">${i + 1}. ${Lab.L(p.n)}</button>`).join('');
+  Lab.$$('#phasebar button').forEach(b => b.onclick = () => APP.setU && APP.setU(+b.dataset.i));
+}
+APP.renderPhasebar = renderPhasebar;
+/* ===== Phase-ordering game ===== */
+const MPH = [o('Interphase','间期'), o('Prophase','前期'), o('Metaphase','中期'), o('Anaphase','后期'), o('Telophase','末期'), o('Cytokinesis','胞质分裂')];
+function drawPhase(cv, i){
+  const d = 2, S = 120; cv.width = cv.height = S * d; const g = cv.getContext('2d'); g.scale(d, d);
+  const R = '#e5484d', B = '#3f7ee8'; let seed = 7 + i * 13; const rnd = () => (seed = seed * 16807 % 2147483647) / 2147483647;
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  const X = (x, y, col, len = 16) => { g.strokeStyle = col; g.lineWidth = 4; g.beginPath(); g.moveTo(x - 5, y - len / 2); g.lineTo(x, y); g.lineTo(x - 5, y + len / 2); g.moveTo(x + 5, y - len / 2); g.lineTo(x, y); g.lineTo(x + 5, y + len / 2); g.stroke(); g.fillStyle = '#ffd84d'; g.beginPath(); g.arc(x, y, 2.2, 0, 7); g.fill(); };
+  const Vc = (x, y, dir, col, len = 13) => { g.strokeStyle = col; g.lineWidth = 4; g.beginPath(); g.moveTo(x - dir * len * .75, y - len * .55); g.lineTo(x, y); g.lineTo(x - dir * len * .75, y + len * .55); g.stroke(); };
+  const cell = (cx, cy, rx, ry) => { g.fillStyle = 'rgba(255,143,163,.2)'; g.strokeStyle = '#e86a85'; g.lineWidth = 2; g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, 0, 7); g.fill(); g.stroke(); };
+  const nuc = (cx, cy, r, dash) => { g.strokeStyle = '#9b5de5'; g.lineWidth = 2; g.setLineDash(dash ? [4, 4] : []); g.fillStyle = 'rgba(155,93,229,.12)'; g.beginPath(); g.arc(cx, cy, r, 0, 7); g.fill(); g.stroke(); g.setLineDash([]); };
+  const tangle = (cx, cy, r) => { g.strokeStyle = 'rgba(140,80,200,.75)'; g.lineWidth = 1.3; g.beginPath(); let x = cx, y = cy; g.moveTo(x, y); for (let k = 0; k < 34; k++){ x += (rnd() - .5) * r * .7; y += (rnd() - .5) * r * .7; const dx = x - cx, dy = y - cy, L = Math.hypot(dx, dy); if (L > r){ x = cx + dx / L * r; y = cy + dy / L * r; } g.lineTo(x, y); } g.stroke(); };
+  const pole = (x, y) => { g.fillStyle = '#14b8a6'; g.fillRect(x - 3, y - 3, 6, 6); };
+  const fibers = (px, py, pts) => { g.strokeStyle = 'rgba(20,184,166,.55)'; g.lineWidth = 1; g.beginPath(); pts.forEach(([x, y]) => { g.moveTo(px, py); g.lineTo(x, y); }); g.stroke(); };
+  if (i === 0){ cell(60, 60, 48, 48); nuc(60, 60, 24); tangle(60, 60, 19); }
+  if (i === 1){ cell(60, 60, 48, 48); nuc(60, 60, 26, true); pole(34, 30); pole(86, 90); X(48, 50, R); X(72, 48, B); X(54, 74, R, 11); X(74, 70, B, 11); }
+  if (i === 2){ cell(60, 60, 50, 46); pole(14, 60); pole(106, 60); const ys = [34, 50, 68, 84]; fibers(14, 60, ys.map(y => [57, y])); fibers(106, 60, ys.map(y => [63, y])); ys.forEach((y, k) => X(60, y, k % 2 ? B : R, k > 1 ? 11 : 15)); }
+  if (i === 3){ cell(60, 60, 55, 42); pole(8, 60); pole(112, 60); const ys = [44, 54, 66, 76]; fibers(8, 60, ys.map(y => [32, y])); fibers(112, 60, ys.map(y => [88, y])); ys.forEach((y, k) => { Vc(32, y, -1, k % 2 ? B : R); Vc(88, y, 1, k % 2 ? B : R); }); }
+  if (i === 4){ cell(34, 60, 32, 40); cell(86, 60, 32, 40); g.fillStyle = 'rgba(255,143,163,.2)'; nuc(30, 60, 15); nuc(90, 60, 15); tangle(30, 60, 11); tangle(90, 60, 11); }
+  if (i === 5){ cell(30, 60, 27, 30); cell(90, 60, 27, 30); nuc(30, 60, 13); nuc(90, 60, 13); tangle(30, 60, 10); tangle(90, 60, 10); }
+}
+(function(){
+  let pool, slots, checked = false;
+  function start(){ pool = Lab.shuffle([0, 1, 2, 3, 4, 5]); slots = [null, null, null, null, null, null]; checked = false; render(); Lab.$('#orderMsg').textContent = ''; }
+  const card = (i, where) => `<div class="pcard" data-i="${i}" data-w="${where}"><canvas></canvas><div class="nm">${checked ? Lab.L(MPH[i]) : ''}</div></div>`;
+  function render(){
+    Lab.$('#pool').innerHTML = pool.map(i => card(i, 'pool')).join('');
+    Lab.$('#slots').innerHTML = slots.map((i, k) => `<div class="slot ${checked && i != null ? (i === k ? 'good' : 'bad') : ''}"><span class="num">${k + 1}</span>${i != null ? card(i, 'slot') : ''}</div>`).join('');
+    Lab.$$('#order .pcard').forEach(c => { drawPhase(c.querySelector('canvas'), +c.dataset.i);
+      c.onclick = () => { const i = +c.dataset.i; checked = false;
+        if (c.dataset.w === 'pool'){ const k = slots.indexOf(null); if (k < 0) return; slots[k] = i; pool = pool.filter(x => x !== i); }
+        else { slots[slots.indexOf(i)] = null; pool.push(i); }
+        Lab.$('#orderMsg').textContent = ''; render(); }; });
+  }
+  Lab.$('#checkBtn').onclick = () => {
+    const m = Lab.$('#orderMsg');
+    if (slots.includes(null)){ m.textContent = Lab.L(o('Fill all 6 boxes first.','先把 6 个格子都填满。')); m.className = 'result bad'; return; }
+    checked = true; const ok = slots.filter((i, k) => i === k).length; render();
+    m.textContent = ok === 6 ? Lab.L(o('🎉 Perfect order! Interphase → Prophase → Metaphase → Anaphase → Telophase → Cytokinesis.','🎉 顺序完全正确！间期 → 前期 → 中期 → 后期 → 末期 → 胞质分裂。'))
+      : (Lab.lang === 'zh' ? `${ok} / 6 个位置正确。红框的图片放错了,点它拿回来再试试。` : `${ok} of 6 in the right place. Tap a red-bordered picture to take it back and try again.`);
+    m.className = 'result ' + (ok === 6 ? 'good' : 'bad');
+  };
+  Lab.$('#shuffleBtn').onclick = start;
+  start(); Lab.onLang(render);
+})();
+
+/* ===== Chromosome counter ===== */
+(function(){
+  const ORGS = [{k:'human', n:46, ico:'🧍', name:o('Human','人')}, {k:'dog', n:78, ico:'🐕', name:o('Dog','狗')}, {k:'cat', n:38, ico:'🐈', name:o('Cat','猫')},
+    {k:'fly', n:8, ico:'🪰', name:o('Fruit fly','果蝇')}, {k:'pea', n:14, ico:'🫛', name:o('Pea plant','豌豆')}, {k:'corn', n:20, ico:'🌽', name:o('Corn','玉米')}];
+  const PROC = { mito:o('Mitosis','有丝分裂'), meio:o('Meiosis','减数分裂') };
+  const st = { org:0, proc:'mito', shown:false, guess:null };
+  function render(){
+    const O = ORGS[st.org], meio = st.proc === 'meio', kids = meio ? 4 : 2, each = meio ? O.n / 2 : O.n;
+    Lab.$('#orgRow').innerHTML = ORGS.map((g, i) => `<button class="chip ${i === st.org ? 'on' : ''}" data-i="${i}">${g.ico} ${Lab.L(g.name)}</button>`).join('');
+    Lab.$$('#orgRow .chip').forEach(b => b.onclick = () => { st.org = +b.dataset.i; st.shown = false; render(); });
+    Lab.$('#procRow').innerHTML = Object.keys(PROC).map(k => `<button class="chip ${k === st.proc ? 'on' : ''}" data-p="${k}">${Lab.L(PROC[k])}</button>`).join('');
+    Lab.$$('#procRow .chip').forEach(b => b.onclick = () => { st.proc = b.dataset.p; st.shown = false; render(); });
+    const kid = `<div class="ccell kid ${meio ? 'hap' : ''} ${st.shown ? '' : 'hide'}">${st.shown ? each : '?'}<small>${meio ? 'n' : '2n'}</small></div>`;
+    Lab.$('#cellRow').innerHTML = `<div class="ccell parent">${O.n}<small>2n · ${O.ico}</small></div><div class="arrow">➜</div>${Array.from({length:kids}, () => kid).join('')}`;
+    Lab.$('#cKids').textContent = st.shown ? kids : '?'; Lab.$('#cEach').textContent = st.shown ? each : '?';
+    const m = Lab.$('#countMsg');
+    if (!st.shown){ m.textContent = Lab.L(o('Type your prediction, then press Divide.','输入你的预测，然后点“分裂”。')); m.className = 'result'; return; }
+    const why = meio ? o(`Meiosis halves the number: ${O.n} → ${each} (haploid, n). Two of these sex cells joining at fertilization restore ${O.n}.`, `减数分裂使染色体数目减半:${O.n} → ${each}(单倍体,n)。受精时两个生殖细胞结合,又恢复为 ${O.n} 条。`)
+                     : o(`Mitosis keeps the number the same: ${O.n} → ${O.n} and ${O.n} (diploid, 2n).`, `有丝分裂保持染色体数目不变:${O.n} → ${O.n} 和 ${O.n}(二倍体,2n)。`);
+    const ok = st.guess === each;
+    m.textContent = (st.guess == null ? '' : ok ? Lab.L(o('✅ Your prediction was right! ','✅ 预测正确！')) : Lab.L(o(`❌ You predicted ${st.guess}. `, `❌ 你预测的是 ${st.guess}。`))) + Lab.L(why);
+    m.className = 'result ' + (st.guess == null ? '' : ok ? 'good' : 'bad');
+  }
+  Lab.$('#divideBtn').onclick = () => { const v = Lab.$('#guess').value; st.guess = v === '' ? null : +v; st.shown = false; render(); requestAnimationFrame(() => setTimeout(() => { st.shown = true; render(); }, 60)); };
+  Lab.onLang(render);
+})();
+
+/* ===== Mitosis vs meiosis table ===== */
+const CMP = [
+  [o('Feature','比较项目'), o('Mitosis','有丝分裂'), o('Meiosis','减数分裂')],
+  [o('Purpose','作用'), o('Growth, repair, replacing cells; asexual reproduction','生长、修复和更新细胞；无性生殖'), o('Making sex cells (sperm and eggs) for sexual reproduction','产生用于有性生殖的生殖细胞（精子和卵细胞）')],
+  [o('Where (in humans)','在人体的哪里'), o('Body cells all over the body','全身的体细胞'), o('Only in the testes and ovaries','只在睾丸和卵巢中')],
+  [o('DNA copied','DNA 复制次数'), o('Once','一次'), o('Once','一次')],
+  [o('Number of divisions','分裂次数'), o('1','1 次'), o('2 (meiosis I and II)','2 次（减数第一次和第二次分裂）')],
+  [o('Cells produced','产生的细胞数'), o('2','2 个'), o('4','4 个')],
+  [o('Chromosome number','染色体数目'), o('Same as parent (46 → 46), diploid 2n','与亲代相同（46 → 46），二倍体 2n'), o('Half of parent (46 → 23), haploid n','亲代的一半（46 → 23），单倍体 n')],
+  [o('Genetically identical?','遗传上是否相同'), o('Yes, identical copies','是，完全相同'), o('No, all different','否，各不相同')],
+  [o('Crossing over','交叉互换'), o('No','没有'), o('Yes, in prophase I','有，发生在前期 I')]
+];
+function renderCmp(){ Lab.$('#cmpTable').innerHTML = CMP.map((r, i) => `<tr>${r.map(c => i ? `<td>${Lab.L(c)}</td>` : `<th>${Lab.L(c)}</th>`).join('')}</tr>`).join(''); }
+Lab.onLang(renderCmp);
+/* ===== Quiz ===== */
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('What is the main purpose of mitosis?','有丝分裂的主要作用是什么？'), options:[o('Growth and repair of the body','身体的生长和修复'),o('Making sperm and eggs','产生精子和卵细胞'),o('Halving the chromosome number','使染色体数目减半'),o('Mixing genes from two parents','混合父母双方的基因')], answer:0},
+  {q:o('Which is the correct order of mitosis?','有丝分裂的正确顺序是？'), options:[o('Prophase → Metaphase → Anaphase → Telophase','前期 → 中期 → 后期 → 末期'),o('Metaphase → Prophase → Telophase → Anaphase','中期 → 前期 → 末期 → 后期'),o('Anaphase → Metaphase → Prophase → Telophase','后期 → 中期 → 前期 → 末期'),o('Telophase → Anaphase → Metaphase → Prophase','末期 → 后期 → 中期 → 前期')], answer:0, explain:o('PMAT: Prophase, Metaphase, Anaphase, Telophase.','前、中、后、末。')},
+  {q:o('In which phase do chromosomes line up in the middle of the cell?','染色体在哪个时期排列在细胞中央？'), options:[o('Metaphase','中期'),o('Anaphase','后期'),o('Telophase','末期'),o('Interphase','间期')], answer:0, explain:o('Metaphase = Middle.','中期 = 排在中间。')},
+  {q:o('When is the DNA copied?','DNA 在什么时候复制？'), options:[o('During interphase (S phase)','间期（S 期）'),o('During anaphase','后期'),o('During cytokinesis','胞质分裂时'),o('It is never copied','从不复制')], answer:0},
+  {q:o('A human skin cell (46 chromosomes) divides by mitosis. Each new cell has…','人的皮肤细胞（46 条染色体）进行有丝分裂，每个新细胞有……'), options:[o('46 chromosomes','46 条染色体'),o('23 chromosomes','23 条染色体'),o('92 chromosomes','92 条染色体'),o('12 chromosomes','12 条染色体')], answer:0},
+  {q:o('How many chromosomes are in a human egg or sperm cell?','人的卵细胞或精子中有多少条染色体？'), options:[o('23','23 条'),o('46','46 条'),o('92','92 条'),o('2','2 条')], answer:0, explain:o('Meiosis halves 46 to 23. At fertilization 23 + 23 = 46.','减数分裂使 46 条减半为 23 条。受精时 23 + 23 = 46。')},
+  {q:o('Meiosis produces…','减数分裂产生……'), options:[o('4 genetically different cells','4 个遗传组成不同的细胞'),o('2 identical cells','2 个相同的细胞'),o('4 identical cells','4 个相同的细胞'),o('1 large cell','1 个大细胞')], answer:0},
+  {q:o('What is crossing over?','什么是交叉互换？'), options:[o('Homologous chromosomes swapping pieces in prophase I','前期 I 同源染色体交换部分片段'),o('Chromosomes lining up in metaphase','中期染色体排列整齐'),o('The cell membrane pinching in','细胞膜向内凹陷'),o('DNA being copied','DNA 进行复制')], answer:0},
+  {q:o('Which process makes offspring genetically different from each other?','哪个过程使后代之间的遗传组成各不相同？'), options:[o('Meiosis (crossing over and random assortment)','减数分裂（交叉互换和自由组合）'),o('Mitosis','有丝分裂'),o('Cytokinesis only','只有胞质分裂'),o('Interphase','间期')], answer:0},
+  {q:o('Sister chromatids are…','姐妹染色单体是……'), options:[o('Two identical copies joined at the centromere','在着丝粒处相连的两份相同复制品'),o('One chromosome from mom and one from dad','一条来自母亲、一条来自父亲的染色体'),o('Two different genes','两个不同的基因'),o('Two nuclei','两个细胞核')], answer:0, explain:o('A matching mom/dad pair is called homologous chromosomes.','一条来自母方、一条来自父方的配对染色体叫做同源染色体。')},
+  {q:o('A haploid (n) cell has…','单倍体（n）细胞含有……'), options:[o('One set of chromosomes (half the number)','一套染色体（数目减半）'),o('Two sets of chromosomes','两套染色体'),o('No chromosomes','没有染色体'),o('Four sets of chromosomes','四套染色体')], answer:0},
+  {q:o('What happens during cytokinesis?','胞质分裂时发生了什么？'), options:[o('The cytoplasm divides, forming two cells','细胞质一分为二，形成两个细胞'),o('The DNA is copied','DNA 复制'),o('Chromosomes line up','染色体排列整齐'),o('Crossing over occurs','发生交叉互换')], answer:0}
+], { count:10 });
+
+/* ===== Sort game ===== */
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'mito',en:'Mitosis',zh:'有丝分裂'},{id:'meio',en:'Meiosis',zh:'减数分裂'},{id:'both',en:'Both',zh:'两者都有'}],
+  items:[
+    {en:'Makes 2 identical cells',zh:'产生 2 个相同的细胞',bin:'mito'},{en:'Growth and repair',zh:'生长和修复',bin:'mito'},{en:'Daughter cells are diploid (2n)',zh:'子细胞是二倍体（2n）',bin:'mito'},
+    {en:'Makes 4 cells',zh:'产生 4 个细胞',bin:'meio'},{en:'Makes sperm and egg cells',zh:'产生精子和卵细胞',bin:'meio'},{en:'Crossing over happens',zh:'发生交叉互换',bin:'meio'},{en:'Chromosome number is halved',zh:'染色体数目减半',bin:'meio'},{en:'Two divisions in a row',zh:'连续分裂两次',bin:'meio'},
+    {en:'DNA is copied once before it starts',zh:'开始前 DNA 复制一次',bin:'both'},{en:'Spindle fibers move chromosomes',zh:'纺锤丝牵引染色体移动',bin:'both'},{en:'Has a metaphase',zh:'有中期',bin:'both'}
+  ]
+});
+</script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const V = THREE.Vector3;
+const ctx = Lab3D.stage('#stage', { THREE, OrbitControls, camera:[0, 3, 15], minDistance:5, maxDistance:35 });
+const { scene } = ctx;
+const MATS = {};
+const mat = (key, color, op = 1, extra = {}) => { const m = ctx.mat(color, op, { transparent:true, ...extra }); m.userData.op = op; (MATS[key] = MATS[key] || []).push(m); return m; };
+
+/* =================== keyframes (2n = 4: two homologous pairs) =================== */
+const CH = [{ m:1, L:1.5 }, { m:0, L:1.5 }, { m:1, L:.95 }, { m:0, L:.95 }];       // m:1 = from mom (red), 0 = from dad (blue)
+const st = (p, r, b, op, cond, pole, f) => ({ p, r, b, op, cond, pole, f });
+const perp = r => [Math.cos(r), Math.sin(r), 0];
+const addv = (a, v, k) => [a[0] + v[0] * k, a[1] + v[1] * k, a[2] + v[2] * k];
+const O3 = [0, 0, 0];
+const dup = (c, r, sep, bb, op, cond, poles, f) => { const pv = perp(r); return [st(addv(c, pv, -sep), r, bb, op, cond, poles[0], f), st(addv(c, pv, sep), r, -bb, op, cond, poles[1], f)]; };
+const flat = pairs => pairs.flat();
+const Bd = (c, s, k, R, ax = 'x', vis = 1) => ({ c, ax, s, k, R, vis }), HID = Bd(O3, 0, 0, 3, 'x', 0);
+const N = (c, r, op) => ({ c, r, op }), N0 = N(O3, 1.6, 0);
+const SP = (a, b, op) => ({ a, b, op }), SP0 = SP([-.4, 1.2, 0], [.4, 1.2, 0], 0);
+const P = [[-.55, .45, .2], [.5, -.35, -.2], [.25, .65, -.35], [-.35, -.6, .3]], R0 = [.5, -.7, 1.4, .2];
+const Y = [1.25, .4, -.45, -1.25], Z = [.35, -.35, .35, -.35];
+const PL = [-2.75, 0, 0], PR = [2.75, 0, 0], PL2 = [-2.3, .8, 0], PR2 = [2.3, -.8, 0];
+const G1 = { ch:flat(P.map((p, i) => [st(p, R0[i], 0, .35, .4, O3, 0), st(p, R0[i], 0, 0, .4, O3, 0)])), bo:[Bd(O3, 0, 0, 3), HID], nu:[N(O3, 1.65, 1), N0, N0, N0], sp:[SP0, SP0], tg:.9 };
+const G2 = { ...G1, ch:flat(P.map((p, i) => dup(p, R0[i], .1, 0, .35, .4, [O3, O3], 0))) };
+const MITO = [G1, G2,
+  { ch:flat(P.map((p, i) => dup(p.map(v => v * 1.3), R0[i], .1, .18, 1, 1, [PL2, PR2], 0))), bo:[Bd(O3, 0, 0, 3), HID], nu:[N(O3, 1.75, .25), N0, N0, N0], sp:[SP(PL2, PR2, .6), SP0], tg:.2 },
+  { ch:flat(Y.map((y, i) => dup([0, y, Z[i]], 0, .12, .12, 1, 1, [PL, PR], 1))), bo:[Bd(O3, 0, 0, 3), HID], nu:[N(O3, 1.75, 0), N0, N0, N0], sp:[SP(PL, PR, 1), SP0], tg:0 },
+  { ch:flat(Y.map((y, i) => [st([-2.1, y * .55, Z[i] * .6], 0, -.7, 1, 1, PL, 1), st([2.1, y * .55, Z[i] * .6], 0, .7, 1, 1, PR, 1)])), bo:[Bd(O3, .6, 0, 3), HID], nu:[N(O3, 1.75, 0), N0, N0, N0], sp:[SP(PL, PR, 1), SP0], tg:0 },
+  { ch:flat(Y.map((y, i) => [st([-2.6, y * .42, Z[i] * .5], 0, -.3, .85, .7, [-3.6, 0, 0], .25), st([2.6, y * .42, Z[i] * .5], 0, .3, .85, .7, [3.6, 0, 0], .25)])), bo:[Bd(O3, 1.5, .55, 2.7), HID], nu:[N([-2.6, 0, 0], 1.05, .55), N([2.6, 0, 0], 1.05, .55), N0, N0], sp:[SP([-3.6, 0, 0], [3.6, 0, 0], .35), SP0], tg:.3 },
+  { ch:flat(Y.map((y, i) => [st([-2.7, y * .38, Z[i] * .4], 0, 0, .38, .42, [-3.6, 0, 0], 0), st([2.7, y * .38, Z[i] * .4], 0, 0, .38, .42, [3.6, 0, 0], 0)])), bo:[Bd(O3, 2.6, 1, 2.35), HID], nu:[N([-2.7, 0, 0], 1.15, .9), N([2.7, 0, 0], 1.15, .9), N0, N0], sp:[SP([-3.6, 0, 0], [3.6, 0, 0], 0), SP0], tg:.85 }
+];
+/* meiosis: tetrads (left chromosome, right chromosome) */
+function tet(c, r, L, R, poles, f, op = 1, cond = 1){ const pv = perp(r), out = {};
+  out[L] = [st(addv(c, pv, -.42), r, .1, op, cond, poles[0], f), st(addv(c, pv, -.15), r, -.1, op, cond, poles[0], f)];
+  out[R] = [st(addv(c, pv, .15), r, .1, op, cond, poles[1], f), st(addv(c, pv, .42), r, -.1, op, cond, poles[1], f)]; return out; }
+const asm = (...objs) => { const all = Object.assign({}, ...objs); return [0, 1, 2, 3].flatMap(i => all[i]); };
+const moveChr = (x, y, z, pole, f, op = 1, cond = 1, b = .15) => [st([x - .13, y, z], 0, b, op, cond, pole, f), st([x + .13, y, z], 0, -b, op, cond, pole, f)];
+const CXL = -2.7, CXR = 2.7, H2 = r => r;
+const m2 = (cx, x, chrA, chrB, sep, b, op, cond, f, yA = 0) => { const o2 = {}; const half = (dx, z) => [st([cx + dx, -sep, z], Math.PI / 2, b, op, cond, [cx, -2, 0], f), st([cx + dx, sep, z], Math.PI / 2, -b, op, cond, [cx, 2, 0], f)];
+  o2[chrA] = half(-x, .2); o2[chrB] = half(x, -.2); return o2; };
+const TWO = (s, k, R) => [Bd([CXL, 0, 0], s, k, R, 'y'), Bd([CXR, 0, 0], s, k, R, 'y')];
+const MEIO = [G1, G2,
+  { ch:asm(tet([-.2, .65, .1], .3, 0, 1, [PL2, PR2], 0), tet([.3, -.75, -.1], -.4, 3, 2, [PL2, PR2], 0)), bo:[Bd(O3, 0, 0, 3), HID], nu:[N(O3, 1.75, .25), N0, N0, N0], sp:[SP(PL2, PR2, .6), SP0], tg:.2 },
+  { ch:asm(tet([0, .85, .2], 0, 0, 1, [PL, PR], 1), tet([0, -.85, -.2], 0, 3, 2, [PL, PR], 1)), bo:[Bd(O3, 0, 0, 3), HID], nu:[N(O3, 1.75, 0), N0, N0, N0], sp:[SP(PL, PR, 1), SP0], tg:0 },
+  { ch:asm({ 0:moveChr(-2.0, .55, .2, PL, 1), 3:moveChr(-2.0, -.55, -.2, PL, 1), 1:moveChr(2.0, .55, .2, PR, 1), 2:moveChr(2.0, -.55, -.2, PR, 1) }), bo:[Bd(O3, .6, 0, 3), HID], nu:[N(O3, 1.75, 0), N0, N0, N0], sp:[SP(PL, PR, 1), SP0], tg:0 },
+  { ch:asm({ 0:moveChr(CXL, .45, .2, [-3.6, 0, 0], 0, .9, .85), 3:moveChr(CXL, -.45, -.2, [-3.6, 0, 0], 0, .9, .85), 1:moveChr(CXR, .45, .2, [3.6, 0, 0], 0, .9, .85), 2:moveChr(CXR, -.45, -.2, [3.6, 0, 0], 0, .9, .85) }), bo:[Bd(O3, 2.6, 1, 2.35), HID], nu:[N([CXL, 0, 0], 1.0, .35), N([CXR, 0, 0], 1.0, .35), N0, N0], sp:[SP([-3.6, 0, 0], [3.6, 0, 0], 0), SP0], tg:.15 },
+  { ch:asm(m2(CXL, .5, 0, 3, .12, .12, 1, 1, 1), m2(CXR, .5, 1, 2, .12, .12, 1, 1, 1)), bo:TWO(0, 0, 2.35), nu:[N([CXL, 0, 0], 1, 0), N([CXR, 0, 0], 1, 0), N0, N0], sp:[SP([CXL, -2, 0], [CXL, 2, 0], 1), SP([CXR, -2, 0], [CXR, 2, 0], 1)], tg:0 },
+  { ch:asm(m2(CXL, .3, 0, 3, 1.45, -.7, 1, 1, 1), m2(CXR, .3, 1, 2, 1.45, -.7, 1, 1, 1)), bo:TWO(.5, 0, 2.35), nu:[N([CXL, 0, 0], 1, 0), N([CXR, 0, 0], 1, 0), N0, N0], sp:[SP([CXL, -2, 0], [CXL, 2, 0], 1), SP([CXR, -2, 0], [CXR, 2, 0], 1)], tg:0 },
+  { ch:asm(m2(CXL, .25, 0, 3, 2.0, 0, .4, .42, 0), m2(CXR, .25, 1, 2, 2.0, 0, .4, .42, 0)), bo:TWO(2.0, 1, 1.7), nu:[N([CXL, -2, 0], .75, .9), N([CXL, 2, 0], .75, .9), N([CXR, -2, 0], .75, .9), N([CXR, 2, 0], .75, .9)], sp:[SP([CXL, -2.2, 0], [CXL, 2.2, 0], 0), SP([CXR, -2.2, 0], [CXR, 2.2, 0], 0)], tg:.8 }
+];
+/* fix sister direction signs in anaphase II (sister0 goes down, sister1 up, arms trail behind) */
+MEIO[7].ch.forEach((s, i) => { s.b = i % 2 ? .7 : -.7; });
+const KF = { mito:MITO, meio:MEIO };
+const lerp = (a, b, t) => a + (b - a) * t, lerpA = (a, b, t) => a.map((v, i) => lerp(v, b[i], t));
+function interp(K, u){
+  const i = Math.min(K.length - 2, Math.floor(u)), t0 = Math.max(0, Math.min(1, u - i)), t = t0 * t0 * (3 - 2 * t0), A = K[i], B = K[i + 1];
+  return {
+    ch:A.ch.map((a, c) => { const b = B.ch[c]; return { p:lerpA(a.p, b.p, t), r:lerp(a.r, b.r, t), b:lerp(a.b, b.b, t), op:lerp(a.op, b.op, t), cond:lerp(a.cond, b.cond, t), pole:lerpA(a.pole, b.pole, t), f:lerp(a.f, b.f, t) }; }),
+    bo:A.bo.map((a, j) => { const b = B.bo[j]; if (a.vis !== b.vis || a.ax !== b.ax) return t0 > 0 ? b : a; return { c:lerpA(a.c, b.c, t), ax:a.ax, s:lerp(a.s, b.s, t), k:lerp(a.k, b.k, t), R:lerp(a.R, b.R, t), vis:a.vis }; }),
+    nu:A.nu.map((a, j) => { const b = B.nu[j]; return { c:lerpA(a.c, b.c, t), r:lerp(a.r, b.r, t), op:lerp(a.op, b.op, t) }; }),
+    sp:A.sp.map((a, j) => { const b = B.sp[j]; return { a:lerpA(a.a, b.a, t), b:lerpA(a.b, b.b, t), op:lerp(a.op, b.op, t) }; }),
+    tg:lerp(A.tg, B.tg, t)
+  };
+}
+
+/* =================== build the 3D objects =================== */
+const root = new THREE.Group(); scene.add(root);
+/* cell bodies (deformable spheres that pinch in two) */
+const bodies = [0, 1].map(() => { const g = new THREE.SphereGeometry(1, 64, 48), base = g.attributes.position.array.slice();
+  const m = new THREE.Mesh(g, mat('membrane', '#ffb3c6', .26, { side:THREE.DoubleSide, depthWrite:false, roughness:.3 })); root.add(m); ctx.pickable(m, 'membrane'); return { m, g, base, key:'' }; });
+function shapeBody(B, s){
+  const key = [s.c, s.ax, s.s.toFixed(3), s.k.toFixed(3), s.R.toFixed(3)].join();
+  B.m.visible = !!s.vis; B.m.position.set(...s.c); if (key === B.key) return; B.key = key;
+  const a = B.g.attributes.position.array, b = B.base;
+  for (let i = 0; i < a.length; i += 3){
+    const x = b[i], y = b[i + 1], z = b[i + 2], al = s.ax === "x" ? x : y, a0 = Math.min(1, Math.abs(al)), sg = Math.tanh(al * 30), th = Math.acos(a0) * (1 + s.k), along = sg * (Math.max(s.s, s.R * Math.sin(Math.PI * s.k / 2)) + s.R * Math.cos(th)), rad = s.R * Math.sin(th), pn = Math.sqrt(Math.max(1e-9, 1 - a0 * a0));
+    if (s.ax === "x"){ a[i] = along; a[i + 1] = y / pn * rad; a[i + 2] = z / pn * rad; } else { a[i] = x / pn * rad; a[i + 1] = along; a[i + 2] = z / pn * rad; }
+  }
+  B.g.attributes.position.needsUpdate = true; B.g.computeVertexNormals(); B.g.computeBoundingSphere();
+}
+/* nuclei with chromatin tangles */
+function tangleGeo(seed){ let s = seed; const r = () => (s = s * 16807 % 2147483647) / 2147483647, pts = []; let p = new V();
+  for (let i = 0; i < 70; i++){ p = p.clone().add(new V(r() - .5, r() - .5, r() - .5).multiplyScalar(.5)); if (p.length() > .75) p.setLength(.75); pts.push(p); }
+  return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 300, .025, 5, false); }
+const nuclei = [0, 1, 2, 3].map(i => { const m = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 28), mat('nucleus', '#b48fe0', .3, { side:THREE.DoubleSide, depthWrite:false }));
+  const tm = mat('chromatin', '#9b5de5', .9), t = new THREE.Mesh(tangleGeo(11 + i * 7), tm); m.add(t); root.add(m); ctx.pickable(m, 'nucleus'); ctx.pickable(t, 'chromatin'); return { m, t, tm }; });
+/* chromatids: two halves each, so they can bend into X / V shapes and swap tips in crossing over */
+const RED = new THREE.Color('#e5484d'), BLUE = new THREE.Color('#3f7ee8');
+const chromatids = [];
+for (let c = 0; c < 8; c++){
+  const ch = CH[c >> 1], g = new THREE.Group(); root.add(g);
+  const halves = [1, -1].map(sg => { const piv = new THREE.Group(); g.add(piv); const len = ch.L / 2;
+    const m = new THREE.Mesh(new THREE.CapsuleGeometry(.17, Math.max(.05, len - .34), 6, 14), mat('chromosome', ch.m ? '#e5484d' : '#3f7ee8', 1, { clearcoat:.8 }));
+    m.position.y = sg * len / 2; piv.add(m); ctx.pickable(m, 'chromosome'); return { piv, m, sg }; });
+  chromatids.push({ g, halves, chr:c >> 1, sis:c & 1 });
+}
+const centromeres = [0, 1, 2, 3].map(() => { const m = new THREE.Mesh(new THREE.SphereGeometry(.12, 16, 12), mat('centromere', '#ffd84d', 1, { emissive:new THREE.Color('#5a4800') })); root.add(m); ctx.pickable(m, 'centromere'); return m; });
+/* spindle: kinetochore fibers (one per chromatid) + polar fibers + centrioles */
+const fibM = mat('spindle', '#5fc9b8', .75), fibG = new THREE.CylinderGeometry(.02, .02, 1, 6);
+const kfib = chromatids.map(() => { const m = new THREE.Mesh(fibG, fibM.clone()); MATS.spindle.push(m.material); m.material.userData.op = .75; root.add(m); ctx.pickable(m, 'spindle'); return m; });
+const UP = new V(0, 1, 0), XA = new V(1, 0, 0);
+function orient(m, a, b){ const d = b.clone().sub(a), L = d.length(); m.position.copy(a).addScaledVector(d, .5); m.scale.set(1, Math.max(.001, L), 1); if (L > 1e-4) m.quaternion.setFromUnitVectors(UP, d.normalize()); }
+const spindles = [0, 1].map(() => {
+  const g = new THREE.Group(); root.add(g); const pm = mat('spindle', '#8fd3c8', .5);
+  for (let k = 0; k < 9; k++){ const a = k / 9 * Math.PI * 2, pts = []; for (let j = 0; j <= 16; j++){ const u = j / 16 * 2 - 1, w = (1 - u * u) * 1.5; pts.push(new V(u, Math.cos(a) * w, Math.sin(a) * w)); }
+    const m = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 24, .018, 5, false), pm); g.add(m); ctx.pickable(m, 'spindle'); }
+  const cm = mat('centriole', '#14b8a6', 1), poles = [0, 1].map(() => { const p = new THREE.Group(); root.add(p);
+    const c1 = new THREE.Mesh(new THREE.CylinderGeometry(.09, .09, .34, 12), cm), c2 = c1.clone(); c2.rotation.z = Math.PI / 2; c2.position.x = .12; p.add(c1, c2); ctx.pickable(p, 'centriole'); return p; });
+  return { g, pm, poles, cm };
+});
+const tv = new V(), tv2 = new V(), qa = new THREE.Quaternion();
+
+/* =================== labels =================== */
+const anchor = () => { const a = new THREE.Object3D(); root.add(a); return a; };
+const AN = { chromosome:anchor(), centromere:anchor(), spindle:anchor(), centriole:anchor(), nucleus:anchor(), membrane:anchor(), chromatin:anchor() };
+const LB = Object.keys(AN).map(k => { const L = ctx.label(PARTS[k].name, AN[k]); L.visible = false; return { k, L }; });
+let labelsOn = false;
+Lab.$('#labelBtn').onclick = () => { labelsOn = !labelsOn; Lab.$('#labelBtn').classList.toggle('on', labelsOn); };
+
+/* =================== state & UI =================== */
+const S = { mode:'mito', u:0, uT:0, play:false, lastPh:-1, capT:0 };
+const slider = Lab.$('#phase');
+function setU(i){ S.uT = Math.max(0, Math.min(KF[S.mode].length - 1, i)); slider.value = Math.round(S.uT * 100); }
+function setPlay(on){ S.play = on; Lab.$('#playBtn').textContent = Lab.L(on ? o('⏸ Pause','⏸ 暂停') : o('▶ Play','▶ 播放')); }
+function setMode(m){
+  stories[S.mode].stop(); S.mode = APP.mode = m; S.u = S.uT = 0; slider.max = (KF[m].length - 1) * 100; slider.value = 0; S.lastPh = -1; setPlay(false);
+  Lab.$$('.tbtn.mode').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
+}
+APP.setU = setU; APP.setMode = setMode;
+slider.oninput = () => { stories[S.mode].stop(); setPlay(false); S.uT = slider.value / 100; };
+Lab.$$('.tbtn.mode').forEach(b => b.onclick = () => setMode(b.dataset.mode));
+Lab.$('#playBtn').onclick = () => { if (!S.play && S.uT >= KF[S.mode].length - 1.01) setU(0); setPlay(!S.play); };
+Lab.$('#resetBtn').onclick = () => { setMode('mito'); EX.select(null, true); ctx.home(); };
+Lab.onLang(() => { setPlay(S.play); S.lastPh = -1; });
+ctx.hoverText(k => Lab.L(PARTS[k].name));
+ctx.onPick(k => { if (k !== EX.sel) EX.select(k, true); });
+const JUMP = { chromatin:0, chromosome:2, centromere:3, spindle:3, centriole:3, nucleus:0, membrane:6 };
+EX.focus = k => { if (k && JUMP[k] != null && !stories[S.mode].active){ setPlay(false); setU(Math.min(JUMP[k], KF[S.mode].length - 1)); } };
+const stories = {};
+for (const m of ['mito', 'meio']) stories[m] = Lab3D.story('#stage', PH[m].map(p => p.c), i => { setPlay(false); setU(i); EX.select(PH[m][i].k, true); }, () => {});
+Lab.$('#storyBtn').onclick = () => { ctx.home(); stories[S.mode].start(); };
+
+function readout(i){
+  const p = PH[S.mode][i];
+  Lab.$('#phaseRead').textContent = Lab.lang === 'zh' ? `${Lab.L(p.n)} · ${p.cells} 个细胞 · 染色体 ${p.chr}` : `${Lab.L(p.n)} · ${p.cells} cell${p.cells > 1 ? 's' : ''} · chromosomes ${p.chr}`;
+  APP.renderPhasebar(i);
+}
+/* =================== per-frame =================== */
+ctx.onFrame((dt, t) => {
+  const K = KF[S.mode], n = K.length;
+  if (S.play){ S.uT = Math.min(n - 1, S.uT + dt * .32); slider.value = Math.round(S.uT * 100); if (S.uT >= n - 1) setPlay(false); }
+  const d = S.uT - S.u; if (Math.abs(d) > 1e-4) S.u += Math.sign(d) * Math.min(Math.abs(d), dt * Math.max(.9, Math.abs(d) * 2.5));
+  const ph = Math.round(S.u);
+  if (ph !== S.lastPh){ S.lastPh = ph; readout(ph); if (!stories[S.mode].active){ ctx.caption(PH[S.mode][ph].c); S.capT = 5; } }
+  if (S.capT > 0){ S.capT -= dt; if (S.capT <= 0 && !stories[S.mode].active) ctx.caption(null); }
+  const F = interp(K, S.u), cross = S.mode === 'meio' && S.u >= 1.8;
+  F.bo.forEach((b, j) => shapeBody(bodies[j], b));
+  F.nu.forEach((nu, j) => { const N = nuclei[j]; N.m.position.set(...nu.c); N.m.scale.setScalar(nu.r); N.m.visible = nu.op > .01; N.m.material.userData.op = .3 * nu.op; N.tm.userData.op = .9 * nu.op * F.tg; N.t.visible = nu.op * F.tg > .02; N.t.rotation.y = t * .15 + j; });
+  chromatids.forEach((C, c) => {
+    const s = F.ch[c]; C.g.position.set(...s.p); C.g.rotation.z = s.r; C.g.visible = s.op > .01;
+    const th = .35 + .65 * s.cond, ln = .55 + .45 * s.cond; C.g.scale.set(th, ln, th);
+    C.halves.forEach(h => { h.piv.rotation.z = h.sg * s.b; h.m.material.userData.op = s.op;
+      let red = CH[C.chr].m === 1; if (cross && h.sg === 1 && ((C.chr === 0 && C.sis === 1) || (C.chr === 1 && C.sis === 0))) red = !red;
+      h.m.material.color.copy(red ? RED : BLUE); });
+    tv.set(...s.p); tv2.set(...s.pole); orient(kfib[c], tv, tv2); kfib[c].material.userData.op = .75 * s.f; kfib[c].visible = s.f > .02 && s.op > .05;
+  });
+  centromeres.forEach((m, i) => { const a = F.ch[i * 2], b = F.ch[i * 2 + 1], dd = Math.hypot(a.p[0] - b.p[0], a.p[1] - b.p[1], a.p[2] - b.p[2]);
+    m.position.set((a.p[0] + b.p[0]) / 2, (a.p[1] + b.p[1]) / 2, (a.p[2] + b.p[2]) / 2 + .05); m.visible = dd < .5 && Math.min(a.op, b.op) > .5 && a.cond > .6; });
+  F.sp.forEach((sp, j) => { const Sx = spindles[j], A = tv.set(...sp.a), B = tv2.set(...sp.b), L = A.distanceTo(B);
+    Sx.g.visible = sp.op > .02; Sx.g.position.copy(A).add(B).multiplyScalar(.5); Sx.g.scale.set(Math.max(.01, L / 2), 1, 1);
+    if (L > 1e-3){ qa.setFromUnitVectors(XA, B.clone().sub(A).normalize()); Sx.g.quaternion.copy(qa); }
+    Sx.pm.userData.op = .5 * sp.op; Sx.cm.userData.op = sp.op;
+    Sx.poles[0].position.copy(A); Sx.poles[1].position.copy(B); Sx.poles.forEach(p => { p.visible = sp.op > .05; p.rotation.y = t; }); });
+  /* labels */
+  const C0 = chromatids[0]; C0.g.getWorldPosition(AN.chromosome.position); AN.chromosome.position.y += .9;
+  AN.centromere.position.copy(centromeres[1].position).add(tv.set(.5, -.3, 0));
+  AN.spindle.position.copy(spindles[0].g.position).add(tv.set(-1.4, 1.9, 0)); AN.centriole.position.copy(spindles[0].poles[0].position).add(tv.set(0, -.55, 0));
+  AN.nucleus.position.set(F.nu[0].c[0], F.nu[0].c[1] + F.nu[0].r + .2, F.nu[0].c[2]); AN.chromatin.position.set(F.nu[0].c[0] + .3, F.nu[0].c[1] - .4, F.nu[0].c[2] + .3);
+  const b0 = F.bo[0]; AN.membrane.position.set(b0.c[0] + (b0.ax === 'x' ? b0.s * .7 : b0.R * .75), b0.c[1] + (b0.ax === 'x' ? b0.R * .85 : b0.s + b0.R * .6), b0.c[2]);
+  const vis = { chromosome:F.ch[0].cond > .6, centromere:centromeres[1].visible, spindle:F.sp[0].op > .3, centriole:F.sp[0].op > .3, nucleus:F.nu[0].op > .3, chromatin:F.nu[0].op * F.tg > .3, membrane:true };
+  LB.forEach(({ k, L }) => L.visible = labelsOn && vis[k]);
+  /* highlight */
+  const sel = EX.sel;
+  for (const k in MATS) for (const m of MATS[k]){
+    const on = sel === k || (sel === 'homologs' && k === 'chromosome'), dim = sel && !on;
+    m.emissive.set(m.color).multiplyScalar(on ? .3 + .15 * Math.sin(t * 4) : 0);
+    m.opacity = m.userData.op * (dim ? .35 : 1);
+  }
+  root.rotation.y = Math.sin(t * .2) * .25;
+});
+setMode('mito');
+</script>
+</body>
+</html>

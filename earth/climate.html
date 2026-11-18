@@ -1,0 +1,655 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Climate: What Controls It</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/lab3d.js"></script>
+<script src="../shared/photos.js"></script>
+<style>
+/* page-specific styles */
+.hidden{display:none!important}
+.readouts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:14px}
+.readouts .counter{background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow)}
+.citybtns{display:flex;flex-wrap:wrap;gap:8px}
+.citybtns .chip.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.climo{position:relative;min-height:400px}
+.climo canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.factor{background:var(--surface-2);border-radius:14px;padding:12px 14px}
+.factor b{display:block;font-family:Fredoka;font-size:20px;font-weight:600}
+.therm{height:14px;border-radius:999px;background:linear-gradient(90deg,#3b82f6,#22c55e,#f59e0b,#ef4444);position:relative}
+.therm i{position:absolute;top:-5px;width:6px;height:24px;border-radius:4px;background:var(--ink);transform:translateX(-50%);transition:left .3s}
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.vs .box h3{display:flex;gap:8px;align-items:center}
+@media (max-width:980px){.readouts{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.vs{grid-template-columns:1fr}}
+</style>
+</head>
+<body data-subject="earth" data-topic="climate">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="地球科学 · 天气与气候">Earth Science · Weather &amp; Climate</span>
+  <h1 data-zh-html="气候：<em>是什么决定了它？</em>">Climate: <em>What Controls It?</em></h1>
+  <p class="lead" data-zh="为什么新加坡终年炎热，莫斯科冬天却冰天雪地？为什么山的一边是森林，另一边却是沙漠？移动下面 3D 地球上的阳光光束，把山脉升高，再动手做气候图、调节温室气体，找出决定气候的因素。">Why is Singapore hot all year while Moscow freezes every winter? Why is one side of a mountain a forest and the other side a desert? Move the sunbeam on the 3D globe, raise a mountain range, build climate graphs and turn up the greenhouse gases to discover what controls climate.</p>
+</header>
+
+<section class="wrap" id="explore" data-nav="3D Climate" data-nav-zh="3D 气候">
+  <div class="vs" style="margin-bottom:18px">
+    <div class="card box"><h3><span>🌦️</span><span data-zh="天气">Weather</span></h3><p data-zh="某个地方短时间内（几小时到几天）大气的状况：今天的气温、降雨、风。">The condition of the atmosphere at one place over a short time (hours to days): today’s temperature, rain and wind.</p></div>
+    <div class="card box"><h3><span>📅</span><span data-zh="气候">Climate</span></h3><p data-zh="某个地区多年（通常 30 年以上）天气的平均状况和规律。">The average weather pattern of a region over many years (usually 30 or more).</p></div>
+  </div>
+  <div class="explorer">
+    <div class="stage card space" id="stage" data-3d>
+      <div class="toolbar">
+        <div class="seg modeseg" style="pointer-events:auto"><button data-mode="globe" class="on" data-zh="🌍 阳光与纬度">🌍 Sun &amp; latitude</button><button data-mode="mount" data-zh="⛰ 雨影效应">⛰ Rain shadow</button></div>
+        <button class="tbtn" id="resetBtn" data-zh="⌂ 重置">⌂ Reset</button>
+        <button class="tbtn" id="storyBtn" data-zh="📖 讲解（故事）">📖 Explain (story)</button>
+        <button class="tbtn" id="labelBtn" data-zh="🏷 标签">🏷 Labels</button>
+        <button class="tbtn on g-only" id="zoneBtn" data-zh="🎨 气候带">🎨 Zones</button>
+        <div class="seg g-only" id="seasonSeg" style="pointer-events:auto"><button data-s="-1" data-zh="12月">Dec</button><button data-s="0" class="on" data-zh="3/9月">Mar/Sep</button><button data-s="1" data-zh="6月">Jun</button></div>
+      </div>
+      <div class="bottombar">
+        <div class="pill g-only"><span data-zh="☀️ 光束纬度">☀️ Beam latitude</span><input id="lat" type="range" min="-80" max="80" step="1" value="0"><b id="latVal">0°</b></div>
+        <div class="pill m-only hidden"><span data-zh="⛰ 山脉高度">⛰ Mountain height</span><input id="mtn" type="range" min="0" max="4" step="0.1" value="3"><b id="mtnVal">3.0 km</b></div>
+        <div class="tip" data-zh="拖动旋转 · 滚轮缩放 · 点击各部分">Drag to rotate · Scroll to zoom · Click any part</div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="chips" id="chips"></div>
+  <div class="readouts" id="readouts"></div>
+  <div class="mix" style="margin-top:16px"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="赤道热、两极冷，并不是因为赤道离太阳更近。地球各处到太阳的距离几乎一样，关键在于阳光照射的角度：直射时能量集中在小面积上，斜射时同样的能量铺开在大面积上。">The equator is not hotter because it is closer to the Sun. Every place on Earth is almost the same distance from the Sun. What matters is the angle of sunlight: direct rays concentrate energy on a small area, while slanted rays spread the same energy over a bigger area.</span></div>
+</section>
+
+<section class="wrap" id="graphs" data-nav="Climate graphs" data-nav-zh="气候图">
+  <div class="sec-head">
+    <h2 data-zh="动手做气候图（气温曲线和降水柱状图）">Build a climate graph (climograph)</h2>
+    <p data-zh="气候图用红色曲线表示每月平均气温，用蓝色柱子表示每月降水量。选一座城市，读一读它的气候，找出影响它的主要因素。">A climograph shows average monthly temperature as a red line and monthly precipitation as blue bars. Pick a city, read its climate and find the main factor that controls it.</p>
+  </div>
+  <div class="sim">
+    <div class="card climo"><canvas id="climo"></canvas></div>
+    <div class="card simside">
+      <div class="seg" style="align-self:flex-start"><button id="exploreMode" class="on" data-zh="🔎 探索">🔎 Explore</button><button id="mysteryMode" data-zh="❓ 猜城市">❓ Mystery city</button></div>
+      <div id="cityPanel"></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="greenhouse" data-nav="Greenhouse effect" data-nav-zh="温室效应">
+  <div class="sec-head">
+    <h2 data-zh="模拟：温室效应">Simulation: the greenhouse effect</h2>
+    <p data-zh="阳光（黄色）穿过大气使地面变暖，地面再以红外线（红色）的形式向外放出热量。温室气体会吸收红外线，再向四面八方重新放出，其中一部分回到地面。调节二氧化碳浓度，看看地球的长期平均气温怎样变化。">Sunlight (yellow) passes through the air and warms the ground. The ground gives off heat as infrared light (red). Greenhouse gases absorb that infrared and send it back out in all directions, some of it back down to the ground. Change the amount of CO₂ and watch Earth’s long-term average temperature.</p>
+  </div>
+  <div class="sim">
+    <div class="card simbox" style="min-height:420px"><canvas id="ghc"></canvas></div>
+    <div class="card simside">
+      <label class="ctl"><span><span data-zh="🏭 二氧化碳浓度">🏭 CO₂ in the air</span>: <b id="co2Val">420 ppm</b></span><input id="co2" type="range" min="180" max="1000" step="5" value="420"></label>
+      <div class="btnrow">
+        <button class="btn ghost" data-ppm="280" data-zh="1850 年（280）">1850 (280)</button>
+        <button class="btn ghost" data-ppm="420" data-zh="现在（约 420）">Today (~420)</button>
+        <button class="btn ghost" data-ppm="0" data-zh="没有温室气体">No greenhouse gases</button>
+      </div>
+      <div class="counters">
+        <div class="counter"><b id="ghT">15 °C</b><span data-zh="长期全球平均气温（简化模型）">long-term global average (simple model)</span></div>
+        <div class="counter"><b id="ghBack">–</b><span data-zh="被送回地面的红外线">infrared sent back to the ground</span></div>
+      </div>
+      <div class="therm"><i id="ghBar" style="left:50%"></i></div>
+      <p id="ghMsg"></p>
+      <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="温室气体像一条毯子：阳光能进来，但热量不容易出去。毯子越厚，地球越暖。">Greenhouse gases act like a blanket: sunlight gets in, but heat has a harder time getting out. A thicker blanket means a warmer Earth.</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real Photos" data-nav-zh="真实照片">
+  <div class="sec-head">
+    <h2 data-zh="看看真实的样子">See the real thing</h2>
+    <p data-zh="气候是许多年的平均状况，没法直接拍下来，但可以拍到它把一个地方变成了什么样。点击照片可以放大；影片不会自动播放。">Climate is an average over many years, so you cannot photograph it directly, but you can photograph what it does to a place. Click a photo to enlarge it; the video never starts by itself.</p>
+  </div>
+  <div id="gallery"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 气候测验">🧠 Climate quiz</h3><p class="sub" data-zh="选出正确答案。">Pick the best answer.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 天气还是气候？">🗂️ Weather or climate?</h3><p class="sub" data-zh="把每句话拖到（或先点再点方框）正确的组里。">Drag each statement (or tap it, then tap a box) into the right group.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="对应佐治亚州标准 S6E4（太阳不均匀加热地球、大气与海洋的相互作用如何形成天气与气候模式），并联系 S6E4a（温室气体）和 S6E4b（太阳辐射对陆地、水和空气的加热）。建议：用光束滑块比较赤道、40° 和 70° 的“光斑面积”和单位面积能量；切换 6 月和 12 月讨论季节成因；在雨影模式下改变山高，让学生用证据解释背风坡为什么干燥。气候图部分可让学生判断哪座城市受海拔、纬度、海洋或半球位置影响。">Supports GSE S6E4 (how uneven heating of Earth by the Sun and interactions of the atmosphere and oceans produce weather and climate patterns), connecting to S6E4a (greenhouse gases) and S6E4b (solar energy heating land, water and air). Try: compare the spot area and energy per m² at 0°, 40° and 70°; switch between June and December to discuss the cause of seasons; in rain-shadow mode, change the mountain height and have students use evidence to explain the dry leeward side. In the climograph section, ask which city is controlled by altitude, latitude, ocean or hemisphere.</p>
+    <p data-zh="数据说明：城市气候数据为近似的多年平均值；温室效应模型采用“二氧化碳每增加一倍，长期升温约 3 °C”的简化关系，仅用于演示趋势。">Data notes: city data are approximate long-term averages; the greenhouse model uses a simplified “about 3 °C of long-term warming per doubling of CO₂” relationship to show the trend only.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+/* ===== helpers ===== */
+const o = (en, zh) => ({en, zh});
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function fit(cv){ const r = cv.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); cv.width = Math.max(1, r.width * d); cv.height = Math.max(1, r.height * d); const g = cv.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0); return [g, r.width, r.height]; }
+
+/* ===== Parts ===== */
+const PARTS = {
+  directSun:{color:'#facc15', name:o('Direct vs. slanted sunlight','直射与斜射的阳光'), job:o('Latitude is the #1 climate control','纬度是影响气候的首要因素'),
+    facts:o(['Near the equator the noon Sun is high, so rays hit nearly straight on and their energy is packed into a small area.','Toward the poles the same beam hits at a low angle and spreads over a bigger area, so each square meter gets less energy.','Slanted rays also pass through more atmosphere, which absorbs and scatters some of their energy.','Move the beam-latitude slider and watch the bright spot stretch!'],
+            ['在赤道附近，正午太阳高度大，阳光几乎垂直照射，能量集中在较小的面积上。','越靠近两极，同样一束光照射的角度越低，铺开的面积越大，每平方米得到的能量就越少。','斜射的阳光还要穿过更厚的大气，一部分能量被吸收和散射。','拖动光束纬度滑块，看看光斑怎样被拉长！']),
+    hint:o('Flashlight trick: point it straight down = small, bright spot; tilt it = big, dim spot.','手电筒实验：垂直照 = 光斑小而亮；斜着照 = 光斑大而暗。'),
+    mix:o('Distance from the Sun does not cause hot and cold zones (or seasons). The angle of sunlight does.','冷热分带（以及季节）不是由离太阳的远近造成的，而是由阳光照射的角度决定的。')},
+  tropical:{color:'#f59e0b', name:o('Tropical zone','热带'), job:o('Between 23.5° N and 23.5° S','北纬 23.5° 到南纬 23.5° 之间'),
+    facts:o(['The noon Sun is high all year, and it is directly overhead at least once a year.','Warm all year. Many places have a wet season and a dry season instead of summer and winter.','Includes rainforests (Amazon, Congo, Singapore) and also deserts where air sinks.'],
+            ['全年正午太阳高度都很大，每年至少有一次太阳直射头顶。','终年温暖。许多地方没有冬夏之分，而是分为雨季和旱季。','这里有热带雨林（亚马孙、刚果、新加坡），也有空气下沉形成的沙漠。']),
+    hint:o('Tropics = between the Tropic of Cancer and the Tropic of Capricorn.','热带 = 北回归线和南回归线之间。')},
+  temperate:{color:'#22c55e', name:o('Temperate zones','温带'), job:o('23.5° to 66.5°, north and south','南北纬 23.5° 到 66.5° 之间'),
+    facts:o(['The Sun is never directly overhead, and its angle changes a lot through the year.','That gives four distinct seasons: warm summers and cool to cold winters.','Georgia (about 31–35° N) and most of China lie in the northern temperate zone.'],
+            ['太阳从不直射头顶，而且一年中照射角度变化很大。','所以四季分明：夏季温暖，冬季凉爽或寒冷。','佐治亚州（约北纬 31–35°）和中国的大部分地区都位于北温带。']),
+    hint:o('Temperate = moderate, with four seasons.','温带 = 温和，四季分明。')},
+  polar:{color:'#60a5fa', name:o('Polar zones','寒带'), job:o('Above 66.5° (Arctic & Antarctic Circles)','66.5° 以上（北极圈和南极圈内）'),
+    facts:o(['Sunlight always arrives at a low angle, spread thin over a large area.','Winters have weeks of darkness (polar night); summers can have 24-hour daylight, but it stays cold.','Ice and snow reflect most sunlight back to space, keeping these regions even colder.'],
+            ['阳光总是以很低的角度照射，铺开在很大的面积上。','冬季有连续几周的黑夜（极夜）；夏季可能 24 小时都是白天（极昼），但依然寒冷。','冰雪把大部分阳光反射回太空，使这里更加寒冷。']),
+    hint:o('Polar = low Sun, long nights, white ice.','寒带 = 太阳低、黑夜长、冰雪白。')},
+  axis:{color:'#e5e7eb', name:o('Earth’s 23.5° tilt','地轴倾斜 23.5°'), job:o('The cause of the seasons','季节变化的原因'),
+    facts:o(['Earth’s axis is tilted about 23.5°, and it keeps pointing the same way in space as Earth orbits the Sun.','In June the Northern Hemisphere tilts toward the Sun: more direct rays and longer days = summer. In December it tilts away = winter.','The hemispheres have opposite seasons. Use the Dec / Mar-Sep / Jun buttons!'],
+            ['地轴倾斜约 23.5°，在地球绕太阳公转时始终指向同一个方向。','6 月北半球倾向太阳：阳光更直射、白天更长 = 夏季；12 月北半球背离太阳 = 冬季。','南北半球的季节正好相反。试试 12 月 / 3·9 月 / 6 月按钮！']),
+    hint:o('Tilt toward the Sun = summer; tilt away = winter.','倾向太阳 = 夏季；背离太阳 = 冬季。')},
+  currents:{color:'#ef4444', name:o('Ocean currents','洋流'), job:o('Rivers in the sea that move heat','海洋中搬运热量的“河流”'),
+    facts:o(['Warm currents carry heat from the tropics toward the poles; cold currents bring cool water toward the equator.','The warm Gulf Stream (red) flows past Georgia and across the Atlantic, keeping western Europe much milder than places at the same latitude in Canada.','The cold California Current (blue) keeps summers along the U.S. West Coast cool and foggy.','Water heats and cools slowly, so coasts have milder climates than places far inland.'],
+            ['暖流把热量从热带带向两极；寒流把冷水带向赤道。','温暖的墨西哥湾暖流（红色）流经佐治亚州沿岸并横跨大西洋，使西欧比同纬度的加拿大温和得多。','寒冷的加利福尼亚寒流（蓝色）使美国西海岸的夏季凉爽多雾。','水升温和降温都很慢，所以沿海地区的气候比内陆温和。']),
+    hint:o('Warm current → warmer, wetter coast; cold current → cooler, drier coast.','暖流 → 沿岸增温增湿；寒流 → 沿岸降温减湿。')},
+  wind:{color:'#38bdf8', name:o('Prevailing winds','盛行风'), job:o('Carry moist air from the ocean','把海洋上的湿润空气带过来'),
+    facts:o(['Prevailing winds blow mostly from one direction, carrying the temperature and moisture of the place they come from.','Winds blowing in from a warm ocean carry lots of water vapor that evaporated from the sea.','When they meet mountains, the air is forced to rise.'],
+            ['盛行风主要从一个方向吹来，带着源地的温度和水汽。','从温暖海洋吹来的风带有大量从海面蒸发的水汽。','遇到山脉时，空气被迫抬升。']),
+    hint:o('Wind from the sea = wet; wind from land = dry.','从海上来的风湿润，从陆地来的风干燥。')},
+  ocean:{color:'#1d4ed8', name:o('Ocean (large body of water)','海洋（大水体）'), job:o('Moderates temperature','调节气温'),
+    facts:o(['Water heats up and cools down much more slowly than land.','So coastal places have cooler summers and warmer winters than inland places at the same latitude.','The ocean is also the main source of the water vapor that falls as rain.'],
+            ['水的升温和降温都比陆地慢得多。','所以同纬度的沿海地区比内陆地区夏季凉爽、冬季温暖。','海洋也是形成降雨的水汽的主要来源。']),
+    hint:o('Near water = mild; far from water = extreme (continental).','靠近水体 = 温和；远离水体 = 冷热变化大（大陆性）。')},
+  windward:{color:'#16a34a', name:o('Windward side','迎风坡'), job:o('Wet side of the mountain','山的湿润一侧'),
+    facts:o(['The side facing the wind. Moist air is pushed up the slope.','Rising air expands and cools; its water vapor condenses into clouds, then falls as rain or snow.','This side gets lots of precipitation and is often covered in forest.'],
+            ['面向来风的一侧。湿润的空气被推上山坡。','上升的空气膨胀冷却，水汽凝结成云，再以雨或雪的形式降落。','这一侧降水多，常常覆盖着森林。']),
+    hint:o('Windward = wet: the wind hits it first.','迎风坡 = 湿润：风先吹到这里。')},
+  peak:{color:'#e2e8f0', name:o('High altitude','高海拔'), job:o('Higher = colder','越高越冷'),
+    facts:o(['Air temperature drops about 6.5 °C for every 1,000 m you climb.','That is why mountaintops can have snow even near the equator (Mount Kilimanjaro, the Andes).','Quito, Ecuador sits right on the equator, but at 2,850 m high it feels like spring all year.'],
+            ['海拔每升高 1000 米，气温大约下降 6.5 °C。','所以即使在赤道附近，山顶也可能有积雪（乞力马扎罗山、安第斯山脉）。','厄瓜多尔的基多就在赤道上，但海拔 2850 米，四季如春。']),
+    hint:o('Climb 1 km, lose about 6.5 °C.','升高 1 千米，降温约 6.5 °C。')},
+  leeward:{color:'#d97706', name:o('Leeward side (rain shadow)','背风坡（雨影区）'), job:o('Dry side of the mountain','山的干燥一侧'),
+    facts:o(['The side sheltered from the wind. The air coming over the top has already dropped much of its moisture.','As the air sinks down this side, it warms and dries out, so clouds rarely form.','The result is a dry “rain shadow”: Death Valley east of the Sierra Nevada, or the dry Tibetan Plateau north of the Himalayas.'],
+            ['背向来风的一侧。翻过山顶的空气已经失去了大部分水汽。','空气沿这一侧下沉时增温变干，很难形成云。','结果形成干燥的“雨影区”：例如内华达山脉东侧的死亡谷，喜马拉雅山以北干燥的青藏高原。']),
+    hint:o('Leeward = left dry (“lee” = sheltered).','背风坡 = 被“遮挡”的一面，雨被挡在了另一边。'),
+    mix:o('Mountains do not “block” the wind completely. Air still flows over; it just loses its water on the way up.','山脉并没有完全“挡住”风。空气仍然会翻过去，只是在上升途中失去了水分。')}
+};
+const ORDERS = { globe:['directSun','tropical','temperate','polar','axis','currents'], mount:['wind','ocean','windward','peak','leeward'] };
+
+/* ===== App / info panel / readouts ===== */
+const App = window.CLIM = { sel:null, mode:'globe', three:null, ro:{} };
+App.select = (k, from3D) => { App.sel = k; renderInfo(); renderChips(); if (App.three) App.three.focus(k, from3D); };
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel, ord = ORDERS[App.mode], g = App.mode === 'globe';
+  if (!k){
+    box.innerHTML = `<span class="tag">${Lab.L(g ? o('Climate controls','影响气候的因素') : o('Mountains & climate','山脉与气候'))}</span>
+      <h3>${Lab.L(g ? o('Why latitude matters','为什么纬度很重要') : o('One mountain, two climates','一座山，两种气候'))}</h3>
+      <p class="muted" style="margin:0">${Lab.L(g ? o('The yellow beam is a bundle of sunlight. Slide it from the equator toward a pole and compare how big the bright spot gets and how much energy each square meter receives.','黄色光束代表一束阳光。把它从赤道滑向两极，比较光斑变得有多大，以及每平方米得到多少能量。') : o('Moist ocean air (blue dots) blows from left to right over a mountain range. Watch where clouds and rain form, then change the mountain height.','湿润的海洋空气（蓝点）从左向右吹过山脉。看看云和雨在哪里形成，再改变山的高度。'))}</p>
+      <ul>${(g ? [o('Latitude: distance from the equator','纬度：离赤道的远近'),o('Altitude: height above sea level','海拔：高出海平面的高度'),o('Distance from large bodies of water and ocean currents','离大水体的远近和洋流'),o('Mountains and prevailing winds','山脉和盛行风')] : [o('Windward side: rising air, clouds, rain','迎风坡：空气上升，多云多雨'),o('Leeward side: sinking air, dry','背风坡：空气下沉，干燥')]).map(x => `<li>${Lab.L(x)}</li>`).join('')}</ul>
+      <div class="memory"><b>${Lab.L(o('💡 Climate controls','💡 气候的影响因素'))}</b>${Lab.L(o('“LAWM”: Latitude, Altitude, Water (oceans & currents), Mountains (and winds).','记住“纬、海、洋、山”：纬度、海拔、海洋与洋流、山脉与风。'))}</div>
+      <div class="nav"><button id="startBtn">${Lab.L(o('Start exploring ▶','开始探索 ▶'))}</button></div>`;
+    Lab.$('#startBtn').onclick = () => App.select(ord[0]);
+    return;
+  }
+  const p = PARTS[k], i = ord.indexOf(k);
+  box.innerHTML = `<span class="tag">${Lab.L(g ? o('Sun & latitude','阳光与纬度') : o('Rain shadow','雨影效应'))}</span>
+    <h3><span class="dot" style="background:${p.color};border:1px solid rgba(0,0,0,.15)"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    ${p.photo ? LabPhotos.figure(p.photo) : ''}
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. '));
+  Lab.$('#pPrev').onclick = () => App.select(ord[(i - 1 + ord.length) % ord.length]);
+  Lab.$('#pNext').onclick = () => App.select(ord[(i + 1) % ord.length]);
+}
+function renderChips(){
+  Lab.$('#chips').innerHTML = ORDERS[App.mode].map(k => `<button class="chip ${App.sel===k?'on':''}" data-k="${k}"><i style="background:${PARTS[k].color};border:1px solid rgba(0,0,0,.15)"></i>${Lab.L(PARTS[k].name)}</button>`).join('');
+  Lab.$$('#chips .chip').forEach(c => c.onclick = () => App.select(c.dataset.k));
+}
+App.renderReadouts = () => {
+  const r = App.ro, box = Lab.$('#readouts'); if (!r.mode) return;
+  const rows = r.mode === 'globe' ? [
+    [r.lit ? r.elev.toFixed(0) + '°' : '—', o('noon Sun height above horizon','正午太阳高度角')],
+    [r.lit ? Math.round(r.energy * 100) + '%' : '0%', o('energy per m² (vs. Sun overhead)','单位面积能量（与直射相比）')],
+    [r.lit ? '×' + r.area.toFixed(1) : '—', o('sunlit spot area','光斑面积')],
+    [r.day.toFixed(1) + (Lab.lang === 'zh' ? ' 小时' : ' h'), o('day length at this latitude','该纬度的白昼长度')]
+  ] : [
+    [Math.round(r.wet) + ' mm', o('windward rain per year','迎风坡年降水量')],
+    [Math.round(r.dry) + ' mm', o('leeward rain per year','背风坡年降水量')],
+    [r.peakT.toFixed(0) + ' °C', o('temperature on the peak','山顶气温')],
+    [r.coastT.toFixed(0) + ' °C', o('temperature at the coast','海岸气温')]
+  ];
+  box.innerHTML = rows.map(([v, l]) => `<div class="counter"><b>${v}</b><span>${Lab.L(l)}</span></div>`).join('');
+};
+Lab.onLang(() => { renderInfo(); renderChips(); App.renderReadouts(); });
+
+/* ===== Climographs ===== */
+const CITIES = [
+  {id:'atl', name:o('Atlanta, USA','美国亚特兰大'), lat:'34° N', alt:'320 m', t:[6,8,12,17,21,25,27,26,23,17,12,7], p:[105,115,120,90,95,100,120,95,100,85,105,105],
+   type:o('Humid subtropical','亚热带湿润气候'), factor:o('Mid-latitude plus moist air from the Gulf of Mexico: hot, humid summers, mild winters, rain all year.','中纬度，加上来自墨西哥湾的湿润空气：夏季炎热潮湿，冬季温和，全年有雨。')},
+  {id:'sin', name:o('Singapore','新加坡'), lat:'1° N', alt:'15 m', t:[27,27,28,28,28,28,28,28,28,28,27,27], p:[240,160,185,180,170,160,160,175,170,195,255,290],
+   type:o('Tropical rainforest','热带雨林气候'), factor:o('Latitude: almost on the equator, so the Sun is high all year. Warm seas give heavy rain every month.','纬度：几乎位于赤道上，全年太阳高度大；温暖的海洋使每个月都有大量降雨。')},
+  {id:'cai', name:o('Cairo, Egypt','埃及开罗'), lat:'30° N', alt:'23 m', t:[14,15,18,22,25,28,29,28,26,24,19,15], p:[5,4,4,1,0,0,0,0,0,1,3,6],
+   type:o('Hot desert','热带沙漠气候'), factor:o('Sits under a belt of sinking, dry air near 30° N, far from moist ocean winds: almost no rain.','位于北纬 30° 附近的下沉干燥气流带下，又远离湿润的海风：几乎不下雨。')},
+  {id:'mos', name:o('Moscow, Russia','俄罗斯莫斯科'), lat:'56° N', alt:'156 m', t:[-6,-6,-1,6,13,17,19,17,11,5,-1,-5], p:[50,40,35,40,55,80,85,80,65,60,55,50],
+   type:o('Humid continental','温带大陆性湿润气候'), factor:o('High latitude and far from any ocean: very cold winters and a big temperature range.','纬度高，又远离海洋：冬季严寒，气温年较差大。')},
+  {id:'bei', name:o('Beijing, China','中国北京'), lat:'40° N', alt:'44 m', t:[-3,0,7,15,21,25,27,26,21,14,5,-1], p:[3,6,9,26,30,80,180,160,45,22,8,3],
+   type:o('Temperate monsoon','温带季风气候'), factor:o('Monsoon winds: cold, dry winds from the continent in winter; warm, wet winds from the ocean in summer.','季风：冬季吹来寒冷干燥的大陆风，夏季吹来温暖湿润的海洋风，雨热同期。')},
+  {id:'sea', name:o('Seattle, USA','美国西雅图'), lat:'48° N', alt:'50 m', t:[6,6,8,10,13,16,19,19,17,12,8,5], p:[140,90,95,70,50,40,15,25,40,90,150,140],
+   type:o('Marine west coast','温带海洋性气候'), factor:o('Ocean: winds off the Pacific keep it mild all year, with rainy winters and dry summers.','海洋：来自太平洋的风使它全年温和，冬季多雨，夏季干燥。')},
+  {id:'qui', name:o('Quito, Ecuador','厄瓜多尔基多'), lat:'0°', alt:'2,850 m', t:[14,14,14,14,14,14,14,14,14,14,14,14], p:[100,115,140,170,110,45,20,25,80,120,100,90],
+   type:o('Highland (mountain)','高原山地气候'), factor:o('Altitude: on the equator, but 2,850 m up, so it is cool and spring-like all year.','海拔：虽然位于赤道，但海拔 2850 米，所以全年凉爽，四季如春。')},
+  {id:'syd', name:o('Sydney, Australia','澳大利亚悉尼'), lat:'34° S', alt:'40 m', t:[23,23,22,19,16,14,13,14,16,18,20,22], p:[100,120,130,125,100,130,75,80,65,75,85,80],
+   type:o('Humid subtropical','亚热带湿润气候'), factor:o('Southern Hemisphere: seasons are reversed, so January is summer and July is winter.','南半球：季节正好相反，1 月是夏季，7 月是冬季。')}
+];
+const MONTHS = o(['J','F','M','A','M','J','J','A','S','O','N','D'],['1','2','3','4','5','6','7','8','9','10','11','12']);
+(function(){
+  const cv = Lab.$('#climo'); let cur = CITIES[0], mystery = false, mq = null, mScore = 0, mN = 0, mPicked = null;
+  function draw(){
+    const [g, W, H] = fit(cv), P = { l:50, r:54, t:44, b:36 }, ink = css('--ink'), ink2 = css('--ink-2');
+    const pw = (W - P.l - P.r) / 12, X = i => P.l + pw * (i + .5), YT = v => P.t + (40 - v) / 50 * (H - P.t - P.b), YP = v => H - P.b - v / 300 * (H - P.t - P.b);
+    g.clearRect(0, 0, W, H);
+    g.strokeStyle = css('--line'); g.lineWidth = 1; g.font = '700 11px Nunito, sans-serif';
+    for (let v = -10; v <= 40; v += 10){ g.beginPath(); g.moveTo(P.l, YT(v)); g.lineTo(W - P.r, YT(v)); g.stroke(); g.fillStyle = '#ef4444'; g.textAlign = 'right'; g.fillText(v + '°', P.l - 6, YT(v) + 4); g.fillStyle = '#3b82f6'; g.textAlign = 'left'; g.fillText(Math.round((40 - v) / 50 * 300 === 0 ? 300 : 300 - (40 - v) / 50 * 300), W - P.r + 6, YT(v) + 4); }
+    const c = mystery ? mq.ans : cur;
+    c.p.forEach((v, i) => { g.fillStyle = 'rgba(59,130,246,.75)'; g.fillRect(X(i) - pw * .32, YP(v), pw * .64, H - P.b - YP(v)); });
+    g.strokeStyle = '#ef4444'; g.lineWidth = 3; g.beginPath(); c.t.forEach((v, i) => i ? g.lineTo(X(i), YT(v)) : g.moveTo(X(i), YT(v))); g.stroke();
+    c.t.forEach((v, i) => { g.fillStyle = '#ef4444'; g.beginPath(); g.arc(X(i), YT(v), 4, 0, 7); g.fill(); });
+    g.fillStyle = ink2; g.textAlign = 'center'; Lab.L(MONTHS).forEach((m, i) => g.fillText(m, X(i), H - P.b + 16));
+    g.fillStyle = ink; g.font = '800 16px Fredoka, Nunito, sans-serif'; g.textAlign = 'left';
+    g.fillText(mystery ? Lab.L(o('❓ Mystery city','❓ 神秘城市')) : Lab.L(c.name) + ' · ' + c.lat + ' · ' + c.alt, P.l, 24);
+    g.font = '700 11px Nunito, sans-serif'; g.fillStyle = '#ef4444'; g.fillText(Lab.L(o('temperature (°C)','气温（°C）')), P.l, P.t - 8); g.fillStyle = '#3b82f6'; g.textAlign = 'right'; g.fillText(Lab.L(o('precipitation (mm)','降水量（毫米）')), W - P.r + 44, P.t - 8);
+  }
+  const stats = c => { const mean = c.t.reduce((a, b) => a + b) / 12, tot = c.p.reduce((a, b) => a + b); return { mean, range:Math.max(...c.t) - Math.min(...c.t), tot }; };
+  function panel(){
+    const box = Lab.$('#cityPanel');
+    if (!mystery){
+      const s = stats(cur);
+      box.innerHTML = `<div class="citybtns">${CITIES.map(c => `<button class="chip ${c === cur ? 'on' : ''}" data-id="${c.id}">${Lab.L(c.name)}</button>`).join('')}</div>
+        <div class="counters" style="grid-template-columns:repeat(3,1fr)"><div class="counter"><b>${s.mean.toFixed(1)}°</b><span>${Lab.L(o('yearly average','年平均气温'))}</span></div><div class="counter"><b>${s.range}°</b><span>${Lab.L(o('temperature range','气温年较差'))}</span></div><div class="counter"><b>${s.tot}</b><span>${Lab.L(o('mm rain / year','年降水量（毫米）'))}</span></div></div>
+        <div class="factor"><b>${Lab.L(cur.type)}</b>${Lab.L(cur.factor)}</div>`;
+      Lab.$$('#cityPanel .chip').forEach(b => b.onclick = () => { cur = CITIES.find(c => c.id === b.dataset.id); panel(); draw(); });
+    } else {
+      box.innerHTML = `<p style="margin:0">${Lab.L(o('Which city does this climograph belong to? Use the temperature pattern and the rainfall.','这张气候图属于哪座城市？根据气温变化和降水情况来判断。'))}</p>
+        <div class="fcopts" style="display:grid;gap:8px">${mq.opts.map(c => `<button class="opt" data-id="${c.id}">${Lab.L(c.name)}</button>`).join('')}</div>
+        <div class="result" id="mMsg"></div><p class="muted" id="mWhy" style="margin:0"></p>
+        <div class="btnrow"><button class="btn" id="mNext" style="display:none">${Lab.L(o('Next mystery ▶','下一题 ▶'))}</button></div>
+        <div class="muted" style="font-weight:800">${Lab.lang === 'zh' ? `得分:${mScore} / ${mN}` : `Score: ${mScore} / ${mN}`}</div>`;
+      Lab.$$('#cityPanel .opt').forEach(b => b.onclick = () => pickM(b.dataset.id));
+      Lab.$('#mNext').onclick = () => { newMystery(); panel(); draw(); };
+      if (mPicked) markM();
+    }
+  }
+  function newMystery(){ const ans = CITIES[Math.random() * CITIES.length | 0]; mq = { ans, opts:Lab.shuffle([ans, ...Lab.shuffle(CITIES.filter(c => c !== ans)).slice(0, 3)]) }; mPicked = null; }
+  function pickM(id){ if (mPicked) return; mPicked = id; mN++; if (id === mq.ans.id) mScore++; panel(); }
+  function markM(){
+    Lab.$$('#cityPanel .opt').forEach(b => { b.disabled = true; if (b.dataset.id === mq.ans.id) b.classList.add('right'); else if (b.dataset.id === mPicked) b.classList.add('wrong'); });
+    const ok = mPicked === mq.ans.id, m = Lab.$('#mMsg'); m.textContent = (ok ? '✅ ' : '❌ ') + Lab.L(mq.ans.name) + ' · ' + Lab.L(mq.ans.type); m.className = 'result ' + (ok ? 'good' : 'bad');
+    Lab.$('#mWhy').textContent = Lab.L(mq.ans.factor); Lab.$('#mNext').style.display = '';
+  }
+  Lab.$('#exploreMode').onclick = () => { mystery = false; Lab.$('#exploreMode').classList.add('on'); Lab.$('#mysteryMode').classList.remove('on'); panel(); draw(); };
+  Lab.$('#mysteryMode').onclick = () => { mystery = true; newMystery(); Lab.$('#mysteryMode').classList.add('on'); Lab.$('#exploreMode').classList.remove('on'); panel(); draw(); };
+  addEventListener('resize', draw); addEventListener('labtheme', draw);
+  Lab.onLang(() => { panel(); draw(); });
+})();
+
+/* ===== Greenhouse effect simulation ===== */
+(function(){
+  const cv = Lab.$('#ghc'); let ppm = 420, none = false, phot = [], mols = [], back = 0, esc = 0, spawnT = 0, W = 600, H = 400;
+  const temp = () => none ? -18 : 13.9 + 3 * Math.log2(ppm / 280);
+  const absorbP = () => none ? 0 : Math.min(.9, .2 + .5 * Math.log2(ppm / 180) / Math.log2(1000 / 180));
+  function setMols(){ const n = none ? 0 : Math.round(8 + 34 * Math.log2(ppm / 150) / Math.log2(1000 / 150)); while (mols.length < n) mols.push({ x:Math.random(), y:Math.random(), a:Math.random() * 6, f:0 }); mols.length = n; }
+  function side(){
+    const T = temp();
+    Lab.$('#co2Val').textContent = none ? (Lab.lang === 'zh' ? '0（没有温室气体）' : '0 (none)') : ppm + ' ppm';
+    Lab.$('#ghT').textContent = T.toFixed(1) + ' °C';
+    Lab.$('#ghBar').style.left = Math.max(2, Math.min(98, (T + 20) / 45 * 100)) + '%';
+    const m = Lab.$('#ghMsg');
+    m.textContent = Lab.L(none ? o('Without greenhouse gases, almost all heat escapes and Earth would average about −18 °C: frozen solid!','没有温室气体，几乎所有热量都会散失，地球平均气温约为 −18 °C：天寒地冻！')
+      : ppm <= 290 ? o('About the level before factories and cars (1850s). Earth averaged roughly 14 °C.','大约是工厂和汽车出现之前（19 世纪 50 年代）的水平，地球平均气温约 14 °C。')
+      : ppm <= 440 ? o('Today: burning coal, oil and gas has raised CO₂ by about 50% since 1850. Earth has warmed about 1.3 °C so far.','现在：燃烧煤、石油和天然气使二氧化碳比 1850 年增加了约 50%，地球已经升温约 1.3 °C。')
+      : o('More CO₂ traps more heat. A warmer climate melts ice, raises sea level and brings more extreme heat waves, droughts and floods.','二氧化碳越多，留住的热量越多。气候变暖会使冰川融化、海平面上升，热浪、干旱和洪涝也更加极端。'));
+    setMols();
+  }
+  function draw(dt){
+    const [g, w, h] = fit(cv); W = w; H = h;
+    const atmTop = H * .2, atmBot = H * .66, ground = H * .82, T = temp(), warm = Math.max(0, Math.min(1, (T + 18) / 40));
+    g.fillStyle = '#0b1230'; g.fillRect(0, 0, W, atmTop);
+    const ag = g.createLinearGradient(0, atmTop, 0, ground); ag.addColorStop(0, '#5aa9e6'); ag.addColorStop(1, '#bfe3ff'); g.fillStyle = ag; g.fillRect(0, atmTop, W, ground - atmTop);
+    g.fillStyle = 'rgba(255,255,255,.18)'; g.fillRect(0, atmTop + (atmBot - atmTop) * .05, W, (atmBot - atmTop) * .9);
+    const gc = none ? '#e8f1f8' : `rgb(${Math.round(60 + 120 * warm)},${Math.round(140 - 30 * warm)},${Math.round(70 - 30 * warm)})`;
+    g.fillStyle = gc; g.fillRect(0, ground, W, H - ground);
+    g.fillStyle = '#ffd54a'; g.beginPath(); g.arc(60, 40, 26, 0, 7); g.fill();
+    g.font = '800 12px Nunito, sans-serif'; g.fillStyle = '#ffffff'; g.textAlign = 'right'; g.fillText(Lab.L(o('space','太空')), W - 10, 18);
+    g.fillStyle = '#0b3a66'; g.fillText(Lab.L(o('atmosphere','大气层')), W - 10, atmTop + 18); g.fillStyle = '#ffffff'; g.fillText(Lab.L(o('ground','地面')), W - 10, H - 10);
+    mols.forEach(m => { m.a += dt; m.f = Math.max(0, m.f - dt * 3); const x = m.x * W, y = atmTop + 10 + m.y * (atmBot - atmTop - 20) + Math.sin(m.a) * 4;
+      g.fillStyle = m.f > 0 ? '#ff7043' : '#374151'; g.beginPath(); g.arc(x, y, 5, 0, 7); g.fill(); g.fillStyle = '#e5484d'; g.beginPath(); g.arc(x - 7, y, 3.6, 0, 7); g.arc(x + 7, y, 3.6, 0, 7); g.fill(); m.px = x; m.py = y; });
+    spawnT -= dt; if (spawnT <= 0){ spawnT = .12; phot.push({ x:70 + Math.random() * (W - 140), y:atmTop - 30, vx:-18, vy:150, k:'sun', life:0 }); }
+    const pA = absorbP();
+    for (const p of phot){
+      p.x += p.vx * dt; p.y += p.vy * dt; p.life += dt;
+      if (p.k === 'sun' && p.y >= ground){ p.k = 'ir'; p.y = ground - 1; const a = -Math.PI / 2 + (Math.random() - .5) * 1.2; p.vx = Math.cos(a) * 110; p.vy = Math.sin(a) * 110; p.checked = 0; }
+      else if (p.k === 'ir'){
+        if (p.y > atmTop && p.y < atmBot && p.vy < 0 && !p.done && p.y < atmBot - (atmBot - atmTop) * .3 * (p.checked + 1)){ p.checked++; if (Math.random() < pA / 2){
+          const m = mols.length ? mols.reduce((b, q) => Math.hypot(q.px - p.x, q.py - p.y) < Math.hypot(b.px - p.x, b.py - p.y) ? q : b) : null; if (m){ m.f = 1; p.x = m.px; p.y = m.py; }
+          const a = Math.random() * Math.PI * 2; p.vx = Math.cos(a) * 110; p.vy = Math.sin(a) * 110; if (p.vy > 0){ p.done = 1; p.back = 1; } } }
+        if (p.y < 0){ p.dead = 1; esc++; } if (p.y > ground && p.vy > 0){ p.dead = 1; back++; }
+      }
+      if (p.x < -10 || p.x > W + 10) p.dead = 1;
+      g.fillStyle = p.k === 'sun' ? '#ffe066' : '#ff3b3b';
+      if (p.k === 'sun'){ g.beginPath(); g.arc(p.x, p.y, 3.2, 0, 7); g.fill(); }
+      else { g.strokeStyle = '#ff3b3b'; g.lineWidth = 2; g.beginPath(); const nx = -p.vy / 110, ny = p.vx / 110; for (let s = 0; s < 6; s++){ const x = p.x - p.vx / 110 * s * 3 + nx * Math.sin(s * 1.6 + p.life * 20) * 3, y = p.y - p.vy / 110 * s * 3 + ny * Math.sin(s * 1.6 + p.life * 20) * 3; s ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke(); }
+    }
+    phot = phot.filter(p => !p.dead);
+    const tot = back + esc; Lab.$('#ghBack').textContent = tot > 10 ? Math.round(back / tot * 100) + '%' : '–';
+    if (tot > 300){ back *= .5; esc *= .5; }
+  }
+  let last = performance.now();
+  (function loop(){ requestAnimationFrame(loop); const now = performance.now(), dt = Math.min(.05, (now - last) / 1000); last = now; const r = cv.getBoundingClientRect(); if (r.bottom > 0 && r.top < innerHeight) draw(dt); })();
+  Lab.$('#co2').oninput = e => { none = false; ppm = +e.target.value; back = esc = 0; side(); };
+  Lab.$$('[data-ppm]').forEach(b => b.onclick = () => { const v = +b.dataset.ppm; none = v === 0; if (!none){ ppm = v; Lab.$('#co2').value = v; } back = esc = 0; side(); });
+  Lab.onLang(side);
+})();
+
+/* ===== Quiz ===== */
+/* ===== Real photos (Wikimedia Commons; licences checked with the Commons API helper, URLs exactly as returned) ===== */
+const PHOTOS = [
+  { part:'tropical', kind:{en:'Aerial photo',zh:'航拍照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d0/Aerial_view_of_the_Amazon_Rainforest.jpg/960px-Aerial_view_of_the_Amazon_Rainforest.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The Amazon rainforest and the Solimões River from an airplane window. Near the equator it is hot and rainy all year, so forest covers everything.', zh:'从飞机舷窗看亚马孙雨林和索利蒙伊斯河。赤道附近终年高温多雨，所以到处都是森林。', scale:{en:'Amazonia, Brazil',zh:'巴西亚马孙地区'}, credit:'lubasi', license:'CC BY-SA 2.0', page:'https://commons.wikimedia.org/wiki/File:Aerial_view_of_the_Amazon_Rainforest.jpg' },
+  { part:'polar', kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/de/Alaska_-tundra_landscape-11Aug2008.jpg/960px-Alaska_-tundra_landscape-11Aug2008.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Tundra in Alaska in August. Even in summer it is too cold here for trees; only low plants grow.', zh:'8 月的美国阿拉斯加苔原。这里即使在夏天也冷得长不了树，只有低矮的植物。', scale:{en:'Alaska, USA',zh:'美国阿拉斯加州'}, credit:'Andrea Pokrzywinski', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Alaska_-tundra_landscape-11Aug2008.jpg' },
+  { part:'windward', kind:{en:'Astronaut photo',zh:'宇航员拍摄'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d8/The_Himalayas_separate_China_from_a_cloudy_India_%28iss072e397138%29.jpg/960px-The_Himalayas_separate_China_from_a_cloudy_India_%28iss072e397138%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A rain shadow seen from space: clouds pile up on the Indian side of the Himalayas, while the Tibetan Plateau behind the mountains is dry and brown.', zh:'从太空看“雨影”：云堆积在喜马拉雅山脉的印度一侧，山后面的青藏高原却又干又黄。', scale:{en:'photo taken December 19, 2024',zh:'2024 年 12 月 19 日拍摄'}, credit:'NASA Johnson Space Center', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:The_Himalayas_separate_China_from_a_cloudy_India_(iss072e397138).jpg' },
+  { part:'leeward', kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f0/Atacama_Desert_near_ALMA_%28emol_4_2%29.jpg/960px-Atacama_Desert_near_ALMA_%28emol_4_2%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The Atacama Desert in Chile, one of the driest places on Earth. Cloud shadows cross the bare ground, but rain almost never falls.', zh:'智利的阿塔卡马沙漠，地球上最干燥的地方之一。云影掠过光秃秃的地面，雨却几乎从来不下。', scale:{en:'northern Chile',zh:'智利北部'}, credit:'AUI/NRAO, Carlos Padilla', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Atacama_Desert_near_ALMA_(emol_4_2).jpg' },
+  { kind:{en:'Aerial photo',zh:'航拍照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/21/Mauna_Loa_Observatory_north_flank_of_Mauna_Loa.jpg/960px-Mauna_Loa_Observatory_north_flank_of_Mauna_Loa.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The Mauna Loa Observatory, high on a Hawaiian volcano among old lava flows. Scientists here have measured the CO₂ in the air since 1958.', zh:'莫纳罗亚观象台坐落在夏威夷一座火山的高处，四周是古老的熔岩流。从 1958 年起，科学家就在这里测量空气中的二氧化碳。', scale:{en:'Hawaii, USA',zh:'美国夏威夷州'}, credit:'Brian Vasel/NOAA', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Mauna_Loa_Observatory_north_flank_of_Mauna_Loa.jpg' },
+  { type:'video', kind:{en:'NASA video',zh:'NASA 影片'}, media:'https://upload.wikimedia.org/wikipedia/commons/7/7f/Arctic_Sea_Ice_Minimum_2022_%28SVS5030%29.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7f/Arctic_Sea_Ice_Minimum_2022_%28SVS5030%29.webm/960px--Arctic_Sea_Ice_Minimum_2022_%28SVS5030%29.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7f/Arctic_Sea_Ice_Minimum_2022_%28SVS5030%29.webm/960px--Arctic_Sea_Ice_Minimum_2022_%28SVS5030%29.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Watch: NASA’s animation of the Arctic sea ice minimum of 2022, made from satellite data. Sea ice melts back every summer; scientists compare each year’s minimum to track warming.', zh:'看一看：美国国家航空航天局根据卫星数据制作的 2022 年北极海冰最小范围动画。海冰每年夏天都会融化退缩，科学家逐年比较最小范围来追踪气候变暖。', scale:{en:'Arctic Ocean',zh:'北冰洋'}, credit:'NASA Scientific Visualization Studio', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Arctic_Sea_Ice_Minimum_2022_(SVS5030).webm' },
+  { kind:{en:'Underwater photo',zh:'水下照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/61/Coral_bleaching_Florida_Keys_2023.jpg/960px-Coral_bleaching_Florida_Keys_2023.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Bleached coral in the Florida Keys in 2023. When the water gets too warm, corals turn white and can die.', zh:'2023 年美国佛罗里达群岛的白化珊瑚。海水太热时，珊瑚会变白，甚至死亡。', scale:{en:'Florida Keys, USA',zh:'美国佛罗里达群岛'}, credit:'NOAA', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Coral_bleaching_Florida_Keys_2023.jpg' }
+];
+PHOTOS.forEach(it => { if (it.part && PARTS[it.part]) PARTS[it.part].photo = it; });
+LabPhotos.render(Lab.$('#gallery'), PHOTOS);
+
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('What is the difference between weather and climate?','天气和气候有什么区别？'), options:[o('Weather is short-term; climate is the long-term average pattern','天气是短期的；气候是长期的平均规律'),o('They mean exactly the same thing','它们的意思完全相同'),o('Climate changes every day; weather never changes','气候每天都变，天气从不变化'),o('Weather only describes temperature','天气只描述气温')], answer:0},
+  {q:o('Why is it hotter near the equator than near the poles?','为什么赤道附近比两极热？'), options:[o('Sunlight hits more directly, concentrating energy on a smaller area','阳光更直射，能量集中在更小的面积上'),o('The equator is much closer to the Sun','赤道离太阳近得多'),o('The equator has more volcanoes','赤道有更多火山'),o('The poles have no sunlight ever','两极永远没有阳光')], answer:0, explain:o('The distance difference is tiny. Angle of sunlight is what matters.','距离差别微乎其微，关键是阳光照射的角度。')},
+  {q:o('As altitude increases, temperature usually…','海拔升高时，气温通常会……'), options:[o('Decreases (about 6.5 °C per km)','降低（每千米约 6.5 °C）'),o('Increases','升高'),o('Stays the same','保持不变'),o('Changes randomly','随机变化')], answer:0},
+  {q:o('Compared with an inland city at the same latitude, a coastal city usually has…','与同纬度的内陆城市相比，沿海城市通常……'), options:[o('Milder summers and winters','夏季和冬季都更温和'),o('Hotter summers and colder winters','夏季更热、冬季更冷'),o('No seasons','没有季节'),o('Less rain always','降雨一定更少')], answer:0, explain:o('Water heats and cools slowly, which moderates nearby temperatures.','水升温降温都慢，可以调节附近的气温。')},
+  {q:o('Which side of a mountain range usually gets the most rain?','山脉的哪一侧通常降雨最多？'), options:[o('The windward side','迎风坡'),o('The leeward side','背风坡'),o('Both sides equally','两侧一样多'),o('Only the top','只有山顶')], answer:0},
+  {q:o('A dry area on the downwind side of mountains is called a…','山脉下风一侧的干燥地区叫做……'), options:[o('Rain shadow','雨影区'),o('Rainforest','雨林'),o('Delta','三角洲'),o('Tropical zone','热带')], answer:0},
+  {q:o('The warm Gulf Stream helps make western Europe…','温暖的墨西哥湾暖流使西欧……'), options:[o('Milder than other places at the same latitude','比同纬度的其他地方更温和'),o('Colder than Canada','比加拿大更冷'),o('A desert','成为沙漠'),o('Have no winter rain','冬季不下雨')], answer:0},
+  {q:o('What causes Earth’s seasons?','是什么造成了地球的季节变化？'), options:[o('The 23.5° tilt of Earth’s axis','地轴 23.5° 的倾斜'),o('Earth getting closer to and farther from the Sun','地球离太阳时近时远'),o('Changes in the Sun’s brightness','太阳亮度的变化'),o('Ocean tides','海洋潮汐')], answer:0, explain:o('Earth is actually closest to the Sun in early January, during Northern Hemisphere winter.','实际上地球在 1 月初离太阳最近，那时北半球正是冬季。')},
+  {q:o('The greenhouse effect happens because some gases…','温室效应的产生，是因为一些气体……'), options:[o('Absorb heat (infrared) given off by the ground and send some back down','吸收地面放出的热量（红外线）并把一部分送回地面'),o('Block all sunlight from reaching Earth','阻挡所有阳光到达地球'),o('Create holes in the atmosphere','在大气中制造空洞'),o('Make the Sun hotter','让太阳变得更热')], answer:0},
+  {q:o('Which human activity adds the most CO₂ to the air?','哪种人类活动向空气中排放的二氧化碳最多？'), options:[o('Burning fossil fuels (coal, oil, gas)','燃烧化石燃料（煤、石油、天然气）'),o('Planting trees','植树'),o('Using solar panels','使用太阳能电池板'),o('Recycling paper','回收纸张')], answer:0},
+  {q:o('Quito is on the equator but cool all year. The main reason is…','基多位于赤道上却全年凉爽，主要原因是……'), options:[o('Its high altitude (2,850 m)','海拔高（2850 米）'),o('A cold ocean current','寒流'),o('It is in the Southern Hemisphere','位于南半球'),o('It is far from the Sun','离太阳远')], answer:0},
+  {q:o('Without any greenhouse effect, Earth’s average temperature would be about…','如果完全没有温室效应，地球的平均气温约为……'), options:[o('−18 °C','−18 °C'),o('15 °C','15 °C'),o('40 °C','40 °C'),o('100 °C','100 °C')], answer:0, explain:o('The natural greenhouse effect keeps Earth near 15 °C. Too much of it causes extra warming.','自然的温室效应使地球保持在 15 °C 左右；温室气体过多则会导致额外的变暖。')}
+], { count:10 });
+
+/* ===== Sort: weather vs climate ===== */
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'w',en:'Weather (short-term)',zh:'天气（短期）'},{id:'c',en:'Climate (long-term pattern)',zh:'气候（长期规律）'}],
+  items:[
+    {en:'It is raining in Atlanta right now.',zh:'亚特兰大现在正在下雨。',bin:'w',color:'#38bdf8'},{en:'Tomorrow’s high will be 31 °C.',zh:'明天最高气温 31 °C。',bin:'w',color:'#38bdf8'},
+    {en:'A tornado warning was issued tonight.',zh:'今晚发布了龙卷风警报。',bin:'w',color:'#38bdf8'},{en:'It snowed last Tuesday.',zh:'上周二下雪了。',bin:'w',color:'#38bdf8'},
+    {en:'This afternoon is windy and cloudy.',zh:'今天下午多云，风很大。',bin:'w',color:'#38bdf8'},{en:'A hurricane may reach land on Friday.',zh:'一场飓风可能在周五登陆。',bin:'w',color:'#38bdf8'},
+    {en:'Atlanta averages about 1,270 mm of rain a year.',zh:'亚特兰大年平均降水量约 1270 毫米。',bin:'c',color:'#22c55e'},{en:'Deserts get less than 250 mm of rain a year.',zh:'沙漠年降水量不足 250 毫米。',bin:'c',color:'#22c55e'},
+    {en:'Georgia has hot, humid summers and mild winters.',zh:'佐治亚州夏季炎热潮湿，冬季温和。',bin:'c',color:'#22c55e'},{en:'Antarctica is the coldest continent.',zh:'南极洲是最冷的大洲。',bin:'c',color:'#22c55e'},
+    {en:'The tropics are warm all year.',zh:'热带地区终年温暖。',bin:'c',color:'#22c55e'},{en:'Earth has warmed about 1.3 °C since the late 1800s.',zh:'自 19 世纪末以来地球升温约 1.3 °C。',bin:'c',color:'#22c55e'}
+  ]
+});
+</script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const App = window.CLIM, V = THREE.Vector3, UP = new V(0, 1, 0), D2R = Math.PI / 180;
+const ctx = Lab3D.stage('#stage', { THREE, OrbitControls, camera:[11, 4.5, 13], target:[1.2, 0, 0], lights:false, minDistance:5, maxDistance:60 });
+const { scene, camera } = ctx;
+const POSE = { globe:[[11, 4.5, 13], [1.2, 0, 0]], mount:[[0, 12.5, 24], [0, 1.2, 0]] };
+const home = () => ctx.flyToPose(...POSE[App.mode]);
+const rnd = (a, b) => a + Math.random() * (b - a), clamp01 = x => Math.max(0, Math.min(1, x));
+const amb = new THREE.AmbientLight('#ffffff', .22), sunLight = new THREE.DirectionalLight('#ffffff', 2.6); sunLight.position.set(30, 0, 0);
+const hemi = new THREE.HemisphereLight('#ffffff', '#6b7f99', 0), dirM = new THREE.DirectionalLight('#ffffff', 0); dirM.position.set(-6, 10, 8);
+scene.add(amb, sunLight, hemi, dirM);
+const softTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.4, 'rgba(255,255,255,.5)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+const glowMats = {}; const reg = (k, ...m) => glowMats[k] = (glowMats[k] || []).concat(m);
+
+/* =================================================================== GLOBE */
+const GG = new THREE.Group(); scene.add(GG);
+{ const n = 1200, pos = new Float32Array(n * 3); for (let i = 0; i < n; i++){ const v = new V().randomDirection().multiplyScalar(150 + Math.random() * 60); pos.set([v.x, v.y, v.z], i * 3); }
+  GG.add(new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(pos, 3)), new THREE.PointsMaterial({ color:0xffffff, size:.7 }))); }
+const sunBall = new THREE.Mesh(new THREE.SphereGeometry(1.8, 32, 20), new THREE.MeshBasicMaterial({ color:'#ffd54a' })); sunBall.position.set(28, 0, 0); GG.add(sunBall);
+const sunGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map:softTex, color:'#ffcc33', transparent:true, depthWrite:false, blending:THREE.AdditiveBlending })); sunGlow.scale.setScalar(9); sunBall.add(sunGlow);
+ctx.pickable(sunBall, 'directSun');
+const RE = 4, tiltG = new THREE.Group(), spinE = new THREE.Group(); GG.add(tiltG); tiltG.add(spinE);
+const earthMat = new THREE.MeshStandardMaterial({ color:'#2a6fd6', roughness:.9 });
+const earth = new THREE.Mesh(new THREE.SphereGeometry(RE, 96, 64), earthMat); spinE.add(earth); ctx.pickable(earth, 'earthZone');
+Lab3D.texture(THREE, Lab3D.TEX + 'planets/earth_atmos_2048.jpg', t => { if (t){ earthMat.map = t; earthMat.color.set('#ffffff'); earthMat.needsUpdate = true; } });
+/* climate-zone bands */
+const ZONES = [['tropical', -23.44, 23.44], ['temperate', 23.44, 66.56], ['temperate', -66.56, -23.44], ['polar', 66.56, 90], ['polar', -90, -66.56]];
+const zoneG = new THREE.Group(); tiltG.add(zoneG);
+ZONES.forEach(([k, a, b]) => { const m = new THREE.MeshStandardMaterial({ color:PARTS[k].color, transparent:true, opacity:.3, depthWrite:false, emissive:PARTS[k].color, emissiveIntensity:.25 });
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(RE + .035, 96, 24, 0, Math.PI * 2, (90 - b) * D2R, (b - a) * D2R), m); zoneG.add(mesh); ctx.pickable(mesh, k); reg(k, m); });
+/* latitude lines + labels */
+const LINES = [[0, '#ffffff', o('Equator','赤道')], [23.44, '#ffd166', o('Tropic of Cancer','北回归线')], [-23.44, '#ffd166', o('Tropic of Capricorn','南回归线')], [66.56, '#7fd1ff', o('Arctic Circle','北极圈')], [-66.56, '#7fd1ff', o('Antarctic Circle','南极圈')]];
+const lineLabels = LINES.map(([lat, col, name]) => { const r = (RE + .05) * Math.cos(lat * D2R), ring = new THREE.Mesh(new THREE.TorusGeometry(r, .018, 6, 160), new THREE.MeshBasicMaterial({ color:col }));
+  ring.rotation.x = Math.PI / 2; ring.position.y = (RE + .05) * Math.sin(lat * D2R); tiltG.add(ring);
+  const a = new THREE.Object3D(); a.position.set(-r * .45, ring.position.y, r * .89); tiltG.add(a); const L = ctx.label(name, a); L.visible = false; return L; });
+/* axis */
+const axisMat = new THREE.MeshBasicMaterial({ color:'#e5e7eb' });
+const axis = new THREE.Mesh(new THREE.CylinderGeometry(.045, .045, 11, 10), axisMat); tiltG.add(axis); ctx.pickable(axis, 'axis');
+const nTip = new THREE.Mesh(new THREE.ConeGeometry(.14, .4, 12), axisMat); nTip.position.y = 5.6; tiltG.add(nTip); ctx.pickable(nTip, 'axis');
+const nA = new THREE.Object3D(); nA.position.y = 6.2; tiltG.add(nA); ctx.label(o('N','北'), nA);
+/* ocean currents (animated stripes) */
+const g2v = (lat, lon, r) => new V(r * Math.cos(lat * D2R) * Math.cos(lon * D2R), r * Math.sin(lat * D2R), -r * Math.cos(lat * D2R) * Math.sin(lon * D2R));
+function stripeTex(c1, c2){ const c = document.createElement('canvas'); c.width = 64; c.height = 4; const g = c.getContext('2d'); g.fillStyle = c1; g.fillRect(0, 0, 64, 4); g.fillStyle = c2; g.fillRect(0, 0, 24, 4); const t = new THREE.CanvasTexture(c); t.wrapS = THREE.RepeatWrapping; t.repeat.set(10, 1); return t; }
+const curMats = [];
+[[[[25, -80], [30, -79.5], [35, -75], [38.5, -68], [41, -55], [45, -40], [50, -25], [54, -12]], '#ef4444', '#ffd0c4'], [[[49, -127], [43, -126.5], [37, -123.5], [31, -118.5], [24, -113.5]], '#3b82f6', '#d6e8ff']].forEach(([pts, c1, c2]) => {
+  const curve = new THREE.CatmullRomCurve3(pts.map(([la, lo]) => g2v(la, lo, RE + .07))), m = new THREE.MeshBasicMaterial({ map:stripeTex(c1, c2) });
+  const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 80, .065, 8), m); spinE.add(tube); ctx.pickable(tube, 'currents'); curMats.push(m);
+  const head = new THREE.Mesh(new THREE.ConeGeometry(.14, .35, 10), new THREE.MeshBasicMaterial({ color:c1 })); const e = curve.getPoint(1), d = curve.getTangent(1); head.position.copy(e); head.quaternion.setFromUnitVectors(UP, d); spinE.add(head); ctx.pickable(head, 'currents');
+});
+const gsA = new THREE.Object3D(); gsA.position.copy(g2v(40, -60, RE + .3)); spinE.add(gsA); const gsL = ctx.label(o('Gulf Stream (warm)','墨西哥湾暖流'), gsA); gsL.visible = false;
+const ccA = new THREE.Object3D(); ccA.position.copy(g2v(36, -128, RE + .3)); spinE.add(ccA); const ccL = ctx.label(o('California Current (cold)','加利福尼亚寒流'), ccA); ccL.visible = false;
+/* sunbeam + footprint */
+const RB = .62;
+const beamGeo = new THREE.CylinderGeometry(RB, RB, 1, 40, 1, true); beamGeo.rotateZ(Math.PI / 2);
+const beamMat = new THREE.MeshBasicMaterial({ color:'#ffe066', transparent:true, opacity:.22, side:THREE.DoubleSide, depthWrite:false, blending:THREE.AdditiveBlending });
+const beam = new THREE.Mesh(beamGeo, beamMat); GG.add(beam); ctx.pickable(beam, 'directSun');
+const NS = 56, spotGeo = new THREE.BufferGeometry(); spotGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array((NS + 2) * 3), 3));
+{ const idx = []; for (let i = 1; i <= NS; i++) idx.push(0, i, i + 1); spotGeo.setIndex(idx); }
+const spotMat = new THREE.MeshBasicMaterial({ color:'#fff176', transparent:true, opacity:.85, side:THREE.DoubleSide, depthWrite:false });
+const spot = new THREE.Mesh(spotGeo, spotMat); spot.renderOrder = 4; spot.frustumCulled = false; GG.add(spot); ctx.pickable(spot, 'directSun'); reg('directSun', beamMat);
+const spotA = new THREE.Object3D(); GG.add(spotA);
+const spotL = ctx.label(() => { const r = App.ro; return r.lit ? `☀️ ${Math.round(r.energy * 100)}% · ×${r.area.toFixed(1)}` : (Lab.lang === 'zh' ? '🌑 极夜：没有阳光' : '🌑 Polar night: no sunlight'); }, spotA, { offset:[1.6, .6, 0] });
+let latDeg = 0, decl = 0, declT = 0;
+function updateBeam(){
+  const inc = latDeg * D2R - decl, lit = Math.abs(inc) < 88 * D2R;
+  const Sy = RE * Math.sin(inc), Sx = RE * Math.cos(inc);
+  beam.visible = spot.visible = lit;
+  if (lit){
+    beam.position.set((Sx + 26) / 2, Sy, 0); beam.scale.set(26 - Sx, 1, 1);
+    const a = spotGeo.attributes.position.array, pts = [];
+    const hit = (y, z) => { const r2 = y * y + z * z, x = Math.sqrt(Math.max(0, RE * RE - Math.min(r2, RE * RE))); return new V(x, y, z).setLength(RE + .04); };
+    const c = hit(Sy, 0); a.set([c.x, c.y, c.z], 0);
+    for (let i = 0; i <= NS; i++){ const t = i / NS * Math.PI * 2, p = hit(Sy + RB * Math.cos(t), RB * Math.sin(t)); a.set([p.x, p.y, p.z], (i + 1) * 3); pts.push(p); }
+    spotGeo.attributes.position.needsUpdate = true; spotGeo.computeBoundingSphere();
+    spotA.position.copy(c);
+  } else spotA.position.set(RE * Math.cos(inc), RE * Math.sin(inc), 0);
+  const phi = latDeg * D2R, x = -Math.tan(phi) * Math.tan(decl), day = x <= -1 ? 24 : x >= 1 ? 0 : 2 * Math.acos(x) / D2R / 15;
+  App.ro = { mode:'globe', lit, elev:90 - Math.abs(inc) / D2R, energy:Math.max(0, Math.cos(inc)), area:Math.min(9.9, 1 / Math.max(.1, Math.cos(inc))), day };
+  spotL.set(spotL.text); App.renderReadouts();
+  Lab.$('#latVal').textContent = Math.abs(latDeg) + '°' + (latDeg > 0 ? (Lab.lang === 'zh' ? ' 北' : ' N') : latDeg < 0 ? (Lab.lang === 'zh' ? ' 南' : ' S') : '');
+}
+
+/* =================================================================== RAIN SHADOW */
+const MG = new THREE.Group(); scene.add(MG); MG.visible = false;
+let Hkm = 3;
+const sig = x => 1 / (1 + Math.exp(-x));
+const base = x => x < -8 ? -.6 : x < -7 ? -.6 + (x + 8) * .85 : .25 + (x + 7) * .015;
+const H3 = () => Hkm * .9;
+const hgt = (x, z) => base(x) + H3() * Math.exp(-((x / 2.3) ** 2)) * (1 + .16 * Math.sin(z * 1.15 + .5) + .08 * Math.sin(z * 2.9)) + .45 * sig((x - 2.5) / 1.2) * (x > -7 ? 1 : 0) + .07 * Math.sin(x * 1.7 + z * .9) + .05 * Math.sin(z * 2.3 - x * .7);
+const terrGeo = new THREE.PlaneGeometry(30, 14, 150, 70); terrGeo.rotateX(-Math.PI / 2);
+terrGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(terrGeo.attributes.position.count * 3), 3));
+const terrain = new THREE.Mesh(terrGeo, new THREE.MeshStandardMaterial({ vertexColors:true, roughness:.95 })); MG.add(terrain); ctx.pickable(terrain, 'terrain');
+const water = new THREE.Mesh(new THREE.PlaneGeometry(8.6, 14).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color:'#2b7bd3', roughness:.3, transparent:true, opacity:.92 }));
+water.material.emissive.set('#2b7bd3'); water.material.emissiveIntensity = 0; water.position.set(-10.7, .02, 0); MG.add(water); ctx.pickable(water, 'ocean'); reg('ocean', water.material);
+const C = { forest:new THREE.Color('#2f7d32'), rock:new THREE.Color('#7c7468'), desert:new THREE.Color('#d6b06b'), sand:new THREE.Color('#e3cf98'), snow:new THREE.Color('#ffffff'), grass:new THREE.Color('#7cb342') };
+const dryness = x => clamp01((x - .2) / 1.8) * clamp01(Hkm / 2.5);
+const treeMesh = new THREE.InstancedMesh(new THREE.ConeGeometry(.22, .6, 7), new THREE.MeshStandardMaterial({ color:'#1b5e20', roughness:.9 }), 70);
+const cactusMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(.06, .07, .45, 6), new THREE.MeshStandardMaterial({ color:'#558b2f' }), 16);
+MG.add(treeMesh, cactusMesh);
+const treeSpots = Array.from({ length:70 }, (_, i) => [i < 55 ? rnd(-6.8, -.6) : rnd(1, 4), rnd(-6.5, 6.5)]), cactusSpots = Array.from({ length:16 }, () => [rnd(3.5, 14), rnd(-6.5, 6.5)]);
+const puffGeo = new THREE.SphereGeometry(1, 14, 10), cloudMat = new THREE.MeshStandardMaterial({ color:'#ffffff', roughness:1, emissive:'#ffffff', emissiveIntensity:0 });
+const cloudG = new THREE.Group(); MG.add(cloudG); ctx.pickable(cloudG, 'windward'); reg('windward', cloudMat);
+const puffs = Array.from({ length:40 }, (_, i) => { const p = new THREE.Mesh(puffGeo, cloudMat); p.userData = { x:rnd(-5.4, -.3), z:rnd(-6.3, 6.3), s:rnd(.38, .68) }; p.scale.set(p.userData.s * 1.4, p.userData.s * .7, p.userData.s * 1.2); cloudG.add(p); return p; });
+function rainSystem(n, color, len){
+  const pos = new Float32Array(n * 6), geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const ls = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color, transparent:true, opacity:.8 })); ls.frustumCulled = false;
+  ls.userData = { drops:Array.from({ length:n }, () => ({ x:0, y:-1, z:0, top:0, v:0, bot:0 })), len }; return ls;
+}
+const rain = rainSystem(420, '#4f8ff0', .35); MG.add(rain);
+/* moving air parcels */
+const AN = 460, aPos = new Float32Array(AN * 3), aCol = new Float32Array(AN * 3), air = Array.from({ length:AN }, () => ({ x:rnd(-15, 15), z:rnd(-6.5, 6.5), v:rnd(1.6, 2.4), off:rnd(.35, 1.1) }));
+const airPts = new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(aPos, 3)).setAttribute('color', new THREE.BufferAttribute(aCol, 3)), new THREE.PointsMaterial({ size:.16, vertexColors:true, transparent:true, opacity:.95 }));
+airPts.frustumCulled = false; MG.add(airPts); ctx.pickable(airPts, 'wind');
+const wetC = new THREE.Color('#2563eb'), dryC = new THREE.Color('#f59e0b'), tmpC = new THREE.Color();
+const arrowM = new THREE.MeshStandardMaterial({ color:'#38bdf8', emissive:'#38bdf8', emissiveIntensity:.3 });
+const arrow = new THREE.Group(); { const s = new THREE.Mesh(new THREE.CylinderGeometry(.16, .16, 3, 12), arrowM); s.rotation.z = -Math.PI / 2; arrow.add(s); const h = new THREE.Mesh(new THREE.ConeGeometry(.42, .9, 16), arrowM); h.rotation.z = -Math.PI / 2; h.position.x = 1.9; arrow.add(h); }
+arrow.position.set(-12.6, 2.6, 0); MG.add(arrow); ctx.pickable(arrow, 'wind'); reg('wind', arrowM);
+const mA = { wind:new V(-12.6, 3.4, 0), ocean:new V(-11, .6, 4.5), windward:new V(-3.2, 4, 4.5), peak:new V(0, 3.4, 0), leeward:new V(6, 1.6, 4.5) };
+const mLabels = { ocean:o('Ocean: moist air','海洋：湿润空气'), wind:o('Prevailing wind →','盛行风 →'), windward:o('Windward: wet','迎风坡：湿润多雨'), peak:o('Peak: cold','山顶：寒冷'), leeward:o('Leeward: rain shadow (dry)','背风坡：雨影区（干燥）') };
+const mL = Object.entries(mLabels).map(([k2, t]) => { const L = ctx.label(t, mA[k2]); L.visible = false; return L; });
+function rebuildTerrain(){
+  const p = terrGeo.attributes.position, col = terrGeo.attributes.color, H = H3();
+  for (let i = 0; i < p.count; i++){
+    const x = p.getX(i), z = p.getZ(i), y = hgt(x, z); p.setY(i, y);
+    const dr = dryness(x), rockT = H > .5 ? clamp01((y - .55 * H - .25) / (.3 * H)) : 0;
+    tmpC.copy(C.forest).lerp(C.grass, clamp01((x + 7) / 30) * .5).lerp(C.desert, dr).lerp(C.rock, rockT * .8);
+    if (y / .9 > 2.6) tmpC.lerp(C.snow, clamp01((y / .9 - 2.6) / .5));
+    if (x < -7.3 && y < .15) tmpC.copy(C.sand);
+    col.setXYZ(i, tmpC.r, tmpC.g, tmpC.b);
+  }
+  p.needsUpdate = true; col.needsUpdate = true; terrGeo.computeVertexNormals();
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new V();
+  treeSpots.forEach(([x, z], i) => { const y = hgt(x, z), ok = y / .9 < 2.3 && dryness(x) < .45; s.setScalar(ok ? rnd(.8, 1.2) : 0); m.compose(new V(x, y + .28, z), q, s); treeMesh.setMatrixAt(i, m); });
+  cactusSpots.forEach(([x, z], i) => { const ok = dryness(x) > .6; s.setScalar(ok ? 1 : 0); m.compose(new V(x, hgt(x, z) + .22, z), q, s); cactusMesh.setMatrixAt(i, m); });
+  treeMesh.instanceMatrix.needsUpdate = true; cactusMesh.instanceMatrix.needsUpdate = true;
+  const nC = Math.round(40 * Math.max(.12, Math.min(1, Hkm / 3.4)));
+  puffs.forEach((pf, i) => { const u = pf.userData; pf.visible = i < nC; pf.position.set(u.x, Math.max(hgt(u.x, u.z), .3) + 1.05 + u.s * .3, u.z); });
+  mA.peak.set(0, H + 1.2, 0); mA.windward.set(-3.2, hgt(-3.2, 4.5) + 2.2, 4.5);
+  App.ro = { mode:'mount', wet:700 + 550 * Hkm, dry:Math.max(120, 700 - 160 * Hkm), peakT:22 - 6.5 * Hkm, coastT:22 };
+  App.renderReadouts(); Lab.$('#mtnVal').textContent = Hkm.toFixed(1) + ' km';
+}
+
+/* =================================================================== UI */
+let labelsOn = false, zonesOn = true, spin = true;
+function setLabels(on){ labelsOn = on; Lab.$('#labelBtn').classList.toggle('on', on); const g = App.mode === 'globe';
+  lineLabels.forEach(L => L.visible = on && g); gsL.visible = ccL.visible = on && g; mL.forEach(L => L.visible = on && !g); }
+Lab.$('#labelBtn').onclick = () => setLabels(!labelsOn);
+function setZones(on){ zonesOn = on; zoneG.visible = on; Lab.$('#zoneBtn').classList.toggle('on', on); }
+Lab.$('#zoneBtn').onclick = () => setZones(!zonesOn);
+function setSeason(s){ declT = s * 23.44 * D2R; Lab.$$('#seasonSeg button').forEach(b => b.classList.toggle('on', +b.dataset.s === s)); }
+Lab.$$('#seasonSeg button').forEach(b => b.onclick = () => { if (story.active) story.stop(); setSeason(+b.dataset.s); });
+Lab.$('#lat').oninput = e => { if (story.active) story.stop(); latDeg = +e.target.value; updateBeam(); };
+Lab.$('#mtn').oninput = e => { if (story.active) story.stop(); Hkm = +e.target.value; rebuildTerrain(); };
+function setLat(v){ latDeg = v; Lab.$('#lat').value = v; updateBeam(); }
+function setH(v){ Hkm = v; Lab.$('#mtn').value = v; rebuildTerrain(); }
+function setMode(m){
+  if (story.active) story.stop();
+  App.mode = m; GG.visible = m === 'globe'; MG.visible = m === 'mount';
+  Lab.$('#stage').classList.toggle('space', m === 'globe');
+  Lab.$$('.modeseg button').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
+  Lab.$$('.g-only').forEach(e => e.classList.toggle('hidden', m !== 'globe')); Lab.$$('.m-only').forEach(e => e.classList.toggle('hidden', m !== 'mount'));
+  amb.intensity = m === 'globe' ? .22 : 0; sunLight.intensity = m === 'globe' ? 2.6 : 0; hemi.intensity = m === 'globe' ? 0 : 1.3; dirM.intensity = m === 'globe' ? 0 : 1.6;
+  App.sel = null; renderInfo(); renderChips(); setLabels(labelsOn); m === 'globe' ? updateBeam() : rebuildTerrain(); home();
+}
+Lab.$$('.modeseg button').forEach(b => b.onclick = () => setMode(b.dataset.mode));
+Lab.$('#resetBtn').onclick = () => { story.stop(); setLat(0); setSeason(0); setZones(true); setH(3); spin = true; App.select(null); home(); };
+Lab.onLang(() => { if (App.mode === 'globe') updateBeam(); else rebuildTerrain(); });
+
+/* picking */
+const zoneOfPoint = p => { const l = tiltG.worldToLocal(p.clone()), lat = Math.asin(Math.max(-1, Math.min(1, l.y / l.length()))) / D2R, a = Math.abs(lat); return a < 23.44 ? 'tropical' : a < 66.56 ? 'temperate' : 'polar'; };
+const terrainPart = p => p.x < -7.4 ? 'ocean' : (Hkm > .8 && p.y > .7 * H3()) ? 'peak' : p.x < .2 ? 'windward' : 'leeward';
+const resolve = (k, h) => k === 'earthZone' ? zoneOfPoint(h.point) : k === 'terrain' ? terrainPart(h.point) : k;
+ctx.hoverText((k, h) => Lab.L(PARTS[resolve(k, h)].name));
+ctx.onPick((k, h) => { const r = k ? resolve(k, h) : null; if (r !== App.sel) App.select(r, true); });
+function focus(k, from3D){
+  if (!k) return from3D ? null : home();
+  if (App.mode === 'globe'){
+    if (k === 'tropical') setLat(10); if (k === 'temperate') setLat(45); if (k === 'polar') setLat(72);
+    if (k === 'currents'){ spin = false; spinTarget = -19 * D2R; if (!labelsOn) setLabels(true); }
+    if (from3D) return;
+    if (k === 'axis') return ctx.flyToPose([3, 5, 17], [0, 0, 0]);
+    if (k === 'currents') return ctx.flyToPose([6, 6, 13], [0, 1.5, 0]);
+    ctx.flyToPose([11, 4.5, 13], [1.2, 0, 0]);
+  } else { if (from3D) return; const p = mA[k].clone(); ctx.flyToPose([p.x * .5, p.y + 8, 20], [p.x * .6, Math.min(p.y, 3), 0]); }
+}
+App.three = { focus };
+let spinTarget = null;
+
+/* stories */
+const STORY = {
+  globe:[
+    { en:'1 · At the equator the noon Sun is nearly overhead. The beam hits straight on, so its energy lands on a small spot: hot all year.', zh:'1 · 在赤道，正午太阳几乎在头顶。光束垂直照射，能量集中在小小的光斑上：终年炎热。', lat:0, s:0, k:'directSun' },
+    { en:'2 · At 45° the same beam hits at a slant and spreads over a bigger area. Less energy per square meter: a temperate climate.', zh:'2 · 在北纬 45°，同样的光束斜着照射，铺开到更大的面积上，每平方米得到的能量更少：温带气候。', lat:45, s:0, k:'temperate' },
+    { en:'3 · Near the poles the beam is very slanted and spreads out widely. Add long, dark winters: a polar climate.', zh:'3 · 在两极附近，光束非常倾斜，铺得很开；再加上漫长黑暗的冬季：寒带气候。', lat:72, s:0, k:'polar' },
+    { en:'4 · In June the Northern Hemisphere tilts toward the Sun: rays at 45° N become more direct and days get longer. Summer!', zh:'4 · 6 月北半球倾向太阳：北纬 45° 的阳光变得更直射，白天变长。夏天到了！', lat:45, s:1, k:'axis' },
+    { en:'5 · Ocean currents move heat. The warm Gulf Stream keeps western Europe milder than other places at the same latitude.', zh:'5 · 洋流搬运热量。温暖的墨西哥湾暖流使西欧比同纬度的其他地方更温和。', lat:45, s:0, k:'currents' }
+  ],
+  mount:[
+    { en:'1 · Prevailing winds carry moist air from the ocean toward the mountains.', zh:'1 · 盛行风把海洋上的湿润空气吹向山脉。', h:3, k:'wind' },
+    { en:'2 · On the windward side the air is forced up. It expands and cools, its water vapor condenses into clouds, and rain and snow fall.', zh:'2 · 在迎风坡，空气被迫抬升，膨胀冷却，水汽凝结成云，形成降雨和降雪。', h:3, k:'windward' },
+    { en:'3 · The air that crosses the top has lost much of its water. Sinking down the leeward side, it warms and dries: a rain shadow desert.', zh:'3 · 翻过山顶的空气已失去大部分水分。沿背风坡下沉时增温变干，形成雨影区沙漠。', h:3, k:'leeward' },
+    { en:'4 · Altitude matters too: about 6.5 °C colder for every kilometer up, so high peaks hold snow.', zh:'4 · 海拔也很重要：每升高 1 千米约冷 6.5 °C，所以高山顶上有积雪。', h:4, k:'peak' },
+    { en:'5 · Real examples: wet forests west of the Sierra Nevada vs. Death Valley to the east; rainy southern Himalayas vs. the dry Tibetan Plateau.', zh:'5 · 真实例子：内华达山脉西侧是湿润的森林，东侧是死亡谷；喜马拉雅山南坡多雨，北侧的青藏高原干燥。', h:4, k:'leeward' }
+  ]
+};
+let story = Lab3D.story('#stage', STORY.globe, () => {}, () => {});
+Lab.$('#storyBtn').onclick = () => {
+  const m = App.mode;
+  story = Lab3D.story('#stage', STORY[m], (i, s) => {
+    if (m === 'globe'){ setSeason(s.s); setLat(s.lat); spin = s.k !== 'currents'; App.select(s.k, false); }
+    else { setH(s.h); App.select(s.k, false); }
+  }, () => { spin = true; });
+  story.start();
+};
+
+/* =================================================================== PER FRAME */
+ctx.onFrame((dt, t) => {
+  if (App.mode === 'globe'){
+    if (Math.abs(declT - decl) > 1e-4){ decl += (declT - decl) * Math.min(1, dt * 3); tiltG.rotation.z = -decl; updateBeam(); }
+    if (spin){ spinE.rotation.y += dt * .07; spinTarget = null; }
+    else if (spinTarget != null){ const cur = spinE.rotation.y, d = Math.atan2(Math.sin(spinTarget - cur), Math.cos(spinTarget - cur)); spinE.rotation.y += d * Math.min(1, dt * 3); }
+    curMats.forEach(m => m.map.offset.x -= dt * .5);
+    beamMat.opacity = App.sel === 'directSun' ? .3 + .1 * Math.sin(t * 5) : .22;
+  } else {
+    const H = H3();
+    air.forEach((p, i) => {
+      p.x += p.v * dt; if (p.x > 15){ p.x = -15; p.z = rnd(-6.5, 6.5); }
+      const y = Math.max(hgt(p.x, p.z), .05) + p.off + (p.x < 0 && p.x > -6 ? H * .15 * Math.exp(-((p.x / 2.5) ** 2)) : 0);
+      aPos.set([p.x, y, p.z], i * 3);
+      tmpC.copy(wetC).lerp(dryC, clamp01(p.x / 3) * clamp01(Hkm / 2.5)); aCol.set([tmpC.r, tmpC.g, tmpC.b], i * 3);
+    });
+    airPts.geometry.attributes.position.needsUpdate = true; airPts.geometry.attributes.color.needsUpdate = true;
+    const vis = puffs.filter(p => p.visible), { drops, len } = rain.userData, a = rain.geometry.attributes.position.array, nOn = Math.round(drops.length * clamp01(Hkm / 3.2));
+    drops.forEach((d, i) => {
+      if (i >= nOn || !vis.length){ a.fill(0, i * 6, i * 6 + 6); return; }
+      d.y -= d.v * dt; if (d.y < d.bot){ const c = vis[Math.random() * vis.length | 0]; d.x = c.position.x + rnd(-.6, .6); d.z = c.position.z + rnd(-.6, .6); d.top = c.position.y - .4; d.bot = hgt(d.x, d.z); d.y = d.bot + Math.random() * (d.top - d.bot); d.v = rnd(4, 6); }
+      a.set([d.x, d.y, d.z, d.x, d.y + len, d.z], i * 6);
+    });
+    rain.geometry.attributes.position.needsUpdate = true;
+  }
+  for (const key in glowMats){ const on = App.sel === key; for (const m of glowMats[key]) if (m.emissiveIntensity !== undefined && m.emissive) m.emissiveIntensity = on ? .5 + .3 * Math.sin(t * 5) : (m === arrowM ? .3 : PARTS[key] && ['tropical','temperate','polar'].includes(key) ? .25 : 0); }
+});
+rebuildTerrain(); updateBeam();
+renderInfo(); renderChips();
+</script>
+</body>
+</html>

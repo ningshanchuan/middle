@@ -1,0 +1,864 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Asteroids, Comets &amp; Meteors</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/lab3d.js"></script>
+<script src="../shared/photos.js"></script>
+<style>
+/* page-specific styles */
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.stat{background:var(--surface-2);border-radius:10px;padding:6px 10px;font-weight:800;font-size:14px;line-height:1.3}
+.stat small{display:block;color:var(--ink-2);font-weight:700;font-size:11px;letter-spacing:.04em;text-transform:uppercase}
+.cvbox{position:relative;border-radius:14px;overflow:hidden;background:#070b18;border:1px solid var(--line)}
+.cvbox canvas{display:block;width:100%;height:100%}
+.cap{font-size:12.5px;color:var(--ink-2);margin:6px 2px 0}
+#stage{min-height:580px}
+#cometBox{height:430px}
+#craterBox{height:300px}
+#sizeBox{height:300px;background:var(--surface)}
+#wheelBox{height:380px}
+#skyBox{height:380px}
+#defBox{height:400px}
+.stage .pill output{min-width:120px;font-variant-numeric:tabular-nums}
+.pill input[type=range]#zoom{width:180px}
+.ctlgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px}
+.readgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.readgrid div{background:var(--surface-2);border-radius:12px;padding:8px 10px;font-weight:800;font-size:14px;line-height:1.3}
+.readgrid div small{display:block;font-size:11px;color:var(--ink-2);letter-spacing:.04em;text-transform:uppercase}
+.readgrid div b{font-family:Fredoka;font-size:19px;font-weight:600;font-variant-numeric:tabular-nums}
+table.ctab td,table.ctab th{padding:8px 10px;font-size:14.5px;vertical-align:middle}
+table.ctab .pbar{height:8px;border-radius:999px;background:var(--brand);opacity:.8}
+.showers{display:flex;flex-direction:column;gap:8px}
+.shw{background:var(--surface-2);border-radius:12px;padding:8px 12px;font-size:14.5px;border-left:5px solid var(--brand)}
+.shw b{font-size:15.5px}
+.shw.peak{background:color-mix(in srgb,var(--brand) 14%,var(--surface))}
+.levels{display:flex;flex-wrap:wrap;gap:6px}
+.levels button{border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:999px;padding:6px 12px;font-weight:800;font-size:14px}
+.levels button.on{background:var(--ink);color:var(--surface)}
+.levels button.won{border-color:var(--good)}
+.stepper{display:inline-flex;align-items:center;gap:8px}
+.stepper button{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--surface-2);font-weight:800;font-size:18px}
+.stepper b{min-width:24px;text-align:center;font-family:Fredoka;font-size:20px}
+.score{font-family:Fredoka;font-size:22px;color:var(--brand)}
+.gamehead{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+@media (max-width:560px){ .ctlgrid{grid-template-columns:1fr} .readgrid{grid-template-columns:1fr 1fr} .pill input[type=range]#zoom{width:110px} #stage{min-height:480px} }
+</style>
+</head>
+<body data-subject="astronomy" data-topic="small-bodies">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="天文 · 深入探究">Astronomy · Deep dive</span>
+  <h1 data-zh-html="小行星、<em>彗星</em>与流星">Asteroids, <em>Comets</em> &amp; Meteors</h1>
+  <p class="lead" data-zh="6600 万年前，一块大约 10 千米宽的岩石终结了恐龙时代。2022 年，NASA 第一次故意撞击一颗小行星，改变了它的轨道。太阳系的“边角料”在哪里？它们会不会撞上我们？我们又能怎么办？">66 million years ago, a rock about 10 km wide ended the age of the dinosaurs. In 2022, NASA crashed a spacecraft into an asteroid on purpose and changed its orbit. Where are the solar system’s leftovers, could one hit us, and what could we do about it?</p>
+  <p class="lead" style="margin-top:8px" data-zh="🎯 学完以后，你能说出小行星、彗星和流星体的区别和位置，解释彗尾为什么总背向太阳，估算撞击能量，并用正确的方法把一颗危险的小行星推开。">🎯 What you’ll be able to do: tell asteroids, comets and meteoroids apart and say where they live, explain why a comet’s tail points away from the Sun, estimate an impact’s energy, and push a dangerous asteroid off course the smart way.</p>
+</header>
+
+<!-- ============ (a) 3D map ============ -->
+<section class="wrap" id="explore" data-nav="Solar system map" data-nav-zh="太阳系地图">
+  <div class="sec-head">
+    <h2 data-zh="从小行星带到奥尔特云">From the asteroid belt to the Oort Cloud</h2>
+    <p data-zh="拖动缩放滑块，从内太阳系一直飞到奥尔特云。每个点都按真实距离放置（奥尔特云是示意的，因为从来没有人直接看到过它）。点击芯片或区域了解它。">Drag the zoom slider to fly from the inner solar system all the way out to the Oort Cloud. Everything sits at its true distance (the Oort Cloud is schematic: nobody has ever seen it directly). Click a chip or a region to learn about it.</p>
+  </div>
+  <div class="explorer">
+    <div class="stage card space" id="stage" data-3d>
+      <div class="toolbar">
+        <button class="tbtn on" id="playBtn" data-zh="⏸ 暂停">⏸ Pause</button>
+        <button class="tbtn on" id="labelBtn" data-zh="🏷 标签">🏷 Labels</button>
+        <button class="tbtn" id="homeBtn" data-zh="⌂ 重置视角">⌂ Reset view</button>
+      </div>
+      <div class="bottombar">
+        <div class="pill"><span data-zh="🔭 缩放">🔭 Zoom</span><input id="zoom" type="range" min="0" max="1000" value="280" aria-label="zoom"><output id="zoomOut"></output></div>
+        <div class="tip" id="lightTip"></div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="chips" id="chips"></div>
+</section>
+
+<!-- ============ (b) Comet orbit ============ -->
+<section class="wrap" id="comets" data-nav="Comet orbits" data-nav-zh="彗星轨道">
+  <div class="sec-head">
+    <h2 data-zh="一颗彗星的一生：在细长的椭圆上奔跑">A comet’s journey along a long, thin ellipse</h2>
+    <p data-zh="拖动时间滑块，看彗星远离太阳时冻成“脏雪球”，靠近太阳时长出两条彗尾。注意：彗尾总是背向太阳，即使彗星正在飞离太阳。">Scrub through time: far from the Sun the comet is a frozen “dirty snowball”; close to the Sun it grows two tails. Watch: the tails always point away from the Sun, even when the comet is heading away from it.</p>
+  </div>
+  <div class="sim">
+    <div class="card simside">
+      <div class="btnrow" id="cometPick"></div>
+      <div class="cvbox" id="cometBox"><canvas id="cometCv"></canvas></div>
+      <div class="timebar"><button id="cPlay" aria-label="play">▶</button><input type="range" id="cT" min="0" max="2000" value="900" aria-label="time"><output id="cOut"></output></div>
+    </div>
+    <div class="card simside">
+      <div class="seg" id="cZoom"><button data-z="all" class="on" data-zh="整条轨道">Whole orbit</button><button data-z="in" data-zh="内太阳系">Inner solar system</button></div>
+      <div class="readgrid" id="cRead"></div>
+      <div class="result" id="cMsg"></div>
+      <div class="legend"><span><i style="background:#7fc8ff"></i><span data-zh="离子彗尾（气体，被太阳风吹成直线）">Ion tail (gas, blown straight by the solar wind)</span></span><span><i style="background:#ffd58a"></i><span data-zh="尘埃彗尾（弯曲，落在轨道后面）">Dust tail (curved, lags behind along the orbit)</span></span></div>
+      <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="彗尾像风向袋：它指向“太阳风”吹去的方向，而不是彗星运动的反方向。">A comet tail is like a windsock: it points where the solar wind blows, not behind the comet’s motion.</span></div>
+      <p class="cap" data-zh="轨道用开普勒方程计算；速度用活力公式 v = 29.8 km/s × √（2/r − 1/a）。彗尾长度是简化估计。">Orbits computed with Kepler’s equation; speed from the vis-viva equation v = 29.8 km/s × √(2/r − 1/a). Tail length is a simplified estimate.</p>
+    </div>
+  </div>
+  <div class="card" style="margin-top:18px;padding:16px">
+    <h3 data-zh="📋 著名彗星和它们的周期">📋 Famous comets and their periods</h3>
+    <div class="table-wrap"><table class="lab ctab" id="cTab"></table></div>
+    <p class="cap" data-zh="数据：NASA/JPL 小天体数据库（取整）。条形长度按对数刻度表示周期。">Data: NASA/JPL Small-Body Database (rounded). Bar length shows the period on a log scale.</p>
+  </div>
+</section>
+
+<!-- ============ (c) Impact lab ============ -->
+<section class="wrap" id="impact" data-nav="Impact lab" data-nav-zh="撞击实验室">
+  <div class="sec-head">
+    <h2 data-zh="撞击坑模拟器">Impact crater simulator</h2>
+    <p data-zh="选择撞击体的大小、速度、角度和材料，估算它带来的能量和撞击坑的大小。速度最重要：能量和速度的平方成正比！">Choose the impactor’s size, speed, angle and material to estimate its energy and the crater it digs. Speed matters most: energy grows with speed squared!</p>
+  </div>
+  <div class="sim">
+    <div class="card simside">
+      <div class="btnrow" id="presets"></div>
+      <div class="cvbox" id="craterBox"><canvas id="craterCv"></canvas></div>
+      <div class="readgrid" id="iRead"></div>
+      <div class="result" id="iMsg"></div>
+    </div>
+    <div class="card simside">
+      <div class="ctlgrid">
+        <label class="ctl"><span><span data-zh="直径：">Diameter:</span> <b id="dOut"></b></span><input type="range" id="dIn" min="0" max="1000" value="566"></label>
+        <label class="ctl"><span><span data-zh="速度：">Speed:</span> <b id="vOut"></b></span><input type="range" id="vIn" min="11" max="72" value="17"></label>
+        <label class="ctl"><span><span data-zh="入射角（90° = 垂直）：">Angle (90° = straight down):</span> <b id="aOut"></b></span><input type="range" id="aIn" min="15" max="90" value="45"></label>
+        <div class="ctl"><span data-zh="材料：">Material:</span><div class="seg" id="matSeg"><button data-m="ice" data-zh="冰（彗星）">Ice (comet)</button><button data-m="stone" class="on" data-zh="石质">Stone</button><button data-m="iron" data-zh="铁质">Iron</button></div></div>
+      </div>
+      <div class="mix"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="撞击坑比撞上来的石头大得多（通常大 10–20 倍），而且几乎总是圆的，即使撞击体是斜着撞上来的：因为它是一次爆炸挖出来的。">Craters are much bigger than the rock that made them (usually 10–20 times wider) and almost always round, even for a slanted hit, because they are dug by an explosion.</span></div>
+      <p class="cap" data-zh="近似值！撞击坑公式来自简化的“π 标度律”（Collins 等人，2005 年，地球撞击效应程序），目标是岩石地面；是否在空中爆炸用的是粗略的经验规则。">Approximate! Crater size from simplified “pi-scaling” laws (Collins et al. 2005, Earth Impact Effects Program) for a rock target; the airburst check is a rough rule of thumb.</p>
+      <h3 style="margin-top:6px" data-zh="📊 近地小行星：越小越多">📊 Near-Earth asteroids: the smaller, the more</h3>
+      <div class="cvbox" id="sizeBox"><canvas id="sizeCv"></canvas></div>
+      <p class="cap" data-zh="估计的近地小行星数量（对数刻度，近似值），深色部分是已经发现的。数据：NASA 行星防御协调办公室与 CNEOS 的估计。">Estimated number of near-Earth asteroids larger than each size (log scale, approximate); the darker part has already been found. Data: estimates from NASA’s Planetary Defense Coordination Office and CNEOS.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ (d) Meteor showers ============ -->
+<section class="wrap" id="meteors" data-nav="Meteor showers" data-nav-zh="流星雨日历">
+  <div class="sec-head">
+    <h2 data-zh="流星雨日历：地球穿过彗星留下的“尘埃路”">Meteor shower calendar: Earth crosses comet dust trails</h2>
+    <p data-zh="每年地球都会在同样的日子穿过同样的尘埃带，所以流星雨每年都会在差不多同一天回来。拖动日期，看看哪些流星雨正活跃、它们来自哪颗彗星。">Every year Earth crosses the same dust trails on the same dates, so each meteor shower returns on about the same day every year. Drag the date to see which showers are active and which comet made them.</p>
+  </div>
+  <div class="sim">
+    <div class="card simside">
+      <div class="cvbox" id="wheelBox"><canvas id="wheelCv"></canvas></div>
+      <div class="timebar"><button id="mPlay" aria-label="play">▶</button><input type="range" id="mDay" min="0" max="364" value="224" aria-label="day of year"><output id="mOut"></output></div>
+      <p class="cap" data-zh="圆圈代表地球的公转轨道（俯视），每段彩色弧线是一场流星雨的活跃期，弧线越粗，最大每小时流星数（ZHR）越高。数据：国际流星组织（IMO）/美国流星协会日历（近似日期）。">The circle is Earth’s orbit seen from above; each coloured arc is a shower’s active period, thicker = higher peak rate (ZHR). Data: International Meteor Organization / American Meteor Society calendar (approximate dates).</p>
+    </div>
+    <div class="card simside">
+      <div class="cvbox" id="skyBox"><canvas id="skyCv"></canvas></div>
+      <div class="showers" id="shList"></div>
+      <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="流星体（太空中的小颗粒）→ 流星（大气中的亮光）→ 陨石（落到地面的石头）。">Meteoroid (in space) → meteor (the streak of light in the air) → meteorite (the rock that lands).</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="real">
+  <div id="gallery"></div>
+</section>
+
+<section class="wrap" id="further" data-nav="Go further" data-nav-zh="继续探索">
+  <div class="sec-head">
+    <h2 data-zh="继续探索：真正的任务和数据">Go further: real missions and real data</h2>
+    <p data-zh="这些网站都来自 NASA 和美国流星协会（英文网站）。每张卡片写着你在那里可以做什么。">These sites are run by NASA and the American Meteor Society (in English). Each card says what you can do there.</p>
+  </div>
+  <div class="linkgrid" id="links"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Game & quiz" data-nav-zh="游戏与测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="card game">
+    <div class="gamehead"><h3 data-zh="🛰️ 行星防御：把小行星推开！">🛰️ Planetary defense: nudge the asteroid!</h3><span class="score" id="defScore"></span></div>
+    <p class="sub" data-zh="一颗小行星将在预警时间结束时撞上地球。你要像 NASA 的 DART 任务那样，用撞击器撞它。选择什么时候撞、往哪个方向推、发射几个撞击器。它必须偏离地球中心至少 10,000 千米（比地球半径大，因为地球的引力会把它往里拉）。">An asteroid will hit Earth when the warning time runs out. Like NASA’s DART mission, you will ram it with impactor spacecraft. Choose when to hit, which way to push and how many impactors to launch. It must miss Earth’s centre by at least 10,000 km (more than Earth’s radius, because Earth’s gravity pulls it in).</p>
+    <div class="levels" id="levels"></div>
+    <div class="sim" style="margin-top:12px">
+      <div class="cvbox" id="defBox"><canvas id="defCv"></canvas></div>
+      <div class="simside" style="padding:0">
+        <div id="lvlText" class="muted" style="font-weight:700"></div>
+        <label class="ctl"><span><span data-zh="撞击时间：撞击地球前">Hit it this long before impact:</span> <b id="ltOut"></b></span><input type="range" id="ltIn" min="1" max="100" value="50"></label>
+        <div class="ctl"><span data-zh="推的方向：">Push direction:</span><div class="seg" id="dirSeg" style="flex-wrap:wrap"><button data-d="slow" class="on" data-zh="减速">Slow it down</button><button data-d="fast" data-zh="加速">Speed it up</button><button data-d="side" data-zh="侧推">Push sideways</button><button data-d="sun" data-zh="推向太阳">Toward the Sun</button></div></div>
+        <div class="ctl"><span data-zh="撞击器数量：">Impactors:</span><span class="stepper"><button id="nMinus" aria-label="fewer">−</button><b id="nOut">1</b><button id="nPlus" aria-label="more">+</button></span></div>
+        <button class="btn" id="launch" data-zh="🚀 发射！">🚀 Launch!</button>
+        <div class="result" id="defMsg"></div>
+      </div>
+    </div>
+    <p class="cap" data-zh="简化物理：每个撞击器 600 千克、速度 6 千米/秒，动量增强系数 β = 3（DART 实测约 3.6）；小行星密度 2,000 千克/米³。沿运动方向推会改变它的公转周期，偏移量会随时间积累（约 3 × Δv × t）；侧推和推向太阳的效果不会一直积累。">Simplified physics: each impactor is 600 kg at 6 km/s with momentum boost β = 3 (DART measured about 3.6); asteroid density 2,000 kg/m³. Pushing along the direction of motion changes the orbital period, so the shift keeps growing (about 3 × Δv × t); sideways or sunward pushes do not keep adding up.</p>
+  </div>
+  <div class="games" style="margin-top:18px">
+    <div class="game card"><h3 data-zh="🧠 小天体测验">🧠 Small bodies quiz</h3><p class="sub" data-zh="选出正确答案。有些题需要读上面的图表。">Pick the best answer. Some questions use the charts and tables above.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分一分：它是什么？">🗂️ Sort it: what is it?</h3><p class="sub" data-zh="把每张卡片拖到（或先点再点方框）正确的组里。">Drag each card (or tap it, then tap a box) into the right group.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="对应佐治亚州标准 S6E1e（比较彗星、小行星和流星体的特征、组成和位置），并联系 S6E1d（引力和惯性决定天体运动）和 S6E1c（解读数据）。建议流程：① 用 3D 地图让学生按距离排列小行星带、特洛伊群、柯伊伯带和奥尔特云；② 用彗星轨道模拟器证明“彗尾背向太阳”，并对比近日点和远日点的速度（开普勒第二定律）；③ 撞击实验室：保持大小不变，把速度加倍，能量变成几倍？④ 流星雨日历：为什么每年同一天？⑤ 行星防御游戏：为什么提前越多越好？">Supports GSE S6E1e (compare and contrast the characteristics, composition and location of comets, asteroids and meteoroids), with links to S6E1d (gravity and inertia govern motion) and S6E1c (interpreting data). Suggested flow: ① in the 3D map, have students order the asteroid belt, Trojans, Kuiper Belt and Oort Cloud by distance; ② use the comet simulator to prove that tails point away from the Sun and compare speeds at perihelion and aphelion (Kepler’s second law); ③ impact lab: keep the size fixed and double the speed: how many times more energy? ④ meteor calendar: why the same dates every year? ⑤ planetary defense game: why does early warning matter so much?</p>
+    <p data-zh="超出六年级要求的内容：开普勒方程和活力公式、动能 E = ½mv²、撞击坑的标度律、动量传递系数 β 和轨道力学中的“3Δv·t”漂移。学生可以只观察趋势而不做计算。">Beyond grade 6: Kepler’s equation and the vis-viva equation, kinetic energy E = ½mv², crater scaling laws, the momentum-transfer factor β and the “3 Δv t” drift from orbital mechanics. Students can explore the trends without doing the algebra.</p>
+    <p data-zh="数据：NASA/JPL 小天体数据库、NASA 行星防御协调办公室、国际流星组织 / 美国流星协会。小天体数量、撞击频率和撞击效果都是近似值。">Data: NASA/JPL Small-Body Database, NASA Planetary Defense Coordination Office, International Meteor Organization / American Meteor Society. Counts, impact rates and impact effects are approximate.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+const o = (en, zh) => ({en, zh});
+const zh = () => Lab.lang === 'zh';
+const num = (n, d = 0) => Number(n).toLocaleString('en-US', { maximumFractionDigits:d, minimumFractionDigits:d });
+const sig = (n, s = 3) => { if (!isFinite(n) || n === 0) return '0'; const d = Math.max(0, s - 1 - Math.floor(Math.log10(Math.abs(n)))); return num(n, Math.min(d, 6)); };
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const FONT = (s, wt = 800) => `${wt} ${s}px Nunito, "PingFang SC", "Microsoft YaHei", sans-serif`;
+function fitCv(cv){ const b = cv.parentNode, dpr = Math.min(devicePixelRatio || 1, 2), w = b.clientWidth, h = b.clientHeight;
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)){ cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); return { g, w, h }; }
+const onScreen = el => { const r = el.getBoundingClientRect(); return r.bottom > 0 && r.top < innerHeight && r.width > 0; };
+/* big numbers in words: 1.2 million / 120 万 */
+const p3 = n => Number(Number(n).toPrecision(3)).toLocaleString('en-US');
+function words(n){ const sig = (x) => p3(x); if (zh()){ if (n >= 1e8) return sig(n / 1e8, 3) + ' 亿'; if (n >= 1e4) return sig(n / 1e4, 3) + ' 万'; return sig(n, 3); }
+  if (n >= 1e12) return sig(n / 1e12, 3) + ' trillion'; if (n >= 1e9) return sig(n / 1e9, 3) + ' billion'; if (n >= 1e6) return sig(n / 1e6, 3) + ' million'; return sig(n, 3); }
+
+/* ===== Regions of the solar system's small bodies (info panel) ===== */
+const REG = {
+  belt:{ color:'#c9b391', view:7, name:o('Main asteroid belt','主小行星带'), tag:o('Rocky leftovers','岩石“边角料”'),
+    stats:[[o('Where','位置'),o('2.1 – 3.3 AU, between Mars and Jupiter','2.1–3.3 天文单位，火星与木星之间')],[o('Known asteroids','已知小行星'),o('more than 1.3 million','超过 130 万颗')],[o('Largest','最大成员'),o('Ceres, 940 km (a dwarf planet)','谷神星，940 千米（矮行星）')],[o('Total mass','总质量'),o('≈ 3% of our Moon','约为月球的 3%')]],
+    facts:{en:['Asteroids are rocky or metal leftovers from when the planets formed 4.6 billion years ago. Jupiter’s gravity kept them from ever building a planet.','Vesta (525 km) has a giant crater at its south pole; pieces blasted out of it have landed on Earth as meteorites.','NASA’s Psyche spacecraft is on its way to a metal-rich asteroid, arriving in 2029.'],
+           zh:['小行星是 46 亿年前行星形成时剩下的岩石或金属碎块。木星的引力让它们始终没能聚成一颗行星。','灶神星（525 千米）南极有一个巨大的撞击坑；从那里炸飞的碎块有些作为陨石落到了地球上。','NASA 的“灵神星号”探测器正飞往一颗富含金属的小行星，预计 2029 年到达。']},
+    hint:o('The belt sits between Mars and Jupiter: “rocks between the red and the giant”.','小行星带在火星和木星之间：“红色星球和巨人之间的石头”。'), mix:o('The belt is not crowded like in movies: neighbouring big asteroids are typically about a million kilometres apart.','小行星带并不像电影里那样拥挤：相邻的大型小行星之间通常相距约 100 万千米。') },
+  neo:{ color:'#ff8a65', view:3.2, name:o('Near-Earth asteroids','近地小行星'), tag:o('Close to home','就在家门口'),
+    stats:[[o('Where','位置'),o('orbits that come within 1.3 AU of the Sun','近日点小于 1.3 天文单位的轨道')],[o('Known','已知数量'),o('more than 35,000','超过 35,000 颗')],[o('Bigger than 1 km','大于 1 千米'),o('about 95% found','约 95% 已被发现')],[o('Famous ones','著名成员'),o('Bennu, Didymos, Apophis','贝努、迪迪莫斯、阿波菲斯')]],
+    facts:{en:['These asteroids were nudged out of the belt and now cross or come near Earth’s orbit.','OSIRIS-REx collected a sample from Bennu and dropped it in the Utah desert in September 2023.','Asteroid Apophis (about 340 m) will pass Earth on April 13, 2029, closer than some satellites, and will be visible without a telescope. It will not hit us.'],
+           zh:['这些小行星被推出了小行星带，现在的轨道穿过地球轨道或离它很近。','“奥西里斯–雷克斯号”从小行星贝努采集了样本，于 2023 年 9 月投放到美国犹他州的沙漠。','小行星阿波菲斯（约 340 米）将在 2029 年 4 月 13 日掠过地球，比一些人造卫星还近，肉眼就能看到。它不会撞上我们。']},
+    hint:o('Planetary defense = find them early, track them, and (if needed) push them.','行星防御 = 尽早发现、持续追踪、必要时把它推开。'), mix:o('“Near-Earth” does not mean dangerous: almost all of them will never hit us; astronomers calculate each orbit decades ahead.','“近地”不等于危险：几乎所有近地小行星都不会撞上地球，天文学家会提前几十年计算它们的轨道。') },
+  trojans:{ color:'#9ad08f', view:13, name:o('Jupiter Trojans','木星特洛伊小行星'), tag:o('Jupiter’s travel companions','木星的“旅伴”'),
+    stats:[[o('Where','位置'),o('on Jupiter’s orbit, 60° ahead and 60° behind','在木星轨道上，前后各 60°')],[o('Known','已知数量'),o('more than 14,000','超过 14,000 颗')],[o('Mission','探测任务'),o('Lucy (arrives 2027)','“露西号”（2027 年到达）')],[o('Distance','距离'),o('≈ 5.2 AU','约 5.2 天文单位')]],
+    facts:{en:['Two swarms share Jupiter’s orbit, one leading and one trailing, held at balance points where the Sun’s and Jupiter’s gravity work together (Lagrange points L4 and L5).','They are dark, reddish and may be “fossils” left over from the outer solar system.','NASA’s Lucy spacecraft, launched in 2021, will fly past several Trojans starting in 2027.'],
+           zh:['两群小行星和木星共用一条轨道，一群在前、一群在后，待在太阳和木星引力配合形成的平衡点上（拉格朗日点 L4 和 L5）。','它们颜色暗、偏红，可能是外太阳系留下的“化石”。','NASA 的“露西号”探测器 2021 年发射，将从 2027 年起依次飞掠几颗特洛伊小行星。']},
+    hint:o('Trojans travel with Jupiter like two groups of runners 60° ahead and behind.','特洛伊小行星像两队跑步的人，在木星前后 60° 处一起跑。'), mix:o('Trojans do not orbit Jupiter: they orbit the Sun, in step with Jupiter.','特洛伊小行星不绕木星转：它们绕太阳转，只是和木星步调一致。') },
+  kuiper:{ color:'#9fb2ea', view:110, name:o('Kuiper Belt','柯伊伯带'), tag:o('The icy outer belt','冰冷的外带'),
+    stats:[[o('Where','位置'),o('30 – 50 AU, beyond Neptune','30–50 天文单位，海王星外')],[o('Known objects','已知天体'),o('more than 3,000','超过 3,000 个')],[o('Made of','组成'),o('ice and rock','冰和岩石')],[o('Dwarf planets','矮行星'),o('Pluto, Haumea, Makemake (Eris just beyond)','冥王星、妊神星、鸟神星（阋神星在更外侧）')]],
+    facts:{en:['A doughnut-shaped belt like the asteroid belt, but about 20 times wider and made mostly of ice.','On January 1, 2019, New Horizons flew past Arrokoth, a 36 km “snowman” made of two lumps that gently stuck together: an untouched building block of planets.','Many comets that return in less than 200 years start out here or in the nearby scattered disk.'],
+           zh:['一个像小行星带一样的“甜甜圈”，但宽约 20 倍，而且主要由冰组成。','2019 年 1 月 1 日，“新视野号”飞掠阿罗科斯：一个 36 千米长、由两块轻轻粘在一起的冰块组成的“雪人”，是保存完好的行星“积木”。','许多回归周期短于 200 年的彗星都来自这里或附近的离散盘。']},
+    hint:o('Asteroid belt = rock, close in. Kuiper Belt = ice, far out.','小行星带 = 岩石，在里面；柯伊伯带 = 冰，在外面。'), mix:o('The Kuiper Belt is not the edge of the solar system: the Oort Cloud lies about 50 to 2,000 times farther out.','柯伊伯带不是太阳系的边缘：奥尔特云还要远 50 到 2,000 倍。') },
+  pluto:{ color:'#d9c2a3', view:110, name:o('Pluto & friends','冥王星和它的伙伴'), tag:o('Dwarf planets','矮行星'),
+    stats:[[o('Pluto’s orbit','冥王星轨道'),o('30 – 49 AU, tilted 17°','30–49 天文单位，倾斜 17°')],[o('One orbit','公转一圈'),o('248 years','248 年')],[o('Diameter','直径'),o('2,376 km','2,376 千米')],[o('Moons','卫星'),o('5 (Charon is the biggest)','5 颗（冥卫一最大）')]],
+    facts:{en:['Pluto’s stretched orbit sometimes brings it closer to the Sun than Neptune (last time 1979–1999), but the two can never collide: Pluto goes around twice for every three Neptune orbits.','New Horizons (2015) found glaciers of nitrogen ice, mountains of water ice and a blue hazy sky.','Eris, discovered in 2005, is almost exactly Pluto’s size; finding it led astronomers to create the “dwarf planet” category in 2006.'],
+           zh:['冥王星的扁长轨道有时会让它比海王星更靠近太阳（上一次是 1979–1999 年），但二者永远不会相撞：海王星每转 3 圈，冥王星正好转 2 圈。','“新视野号”（2015 年）发现了氮冰冰川、水冰山脉和蓝色的雾霾天空。','2005 年发现的阋神星和冥王星几乎一样大；正是它促使天文学家在 2006 年设立了“矮行星”这一类别。']},
+    hint:o('Dwarf planet: round, orbits the Sun, but has not cleared its neighbourhood.','矮行星：是圆的、绕太阳转，但没有清空轨道附近。'), mix:o('Pluto is not the most massive dwarf planet: Eris has about 27% more mass, though Pluto is slightly wider.','冥王星并不是质量最大的矮行星：阋神星的质量比它多约 27%，不过冥王星稍宽一些。') },
+  halley:{ color:'#9fd8ff', view:45, name:o('Halley’s Comet','哈雷彗星'), tag:o('A famous comet','著名的彗星'),
+    stats:[[o('One orbit','周期'),o('≈ 76 years','约 76 年')],[o('Closest to Sun','近日点'),o('0.59 AU','0.59 天文单位')],[o('Farthest','远日点'),o('≈ 35 AU, beyond Neptune','约 35 天文单位，海王星外')],[o('Next visit','下次回归'),o('2061','2061 年')]],
+    facts:{en:['Edmond Halley predicted its return for 1758 using Newton’s laws, the first comet known to come back.','In 1986 the European spacecraft Giotto flew within 600 km of its nucleus: a dark, potato-shaped lump about 15 km long.','Its orbit is tilted and goes around backward compared with the planets. Dust it left behind causes two meteor showers: the Eta Aquariids (May) and the Orionids (October).'],
+           zh:['埃德蒙·哈雷用牛顿定律预言它会在 1758 年回来，它是第一颗被证明会回归的彗星。','1986 年，欧洲的“乔托号”探测器在离彗核 600 千米处飞过：彗核又黑又像土豆，长约 15 千米。','它的轨道是倾斜的，而且运行方向和行星相反。它留下的尘埃造成两场流星雨：宝瓶座 η 流星雨（5 月）和猎户座流星雨（10 月）。']},
+    hint:o('Comets live on long, stretched ellipses: fast near the Sun, slow far away.','彗星在细长的椭圆上运行：靠近太阳时快，远离太阳时慢。'), mix:o('A comet does not leave a trail of fire: its glow is sunlight on gas and dust, and gas glowing from sunlight.','彗星并没有拖着火焰：它的光是气体和尘埃反射的阳光，以及被阳光激发而发光的气体。') },
+  voyager:{ color:'#ffd27a', view:400, name:o('Voyager 1','“旅行者 1 号”'), tag:o('Into interstellar space','飞入星际空间'),
+    stats:[[o('Launched','发射'),o('1977','1977 年')],[o('Distance (late 2026)','距离（2026 年底）'),o('≈ 172 AU','约 172 天文单位')],[o('Speed','速度'),o('≈ 17 km/s (3.6 AU per year)','约 17 千米/秒（每年 3.6 天文单位）')],[o('Signal delay','信号延迟'),o('≈ 1 light-day','约 1 光日')]],
+    facts:{en:['The most distant human-made object. In August 2012, at about 121 AU, it crossed the heliopause into interstellar space.','Around late 2026 it is about one light-day from Earth: a radio command takes about 24 hours to reach it.','Even so, it would take about 300 years to reach the inner edge of the Oort Cloud and perhaps 30,000 years to pass through it.'],
+           zh:['离我们最远的人造物体。2012 年 8 月，它在约 121 天文单位处穿过日球层顶，进入星际空间。','2026 年底前后，它离地球约 1 光日：一条无线电指令大约要 24 小时才能到达它。','即便如此，它还要大约 300 年才能到达奥尔特云的内边缘，穿过奥尔特云可能要 3 万年。']},
+    hint:o('1 light-day ≈ 173 AU.','1 光日 ≈ 173 天文单位。'), mix:o('Leaving the heliosphere is not leaving the solar system: the Sun’s gravity still rules out to the Oort Cloud.','离开日球层不等于离开太阳系：太阳的引力一直延伸到奥尔特云。') },
+  oort:{ color:'#c7a8ff', view:250000, name:o('Oort Cloud (schematic)','奥尔特云（示意）'), tag:o('Home of long-period comets','长周期彗星的家'),
+    stats:[[o('Where','位置'),o('about 2,000 – 100,000 AU','约 2,000–100,000 天文单位')],[o('Light crossing time','光穿过所需时间'),o('up to ≈ 1.6 years','最长约 1.6 年')],[o('Objects','天体数量'),o('billions, maybe trillions (estimated)','几十亿，也许上万亿（估计）')],[o('Seen directly?','直接看到过吗'),o('never','从来没有')]],
+    facts:{en:['A giant, roughly spherical shell of icy bodies surrounding the whole solar system. We infer it from the orbits of comets that fall in from every direction.','A passing star or the pull of the Milky Way can nudge an Oort Cloud object inward, and it becomes a long-period comet like Hale–Bopp.','Its outer edge may reach a third of the way to the nearest star, Proxima Centauri (268,000 AU).'],
+           zh:['一个包围整个太阳系、大致呈球壳状的巨大冰质天体群。我们是通过从四面八方落进来的彗星轨道推断出它的存在。','路过的恒星或银河系的引力会把奥尔特云中的天体推向内侧，它就成了像海尔–波普那样的长周期彗星。','它的外缘可能延伸到离我们最近的恒星比邻星（268,000 天文单位）的三分之一远。']},
+    hint:o('Short trips (< 200 years) → Kuiper Belt comets; very long trips → Oort Cloud comets.','短程（小于 200 年）→ 柯伊伯带彗星；超长程 → 奥尔特云彗星。'), mix:o('The Oort Cloud is not a dense cloud: its objects are separated by distances many times larger than the whole Earth–Sun distance.','奥尔特云并不是一团浓密的“云”：其中天体之间的距离比日地距离还大很多倍。') }
+};
+const RORDER = ['neo','belt','trojans','kuiper','pluto','halley','voyager','oort'];
+
+/* ===== Real photos (Wikimedia Commons, free licences; rendered by shared/photos.js) ===== */
+const K = { craft:o('Spacecraft photo','航天器照片'), tele:o('Photo','照片'), sat:o('Weather-satellite image','气象卫星图像'), air:o('Aerial photo','航拍照片'), vid:o('Spacecraft video','航天器视频'), satv:o('Weather-satellite video','气象卫星视频'), proc:o('Spacecraft photo · processed colour','航天器照片 · 处理后的颜色') };
+const RP = {
+  bennu:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/77/Bennu_mosaic_OSIRIS-REx.jpg/960px-Bennu_mosaic_OSIRIS-REx.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Bennu_mosaic_OSIRIS-REx.jpg', credit:'NASA/Goddard/University of Arizona', kind:K.craft,
+    en:'Asteroid Bennu, a mosaic from NASA’s OSIRIS-REx, which stayed close to it for over two years and brought a sample home.', zh:'小行星贝努，由 NASA“奥西里斯–雷克斯号”拍摄的拼图；它在贝努附近停留了两年多，并带回了样本。', scale:o('about 490 m across, wider than the Empire State Building is tall','直径约 490 米，比帝国大厦的高度还宽') },
+  ryugu:{ src:'https://upload.wikimedia.org/wikipedia/commons/d/de/Ryugu_colored.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Ryugu_colored.jpg', credit:'Meli thev (Hayabusa2 ONC-T data)', kind:K.proc,
+    en:'Asteroid Ryugu in colour, made from images taken by the ONC-T camera on Japan’s Hayabusa2 spacecraft (July 2018).', zh:'彩色的小行星龙宫，用日本“隼鸟 2 号”ONC-T 相机 2018 年 7 月拍摄的图像合成。', scale:o('about 900 m across','直径约 900 米') },
+  dart:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fd/Last_image_showing_all_of_Didymos_%26_Dimorphos_by_DART.png/960px-Last_image_showing_all_of_Didymos_%26_Dimorphos_by_DART.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Last_image_showing_all_of_Didymos_%26_Dimorphos_by_DART.png', credit:'NASA/Johns Hopkins APL', kind:K.craft,
+    en:'Asteroid Didymos and its small moon Dimorphos, about 2.5 minutes before NASA’s DART spacecraft crashed into Dimorphos (September 26, 2022).', zh:'小行星迪迪莫斯和它的小卫星迪莫弗斯，摄于 NASA 的 DART 探测器撞上迪莫弗斯前约 2.5 分钟（2022 年 9 月 26 日）。', scale:o('Didymos ≈ 780 m · Dimorphos ≈ 160 m','迪迪莫斯约 780 米 · 迪莫弗斯约 160 米') },
+  c67p:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/81/Comet_67P_on_19_September_2014_NavCam_mosaic.jpg/960px-Comet_67P_on_19_September_2014_NavCam_mosaic.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'CC BY-SA 3.0 igo', page:'https://commons.wikimedia.org/wiki/File:Comet_67P_on_19_September_2014_NavCam_mosaic.jpg', credit:'ESA/Rosetta/NAVCAM', kind:K.craft,
+    en:'The nucleus of comet 67P/Churyumov–Gerasimenko, from only 28.6 km away (ESA’s Rosetta, September 2014). Jets of gas and dust stream off it.', zh:'67P/丘留莫夫–格拉西缅科彗星的彗核，摄于仅 28.6 千米外（欧洲航天局“罗塞塔号”，2014 年 9 月）。可以看到气体和尘埃的喷流。', scale:o('about 4 km long','长约 4 千米') },
+  halebopp:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/df/Comet-Hale-Bopp-29-03-1997_hires_adj.jpg/960px-Comet-Hale-Bopp-29-03-1997_hires_adj.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'CC BY-SA 2.0 at', page:'https://commons.wikimedia.org/wiki/File:Comet-Hale-Bopp-29-03-1997_hires_adj.jpg', credit:'Philipp Salzgeber', kind:K.tele,
+    en:'Comet Hale–Bopp over a tree in Croatia, March 29, 1997. You can see both tails: the bluish ion tail and the whiter dust tail.', zh:'1997 年 3 月 29 日，克罗地亚一棵树上空的海尔–波普彗星。两条彗尾都能看到：偏蓝的离子彗尾和偏白的尘埃彗尾。', scale:o('nucleus ≈ 60 km · period ≈ 2,500 years','彗核约 60 千米 · 周期约 2,500 年') },
+  pluto:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ef/Pluto_in_True_Color_-_High-Res.jpg/960px-Pluto_in_True_Color_-_High-Res.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Pluto_in_True_Color_-_High-Res.jpg', credit:'NASA/Johns Hopkins University APL/Southwest Research Institute/Alex Parker', kind:K.craft,
+    en:'Dwarf planet Pluto in true colour, photographed by New Horizons on July 14, 2015 from 35,445 km away. The pale “heart” is a plain of nitrogen ice.', zh:'“新视野号”2015 年 7 月 14 日从 35,445 千米外拍到的真彩色矮行星冥王星。浅色的“心”是一片氮冰平原。', scale:o('2,376 km across','直径 2,376 千米') },
+  arrokoth:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/60/UltimaThule_CA06_color_20190516.png/960px-UltimaThule_CA06_color_20190516.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:UltimaThule_CA06_color_20190516.png', credit:'NASA/Johns Hopkins University Applied Physics Laboratory/Southwest Research Institute', kind:K.craft,
+    en:'Arrokoth, a Kuiper Belt object made of two lumps stuck together, in a colour composite from New Horizons’ flyby on January 1, 2019.', zh:'阿罗科斯：由两块粘在一起的柯伊伯带天体，“新视野号”2019 年 1 月 1 日飞掠时拍摄的彩色合成图。', scale:o('about 36 km long · 6.6 billion km from the Sun','长约 36 千米 · 距太阳约 66 亿千米') },
+  crater:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/46/Meteorcrater.jpg/960px-Meteorcrater.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'CC BY 3.0', page:'https://commons.wikimedia.org/wiki/File:Meteorcrater.jpg', credit:'Shane.torgerson', kind:K.air,
+    en:'Meteor Crater in Arizona from the air (2010). An iron asteroid about 50 m wide dug it roughly 50,000 years ago.', zh:'从空中看美国亚利桑那州的陨石坑（2010 年）。大约 5 万年前，一颗宽约 50 米的铁质小行星撞出了它。', scale:o('about 1.2 km across and 170 m deep','直径约 1.2 千米，深约 170 米') },
+  chelyabinsk:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d4/2013_Chelyabinsk_meteor_trace.jpg/960px-2013_Chelyabinsk_meteor_trace.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'CC BY-SA 2.0', page:'https://commons.wikimedia.org/wiki/File:2013_Chelyabinsk_meteor_trace.jpg', credit:'Alex Alishevskikh', kind:K.tele,
+    en:'The smoke trail of the Chelyabinsk fireball over the Ural region of Russia, February 15, 2013. Its air blast broke windows across the city.', zh:'2013 年 2 月 15 日俄罗斯乌拉尔地区上空车里雅宾斯克火流星留下的烟迹。它在空中爆炸产生的冲击波震碎了全城许多窗户。', scale:o('meteoroid ≈ 18–20 m before it exploded','爆炸前流星体约 18–20 米') },
+  georgia:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/85/Bolide_Over_Georgia_%28CIRA_2025-06-26_-_2455_g19_m02_geocolor-glm_fireball-over-GA_nolabels_noarrow0%29.png/960px-Bolide_Over_Georgia_%28CIRA_2025-06-26_-_2455_g19_m02_geocolor-glm_fireball-over-GA_nolabels_noarrow0%29.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Bolide_Over_Georgia_(CIRA_2025-06-26_-_2455_g19_m02_geocolor-glm_fireball-over-GA_nolabels_noarrow0).png', credit:'GOES imagery: CSU/CIRA & NOAA', kind:K.sat,
+    en:'A bolide (a very bright meteor) breaking up over Georgia on June 26, 2025, seen from space by a GOES weather satellite.', zh:'2025 年 6 月 26 日一颗火流星（非常明亮的流星）在美国佐治亚州上空解体，GOES 气象卫星从太空拍到了它。', scale:o('a fireball over the US state of Georgia','佐治亚州上空的一颗火流星') },
+  dartVid:{ type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/2/25/Dart_impact_replay.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/25/Dart_impact_replay.webm/960px--Dart_impact_replay.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Dart_impact_replay.webm', credit:'NASA/Johns Hopkins APL', kind:K.vid,
+    en:'The last five and a half minutes of pictures streamed by DART as it flew into asteroid Dimorphos. The final image arrives just before the crash.', zh:'DART 撞向小行星迪莫弗斯前最后五分半钟传回的照片。最后一张照片在撞击前一刻传回。' },
+  georgiaVid:{ type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/5/54/Bolide_Over_Georgia_%28CIRA_2025-06-26_-_nolabels%29.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/54/Bolide_Over_Georgia_%28CIRA_2025-06-26_-_nolabels%29.webm/960px--Bolide_Over_Georgia_%28CIRA_2025-06-26_-_nolabels%29.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Bolide_Over_Georgia_(CIRA_2025-06-26_-_nolabels).webm', credit:'GOES imagery: CSU/CIRA & NOAA', kind:K.satv,
+    en:'The same Georgia bolide as a short satellite movie: watch for the flash as the meteor breaks up.', zh:'同一颗佐治亚州火流星的卫星短片：注意流星解体时的闪光。' }
+};
+const RP_FOR = { neo:'bennu', belt:'ryugu', kuiper:'arrokoth', pluto:'pluto', halley:'halebopp' };
+LabPhotos.render('#gallery', ['bennu','ryugu','dart','c67p','halebopp','pluto','arrokoth','crater','chelyabinsk','georgia','dartVid','georgiaVid'].map(k => RP[k]), { title:o('See the real thing','看看真实的样子'),
+  sub:o('Real pictures from OSIRIS-REx, Hayabusa2, DART, Rosetta, New Horizons, weather satellites and photographers on the ground. Click a picture to enlarge it; videos play only when you press play.','来自“奥西里斯–雷克斯号”“隼鸟 2 号”、DART、“罗塞塔号”“新视野号”、气象卫星和地面摄影师的真实照片。点击图片可以放大；视频要你按下播放键才会播放。') });
+
+/* ===== Go further (all links checked: HTTP 200) ===== */
+const LINKS = [
+  ['https://eyes.nasa.gov/apps/asteroids/', o('NASA Eyes on Asteroids','NASA 小行星之眼'), o('See every known near-Earth asteroid and comet move in 3D, and check the next close approaches.','在 3D 中看所有已知近地小行星和彗星如何运动，查看下一次近距离飞掠。'), 'eyes.nasa.gov'],
+  ['https://science.nasa.gov/planetary-defense/', o('NASA Planetary Defense','NASA 行星防御'), o('Learn how NASA finds, tracks and plans to deflect dangerous asteroids.','了解 NASA 如何发现、追踪并计划推开危险的小行星。'), 'science.nasa.gov'],
+  ['https://science.nasa.gov/mission/dart/', o('DART mission','DART 任务'), o('Read how the 2022 crash shortened Dimorphos’s orbit by 32 minutes.','看看 2022 年的撞击怎样让迪莫弗斯的公转周期缩短了 32 分钟。'), 'science.nasa.gov'],
+  ['https://cneos.jpl.nasa.gov/', o('JPL Center for Near-Earth Object Studies','JPL 近地天体研究中心'), o('Check the real list of upcoming asteroid close approaches and fireball reports.','查看即将到来的小行星近距离飞掠清单和火流星报告。'), 'cneos.jpl.nasa.gov'],
+  ['https://www.amsmeteors.org/meteor-showers/meteor-shower-calendar/', o('AMS meteor shower calendar','美国流星协会流星雨日历'), o('Plan your next night of meteor watching: dates, peaks and moonlight for each shower.','计划下一次看流星：每场流星雨的日期、极大和月光情况。'), 'amsmeteors.org'],
+  ['https://science.nasa.gov/mission/osiris-rex/', o('OSIRIS-REx mission','“奥西里斯–雷克斯号”任务'), o('Follow the trip to asteroid Bennu and what scientists found in its sample.','跟随前往小行星贝努的旅程，看看科学家在样本里发现了什么。'), 'science.nasa.gov'],
+  ['https://science.nasa.gov/dwarf-planets/pluto/', o('NASA: Pluto','NASA：冥王星'), o('Explore Pluto’s glaciers, mountains and moons.','探索冥王星的冰川、山脉和卫星。'), 'science.nasa.gov'],
+  ['https://science.nasa.gov/mission/new-horizons/', o('New Horizons mission','“新视野号”任务'), o('See where New Horizons is now, deep in the Kuiper Belt, and what it found at Arrokoth.','看看“新视野号”现在在柯伊伯带深处的哪里，以及它在阿罗科斯发现了什么。'), 'science.nasa.gov']
+];
+function renderLinks(){ Lab.$('#links').innerHTML = LINKS.map(([u, t, d, h]) => `<a class="linkcard" href="${u}" target="_blank" rel="noopener"><b>${Lab.L(t)}</b><span>${Lab.L(d)}</span><small>${h} ↗</small></a>`).join(''); }
+
+/* ===== Info panel + chips (3D map) ===== */
+const App = window.SB = { sel:null, three:null, REG, RORDER };
+App.select = (k, from3D) => { App.sel = k; renderInfo(); renderChips(); if (!from3D && App.three && k) App.three.focus(k); };
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel;
+  if (!k){
+    box.innerHTML = `<span class="tag">${Lab.L(o('Small bodies','小天体'))}</span><h3>${Lab.L(o('The solar system’s leftovers','太阳系的“边角料”'))}</h3>
+      <p class="muted" style="margin:0">${Lab.L(o('Besides 8 planets, the Sun is circled by millions of asteroids, comets and dwarf planets. Where they live tells us what they are made of.','除了 8 颗行星，绕太阳运行的还有数以百万计的小行星、彗星和矮行星。它们住在哪里，就说明了它们由什么组成。'))}</p>
+      <ul><li>${Lab.L(o('Asteroids: rock and metal, mostly in the belt between Mars and Jupiter (warm enough that ice could not survive there).','小行星：岩石和金属，大多在火星和木星之间的小行星带（那里太暖，冰保存不下来）。'))}</li>
+      <li>${Lab.L(o('Comets: ice + dust, from the cold Kuiper Belt and Oort Cloud.','彗星：冰 + 尘埃，来自寒冷的柯伊伯带和奥尔特云。'))}</li>
+      <li>${Lab.L(o('Meteoroids: small pieces broken off asteroids and comets.','流星体：从小行星和彗星上掉下来的小碎块。'))}</li></ul>
+      <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(o('Rocks inside, ice outside: the “frost line” (about 3 AU) split the young solar system.','里面是岩石，外面是冰：约 3 天文单位处的“雪线”把年轻的太阳系分成了两部分。'))}</div>
+      <div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(o('A “shooting star” is not a star: it is a grain of dust burning up about 100 km above your head.','“流星”不是星星：它是在你头顶约 100 千米高处燃烧的一粒尘埃。'))}</span></div>
+      <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+      <div class="nav"><button id="startBtn">${Lab.L(o('Start the tour ▶','开始参观 ▶'))}</button></div>`;
+    Lab.$('#startBtn').onclick = () => App.select(RORDER[0]);
+    Lab.$('#speakBtn').onclick = () => Lab.speak(box.innerText.replace(Lab.L(Lab.UI.listen), '').replace(Lab.L(o('Start the tour ▶','开始参观 ▶')), ''));
+    return;
+  }
+  const r = REG[k], i = RORDER.indexOf(k);
+  box.innerHTML = `<span class="tag">${Lab.L(r.tag)}</span><h3><span class="dot" style="background:${r.color}"></span>${Lab.L(r.name)}</h3>
+    <div class="stats">${r.stats.map(([l, v]) => `<div class="stat"><small>${Lab.L(l)}</small>${Lab.L(v)}</div>`).join('')}</div>
+    <ul>${Lab.L(r.facts).map(f => `<li>${f}</li>`).join('')}</ul>${RP_FOR[k] ? LabPhotos.figure(RP[RP_FOR[k]]) : ''}
+    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(r.hint)}</div>
+    <div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(r.mix)}</span></div>
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(r.name), ...Lab.L(r.facts), Lab.L(r.hint)].join(zh() ? '。' : '. '));
+  Lab.$('#pPrev').onclick = () => App.select(RORDER[(i - 1 + RORDER.length) % RORDER.length]);
+  Lab.$('#pNext').onclick = () => App.select(RORDER[(i + 1) % RORDER.length]);
+}
+function renderChips(){
+  Lab.$('#chips').innerHTML = RORDER.map(k => `<button class="chip ${App.sel === k ? 'on' : ''}" data-k="${k}"><i style="background:${REG[k].color}"></i>${Lab.L(REG[k].name)}</button>`).join('');
+  Lab.$$('#chips .chip').forEach(c => c.onclick = () => App.select(c.dataset.k));
+}
+Lab.onLang(() => { renderInfo(); renderChips(); renderLinks(); });
+</script>
+<script>
+/* ===================== (b) Comet orbit simulator ===================== */
+const COMETS = [ // q: perihelion AU, e: eccentricity, peri: date of a perihelion (decimal year). Data: JPL Small-Body Database (rounded)
+  { k:'halley', name:o('Halley (1P)','哈雷彗星（1P）'), q:.586, e:.967, peri:1986.11 },
+  { k:'encke', name:o('Encke (2P)','恩克彗星（2P）'), q:.336, e:.848, peri:2023.81 },
+  { k:'c67p', name:o('67P/Churyumov–Gerasimenko','67P/丘留莫夫–格拉西缅科'), q:1.24, e:.641, peri:2021.84 },
+  { k:'swift', name:o('Swift–Tuttle (109P)','斯威夫特–塔特尔彗星（109P）'), q:.96, e:.963, peri:1992.95 },
+  { k:'halebopp', name:o('Hale–Bopp','海尔–波普彗星'), q:.914, e:.995, peri:1997.25 }
+];
+COMETS.forEach(c => { c.a = c.q / (1 - c.e); c.P = Math.pow(c.a, 1.5); c.b = c.a * Math.sqrt(1 - c.e * c.e);
+  const cosE = (1 - 2 / c.a) / c.e; if (Math.abs(cosE) <= 1){ const E = Math.acos(cosE); c.in2 = (E - c.e * Math.sin(E)) / Math.PI; } else c.in2 = 1; });
+let comet = COMETS[0], cM = -.05, cPlay = false, cLast = 0, cView = 'all';
+const PLAN_R = [[.387,'#a7a3a0',o('Mercury','水星')],[.723,'#e3bb76',o('Venus','金星')],[1,'#3f8fe0',o('Earth','地球')],[1.524,'#d0603a',o('Mars','火星')],[5.2,'#d8a878',o('Jupiter','木星')],[9.58,'#e6cf8f',o('Saturn','土星')],[19.2,'#9fdbe0',o('Uranus','天王星')],[30.1,'#4b70dd',o('Neptune','海王星')]];
+function kepler(c, M){ let E = M + .85 * c.e * Math.sign(Math.sin(M)); for (let i = 0; i < 40; i++) E -= (E - c.e * Math.sin(E) - M) / (1 - c.e * Math.cos(E));
+  const x = c.a * (Math.cos(E) - c.e), y = c.b * Math.sin(E), r = c.a * (1 - c.e * Math.cos(E)), vx = -c.a * Math.sin(E), vy = c.b * Math.cos(E), vl = Math.hypot(vx, vy);
+  return { x, y, r, vx:vx / vl, vy:vy / vl, E }; }
+const uToM = u => Math.PI * Math.sign(u) * Math.pow(Math.abs(u), 3);
+const mToU = M => Math.sign(M) * Math.pow(Math.abs(M) / Math.PI, 1 / 3);
+function renderCometPick(){
+  Lab.$('#cometPick').innerHTML = COMETS.map(c => `<button class="tbtn ${c === comet ? 'on' : ''}" data-k="${c.k}">${Lab.L(c.name)}</button>`).join('');
+  Lab.$$('#cometPick button').forEach(b => b.onclick = () => { comet = COMETS.find(c => c.k === b.dataset.k); cM = -.6; renderCometPick(); });
+}
+function drawComet(){
+  const cv = Lab.$('#cometCv'); const { g, w, h } = fitCv(cv), c = comet, p = kepler(c, cM);
+  g.fillStyle = '#060912'; g.fillRect(0, 0, w, h);
+  const Q = c.a * (1 + c.e);
+  let sc, cx0;   // pixels per AU, x of the Sun
+  if (cView === "all"){ sc = Math.min((w - 130) / (Q + c.q), (h - 40) / (2 * c.b)); cx0 = 20 + Q * sc; }
+  else { sc = Math.min(w, h) / 2 / 5.6; cx0 = w / 2; }
+  const cy0 = h / 2, X = x => cx0 + x * sc, Y = y => cy0 - y * sc;
+  // planet orbits
+  g.lineWidth = 1; g.font = FONT(10.5, 700); g.textAlign = 'left';
+  PLAN_R.forEach(([r, col, nm]) => { const R = r * sc; if (R < 3 || R > w * 2) return; g.strokeStyle = col; g.globalAlpha = .45; g.beginPath(); g.arc(cx0, cy0, R, 0, 7); g.stroke(); g.globalAlpha = 1;
+    if (R > 14 && cy0 - R > 12){ g.fillStyle = col; g.fillText(Lab.L(nm), cx0 + 3, cy0 - R - 3); } });
+  // comet orbit
+  g.setLineDash([5, 5]); g.strokeStyle = 'rgba(159,216,255,.55)'; g.beginPath(); g.ellipse(X(-c.a * c.e), cy0, c.a * sc, c.b * sc, 0, 0, 7); g.stroke(); g.setLineDash([]);
+  // Sun
+  const sg = g.createRadialGradient(cx0, cy0, 0, cx0, cy0, 14); sg.addColorStop(0, '#fff6d0'); sg.addColorStop(.4, '#ffb43a'); sg.addColorStop(1, 'rgba(255,140,0,0)');
+  g.fillStyle = sg; g.beginPath(); g.arc(cx0, cy0, 14, 0, 7); g.fill();
+  // tails: activity grows inside ~4 AU
+  const A = Math.max(0, Math.min(1, 1.6 / p.r - .4)), px = X(p.x), py = Y(p.y);
+  const ax = p.x / p.r, ay = p.y / p.r;   // unit vector away from the Sun (AU frame)
+  if (A > 0){
+    const L = A * Math.max(Math.min(1.2, .35 * Math.pow(1.5 / p.r, 2)) * sc, 90);
+    // dust tail: curved, lagging behind the motion
+    for (let k = 0; k < 3; k++){ g.beginPath(); g.moveTo(px, py);
+      for (let s = 0; s <= 1.0001; s += .05){ const dx = ax * L * s * .85 - p.vx * L * .45 * s * s, dy = ay * L * s * .85 - p.vy * L * .45 * s * s; g.lineTo(px + dx, py - dy); }
+      g.strokeStyle = `rgba(255,213,138,${.22 * A})`; g.lineWidth = 10 - k * 3; g.stroke(); }
+    // ion tail: straight away from the Sun
+    const gr = g.createLinearGradient(px, py, px + ax * L, py - ay * L); gr.addColorStop(0, `rgba(127,200,255,${.95 * A})`); gr.addColorStop(1, 'rgba(127,200,255,0)');
+    g.strokeStyle = gr; g.lineWidth = 3; g.beginPath(); g.moveTo(px, py); g.lineTo(px + ax * L, py - ay * L); g.stroke();
+  }
+  const cr = 2.5 + 7 * A, cg = g.createRadialGradient(px, py, 0, px, py, cr * 2); cg.addColorStop(0, '#ffffff'); cg.addColorStop(.35, `rgba(200,235,255,${.5 + .5 * A})`); cg.addColorStop(1, 'rgba(160,210,255,0)');
+  g.fillStyle = cg; g.beginPath(); g.arc(px, py, cr * 2, 0, 7); g.fill();
+  // velocity arrow
+  g.strokeStyle = '#ffffff'; g.globalAlpha = .7; g.lineWidth = 1.5; const vx2 = px + p.vx * 26, vy2 = py - p.vy * 26;
+  g.beginPath(); g.moveTo(px, py); g.lineTo(vx2, vy2); g.stroke(); g.globalAlpha = 1;
+  g.fillStyle = '#c6d2ea'; g.font = FONT(11); g.textAlign = 'left'; g.fillText(Lab.L(o('direction of motion','运动方向')), vx2 + 4, vy2);
+  g.fillStyle = '#eaf0fb'; g.font = FONT(14); g.fillText(Lab.L(c.name), 12, 22);
+  g.font = FONT(11, 700); g.fillStyle = '#a6b3cf'; g.fillText(cView === 'all' ? Lab.L(o('whole orbit, to scale','整条轨道，按比例')) : Lab.L(o('inner solar system (to 5.6 AU)','内太阳系（到 5.6 天文单位）')), 12, 40);
+  // readouts
+  const v = 29.78 * Math.sqrt(Math.max(0, 2 / p.r - 1 / c.a)), year = c.peri + cM / (2 * Math.PI) * c.P, rate = c.P / 24 * Math.min(1, Math.pow(p.r / c.a, 1.5)) * 365.25;
+  const tailMkm = A > 0 ? Math.min(1.2, .35 * Math.pow(1.5 / p.r, 2)) * A * 149.6 : 0;
+  const cells = [[o('Date','日期'), year.toFixed(1)], [o('Distance from Sun','与太阳的距离'), `${p.r.toFixed(p.r < 10 ? 2 : 1)} AU`], [o('Speed','速度'), `${v.toFixed(1)} km/s`],
+    [o('Tail length (approx.)','彗尾长度（约）'), tailMkm ? (zh() ? `${sig(tailMkm * 100, 2)} 万千米` : `${sig(tailMkm, 2)} million km`) : '—'], [o('One orbit','公转周期'), zh() ? `${sig(c.P, 3)} 年` : `${sig(c.P, 3)} years`],
+    [o('Time inside 2 AU','在 2 天文单位以内的时间'), `${sig(c.in2 * 100, 2)}%`]];
+  Lab.$('#cRead').innerHTML = cells.map(([l, x]) => `<div><small>${Lab.L(l)}</small><b>${x}</b></div>`).join('');
+  Lab.$('#cOut').textContent = year.toFixed(1);
+  const m = Lab.$('#cMsg');
+  m.textContent = Lab.L(p.r > 5 ? o('Far from the Sun the nucleus is a frozen, dark “dirty snowball”: no coma, no tail. It moves slowly here.','远离太阳时，彗核是一个冰冻、暗黑的“脏雪球”：没有彗发，也没有彗尾。它在这里走得很慢。')
+    : p.r > 2.5 ? o('Warming up: ice starts turning straight into gas, and a fuzzy coma forms around the nucleus.','开始变暖：冰直接变成气体，彗核周围形成一团模糊的彗发。')
+    : o('Close to the Sun: the comet is fastest and brightest. Sunlight and the solar wind push the gas and dust away from the Sun, so the tails point away from it.','靠近太阳：彗星速度最快、最亮。阳光和太阳风把气体和尘埃推离太阳，所以彗尾背向太阳。'));
+  m.className = 'result' + (p.r <= 2.5 ? ' good' : '');
+  Lab.$('#cT').value = Math.round((mToU(cM) + 1) * 1000);
+  Lab.$('#cPlay').title = zh() ? `1 秒 ≈ ${sig(rate, 2)} 天` : `1 s ≈ ${sig(rate, 2)} days`;
+}
+Lab.$('#cT').oninput = e => { cM = uToM(+e.target.value / 1000 - 1); cPlay = false; Lab.$('#cPlay').textContent = '▶'; };
+Lab.$('#cPlay').onclick = () => { cPlay = !cPlay; cLast = performance.now(); Lab.$('#cPlay').textContent = cPlay ? '⏸' : '▶'; };
+Lab.$$('#cZoom button').forEach(b => b.onclick = () => { cView = b.dataset.z; Lab.$$('#cZoom button').forEach(x => x.classList.toggle('on', x === b)); });
+function stepComet(dt){ const p = kepler(comet, cM), yrs = comet.P / 24 * Math.min(1, Math.pow(p.r / comet.a, 1.5)) * dt; cM += yrs / comet.P * 2 * Math.PI; if (cM > Math.PI) cM -= 2 * Math.PI; }
+
+/* famous comets table */
+const CTAB = [
+  [o('2P/Encke','2P/恩克'), 3.3, o('2023 → 2027','2023 → 2027'), o('shortest period of any bright comet; parent of the Taurids','亮彗星中周期最短；金牛座流星雨的母体')],
+  [o('9P/Tempel 1','9P/坦普尔 1 号'), 5.6, o('2022 → 2028','2022 → 2028'), o('NASA’s Deep Impact fired a copper probe into it (2005)','NASA“深度撞击号”向它发射了铜质撞击器（2005 年）')],
+  [o('67P/Churyumov–Gerasimenko','67P/丘留莫夫–格拉西缅科'), 6.4, o('2021 → 2028','2021 → 2028'), o('ESA’s Rosetta orbited it; the Philae lander touched down (2014)','欧洲航天局“罗塞塔号”环绕它运行，“菲莱”着陆器登陆（2014 年）')],
+  [o('21P/Giacobini–Zinner','21P/贾科比尼–津纳'), 6.5, o('2025 → 2031','2025 → 2031'), o('first comet visited by a spacecraft (1985); parent of the Draconids','第一颗被探测器造访的彗星（1985 年）；天龙座流星雨的母体')],
+  [o('55P/Tempel–Tuttle','55P/坦普尔–塔特尔'), 33, o('1998 → 2031','1998 → 2031'), o('parent of the Leonids (meteor storms in 1833, 1966, 2001)','狮子座流星雨的母体（1833、1966、2001 年出现流星暴）')],
+  [o('1P/Halley','1P/哈雷'), 76, o('1986 → 2061','1986 → 2061'), o('first comet shown to return; parent of the Eta Aquariids and Orionids','第一颗被证明会回归的彗星；宝瓶座 η 流星雨和猎户座流星雨的母体')],
+  [o('109P/Swift–Tuttle','109P/斯威夫特–塔特尔'), 133, o('1992 → 2126','1992 → 2126'), o('nucleus about 26 km wide; parent of the Perseids','彗核宽约 26 千米；英仙座流星雨的母体')],
+  [o('C/1995 O1 Hale–Bopp','C/1995 O1 海尔–波普'), 2500, o('1997 → about 4400','1997 → 约 4400'), o('visible to the naked eye for a record 18 months','肉眼可见长达 18 个月，创下纪录')],
+  [o('C/2020 F3 NEOWISE','C/2020 F3 新智彗星'), 6700, o('2020 → about 8800','2020 → 约 8800'), o('a bright comet of summer 2020, from the Oort Cloud','2020 年夏天的一颗亮彗星，来自奥尔特云')]
+];
+function renderCTab(){
+  Lab.$('#cTab').innerHTML = `<tr><th>${Lab.L(o('Comet','彗星'))}</th><th>${Lab.L(o('Period','周期'))}</th><th style="width:22%"></th><th>${Lab.L(o('Last → next perihelion','上次 → 下次过近日点'))}</th><th>${Lab.L(o('Why it is famous','为什么有名'))}</th></tr>` +
+    CTAB.map(([n, P, d, f]) => `<tr><td><b>${Lab.L(n)}</b></td><td>${zh() ? `${num(P, P < 10 ? 1 : 0)} 年` : `${num(P, P < 10 ? 1 : 0)} yr`}</td><td><div class="pbar" style="width:${Math.max(4, Math.log10(P) / Math.log10(10000) * 100)}%"></div></td><td>${Lab.L(d)}</td><td>${Lab.L(f)}</td></tr>`).join('');
+}
+
+/* ===================== (c) Impact crater simulator ===================== */
+const MAT = { ice:{ rho:1000, n:o('ice','冰') }, stone:{ rho:3000, n:o('stone','石质') }, iron:{ rho:7800, n:o('iron','铁质') } };
+let imp = { D:50, v:13, ang:45, mat:'iron' };
+const dFromSlider = s => Math.pow(10, s / 1000 * Math.log10(20000)), sliderFromD = D => Math.round(Math.log10(D) / Math.log10(20000) * 1000);
+const IPRE = [
+  [o('Meteor Crater, Arizona','亚利桑那陨石坑'), { D:50, v:13, ang:45, mat:'iron', real:o('Real Meteor Crater: about 1.2 km wide. Our simple model lands within about 30%.','真实的陨石坑约 1.2 千米宽。我们的简单模型误差约 30% 以内。') }],
+  [o('Chelyabinsk 2013','车里雅宾斯克 2013'), { D:19, v:19, ang:18, mat:'stone' }],
+  [o('Tunguska 1908','通古斯 1908'), { D:50, v:20, ang:45, mat:'stone' }],
+  [o('Chicxulub (dinosaurs)','希克苏鲁伯（恐龙灭绝）'), { D:10000, v:20, ang:60, mat:'stone', real:o('The real Chicxulub crater, buried under Mexico’s Yucatán Peninsula, is about 180 km wide.','真实的希克苏鲁伯撞击坑埋在墨西哥尤卡坦半岛下面，宽约 180 千米。') }]
+];
+const FREQ = [[1, .04], [4, 1], [20, 60], [50, 1000], [140, 2e4], [1000, 5e5], [10000, 1e8], [20000, 4e8]];   // impactor size (m) → typical years between Earth impacts (very rough)
+function everyYears(D){ for (let i = 1; i < FREQ.length; i++) if (D <= FREQ[i][0]){ const [d0, y0] = FREQ[i - 1], [d1, y1] = FREQ[i], f = (Math.log(D) - Math.log(d0)) / (Math.log(d1) - Math.log(d0)); return Math.exp(Math.log(y0) + f * (Math.log(y1) - Math.log(y0))); } return 4e8; }
+function impactCalc(){
+  const { D, v, ang, mat } = imp, rho = MAT[mat].rho, m = rho * Math.PI / 6 * D ** 3, E = .5 * m * (v * 1000) ** 2, Mt = E / 4.184e15;
+  const air = D < 1 || (mat === 'stone' && D < 60) || (mat === 'ice' && D < 150) ? 'air' : (mat === 'iron' && D < 10) ? 'slow' : null;
+  const Dtc = 1.161 * Math.cbrt(rho / 2500) * Math.pow(D, .78) * Math.pow(v * 1000, .44) * Math.pow(9.81, -.22) * Math.cbrt(Math.sin(ang * Math.PI / 180));
+  let Dfr, depth; if (Dtc * 1.25 < 3200){ Dfr = 1.25 * Dtc; depth = Dfr / 7; } else { Dfr = 1.17 * Math.pow(Dtc, 1.13) / Math.pow(3200, .13); depth = .4 * Math.pow(Dfr / 1000, .3) * 1000; }
+  return { m, E, Mt, air, Dfr, depth, every:everyYears(D) };
+}
+const lenTxt = mtr => mtr < 1000 ? (zh() ? `${sig(mtr, 2)} 米` : `${sig(mtr, 2)} m (${sig(mtr * 3.281, 2)} ft)`) : (zh() ? `${sig(mtr / 1000, 3)} 千米` : `${sig(mtr / 1000, 3)} km (${sig(mtr / 1609, 3)} mi)`);
+function everyTxt(y){ if (y < 1) return zh() ? `约每 ${Math.max(1, Math.round(y * 52))} 周一次` : `about every ${Math.max(1, Math.round(y * 52))} weeks`;
+  return zh() ? `约每 ${words(Number(y.toPrecision(2)))} 年一次` : `about once every ${words(Number(y.toPrecision(2)))} years`; }
+function renderImpact(){
+  const r = impactCalc();
+  Lab.$('#dOut').textContent = lenTxt(imp.D); Lab.$('#vOut').textContent = zh() ? `${imp.v} 千米/秒（${num(Math.round(imp.v * 22.37) * 100)} 英里/时）` : `${imp.v} km/s (${num(Math.round(imp.v * 22.37) * 100)} mph)`;
+  Lab.$('#aOut').textContent = `${imp.ang}°`;
+  const hiro = r.E / 6.3e13, energy = r.Mt >= 1 ? (zh() ? `${words(Number(r.Mt.toPrecision(3)))} 百万吨 TNT` : `${words(Number(r.Mt.toPrecision(3)))} megatons of TNT`) : (zh() ? `${sig(r.Mt * 1000, 3)} 千吨 TNT` : `${sig(r.Mt * 1000, 3)} kilotons of TNT`);
+  const cells = [[o('Mass','质量'), zh() ? `${words(Number(r.m.toPrecision(3)))} 千克` : `${words(Number(r.m.toPrecision(3)))} kg`], [o('Energy','能量'), energy],
+    [o('× Hiroshima bomb','相当于几颗广岛原子弹'), words(Number(hiro.toPrecision(2)))], [o('Crater diameter','撞击坑直径'), r.air ? '—' : lenTxt(r.Dfr)],
+    [o('Crater depth','撞击坑深度'), r.air ? '—' : lenTxt(r.depth)], [o('How often (rough)','多久发生一次（粗估）'), everyTxt(r.every)]];
+  Lab.$('#iRead').innerHTML = cells.map(([l, x]) => `<div><small>${Lab.L(l)}</small><b>${x}</b></div>`).join('');
+  const msg = Lab.$('#iMsg');
+  msg.textContent = Lab.L(r.air === 'air' ? o('Airburst! An object this size and material usually breaks apart and explodes in the sky (like Chelyabinsk or Tunguska): no big crater, but the blast wave can shatter windows or flatten forests.','空中爆炸！这种大小和材料的天体通常在空中碎裂爆炸（像车里雅宾斯克或通古斯）：不会留下大坑，但冲击波能震碎窗户或推倒森林。')
+    : r.air === 'slow' ? o('The air slows a small iron meteoroid down: it lands as iron meteorites in small pits, not a big crater.','大气会让小铁陨石体减速：它会作为铁陨石落下，只砸出小坑，而不是大撞击坑。')
+    : r.Dfr > 50000 ? o('A global catastrophe: dust and soot would darken the sky for years. This is the scale of the Chicxulub impact 66 million years ago.','全球性灾难：尘埃和烟灰会让天空暗上好几年。这就是 6600 万年前希克苏鲁伯撞击的规模。')
+    : r.Dfr > 3200 ? o('A complex crater: so big that its floor rebounds into a central peak and the walls slump into terraces.','复杂撞击坑：大到坑底会反弹形成中央峰，坑壁会塌成一级级台阶。')
+    : o('A simple bowl-shaped crater, like Meteor Crater in Arizona.','一个简单的碗状撞击坑，就像亚利桑那州的陨石坑。'));
+  if (imp.real) msg.textContent += ' ' + Lab.L(imp.real);
+  msg.className = 'result ' + (r.air ? '' : r.Dfr > 50000 ? 'bad' : 'good');
+  drawCrater(r);
+}
+const REFS = [[110, o('US football field (110 m)','美式橄榄球场（110 米）')], [1280, o('Golden Gate Bridge span (1.3 km)','金门大桥主跨（1.3 千米）')], [42195, o('a marathon (42 km)','一个马拉松（42 千米）')], [370000, o('width of the state of Georgia (≈ 370 km)','佐治亚州的宽度（约 370 千米）')]];
+function drawCrater(r){
+  const cv = Lab.$('#craterCv'); if (!cv.parentNode.clientWidth) return; const { g, w, h } = fitCv(cv);
+  g.fillStyle = '#0c1424'; g.fillRect(0, 0, w, h);
+  const span = r.air ? Math.max(imp.D * 40, 300) : r.Dfr * 2.2, sc = (w - 40) / span, gy = h * .42, cx = w / 2;
+  // ground layers
+  const layers = ['#8a6a4a', '#7a5b3f', '#6a4d35', '#5a412d'];
+  layers.forEach((c, i) => { g.fillStyle = c; g.fillRect(0, gy + i * (h - gy) / 4, w, (h - gy) / 4 + 1); });
+  const ex = 2, dep = Math.min(r.air ? 0 : r.depth * sc * ex, h - gy - 10), rad = r.air ? 0 : r.Dfr / 2 * sc;
+  if (!r.air){ g.fillStyle = '#0c1424'; g.beginPath(); g.moveTo(cx - rad, gy); g.quadraticCurveTo(cx, gy + dep * 2, cx + rad, gy); g.closePath(); g.fill();
+    g.fillStyle = '#9a7a58'; g.beginPath(); g.moveTo(cx - rad * 1.25, gy); g.quadraticCurveTo(cx - rad * 1.08, gy - Math.max(2, dep * .18), cx - rad, gy); g.fill();
+    g.beginPath(); g.moveTo(cx + rad * 1.25, gy); g.quadraticCurveTo(cx + rad * 1.08, gy - Math.max(2, dep * .18), cx + rad, gy); g.fill();
+    if (r.Dfr > 3200){ g.fillStyle = '#7a5b3f'; g.beginPath(); g.moveTo(cx - rad * .12, gy + dep * .95); g.lineTo(cx, gy + dep * .55); g.lineTo(cx + rad * .12, gy + dep * .95); g.fill(); } }
+  else { // airburst flash in the sky
+    const fy = gy - 70, fg = g.createRadialGradient(cx, fy, 0, cx, fy, 60); fg.addColorStop(0, 'rgba(255,240,200,1)'); fg.addColorStop(.3, 'rgba(255,170,60,.7)'); fg.addColorStop(1, 'rgba(255,120,0,0)');
+    g.fillStyle = fg; g.beginPath(); g.arc(cx, fy, 60, 0, 7); g.fill(); }
+  // impactor to scale (min 2 px), coming in at the chosen angle
+  const ir = Math.max(2, imp.D / 2 * sc), a = imp.ang * Math.PI / 180, ix = cx - Math.cos(a) * 70 * (r.air ? 0 : 1) - (r.air ? 60 : 0), iy = (r.air ? gy - 120 : gy - Math.sin(a) * 70) - ir;
+  g.strokeStyle = 'rgba(255,200,120,.6)'; g.lineWidth = 2; g.beginPath(); g.moveTo(ix - Math.cos(a) * 60, iy - Math.sin(a) * 60); g.lineTo(ix, iy); g.stroke();
+  g.fillStyle = imp.mat === 'ice' ? '#cfefff' : imp.mat === 'iron' ? '#b8b8c0' : '#a08060'; g.beginPath(); g.arc(ix, iy, ir, 0, 7); g.fill();
+  g.font = FONT(11, 700); g.fillStyle = '#c6d2ea'; g.textAlign = 'left'; g.fillText(Lab.L(o('impactor (to scale)','撞击体（按比例）')), ix + ir + 6, iy - 4);
+  // reference bar
+  const ref = [...REFS].reverse().find(([m]) => m * sc < w * .8 && m * sc > 20) || REFS[0], bw = ref[0] * sc;
+  g.fillStyle = '#ffd27a'; g.fillRect(20, h - 24, bw, 5); g.font = FONT(11.5); g.fillText(Lab.L(ref[1]), 20, h - 30);
+  g.fillStyle = '#eaf0fb'; g.font = FONT(13); g.fillText(r.air ? Lab.L(o('Explodes in the air','在空中爆炸')) : (zh() ? `撞击坑约 ${lenTxt(r.Dfr)} 宽` : `Crater about ${lenTxt(r.Dfr)} wide`), 12, 20);
+  g.font = FONT(11, 700); g.fillStyle = '#a6b3cf'; if (!r.air) g.fillText(Lab.L(o('cross-section · depth stretched ×2','剖面图 · 深度放大 2 倍')), 12, 37);
+}
+function setImp(p){ Object.assign(imp, p); Lab.$('#dIn').value = sliderFromD(imp.D); Lab.$('#vIn').value = imp.v; Lab.$('#aIn').value = imp.ang;
+  Lab.$$('#matSeg button').forEach(b => b.classList.toggle('on', b.dataset.m === imp.mat)); renderImpact(); }
+Lab.$("#dIn").oninput = e => { imp.real = null; const D = dFromSlider(+e.target.value); imp.D = D < 10 ? Math.round(D * 10) / 10 : Number(D.toPrecision(2)); renderImpact(); };
+Lab.$("#vIn").oninput = e => { imp.real = null; imp.v = +e.target.value; renderImpact(); };
+Lab.$("#aIn").oninput = e => { imp.real = null; imp.ang = +e.target.value; renderImpact(); };
+Lab.$$('#matSeg button').forEach(b => b.onclick = () => setImp({ mat:b.dataset.m, real:null }));
+function renderPresets(){ Lab.$('#presets').innerHTML = IPRE.map(([n], i) => `<button class="tbtn" data-i="${i}">${Lab.L(n)}</button>`).join('');
+  Lab.$$('#presets button').forEach(b => b.onclick = () => setImp({ real:null, ...IPRE[+b.dataset.i][1] })); }
+Lab.ready(() => setImp({ ...IPRE[0][1] }));
+
+/* near-Earth asteroid size–number chart (log scale, approximate) */
+const NEA = [[o('larger than 1 km','大于 1 千米'), 1000, 950], [o('larger than 140 m','大于 140 米'), 25000, 11000], [o('larger than 50 m','大于 50 米'), 300000, null], [o('larger than 10 m','大于 10 米'), 3e7, null]];
+function drawSizes(){
+  const cv = Lab.$('#sizeCv'); if (!cv.parentNode.clientWidth) return; const { g, w, h } = fitCv(cv), ink = css('--ink'), ink2 = css('--ink-2'), line = css('--line'), brand = css('--brand'), surf = css('--surface');
+  g.clearRect(0, 0, w, h); const L = 118, R = 16, T = 10, B = 34, rowH = (h - T - B) / NEA.length, X = n => L + (Math.log10(n) - 2) / 6 * (w - L - R);
+  g.font = FONT(11, 700); g.strokeStyle = line; g.fillStyle = ink2; g.textAlign = 'center'; g.lineWidth = 1;
+  [100, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8].forEach(n => { const x = X(n); g.beginPath(); g.moveTo(x, T); g.lineTo(x, h - B); g.stroke(); g.fillText(zh() ? words(n) : n >= 1e6 ? `${n / 1e6}M` : num(n), x, h - B + 14); });
+  g.fillText(Lab.L(o('number of near-Earth asteroids (log scale)','近地小行星数量（对数刻度）')), L + (w - L - R) / 2, h - 4);
+  NEA.forEach(([lab, n, found], i) => { const y = T + i * rowH + rowH / 2, bh = Math.min(16, rowH * .5);
+    g.fillStyle = ink; g.textAlign = 'right'; g.font = FONT(12); g.fillText(Lab.L(lab), L - 8, y + 4);
+    g.fillStyle = brand; g.globalAlpha = .35; g.beginPath(); g.roundRect ? g.roundRect(X(100), y - bh / 2, X(n) - X(100), bh, [0, 4, 4, 0]) : g.rect(X(100), y - bh / 2, X(n) - X(100), bh); g.fill(); g.globalAlpha = 1;
+    if (found){ g.fillStyle = brand; g.fillRect(X(100), y - bh / 2, X(found) - X(100) - 2, bh); }
+    const txt = (zh() ? `约 ${words(n)}` : `≈ ${words(n)}`) + (found ? (zh() ? `（已发现约 ${words(found)}）` : ` (≈ ${words(found)} found)`) : '');
+    g.font = FONT(11, 700); const tw = g.measureText(txt).width;
+    if (X(n) + 6 + tw < w){ g.fillStyle = ink2; g.textAlign = 'left'; g.fillText(txt, X(n) + 6, y + 4); } else { g.fillStyle = ink; g.textAlign = 'right'; g.fillText(txt, X(n) - 6, y + bh / 2 + 13); }
+  });
+}
+
+/* ===================== (d) Meteor shower calendar ===================== */
+const SH = [ // s/p/e: start, peak, end as day of year (Jan 1 = 0); zhr: peak rate per hour under ideal skies; v: km/s
+  { n:o('Quadrantids','象限仪座流星雨'), s:-4, p:2, e:11, zhr:110, par:o('asteroid 2003 EH1 (maybe a dead comet)','小行星 2003 EH1（可能是一颗“死”彗星）'), rad:o('Boötes','牧夫座'), v:41, col:'#ffd27a' },
+  { n:o('Lyrids','天琴座流星雨'), s:103, p:111, e:119, zhr:18, par:o('comet C/1861 G1 Thatcher','C/1861 G1 撒切尔彗星'), rad:o('Lyra','天琴座'), v:49, col:'#9ad08f' },
+  { n:o('Eta Aquariids','宝瓶座 η 流星雨'), s:108, p:125, e:147, zhr:50, par:o('Halley’s Comet (1P)','哈雷彗星（1P）'), rad:o('Aquarius','宝瓶座'), v:66, col:'#7fc8ff' },
+  { n:o('Alpha Capricornids','摩羯座 α 流星雨'), s:183, p:210, e:226, zhr:5, par:o('comet 169P/NEAT','169P/NEAT 彗星'), rad:o('Capricornus','摩羯座'), v:23, col:'#ff9a7d' },
+  { n:o('Southern Delta Aquariids','南宝瓶座 δ 流星雨'), s:192, p:210, e:234, zhr:25, par:o('probably comet 96P/Machholz','可能是 96P/马克霍尔兹彗星'), rad:o('Aquarius','宝瓶座'), v:41, col:'#b6a4ff' },
+  { n:o('Perseids','英仙座流星雨'), s:197, p:223, e:235, zhr:100, par:o('comet 109P/Swift–Tuttle','109P/斯威夫特–塔特尔彗星'), rad:o('Perseus','英仙座'), v:59, col:'#ffb43a' },
+  { n:o('Southern Taurids','南金牛座流星雨'), s:252, p:282, e:323, zhr:5, par:o('comet 2P/Encke','2P/恩克彗星'), rad:o('Taurus','金牛座'), v:27, col:'#d9c2a3' },
+  { n:o('Draconids','天龙座流星雨'), s:278, p:280, e:282, zhr:10, par:o('comet 21P/Giacobini–Zinner','21P/贾科比尼–津纳彗星'), rad:o('Draco','天龙座'), v:20, col:'#9fdbe0' },
+  { n:o('Orionids','猎户座流星雨'), s:274, p:293, e:310, zhr:20, par:o('Halley’s Comet (1P)','哈雷彗星（1P）'), rad:o('Orion','猎户座'), v:66, col:'#7fc8ff' },
+  { n:o('Northern Taurids','北金牛座流星雨'), s:292, p:315, e:343, zhr:5, par:o('comet 2P/Encke','2P/恩克彗星'), rad:o('Taurus','金牛座'), v:29, col:'#d9c2a3' },
+  { n:o('Leonids','狮子座流星雨'), s:309, p:320, e:333, zhr:15, par:o('comet 55P/Tempel–Tuttle','55P/坦普尔–塔特尔彗星'), rad:o('Leo','狮子座'), v:71, col:'#ff8a65' },
+  { n:o('Geminids','双子座流星雨'), s:337, p:347, e:353, zhr:150, par:o('asteroid 3200 Phaethon (a “rock comet”)','小行星 3200 法厄同（一颗“岩石彗星”）'), rad:o('Gemini','双子座'), v:35, col:'#c7a8ff' },
+  { n:o('Ursids','小熊座流星雨'), s:350, p:355, e:359, zhr:10, par:o('comet 8P/Tuttle','8P/塔特尔彗星'), rad:o('Ursa Minor','小熊座'), v:33, col:'#a7d3ff' }
+];
+SH.forEach((s, i) => s.lane = [0, 1, 0, 1, 2, 0, 3, 2, 1, 0, 2, 1, 3][i]);
+const MST = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334], MEN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const dayTxt = d => { d = ((Math.round(d) % 365) + 365) % 365; let m = 11; while (MST[m] > d) m--; return zh() ? `${m + 1} 月 ${d - MST[m] + 1} 日` : `${MEN[m]} ${d - MST[m] + 1}`; };
+const cdiff = (a, b) => { let d = a - b; while (d > 182.5) d -= 365; while (d < -182.5) d += 365; return d; };
+const activeAt = (s, d) => cdiff(d, s.s) >= 0 && cdiff(s.e, d) >= 0;
+const rateAt = (s, d) => activeAt(s, d) ? s.zhr * Math.exp(-Math.pow(cdiff(d, s.p) / Math.max(1.5, (cdiff(s.e, s.s)) / 6), 2)) : 0;
+let mDay = 223, mPlay = false, mLast = 0;
+function drawWheel(){
+  const cv = Lab.$('#wheelCv'); const { g, w, h } = fitCv(cv), cx = w / 2, cy = h / 2 + 4, R = Math.min(w, h) / 2 - 62;
+  g.fillStyle = '#060912'; g.fillRect(0, 0, w, h);
+  const ang = d => -Math.PI / 2 + d / 365 * Math.PI * 2;
+  g.strokeStyle = 'rgba(127,176,255,.45)'; g.lineWidth = 1.5; g.beginPath(); g.arc(cx, cy, R, 0, 7); g.stroke();
+  g.font = FONT(11, 700); g.textAlign = 'center'; g.fillStyle = '#8fa0c4';
+  MST.forEach((d, m) => { const a = ang(d), a2 = ang(d + 15); g.strokeStyle = 'rgba(127,176,255,.35)'; g.beginPath(); g.moveTo(cx + Math.cos(a) * (R - 6), cy + Math.sin(a) * (R - 6)); g.lineTo(cx + Math.cos(a) * (R + 6), cy + Math.sin(a) * (R + 6)); g.stroke();
+    g.fillText(zh() ? `${m + 1}月` : MEN[m], cx + Math.cos(a2) * (R - 20), cy + Math.sin(a2) * (R - 20) + 4); });
+  SH.forEach(s => { const on = activeAt(s, mDay), rr = R + 12 + s.lane * 11; g.strokeStyle = s.col; g.globalAlpha = on ? 1 : .35; g.lineWidth = 2 + Math.sqrt(s.zhr) * .5; g.lineCap = 'round';
+    g.beginPath(); g.arc(cx, cy, rr, ang(s.s), ang(s.e)); g.stroke(); g.globalAlpha = 1;
+    if (on){ const a = ang(s.p); g.fillStyle = '#eaf0fb'; g.font = FONT(11); g.textAlign = Math.cos(a) > .2 ? 'left' : Math.cos(a) < -.2 ? 'right' : 'center';
+      g.fillText(Lab.L(s.n), cx + Math.cos(a) * (rr + 10), cy + Math.sin(a) * (rr + 10) + 4); } });
+  const sg = g.createRadialGradient(cx, cy, 0, cx, cy, 16); sg.addColorStop(0, '#fff6d0'); sg.addColorStop(.45, '#ffb43a'); sg.addColorStop(1, 'rgba(255,140,0,0)'); g.fillStyle = sg; g.beginPath(); g.arc(cx, cy, 16, 0, 7); g.fill();
+  const ea = ang(mDay), ex = cx + Math.cos(ea) * R, ey = cy + Math.sin(ea) * R;
+  g.fillStyle = '#3f8fe0'; g.beginPath(); g.arc(ex, ey, 7, 0, 7); g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.stroke();
+  g.fillStyle = '#eaf0fb'; g.font = FONT(14); g.textAlign = 'left'; g.fillText(zh() ? `地球 · ${dayTxt(mDay)}` : `Earth · ${dayTxt(mDay)}`, 12, 22);
+}
+const meteors = []; let skyAcc = 0;
+function drawSky(dt){
+  const cv = Lab.$('#skyCv'); const { g, w, h } = fitCv(cv);
+  const sky = g.createLinearGradient(0, 0, 0, h); sky.addColorStop(0, '#03050c'); sky.addColorStop(1, '#0e1a33'); g.fillStyle = sky; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 90; i++){ g.fillStyle = `rgba(255,255,255,${.25 + (i * 37 % 10) / 16})`; g.fillRect((i * 97.3) % w, (i * 53.7) % (h * .8), 1.3, 1.3); }
+  const act = SH.filter(s => activeAt(s, mDay)).map(s => ({ s, r:rateAt(s, mDay) })).sort((a, b) => b.r - a.r);
+  const main = act[0], rx = w * .55, ry = h * .32, total = act.reduce((t, a) => t + a.r, 0) + 6;
+  skyAcc += dt * Math.min(9, total / 14);
+  while (skyAcc > 1){ skyAcc--; const fromRad = main && Math.random() < (total - 6) / total, th = Math.random() * Math.PI * 2, d0 = 20 + Math.random() * 90;
+    meteors.push(fromRad ? { x:rx + Math.cos(th) * d0, y:ry + Math.sin(th) * d0, vx:Math.cos(th), vy:Math.sin(th), t:0, col:main.s.col } : { x:Math.random() * w, y:Math.random() * h * .6, vx:Math.cos(th), vy:Math.sin(th), t:0, col:'#ffffff' }); }
+  for (let i = meteors.length - 1; i >= 0; i--){ const m = meteors[i]; m.t += dt; const sp = 260, L = 46, x = m.x + m.vx * sp * m.t, y = m.y + m.vy * sp * m.t, al = Math.max(0, 1 - m.t / .7);
+    if (al <= 0){ meteors.splice(i, 1); continue; }
+    const gr = g.createLinearGradient(x, y, x - m.vx * L, y - m.vy * L); gr.addColorStop(0, `rgba(255,255,255,${al})`); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.strokeStyle = gr; g.lineWidth = 1.8; g.beginPath(); g.moveTo(x, y); g.lineTo(x - m.vx * L, y - m.vy * L); g.stroke(); }
+  g.fillStyle = '#02040a'; g.beginPath(); g.moveTo(0, h); g.lineTo(0, h * .86); for (let x = 0; x <= w; x += 20) g.lineTo(x, h * .86 - 10 * Math.sin(x * .02) - 6 * Math.sin(x * .07)); g.lineTo(w, h); g.fill();
+  if (main && main.r > .5){ g.strokeStyle = 'rgba(255,210,122,.6)'; g.setLineDash([3, 3]); g.beginPath(); g.arc(rx, ry, 10, 0, 7); g.stroke(); g.setLineDash([]);
+    g.fillStyle = '#ffd27a'; g.font = FONT(11.5); g.textAlign = 'left'; g.fillText(zh() ? `辐射点：${Lab.L(main.s.rad)}` : `radiant in ${Lab.L(main.s.rad)}`, rx + 14, ry + 4); }
+  g.fillStyle = '#eaf0fb'; g.font = FONT(13); g.textAlign = 'left';
+  g.fillText(zh() ? `理想夜空下约每小时 ${Math.round(total)} 颗流星` : `≈ ${Math.round(total)} meteors per hour under a perfect dark sky`, 12, 22);
+  g.font = FONT(11, 700); g.fillStyle = '#a6b3cf'; g.fillText(Lab.L(o('includes about 6 per hour of random “sporadic” meteors','包括每小时约 6 颗随机出现的“偶发流星”')), 12, 39);
+}
+function renderShowers(){
+  Lab.$('#mOut').textContent = dayTxt(mDay); Lab.$('#mDay').value = Math.round(mDay);
+  const act = SH.filter(s => activeAt(s, mDay));
+  Lab.$('#shList').innerHTML = act.length ? act.map(s => { const peak = Math.abs(cdiff(mDay, s.p)) <= 2;
+    return `<div class="shw ${peak ? 'peak' : ''}" style="border-left-color:${s.col}"><b>${Lab.L(s.n)}</b>${peak ? (zh() ? ' · 🌟 接近极大！' : ' · 🌟 near peak!') : ''}<br>
+      ${zh() ? `活跃期 ${dayTxt(s.s)}–${dayTxt(s.e)} · 极大 ${dayTxt(s.p)} · 最多每小时约 ${s.zhr} 颗 · 速度 ${s.v} 千米/秒` : `active ${dayTxt(s.s)} – ${dayTxt(s.e)} · peak ${dayTxt(s.p)} · up to ≈ ${s.zhr} per hour · ${s.v} km/s`}<br>
+      <span class="muted">${zh() ? `来源：${Lab.L(s.par)} · 辐射点在${Lab.L(s.rad)}` : `Made by: ${Lab.L(s.par)} · radiant in ${Lab.L(s.rad)}`}</span></div>`; }).join('')
+    : `<div class="shw" style="border-left-color:var(--line)">${Lab.L(o('No major shower tonight: only random “sporadic” meteors. Try mid-August (Perseids) or mid-December (Geminids).','今晚没有主要流星雨，只有随机的“偶发流星”。试试 8 月中旬（英仙座）或 12 月中旬（双子座）。'))}</div>`;
+}
+Lab.$('#mDay').oninput = e => { mDay = +e.target.value; mPlay = false; Lab.$('#mPlay').textContent = '▶'; renderShowers(); };
+Lab.$('#mPlay').onclick = () => { mPlay = !mPlay; mLast = performance.now(); Lab.$('#mPlay').textContent = mPlay ? '⏸' : '▶'; };
+
+/* ===== shared 2D loop ===== */
+let last2d = performance.now(), lastShowerUI = 0;
+function loop2d(now){
+  requestAnimationFrame(loop2d); const dt = Math.min(.05, (now - last2d) / 1000); last2d = now;
+  if (cPlay) stepComet(dt);
+  if (mPlay){ mDay = (mDay + dt * 6) % 365; if (now - lastShowerUI > 250){ lastShowerUI = now; renderShowers(); } }
+  if (onScreen(Lab.$('#cometBox'))) drawComet();
+  if (onScreen(Lab.$('#wheelBox'))) drawWheel();
+  if (onScreen(Lab.$('#skyBox'))) drawSky(dt);
+}
+requestAnimationFrame(loop2d);
+new ResizeObserver(() => { drawCrater(impactCalc()); drawSizes(); }).observe(Lab.$('#craterBox'));
+addEventListener('labtheme', drawSizes);
+Lab.onLang(() => { renderCometPick(); renderCTab(); renderPresets(); renderImpact(); drawSizes(); renderShowers(); });
+</script>
+<script>
+/* ===================== Game: planetary defense ===================== */
+const LEVELS = [
+  { D:50, warn:10, prep:2, n:o('1 · Rehearsal','1 · 演练') },
+  { D:100, warn:12, prep:2, n:o('2 · Bigger rock','2 · 更大的石头') },
+  { D:150, warn:25, prep:3, n:o('3 · Dimorphos-sized','3 · 迪莫弗斯那么大') },
+  { D:50, warn:1, prep:.5, n:o('4 · Short notice','4 · 来不及了') }
+];
+const DEF = { lvl:0, lt:60, dir:'slow', n:1, best:[0, 0, 0, 0], anim:null, res:null };
+const yrs = () => { const L = LEVELS[DEF.lvl], mx = L.warn - L.prep; return Math.max(.1, Math.round((.1 + (mx - .1) * DEF.lt / 100) * 10) / 10); };
+function defCalc(){
+  const L = LEVELS[DEF.lvl], M = 2000 * Math.PI / 6 * L.D ** 3, dv = DEF.n * 3 * 600 * 6000 / M, t = yrs() * 3.156e7;
+  const d = DEF.dir === 'slow' || DEF.dir === 'fast' ? 3 * dv * t : DEF.dir === 'side' ? dv * Math.min(t, 5e6) : dv * Math.min(t, 1e7);
+  return { M, dv, miss:d / 1000, ok:d / 1000 >= 10000 };
+}
+function renderLevels(){
+  Lab.$('#levels').innerHTML = LEVELS.map((L, i) => `<button class="${i === DEF.lvl ? 'on' : ''} ${DEF.best[i] ? 'won' : ''}" data-i="${i}">${Lab.L(o('Level ','第 '))}${Lab.L(L.n)}${DEF.best[i] ? ' ✓' : ''}</button>`).join('');
+  Lab.$$('#levels button').forEach(b => b.onclick = () => { DEF.lvl = +b.dataset.i; DEF.res = null; DEF.anim = null; DEF.n = 1; renderDef(); });
+  const total = DEF.best.reduce((a, b) => a + b, 0);
+  Lab.$('#defScore').textContent = zh() ? `得分 ${total} / 400` : `Score ${total} / 400`;
+}
+function renderDef(){
+  renderLevels();
+  const L = LEVELS[DEF.lvl], M = 2000 * Math.PI / 6 * L.D ** 3;
+  Lab.$('#lvlText').innerHTML = zh() ? `小行星直径 <b>${L.D} 米</b>（质量约 ${words(Number(M.toPrecision(2)))} 千克）。预警时间 <b>${L.warn} 年</b>，造好并发射撞击器需要 ${L.prep} 年，所以最早只能在撞击前 <b>${L.warn - L.prep} 年</b>撞它。`
+    : `Asteroid <b>${L.D} m</b> wide (mass about ${words(Number(M.toPrecision(2)))} kg). Warning time <b>${L.warn} years</b>; building and flying the impactor takes ${L.prep} years, so the earliest you can hit it is <b>${L.warn - L.prep} years</b> before impact.`;
+  Lab.$('#ltOut').textContent = zh() ? `${yrs()} 年` : `${yrs()} years`;
+  Lab.$('#nOut').textContent = DEF.n;
+  Lab.$$('#dirSeg button').forEach(b => b.classList.toggle('on', b.dataset.d === DEF.dir));
+  const m = Lab.$('#defMsg');
+  if (DEF.res && !DEF.anim){ const r = DEF.res;
+    m.innerHTML = r.ok ? (zh() ? `✅ 成功！速度只改变了 ${sig(r.dv * 1000, 2)} 毫米/秒，但到撞击那天它已经偏移了 <b>${num(Math.round(r.miss))} 千米</b>，从地球旁边掠过。本关得分 ${r.pts}。` : `✅ Saved! You changed its speed by only ${sig(r.dv * 1000, 2)} mm/s, but by impact day it had drifted <b>${num(Math.round(r.miss))} km</b> and sailed past Earth. Level score ${r.pts}.`)
+      : (zh() ? `❌ 偏移了 ${num(Math.round(r.miss))} 千米，还不够（至少要 10,000 千米）。` : `❌ It shifted ${num(Math.round(r.miss))} km: not enough (you need at least 10,000 km).`) + ' ' + Lab.L(r.miss < 10000 && (DEF.dir === 'side' || DEF.dir === 'sun') ? o('Tip: pushes along its direction of motion change its orbital period, so the shift keeps growing every orbit.','提示：沿着运动方向推会改变它的公转周期，偏移量每绕一圈都会继续增大。')
+      : r.miss < 10000 && yrs() < LEVELS[DEF.lvl].warn - LEVELS[DEF.lvl].prep - .2 ? o('Tip: hit it earlier. The shift grows with time.','提示：早点撞它，偏移量会随时间增大。') : o('Tip: send more impactors.','提示：多发射几个撞击器。'));
+    m.className = 'result ' + (r.ok ? 'good' : 'bad'); }
+  else if (!DEF.anim){ m.textContent = Lab.L(o('Set your plan, then press Launch.','制定好计划，然后按“发射”。')); m.className = 'result'; }
+}
+Lab.$('#ltIn').oninput = e => { DEF.lt = +e.target.value; DEF.res = null; renderDef(); };
+Lab.$$('#dirSeg button').forEach(b => b.onclick = () => { DEF.dir = b.dataset.d; DEF.res = null; renderDef(); });
+Lab.$('#nMinus').onclick = () => { DEF.n = Math.max(1, DEF.n - 1); DEF.res = null; renderDef(); };
+Lab.$('#nPlus').onclick = () => { DEF.n = Math.min(5, DEF.n + 1); DEF.res = null; renderDef(); };
+Lab.$('#launch').onclick = () => { const r = defCalc(); r.pts = r.ok ? Math.max(60, 100 - 10 * (DEF.n - 1)) : 0; DEF.res = r; DEF.anim = { t0:performance.now() };
+  Lab.$('#defMsg').textContent = Lab.L(o('🚀 Impactor on its way…','🚀 撞击器正在飞行……')); Lab.$('#defMsg').className = 'result'; };
+function drawDef(now){
+  const cv = Lab.$('#defCv'); const { g, w, h } = fitCv(cv), L = LEVELS[DEF.lvl];
+  g.fillStyle = '#060912'; g.fillRect(0, 0, w, h);
+  let u = 0; if (DEF.anim){ u = Math.min(1, (now - DEF.anim.t0) / 4500); if (u >= 1){ DEF.anim = null; if (DEF.res.ok) DEF.best[DEF.lvl] = Math.max(DEF.best[DEF.lvl], DEF.res.pts); renderDef(); } }
+  else if (DEF.res) u = 1;
+  const lw = w * .56, cx = lw / 2, cy = h / 2 + 8, R1 = Math.min(lw, h) * .32;
+  // orbit view (schematic)
+  g.strokeStyle = 'rgba(63,143,224,.6)'; g.lineWidth = 1.5; g.beginPath(); g.arc(cx, cy, R1, 0, 7); g.stroke();
+  const C = { x:cx + .55 * R1, y:cy }, rx = 1.3 * R1, ry = 1.104 * R1, phP = Math.atan2(-.906, -.423);
+  g.strokeStyle = 'rgba(255,138,101,.55)'; g.setLineDash([4, 4]); g.beginPath(); g.ellipse(C.x, C.y, rx, ry, 0, 0, 7); g.stroke(); g.setLineDash([]);
+  const sg = g.createRadialGradient(cx, cy, 0, cx, cy, 12); sg.addColorStop(0, '#fff6d0'); sg.addColorStop(.45, '#ffb43a'); sg.addColorStop(1, 'rgba(255,140,0,0)'); g.fillStyle = sg; g.beginPath(); g.arc(cx, cy, 12, 0, 7); g.fill();
+  const thE = -Math.PI / 2 - (1 - u) * 1.3, E = { x:cx + R1 * Math.cos(thE), y:cy + R1 * Math.sin(thE) };
+  const phA = phP + (1 - u) * 1.5, A0 = { x:C.x + rx * Math.cos(phA), y:C.y + ry * Math.sin(phA) };
+  const uHit = Math.max(.05, 1 - yrs() / L.warn), res = DEF.res, launched = DEF.anim || res;
+  let A = { ...A0 };
+  if (launched && res && u > uHit){ const tx = -Math.sin(phA) * rx, ty = Math.cos(phA) * ry, tl = Math.hypot(tx, ty), k = (u - uHit) / (1 - uHit), mag = Math.min(34, res.miss / 10000 * 14) * k;
+    const sgn = DEF.dir === 'slow' ? 1 : DEF.dir === 'fast' ? -1 : 0; if (sgn){ A.x += sgn * tx / tl * mag; A.y += sgn * ty / tl * mag; } else { A.x += (C.x - A.x) / rx * mag * .8; A.y += (C.y - A.y) / ry * mag * .8; } }
+  g.fillStyle = '#3f8fe0'; g.beginPath(); g.arc(E.x, E.y, 6, 0, 7); g.fill();
+  g.fillStyle = '#ff8a65'; g.beginPath(); g.arc(A.x, A.y, 4.5, 0, 7); g.fill();
+  g.fillStyle = 'rgba(255,255,255,.75)'; g.beginPath(); g.arc(cx, cy - R1, 3, 0, 7); g.fill();
+  if (launched){ const uL = Math.max(0, uHit - .14);
+    if (u > uL && u < uHit){ const f = (u - uL) / (uHit - uL), thL = -Math.PI / 2 - (1 - uL) * 1.3, Ex = cx + R1 * Math.cos(thL), Ey = cy + R1 * Math.sin(thL);
+      g.fillStyle = '#ffd27a'; g.beginPath(); g.arc(Ex + (A0.x - Ex) * f, Ey + (A0.y - Ey) * f, 3, 0, 7); g.fill(); }
+    if (Math.abs(u - uHit) < .03){ const fg = g.createRadialGradient(A.x, A.y, 0, A.x, A.y, 22); fg.addColorStop(0, 'rgba(255,240,200,1)'); fg.addColorStop(1, 'rgba(255,160,40,0)'); g.fillStyle = fg; g.beginPath(); g.arc(A.x, A.y, 22, 0, 7); g.fill(); } }
+  g.font = FONT(11, 700); g.fillStyle = '#c6d2ea'; g.textAlign = 'center';
+  g.fillText(Lab.L(o('Earth','地球')), E.x, E.y + 18); g.fillText(Lab.L(o('asteroid','小行星')), A.x, A.y - 10);
+  g.textAlign = 'left'; g.fillStyle = '#eaf0fb'; g.font = FONT(13);
+  g.fillText(zh() ? `距撞击还有 ${(L.warn * (1 - u)).toFixed(1)} 年` : `${(L.warn * (1 - u)).toFixed(1)} years to impact`, 10, 20);
+  g.font = FONT(10.5, 700); g.fillStyle = '#8fa0c4'; g.fillText(Lab.L(o('orbits (schematic, seen from above)','轨道（示意图，俯视）')), 10, h - 10);
+  // target view at Earth (to scale)
+  const rx0 = lw + (w - lw) / 2, ry0 = h / 2 + 8, VR = Math.min(w - lw, h) * .42, kmPx = VR / 26000;
+  g.strokeStyle = 'rgba(160,180,220,.25)'; g.lineWidth = 1; g.beginPath(); g.moveTo(lw, 0); g.lineTo(lw, h); g.stroke();
+  g.fillStyle = '#2a64c4'; g.beginPath(); g.arc(rx0, ry0, 6371 * kmPx, 0, 7); g.fill();
+  g.strokeStyle = 'rgba(255,107,127,.8)'; g.setLineDash([4, 4]); g.beginPath(); g.arc(rx0, ry0, 10000 * kmPx, 0, 7); g.stroke(); g.setLineDash([]);
+  const shown = res && u >= 1 ? res.miss : res && u > uHit ? res.miss * (u - uHit) / (1 - uHit) : 0;
+  const ddx = DEF.dir === 'side' ? 0 : DEF.dir === 'sun' ? .7 : DEF.dir === 'fast' ? -1 : 1, ddy = DEF.dir === 'side' ? -1 : DEF.dir === 'sun' ? -.7 : 0;
+  const far = shown * kmPx > VR * 1.05, dd = Math.min(shown * kmPx, VR * 1.05), axp = rx0 + ddx * dd, ayp = ry0 + ddy * dd;
+  g.fillStyle = '#ff8a65'; g.beginPath(); g.arc(axp, ayp, 4.5, 0, 7); g.fill();
+  if (far){ g.fillStyle = '#ffd27a'; g.textAlign = 'center'; g.font = FONT(11); g.fillText(`→ ${num(Math.round(shown))} ${zh() ? "千米" : "km"}`, axp, ayp - 10); }
+  g.textAlign = 'center'; g.fillStyle = '#eaf0fb'; g.font = FONT(12.5); g.fillText(Lab.L(o('Where it crosses Earth’s path','它穿过地球附近的位置')), rx0, 20);
+  g.font = FONT(10.5, 700); g.fillStyle = '#a6b3cf'; g.fillText(Lab.L(o('to scale · red ring = 10,000 km','按比例 · 红圈 = 10,000 千米')), rx0, h - 10);
+  if (!res) { g.fillStyle = '#ff6b7f'; g.font = FONT(12); g.fillText(Lab.L(o('now: a direct hit!','现在：正中地球！')), rx0, ry0 + VR + 4 > h - 24 ? h - 26 : ry0 + VR + 4); }
+}
+(function defLoop(now){ requestAnimationFrame(defLoop); if (onScreen(Lab.$('#defBox'))) drawDef(now); })(performance.now());
+
+/* ===== Quiz (12) ===== */
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('What is the main difference between an asteroid and a comet?','小行星和彗星最主要的区别是什么？'), options:[o('Asteroids are mostly rock and metal; comets are mostly ice and dust','小行星主要是岩石和金属；彗星主要是冰和尘埃'),o('Asteroids are always bigger','小行星总是更大'),o('Comets orbit Earth','彗星绕地球转'),o('Asteroids have tails','小行星有尾巴')], answer:0, explain:o('That is why comets grow tails near the Sun (their ice turns to gas) and asteroids do not.','所以彗星靠近太阳时会长出尾巴（冰变成气体），而小行星不会。')},
+  {q:o('A meteor is…','流星是……'), options:[o('the streak of light when a meteoroid burns up in the air','流星体在大气中燃烧时划出的亮光'),o('a rock that lands on the ground','落到地面的石头'),o('a small rock still out in space','仍在太空中的小石块'),o('a falling star','一颗掉下来的恒星')], answer:0, explain:o('Meteoroid (in space) → meteor (light in the sky) → meteorite (on the ground).','流星体（在太空中）→ 流星（天空中的亮光）→ 陨石（落在地面上）。')},
+  {q:o('Which way does a comet’s ion tail point?','彗星的离子彗尾指向哪里？'), options:[o('Directly away from the Sun','正对着背离太阳的方向'),o('Always behind the comet','总在彗星后面'),o('Toward the Sun','朝向太阳'),o('Toward Earth','朝向地球')], answer:0, explain:o('The solar wind blows the gas straight outward, so when the comet heads away from the Sun, its tail goes in front.','太阳风把气体直直地向外吹，所以彗星离开太阳时，彗尾反而在前面。')},
+  {q:o('In the comet simulator, where does a comet move fastest?','在彗星模拟器里，彗星在哪里运动得最快？'), options:[o('Closest to the Sun (perihelion)','离太阳最近时（近日点）'),o('Farthest from the Sun','离太阳最远时'),o('Halfway','中间位置'),o('Its speed never changes','速度不变')], answer:0, explain:o('Kepler’s second law: Halley’s Comet spends less than 1% of its 76-year orbit inside 2 AU.','开普勒第二定律：哈雷彗星 76 年的周期里，只有不到 1% 的时间在 2 天文单位以内。')},
+  {q:o('Read the comet table: which comet causes the Perseid meteor shower?','读彗星表：英仙座流星雨来自哪颗彗星？'), options:[o('109P/Swift–Tuttle','109P/斯威夫特–塔特尔'),o('1P/Halley','1P/哈雷'),o('2P/Encke','2P/恩克'),o('Hale–Bopp','海尔–波普')], answer:0, explain:o('Every August Earth passes through dust Swift–Tuttle left along its 133-year orbit.','每年 8 月，地球都会穿过斯威夫特–塔特尔彗星在它 133 年周期的轨道上留下的尘埃。')},
+  {q:o('Why does a meteor shower come back on about the same date every year?','为什么流星雨每年都在差不多同一天回来？'), options:[o('Earth crosses the same comet dust trail at the same point in its orbit','地球每年在轨道的同一位置穿过同一条彗星尘埃带'),o('The comet visits every year','彗星每年都来'),o('The Moon causes it','是月球造成的'),o('Meteors are weather','流星是一种天气现象')], answer:0},
+  {q:o('Where are most asteroids found?','大多数小行星在哪里？'), options:[o('Between Mars and Jupiter','火星和木星之间'),o('Between Earth and Venus','地球和金星之间'),o('In the Oort Cloud','奥尔特云里'),o('Around Saturn','土星周围')], answer:0},
+  {q:o('Where do long-period comets like Hale–Bopp come from?','像海尔–波普这样的长周期彗星来自哪里？'), options:[o('The Oort Cloud','奥尔特云'),o('The asteroid belt','小行星带'),o('The Sun','太阳'),o('Jupiter’s moons','木星的卫星')], answer:0, explain:o('The Oort Cloud is a vast shell of icy bodies thousands of AU away, so far that it has never been seen directly.','奥尔特云是距离几千天文单位的巨大冰质天体球壳，远到从来没有被直接看到过。')},
+  {q:o('In the impact lab, if you double the impactor’s speed, its energy becomes…','在撞击实验室里，如果撞击体速度加倍，它的能量会变成……'), options:[o('4 times as large','原来的 4 倍'),o('2 times as large','原来的 2 倍'),o('the same','不变'),o('half','一半')], answer:0, explain:o('Kinetic energy = ½ m v²: double v → 2² = 4 times the energy.','动能 = ½mv²：速度加倍 → 能量变成 2² = 4 倍。')},
+  {q:o('Read the size chart: about how many near-Earth asteroids are larger than 140 m?','读大小图：大于 140 米的近地小行星大约有多少颗？'), options:[o('About 25,000 (fewer than half found)','约 25,000 颗（发现了不到一半）'),o('About 100','约 100 颗'),o('About 1,000 (all found)','约 1,000 颗（全部被发现）'),o('About 30 million','约 3000 万颗')], answer:0, explain:o('Smaller asteroids are far more common and harder to find. NASA’s NEO Surveyor telescope is being built to find more of them.','小行星越小数量越多，也越难发现。NASA 正在建造“近地天体勘测者”望远镜来找到更多。')},
+  {q:o('What did NASA’s DART mission do in 2022?','NASA 的 DART 任务在 2022 年做了什么？'), options:[o('Crashed into the asteroid moonlet Dimorphos and changed its orbit','撞上小行星卫星迪莫弗斯，改变了它的轨道'),o('Brought back a comet sample','带回了彗星样本'),o('Landed on Pluto','在冥王星着陆'),o('Blew up an asteroid','炸毁了一颗小行星')], answer:0, explain:o('The crash shortened Dimorphos’s 11 h 55 min orbit around Didymos by about 32 minutes.','这次撞击让迪莫弗斯绕迪迪莫斯运行的周期（11 小时 55 分）缩短了约 32 分钟。')},
+  {q:o('In the planetary defense game, why is pushing along the asteroid’s direction of motion best?','在行星防御游戏中，为什么沿小行星运动方向推效果最好？'), options:[o('It changes the orbital period, so the shift keeps growing every orbit','它改变了公转周期，偏移量每绕一圈都会继续增大'),o('It makes the asteroid smaller','它让小行星变小'),o('It is the only direction a spacecraft can fly','航天器只能往这个方向飞'),o('It heats the asteroid','它让小行星变热')], answer:0, explain:o('A tiny change in speed means arriving a little early or late; over years that adds up to thousands of kilometres.','速度的微小变化意味着早到或晚到一点点；经过几年，就累积成几千千米。')}
+], { count:12 });
+
+/* ===== Sort game ===== */
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'a',en:'Asteroid',zh:'小行星'},{id:'c',en:'Comet',zh:'彗星'},{id:'m',en:'Meteoroid / meteor / meteorite',zh:'流星体／流星／陨石'},{id:'d',en:'Dwarf planet',zh:'矮行星'}],
+  items:[
+    {en:'Bennu',zh:'贝努',bin:'a'},{en:'Mostly rock and metal, no tail',zh:'主要是岩石和金属，没有尾巴',bin:'a'},{en:'Most live between Mars and Jupiter',zh:'大多住在火星和木星之间',bin:'a'},
+    {en:'Halley',zh:'哈雷',bin:'c'},{en:'Ice + dust, grows a tail near the Sun',zh:'冰 + 尘埃，靠近太阳时长出尾巴',bin:'c'},{en:'Comes from the Kuiper Belt or Oort Cloud',zh:'来自柯伊伯带或奥尔特云',bin:'c'},
+    {en:'A streak of light in the night sky',zh:'夜空中划过的一道亮光',bin:'m'},{en:'A space rock found on the ground',zh:'在地面上找到的太空岩石',bin:'m'},{en:'Grain of comet dust hitting the air',zh:'冲进大气的一粒彗星尘埃',bin:'m'},
+    {en:'Pluto',zh:'冥王星',bin:'d'},{en:'Eris',zh:'阋神星',bin:'d'},{en:'Ceres',zh:'谷神星',bin:'d'}
+  ]
+});
+Lab.onLang(renderDef);
+</script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const App = window.SB, REG = App.REG, TAU = Math.PI * 2, D2R = THREE.MathUtils.degToRad, V = THREE.Vector3;
+const o = (en, zh) => ({ en, zh }), zh = () => Lab.lang === 'zh';
+const ctx = Lab3D.stage('#stage', { THREE, OrbitControls, camera:[0, 15, 27], fov:40, lights:false, near:.01, far:3000, minDistance:5, maxDistance:80, pan:false });
+const { scene, camera, controls } = ctx; controls.enableZoom = false;
+let seed = 5; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647, gauss = () => { let u = 0; for (let i = 0; i < 6; i++) u += rnd(); return (u - 3) / 1.2; };
+// background stars (outside the scaled world)
+{ const n = 1500, p = new Float32Array(n * 3); for (let i = 0; i < n; i++){ const u = rnd() * 2 - 1, a = rnd() * TAU, s = Math.sqrt(1 - u * u), R = 1500; p.set([R * s * Math.cos(a), R * u, R * s * Math.sin(a)], i * 3); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(p, 3)); scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color:0x8fa0c4, size:1.3, sizeAttenuation:false, transparent:true, opacity:.6, depthWrite:false }))); }
+const world = new THREE.Group(); scene.add(world);
+const ptsMat = (color, size, op = .9) => new THREE.PointsMaterial({ color, size, sizeAttenuation:false, transparent:true, opacity:op, depthWrite:false });
+const circleG = new THREE.BufferGeometry().setFromPoints(Array.from({ length:256 }, (_, i) => new V(Math.cos(i / 256 * TAU), 0, -Math.sin(i / 256 * TAU))));
+const labels = [];
+function addLabel(text, obj, key, rmin = .9, rmax = 30){ const L = ctx.label(text, obj); labels.push({ L, obj, key, rmin, rmax }); return L; }
+/* orbital position (AU) from elements: a, e, i (deg), node Ω (deg), arg. peri ω (deg), mean anomaly M (rad); ecliptic → scene (x, z = −y, y = z) */
+function pos(el, M, out = new V()){ let E = M + .85 * el.e * Math.sign(Math.sin(M)); for (let k = 0; k < 8; k++) E -= (E - el.e * Math.sin(E) - M) / (1 - el.e * Math.cos(E));
+  const xp = el.a * (Math.cos(E) - el.e), yp = el.a * Math.sqrt(1 - el.e * el.e) * Math.sin(E), co = Math.cos(el.w), so = Math.sin(el.w), cO = Math.cos(el.O), sO = Math.sin(el.O), ci = Math.cos(el.i), si = Math.sin(el.i);
+  const x1 = xp * co - yp * so, y1 = xp * so + yp * co, X = x1 * cO - y1 * ci * sO, Y = x1 * sO + y1 * ci * cO, Z = y1 * si; return out.set(X, Z, -Y); }
+const elem = (a, e, i, O, w) => ({ a, e, i:D2R(i), O:D2R(O), w:D2R(w), n:TAU / (365.25 * Math.pow(a, 1.5)) });
+/* Sun */
+const sunPt = new THREE.Points(new THREE.BufferGeometry().setFromPoints([new V()]), ptsMat(0xffc04a, 12, 1)); world.add(sunPt);
+addLabel(o('Sun','太阳'), sunPt, 'sun', -1, 1e9);
+/* planets */
+const PL = [[o('Mercury','水星'),.387,.206,7,48,29,0xa7a3a0],[o('Venus','金星'),.723,.007,3.4,77,55,0xe3bb76],[o('Earth','地球'),1,.017,0,0,102,0x3f8fe0],[o('Mars','火星'),1.524,.093,1.85,49.6,286,0xd0603a],
+  [o('Jupiter','木星'),5.2,.049,1.3,100.5,274,0xd8a878],[o('Saturn','土星'),9.58,.057,2.5,113.7,339,0xe6cf8f],[o('Uranus','天王星'),19.2,.046,.8,74,97,0x9fdbe0],[o('Neptune','海王星'),30.1,.009,1.8,131.8,273,0x4b70dd]];
+const planets = PL.map(([nm, a, e, i, O, w, col], j) => { const el = elem(a, e, i, O, w), g = new THREE.BufferGeometry().setFromPoints([new V()]), p = new THREE.Points(g, ptsMat(col, j > 3 ? 7 : 5, 1)); world.add(p);
+  const orb = new THREE.LineLoop(circleG, new THREE.LineBasicMaterial({ color:col, transparent:true, opacity:.35 })); orb.scale.setScalar(a); world.add(orb);
+  const an = new THREE.Object3D(); world.add(an); addLabel(nm, an, 'planet', .9, 40); return { el, p, an, M:rnd() * TAU }; });
+const jup = planets[4];
+/* point clouds */
+function cloud(n, fill, color, size, key, op){ const posA = new Float32Array(n * 3), g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(posA, 3));
+  const pts = new THREE.Points(g, ptsMat(color, size, op)); world.add(pts); ctx.pickable(pts, key); const data = fill(n); return { n, posA, g, pts, data }; }
+// main belt: nearly circular, inclined up to ~15°
+const belt = cloud(3500, n => Array.from({ length:n }, () => { const a = 2.1 + rnd() * 1.2; return { a, th:rnd() * TAU, inc:D2R(Math.abs(gauss()) * 7), O:rnd() * TAU, w:TAU / (365.25 * Math.pow(a, 1.5)) }; }), 0xc9b391, 1.6, 'belt', .8);
+// near-Earth asteroids: elliptical orbits crossing near Earth
+const neo = cloud(260, n => Array.from({ length:n }, () => { const a = 1 + rnd() * 1.6, e = Math.max(.1, 1 - (.75 + rnd() * .5) / a); return { el:elem(a, Math.min(.75, e), Math.abs(gauss()) * 8, rnd() * 360, rnd() * 360), M:rnd() * TAU }; }), 0xff8a65, 2.4, 'neo', .95);
+// Jupiter Trojans: ±60° from Jupiter
+const troj = cloud(900, n => Array.from({ length:n }, (_, i) => ({ off:(i % 2 ? 1 : -1) * D2R(60) + D2R(gauss() * 13), r:5.2 + gauss() * .18, y:gauss() * .55 })), 0x9ad08f, 1.8, 'trojans', .85);
+// Kuiper Belt: plutinos at 39.4 AU, classical belt 42–47 AU, a few scattered
+const kb = cloud(3200, n => Array.from({ length:n }, () => { const q = rnd(), a = q < .3 ? 39.4 + gauss() * .3 : q < .9 ? 42 + rnd() * 5 : 50 + rnd() * 50, e = q < .3 ? rnd() * .25 : q < .9 ? rnd() * .08 : .3 + rnd() * .4;
+  return { el:elem(a, e, Math.abs(gauss()) * (q < .9 ? 7 : 15), rnd() * 360, rnd() * 360), M:rnd() * TAU }; }), 0x9fb2ea, 1.5, 'kuiper', .75);
+// Oort Cloud (schematic): log-uniform 2,000–100,000 AU, inner part flattened
+const oort = cloud(7000, n => Array.from({ length:n }, () => { const r = Math.pow(10, 3.3 + rnd() * 1.7), u = rnd() * 2 - 1, a = rnd() * TAU, s = Math.sqrt(1 - u * u), fl = r < 2e4 ? .45 : 1;
+  return { p:new V(r * s * Math.cos(a), r * u * fl, r * s * Math.sin(a)) }; }), 0xc7a8ff, 1.4, 'oort', .55);
+oort.data.forEach((d, i) => oort.posA.set([d.p.x, d.p.y, d.p.z], i * 3)); oort.g.attributes.position.needsUpdate = true; oort.g.computeBoundingSphere();
+const tmp = new V();
+function updClouds(days){
+  belt.data.forEach((d, i) => { const th = d.th + d.w * days, x = d.a * Math.cos(th), z = -d.a * Math.sin(th), y = d.a * Math.sin(d.inc) * Math.sin(th - d.O); belt.posA.set([x, y, z], i * 3); });
+  neo.data.forEach((d, i) => { pos(d.el, d.M + d.el.n * days, tmp); neo.posA.set([tmp.x, tmp.y, tmp.z], i * 3); });
+  const thJ = Math.atan2(-jup.p.position.z, jup.p.position.x);
+  troj.data.forEach((d, i) => { const th = thJ + d.off; troj.posA.set([d.r * Math.cos(th), d.y, -d.r * Math.sin(th)], i * 3); });
+  kb.data.forEach((d, i) => { pos(d.el, d.M + d.el.n * days, tmp); kb.posA.set([tmp.x, tmp.y, tmp.z], i * 3); });
+  [belt, neo, troj, kb].forEach(c => { c.g.attributes.position.needsUpdate = true; c.g.computeBoundingSphere(); });
+}
+/* single objects */
+function marker(color, size, key, text, rmin, rmax){ const p = new THREE.Points(new THREE.BufferGeometry().setFromPoints([new V()]), ptsMat(color, size, 1)); world.add(p); ctx.pickable(p, key);
+  if (text) addLabel(text, p, key, rmin, rmax); return p; }
+function orbitLine(el, color, op = .45){ const pts = Array.from({ length:400 }, (_, k) => pos(el, k / 400 * TAU)); const l = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color, transparent:true, opacity:op })); world.add(l); return l; }
+const plutoEl = elem(39.48, .2488, 17.16, 110.3, 113.8), plutoPt = marker(0xd9c2a3, 6, 'pluto', o('Pluto','冥王星'), 1.5, 60); orbitLine(plutoEl, 0xd9c2a3, .5);
+const erisPt = marker(0xe8e8e8, 5, 'pluto', o('Eris','阋神星'), 1.5, 60); erisPt.position.set(96 * Math.cos(D2R(24)) * Math.cos(D2R(23)), 96 * Math.sin(D2R(-44)), -96 * Math.cos(D2R(24)) * Math.sin(D2R(23)));
+const arrPt = marker(0xd98c6a, 4, 'kuiper', o('Arrokoth','阿罗科斯'), 2, 30); arrPt.position.set(44.6 * Math.cos(D2R(290)), .5, -44.6 * Math.sin(D2R(290)));
+const halleyEl = elem(17.83, .967, 162.2, 59.4, 111.3), halleyPt = marker(0x9fd8ff, 5, 'halley', o('Halley’s Comet','哈雷彗星'), 1.2, 40); orbitLine(halleyEl, 0x9fd8ff, .5);
+const vDir = new V(Math.cos(D2R(35)) * Math.cos(D2R(255)), Math.sin(D2R(35)), -Math.cos(D2R(35)) * Math.sin(D2R(255))), voyPt = marker(0xffd27a, 6, 'voyager', o('Voyager 1 (≈172 AU)','“旅行者 1 号”（约 172 天文单位）'), 1.5, 60);
+voyPt.position.copy(vDir).multiplyScalar(172);
+{ const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new V(), vDir.clone().multiplyScalar(172)]), new THREE.LineDashedMaterial({ color:0xffd27a, dashSize:4, gapSize:3, transparent:true, opacity:.5 })); l.computeLineDistances(); world.add(l); }
+const helio = new THREE.LineLoop(circleG, new THREE.LineDashedMaterial({ color:0x7fc8ff, dashSize:.02, gapSize:.015, transparent:true, opacity:.4 })); helio.scale.setScalar(121); helio.computeLineDistances(); world.add(helio);
+const hAn = new THREE.Object3D(); hAn.position.set(0, 0, -121); world.add(hAn); addLabel(o('heliopause ≈ 121 AU','日球层顶 ≈ 121 天文单位'), hAn, 'helio', 2, 30);
+const prox = marker(0xff9a7d, 7, 'oort', o('toward Proxima Centauri (268,000 AU)','比邻星方向（268,000 天文单位）'), 4, 60); prox.position.set(-268000 * .6, -268000 * .45, 268000 * .66);
+/* region labels */
+const regAn = { belt:[2.7, 0], trojans:[5.2, 0], kuiper:[44, 0], oort:[40000, 0], neo:[1.35, 0] };
+const RA = {}; Object.entries(regAn).forEach(([k, [r]]) => { const an = new THREE.Object3D(); world.add(an); RA[k] = { an, r }; addLabel(REG[k].name, an, k, k === 'oort' ? 1.2 : 1.6, 30); });
+/* zoom */
+const LMIN = Math.log10(2), LMAX = Math.log10(300000), zoomEl = Lab.$('#zoom');
+const viewAU = () => Math.pow(10, LMIN + (+zoomEl.value / 1000) * (LMAX - LMIN));
+let zTarget = null, playing = true, days = 0, labelsOn = true;
+const fmtAU = au => au < 10 ? au.toFixed(1) : num(Number(au.toPrecision(2)));
+function lightTime(au){ const s = au * 499; if (s < 3600) return zh() ? `${Math.round(s / 60)} 分钟` : `${Math.round(s / 60)} min`; if (s < 86400 * 2) return zh() ? `${sig(s / 3600, 2)} 小时` : `${sig(s / 3600, 2)} hours`;
+  if (s < 86400 * 365) return zh() ? `${sig(s / 86400, 2)} 天` : `${sig(s / 86400, 2)} days`; return zh() ? `${sig(s / 31557600, 2)} 年` : `${sig(s / 31557600, 2)} years`; }
+function zoomUI(){ const au = viewAU(), dps = 12 * Math.pow(au, 1.5);
+  Lab.$('#zoomOut').textContent = zh() ? `半径 ${fmtAU(au)} 天文单位` : `radius ${fmtAU(au)} AU`;
+  Lab.$('#lightTip').textContent = zh() ? `光从太阳走到画面边缘要 ${lightTime(au)} · 时间：1 秒 ≈ ${dps < 365 ? sig(dps, 2) + ' 天' : sig(dps / 365.25, 2) + ' 年'}`
+    : `Light from the Sun takes ${lightTime(au)} to reach the edge of this view · time: 1 s ≈ ${dps < 365 ? sig(dps, 2) + ' days' : sig(dps / 365.25, 2) + ' years'}`; }
+zoomEl.oninput = () => { zTarget = null; zoomUI(); };
+Lab.onLang(zoomUI);
+ctx.el.addEventListener('wheel', e => { e.preventDefault(); zTarget = null; zoomEl.value = Math.max(0, Math.min(1000, +zoomEl.value + Math.sign(e.deltaY) * 25)); zoomUI(); }, { passive:false });
+App.three = { focus:k => { const v = REG[k].view; zTarget = (Math.log10(v) - LMIN) / (LMAX - LMIN) * 1000; } };
+Lab.$('#playBtn').onclick = e => { playing = !playing; const b = e.currentTarget; b.dataset.en = playing ? '⏸ Pause' : '▶ Play'; b.dataset.zh = playing ? '⏸ 暂停' : '▶ 播放'; b.textContent = zh() ? b.dataset.zh : b.dataset.en; b.classList.toggle('on', playing); };
+Lab.$('#labelBtn').onclick = e => { labelsOn = !labelsOn; e.currentTarget.classList.toggle('on', labelsOn); };
+Lab.$('#homeBtn').onclick = () => { ctx.home(); App.select(null, true); zTarget = 280; };
+ctx.hoverText(k => REG[k] ? Lab.L(REG[k].name) : '');
+ctx.onPick(k => { if (k && REG[k]) App.select(k, false); });
+/* per frame */
+let lastUI = 0;
+ctx.onFrame((dt, t) => {
+  if (zTarget != null){ const v = +zoomEl.value, nv = v + (zTarget - v) * Math.min(1, dt * 3.5); zoomEl.value = Math.abs(zTarget - nv) < 1 ? (zTarget = null, Math.round(nv)) : nv; }
+  const au = viewAU(), s = 10 / au; world.scale.setScalar(s);
+  if (playing) days += 12 * Math.pow(au, 1.5) * dt;
+  planets.forEach(pl => { pos(pl.el, pl.M + pl.el.n * days, pl.p.position); pl.an.position.copy(pl.p.position); });
+  if (au < 400) updClouds(days);
+  pos(plutoEl, 2.1 + plutoEl.n * days, plutoPt.position); pos(halleyEl, 1.9 + halleyEl.n * days, halleyPt.position);
+  const thJ = Math.atan2(-jup.p.position.z, jup.p.position.x);
+  RA.trojans.an.position.set(5.2 * Math.cos(thJ + D2R(60)), 0, -5.2 * Math.sin(thJ + D2R(60)));
+  RA.belt.an.position.set(2.7 * Math.cos(2.4), 0, -2.7 * Math.sin(2.4)); RA.neo.an.position.set(1.35 * Math.cos(4.2), 0, -1.35 * Math.sin(4.2));
+  RA.kuiper.an.position.set(44 * Math.cos(.9), 3, -44 * Math.sin(.9)); RA.oort.an.position.set(40000 * Math.cos(.5), 15000, -40000 * Math.sin(.5));
+  // labels: show only when the object is a sensible size on screen
+  labels.forEach(({ L, obj, key, rmin, rmax }) => { const rs = obj.position.length() * s; L.visible = labelsOn && (key === "sun" || (rs > rmin && rs < rmax)); });
+  // highlight the selected region
+  const sel = App.sel; [[belt, 'belt'], [neo, 'neo'], [troj, 'trojans'], [kb, 'kuiper'], [oort, 'oort']].forEach(([c, k]) => { c.pts.material.size = (sel === k ? 2.6 : 1) * ({ belt:1.6, neo:2.4, trojans:1.8, kuiper:1.5, oort:1.4 })[k]; c.pts.material.opacity = sel && sel !== k ? .35 : .85; });
+  if (t - lastUI > .5){ lastUI = t; zoomUI(); }
+});
+updClouds(0); zoomUI();
+</script>
+</body>
+</html>

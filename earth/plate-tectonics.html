@@ -1,0 +1,755 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plate Tectonics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/lab3d.js"></script>
+<script src="../shared/photos.js"></script>
+<style>
+.modebar{display:flex;flex-wrap:wrap;gap:6px}
+.tbtn.mode.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+#tLbl{min-width:118px;display:inline-block}
+.feature{font-weight:800;color:var(--brand)}
+.bcards .box h3{display:flex;align-items:center;gap:8px}
+.bcards .box ul{margin:8px 0 0;padding-left:18px;color:var(--ink-2);font-size:15px}
+.bcards .arrow{font-family:Fredoka;font-size:28px;color:var(--brand)}
+#puzBox{min-height:auto;padding:0;aspect-ratio:700/440;align-self:start;width:100%}
+#pangaea{width:100%;height:100%;display:block;touch-action:none;user-select:none}
+#pangaea .piece{cursor:grab}
+#pangaea .piece.placed{cursor:default}
+#pangaea .piece path{stroke:rgba(0,0,0,.35);stroke-width:1.2;transition:filter .2s}
+#pangaea .piece.placed path{stroke:rgba(0,0,0,.18)}
+#pangaea .piece:not(.placed):hover path{filter:brightness(1.08)}
+#pangaea .nm{font:800 11px Nunito,sans-serif;fill:#1d2433;pointer-events:none;text-anchor:middle}
+#pangaea .ev{display:none;pointer-events:none}
+#pangaea.show-fossil .ev.fossil,#pangaea.show-mtn .ev.mtn,#pangaea.show-ice .ev.ice{display:inline}
+#pangaea .ghost{fill:none;stroke:var(--ink-2);stroke-dasharray:4 4;stroke-width:1;opacity:0;transition:opacity .3s}
+#pangaea.show-ghost .ghost{opacity:.6}
+#pangaea .sea{fill:color-mix(in srgb,#3a8fd9 12%,var(--surface))}
+.evrow{display:flex;flex-wrap:wrap;gap:8px 16px}
+.chk{display:flex;gap:8px;align-items:center;font-weight:700;font-size:15px}
+.chk input{width:18px;height:18px;accent-color:var(--brand)}
+.evkey{font-size:14px;color:var(--ink-2);display:grid;grid-template-columns:1fr 1fr;gap:4px 12px}
+@media (max-width:980px){.bcards{grid-template-columns:1fr}}
+</style>
+</head>
+<body data-subject="earth" data-topic="plate-tectonics">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="地球科学 · 运动的地球">Earth Science · Moving Earth</span>
+  <h1 data-zh-html="板块构造：<em>会移动的拼图</em>">Plate Tectonics: <em>The Moving Puzzle</em></h1>
+  <p class="lead" data-zh="为什么南美洲和非洲的海岸线，看起来像两块能拼在一起的拼图？地球坚硬的外壳碎成了十几块巨大的板块，它们每年移动几厘米，大约和指甲生长一样快。拖动时间滑块，看板块分离、碰撞和错动，造出洋中脊、海沟、火山和高山！">Why do the coastlines of South America and Africa look like two puzzle pieces that fit together? Earth’s rigid outer shell is cracked into about a dozen giant plates that move a few centimeters a year, about as fast as your fingernails grow. Drag the time slider to watch plates pull apart, collide and slide past each other, building ridges, trenches, volcanoes and mountains!</p>
+</header>
+
+<section class="wrap" id="explore" data-nav="3D Boundaries" data-nav-zh="3D 板块边界">
+  <div class="explorer">
+    <div class="stage card" id="stage" data-3d>
+      <div class="toolbar">
+        <div class="modebar" id="modebar">
+          <button class="tbtn mode on" data-mode="div" data-zh="↔ 离散型">↔ Divergent</button>
+          <button class="tbtn mode" data-mode="oc" data-zh="→← 洋–陆汇聚">→← Ocean–continent</button>
+          <button class="tbtn mode" data-mode="cc" data-zh="→← 陆–陆碰撞">→← Continent–continent</button>
+          <button class="tbtn mode" data-mode="tf" data-zh="⇄ 转换型">⇄ Transform</button>
+          <button class="tbtn mode" data-mode="globe" data-zh="🌍 全球板块">🌍 World map</button>
+        </div>
+        <button class="tbtn" id="storyBtn" data-zh="🎬 边界之旅（故事）">🎬 Boundary tour (story)</button>
+        <button class="tbtn" id="labelBtn" data-zh="🏷 标签">🏷 Labels</button>
+        <button class="tbtn" id="resetBtn" data-zh="⌂ 重置">⌂ Reset</button>
+      </div>
+      <div class="bottombar">
+        <div class="pill" id="timePill"><button class="tbtn" id="playBtn" style="box-shadow:none;padding:4px 10px">▶</button><span id="tLbl">0</span><input id="time" type="range" min="0" max="100" value="0"></div>
+        <div class="tip" data-zh="拖动旋转 · 滚轮缩放 · 点击任意部分">Drag to rotate · Scroll to zoom · Click any part</div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="chips" id="chips"></div>
+</section>
+
+<section class="wrap" id="cheat" data-nav="Boundary types" data-nav-zh="边界类型">
+  <div class="sec-head">
+    <h2 data-zh="三种板块边界速查表">Three kinds of plate boundaries</h2>
+    <p data-zh="板块怎样相对运动，决定了边界上会出现什么地形和地质现象。">How two plates move relative to each other decides which landforms and events appear at their boundary.</p>
+  </div>
+  <div class="grid3 bcards">
+    <div class="box card"><h3><span class="arrow">← →</span><span data-zh="离散型边界（生长边界）">Divergent</span></h3><p data-zh="板块彼此分离，岩浆上涌形成新的地壳。">Plates move apart. Magma rises and new crust forms.</p>
+      <ul><li data-zh="洋中脊、裂谷、海底扩张">Mid-ocean ridges, rift valleys, seafloor spreading</li><li data-zh="火山（多为平静喷发）、浅源地震">Volcanoes (mostly gentle), shallow earthquakes</li><li data-zh="例子：大西洋中脊、冰岛、东非大裂谷">Examples: Mid-Atlantic Ridge, Iceland, East African Rift</li></ul></div>
+    <div class="box card"><h3><span class="arrow">→ ←</span><span data-zh="汇聚型边界（消亡边界）">Convergent</span></h3><p data-zh="板块彼此靠近。密度大的大洋板块俯冲下沉，两块大陆相撞则挤压隆起。">Plates move together. A dense ocean plate sinks (subducts); two continents crumple up.</p>
+      <ul><li data-zh="海沟、火山山脉、岛弧、褶皱山脉">Trenches, volcanic mountains, island arcs, folded mountains</li><li data-zh="强烈地震，包括深源地震">Strong earthquakes, including very deep ones</li><li data-zh="例子：安第斯山脉、日本、喜马拉雅山脉">Examples: Andes, Japan, Himalayas</li></ul></div>
+    <div class="box card"><h3><span class="arrow">⇅</span><span data-zh="转换型边界">Transform</span></h3><p data-zh="板块水平错动，地壳既不产生也不消亡。">Plates slide past each other. Crust is neither made nor destroyed.</p>
+      <ul><li data-zh="断层、被错开的道路和河流">Faults, offset roads and streams</li><li data-zh="频繁的浅源地震，几乎没有火山">Frequent shallow earthquakes, almost no volcanoes</li><li data-zh="例子：美国加利福尼亚州的圣安德烈斯断层">Example: San Andreas Fault, California</li></ul></div>
+  </div>
+  <div class="mix" style="margin-top:16px"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="板块不是“漂”在液态岩浆上的。软流层是会极缓慢流动的固态岩石，地幔对流、洋中脊推力和俯冲板块的拉力一起让板块运动。">Plates do not float on liquid magma. The asthenosphere is solid rock that flows very slowly; mantle convection, ridge push and the pull of sinking slabs together move the plates.</span></div>
+  <div class="memory" style="margin-top:12px"><b data-zh="💡 佐治亚州的联系">💡 Georgia connection</b><span data-zh="约 3 亿年前，古非洲板块和北美板块相撞形成盘古大陆，挤压出了阿巴拉契亚山脉，包括佐治亚州北部的蓝岭山脉。今天它们已被风化侵蚀得低矮圆润了。">About 300 million years ago, ancient Africa collided with North America while Pangaea was forming. The collision pushed up the Appalachian Mountains, including north Georgia’s Blue Ridge. Erosion has worn them low and rounded since then.</span></div>
+</section>
+
+<section class="wrap" id="pangaea-sec" data-nav="Pangaea puzzle" data-nav-zh="盘古大陆拼图">
+  <div class="sec-head">
+    <h2 data-zh="拼图游戏：重建盘古大陆">Puzzle: rebuild Pangaea</h2>
+    <p data-zh="1912 年，魏格纳提出“大陆漂移说”：约 3 亿~2 亿年前，所有大陆连成一块超级大陆——盘古大陆（“全部的陆地”）。把各大陆拖回原位，再打开证据图层，看看化石、山脉和冰川痕迹能否连起来！">In 1912 Alfred Wegener proposed continental drift: about 300–200 million years ago all continents were joined in one supercontinent, Pangaea (“all lands”). Drag the continents back into place, then switch on the evidence layers and see whether fossils, mountains and glacier scratches line up!</p>
+  </div>
+  <div class="sim">
+    <div class="card simbox" id="puzBox"><svg id="pangaea" viewBox="0 0 700 440" class="show-fossil" aria-label="Pangaea puzzle"></svg></div>
+    <div class="card simside">
+      <h3 data-zh="魏格纳的证据">Wegener’s evidence</h3>
+      <div class="counters">
+        <div class="counter"><b id="pzPlaced">0 / 7</b><span data-zh="已归位的大陆">continents placed</span></div>
+        <div class="counter"><b id="pzMoves">0</b><span data-zh="拖动次数">moves</span></div>
+      </div>
+      <div class="evrow">
+        <label class="chk"><input type="checkbox" id="evFossil" checked><span data-zh="化石">Fossils</span></label>
+        <label class="chk"><input type="checkbox" id="evMtn"><span data-zh="山脉带">Mountain belts</span></label>
+        <label class="chk"><input type="checkbox" id="evIce"><span data-zh="古冰川痕迹">Ancient glaciers</span></label>
+        <label class="chk"><input type="checkbox" id="evGhost"><span data-zh="提示轮廓">Hint outlines</span></label>
+      </div>
+      <div class="evkey">
+        <span data-zh="🦎 中龙（淡水爬行动物）">🦎 Mesosaurus (freshwater reptile)</span>
+        <span data-zh="🌿 舌羊齿（古代蕨类植物）">🌿 Glossopteris (ancient fern)</span>
+        <span data-zh="🦛 水龙兽（陆生动物）">🦛 Lystrosaurus (land animal)</span>
+        <span data-zh="🐺 犬颌兽（陆生动物）">🐺 Cynognathus (land animal)</span>
+      </div>
+      <div class="result" id="pzMsg"></div>
+      <div class="btnrow"><button class="btn" id="pzScramble" data-zh="🔀 打乱">🔀 Scramble</button><button class="btn ghost" id="pzSolve" data-zh="显示答案">Show answer</button></div>
+      <div class="mix"><b data-zh="⚠️ 为什么当时没人相信？">⚠️ Why didn’t people believe him?</b><span data-zh="魏格纳说不清是什么力量推动大陆移动。直到 20 世纪 60 年代，科学家发现了海底扩张和洋底磁条带，板块构造理论才被广泛接受。">Wegener could not explain what force moved the continents. Only in the 1960s, when scientists discovered seafloor spreading and magnetic stripes, was plate tectonics widely accepted.</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real Photos" data-nav-zh="真实照片">
+  <div class="sec-head">
+    <h2 data-zh="看看真实的样子">See the real thing</h2>
+    <p data-zh="上面的 3D 模型是简化过的，这些才是真实的地方。点击照片可以放大；影片不会自动播放。">The 3D blocks above are simplified. These are the real places. Click a photo to enlarge it; the video never starts by itself.</p>
+  </div>
+  <div id="gallery"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 板块构造测验">🧠 Plate tectonics quiz</h3><p class="sub" data-zh="选出最合适的答案。">Pick the best answer.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分一分">🗂️ Sort it</h3><p class="sub" data-zh="每个地形或现象出现在哪种板块边界？">Which kind of boundary does each feature belong to?</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="对应佐治亚州标准 S6E5f：解释岩石圈板块的运动（板块构造）如何引起地震、火山喷发等重大地质事件，包括汇聚型、离散型和转换型边界。建议：① 在每种 3D 边界模式中先让学生预测“时间推进后会出现什么”，再拖动滑块验证；② 用“全球板块”视图讨论为什么火山和地震呈带状分布（环太平洋火山地震带），并对比夏威夷热点；③ 拼图游戏后让学生用至少两类证据为大陆漂移写一段论证。">Supports GSE S6E5f: construct an explanation of how the movement of lithospheric plates (plate tectonics) causes major geologic events such as earthquakes and volcanic eruptions, including convergent, divergent and transform boundaries. Ideas: ① in each 3D boundary mode, have students predict what will form before dragging the time slider; ② use the World map view to discuss why volcanoes and earthquakes form belts (Ring of Fire) and contrast the Hawaiian hot spot; ③ after the puzzle, have students write a claim–evidence–reasoning paragraph for continental drift using at least two kinds of evidence.</p>
+    <p data-zh="说明：3D 模型高度被夸大，时间被大大压缩；全球图中的板块边界是简化后的示意线。">Note: the 3D models exaggerate height and compress time enormously; boundaries on the world map are simplified sketch lines.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+const o = (en, zh) => ({en, zh});
+/* ===== Parts (bilingual) ===== */
+const PARTS = {
+  ridge:{color:'#ff6a3d', name:o('Mid-ocean ridge','洋中脊'), job:o('Underwater mountain range where plates pull apart','板块张裂处的海底山脉'),
+    facts:{en:['The longest mountain range on Earth: about 65,000 km long, almost all underwater.','Magma rises into the crack, cools and becomes new basalt seafloor.','A rift valley runs along the crest of the ridge.','Iceland is a piece of the Mid-Atlantic Ridge that rises above sea level.'],
+      zh:['地球上最长的山脉：长约 6.5 万千米，几乎全在海底。','岩浆涌入裂缝，冷却后变成新的玄武岩洋底。','洋中脊顶部有一条裂谷。','冰岛就是大西洋中脊露出海面的部分。']},
+    hint:o('Divergent = divide: the plates divide and new crust fills the gap.','离散 = 分离：板块分开，新地壳填补空隙。'),
+    mix:o('Magma does not shove the plates apart like a jack. The plates move apart and magma rises to fill the gap.','岩浆并不是像千斤顶一样把板块顶开，而是板块分开后，岩浆上涌填补空隙。')},
+  spread:{color:'#5b7bd5', name:o('Seafloor spreading','海底扩张'), job:o('The ocean floor grows outward from the ridge','洋底从洋中脊向两侧不断生长'),
+    facts:{en:['New crust forms at the ridge and moves away on both sides like two conveyor belts.','Rock is youngest at the ridge and gets older farther away.','Earth’s magnetic field flips every so often. Cooling lava records it, leaving matching magnetic stripes on both sides of the ridge.','Harry Hess proposed seafloor spreading in the early 1960s, and the stripes proved it.'],
+      zh:['新地壳在洋中脊形成，像两条传送带一样向两侧移开。','离洋中脊越近岩石越年轻，越远越古老。','地球磁场每隔一段时间会倒转。冷却的熔岩会“记录”当时的磁场，在洋中脊两侧留下对称的磁条带。','20 世纪 60 年代初，赫斯提出海底扩张说，磁条带证实了它。']},
+    hint:o('The stripes are a mirror image on both sides, like a barcode folded in half.','两侧的条带互为镜像，就像对折的条形码。'),
+    mix:o('Earth is not getting bigger. Crust made at ridges is destroyed at trenches, so the total stays about the same.','地球并没有越变越大。洋中脊新生的地壳会在海沟处消亡，总量基本不变。')},
+  magma:{color:'#ff3d1f', name:o('Magma','岩浆'), job:o('Molten rock rising from the mantle','从地幔上升的熔融岩石'),
+    facts:{en:['Magma is melted rock underground; when it erupts it is called lava.','At ridges, hot mantle rock rises; the drop in pressure lets part of it melt.','At subduction zones, water released by the sinking plate lowers the melting point of the mantle above it, making magma for volcanoes.'],
+      zh:['地下熔融的岩石叫岩浆，喷出地表后叫熔岩。','在洋中脊，炽热的地幔岩石上升，压力降低使部分岩石熔化。','在俯冲带，下沉板块释放的水降低了上方地幔的熔点，形成供给火山的岩浆。']},
+    hint:o('Magma stays inside; Lava Lands on the surface.','岩浆在地下，熔岩在地表。'),
+    mix:o('The mantle is not a sea of magma. Magma forms only in special places: ridges, subduction zones and hot spots.','地幔不是岩浆的海洋，岩浆只在洋中脊、俯冲带和热点等特殊地方形成。')},
+  ocplate:{color:'#4b5a6a', name:o('Oceanic plate','大洋板块'), job:o('Thin, dense plate under the ocean','海洋下面又薄又重的板块'),
+    facts:{en:['Its crust is dark basalt, only about 5–10 km thick.','Denser than a continental plate, so it sinks (subducts) when the two collide.','Because old ocean floor keeps sinking, none is older than about 200 million years.'],
+      zh:['它的地壳是深色的玄武岩，只有约 5~10 千米厚。','比大陆板块密度大，两者相撞时它会俯冲下沉。','由于古老的洋底不断下沉消亡，没有超过约 2 亿年的洋底。']},
+    hint:o('Ocean plates are heavy, so they always lose and dive under.','大洋板块重，所以相撞时总是“输”，钻到下面。')},
+  ctplate:{color:'#b5895a', name:o('Continental plate','大陆板块'), job:o('Thick, light plate that carries land','承载陆地的厚而轻的板块'),
+    facts:{en:['Its crust is granite-like rock, 30–70 km thick.','Too light (buoyant) to sink far into the mantle.','When two continental plates collide, the crust crumples upward into huge mountains.'],
+      zh:['它的地壳是花岗岩类岩石，厚 30~70 千米。','太轻（浮力大），不会深深沉入地幔。','两块大陆板块相撞时，地壳会挤压隆起成巨大的山脉。']},
+    hint:o('Continents are like corks: they float and won’t sink.','大陆像软木塞：浮在上面，沉不下去。')},
+  astheno:{color:'#e8833a', name:o('Asthenosphere & convection','软流层与对流'), job:o('Soft mantle layer that the plates ride on','板块“骑”在上面的柔软地幔层'),
+    facts:{en:['Hot, soft, slowly flowing solid rock beneath the plates.','Heat from Earth’s interior drives slow convection currents: hot rock rises, spreads, cools and sinks.','Plates move because of mantle convection together with “ridge push” and “slab pull” (a sinking plate tugging the rest of the plate behind it).'],
+      zh:['板块下面炽热、柔软、缓慢流动的固态岩石。','地球内部的热量驱动缓慢的对流：热岩石上升、散开、冷却后下沉。','地幔对流，加上“洋中脊推力”和“板块拉力”（下沉的板块拖着后面的部分），共同推动板块运动。']},
+    hint:o('Like a pot of thick soup: it rises in the middle, spreads out and sinks at the sides.','就像一锅浓汤：中间往上翻，向两边散开，再在边上沉下去。'),
+    mix:o('The plates are not floating on liquid. The asthenosphere is solid rock that flows very slowly.','板块并不是漂在液体上，软流层是极缓慢流动的固态岩石。')},
+  quake:{color:'#ffd23f', name:o('Earthquakes','地震'), job:o('Sudden shaking when rocks slip','岩石突然错动引起的震动'),
+    facts:{en:['Rocks along a boundary lock together. Stress builds until they slip suddenly, releasing energy as seismic waves.','The point underground where slipping starts is the focus; the spot on the surface right above it is the epicenter.','Earthquakes happen at all three kinds of boundaries; the deepest (down to about 700 km) happen along sinking plates.'],
+      zh:['边界上的岩石互相卡住，应力不断积累，直到突然错动，以地震波的形式释放能量。','地下开始错动的地方叫震源，它正上方的地面叫震中。','三种边界上都会发生地震；最深的地震（深达约 700 千米）发生在下沉的板块中。']},
+    hint:o('Focus = where it starts underground. Epicenter = exactly above it on the surface.','震源在地下，震中在震源正上方的地面。')},
+  trench:{color:'#1d3f72', name:o('Ocean trench','海沟'), job:o('Deepest valleys in the ocean, where a plate dives down','海洋中最深的谷地，板块在这里俯冲下去'),
+    facts:{en:['Forms where an oceanic plate bends and sinks beneath another plate.','The Mariana Trench is the deepest place on Earth, about 11,000 m deep.','Trenches form long curved lines around the Pacific Ocean.'],
+      zh:['在大洋板块弯曲并俯冲到另一板块之下的地方形成。','马里亚纳海沟是地球上最深的地方，深约 1.1 万米。','海沟在太平洋周围排成一条条弧形长线。']},
+    hint:o('A trench is the plate’s doorway back into the mantle.','海沟是板块回到地幔的“大门”。')},
+  subduct:{color:'#3e5f8a', name:o('Subduction zone','俯冲带'), job:o('Where a dense plate sinks under another','密度大的板块俯冲到另一板块之下的地方'),
+    facts:{en:['The denser oceanic plate slides under the lighter plate and sinks into the mantle.','Bending and grinding cause many earthquakes, shallow to very deep, along the sinking slab.','The sinking plate releases water, which helps melt the mantle above it into magma.','Crust is destroyed here, balancing the new crust made at ridges.'],
+      zh:['密度大的大洋板块俯冲到较轻的板块之下，沉入地幔。','板块弯曲、摩擦，沿着下沉的板块引发从浅到深的大量地震。','下沉的板块释放出水，帮助上方地幔熔化形成岩浆。','地壳在这里消亡，与洋中脊处新生的地壳相平衡。']},
+    hint:o('“Sub” means under, as in submarine. Subduction = going under.','“sub”是“在下面”的意思（像 submarine 潜水艇）。俯冲就是“钻到下面去”。'),
+    mix:o('The sinking plate does not melt right at the trench. Melting happens about 100 km deep, under the volcanoes.','下沉的板块不会在海沟处立刻熔化，熔化发生在约 100 千米深的火山下方。')},
+  volcano:{color:'#c0392b', name:o('Volcanic mountains','火山山脉'), job:o('A chain of volcanoes above a subduction zone','俯冲带上方的一串火山'),
+    facts:{en:['Magma rises through the overriding plate and erupts, building a chain of volcanoes called a volcanic arc.','The Andes in South America and the Cascades (Mount St. Helens) in the USA formed this way.','When two oceanic plates collide, the volcanoes form an island arc, such as Japan, the Aleutians or the Mariana Islands.'],
+      zh:['岩浆穿过上覆板块喷出地表，形成一串火山，叫火山弧。','南美洲的安第斯山脉和美国的喀斯喀特山脉（圣海伦斯火山）就是这样形成的。','两个大洋板块相撞时，火山会形成岛弧，例如日本、阿留申群岛和马里亚纳群岛。']},
+    hint:o('Ocean meets continent → trench + volcano chain.','大洋遇上大陆 → 海沟 + 火山链。')},
+  mountains:{color:'#8d6e63', name:o('Folded mountains','褶皱山脉'), job:o('The tallest mountains, built by colliding continents','大陆相撞形成的最高大的山脉'),
+    facts:{en:['Neither continental plate sinks, so the crust crumples, folds and stacks up, growing thick and tall.','India has been pushing into Asia for about 50 million years, building the Himalayas and Mount Everest (8,849 m).','The Himalayas are still rising by a few millimeters each year.','The Appalachian Mountains, including north Georgia’s Blue Ridge, formed in an ancient continental collision about 300 million years ago.'],
+      zh:['两块大陆板块都不下沉，地壳只能挤压、褶皱、层层堆叠，变得又厚又高。','约 5000 万年来，印度板块不断挤向亚欧板块，形成了喜马拉雅山脉和珠穆朗玛峰（8849 米）。','喜马拉雅山脉至今仍在以每年几毫米的速度升高。','阿巴拉契亚山脉（包括佐治亚州北部的蓝岭）是约 3 亿年前一次古老的大陆碰撞形成的。']},
+    hint:o('Continent + continent = crumple, like pushing a rug against a wall.','大陆 + 大陆 = 挤皱，就像把地毯推向墙边。'),
+    mix:o('Collision mountains usually have few volcanoes, because neither plate sinks deep enough to make much magma.','碰撞形成的山脉通常火山很少，因为没有板块沉得足够深，产生不了多少岩浆。')},
+  folds:{color:'#c9a26b', name:o('Folded rock layers','褶皱岩层'), job:o('Rock layers bent by sideways squeezing','被水平挤压弯曲的岩层'),
+    facts:{en:['Flat layers of sedimentary rock get squeezed sideways and bend into folds.','Upward arches are called anticlines; downward troughs are called synclines.','Sea-shell fossils are found near the top of the Himalayas, because those rocks formed on an ancient sea floor.'],
+      zh:['原本平坦的沉积岩层受到水平挤压，弯曲成褶皱。','向上拱起的叫背斜，向下凹的叫向斜。','喜马拉雅山顶附近能找到海洋贝类化石，因为这些岩石最初形成于古代的海底。']},
+    hint:o('Push a stack of towels from both ends and watch it fold.','从两头推一叠毛巾，看它怎样起褶皱。')},
+  fault:{color:'#3a3a3a', name:o('Transform fault','转换断层'), job:o('A crack where plates grind sideways past each other','板块水平错动摩擦的断裂带'),
+    facts:{en:['The plates slide horizontally in opposite directions.','Crust is neither created nor destroyed here.','California’s San Andreas Fault is a transform boundary: the Pacific plate moves northwest about 3–5 cm per year relative to North America.','Most transform faults are short offsets connecting pieces of mid-ocean ridges.'],
+      zh:['两侧板块沿水平方向反向滑动。','这里的地壳既不产生也不消亡。','美国加利福尼亚州的圣安德烈斯断层是转换型边界：太平洋板块相对北美板块每年向西北移动约 3~5 厘米。','大多数转换断层是连接洋中脊各段的短小错断。']},
+    hint:o('Transform = two lanes of traffic going opposite ways.','转换型边界就像双向车道，车流方向相反。'),
+    mix:o('The plates do not slide smoothly. They stick, build up stress, then slip suddenly, causing earthquakes.','板块并不是平稳滑动的。它们会卡住、积累应力，再突然滑动，引发地震。')},
+  offset:{color:'#7d8597', name:o('Offset road & stream','被错开的道路和河流'), job:o('Things built across the fault get shifted','横跨断层的事物被错开'),
+    facts:{en:['Anything that crosses the fault, such as roads, fences or streams, is torn and shifted sideways over time.','Streams crossing the San Andreas Fault have been bent and offset by hundreds of meters.','Scientists measure offsets and use GPS stations to find how fast the plates move.'],
+      zh:['横跨断层的道路、篱笆、河流等，会随时间被撕开并横向错开。','横穿圣安德烈斯断层的河流已被错开了几百米。','科学家通过测量错开的距离和 GPS 观测站，计算板块移动的速度。']},
+    hint:o('Watch the road: every earthquake shifts it a little more.','盯住那条路：每次地震都会让它再错开一点。')},
+  gdiv:{color:'#e5484d', name:o('Divergent boundaries','离散型边界'), job:o('Where plates pull apart (red lines)','板块张裂的地方（红线）'),
+    facts:{en:['Plates move apart and new crust forms. These are also called constructive boundaries.','Most are mid-ocean ridges, such as the Mid-Atlantic Ridge and the East Pacific Rise.','On land they make rift valleys, like the East African Rift, which may one day split Africa in two.'],
+      zh:['板块彼此分离，形成新的地壳，所以也叫生长边界。','大多是洋中脊，如大西洋中脊和东太平洋海隆。','在陆地上则形成裂谷，如东非大裂谷，将来可能把非洲一分为二。']},
+    hint:o('Red = rifting, like a tear in a cloth.','红线 = 张裂，像布被撕开。')},
+  gconv:{color:'#3b6fd8', name:o('Convergent boundaries','汇聚型边界'), job:o('Where plates collide (blue lines)','板块碰撞挤压的地方（蓝线）'),
+    facts:{en:['Plates move toward each other; crust sinks back into the mantle or crumples up. These are also called destructive boundaries.','They make trenches, volcanic arcs, island arcs and great mountain ranges.','Examples: the Andes, Japan and the Himalayas.'],
+      zh:['板块彼此靠近，地壳俯冲回地幔或挤压隆起，所以也叫消亡边界。','形成海沟、火山弧、岛弧和高大的山脉。','例子：安第斯山脉、日本、喜马拉雅山脉。']},
+    hint:o('Blue = bumping together.','蓝线 = 碰撞在一起。')},
+  gtf:{color:'#2fb36d', name:o('Transform boundaries','转换型边界'), job:o('Where plates slide past each other (green lines)','板块水平错动的地方（绿线）'),
+    facts:{en:['Plates grind past each other sideways.','Examples: the San Andreas Fault (USA), the Alpine Fault (New Zealand) and the North Anatolian Fault (Türkiye).','Many short transform faults also cut across mid-ocean ridges.'],
+      zh:['板块水平方向相互错动。','例子：圣安德烈斯断层（美国）、阿尔卑斯断层（新西兰）、北安纳托利亚断层（土耳其）。','洋中脊上也有许多短小的转换断层。']},
+    hint:o('Green = going past each other, like trains on side-by-side tracks.','绿线 = 擦肩而过，像并排轨道上相向行驶的火车。')},
+  ring:{color:'#ff7a1a', name:o('Ring of Fire','环太平洋火山地震带'), job:o('Belt of volcanoes and earthquakes around the Pacific','环绕太平洋的火山地震带'),
+    facts:{en:['A horseshoe-shaped belt about 40,000 km long around the Pacific Ocean.','About 75% of Earth’s active volcanoes and about 90% of its earthquakes happen here.','It follows subduction zones where Pacific Ocean plates sink under the plates around them.'],
+      zh:['环绕太平洋、长约 4 万千米的马蹄形地带。','地球上约 75% 的活火山和约 90% 的地震发生在这里。','它沿着俯冲带分布：太平洋的大洋板块在这里俯冲到周围的板块之下。']},
+    hint:o('Follow the trenches around the Pacific: that is where the “fire” is.','沿着太平洋周围的海沟走一圈，“火”就在那里。')},
+  hotspot:{color:'#ff2e88', name:o('Hot spot volcanoes','热点火山'), job:o('Volcanoes far from any plate boundary','远离板块边界的火山'),
+    facts:{en:['Some volcanoes, such as Hawaii and Yellowstone, are far from plate boundaries.','They sit above a plume of unusually hot mantle rock that stays roughly in place.','As the Pacific plate moves northwest over the Hawaiian hot spot, it leaves behind a chain of older, extinct volcanic islands.'],
+      zh:['有些火山，如夏威夷和黄石，远离板块边界。','它们位于一股异常炽热、位置大致固定的地幔柱上方。','太平洋板块向西北移过夏威夷热点，留下一串越来越老、已经熄灭的火山岛。']},
+    hint:o('Like moving paper over a candle: the plate moves, the hot spot stays.','就像把纸在蜡烛上方移动：板块在动，热点不动。'),
+    mix:o('Not every volcano is at a plate boundary. Hot spots are the big exception.','并不是所有火山都在板块边界上，热点就是重要的例外。')}
+};
+const MODES = {
+  div:{ name:o('Divergent boundary','离散型边界'), parts:['ridge','spread','magma','ocplate','astheno','quake'], span:10, unit:'myr',
+    intro:o('Two plates pull apart. Hot mantle rock rises, melts and fills the gap with new seafloor. Drag the time slider and watch the seamounts and magnetic stripes ride away from the ridge.','两个板块彼此分离。炽热的地幔岩石上升、熔化，用新的洋底填补空隙。拖动时间滑块，看海山和磁条带怎样离开洋中脊。') },
+  oc:{ name:o('Convergent: ocean meets continent','汇聚型：大洋遇上大陆'), parts:['trench','subduct','volcano','magma','ocplate','ctplate','quake'], span:10, unit:'myr',
+    intro:o('The dense oceanic plate dives under the light continental plate. Watch a trench form, earthquakes flash along the sinking slab and a chain of volcanoes grow.','密度大的大洋板块俯冲到轻的大陆板块之下。观察海沟的形成、沿下沉板块闪现的地震，以及一串火山的成长。') },
+  cc:{ name:o('Convergent: continent meets continent','汇聚型：大陆碰撞大陆'), parts:['mountains','folds','ctplate','ocplate','quake','astheno'], span:50, unit:'myr',
+    intro:o('First a small ocean closes as its floor subducts. Then two continents collide; neither sinks, so the rock layers fold and stack into giant mountains, like India crashing into Asia.','先是一片小洋的洋底俯冲消失，大洋闭合；随后两块大陆相撞，谁也不下沉，岩层只好褶皱、堆叠成巨大的山脉，就像印度板块撞上亚欧板块。') },
+  tf:{ name:o('Transform boundary','转换型边界'), parts:['fault','offset','quake','ctplate','astheno'], span:300, unit:'yr',
+    intro:o('Two plates grind past each other. They stick, build up stress, and then jump in sudden earthquakes. Watch the road, stream and trees get offset.','两个板块相互错动。它们卡住、积累应力，然后在突发的地震中猛地错开。看道路、河流和树木怎样被错开。') },
+  globe:{ name:o('Plates of the world','全球板块'), parts:['gdiv','gconv','gtf','ring','hotspot','quake'], span:0, unit:'',
+    intro:o('Earth’s lithosphere is broken into about 15 major plates. Most volcanoes (triangles) and earthquakes (dots) line up along plate boundaries. Click a line, a volcano or a dot.','地球的岩石圈破裂成大约 15 个主要板块。大多数火山（三角）和地震（圆点）沿板块边界分布。点击一条边界线、一座火山或一个圆点。') }
+};
+const STORY = [
+  {mode:'div', en:'1 · Divergent: two plates pull apart. Magma rises and freezes into new seafloor at the mid-ocean ridge.', zh:'1 · 离散型：两个板块分离，岩浆上涌，在洋中脊冷凝成新的洋底。'},
+  {mode:'div', play:true, en:'2 · Watch the magnetic stripes and seamounts ride away on both sides: the seafloor is spreading.', zh:'2 · 看磁条带和海山向两侧移走：这就是海底扩张。'},
+  {mode:'oc', play:true, en:'3 · Ocean meets continent: the dense ocean plate dives under, making a trench, earthquakes and a chain of volcanoes.', zh:'3 · 大洋遇上大陆：密度大的大洋板块俯冲下去，形成海沟、地震和一串火山。'},
+  {mode:'cc', play:true, en:'4 · Continent meets continent: neither sinks, so the crust crumples into giant folded mountains like the Himalayas.', zh:'4 · 大陆碰撞大陆：谁也不下沉，地壳挤压成喜马拉雅山那样巨大的褶皱山脉。'},
+  {mode:'tf', play:true, en:'5 · Transform: plates grind sideways. They stick, then slip in sudden earthquakes that offset roads and streams.', zh:'5 · 转换型：板块水平错动，先卡住，再在突发的地震中错开道路和河流。'},
+  {mode:'globe', en:'6 · Around the world, most volcanoes and earthquakes line up along plate boundaries, especially the Pacific Ring of Fire.', zh:'6 · 在全世界，大多数火山和地震沿板块边界分布，尤其是环太平洋火山地震带。'}
+];
+
+/* ===== App state + info panel ===== */
+const App = window.PT = { mode:'div', sel:null, feature:null, three:null, u:0 };
+App.select = (k, from3D, feature) => { App.sel = k; App.feature = feature || null; renderInfo(); renderChips(); if (!from3D && App.three) App.three.focus(k); };
+App.setMode = m => {
+  App.mode = m; App.sel = null; App.feature = null;
+  Lab.$$('#modebar .mode').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
+  Lab.$('#timePill').style.display = m === 'globe' ? 'none' : '';
+  renderInfo(); renderChips(); renderTime();
+  if (App.three) App.three.setMode(m);
+};
+function renderTime(){
+  const M = MODES[App.mode]; if (!M.span) return;
+  const v = App.u * M.span, zh = Lab.lang === 'zh';
+  Lab.$('#tLbl').textContent = M.unit === 'yr' ? (zh ? `⏳ ${Math.round(v)} 年` : `⏳ ${Math.round(v)} years`) : (zh ? `⏳ ${Math.round(v * 100)} 万年` : `⏳ ${v.toFixed(v < 10 ? 1 : 0)} million yr`);
+}
+App.renderTime = renderTime;
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel, M = MODES[App.mode];
+  if (!k){
+    box.innerHTML = `<span class="tag">${Lab.L(o('Plate boundary','板块边界'))}</span>
+      <h3>${Lab.L(M.name)}</h3>
+      <p class="muted" style="margin:0">${Lab.L(M.intro)}</p>
+      <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(o('Most earthquakes, volcanoes and mountains happen where plates meet. How the plates move (apart, together or sideways) decides what forms.','大多数地震、火山和山脉都出现在板块交界处。板块怎样运动（分离、靠近还是错动）决定了会形成什么。'))}</div>
+      <div class="nav"><button id="startBtn">${Lab.L(o('Explore the parts ▶','认识各部分 ▶'))}</button></div>`;
+    Lab.$('#startBtn').onclick = () => App.select(M.parts[0]);
+    return;
+  }
+  const p = PARTS[k], list = M.parts, i = list.indexOf(k);
+  box.innerHTML = `<span class="tag">${Lab.L(M.name)}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    ${App.feature ? `<div class="feature">📍 ${Lab.L(App.feature)}</div>` : ''}
+    <div class="job">${Lab.L(p.job)}</div>
+    ${p.photo ? LabPhotos.figure(p.photo) : ''}
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. '));
+  Lab.$('#pPrev').onclick = () => App.select(list[(i - 1 + list.length) % list.length]);
+  Lab.$('#pNext').onclick = () => App.select(list[(i + 1) % list.length]);
+}
+function renderChips(){
+  Lab.$('#chips').innerHTML = MODES[App.mode].parts.map(k => `<button class="chip ${App.sel===k?'on':''}" data-k="${k}"><i style="background:${PARTS[k].color}"></i>${Lab.L(PARTS[k].name)}</button>`).join('');
+  Lab.$$('#chips .chip').forEach(c => c.onclick = () => App.select(c.dataset.k));
+}
+Lab.$$('#modebar .mode').forEach(b => b.onclick = () => App.setMode(b.dataset.mode));
+Lab.onLang(() => { renderInfo(); renderChips(); renderTime(); });
+
+/* ===== Pangaea puzzle (SVG, drag pieces back into place) ===== */
+(function(){
+  const NS = 'http://www.w3.org/2000/svg', svg = Lab.$('#pangaea'), SH = 30;
+  const PIECES = [
+    {id:'na', name:o('North America','北美洲'), color:'#f2a541', pts:[[232,196],[210,182],[186,160],[160,146],[138,120],[128,92],[146,64],[190,48],[240,46],[280,70],[288,100],[292,128],[290,150],[276,180],[255,192]]},
+    {id:'eu', name:o('Eurasia','亚欧大陆'), color:'#81b29a', pts:[[280,70],[300,50],[360,36],[440,34],[520,50],[566,84],[560,122],[530,140],[496,150],[468,148],[450,150],[430,160],[410,140],[370,126],[330,124],[292,128],[288,100]]},
+    {id:'af', name:o('Africa','非洲'), color:'#e07a5f', pts:[[292,128],[330,124],[370,126],[410,140],[430,160],[426,190],[410,222],[398,250],[384,280],[346,304],[334,288],[324,260],[314,232],[296,212],[276,180],[290,150]]},
+    {id:'sa', name:o('South America','南美洲'), color:'#8bc34a', pts:[[276,180],[296,212],[314,232],[324,260],[334,288],[346,304],[334,320],[316,338],[300,360],[288,378],[278,364],[274,336],[260,300],[244,264],[232,232],[226,206],[232,196],[255,192]]},
+    {id:'in', name:o('India','印度'), color:'#f4d35e', pts:[[430,160],[450,150],[468,160],[470,190],[458,222],[440,250],[420,262],[398,250],[410,222],[426,190]]},
+    {id:'an', name:o('Antarctica','南极洲'), color:'#cfd8dc', pts:[[346,304],[384,280],[398,250],[420,262],[448,276],[470,300],[480,330],[460,360],[420,376],[380,374],[350,356],[336,330]]},
+    {id:'au', name:o('Australia','澳大利亚'), color:'#b388eb', pts:[[448,276],[470,250],[500,240],[536,252],[550,280],[540,310],[512,330],[480,330],[470,300]]}
+  ];
+  const ICON = { meso:'🦎', glos:'🌿', lyst:'🦛', cyno:'🐺', ice:'❄️' };
+  const EV = {
+    sa:[['meso',300,262],['meso',312,284],['glos',290,322],['cyno',266,240],['ice',294,348]],
+    af:[['meso',334,250],['meso',344,272],['glos',372,262],['lyst',376,214],['cyno',318,196],['ice',356,290]],
+    in:[['glos',448,184],['lyst',434,214],['ice',425,244]],
+    an:[['glos',412,322],['lyst',392,300],['ice',432,346]],
+    au:[['glos',505,282],['ice',494,308]], na:[], eu:[]
+  };
+  const MTN = { na:[[[228,152],[258,126],[289,104]],[[258,126],[289,140]]], eu:[[[289,104],[312,82],[338,60]]], af:[[[291,140],[318,134],[350,134]]] };
+  const st = {}; let moves = 0, drag = null;
+  const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+  const P = ([x, y]) => `${x + SH},${y}`;
+  el('rect', { x:0, y:0, width:700, height:440, class:'sea' }, svg);
+  const ghosts = el('g', {}, svg);
+  PIECES.forEach(pc => el('path', { d:'M' + pc.pts.map(P).join('L') + 'Z', class:'ghost' }, ghosts));
+  const names = {};
+  PIECES.forEach(pc => {
+    const g = el('g', { class:'piece', 'data-id':pc.id }, svg);
+    el('path', { d:'M' + pc.pts.map(P).join('L') + 'Z', fill:pc.color }, g);
+    (MTN[pc.id] || []).forEach(line => el('polyline', { points:line.map(P).join(' '), class:'ev mtn', fill:'none', stroke:'#6b3e1f', 'stroke-width':5, 'stroke-linecap':'round', 'stroke-dasharray':'2 5' }, g));
+    (EV[pc.id] || []).forEach(([t, x, y]) => { const tx = el('text', { x:x + SH, y:y + 5, class:'ev ' + (t === 'ice' ? 'ice' : 'fossil'), 'font-size':14, 'text-anchor':'middle' }, g); tx.textContent = ICON[t]; });
+    const cx = pc.pts.reduce((s, p) => s + p[0], 0) / pc.pts.length + SH, cy = pc.pts.reduce((s, p) => s + p[1], 0) / pc.pts.length;
+    names[pc.id] = el('text', { x:cx, y:cy, class:'nm' }, g);
+    st[pc.id] = { x:0, y:0, g, placed:false, box:pc.pts.reduce((b, [x, y]) => [Math.min(b[0], x + SH), Math.min(b[1], y), Math.max(b[2], x + SH), Math.max(b[3], y)], [1e9, 1e9, -1e9, -1e9]) };
+  });
+  const put = s => s.g.setAttribute('transform', `translate(${s.x.toFixed(1)},${s.y.toFixed(1)})`);
+  function update(){
+    const n = Object.values(st).filter(s => s.placed).length;
+    Lab.$('#pzPlaced').textContent = n + ' / 7'; Lab.$('#pzMoves').textContent = moves;
+    const m = Lab.$('#pzMsg');
+    if (n === 7){ m.textContent = Lab.L(o('🎉 You rebuilt Pangaea, about 250 million years ago! Turn on the evidence layers: the fossils, mountains and glacier marks line up across the oceans.','🎉 你重建了约 2.5 亿年前的盘古大陆！打开证据图层看看：化石、山脉和冰川痕迹跨越大洋连成了一片。')); m.className = 'result good'; }
+    else { m.textContent = n ? Lab.L(o('Nice fit! Keep going. Hint: Africa’s bulge tucks into North America, and South America’s bulge tucks into Africa.','拼得好！继续。提示：非洲西北的凸起嵌进北美洲，南美洲东部的凸起嵌进非洲的海湾。')) : Lab.L(o('Drag a continent close to where it belongs; it will snap into place.','把大陆拖到它原来的位置附近，它会自动吸附到位。')); m.className = 'result'; }
+  }
+  function scramble(){
+    moves = 0;
+    for (const id in st){
+      const s = st[id], [x0, y0, x1, y1] = s.box; let x, y, k = 0;
+      do { x = 8 - x0 + Math.random() * (692 - 8 - (x1 - x0)); y = 8 - y0 + Math.random() * (432 - 8 - (y1 - y0)); } while (Math.hypot(x, y) < 90 && ++k < 50);
+      s.x = x; s.y = y; s.placed = false; s.g.classList.remove('placed'); put(s);
+    }
+    update();
+  }
+  function solve(){ const t0 = performance.now(), from = Object.fromEntries(Object.entries(st).map(([k, s]) => [k, [s.x, s.y]]));
+    (function an(){ const u = Math.min(1, (performance.now() - t0) / 900), e = 1 - Math.pow(1 - u, 3);
+      for (const id in st){ const s = st[id]; s.x = from[id][0] * (1 - e); s.y = from[id][1] * (1 - e); put(s); if (u >= 1){ s.placed = true; s.g.classList.add('placed'); } }
+      if (u < 1) requestAnimationFrame(an); else update(); })(); }
+  const pt = e => { const m = svg.getScreenCTM().inverse(); return new DOMPoint(e.clientX, e.clientY).matrixTransform(m); };
+  svg.addEventListener('pointerdown', e => {
+    const g = e.target.closest('.piece'); if (!g) return; const s = st[g.dataset.id]; if (s.placed) return;
+    const p = pt(e); drag = { s, dx:p.x - s.x, dy:p.y - s.y }; svg.appendChild(g); svg.setPointerCapture(e.pointerId); e.preventDefault();
+  });
+  svg.addEventListener('pointermove', e => { if (!drag) return; const p = pt(e); drag.s.x = p.x - drag.dx; drag.s.y = p.y - drag.dy; put(drag.s); });
+  const end = () => { if (!drag) return; const s = drag.s; drag = null; moves++;
+    if (Math.hypot(s.x, s.y) < 18){ s.x = s.y = 0; s.placed = true; s.g.classList.add('placed'); put(s); svg.insertBefore(s.g, svg.querySelector('.piece')); }
+    update(); };
+  svg.addEventListener('pointerup', end); svg.addEventListener('pointercancel', end);
+  Lab.$('#pzScramble').onclick = scramble; Lab.$('#pzSolve').onclick = solve;
+  [['evFossil','show-fossil'],['evMtn','show-mtn'],['evIce','show-ice'],['evGhost','show-ghost']].forEach(([id, cls]) => Lab.$('#' + id).onchange = e => svg.classList.toggle(cls, e.target.checked));
+  Lab.onLang(() => { PIECES.forEach(pc => names[pc.id].textContent = Lab.L(pc.name)); update(); });
+  scramble();
+})();
+
+/* ===== Quiz ===== */
+/* ===== Real photos (Wikimedia Commons; licences checked with the Commons API helper, URLs exactly as returned) ===== */
+const PHOTOS = [
+  { part:'fault', kind:{en:'Aerial photo',zh:'航拍照片'}, src:'https://upload.wikimedia.org/wikipedia/commons/f/fb/Aerial-SanAndreas-CarrizoPlain.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'The San Andreas Fault from the air: the long straight scar running across the Carrizo Plain is where two plates grind past each other.', zh:'从空中看圣安德烈斯断层：横穿卡里索平原的那条笔直“伤疤”，就是两个板块相互错动的地方。', scale:{en:'Carrizo Plain, California, USA',zh:'美国加利福尼亚州卡里索平原'}, credit:'John Wiley (User:Jw4nvc)', license:'CC BY 3.0', page:'https://commons.wikimedia.org/wiki/File:Aerial-SanAndreas-CarrizoPlain.jpg' },
+  { part:'offset', kind:{en:'Aerial photo',zh:'航拍照片'}, src:'https://upload.wikimedia.org/wikipedia/commons/7/7d/Wallace_Creek_offset_USGS.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Wallace Creek makes a sharp zigzag where it crosses the San Andreas Fault. Earthquake after earthquake has dragged the stream bed sideways.', zh:'华莱士溪在穿过圣安德烈斯断层的地方突然拐了个“之”字弯：一次又一次地震把河床横向错开了。', scale:{en:'stream offset about 130 m (430 ft)',zh:'河道被错开约 130 米'}, credit:'USGS', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Wallace_Creek_offset_USGS.jpg' },
+  { part:'ridge', kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d9/%C3%9Eingvellir_in_southwestern_Iceland_is_the_site_of_a_rift_valley_that_marks_the_crest_of_the_Mid-Atlantic_Ridge._It_is_also_home_to_%C3%9Eingvallavatn%2C_the_largest_natural_lake_in_Iceland._%2815383986903%29.jpg/960px-thumbnail.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Þingvellir (Thingvellir), Iceland: a rift valley that marks the crest of the Mid-Atlantic Ridge. Here a divergent boundary rises above the sea, so you can walk through it.', zh:'冰岛辛格韦德利：这条裂谷就是大西洋中脊的顶部。离散型边界在这里露出海面，人可以走进去看。', scale:{en:'southwestern Iceland',zh:'冰岛西南部'}, credit:'Bryan Ledgard', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:%C3%9Eingvellir_in_southwestern_Iceland_is_the_site_of_a_rift_valley_that_marks_the_crest_of_the_Mid-Atlantic_Ridge._It_is_also_home_to_%C3%9Eingvallavatn,_the_largest_natural_lake_in_Iceland._(15383986903).jpg' },
+  { part:'volcano', kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d1/MSH80_eruption_mount_st_helens_05-18-80-dramatic-edit.jpg/960px-MSH80_eruption_mount_st_helens_05-18-80-dramatic-edit.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Mount St. Helens erupting on May 18, 1980. It is one of the Cascade volcanoes, which sit above a subduction zone.', zh:'1980 年 5 月 18 日，圣海伦斯火山喷发。它是喀斯喀特山脉的火山之一，位于俯冲带的上方。', scale:{en:'Washington State, USA',zh:'美国华盛顿州'}, credit:'Austin Post (USGS)', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:MSH80_eruption_mount_st_helens_05-18-80-dramatic-edit.jpg' },
+  { kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d9/Cotopaxi_01.jpg/960px-Cotopaxi_01.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Cotopaxi, a snow-capped volcano in the Andes. The Andes volcanoes formed where an ocean plate dives under South America.', zh:'安第斯山脉中白雪覆盖的科托帕希火山。安第斯山脉的火山，形成于大洋板块俯冲到南美洲之下的地方。', scale:{en:'Ecuador · 5,897 m (19,347 ft) high',zh:'厄瓜多尔 · 海拔 5897 米'}, credit:'Bernard Gagnon', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Cotopaxi_01.jpg' },
+  { part:'mountains', kind:{en:'Astronaut photo',zh:'宇航员拍摄'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/79/Himalayas.jpg/960px-Himalayas.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The Himalaya seen from the International Space Station: the crumpled crust where India is still pushing into Asia.', zh:'从国际空间站看喜马拉雅山脉：印度板块至今仍在挤向亚洲，把地壳挤成了这片褶皱的高山。', scale:{en:'seen from about 400 km (250 miles) up',zh:'从约 400 千米高空拍摄'}, credit:'NASA', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Himalayas.jpg' },
+  { part:'folds', kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5e/Anticline_%28Wills_Creek_Formation%2C_Silurian%3B_Round_Top_Hill%2C_Maryland%2C_USA%29.jpg/960px-Anticline_%28Wills_Creek_Formation%2C_Silurian%3B_Round_Top_Hill%2C_Maryland%2C_USA%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'An anticline: rock layers that were once flat, squeezed sideways until they arched upward.', zh:'背斜：原本平坦的岩层受到水平挤压，向上拱了起来。', scale:{en:'Round Top Hill, Maryland, USA',zh:'美国马里兰州圆顶山'}, credit:'Ljubomir Risteski, via James St. John', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Anticline_(Wills_Creek_Formation,_Silurian;_Round_Top_Hill,_Maryland,_USA).jpg' },
+  { type:'video', kind:{en:'Video · 14 MB',zh:'影片 · 14 MB'}, media:'https://upload.wikimedia.org/wikipedia/commons/f/f1/Helicopter_overflight_of_a_fast-moving_lava_flow_emerging_from_fissure_20_on_....webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f1/Helicopter_overflight_of_a_fast-moving_lava_flow_emerging_from_fissure_20_on_....webm/960px--Helicopter_overflight_of_a_fast-moving_lava_flow_emerging_from_fissure_20_on_....webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f1/Helicopter_overflight_of_a_fast-moving_lava_flow_emerging_from_fissure_20_on_....webm/960px--Helicopter_overflight_of_a_fast-moving_lava_flow_emerging_from_fissure_20_on_....webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Watch: a helicopter flies over a fast-moving river of lava pouring out of a crack in the ground (fissure 20). Filmed by USGS volcano scientists.', zh:'看一看：直升机飞过一条从地面裂缝（20 号裂隙）涌出的、快速流动的熔岩河。由美国地质调查局的火山学家拍摄。', credit:'USGS Volcanoes', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Helicopter_overflight_of_a_fast-moving_lava_flow_emerging_from_fissure_20_on_....webm' }
+];
+PHOTOS.forEach(it => { if (it.part && PARTS[it.part]) PARTS[it.part].photo = it; });
+LabPhotos.render(Lab.$('#gallery'), PHOTOS);
+
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('Who proposed the idea of continental drift in 1912?','1912 年，谁提出了大陆漂移说？'), options:[o('Alfred Wegener','魏格纳'),o('Isaac Newton','牛顿'),o('Charles Darwin','达尔文'),o('Harry Hess','赫斯')], answer:0},
+  {q:o('Which of these was NOT evidence Wegener used?','下列哪一项不是魏格纳使用过的证据？'), options:[o('GPS satellite measurements','GPS 卫星测量'),o('Matching fossils on different continents','不同大陆上相同的化石'),o('Coastlines that fit like puzzle pieces','像拼图一样吻合的海岸线'),o('Matching rock layers and mountain belts','相互对应的岩层和山脉')], answer:0, explain:o('GPS did not exist in 1912. Today GPS shows plates moving a few cm per year, supporting plate tectonics.','1912 年还没有 GPS。如今 GPS 测出板块每年移动几厘米，支持了板块构造理论。')},
+  {q:o('What happens at a divergent boundary?','离散型边界上会发生什么？'), options:[o('Plates move apart and new crust forms','板块分离，形成新地壳'),o('Plates collide and form a trench','板块相撞形成海沟'),o('Plates slide past each other','板块水平错动'),o('Nothing ever happens','什么都不发生')], answer:0},
+  {q:o('When an oceanic plate meets a continental plate, which one sinks?','大洋板块与大陆板块相遇时，哪一个下沉？'), options:[o('The oceanic plate, because it is denser','大洋板块，因为它密度更大'),o('The continental plate, because it is thicker','大陆板块，因为它更厚'),o('Both sink equally','两个一起下沉'),o('Neither one moves','两个都不动')], answer:0},
+  {q:o('How did the Himalayas form?','喜马拉雅山脉是怎样形成的？'), options:[o('Two continental plates collided','两块大陆板块相撞'),o('A mid-ocean ridge rose up','洋中脊升起'),o('A hot spot erupted','热点火山喷发'),o('Rivers deposited sediment','河流堆积了泥沙')], answer:0, explain:o('India crashed into Asia. Neither plate sank, so the crust folded and stacked up into the world’s highest mountains.','印度板块撞上亚欧板块，谁也没有下沉，地壳褶皱堆叠成世界最高的山脉。')},
+  {q:o('The San Andreas Fault is an example of a…','圣安德烈斯断层属于……'), options:[o('Transform boundary','转换型边界'),o('Divergent boundary','离散型边界'),o('Hot spot','热点'),o('Ocean trench','海沟')], answer:0},
+  {q:o('What is the main source of energy that moves the plates?','推动板块运动的主要能量来自哪里？'), options:[o('Heat from Earth’s interior driving mantle convection','地球内部的热量驱动地幔对流'),o('Wind blowing on the continents','吹向大陆的风'),o('Ocean tides','海洋潮汐'),o('The Moon’s gravity','月球的引力')], answer:0},
+  {q:o('Which observation supports seafloor spreading?','哪一项观察支持海底扩张说？'), options:[o('Rocks get older farther from the mid-ocean ridge','离洋中脊越远，岩石越古老'),o('The ocean is salty','海水是咸的'),o('Mountains are higher than plains','山地比平原高'),o('Earth has seasons','地球有四季')], answer:0, explain:o('Rock is youngest at the ridge and older farther away, with matching magnetic stripes on both sides.','洋中脊处岩石最年轻，越远越老，两侧还有对称的磁条带。')},
+  {q:o('Most of the Ring of Fire’s volcanoes form at…','环太平洋火山地震带的大多数火山形成于……'), options:[o('Subduction zones at convergent boundaries','汇聚型边界的俯冲带'),o('Transform faults','转换断层'),o('The middle of plates','板块内部'),o('Mid-ocean ridges','洋中脊')], answer:0},
+  {q:o('About how fast do plates move?','板块移动的速度大约是多少？'), options:[o('2–10 cm per year, like fingernails growing','每年 2~10 厘米，和指甲生长差不多'),o('About 10 km per hour','每小时约 10 千米'),o('1 meter per day','每天 1 米'),o('They do not move','它们不移动')], answer:0},
+  {q:o('Why are the Hawaiian Islands volcanic even though they are in the middle of a plate?','夏威夷群岛位于板块中部，为什么也有火山？'), options:[o('The plate moves over a hot spot','板块从一个热点上方移过'),o('They sit on a transform fault','它们位于转换断层上'),o('Two continents collided there','那里有两块大陆相撞'),o('A trench is nearby','附近有海沟')], answer:0},
+  {q:o('A deep ocean trench is a sign of…','深海沟是什么的标志？'), options:[o('One plate subducting under another','一个板块俯冲到另一个之下'),o('Plates pulling apart','板块张裂'),o('Plates sliding sideways','板块水平错动'),o('A river canyon','河流峡谷')], answer:0}
+], { count:10 });
+
+/* ===== Sort game ===== */
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'div',en:'Divergent',zh:'离散型'},{id:'conv',en:'Convergent',zh:'汇聚型'},{id:'tf',en:'Transform',zh:'转换型'}],
+  items:[
+    {en:'Mid-ocean ridge',zh:'洋中脊',bin:'div'},{en:'Rift valley',zh:'裂谷',bin:'div'},{en:'New crust forms',zh:'形成新地壳',bin:'div'},{en:'Iceland',zh:'冰岛',bin:'div'},
+    {en:'Deep ocean trench',zh:'深海沟',bin:'conv'},{en:'Himalayas',zh:'喜马拉雅山脉',bin:'conv'},{en:'Andes volcanoes',zh:'安第斯山脉的火山',bin:'conv'},{en:'Crust sinks into the mantle',zh:'地壳沉入地幔',bin:'conv'},
+    {en:'San Andreas Fault',zh:'圣安德烈斯断层',bin:'tf'},{en:'Plates slide past each other',zh:'板块相互错动',bin:'tf'},{en:'Offset roads and streams',zh:'被错开的道路和河流',bin:'tf'},{en:'Crust neither made nor destroyed',zh:'地壳既不产生也不消亡',bin:'tf'}
+  ]
+});
+</script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const App = window.PT, V3 = THREE.Vector3, UP = new V3(0, 1, 0), D = 6, HD = D / 2;
+const ctx = Lab3D.stage('#stage', { THREE, OrbitControls, camera:[6.5, 5.5, 13], target:[0, -.8, 0], minDistance:4, maxDistance:40 });
+const { scene, camera } = ctx;
+const head = new THREE.DirectionalLight(0xffffff, .55); head.position.set(0, 0, 1); camera.add(head); scene.add(camera);
+const block = new THREE.Group(), globe = new THREE.Group(); scene.add(block, globe);
+
+/* ---------- helpers ---------- */
+const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+const lerp = (a, b, t) => a + (b - a) * t, gs = v => Math.exp(-v * v);
+const M = (c, ex = {}) => new THREE.MeshStandardMaterial({ color:c, roughness:.85, metalness:0, ...ex });
+const glowM = c => M(c, { emissive:c, emissiveIntensity:.9 });
+const samp = (f, a, b, n = 70) => Array.from({ length:n + 1 }, (_, i) => { const x = a + (b - a) * i / n; return [x, f(x)]; });
+function ext(top, bot, depth = D){
+  const s = new THREE.Shape(); s.moveTo(top[0][0], top[0][1]); for (let i = 1; i < top.length; i++) s.lineTo(top[i][0], top[i][1]); for (let i = bot.length - 1; i >= 0; i--) s.lineTo(bot[i][0], bot[i][1]); s.closePath();
+  const g = new THREE.ExtrudeGeometry(s, { depth, bevelEnabled:false, steps:1, curveSegments:1 }); g.translate(0, 0, -depth / 2); return g;
+}
+const setG = (m, g) => { m.geometry.dispose(); m.geometry = g; };
+const HL = [];
+function reg(obj, key){ ctx.pickable(obj, key); obj.traverse(c => { if (c.isMesh) [].concat(c.material).forEach(m => { if (m.emissive && !m.userData.reg){ m.userData.reg = 1; m.userData.e0 = m.emissive.clone(); HL.push([m, key]); } }); }); return obj; }
+function mk(geo, mat, parent, key){ const m = new THREE.Mesh(geo || new THREE.BufferGeometry(), mat); parent.add(m); if (key) reg(m, key); return m; }
+const pickZone = (parent, key, w, h, x, y) => { const z = mk(new THREE.BoxGeometry(w, h, D), new THREE.MeshBasicMaterial({ transparent:true, opacity:0, depthWrite:false }), parent); z.position.set(x, y, 0); ctx.pickable(z, key); return z; };
+const C1 = new THREE.Color(), LG = new THREE.Color('#6e9b4c'), LB = new THREE.Color('#8b7b5a'), LS = new THREE.Color('#f4f4f2');
+function landColors(g, snow = 1.25){ const p = g.attributes.position, c = new Float32Array(p.count * 3);
+  for (let i = 0; i < p.count; i++){ const y = p.getY(i); if (y < .75) C1.copy(LG).lerp(LB, Math.max(0, (y - .35) / .4)); else C1.copy(LB).lerp(LS, Math.min(1, Math.max(0, (y - snow + .2) / .25))); c[i*3] = C1.r; c[i*3+1] = C1.g; c[i*3+2] = C1.b; }
+  g.setAttribute('color', new THREE.BufferAttribute(c, 3)); return g; }
+function arrow(parent, dir, x, y, z = 0){ const g = new THREE.Group(), m = M('#ffffff', { emissive:'#666666' });
+  const sh = new THREE.Mesh(new THREE.CylinderGeometry(.07, .07, 1.1, 10), m); sh.rotation.z = Math.PI / 2; g.add(sh);
+  const hd = new THREE.Mesh(new THREE.ConeGeometry(.18, .38, 14), m); hd.rotation.z = -Math.PI / 2 * dir; hd.position.x = .7 * dir; g.add(hd);
+  g.position.set(x, y, z); parent.add(g); return g; }
+const dotTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.5, 'rgba(255,255,255,.75)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+function makeFlow(parent, cells, n = 90){
+  const pos = new Float32Array(n * 3), geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  parent.add(new THREE.Points(geo, new THREE.PointsMaterial({ size:.15, map:dotTex, color:'#fff1cf', transparent:true, depthWrite:false })));
+  const P = Array.from({ length:n }, (_, i) => ({ c:i % cells.length, s:Math.random(), k:.3 + .7 * Math.random() }));
+  return dt => { P.forEach((p, i) => { const C = cells[p.c]; p.s = (p.s + dt * .05 * C.dir + 1) % 1; const a = p.s * Math.PI * 2; pos[i*3] = C.x + C.rx * p.k * Math.cos(a); pos[i*3+1] = C.y + C.ry * p.k * Math.sin(a); pos[i*3+2] = HD + .03; }); geo.attributes.position.needsUpdate = true; };
+}
+function makeRise(parent, n = 36, color = '#ffb347'){
+  const pos = new Float32Array(n * 3), geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const pts = new THREE.Points(geo, new THREE.PointsMaterial({ size:.17, map:dotTex, color, transparent:true, depthWrite:false })); parent.add(pts);
+  const P = Array.from({ length:n }, () => ({ s:Math.random(), j:(Math.random() - .5) * .25 }));
+  const R = { path:[], update(dt){
+    const path = R.path; pts.visible = path.length > 1; if (!pts.visible) return;
+    const seg = [], L = path.slice(1).reduce((s, p, i) => { const l = Math.hypot(p[0] - path[i][0], p[1] - path[i][1]); seg.push(l); return s + l; }, 0);
+    P.forEach((p, i) => { p.s = (p.s + dt * .22) % 1; let d = p.s * L, k = 0; while (k < seg.length - 1 && d > seg[k]){ d -= seg[k]; k++; } const u = Math.min(1, d / seg[k]), a = path[k], b = path[k + 1];
+      pos[i*3] = lerp(a[0], b[0], u) + p.j; pos[i*3+1] = lerp(a[1], b[1], u); pos[i*3+2] = HD + .04; });
+    geo.attributes.position.needsUpdate = true; } };
+  return R;
+}
+function makeQuakes(parent){
+  const g = new THREE.Group(); parent.add(g); const geo = new THREE.OctahedronGeometry(.1), mat = new THREE.MeshBasicMaterial({ color:'#ffe14d' }), list = [];
+  return { set(pts){ while (list.length < pts.length){ const m = new THREE.Mesh(geo, mat); m.userData.ph = Math.random() * 6.28; g.add(m); ctx.pickable(m, 'quake'); list.push(m); }
+      list.forEach((m, i) => { m.visible = i < pts.length; if (m.visible) m.position.set(pts[i][0], pts[i][1], pts[i][2] ?? HD + .06); }); },
+    update(t){ list.forEach(m => { const s = Math.max(0, Math.sin(t * 2.2 + m.userData.ph)); m.scale.setScalar(.35 + s * 1.1); }); }, first:() => list[0] };
+}
+const asthenoBox = parent => { const m = mk(ext([[-7, -1], [7, -1]], [[-7, -3.2], [7, -3.2]], D - .04), [M('#e8833a', { emissive:'#4a1800' }), M('#d9742f', { emissive:'#3a1200' })], parent, 'astheno'); return m; };
+const waterMat = () => new THREE.MeshStandardMaterial({ color:'#2f86d6', transparent:true, opacity:.32, roughness:.2, depthWrite:false });
+
+/* ---------- labels ---------- */
+const LABELS = {}; let labelsOn = false;
+function lab(mode, key, at, offset){ const L = ctx.label(PARTS[key].name, at, offset ? { offset } : {}); L.visible = false; (LABELS[mode] = LABELS[mode] || []).push(L); return L; }
+function showLabels(){ for (const m in LABELS) LABELS[m].forEach(L => L.visible = labelsOn && m === App.mode); }
+
+const MODES3D = {};
+/* =================== DIVERGENT =================== */
+(function(){
+  const G = new THREE.Group(); block.add(G);
+  const top = x => -.6 + .4 * gs(x / 1.8) - .12 * gs(x / .22), TC = .16, lb = x => top(x) - (.3 + .7 * (1 - Math.exp(-Math.abs(x) / 2)));
+  const crust = [M('#4b5a6a'), M('#34465a')], lith = [M('#8c6a52'), M('#7a5a45')];
+  for (const [a, b] of [[-7, 0], [0, 7]]){ mk(ext(samp(top, a, b), samp(x => top(x) - TC, a, b)), crust, G, 'ocplate'); mk(ext(samp(x => top(x) - TC, a, b), samp(lb, a, b)), lith, G, 'ocplate'); }
+  mk(ext(samp(lb, -7, 7, 120), [[-7, -3.2], [7, -3.2]], D - .04), [M('#e8833a', { emissive:'#4a1800' }), M('#d9742f', { emissive:'#3a1200' })], G, 'astheno');
+  const tex = (() => { const c = document.createElement('canvas'); c.width = 1024; c.height = 4; const g = c.getContext('2d'), W = [60,25,40,80,30,50,20,70,45,35,90,28,55,38,65,42,30,75]; let x = 0, k = 0; while (x < 1024){ const w = W[k % W.length]; g.fillStyle = k % 2 ? '#d8e2ef' : '#22314a'; g.fillRect(x, 0, w, 4); x += w; k++; } const t = new THREE.CanvasTexture(c); t.wrapS = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; return t; })();
+  const stripeMat = M('#ffffff', { map:tex, transparent:true, opacity:.9, polygonOffset:true, polygonOffsetFactor:-2 });
+  for (const s of [-1, 1]){ const g = new THREE.PlaneGeometry(7, D, 140, 1); g.rotateX(-Math.PI / 2); g.translate(3.5 * s, 0, 0); const p = g.attributes.position, uv = g.attributes.uv;
+    for (let i = 0; i < p.count; i++){ p.setY(i, top(p.getX(i)) + .004); if (s < 0) uv.setX(i, 1 - uv.getX(i)); } g.computeVertexNormals(); mk(g, stripeMat, G, 'spread'); }
+  mk(new THREE.BoxGeometry(.14, .05, D), glowM('#ff5a1f'), G, 'ridge').position.set(0, top(0) + .01, 0);
+  pickZone(G, 'ridge', 1.6, .45, 0, top(0) - .05);
+  const cg = new THREE.CylinderGeometry(1, 1, D + .02, 40); cg.rotateX(Math.PI / 2);
+  const chamber = mk(cg, glowM('#ff4a1a'), G, 'magma'); chamber.scale.set(.5, .2, 1); chamber.position.set(0, -.66, 0);
+  const water = mk(new THREE.BoxGeometry(14, .62, D - .02), waterMat(), G); water.position.y = -.31;
+  const mounts = [-1, 1].map(s => { const m = mk(new THREE.ConeGeometry(.35, .4, 20), M('#3d4b5c'), G, 'spread'); m.userData.s = s; return m; });
+  arrow(G, -1, -3.5, .9); arrow(G, 1, 3.5, .9);
+  const flow = makeFlow(G, [{ x:-3.5, y:-2.2, rx:3.1, ry:.75, dir:1 }, { x:3.5, y:-2.2, rx:3.1, ry:.75, dir:-1 }]);
+  const rise = makeRise(G); rise.path = [[0, -2.9], [0, -.7], [0, top(0)]];
+  const qk = makeQuakes(G); qk.set([[.15, -.42], [-.2, -.38], [.4, -.5], [-.45, -.47], [.05, -.56], [.65, -.52], [-.7, -.5]]);
+  lab('div', 'ridge', new V3(0, -.05, HD)); lab('div', 'spread', new V3(3, -.3, 1.5)); lab('div', 'magma', new V3(0, -.95, HD)); lab('div', 'ocplate', new V3(-5, -.95, HD)); lab('div', 'astheno', new V3(-4.6, -2.7, HD)); lab('div', 'quake', new V3(1.2, -.35, HD));
+  MODES3D.div = { G, focus:{ ridge:[0, -.3, 1], spread:[3, -.5, 0], magma:[0, -.7, HD], ocplate:[-4, -.8, HD], astheno:[-3, -2.2, HD], quake:[0, -.45, HD] },
+    update(u){ tex.offset.x = -u * .6; mounts.forEach(m => { const x = m.userData.s * (.9 + 4.2 * u); m.position.set(x, top(x) + .18, m.userData.s * 1.2); }); },
+    frame(dt, t){ flow(dt); rise.update(dt); qk.update(t); } };
+})();
+
+/* =================== OCEAN–CONTINENT =================== */
+(function(){
+  const G = new THREE.Group(); block.add(G);
+  const SF = -.65, TC = .16, TH = .85, DIP = 40 * Math.PI / 180;
+  const oc = [M('#4b5a6a'), M('#34465a')], ol = [M('#8c6a52'), M('#7a5a45')], sc = [M('#455a74'), M('#3a4d66')], sl = [M('#7f6a5c'), M('#6f5b4e')];
+  mk(ext([[-7, SF], [0, SF]], [[-7, SF - TC], [0, SF - TC]]), oc, G, 'ocplate'); mk(ext([[-7, SF - TC], [0, SF - TC]], [[-7, SF - TH], [0, SF - TH]]), ol, G, 'ocplate');
+  const slabC = mk(null, sc, G, 'subduct'), slabL = mk(null, sl, G, 'subduct');
+  const cc = [M('#b5895a'), new THREE.MeshStandardMaterial({ vertexColors:true, roughness:.9 })], cl = [M('#9a7a5e'), M('#8a6c52')];
+  const contC = mk(null, cc, G, 'ctplate'), contL = mk(null, cl, G, 'ctplate');
+  asthenoBox(G);
+  const water = mk(new THREE.BoxGeometry(8.2, 1.0, D - .02), waterMat(), G); water.position.set(-2.9, -.5, 0);
+  pickZone(G, 'trench', .9, .55, .2, -.8);
+  const cones = [-1.8, .2, 1.9].map((z, i) => { const g = new THREE.Group(); const c = mk(new THREE.ConeGeometry(.55, 1, 24), M('#6b4f3f'), g, 'volcano'); c.position.y = .5; const cr = mk(new THREE.SphereGeometry(.09, 12, 8), glowM('#ff5a1f'), g, 'volcano'); cr.position.y = 1; g.position.set(2.4 + (i - 1) * .12, 0, z); G.add(g); return g; });
+  const blob = mk(new THREE.SphereGeometry(.22, 16, 12), glowM('#ff4a1a'), G, 'magma'); blob.scale.z = .3;
+  const marker = mk(new THREE.ConeGeometry(.3, .35, 16), M('#3d4b5c'), G, 'ocplate');
+  arrow(G, 1, -4, .7); arrow(G, -1, 5.3, 1.4);
+  const flow = makeFlow(G, [{ x:-3.8, y:-2.3, rx:3, ry:.65, dir:-1 }, { x:4.7, y:-2.4, rx:2, ry:.55, dir:1 }]);
+  const rise = makeRise(G); const qk = makeQuakes(G);
+  const smoke = (() => { const n = 45, pos = new Float32Array(n * 3), geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); const pts = new THREE.Points(geo, new THREE.PointsMaterial({ size:.32, map:dotTex, color:'#9aa0a8', transparent:true, opacity:.7, depthWrite:false })); G.add(pts); const P = Array.from({ length:n }, (_, i) => ({ c:i % 3, s:Math.random(), j:Math.random() - .5 })); return { pts, update(dt){ P.forEach((p, i) => { p.s = (p.s + dt * .25) % 1; const c = cones[p.c]; pos[i*3] = c.position.x + p.j * .3 + p.s * .6; pos[i*3+1] = c.position.y + c.scale.y + p.s * 1.4; pos[i*3+2] = c.position.z + p.j * .3; }); geo.attributes.position.needsUpdate = true; } }; })();
+  const anc = { sub:new THREE.Object3D(), vol:new THREE.Object3D() }; G.add(anc.sub, anc.vol);
+  let path = [];
+  function slabPath(L){ const pts = []; let x = 0, y = SF; for (let s = 0; s <= L + 1e-6; s += .05){ const th = DIP * (1 - Math.exp(-s / 1.0)); pts.push([x, y, th, s]); x += Math.cos(th) * .05; y -= Math.sin(th) * .05; } return pts; }
+  const slabTop = x => { if (x <= 0) return SF; for (let i = 1; i < path.length; i++) if (path[i][0] >= x){ const a = path[i-1], b = path[i]; return lerp(a[1], b[1], (x - a[0]) / (b[0] - a[0])); } return -99; };
+  const off = (p, d) => [p[0] - Math.sin(p[2]) * d, p[1] - Math.cos(p[2]) * d];
+  function atS(s){ if (s <= 0) return [s, SF, 0]; for (const p of path) if (p[3] >= s) return p; return null; }
+  lab('oc', 'trench', new V3(.15, -.55, HD)); lab('oc', 'subduct', anc.sub); lab('oc', 'volcano', anc.vol); lab('oc', 'magma', blob, [0, -.35, 0]); lab('oc', 'ocplate', new V3(-5, -1.05, HD)); lab('oc', 'ctplate', new V3(5.3, -.75, HD)); lab('oc', 'astheno', new V3(-4.5, -2.8, HD));
+  MODES3D.oc = { G, focus:{ trench:[.2, -.8, 1], subduct:[1.6, -1.6, HD], volcano:[2.4, 1, 0], magma:[2.4, -1.2, HD], ocplate:[-4, -.9, HD], ctplate:[4.5, -.4, HD], quake:[1.2, -1.2, HD], astheno:[-3, -2.2, HD] },
+    update(u){
+      const L = 1.0 + 3.8 * u; path = slabPath(L);
+      setG(slabC, ext(path.map(p => [p[0], p[1]]), path.map(p => off(p, TC)))); setG(slabL, ext(path.map(p => off(p, TC)), path.map(p => off(p, TH))));
+      const H = .25 + .8 * u, xe = .15;
+      const top = x => lerp(-.45, .3 + H * gs((x - 2.4) / .75) + .3 * u * gs((x - 4) / 1.3), smooth(xe, 1.3, x));
+      const cb = x => Math.max(top(x) - (.12 + .5 * smooth(xe, 1.3, x)), slabTop(x) + .02), lb = x => Math.min(cb(x) - .03, Math.max(-1.6, slabTop(x) + .02));
+      setG(contC, landColors(ext(samp(top, xe, 7, 90), samp(cb, xe, 7, 90)))); setG(contL, ext(samp(cb, xe, 7, 90), samp(lb, xe, 7, 90)));
+      const h = .2 + .75 * u, base = top(2.4) - .1; cones.forEach(c => { c.scale.set(.6 + .4 * u, h, .6 + .4 * u); c.position.y = base; c.children[1].visible = u > .25; });
+      anc.vol.position.set(2.4, base + h + .25, 1.9);
+      const deep = path.find(p => p[1] < -2.0);
+      if (deep){ const p = off(deep, -.05); blob.visible = true; blob.position.set(p[0], p[1] + .15, HD); rise.path = [[p[0], p[1] + .2], [2.4, -.9], [2.4, base + h]]; } else { blob.visible = false; rise.path = []; }
+      smoke.pts.visible = u > .3;
+      const mp = atS(-5.6 + 5.2 * u); marker.visible = !!mp; if (mp){ const q = off(mp, -.17); marker.position.set(q[0], q[1], -1.2); marker.rotation.z = -mp[2]; }
+      const am = atS(L * .55); if (am){ const q = off(am, TH / 2); anc.sub.position.set(q[0], q[1], HD); }
+      qk.set([.15, .5, 1.0, 1.6, 2.3, 3.0, 3.7, 4.4].map(atS).filter(Boolean).map(p => off(p, .12)));
+    },
+    frame(dt, t){ flow(dt); rise.update(dt); qk.update(t); if (smoke.pts.visible) smoke.update(dt); } };
+})();
+
+/* =================== CONTINENT–CONTINENT =================== */
+(function(){
+  const G = new THREE.Group(); block.add(G);
+  const SF = -.65, TC = .16, TH = .85, DIP = 50 * Math.PI / 180, T0 = .17, U0 = .35;
+  const strata = ['#d9b98a', '#a8794f', '#c99a62'];
+  const mkPlate = () => ({ L:[0, 1, 2].map(i => mk(null, [M(strata[i]), i ? M('#8b7b5a') : new THREE.MeshStandardMaterial({ vertexColors:true, roughness:.9 })], G, i ? 'folds' : 'mountains')), lith:mk(null, [M('#9a7a5e'), M('#8a6c52')], G, 'ctplate') });
+  const india = mkPlate(), asia = mkPlate();
+  const ocC = mk(null, [M('#4b5a6a'), M('#34465a')], G, 'ocplate'), ocL = mk(null, [M('#8c6a52'), M('#7a5a45')], G, 'ocplate');
+  asthenoBox(G);
+  const water = mk(new THREE.BoxGeometry(1, .7, D - .02), waterMat(), G); water.position.y = -.35;
+  const arr = arrow(G, 1, -4.5, 1.2); arrow(G, -1, 5, 1.5);
+  const flow = makeFlow(G, [{ x:-3.5, y:-2.4, rx:3, ry:.55, dir:-1 }, { x:3.5, y:-2.4, rx:3, ry:.55, dir:1 }]);
+  const qk = makeQuakes(G);
+  const anc = { mt:new THREE.Object3D(), fold:new THREE.Object3D(), oc:new THREE.Object3D() }; G.add(anc.mt, anc.fold, anc.oc);
+  const off = (p, d) => [p[0] - Math.sin(p[2]) * d, p[1] - Math.cos(p[2]) * d];
+  lab('cc', 'mountains', anc.mt); lab('cc', 'folds', anc.fold); lab('cc', 'ctplate', new V3(-5, -.9, HD)); lab('cc', 'ocplate', anc.oc); lab('cc', 'astheno', new V3(-4.5, -2.8, HD));
+  MODES3D.cc = { G, focus:{ mountains:[0, 1.5, 0], folds:[0, .2, HD], ctplate:[-4, -.6, HD], ocplate:[-1, -.8, HD], quake:[.3, -.5, HD], astheno:[-3, -2.2, HD] },
+    update(u){
+      const p = Math.min(1, u / U0), H = u < U0 ? 0 : 2.2 * smooth(0, 1, (u - U0) / (1 - U0)), hk = H / 2.2, cbk = smooth(.85, 1, p), xL = -2.4 * (1 - p);
+      const path = []; { let x = 0, y = SF; for (let s = 0; s <= .6 + 2.2 * p + 1e-6; s += .05){ const th = DIP * (1 - Math.exp(-s / .8)); path.push([x, y, th]); x += Math.cos(th) * .05; y -= Math.sin(th) * .05; } }
+      const drop = 2.8 * smooth(0, .55, hk);   // after collision the old ocean slab breaks off and sinks
+      const slabTop = x => { if (x <= 0) return SF - drop; for (let i = 1; i < path.length; i++) if (path[i][0] >= x) return lerp(path[i-1][1], path[i][1], (x - path[i-1][0]) / (path[i][0] - path[i-1][0])) - drop; return -99; };
+      const topC = x => .3 + H * gs(x / 1.5) * (1 + .12 * Math.sin(x * 5.3)) + .45 * hk * smooth(.5, 2.5, x) * gs((x - 3.5) / 2.8);
+      const root = x => 1.0 * hk * gs(x / 1.8), fold = x => .16 * hk * gs(x / 1.9) * Math.sin(x * 4.2);
+      function layers(x, side){
+        const e = side < 0 ? 1 - smooth(xL - .9, xL, x) : smooth(0, .9, x), w = lerp(e, 1, cbk);
+        const b0 = lerp(side < 0 ? SF + .05 : -.45, topC(x), w), b3 = lerp(SF - TC, .3 - 3 * T0 - root(x), w);
+        let b4 = lerp(SF - TH, b3 - .9, w);
+        let B3 = b3; if (side > 0){ const st = slabTop(x); B3 = Math.max(b3, st + .02); b4 = Math.min(B3 - .03, Math.max(b4, st + .02)); }
+        const f = fold(x) * w; return [b0, lerp(b0, B3, 1 / 3) + f, lerp(b0, B3, 2 / 3) + f * .8, B3, b4];
+      }
+      for (const [pl, a, b, side] of [[india, -7, xL, -1], [asia, 0, 7, 1]]){
+        const xs = Array.from({ length:111 }, (_, i) => a + (b - a) * i / 110), Ls = xs.map(x => layers(x, side));
+        for (let i = 0; i < 3; i++){ const g = ext(xs.map((x, k) => [x, Ls[k][i]]), xs.map((x, k) => [x, Ls[k][i + 1]])); setG(pl.L[i], i ? g : landColors(g, 1.55)); }
+        setG(pl.lith, ext(xs.map((x, k) => [x, Ls[k][3]]), xs.map((x, k) => [x, Ls[k][4]])));
+      }
+      ocC.position.y = ocL.position.y = -drop; ocC.visible = ocL.visible = anc.oc.visible = drop < 2.6;
+      const ocPts = xL < -.01 ? [[xL, SF, 0], ...path] : path;
+      setG(ocC, ext(ocPts.map(q => [q[0], q[1]]), ocPts.map(q => off(q, TC)))); setG(ocL, ext(ocPts.map(q => off(q, TC)), ocPts.map(q => off(q, TH))));
+      water.visible = p < .98; water.scale.x = Math.max(.01, .3 - xL); water.position.x = (xL + .3) / 2;
+      arr.position.x = -4.5 + 2.4 * p;
+      anc.mt.position.set(0, topC(0) + .45, 1.5); anc.fold.position.set(-.9, layers(-.9, -1)[2], HD); anc.oc.position.set(path[Math.min(path.length - 1, 20)][0], path[Math.min(path.length - 1, 20)][1] - .4, HD);
+      const pre = path.filter((q, i) => i % 9 === 4).map(q => off(q, .12)), post = [[-1, -.3], [-.4, -.8], [.3, -.5], [.9, -1.0], [1.5, -.4], [-.2, -1.25], [.6, .1]];
+      qk.set(H > .2 ? post : pre);
+    },
+    frame(dt, t){ flow(dt); qk.update(t); } };
+})();
+
+/* =================== TRANSFORM =================== */
+(function(){
+  const G = new THREE.Group(); block.add(G);
+  const crustM = M('#b5895a'), grass = M('#7fae5a');
+  const plates = [-1, 1].map(s => { const g = new THREE.Group(); G.add(g);
+    mk(new THREE.BoxGeometry(14, .45, 3), [crustM, crustM, grass, crustM, crustM, crustM], g, 'ctplate').position.set(0, .075, s * 1.5);
+    mk(new THREE.BoxGeometry(14, .95, 3), M('#9a7a5e'), g, 'ctplate').position.set(0, -.625, s * 1.5); return g; });
+  asthenoBox(G);
+  mk(new THREE.BoxGeometry(14, .03, .07), M('#2a2a2a'), G, 'fault').position.set(0, .31, 0);
+  pickZone(G, 'fault', 14, .2, 0, .32).scale.z = .08;
+  const roadM = M('#55595f'), dashM = M('#ffffff', { emissive:'#555555' }), streamM = M('#3a8fd9', { emissive:'#0a2a55' }), treeM = M('#2f7a3a'), trunkM = M('#6b4a2f');
+  const segs = [];
+  for (const s of [-1, 1]) for (let i = 0; i < 12; i++){ const z = s * (i + .5) * .25;
+    const r = mk(new THREE.BoxGeometry(.7, .02, .26), roadM, G, 'offset'); r.userData = { z, x0:0 }; r.position.y = .31; segs.push(r);
+    if (i % 2 === 0){ const d = mk(new THREE.BoxGeometry(.06, .025, .14), dashM, G, 'offset'); d.userData = { z, x0:0 }; d.position.y = .325; segs.push(d); }
+    const w = mk(new THREE.BoxGeometry(.32, .02, .26), streamM, G, 'offset'); w.userData = { z, x0:-3.2 }; w.position.y = .305; segs.push(w); }
+  for (const s of [-1, 1]) for (const zz of [.6, 1.5, 2.4]){ const t = new THREE.Group(); const c = mk(new THREE.ConeGeometry(.22, .6, 10), treeM, t, 'offset'); c.position.y = .45; const tr = mk(new THREE.CylinderGeometry(.05, .05, .2, 6), trunkM, t, 'offset'); tr.position.y = .1; t.position.y = .3; t.userData = { z:s * zz, x0:3.2 }; G.add(t); segs.push(t); }
+  const ringM = new THREE.MeshBasicMaterial({ color:'#ffe14d', transparent:true, opacity:0, side:THREE.DoubleSide, depthWrite:false });
+  const ring = mk(new THREE.RingGeometry(.8, 1, 48), ringM, G); ring.rotation.x = -Math.PI / 2; ring.position.y = .34; ctx.pickable(ring, 'quake');
+  const qk = makeQuakes(G); qk.set([]);
+  arrow(G, 1, -4, 1.1, -1.5); arrow(G, -1, 4, 1.1, 1.5);
+  let slips = 0, shake = 0, ringT = 9;
+  const anc = new THREE.Object3D(); G.add(anc);
+  lab('tf', 'fault', new V3(-5.5, .45, 0)); lab('tf', 'offset', anc); lab('tf', 'quake', ring, [0, .5, 0]); lab('tf', 'ctplate', new V3(-5, -.4, HD)); lab('tf', 'astheno', new V3(-4.5, -2.6, HD));
+  MODES3D.tf = { G, pose:[[9, 7.5, 10], [0, -.4, 0]], focus:{ fault:[0, .3, 0], offset:[0, .3, .8], quake:[0, .3, 0], ctplate:[-4, -.3, 1.5], astheno:[-3, -2.2, HD] },
+    update(u, user){
+      const n = Math.floor(u * 6 + 1e-6) / 6;
+      if (n > slips + 1e-6 && !user){ shake = .7; ringT = 0; ring.position.x = (Math.random() - .5) * 6; ctx.caption(o('💥 Earthquake! The locked fault slipped suddenly and the road snapped sideways.','💥 地震！卡住的断层突然滑动，道路一下子被错开。')); setTimeout(() => { if (!storyOn()) ctx.caption(null); }, 1800); }
+      slips = n;
+      plates.forEach((g, i) => g.position.x = (i ? -1 : 1) * 1.5 * u);
+      segs.forEach(m => { const z = m.userData.z, dir = z < 0 ? 1 : -1, d = dir * (1.5 * n + 1.5 * (u - n) * Math.min(1, Math.abs(z) / 2.4)); m.position.x = m.userData.x0 + d; m.position.z = z; });
+      anc.position.set(1.5 * n, .4, .9);
+    },
+    frame(dt, t){
+      if (shake > 0){ shake -= dt; G.position.set((Math.random() - .5) * .14 * shake, 0, (Math.random() - .5) * .14 * shake); } else G.position.set(0, 0, 0);
+      ringT += dt; ring.scale.setScalar(.3 + ringT * 3); ringM.opacity = Math.max(0, .9 - ringT * .9); ring.visible = ringT < 1.2 || App.sel === 'quake';
+      if (App.sel === 'quake' && ringT >= 1.2){ ring.scale.setScalar(1); ringM.opacity = .6; }
+    } };
+})();
+
+/* =================== GLOBE =================== */
+(function(){
+  const R = 4, G = globe;
+  const ll = (lon, lat, r = R) => { const ph = (lon + 180) * Math.PI / 180, th = (90 - lat) * Math.PI / 180; return new V3(-r * Math.cos(ph) * Math.sin(th), r * Math.cos(th), r * Math.sin(ph) * Math.sin(th)); };
+  const earthMat = M('#3f7fc6'); mk(new THREE.SphereGeometry(R, 72, 48), earthMat, G);
+  Lab3D.texture(THREE, Lab3D.TEX + 'planets/earth_atmos_2048.jpg', t => { if (t){ earthMat.map = t; earthMat.emissiveMap = t; earthMat.emissive.set('#ffffff'); earthMat.emissiveIntensity = .55; earthMat.color.set('#ffffff'); earthMat.needsUpdate = true; } });
+  const n = (en, zh) => ({ en, zh });
+  const LINES = [
+    ['gdiv', n('Mid-Atlantic Ridge','大西洋中脊'), [[-18,66],[-24,63],[-30,57],[-30,52],[-29,45],[-33,40],[-38,35],[-44,28],[-46,20],[-45,13],[-40,8],[-30,2],[-17,0],[-13,-8],[-14,-18],[-13,-28],[-15,-38],[-14,-46],[-8,-52],[0,-54]]],
+    ['gdiv', n('Southwest Indian Ridge','西南印度洋中脊'), [[0,-54],[10,-53],[25,-48],[35,-44],[45,-39],[57,-33],[68,-26]]],
+    ['gdiv', n('Central Indian Ridge & Red Sea','中印度洋中脊与红海'), [[68,-26],[67,-18],[66,-10],[67,0],[62,6],[58,12],[52,14],[45,12],[42,14],[38,20],[34,27]]],
+    ['gdiv', n('Southeast Indian Ridge','东南印度洋中脊'), [[68,-26],[78,-33],[90,-40],[100,-47],[115,-50],[130,-52],[145,-58],[160,-62]]],
+    ['gdiv', n('East Pacific Rise','东太平洋海隆'), [[160,-62],[180,-64],[-160,-65],[-140,-60],[-120,-56],[-112,-45],[-112,-35],[-112,-25],[-111,-15],[-105,-5],[-103,5],[-104,15],[-108,22]]],
+    ['gdiv', n('Juan de Fuca Ridge','胡安·德富卡洋脊'), [[-130,44],[-129,48],[-130,50]]],
+    ['gdiv', n('East African Rift','东非大裂谷'), [[42,12],[39,6],[37,1],[35,-4],[34,-9],[35,-14]]],
+    ['gconv', n('Peru–Chile Trench & Andes','秘鲁-智利海沟与安第斯山脉'), [[-75,-52],[-75,-45],[-74,-37],[-72,-30],[-71,-22],[-72,-17],[-77,-12],[-81,-5],[-80,2],[-78,7]]],
+    ['gconv', n('Middle America Trench','中美洲海沟'), [[-84,8],[-88,12],[-93,14],[-100,16],[-106,20]]],
+    ['gconv', n('Cascadia subduction zone','卡斯卡迪亚俯冲带'), [[-124.5,40.5],[-125.5,45],[-127,49],[-130,51]]],
+    ['gconv', n('Aleutian Trench','阿留申海沟'), [[-147,59],[-155,56],[-163,53],[-172,51],[180,51],[172,52],[164,55]]],
+    ['gconv', n('Japan & Mariana trenches','日本海沟与马里亚纳海沟'), [[163,56],[155,49],[148,44],[144,40],[142,35],[142,30],[143,24],[146,17],[146,12],[143,10]]],
+    ['gconv', n('Ryukyu & Philippine trenches','琉球海沟与菲律宾海沟'), [[132,33],[128,28],[124,24],[121,20],[125,12],[127,6],[126,2]]],
+    ['gconv', n('Sunda (Java) Trench','巽他（爪哇）海沟'), [[93,14],[93,7],[95,2],[99,-3],[104,-7],[110,-10],[118,-11],[124,-10],[130,-7]]],
+    ['gconv', n('Tonga–Kermadec Trench','汤加-克马德克海沟'), [[-172,-15],[-174,-20],[-176,-27],[-178,-33],[178,-38],[176,-41]]],
+    ['gconv', n('New Hebrides Trench','新赫布里底海沟'), [[154,-6],[160,-10],[166,-15],[169,-20]]],
+    ['gconv', n('Himalayas: India–Eurasia collision','喜马拉雅山脉：印度板块与亚欧板块碰撞'), [[62,30],[67,32],[72,35],[77,33],[82,30],[88,28],[95,28],[97,25]]],
+    ['gconv', n('Alps & Mediterranean','阿尔卑斯山与地中海'), [[-8,36],[0,37],[8,37.5],[15,38],[20,37],[26,35],[30,35],[36,36],[44,37],[50,32],[56,27],[62,25]]],
+    ['gtf', n('San Andreas Fault','圣安德烈斯断层'), [[-125,40.3],[-123,38],[-121,36],[-118,34.3],[-115.5,32]]],
+    ['gtf', n('Queen Charlotte Fault','夏洛特皇后断层'), [[-131,51],[-134,54],[-137,58]]],
+    ['gtf', n('Alpine Fault','阿尔卑斯断层'), [[166,-46],[169,-44],[172,-42],[174,-41]]],
+    ['gtf', n('Dead Sea Transform','死海断层'), [[35,29],[35.5,32],[36,34],[36.5,36.5]]],
+    ['gtf', n('North Anatolian Fault','北安纳托利亚断层'), [[27,40.5],[32,41],[37,40.5],[41,39.7]]]
+  ];
+  const COL = { gdiv:'#e5484d', gconv:'#3b6fd8', gtf:'#2fb36d' }, tubeM = { gdiv:glowM(COL.gdiv), gconv:glowM(COL.gconv), gtf:glowM(COL.gtf) };
+  for (const k in tubeM) tubeM[k].emissiveIntensity = .5;
+  const qpts = [];
+  for (const [k, nm, pts] of LINES){
+    const dense = [];
+    for (let i = 0; i < pts.length - 1; i++){ const a = ll(...pts[i], 1), b = ll(...pts[i + 1], 1); for (let j = 0; j < 4; j++) dense.push(a.clone().lerp(b, j / 4).normalize().multiplyScalar(R + .03)); }
+    dense.push(ll(...pts[pts.length - 1], R + .03));
+    const m = mk(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(dense), dense.length * 2, .045, 6, false), tubeM[k], G, k); m.userData.nm = nm;
+    for (let i = 0; i < pts.length - 1; i++) for (let j = 0; j < 2; j++){ const f = Math.random(); qpts.push([lerp(pts[i][0], pts[i + 1][0] + (Math.abs(pts[i + 1][0] - pts[i][0]) > 180 ? (pts[i][0] > 0 ? 360 : -360) : 0), f) + (Math.random() - .5) * 2.4, lerp(pts[i][1], pts[i + 1][1], f) + (Math.random() - .5) * 2.4, k]); }
+  }
+  const qm = new THREE.InstancedMesh(new THREE.SphereGeometry(.035, 6, 5), new THREE.MeshBasicMaterial({ color:'#ffd23f' }), qpts.length), mtx = new THREE.Matrix4();
+  qpts.forEach(([lo, la], i) => { mtx.makeTranslation(ll(lo, la, R + .02)); qm.setMatrixAt(i, mtx); }); G.add(qm); ctx.pickable(qm, 'quake');
+  const VOL = [['ring',n('Mount St. Helens','圣海伦斯火山'),-122.2,46.2],['ring',n('Popocatépetl','波波卡特佩特火山'),-98.6,19],['ring',n('Cotopaxi','科托帕希火山'),-78.4,-.7],['ring',n('Villarrica','比亚里卡火山'),-71.9,-39.4],['ring',n('Redoubt','雷道特火山'),-152.7,60.5],['ring',n('Klyuchevskaya','克柳切夫火山'),160.6,56.1],['ring',n('Mount Fuji','富士山'),138.7,35.4],['ring',n('Pinatubo','皮纳图博火山'),120.4,15.1],['ring',n('Krakatoa','喀拉喀托火山'),105.4,-6.1],['ring',n('Merapi','默拉皮火山'),110.4,-7.5],['ring',n('Ruapehu','鲁阿佩胡火山'),175.6,-39.3],['ring',n('Hunga Tonga','洪阿哈阿帕伊岛火山'),-175.4,-20.5],
+    ['hotspot',n('Hawaii (Kīlauea)','夏威夷（基拉韦厄火山）'),-155.3,19.4],['hotspot',n('Yellowstone','黄石'),-110.7,44.4],['gdiv',n('Iceland','冰岛'),-19.6,63.6],['gdiv',n('Kilimanjaro','乞力马扎罗山'),37.4,-3.1],['gconv',n('Mount Etna','埃特纳火山'),15,37.7]];
+  const vm = { ring:glowM('#ff7a1a'), hotspot:glowM('#ff2e88'), gdiv:tubeM.gdiv, gconv:tubeM.gconv };
+  const vg = new THREE.ConeGeometry(.08, .24, 10); vg.translate(0, .12, 0);
+  const vols = {};
+  for (const [k, nm, lo, la] of VOL){ const m = mk(vg, vm[k], G, k); const p = ll(lo, la, R); m.position.copy(p); m.quaternion.setFromUnitVectors(UP, p.clone().normalize()); m.userData.nm = nm; vols[nm.en] = m; }
+  const fujiAnc = new THREE.Object3D(); fujiAnc.position.copy(ll(150, 40, R + .2)); G.add(fujiAnc);
+  const marAnc = new THREE.Object3D(); marAnc.position.copy(ll(-35, 20, R + .1)); G.add(marAnc);
+  lab('globe', 'ring', fujiAnc); lab('globe', 'gdiv', marAnc); lab('globe', 'hotspot', vols['Hawaii (Kīlauea)'], [0, .35, 0]); lab('globe', 'gtf', vols['Mount St. Helens'], [-.2, -.6, 0]);
+  G.rotation.y = Math.PI / 3;
+  MODES3D.globe = { G, pose:[[0, 3, 13.5], [0, 0, 0]], ll, focusLL:{ gdiv:[-30, 10], gconv:[-75, -20], gtf:[-120, 36], ring:[160, 30], hotspot:[-155, 19], quake:[140, 30] }, update(){}, frame(){} };
+})();
+
+/* ---------- mode switching, time, play ---------- */
+let playing = false;
+const storyOn = () => story && story.active;
+const BLOCK_POSE = [[6.5, 5.5, 13], [0, -.8, 0]];
+function setMode3D(m){
+  for (const k in MODES3D) MODES3D[k].G.visible = k === m;
+  block.visible = m !== 'globe'; globe.visible = m === 'globe';
+  App.u = 0; Lab.$('#time').value = 0; setPlay(false);
+  if (MODES3D[m].update) MODES3D[m].update(0, true);
+  const pose = MODES3D[m].pose || BLOCK_POSE; ctx.flyToPose(pose[0], pose[1]);
+  if (!storyOn()) ctx.caption(null);
+  showLabels(); App.renderTime();
+}
+function setU(u, user){ App.u = Math.max(0, Math.min(1, u)); Lab.$('#time').value = App.u * 100; MODES3D[App.mode].update(App.u, user); App.renderTime(); }
+function setPlay(on){ playing = on; Lab.$('#playBtn').textContent = on ? '⏸' : '▶'; }
+Lab.$('#playBtn').onclick = () => { if (!playing && App.u >= 1) setU(0, true); setPlay(!playing); };
+Lab.$('#time').oninput = e => { setPlay(false); setU(e.target.value / 100, true); };
+Lab.$('#labelBtn').onclick = () => { labelsOn = !labelsOn; Lab.$('#labelBtn').classList.toggle('on', labelsOn); showLabels(); };
+Lab.$('#resetBtn').onclick = () => { if (story.active) story.stop(); App.setMode(App.mode); };
+
+/* ---------- picking + focus ---------- */
+ctx.hoverText((k, h) => h && h.object.userData.nm ? Lab.L(h.object.userData.nm) : Lab.L(PARTS[k].name));
+ctx.onPick((k, h) => { if (k == null) return; App.select(k, true, h && h.object.userData.nm || null); });
+function focus(k){
+  const md = MODES3D[App.mode];
+  if (!k){ const pose = md.pose || BLOCK_POSE; return ctx.flyToPose(pose[0], pose[1]); }
+  if (App.mode === 'globe'){ const ll = md.focusLL[k]; if (!ll) return; const p = globe.localToWorld(md.ll(ll[0], ll[1], 1)).normalize(); ctx.flyToPose(p.multiplyScalar(11).add(new V3(0, 1, 0)).toArray(), [0, 0, 0]); return; }
+  const f = md.focus[k]; if (!f) return;
+  ctx.flyToPose([f[0] + 3, f[1] + 2.5, f[2] + 6.5], f);
+}
+App.three = { focus, setMode:setMode3D };
+
+/* ---------- story: boundary tour ---------- */
+const story = Lab3D.story('#stage', STORY, (i, s) => {
+  if (App.mode !== s.mode) App.setMode(s.mode); else setMode3D(s.mode);
+  if (s.play){ setU(0, true); setPlay(true); }
+}, () => { setPlay(false); ctx.caption(null); });
+Lab.$('#storyBtn').onclick = () => story.start();
+
+/* ---------- per-frame ---------- */
+ctx.onFrame((dt, t) => {
+  const md = MODES3D[App.mode];
+  if (playing && App.mode !== 'globe'){ const nu = App.u + dt / (App.mode === 'tf' ? 14 : 9); if (nu >= 1){ setU(1); setPlay(false); } else setU(nu); }
+  md.frame(dt, t);
+  const sel = App.sel;
+  for (const [m, key] of HL){ m.emissive.copy(m.userData.e0); if (key === sel) m.emissive.addScalar(.16 + .12 * Math.sin(t * 4)); }
+});
+setMode3D(App.mode);
+renderInfo(); renderChips();
+</script>
+</body>
+</html>

@@ -1,0 +1,766 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solutions &amp; Solubility</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/lab3d.js"></script>
+<script src="../shared/photos.js"></script>
+<style>
+/* page-specific styles */
+.meter{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-top:14px}
+.meter .counter b{font-size:22px}
+.meter .state b{font-size:19px}
+.meter .bar{height:8px;border-radius:999px;background:var(--line);overflow:hidden;margin-top:6px}
+.meter .bar i{display:block;height:100%;width:0;background:var(--brand);transition:width .2s}
+.stage .seg.solute{box-shadow:var(--shadow)}
+.stage .seg.solute button{padding:6px 10px;font-size:13px}
+.race{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.cupcard{background:var(--surface-2);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.cupcard h4{font-family:Fredoka;font-size:20px;margin:0}
+.cupvis{position:relative;height:150px;width:120px;margin:4px auto 0;border:3px solid color-mix(in srgb,var(--ink-2) 60%,transparent);border-top:0;border-radius:0 0 18px 18px;overflow:hidden;background:color-mix(in srgb,#9fd3ff 22%,transparent)}
+.cupvis .fill{position:absolute;left:0;right:0;bottom:0;height:78%;background:linear-gradient(#ffe7a8,#f7c96a);opacity:0;transition:opacity .1s}
+.cupvis .lump{position:absolute;left:50%;bottom:6px;width:34px;height:34px;margin-left:-17px;background:#fff;border:1px solid #c9c2b5;border-radius:4px;transform-origin:50% 100%;box-shadow:inset -4px -4px 0 rgba(0,0,0,.08)}
+.cupvis .grains{position:absolute;left:50%;bottom:6px;width:60px;height:14px;margin-left:-30px;background:radial-gradient(circle,#fff 40%,transparent 42%) 0 0/8px 8px;transform-origin:50% 100%}
+.cupvis .heat{position:absolute;left:0;right:0;bottom:0;height:4px;background:#e0475b;opacity:0}
+.toggle{display:flex;gap:6px;flex-wrap:wrap}
+.toggle button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 11px;font-weight:800;font-size:13px;color:var(--ink-2)}
+.toggle button.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.timebar{height:12px;border-radius:999px;background:var(--line);overflow:hidden}
+.timebar i{display:block;height:100%;width:0;background:var(--good)}
+.curvebox{min-height:0;height:470px;align-self:start;position:sticky;top:70px}
+@media (max-width:980px){.curvebox{position:relative;top:0;height:400px}}
+.ptinfo{background:var(--surface-2);border-radius:14px;padding:12px 14px;font-weight:700;min-height:70px}
+.ptinfo .st{font-family:Fredoka;font-size:20px}
+#stage .lab-caption{top:104px}
+@media (max-width:980px){.meter{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:560px){.meter{grid-template-columns:repeat(2,minmax(0,1fr))}.race{grid-template-columns:1fr}.stage .seg.solute button{padding:5px 7px;font-size:12px}}
+</style>
+</head>
+<body data-subject="chemistry" data-topic="solutions">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="化学 · 物质的性质">Chemistry · Properties of Matter</span>
+  <h1 data-zh-html="溶液与<em>溶解度</em>">Solutions &amp; <em>Solubility</em></h1>
+  <p class="lead" data-zh="糖“消失”在水里了吗？没有！它被拆成了小到看不见的粒子，均匀地分散在水中。在下面的 3D 烧杯里加糖、加热、搅拌，找出水最多能溶解多少——也就是它的饱和点。">Does sugar “disappear” in water? No! It breaks into particles far too small to see and spreads evenly through the water. Add solute to the 3D beaker below, heat it, stir it, and find out how much the water can hold — its saturation point.</p>
+</header>
+
+<section class="wrap" id="explore" data-nav="3D Beaker" data-nav-zh="3D 烧杯">
+  <div class="explorer">
+    <div class="stage card" id="stage" data-3d>
+      <div class="toolbar">
+        <div class="seg solute" id="soluteSeg"></div>
+        <button class="tbtn" id="addBtn" data-zh="➕ 加一勺">➕ Add a scoop</button>
+        <button class="tbtn" id="formBtn">🧊 Cubes</button>
+        <button class="tbtn" id="seedBtn" data-zh="💎 晶种">💎 Seed crystal</button>
+        <button class="tbtn" id="molBtn" data-zh="🔬 水分子">🔬 Water molecules</button>
+        <button class="tbtn" id="storyBtn" data-zh="▶ 故事：制作饱和溶液">▶ Story: make it saturated</button>
+        <button class="tbtn" id="labelBtn" data-zh="🏷 标签">🏷 Labels</button>
+        <button class="tbtn" id="resetBtn" data-zh="⌂ 重置">⌂ Reset</button>
+      </div>
+      <div class="bottombar">
+        <div class="pill"><span data-zh="🌡 温度">🌡 Temp</span><input id="tempIn" type="range" min="0" max="100" value="20"><b id="tempOut">20 °C</b></div>
+        <div class="pill"><span data-zh="🥄 搅拌">🥄 Stir</span><input id="stirIn" type="range" min="0" max="100" value="0"></div>
+        <div class="tip" data-zh="拖动旋转 · 滚轮缩放 · 点击任意部分">Drag to rotate · Scroll to zoom · Click any part</div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="chips" id="chips"></div>
+  <div class="meter" id="meter">
+    <div class="counter"><b id="mT">20 °C</b><span data-zh="温度">temperature</span></div>
+    <div class="counter"><b id="mD">0 g</b><span data-zh="已溶解（每 100 g 水）">dissolved (per 100 g water)</span><div class="bar"><i id="mBar"></i></div></div>
+    <div class="counter"><b id="mS">204 g</b><span data-zh="此温度下的溶解度">solubility at this temperature</span></div>
+    <div class="counter"><b id="mC">0%</b><span data-zh="浓度（溶质质量分数）">concentration (mass %)</span></div>
+    <div class="counter state"><b id="mState">—</b><span id="mUnd">—</span></div>
+  </div>
+  <div class="mix" style="margin-top:14px"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="溶解不是熔化！熔化需要加热让固体变成液体；溶解是溶质粒子分散到溶剂粒子之间。糖在水里溶解，质量并没有消失：100 g 水 + 20 g 糖 = 120 g 糖水。">Dissolving is not melting! Melting needs heat to turn a solid into a liquid; dissolving is when solute particles spread out between solvent particles. The sugar’s mass doesn’t vanish: 100 g water + 20 g sugar = 120 g of sugar water.</span></div>
+</section>
+
+<section class="wrap" id="race" data-nav="Dissolving race" data-nav-zh="溶解比赛">
+  <div class="sec-head">
+    <h2 data-zh="实验：溶解比赛（公平测试）">Experiment: the dissolving race (a fair test)</h2>
+    <p data-zh="三个因素会让固体溶解得更快：提高温度、搅拌、把颗粒弄小。为两个杯子设定条件，看看哪一杯里的 10 g 糖先溶解完。记住：一次只改变一个变量！">Three things make a solid dissolve faster: higher temperature, stirring, and smaller pieces. Set up two cups, then race to see which cup dissolves its 10 g of sugar first. Remember: change only ONE variable at a time!</p>
+  </div>
+  <div class="sim">
+    <div class="card simside">
+      <div class="race" id="raceCups"></div>
+      <div class="btnrow"><button class="btn" id="raceGo" data-zh="🏁 开始比赛">🏁 Start the race</button><button class="btn ghost" id="raceReset" data-zh="重置">Reset</button></div>
+      <div class="result" id="raceMsg"></div>
+    </div>
+    <div class="card simside">
+      <h3 data-zh="为什么会更快？">Why faster?</h3>
+      <div class="counters">
+        <div class="counter"><b id="raceTA">—</b><span data-zh="A 杯用时">cup A time</span></div>
+        <div class="counter"><b id="raceTB">—</b><span data-zh="B 杯用时">cup B time</span></div>
+      </div>
+      <p data-zh-html="🌡 <b>温度高</b>：水分子运动更快，撞击固体更猛烈、更频繁。<br>🥄 <b>搅拌</b>：把溶解了的粒子带走，让新鲜的水接触固体表面。<br>🧂 <b>颗粒小</b>：同样质量的固体，颗粒越小，与水接触的表面积越大。">🌡 <b>Hotter</b>: water particles move faster and hit the solid harder and more often.<br>🥄 <b>Stirring</b>: carries dissolved particles away and brings fresh water to the surface.<br>🧂 <b>Smaller pieces</b>: the same mass has much more surface area touching the water.</p>
+      <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="“热、搅、碎”溶得快。但只有温度能改变“能溶多少”（溶解度）。">“Heat, stir, crush” = dissolve faster. But only temperature changes HOW MUCH can dissolve (the solubility).</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="curve" data-nav="Solubility curve" data-nav-zh="溶解度曲线">
+  <div class="sec-head">
+    <h2 data-zh="溶解度曲线绘图器">Solubility curve plotter</h2>
+    <p data-zh="溶解度曲线表示在不同温度下，100 g 水中最多能溶解多少克溶质。点击图上任意一点，判断这样的溶液是不饱和、饱和还是过饱和。">A solubility curve shows the most solute (in grams) that dissolves in 100 g of water at each temperature. Click anywhere on the graph to test a mixture: is it unsaturated, saturated or supersaturated?</p>
+  </div>
+  <div class="sim">
+    <div class="simbox card curvebox"><canvas id="curveCv"></canvas></div>
+    <div class="card simside">
+      <h3 data-zh="选择曲线">Pick curves</h3>
+      <div class="toggle" id="curveToggles"></div>
+      <p class="muted" style="font-size:14px;margin:0" data-zh="点击名称可显示/隐藏曲线。点击图中一点，会同时用所有显示的曲线来判断。">Tap a name to show/hide its curve. Click the graph and every visible curve judges your point.</p>
+      <div class="ptinfo" id="ptInfo"></div>
+      <h3 data-zh="冷却结晶计算器">Cooling crystals calculator</h3>
+      <div class="toggle" id="coolPick"></div>
+      <label class="ctl"><span><span data-zh="从（热）">From (hot)</span>: <b id="t1Out">80 °C</b></span><input id="t1In" type="range" min="0" max="100" value="80"></label>
+      <label class="ctl"><span><span data-zh="冷却到">Cool to</span>: <b id="t2Out">20 °C</b></span><input id="t2In" type="range" min="0" max="100" value="20"></label>
+      <div class="result good" id="coolMsg"></div>
+      <div class="mix"><b data-zh="⚠️ 例外：">⚠️ Exception:</b><span data-zh="并不是所有物质都是越热溶得越多。氢氧化钙（熟石灰）和二氧化碳等气体，温度越高溶解度反而越小——所以温热的汽水更容易“跑气”。">Not everything dissolves more when hot. Calcium hydroxide and gases like carbon dioxide become LESS soluble as temperature rises — that’s why warm soda goes flat faster.</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real photos" data-nav-zh="真实影像">
+  <div id="gallery"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 溶液测验">🧠 Solutions quiz</h3><p class="sub" data-zh="选出正确答案。">Pick the best answer.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 溶质还是溶剂？">🗂️ Solute or solvent?</h3><p class="sub" data-zh="把每种物质拖到（或先点再点方框）正确的组里。提示：量多的通常是溶剂。">Drag each item (or tap it, then tap a box) into the right group. Hint: the substance present in the larger amount is usually the solvent.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="对应佐治亚州标准 S8P1a（溶液是均一的混合物，区分纯净物与混合物）和 S8P1b（溶解度是物质的物理性质）。3D 模型中每个蓝色/彩色小点代表一小团溶质粒子，并非单个分子。建议活动：① 让学生预测 20 °C 时 100 g 水能溶解多少克食盐（约 36 g），再用模型验证；② 用“溶解比赛”讨论自变量、因变量和控制变量；③ 用溶解度曲线计算：把 80 °C 的硝酸钾饱和溶液冷却到 20 °C，会析出多少晶体？（169 − 31.6 ≈ 137 g）。常见误区：“溶解 = 熔化”“溶质溶解后质量消失了”“搅拌能让更多溶质溶解”。">Supports GSE S8P1a (solutions are homogeneous mixtures; pure substances vs. mixtures) and S8P1b (solubility as a physical property). In the 3D model each dot stands for a cluster of solute particles, not a single molecule. Suggested activities: (1) have students predict how much salt dissolves in 100 g of water at 20 °C (about 36 g), then test it in the model; (2) use the dissolving race to discuss independent, dependent and controlled variables; (3) use the curve: cool a saturated KNO₃ solution from 80 °C to 20 °C — how many grams of crystals form? (169 − 31.6 ≈ 137 g). Common misconceptions: “dissolving = melting”, “dissolved solute loses its mass”, “stirring makes more solute dissolve”.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+/* ===== Real photos (Wikimedia Commons, freely licensed) ===== */
+const LPQ = '?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', LPU = 'https://upload.wikimedia.org/wikipedia/commons/', LPT = 'https://thumb.wikimedia.org/wikipedia/commons/thumb/', LPP = 'https://commons.wikimedia.org/wiki/File:';
+const LPK = { photo:{en:'Photo', zh:'照片'}, demo:{en:'Lab demo', zh:'实验演示'}, video:{en:'Video · lab demo', zh:'视频 · 实验演示'} };
+const lpS = (dir, file, it) => Object.assign({ src:LPT + dir + '/' + file + '/960px-' + file + LPQ, page:LPP + file }, it);   // scaled thumbnail
+const lpO = (dir, file, it) => Object.assign({ src:LPU + dir + '/' + file + LPQ + '_unscaled', page:LPP + file }, it);          // small original
+const RP = {
+  sugar:lpS('5/56', 'Sugar_2xmacro.jpg', { kind:LPK.photo, credit:'Lauri Andler (Phantom)', license:'CC BY-SA 3.0',
+    en:'Sugar up close (magnified 2×). Notice that each grain is a tiny crystal. In water, the crystals fall apart into molecules far too small to see.',
+    zh:'放大 2 倍的白糖。注意每一粒都是一个小晶体。在水里，这些晶体会散开成小到看不见的分子。' }),
+  cubes:lpS('6/6a', 'Sugar_cubes.jpg', { kind:LPK.photo, credit:'Uwe Hermann', license:'CC BY-SA 3.0',
+    en:'Sugar cubes. A cube dissolves more slowly than the same amount of loose sugar, because less of its surface touches the water.',
+    zh:'方糖。一块方糖比同样多的散白糖溶解得慢，因为它和水接触的表面积更小。' }),
+  saltwater:lpO('8/89', 'SaltInWaterSolutionLiquid.jpg', { kind:LPK.demo, credit:'Chris 73', license:'CC BY-SA 3.0',
+    en:'Table salt in tap water. Salt is the solute, water is the solvent. Stir long enough and the grains vanish, but the salt is still there: you could taste it.',
+    zh:'食盐放进自来水里。盐是溶质，水是溶剂。搅拌一会儿，盐粒就看不见了，可盐还在水里：尝一尝就知道。' }),
+  soda:lpO('1/1f', 'Soda_bubbles_macro.jpg', { kind:LPK.photo, credit:'Spiff', license:'Public domain',
+    en:'Bubbles in cola, up close. The fizz is carbon dioxide gas that was dissolved in the drink. A solute can be a gas!',
+    zh:'近距离看可乐里的气泡。这些气泡是原本溶解在饮料里的二氧化碳。溶质也可以是气体！' }),
+  oilWater:lpO('f/f1', 'Water_and_oil.jpg', { kind:LPK.photo, credit:'Victor Blacus', license:'CC BY-SA 4.0',
+    en:'Not a solution: water and oil stay in two separate layers. Oil does not dissolve in water, no matter how hard you stir.',
+    zh:'这不是溶液：水和油分成两层。不管怎么搅拌，油都不会溶解在水里。' }),
+  rockCandy:lpS('6/6c', 'Rock-Candy-Sticks.jpg', { kind:LPK.photo, credit:'Evan-Amos', license:'CC BY-SA 3.0',
+    en:'Rock candy in different flavors. These big sugar crystals grow out of a sugar solution that holds more sugar than water normally can.',
+    zh:'各种口味的冰糖棒。这些大块的糖晶体，是从溶解了超量白糖的糖溶液里长出来的。' }),
+  saltFarm:lpS('c/c1', 'Salt_Farmers_-_Pak_Thale.jpg', { kind:LPK.photo, credit:'JJ Harrison', license:'CC BY-SA 3.0',
+    en:'Salt farmers harvesting salt at Pak Thale, Thailand. Sea water is a salt solution: the sun evaporates the water and the solute is left behind.',
+    zh:'泰国帕塔莱的盐农正在收盐。海水是一种盐溶液：太阳把水晒干，溶质就留了下来。' }),
+  cuso4:lpO('d/d8', 'Copper_sulfate.jpg', { kind:LPK.photo, credit:'Stephanb', license:'CC BY-SA 3.0',
+    en:'A crystal of copper sulfate (the mineral chalcanthite). Dissolve it in water and you get the blue solution in the 3D beaker.',
+    zh:'一块硫酸铜晶体（矿物名叫胆矾）。把它溶解在水里，就得到 3D 烧杯里那种蓝色溶液。' }),
+  seedVideo:{ type:'video', kind:LPK.video, credit:'Karas Studio (M. Stojanovska, M. Bukleski, V. Petruševski)', license:'CC BY-SA 4.0', page:LPP + '32._%D0%9A%D1%80%D0%B8%D1%81%D1%82%D0%B0%D0%BB%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%98%D0%B0_%D0%BD%D0%B0_%D0%BD%D0%B0%D1%82%D1%80%D0%B8%D1%83%D0%BC_%D0%B0%D1%86%D0%B5%D1%82%D0%B0%D1%82.ogv',
+    media:'https://upload.wikimedia.org/wikipedia/commons/c/cc/32._%D0%9A%D1%80%D0%B8%D1%81%D1%82%D0%B0%D0%BB%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%98%D0%B0_%D0%BD%D0%B0_%D0%BD%D0%B0%D1%82%D1%80%D0%B8%D1%83%D0%BC_%D0%B0%D1%86%D0%B5%D1%82%D0%B0%D1%82.ogv?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original',
+    poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cc/32._%D0%9A%D1%80%D0%B8%D1%81%D1%82%D0%B0%D0%BB%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%98%D0%B0_%D0%BD%D0%B0_%D0%BD%D0%B0%D1%82%D1%80%D0%B8%D1%83%D0%BC_%D0%B0%D1%86%D0%B5%D1%82%D0%B0%D1%82.ogv/960px--32._%D0%9A%D1%80%D0%B8%D1%81%D1%82%D0%B0%D0%BB%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%98%D0%B0_%D0%BD%D0%B0_%D0%BD%D0%B0%D1%82%D1%80%D0%B8%D1%83%D0%BC_%D0%B0%D1%86%D0%B5%D1%82%D0%B0%D1%82.ogv.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo',
+    en:'Video (45 seconds, a large file): a flask of supersaturated sodium acetate solution. One seed crystal goes in on a glass rod, and crystals spread through the whole flask. This is the 💎 Seed crystal button, for real. A demonstration by university chemists.',
+    zh:'视频（45 秒，文件较大）：一瓶过饱和的醋酸钠溶液。用玻璃棒放进一粒晶种，晶体就迅速长满整个烧瓶。这就是真实版的“💎 晶种”按钮。由大学化学老师演示。' }
+};
+const REAL_PIC = { solute:RP.sugar, solution:RP.saltwater, saturated:RP.rockCandy, size:RP.cubes };
+const realFig = k => REAL_PIC[k] ? LabPhotos.figure(REAL_PIC[k]) : '';
+LabPhotos.render('#gallery', [RP.sugar, RP.saltwater, RP.cubes, RP.seedVideo, RP.rockCandy, RP.soda, RP.oilWater, RP.saltFarm], {
+  title:{en:'See the real thing', zh:'看看真实的样子'},
+  sub:{en:'The 3D beaker shows dots for dissolved particles. Real solutions look like this. Each caption says what to notice. Click a picture to enlarge it; the video plays only when you press play.', zh:'3D 烧杯用小点表示溶解的粒子。真实的溶液是这个样子的，每张图的说明会告诉你该注意什么。点击图片可放大；视频只有按下播放键才会播放。'} });
+/* ===== end real photos ===== */
+/* ===== Solutes: solubility in g per 100 g water (approximate textbook data) ===== */
+const SOLUTES = {
+  sugar:{ name:{en:'Sugar',zh:'蔗糖'}, full:{en:'Sugar (sucrose)',zh:'蔗糖'}, color:'#f6f1e7', dot:'#f2a33a', curveColor:'#d9962b', scoop:20, tint:'#f0c46a', tintK:.0012,
+    curve:[[0,179],[20,204],[40,238],[60,287],[80,362],[100,487]] },
+  salt:{ name:{en:'Salt',zh:'食盐'}, full:{en:'Table salt (NaCl)',zh:'食盐（氯化钠）'}, color:'#ffffff', dot:'#8fa3bf', curveColor:'#7d8ea8', scoop:5, tint:'#dfe9f5', tintK:0,
+    curve:[[0,35.7],[20,36.0],[40,36.6],[60,37.3],[80,38.4],[100,39.8]] },
+  kno3:{ name:{en:'KNO₃',zh:'硝酸钾'}, full:{en:'Potassium nitrate (KNO₃)',zh:'硝酸钾（KNO₃）'}, color:'#eef1ff', dot:'#9b6ef3', curveColor:'#9b6ef3', scoop:10, tint:'#ffffff', tintK:0,
+    curve:[[0,13.3],[10,20.9],[20,31.6],[30,45.8],[40,63.9],[50,85.5],[60,110],[70,138],[80,169],[90,202],[100,246]] },
+  cuso4:{ name:{en:'CuSO₄',zh:'硫酸铜'}, full:{en:'Copper(II) sulfate (CuSO₄)',zh:'硫酸铜（CuSO₄）'}, color:'#2a86e8', dot:'#1b6fd6', curveColor:'#3d8ef0', scoop:5, tint:'#1b74d8', tintK:.022,
+    curve:[[0,14.3],[20,20.7],[40,28.5],[60,40],[80,55],[100,75.4]] }
+};
+const SKEYS = ['sugar','salt','kno3','cuso4'];
+function solub(k, T){
+  const c = SOLUTES[k].curve; if (T <= c[0][0]) return c[0][1];
+  for (let i = 1; i < c.length; i++) if (T <= c[i][0]){ const [t0, s0] = c[i-1], [t1, s1] = c[i]; return s0 + (s1 - s0) * (T - t0) / (t1 - t0); }
+  return c[c.length-1][1];
+}
+const fmtG = g => (g >= 100 ? Math.round(g) : g >= 10 ? g.toFixed(1) : g.toFixed(1)) + ' g';
+/* dissolving-rate model shared by the 3D beaker and the race: dm/dt = K · Σ(mass^2/3) · f(T) · f(stir) */
+const RATE = { K:.22, fT:T => .4 + T / 40, fS:s => 1 + 2.5 * s };
+
+/* ===== Parts / concepts (bilingual) ===== */
+const PARTS = {
+  solvent:{color:'#4fa3e8', name:{en:'Solvent',zh:'溶剂'}, job:{en:'Does the dissolving',zh:'能溶解其他物质的物质'},
+    facts:{en:['The solvent is the substance that dissolves the solute. It is usually the one present in the larger amount.','Water is called the “universal solvent” because it dissolves more substances than any other common liquid.','Water particles are attracted to solute particles and pull them off the solid, one layer at a time.'],
+           zh:['溶剂是能溶解溶质的物质，通常是含量较多的那一种。','水能溶解的物质比其他常见液体都多，所以被称为“万能溶剂”。','水分子会吸引溶质粒子，把它们一层一层地从固体表面拉走。']},
+    hint:{en:'Solvent = the “dissolver”. It is usually the liquid and the bigger amount.',zh:'溶剂就是“溶解者”，一般是量多的那种液体。'},
+    mix:{en:'Water is not the only solvent: in iodine tincture the solvent is alcohol, and gasoline dissolves grease.',zh:'水不是唯一的溶剂：碘酒中的溶剂是酒精，汽油也能溶解油污。'}},
+  solute:{color:'#f2a33a', name:{en:'Solute',zh:'溶质'}, job:{en:'Gets dissolved',zh:'被溶解的物质'},
+    facts:{en:['The solute is the substance that gets dissolved — here, the sugar, salt or crystals you add.','As it dissolves, the solid breaks into separate particles (molecules or ions) far too small to see, even with a microscope.','The particles spread out evenly, so every sip of the solution tastes the same.','A solute can be a solid (sugar), a liquid (vinegar) or a gas (carbon dioxide in soda).'],
+           zh:['溶质是被溶解的物质——这里就是你加入的糖、盐或晶体。','溶质溶解时，固体被拆成一个个分子或离子，小到连显微镜都看不见。','这些粒子会均匀地分散开，所以溶液每一口的味道都一样。','溶质可以是固体（糖）、液体（醋酸）或气体（汽水里的二氧化碳）。']},
+    hint:{en:'Solute = the smaller amount that gets dissolved, like the sugar in tea.',zh:'溶质 = 被溶解的、量较少的那种，比如茶里的糖。'},
+    mix:{en:'The solute has not disappeared! Its particles are still there — you can taste the sugar, and if the water evaporates, the solid comes back.',zh:'溶质并没有消失！它的粒子还在——你能尝到甜味；把水蒸发掉，固体又会重新出现。'}},
+  solution:{color:'#7fc8f8', name:{en:'Solution',zh:'溶液'}, job:{en:'A mixture that is the same all through',zh:'均一、稳定的混合物'},
+    facts:{en:['Solution = solute + solvent. It is a homogeneous mixture: the same everywhere.','Solutions are transparent (see-through) even when colored, like blue copper sulfate solution.','The solute never settles out of a solution, no matter how long it sits.','Mass is conserved: mass of solution = mass of solute + mass of solvent.'],
+           zh:['溶液 = 溶质 + 溶剂，是一种均一的混合物：各处的组成都相同。','溶液是透明的，即使有颜色也能看穿，例如蓝色的硫酸铜溶液。','只要条件不变，溶液放多久溶质都不会沉淀出来，这叫稳定性。','质量守恒：溶液的质量 = 溶质的质量 + 溶剂的质量。']},
+    hint:{en:'Solute + Solvent = Solution.',zh:'溶质 + 溶剂 = 溶液。'},
+    mix:{en:'Muddy water is NOT a solution — the particles are big and settle to the bottom. That is a suspension.',zh:'泥水不是溶液——其中的颗粒较大，会沉到底部，这叫悬浊液。'}},
+  solubility:{color:'#9b6ef3', name:{en:'Solubility',zh:'溶解度'}, job:{en:'The most that can dissolve',zh:'最多能溶解多少'},
+    facts:{en:['Solubility is the maximum mass of solute that dissolves in 100 g of solvent at a given temperature.','At 20 °C, 100 g of water dissolves about 204 g of sugar but only about 36 g of table salt.','Solubility is a physical property — it can help identify a substance.','For most solids, solubility increases as temperature rises.'],
+           zh:['溶解度：在一定温度下，某固体物质在 100 g 溶剂里达到饱和状态时所溶解的质量。','20 °C 时，100 g 水能溶解约 204 g 蔗糖，却只能溶解约 36 g 食盐。','溶解度是物质的物理性质，可以帮助鉴别物质。','大多数固体的溶解度随温度升高而增大。']},
+    hint:{en:'Solubility always comes with a temperature: “36 g per 100 g water at 20 °C”.',zh:'说溶解度一定要说温度：“20 °C 时，每 100 g 水溶解 36 g”。'},
+    mix:{en:'Stirring does not change solubility — it only helps the solid reach its limit sooner.',zh:'搅拌不能改变溶解度，它只是让固体更快达到溶解的极限。'}},
+  saturated:{color:'#e5484d', name:{en:'Saturated solution',zh:'饱和溶液'}, job:{en:'Holding all it can',zh:'不能再继续溶解这种溶质'},
+    facts:{en:['Unsaturated: more solute can still dissolve.','Saturated: the solution holds the maximum amount; extra solid just sits on the bottom.','Supersaturated: holds MORE than normal. You make it by cooling a hot saturated solution slowly. It is unstable — one seed crystal makes crystals grow fast (that’s how rock candy forms).','With solid on the bottom, particles keep dissolving and re-crystallizing at the same rate.'],
+           zh:['不饱和溶液：还能继续溶解这种溶质。','饱和溶液：已经溶解到最大量，再加入的固体只会留在杯底。','过饱和溶液：溶解的量超过了正常的最大量。把热的饱和溶液慢慢冷却就能得到。它很不稳定——放入一粒晶种，晶体就会迅速析出（冰糖就是这样做成的）。','杯底有固体的饱和溶液里，溶解和结晶仍在同时进行，而且速度相等。']},
+    hint:{en:'Saturated = full, like a sponge that can’t soak up any more water.',zh:'饱和就是“吃饱了”，像吸满水的海绵，再也吸不进了。'},
+    mix:{en:'Saturated does not mean concentrated. A saturated solution of a low-solubility substance can still be very dilute.',zh:'饱和不等于浓。溶解度很小的物质，即使形成饱和溶液，浓度也可能很低。'}},
+  concentration:{color:'#2fb36d', name:{en:'Concentration',zh:'浓度'}, job:{en:'How much solute is in the solution',zh:'溶液中溶质含量的多少'},
+    facts:{en:['Concentration tells how much solute is dissolved in a certain amount of solution.','Mass percent = mass of solute ÷ mass of solution × 100%. Example: 20 g sugar in 100 g water → 20 ÷ 120 ≈ 16.7%.','Concentrated = lots of solute; dilute = little solute. Adding water dilutes a solution.','With a colored solute such as copper sulfate, a more concentrated solution looks darker. Try it!'],
+           zh:['浓度表示一定量的溶液里含有多少溶质。','溶质的质量分数 = 溶质质量 ÷ 溶液质量 × 100%。例：100 g 水中溶解 20 g 糖 → 20 ÷ 120 ≈ 16.7%。','溶质多的叫浓溶液，溶质少的叫稀溶液。加水可以稀释溶液。','有颜色的溶质（如硫酸铜）浓度越大，溶液颜色越深。试一试！']},
+    hint:{en:'Concentration = how “crowded” the solute particles are.',zh:'浓度就是溶质粒子“挤不挤”。'},
+    mix:{en:'Divide by the mass of the SOLUTION (solute + solvent), not just the water.',zh:'计算质量分数时要除以溶液的质量（溶质 + 溶剂），而不是只除以水的质量。'}},
+  temperature:{color:'#f08c2e', name:{en:'Temperature',zh:'温度'}, job:{en:'Speeds dissolving and changes solubility',zh:'加快溶解，并改变溶解度'},
+    facts:{en:['Hot water particles move faster, so they hit the solid more often and with more energy.','For most solids, a higher temperature means a higher solubility: KNO₃ goes from about 32 g (20 °C) to 169 g (80 °C).','Salt barely changes: about 36 g at 20 °C and 38 g at 80 °C.','Gases are the opposite: they dissolve less in warm water.'],
+           zh:['热水中的水分子运动更快，撞击固体更频繁、更有力。','对大多数固体来说，温度越高溶解度越大：硝酸钾从 20 °C 时约 32 g 增加到 80 °C 时约 169 g。','食盐的溶解度受温度影响很小：20 °C 时约 36 g,80 °C 时约 38 g。','气体正好相反：在温水中溶解得更少。']},
+    hint:{en:'Of all the factors here, only temperature changes HOW MUCH can dissolve.',zh:'在这些因素中，只有温度能改变“最多能溶多少”。'}},
+  stirring:{color:'#3fb6e0', name:{en:'Stirring',zh:'搅拌'}, job:{en:'Speeds up dissolving',zh:'加快溶解速度'},
+    facts:{en:['Stirring carries dissolved particles away from the solid so fresh solvent can reach its surface.','Stirring makes dissolving faster, but it does not change the solubility.','Shaking a closed jar works the same way as stirring.'],
+           zh:['搅拌能把已溶解的粒子从固体附近带走，让新鲜的溶剂接触固体表面。','搅拌能加快溶解速度，但不能改变溶解度。','摇晃密封的瓶子和搅拌的作用一样。']},
+    hint:{en:'Stirring = faster, not more.',zh:'搅拌只管“快”，不管“多”。'},
+    mix:{en:'Try it: stir a saturated solution as hard as you like — the solid on the bottom stays.',zh:'试一试：对饱和溶液使劲搅拌，杯底的固体依然不会消失。'}},
+  size:{color:'#c9a26b', name:{en:'Particle size',zh:'颗粒大小'}, job:{en:'Smaller pieces dissolve faster',zh:'颗粒越小，溶解越快'},
+    facts:{en:['Crushing a solid into powder gives it far more surface area touching the solvent.','Granulated sugar dissolves faster than a sugar cube, but the same total mass dissolves in the end.','Cutting one cube into 8 smaller cubes doubles the surface area.'],
+           zh:['把固体研磨成粉末，会大大增加它与溶剂接触的表面积。','砂糖比方糖溶解得快，但最终能溶解的总质量相同。','把一个立方体切成 8 个小立方体，表面积会增加一倍。']},
+    hint:{en:'More surface = more places for water to “attack”. Switch between 🧊 Cubes and 🧂 Powder.',zh:'表面积越大，水分子能“进攻”的地方越多。试试切换 🧊 块状 和 🧂 粉末。'}}
+};
+const ORDER = ['solvent','solute','solution','solubility','saturated','concentration','temperature','stirring','size'];
+
+/* ===== Story: make a saturated (then supersaturated) solution ===== */
+const STEPS = [
+  {en:'1 · Start with 100 g of water at 20 °C. Water is the SOLVENT — the substance that does the dissolving.',zh:'1 · 先准备 20 °C 的 100 g 水。水是溶剂——能溶解其他物质的物质。'},
+  {en:'2 · Add sugar, the SOLUTE. The cubes break apart into particles too small to see, and they spread evenly through the water.',zh:'2 · 加入糖，它是溶质。糖块被拆成小到看不见的粒子，均匀地分散在水中。'},
+  {en:'3 · Stir! Stirring brings fresh water to the solid’s surface, so it dissolves FASTER — but not MORE.',zh:'3 · 搅拌！搅拌让新鲜的水接触固体表面，溶解得更快——但不会溶解得更多。'},
+  {en:'4 · Keep adding sugar. At 20 °C only about 204 g can dissolve. The extra stays on the bottom: the solution is SATURATED.',zh:'4 · 继续加糖。20 °C 时最多只能溶解约 204 g，多出来的留在杯底：溶液饱和了。'},
+  {en:'5 · Heat to 80 °C. Solubility rises to about 362 g, so the leftover sugar dissolves. It is unsaturated again.',zh:'5 · 加热到 80 °C。溶解度增大到约 362 g，杯底剩下的糖溶解了，溶液又变成不饱和的。'},
+  {en:'6 · Cool slowly back to 20 °C: now it is SUPERSATURATED (more than 204 g dissolved). Tap 💎 Seed crystal and watch crystals grow!',zh:'6 · 慢慢冷却回 20 °C：现在溶液过饱和了（溶解的糖超过 204 g）。点 💎 晶种，看晶体迅速长出来！'}
+];
+
+/* ===== App state + info panel ===== */
+const App = window.SOL = { sel:null, three:null, solute:'sugar', powder:false, stats:null };
+App.select = (k, from3D) => { App.sel = k; renderInfo(); renderChips(); if (!from3D && App.three) App.three.focus(k); };
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel;
+  if (!k){
+    box.innerHTML = `<span class="tag">${Lab.L({en:'Solutions',zh:'溶液'})}</span>
+      <h3>${Lab.L({en:'Solute + solvent = solution',zh:'溶质 + 溶剂 = 溶液'})}</h3>
+      <p class="muted" style="margin:0">${Lab.L({en:'Press ➕ to drop a scoop of solute into 100 g of water. Use the sliders to heat and stir, and watch the meter under the beaker. Click any part of the model to learn about it.',zh:'点 ➕ 往 100 g 水里加一勺溶质。用滑块加热、搅拌，并观察烧杯下方的读数。点击模型的任意部分来了解它。'})}</p>
+      <div class="memory"><b>${Lab.L({en:'💡 Big idea',zh:'💡 核心概念'})}</b>${Lab.L({en:'A solution is a mixture where one substance (the solute) is spread out evenly, particle by particle, in another (the solvent).',zh:'溶液是一种混合物：一种物质（溶质）以粒子的形式均匀地分散在另一种物质（溶剂）中。'})}</div>
+      <p class="muted" style="margin:0;font-size:14px">${Lab.L({en:'In the model, each colored dot stands for about 0.5 g of dissolved solute (real particles are millions of times smaller).',zh:'模型中每个彩色小点代表约 0.5 g 已溶解的溶质（真实的粒子要小几百万倍）。'})}</p>
+      <div class="nav"><button id="startBtn">${Lab.L({en:'Start with the solvent ▶',zh:'从溶剂开始 ▶'})}</button></div>`;
+    Lab.$('#startBtn').onclick = () => App.select('solvent');
+    return;
+  }
+  const p = PARTS[k], i = ORDER.indexOf(k);
+  box.innerHTML = `<span class="tag">${Lab.L({en:'Key idea',zh:'关键概念'})} ${i + 1}/${ORDER.length}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    ${realFig(k)}
+    <div class="memory"><b>${Lab.L({en:'💡 Memory hint',zh:'💡 记忆小窍门'})}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${Lab.L({en:'⚠️ Common mix-up:',zh:'⚠️ 容易混淆：'})}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="pPrev">${Lab.L({en:'◀ Previous',zh:'◀ 上一个'})}</button><button id="pNext">${Lab.L({en:'Next ▶',zh:'下一个 ▶'})}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. '));
+  Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
+  Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
+}
+function renderChips(){
+  Lab.$('#chips').innerHTML = ORDER.map(k => `<button class="chip ${App.sel===k?'on':''}" data-k="${k}"><i style="background:${PARTS[k].color}"></i>${Lab.L(PARTS[k].name)}</button>`).join('');
+  Lab.$$('#chips .chip').forEach(c => c.onclick = () => App.select(c.dataset.k));
+}
+function renderControls(){
+  Lab.$('#soluteSeg').innerHTML = SKEYS.map(k => `<button data-k="${k}" class="${App.solute===k?'on':''}">${Lab.L(SOLUTES[k].name)}</button>`).join('');
+  Lab.$$('#soluteSeg button').forEach(b => b.onclick = () => { App.solute = b.dataset.k; renderControls(); App.three && App.three.setSolute(b.dataset.k); });
+  Lab.$('#formBtn').textContent = Lab.L(App.powder ? {en:'🧂 Powder',zh:'🧂 粉末'} : {en:'🧊 Cubes',zh:'🧊 块状'});
+  Lab.$('#formBtn').classList.toggle('on', App.powder);
+}
+/* live meter, called by the 3D scene ~8×/s with {T, D, U, S, solute, super} */
+App.setStats = s => { App.stats = s; renderMeter(); };
+function renderMeter(){
+  const s = App.stats; if (!s) return;
+  Lab.$('#mT').textContent = Math.round(s.T) + ' °C';
+  Lab.$('#mD').textContent = fmtG(s.D);
+  Lab.$('#mS').textContent = fmtG(s.S);
+  Lab.$('#mC').textContent = (s.D / (100 + s.D) * 100).toFixed(1) + '%';
+  const bar = Lab.$('#mBar'); bar.style.width = Math.min(100, s.D / s.S * 100) + '%';
+  const st = s.D > s.S * 1.005 && s.U < .05 ? 'super' : (s.D >= s.S * .995 ? 'sat' : 'un');
+  bar.style.background = st === 'un' ? 'var(--good)' : st === 'sat' ? 'var(--warn)' : 'var(--bad)';
+  const name = { un:{en:'Unsaturated',zh:'不饱和'}, sat:{en:'Saturated',zh:'饱和'}, super:{en:'Supersaturated!',zh:'过饱和！'} }[st];
+  const e = Lab.$('#mState'); e.textContent = Lab.L(name); e.style.color = st === 'un' ? 'var(--good)' : st === 'sat' ? 'var(--warn)' : 'var(--bad)';
+  Lab.$('#mUnd').textContent = s.U > .05 ? Lab.L({en:`${fmtG(s.U)} undissolved on the bottom`,zh:`杯底未溶解:${fmtG(s.U)}`}) : (st === 'super' ? Lab.L({en:'unstable — add a seed crystal',zh:'不稳定——放一粒晶种试试'}) : Lab.L({en:'no solid left',zh:'没有剩余固体'}));
+}
+Lab.onLang(() => { renderInfo(); renderChips(); renderControls(); renderMeter(); });
+
+/* ===== Dissolving race (fair test) ===== */
+(function(){
+  const TEMPS = [{T:5,en:'❄️ 5 °C',zh:'❄️ 5 °C'},{T:20,en:'20 °C',zh:'20 °C'},{T:70,en:'🔥 70 °C',zh:'🔥 70 °C'}];
+  const VARS = { T:{en:'temperature',zh:'温度'}, stir:{en:'stirring',zh:'搅拌'}, powder:{en:'particle size',zh:'颗粒大小'} };
+  const cups = { A:{T:20, stir:false, powder:false}, B:{T:70, stir:false, powder:false} };
+  let raf = 0, last = null;
+  /* each piece: m^(1/3) shrinks linearly → t = 3·m0^(1/3) / (K·fT·fS); ×10 so the times feel like real minutes */
+  const timeFor = c => 3 * Math.cbrt(c.powder ? 10 / 16 : 10) / (RATE.K * RATE.fT(c.T) * RATE.fS(c.stir ? .8 : 0)) * 10;
+  const fmtT = s => { s = Math.round(s); const m = Math.floor(s / 60), r = s % 60; return Lab.lang === 'zh' ? (m ? `${m} 分 ${r} 秒` : `${r} 秒`) : (m ? `${m} min ${r} s` : `${r} s`); };
+  function render(){
+    Lab.$('#raceCups').innerHTML = ['A','B'].map(id => { const c = cups[id]; return `<div class="cupcard">
+      <h4>${Lab.L({en:'Cup',zh:'杯'})} ${id}</h4>
+      <div class="cupvis"><div class="fill" id="fill${id}"></div>${c.powder ? `<div class="grains" id="lump${id}"></div>` : `<div class="lump" id="lump${id}"></div>`}<div class="heat" style="opacity:${c.T > 50 ? 1 : 0}"></div></div>
+      <div class="timebar"><i id="bar${id}"></i></div>
+      <div class="toggle" data-cup="${id}" data-v="T">${TEMPS.map(t => `<button data-val="${t.T}" class="${c.T===t.T?'on':''}">${Lab.L(t)}</button>`).join('')}</div>
+      <div class="toggle" data-cup="${id}" data-v="stir"><button data-val="0" class="${!c.stir?'on':''}">${Lab.L({en:'No stir',zh:'不搅拌'})}</button><button data-val="1" class="${c.stir?'on':''}">${Lab.L({en:'🥄 Stir',zh:'🥄 搅拌'})}</button></div>
+      <div class="toggle" data-cup="${id}" data-v="powder"><button data-val="0" class="${!c.powder?'on':''}">${Lab.L({en:'🧊 Cube',zh:'🧊 方糖'})}</button><button data-val="1" class="${c.powder?'on':''}">${Lab.L({en:'🧂 Powder',zh:'🧂 砂糖'})}</button></div>
+    </div>`; }).join('');
+    Lab.$$('#raceCups .toggle button').forEach(b => b.onclick = () => {
+      const box = b.parentElement, c = cups[box.dataset.cup], v = box.dataset.v;
+      c[v] = v === 'T' ? +b.dataset.val : b.dataset.val === '1'; reset(); render();
+    });
+  }
+  function reset(){ cancelAnimationFrame(raf); raf = 0; last = null; Lab.$('#raceMsg').textContent = ''; Lab.$('#raceMsg').className = 'result'; Lab.$('#raceTA').textContent = Lab.$('#raceTB').textContent = '—'; }
+  function go(){
+    reset(); render();
+    const tA = timeFor(cups.A), tB = timeFor(cups.B), dur = Math.max(tA, tB), t0 = performance.now(), REAL = 5000;
+    (function step(now){
+      const p = Math.min(1, (now - t0) / REAL) * dur;
+      [['A', tA], ['B', tB]].forEach(([id, t]) => {
+        const r = Math.max(0, 1 - p / t), lump = Lab.$('#lump' + id);
+        if (lump) lump.style.transform = `scale(${r})`;
+        Lab.$('#fill' + id).style.opacity = (.45 * (1 - r * r * r)).toFixed(3);
+        Lab.$('#bar' + id).style.width = Math.min(100, p / t * 100) + '%';
+        Lab.$('#raceT' + id).textContent = p >= t ? fmtT(t) : fmtT(p) + '…';
+      });
+      if (p < dur) raf = requestAnimationFrame(step); else { raf = 0; last = { tA, tB }; message(); }
+    })(t0);
+  }
+  function message(){
+    if (!last) return;
+    const { tA, tB } = last, diff = Object.keys(VARS).filter(v => cups.A[v] !== cups.B[v]), m = Lab.$('#raceMsg');
+    Lab.$('#raceTA').textContent = fmtT(tA); Lab.$('#raceTB').textContent = fmtT(tB);
+    if (!diff.length){ m.textContent = Lab.L({en:'🤝 A tie — both cups are set up the same. Change ONE variable and race again.',zh:'🤝 平局——两杯条件完全相同。改变一个变量再比一次。'}); m.className = 'result'; return; }
+    const win = tA < tB ? 'A' : 'B', ratio = Math.max(tA, tB) / Math.min(tA, tB);
+    if (diff.length === 1){
+      m.textContent = Lab.lang === 'zh' ? `✅ 公平测试!只改变了${VARS[diff[0]].zh},${win} 杯快了 ${ratio.toFixed(1)} 倍。所以${VARS[diff[0]].zh}会影响溶解快慢。`
+        : `✅ Fair test! Only ${VARS[diff[0]].en} changed, and cup ${win} was ${ratio.toFixed(1)}× faster — so ${VARS[diff[0]].en} affects how fast sugar dissolves.`;
+      m.className = 'result good';
+    } else {
+      m.textContent = Lab.lang === 'zh' ? `⚠️ 不是公平测试:你同时改变了 ${diff.length} 个变量(${diff.map(v => VARS[v].zh).join('、')}),无法判断是哪一个让 ${win} 杯更快。`
+        : `⚠️ Not a fair test: you changed ${diff.length} variables (${diff.map(v => VARS[v].en).join(', ')}), so you can’t tell which one made cup ${win} faster.`;
+      m.className = 'result bad';
+    }
+  }
+  Lab.$('#raceGo').onclick = go;
+  Lab.$('#raceReset').onclick = () => { reset(); render(); };
+  Lab.onLang(() => { if (!raf){ render(); if (last){ finishVis(); message(); } } });
+  function finishVis(){ ['A','B'].forEach(id => { const l = Lab.$('#lump' + id); if (l) l.style.transform = 'scale(0)'; Lab.$('#fill' + id).style.opacity = .45; Lab.$('#bar' + id).style.width = '100%'; }); }
+})();
+
+/* ===== Solubility curve plotter (canvas, colors from CSS tokens) ===== */
+(function(){
+  const cv = Lab.$('#curveCv'), g = cv.getContext('2d');
+  const vis = { sugar:false, salt:true, kno3:true, cuso4:true };
+  let pt = { T:40, m:50 }, hov = null, coolK = 'kno3', W = 0, H = 0;
+  const M = { l:62, r:18, t:18, b:50 };
+  const ymax = () => { let m = 40; SKEYS.forEach(k => { if (vis[k]) m = Math.max(m, solub(k, 100)); }); return [50,100,150,200,300,400,500].find(s => s >= m * 1.02) || 500; };
+  const X = T => M.l + T / 100 * (W - M.l - M.r), Y = (m, ym) => H - M.b - m / ym * (H - M.t - M.b);
+  function size(){ const r = cv.parentElement.getBoundingClientRect(), d = devicePixelRatio || 1; W = r.width; H = r.height; cv.width = W * d; cv.height = H * d; g.setTransform(d, 0, 0, d, 0, 0); draw(); }
+  function draw(){
+    if (!W) return;
+    const css = getComputedStyle(document.documentElement), ink = css.getPropertyValue('--ink').trim(), ink2 = css.getPropertyValue('--ink-2').trim(), line = css.getPropertyValue('--line').trim(), surf = css.getPropertyValue('--surface').trim();
+    const ym = ymax(), step = ym / 5;
+    g.clearRect(0, 0, W, H); g.font = '700 12px Nunito, sans-serif'; g.lineWidth = 1;
+    for (let T = 0; T <= 100; T += 10){ g.strokeStyle = line; g.beginPath(); g.moveTo(X(T), Y(0, ym)); g.lineTo(X(T), Y(ym, ym)); g.stroke(); g.fillStyle = ink2; g.textAlign = 'center'; g.fillText(T, X(T), H - M.b + 17); }
+    for (let m = 0; m <= ym + .1; m += step){ g.strokeStyle = line; g.beginPath(); g.moveTo(X(0), Y(m, ym)); g.lineTo(X(100), Y(m, ym)); g.stroke(); g.fillStyle = ink2; g.textAlign = 'right'; g.fillText(Math.round(m), M.l - 8, Y(m, ym) + 4); }
+    g.fillStyle = ink; g.font = '800 13px Nunito, sans-serif'; g.textAlign = 'center';
+    g.fillText(Lab.L({en:'Temperature (°C)',zh:'温度（°C）'}), (M.l + W - M.r) / 2, H - 10);
+    g.save(); g.translate(16, (M.t + H - M.b) / 2); g.rotate(-Math.PI / 2); g.fillText(Lab.L({en:'Solubility (g per 100 g water)',zh:'溶解度（g / 100 g 水）'}), 0, 0); g.restore();
+    /* curves */
+    SKEYS.forEach(k => {
+      if (!vis[k]) return; const c = SOLUTES[k].curveColor;
+      g.strokeStyle = c; g.lineWidth = 3.5; g.beginPath();
+      for (let T = 0; T <= 100; T++){ const y = Y(Math.min(solub(k, T), ym), ym); T ? g.lineTo(X(T), y) : g.moveTo(X(T), y); }
+      g.stroke();
+      const lt = solub(k, 100) > ym ? SOLUTES[k].curve.find(p => p[1] > ym * .92)[0] : 100, ly = Y(Math.min(solub(k, lt), ym), ym);
+      g.font = '800 13px Nunito, sans-serif'; const txt = Lab.L(SOLUTES[k].name), tw = g.measureText(txt).width;
+      const lx = Math.min(X(lt) - 6, W - M.r - tw - 4);
+      g.fillStyle = surf; g.globalAlpha = .85; g.fillRect(lx - 3, ly - 22, tw + 6, 17); g.globalAlpha = 1;
+      g.fillStyle = c; g.textAlign = 'left'; g.fillText(txt, lx, ly - 9);
+    });
+    /* cooling arrow */
+    const t1 = +Lab.$('#t1In').value, t2 = +Lab.$('#t2In').value;
+    if (t1 > t2){
+      const s1 = solub(coolK, t1), s2 = solub(coolK, t2), c = SOLUTES[coolK].curveColor;
+      if (s1 <= ym){
+        g.strokeStyle = c; g.lineWidth = 2; g.setLineDash([6, 5]);
+        g.beginPath(); g.moveTo(X(t1), Y(s1, ym)); g.lineTo(X(t2), Y(s1, ym)); g.stroke();
+        g.setLineDash([]); g.lineWidth = 3; g.beginPath(); g.moveTo(X(t2), Y(s1, ym)); g.lineTo(X(t2), Y(s2, ym) - 6); g.stroke();
+        g.fillStyle = c; g.beginPath(); g.moveTo(X(t2), Y(s2, ym)); g.lineTo(X(t2) - 6, Y(s2, ym) - 10); g.lineTo(X(t2) + 6, Y(s2, ym) - 10); g.fill();
+        [[t1, s1], [t2, s2]].forEach(([t, s]) => { g.beginPath(); g.arc(X(t), Y(s, ym), 5, 0, 7); g.fill(); });
+      }
+    }
+    /* hover crosshair */
+    if (hov){ g.strokeStyle = ink2; g.lineWidth = 1; g.setLineDash([3, 4]); g.beginPath(); g.moveTo(X(hov.T), Y(0, ym)); g.lineTo(X(hov.T), Y(ym, ym)); g.moveTo(X(0), Y(hov.m, ym)); g.lineTo(X(100), Y(hov.m, ym)); g.stroke(); g.setLineDash([]);
+      g.fillStyle = ink2; g.textAlign = 'left'; g.font = '700 12px Nunito, sans-serif'; g.fillText(`${hov.T} °C, ${hov.m.toFixed(0)} g`, Math.min(X(hov.T) + 8, W - 110), Y(hov.m, ym) - 8); }
+    /* the test point */
+    const px = X(pt.T), py = Y(Math.min(pt.m, ym), ym);
+    g.fillStyle = ink; g.beginPath(); g.arc(px, py, 8, 0, 7); g.fill(); g.fillStyle = surf; g.beginPath(); g.arc(px, py, 3.5, 0, 7); g.fill();
+  }
+  function info(){
+    const ks = SKEYS.filter(k => vis[k]);
+    let h = `<div class="st">${Lab.L({en:'Your mixture',zh:'你的混合物'})}: ${pt.m.toFixed(0)} g / 100 g ${Lab.L({en:'water at',zh:'水，温度'})} ${pt.T} °C</div>`;
+    if (!ks.length) h += Lab.L({en:'Show at least one curve.',zh:'请至少显示一条曲线。'});
+    ks.forEach(k => {
+      const S = solub(k, pt.T), d = pt.m - S, c = SOLUTES[k].curveColor;
+      let t;
+      if (Math.abs(d) <= Math.max(1, S * .03)) t = Lab.L({en:`<b style="color:${c}">${SOLUTES[k].name.en}</b>: ≈ on the curve → <b>saturated</b> (max ${S.toFixed(1)} g).`,zh:`<b style="color:${c}">${SOLUTES[k].name.zh}</b>:正好在曲线上 → <b>饱和</b>(最多 ${S.toFixed(1)} g)。`});
+      else if (d < 0) t = Lab.L({en:`<b style="color:${c}">${SOLUTES[k].name.en}</b>: below the curve → <b>unsaturated</b>; ${(-d).toFixed(1)} g more could dissolve.`,zh:`<b style="color:${c}">${SOLUTES[k].name.zh}</b>:在曲线下方 → <b>不饱和</b>,还能再溶解 ${(-d).toFixed(1)} g。`});
+      else t = Lab.L({en:`<b style="color:${c}">${SOLUTES[k].name.en}</b>: above the curve → more than can normally dissolve: ${d.toFixed(1)} g stays undissolved (or it is <b>supersaturated</b> if all dissolved).`,zh:`<b style="color:${c}">${SOLUTES[k].name.zh}</b>:在曲线上方 → 超过正常能溶解的量:有 ${d.toFixed(1)} g 溶解不了(如果全部溶解了,就是<b>过饱和</b>溶液)。`});
+      h += `<div style="font-weight:600;font-size:15px;margin-top:4px">${t}</div>`;
+    });
+    Lab.$('#ptInfo').innerHTML = h;
+    const t1 = +Lab.$('#t1In').value, t2 = +Lab.$('#t2In').value; Lab.$('#t1Out').textContent = t1 + ' °C'; Lab.$('#t2Out').textContent = t2 + ' °C';
+    const s1 = solub(coolK, t1), s2 = solub(coolK, t2), cm = Lab.$('#coolMsg'), nm = Lab.L(SOLUTES[coolK].name);
+    if (t1 <= t2){ cm.textContent = Lab.L({en:'Pick a “cool to” temperature lower than the starting one.',zh:'请选择比起始温度更低的“冷却到”温度。'}); cm.className = 'result'; }
+    else { cm.textContent = Lab.lang === 'zh' ? `${t1} °C 时 100 g 水中最多溶解 ${s1.toFixed(1)} g ${nm};冷却到 ${t2} °C 只能溶解 ${s2.toFixed(1)} g,所以会析出约 ${(s1 - s2).toFixed(1)} g 晶体。`
+        : `A saturated solution at ${t1} °C holds ${s1.toFixed(1)} g of ${nm}. At ${t2} °C it can only hold ${s2.toFixed(1)} g, so about ${(s1 - s2).toFixed(1)} g of crystals form.`; cm.className = 'result good'; }
+  }
+  function toggles(){
+    Lab.$('#curveToggles').innerHTML = SKEYS.map(k => `<button data-k="${k}" class="${vis[k]?'on':''}" style="${vis[k]?`background:${SOLUTES[k].curveColor};border-color:${SOLUTES[k].curveColor};color:#fff`:''}">${Lab.L(SOLUTES[k].name)}</button>`).join('');
+    Lab.$$('#curveToggles button').forEach(b => b.onclick = () => { vis[b.dataset.k] = !vis[b.dataset.k]; toggles(); info(); draw(); });
+    Lab.$('#coolPick').innerHTML = SKEYS.map(k => `<button data-k="${k}" class="${coolK===k?'on':''}">${Lab.L(SOLUTES[k].name)}</button>`).join('');
+    Lab.$$('#coolPick button').forEach(b => b.onclick = () => { coolK = b.dataset.k; vis[coolK] = true; toggles(); info(); draw(); });
+  }
+  function toData(e){ const b = cv.getBoundingClientRect(), x = e.clientX - b.left, y = e.clientY - b.top, ym = ymax();
+    if (x < M.l - 4 || x > W - M.r + 4 || y < M.t - 4 || y > H - M.b + 4) return null;
+    return { T:Math.round(Math.max(0, Math.min(100, (x - M.l) / (W - M.l - M.r) * 100))), m:Math.max(0, Math.min(ym, (H - M.b - y) / (H - M.t - M.b) * ym)) }; }
+  cv.addEventListener('pointerdown', e => { const d = toData(e); if (d){ pt = d; info(); draw(); } });
+  cv.addEventListener('pointermove', e => { const d = toData(e); hov = d; if (d && e.buttons){ pt = d; info(); } draw(); });
+  cv.addEventListener('pointerleave', () => { hov = null; draw(); });
+  ['#t1In', '#t2In'].forEach(s => Lab.$(s).addEventListener('input', () => { info(); draw(); }));
+  new ResizeObserver(size).observe(cv.parentElement);
+  addEventListener('labtheme', draw); matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+  Lab.onLang(() => { toggles(); info(); draw(); });
+})();
+
+/* ===== Quiz ===== */
+const o = (en, zh) => ({en, zh});
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('In salt water, the salt is the…','在盐水中，盐是……'), options:[o('Solute','溶质'),o('Solvent','溶剂'),o('Solution','溶液'),o('Suspension','悬浊液')], answer:0, explain:o('The salt gets dissolved, so it is the solute. Water does the dissolving, so it is the solvent.','盐被溶解，是溶质；水溶解了盐，是溶剂。')},
+  {q:o('Which of these is a solution?','下列哪一种是溶液？'), options:[o('Sugar water','糖水'),o('Sand in water','沙子和水'),o('Muddy water','泥水'),o('Oil shaken with water','油和水摇匀')], answer:0, explain:o('Sugar water is the same throughout and never settles — a homogeneous mixture. The others separate or settle.','糖水各处都一样，放久了也不分层——是均一、稳定的混合物。其他几种都会沉淀或分层。')},
+  {q:o('25 g of salt dissolves completely in 100 g of water. What is the mass of the solution?','25 g 盐完全溶解在 100 g 水中，所得溶液的质量是多少？'), options:[o('125 g','125 g'),o('100 g','100 g'),o('25 g','25 g'),o('75 g','75 g')], answer:0, explain:o('Mass is conserved: solution = solute + solvent = 25 g + 100 g = 125 g.','质量守恒：溶液质量 = 溶质质量 + 溶剂质量 = 25 g + 100 g = 125 g。')},
+  {q:o('Which change makes sugar dissolve faster but does NOT change how much can dissolve?','哪种做法能让糖溶解得更快，却不能改变最多能溶解多少？'), options:[o('Stirring','搅拌'),o('Heating the water','给水加热'),o('Cooling the water','让水变冷'),o('Using salt instead','改用食盐')], answer:0, explain:o('Stirring only speeds things up. Temperature changes the solubility itself.','搅拌只加快溶解速度；温度会改变溶解度本身。')},
+  {q:o('No matter how long you stir, some sugar stays on the bottom of the cup. The solution is…','无论搅拌多久，杯底总有一些糖溶解不了。这时的溶液是……'), options:[o('Saturated','饱和溶液'),o('Unsaturated','不饱和溶液'),o('Supersaturated','过饱和溶液'),o('Not a solution','不是溶液')], answer:0, explain:o('The water is holding all the sugar it can at this temperature.','在这个温度下，水已经溶解了它能溶解的全部糖。')},
+  {q:o('The solubility of KNO₃ at 60 °C is about 110 g per 100 g water. A solution with 50 g KNO₃ in 100 g water at 60 °C is…','60 °C 时硝酸钾的溶解度约为 110 g。60 °C 时 100 g 水中溶有 50 g 硝酸钾，这种溶液是……'), options:[o('Unsaturated','不饱和溶液'),o('Saturated','饱和溶液'),o('Supersaturated','过饱和溶液'),o('Impossible to make','无法配制')], answer:0, explain:o('50 g is less than the 110 g maximum, so about 60 g more could still dissolve.','50 g 小于最大值 110 g，还能再溶解约 60 g。')},
+  {q:o('A saturated KNO₃ solution (100 g water) is cooled from 60 °C (110 g) to 20 °C (31.6 g). About how much solid crystallizes?','把 100 g 水配成的 60 °C 硝酸钾饱和溶液（110 g）冷却到 20 °C(31.6 g)，大约会析出多少晶体？'), options:[o('About 78 g','约 78 g'),o('110 g','110 g'),o('31.6 g','31.6 g'),o('None','不会析出')], answer:0, explain:o('110 g − 31.6 g ≈ 78 g can no longer stay dissolved, so it comes out as crystals.','110 g − 31.6 g ≈ 78 g 不能继续溶解，于是以晶体形式析出。')},
+  {q:o('20 g of sugar is dissolved in 80 g of water. What is the mass percent of sugar?','把 20 g 糖溶解在 80 g 水中，溶质的质量分数是多少？'), options:[o('20%','20%'),o('25%','25%'),o('80%','80%'),o('16%','16%')], answer:0, explain:o('Mass percent = 20 g ÷ (20 g + 80 g) × 100% = 20%. Divide by the whole solution, not just the water.','质量分数 = 20 g ÷ (20 g + 80 g) × 100% = 20%。要除以整个溶液的质量，而不只是水。')},
+  {q:o('Why does granulated sugar dissolve faster than a sugar cube of the same mass?','为什么同样质量的砂糖比方糖溶解得快？'), options:[o('It has more surface area touching the water','它与水接触的表面积更大'),o('It is a different chemical','它是另一种化学物质'),o('It has less mass','它的质量更小'),o('It is warmer','它的温度更高')], answer:0},
+  {q:o('Which substance becomes LESS soluble in water as the temperature rises?','下列哪种物质在水中的溶解度随温度升高而减小？'), options:[o('Carbon dioxide gas','二氧化碳气体'),o('Potassium nitrate','硝酸钾'),o('Sugar','蔗糖'),o('Copper sulfate','硫酸铜')], answer:0, explain:o('Gases escape from warm water more easily — warm soda goes flat faster.','气体在温水中更容易逸出——所以温热的汽水更容易“跑气”。')},
+  {q:o('A supersaturated solution…','过饱和溶液……'), options:[o('Holds more solute than normal and crystallizes quickly when a seed crystal is added','溶解的溶质比正常的多，放入晶种会迅速结晶'),o('Can always dissolve more solute','总能继续溶解更多溶质'),o('Is the same as a dilute solution','就是稀溶液'),o('Always has solid on the bottom','杯底总有固体')], answer:0},
+  {q:o('Water is called the “universal solvent” because…','水被称为“万能溶剂”，是因为……'), options:[o('It dissolves more substances than any other common liquid','它能溶解的物质比其他常见液体都多'),o('It dissolves every substance','它能溶解所有物质'),o('It is in every solution','所有溶液里都有水'),o('It is the only liquid on Earth','它是地球上唯一的液体')], answer:0, explain:o('Water dissolves a huge number of substances — but not everything (oil, sand and plastic do not dissolve in water).','水能溶解非常多的物质，但不是全部（油、沙子、塑料都不溶于水）。')}
+], { count:10 });
+
+/* ===== Sort game ===== */
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'solute',en:'Solute (gets dissolved)',zh:'溶质（被溶解）'},{id:'solvent',en:'Solvent (does the dissolving)',zh:'溶剂（溶解别的物质）'}],
+  items:[
+    {en:'Sugar in sweet tea',zh:'甜茶里的糖',bin:'solute'},{en:'Water in sweet tea',zh:'甜茶里的水',bin:'solvent'},
+    {en:'Salt in seawater',zh:'海水里的盐',bin:'solute'},{en:'Water in seawater',zh:'海水里的水',bin:'solvent'},
+    {en:'CO₂ gas in soda',zh:'汽水里的二氧化碳',bin:'solute'},{en:'Water in soda',zh:'汽水里的水',bin:'solvent'},
+    {en:'Iodine in iodine tincture',zh:'碘酒里的碘',bin:'solute'},{en:'Alcohol in iodine tincture',zh:'碘酒里的酒精',bin:'solvent'},
+    {en:'Zinc in brass (an alloy)',zh:'黄铜（合金）里的锌',bin:'solute'},{en:'Copper in brass (an alloy)',zh:'黄铜（合金）里的铜',bin:'solvent'},
+    {en:'Oxygen in air',zh:'空气里的氧气',bin:'solute'},{en:'Nitrogen in air (78%)',zh:'空气里的氮气（78%）',bin:'solvent'}
+  ]
+});
+</script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+const App = window.SOL, V = THREE.Vector3, UP = new V(0, 1, 0);
+const ctx = Lab3D.stage('#stage', { THREE, OrbitControls, camera:[0, 5.2, 11.6], target:[0, 1.8, 0], minDistance:3.5, maxDistance:30 });
+const { scene, renderer } = ctx;
+const envTex = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(renderer), .04).texture;
+const rnd = (a = 1) => (Math.random() * 2 - 1) * a, clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+
+/* ---------- dimensions (1 unit ≈ 1.5 cm); 100 g of water fills WT ---------- */
+const FLOOR = .08, WT = 3.0, TOP = FLOOR + WT, PR = 1.8;
+const randIn = () => { const a = Math.random() * 6.283, r = Math.sqrt(Math.random()) * PR; return new V(Math.cos(a) * r, FLOOR + .15 + Math.random() * (WT - .3), Math.sin(a) * r); };
+
+/* ---------- hot plate ---------- */
+const plateMat = ctx.mat('#4a505c', 1, { roughness:.35, metalness:.3 });
+const base = new THREE.Mesh(new THREE.BoxGeometry(5.6, .55, 5.2), ctx.mat('#d9dde3', 1, { roughness:.5 })); base.position.y = -.355; scene.add(base);
+const plate = new THREE.Mesh(new THREE.CylinderGeometry(2.35, 2.35, .08, 64), plateMat); plate.position.y = -.05; scene.add(plate);
+const knob = new THREE.Mesh(new THREE.CylinderGeometry(.28, .28, .22, 24), ctx.mat('#e5484d')); knob.rotation.x = Math.PI / 2; knob.position.set(1.9, -.355, 2.66); scene.add(knob);
+[base, plate, knob].forEach(m => ctx.pickable(m, 'temperature'));
+
+/* ---------- glass beaker (lathe) with graduation marks ---------- */
+const glassMat = new THREE.MeshPhysicalMaterial({ color:'#eef8ff', roughness:.03, metalness:0, transparent:true, opacity:.24, clearcoat:1, clearcoatRoughness:.03, envMap:envTex, envMapIntensity:1.5, side:THREE.DoubleSide, depthWrite:false });
+const prof = [[0,0],[2.06,0],[2.09,.05],[2.09,4.3],[2.2,4.42],[2.16,4.47],[2.01,4.34],[2.01,FLOOR],[0,FLOOR]].map(p => new THREE.Vector2(p[0], p[1]));
+const glass = new THREE.Mesh(new THREE.LatheGeometry(prof, 72), glassMat); glass.renderOrder = 3; scene.add(glass);
+const markMat = new THREE.MeshBasicMaterial({ color:'#6f8fb8', transparent:true, opacity:.9 });
+const marks = [];
+for (let i = 1; i <= 5; i++){ const a = -.55, m = new THREE.Mesh(new THREE.BoxGeometry(i % 2 ? .28 : .5, .035, .01), markMat); m.position.set(Math.sin(a) * 2.1, FLOOR + i * .75, Math.cos(a) * 2.1); m.rotation.y = a; scene.add(m); marks.push(m); }
+
+/* ---------- the liquid (solution) ---------- */
+const waterMat = new THREE.MeshPhysicalMaterial({ color:'#8fcdf5', roughness:.08, transparent:true, opacity:.34, depthWrite:false, envMap:envTex, envMapIntensity:.5, clearcoat:.5 });
+const water = new THREE.Mesh(new THREE.CylinderGeometry(1.98, 1.98, WT, 72), waterMat); water.position.y = FLOOR + WT / 2; water.renderOrder = 2; scene.add(water);
+ctx.pickable(water, 'solution');
+const WATER0 = new THREE.Color('#8fcdf5'), tmpC = new THREE.Color();
+
+/* ---------- dissolved solute particles (each dot ≈ 0.5 g) ---------- */
+const MAXP = 1000, DOT = .5;
+const dotMat = new THREE.MeshStandardMaterial({ color:'#f2a33a', roughness:.35 });
+const dots = new THREE.InstancedMesh(new THREE.SphereGeometry(.07, 8, 6), dotMat, MAXP); dots.count = 0; dots.frustumCulled = false;
+dots.boundingSphere = new THREE.Sphere(new V(0, 1.6, 0), 3); scene.add(dots); ctx.pickable(dots, 'solute');
+const P = [];
+
+/* ---------- water molecules (solvent): O red + 2 H white ---------- */
+const NW = 220;
+const oMat = ctx.mat('#e5484d'), hMat = ctx.mat('#ffffff');
+const oMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(.075, 10, 8), oMat, NW), hMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(.046, 8, 6), hMat, NW * 2);
+[oMesh, hMesh].forEach(m => { m.frustumCulled = false; m.boundingSphere = new THREE.Sphere(new V(0, 1.6, 0), 3); m.visible = false; scene.add(m); ctx.pickable(m, 'solvent'); });
+const WM = Array.from({ length:NW }, () => ({ p:randIn(), v:new V(), q:new THREE.Quaternion().random(), w:new V(rnd(), rnd(), rnd()).normalize() }));
+const H1 = new V(.085, .066, 0), H2 = new V(-.085, .066, 0);
+
+/* ---------- undissolved solid pieces ---------- */
+const MAXK = 160, SHAPE = { sugar:[1,1,1], salt:[1,1,1], kno3:[.55,.55,1.9], cuso4:[1.25,.7,1] };
+const pieceMat = ctx.mat('#f6f1e7', 1, { roughness:.75, clearcoat:.15 });
+const pile = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), pieceMat, MAXK); pile.count = 0; pile.frustumCulled = false;
+pile.boundingSphere = new THREE.Sphere(new V(0, 3, 0), 6); scene.add(pile); ctx.pickable(pile, 'pile');
+const K = [];
+
+/* ---------- stirring rod + thermometer ---------- */
+const rodMat = new THREE.MeshPhysicalMaterial({ color:'#dff3ff', roughness:.05, transparent:true, opacity:.6, envMap:envTex, envMapIntensity:1.2, clearcoat:1 });
+const rodG = new THREE.Group(), rod = new THREE.Mesh(new THREE.CylinderGeometry(.07, .07, 5.4, 16), rodMat); rod.position.y = 2.7; rodG.add(rod); scene.add(rodG); ctx.pickable(rod, 'stirring');
+const rodTip = new THREE.Object3D(); rodTip.position.y = 4.6; rodG.add(rodTip);
+const thG = new THREE.Group(); thG.position.set(-1.2, FLOOR + .22, -.95); scene.add(thG);
+const thTube = new THREE.Mesh(new THREE.CylinderGeometry(.1, .1, 4.7, 16), new THREE.MeshPhysicalMaterial({ color:'#ffffff', transparent:true, opacity:.45, roughness:.05, envMap:envTex, clearcoat:1, depthWrite:false })); thTube.position.y = 2.35;
+const colMat = ctx.mat('#e0283c'), thBulb = new THREE.Mesh(new THREE.SphereGeometry(.17, 16, 12), colMat), thCol = new THREE.Mesh(new THREE.CylinderGeometry(.045, .045, 1, 10), colMat);
+thG.add(thTube, thBulb, thCol); thG.quaternion.setFromUnitVectors(UP, new V(-.8, 4.4, -.6).normalize());
+const thTop = new THREE.Object3D(); thTop.position.y = 4.0; thG.add(thTop);
+[thTube, thBulb, thCol].forEach(m => ctx.pickable(m, 'temperature'));
+
+/* ---------- steam + splash ripples ---------- */
+const steamMat = new THREE.MeshBasicMaterial({ color:'#ffffff', transparent:true, opacity:0, depthWrite:false });
+const steam = Array.from({ length:26 }, () => { const s = new THREE.Mesh(new THREE.SphereGeometry(.22, 10, 8), steamMat); s.userData.t = Math.random(); s.userData.x = rnd(1.3); s.userData.z = rnd(1.3); scene.add(s); return s; });
+const ripMat = () => new THREE.MeshBasicMaterial({ color:'#ffffff', transparent:true, opacity:0, side:THREE.DoubleSide, depthWrite:false });
+const ripples = Array.from({ length:6 }, () => { const r = new THREE.Mesh(new THREE.RingGeometry(.8, .9, 40), ripMat()); r.rotation.x = -Math.PI / 2; r.position.y = TOP + .01; r.userData.t = 1; scene.add(r); return r; });
+function splash(x, z){ const r = ripples.find(r => r.userData.t >= 1) || ripples[0]; r.position.x = x; r.position.z = z; r.userData.t = 0; }
+
+/* ---------- simulation state ---------- */
+const S = { key:'sugar', T:20, Tt:20, stir:0, D:0, seeded:false, ang:0, state:'un', capT:0 };
+const sol = () => SOLUTES[S.key];
+const lumpMass = () => sol().scoop / 2;
+const sideOf = k => Math.min(.8, .5 * Math.cbrt(Math.max(k.m, 0) / lumpMass()));
+const U = () => K.reduce((a, k) => a + k.m, 0);
+function stackY(x, z, h){ let n = 0; for (const k of K) if (k.settled !== undefined && Math.hypot(k.p.x - x, k.p.z - z) < .42) n++; return FLOOR + h / 2 + Math.min(n, 8) * h * .55; }
+function addPiece(m, falling){
+  if (K.length >= MAXK){ K[Math.random() * K.length | 0].m += m; return; }
+  const a = Math.random() * 6.283, r = Math.sqrt(Math.random()) * (falling ? 1.1 : 1.4), k = { m, p:new V(Math.cos(a) * r, 0, Math.sin(a) * r), vy:0, rot:new THREE.Euler(rnd(.3), Math.random() * 6.3, rnd(.3)), settled:undefined };
+  k.base = stackY(k.p.x, k.p.z, sideOf(k));
+  k.p.y = falling ? TOP + 1.5 + Math.random() * .8 : k.base; k.settled = !falling; k.wet = !falling; K.push(k);
+}
+function addScoop(){
+  if (U() + S.D > 600){ eventCap({ en:'That’s plenty of solute! Press ⌂ Reset to start over.', zh:'溶质已经够多了！点 ⌂ 重置重新开始。' }); return; }
+  const n = App.powder ? 16 : 2, m = sol().scoop / n;
+  for (let i = 0; i < n; i++) addPiece(m, true);
+}
+function clearBeaker(){ K.length = 0; P.length = 0; S.D = 0; S.seeded = false; S.state = 'un'; }
+function setSolute(k){
+  S.key = k; App.solute = k; clearBeaker();
+  dotMat.color.set(sol().dot); pieceMat.color.set(sol().color);
+  pieceMat.transparent = k === 'cuso4' || k === 'salt'; pieceMat.opacity = k === 'cuso4' ? .9 : k === 'salt' ? .92 : 1;
+  eventCap({ en:`Fresh beaker: 100 g of water. Solute: ${sol().full.en}`, zh:`新烧杯:100 g 水。溶质:${sol().full.zh}` });
+}
+let capTimer = 0;
+function eventCap(t){ if (story.active) return; ctx.caption(t); capTimer = 4.5; }
+
+/* ---------- labels ---------- */
+const anchor = (x, y, z) => { const o = new THREE.Object3D(); o.position.set(x, y, z); scene.add(o); return o; };
+const pileA = anchor(0, FLOOR + .3, 1.2);
+const labels = [
+  ctx.label({ en:'Solvent: water', zh:'溶剂：水' }, anchor(1.25, .9, 1.1)),
+  ctx.label(PARTS.solution.name, anchor(0, TOP + .05, 1.75)),
+  ctx.label({ en:'Dissolved solute particles', zh:'已溶解的溶质粒子' }, anchor(-.4, 2.3, 1.3)),
+  ctx.label({ en:'Undissolved solid', zh:'未溶解的固体' }, pileA),
+  ctx.label({ en:'Thermometer', zh:'温度计' }, thTop, { offset:[0, .3, 0] }),
+  ctx.label({ en:'Stirring rod', zh:'玻璃棒' }, rodTip, { offset:[0, .3, 0] }),
+  ctx.label({ en:'Hot plate', zh:'电热板' }, anchor(0, -.35, 2.7)),
+  ctx.label('100 mL', marks[3], { offset:[-.55, 0, 0] })
+];
+let labelsOn = false; labels.forEach(L => L.visible = false);
+Lab.$('#labelBtn').onclick = () => { labelsOn = !labelsOn; labels.forEach(L => L.visible = labelsOn); Lab.$('#labelBtn').classList.toggle('on', labelsOn); };
+
+/* ---------- picking + focus ---------- */
+const keyOf = k => k === 'pile' ? (S.state === 'sat' ? 'saturated' : 'solute') : k;
+ctx.hoverText(k => Lab.L(PARTS[keyOf(k)].name));
+ctx.onPick((k, hit, e) => {
+  if (k === 'solution' && e){ const inner = ctx.raycast(e).find(h => h.object.userData.pickKey !== 'solution'); if (inner) k = inner.object.userData.pickKey; }
+  if (k == null) return;
+  k = keyOf(k); if (k !== App.sel) App.select(k, false);
+});
+function setMol(on){ oMesh.visible = hMesh.visible = on; Lab.$('#molBtn').classList.toggle('on', on); }
+function focus(k){
+  if (!k) return ctx.home();
+  if (k === 'solvent') setMol(true);
+  const T = { solvent:[[.6, 1.6, .6], 6], solute:[[0, 1.4, 0], 7], solution:[[0, 1.8, 0], 10], solubility:[[0, 1.9, 0], 12], saturated:[[0, .5, 0], 6.5], concentration:[[0, 1.8, 0], 9],
+    temperature:[[-1, 1.2, -.5], 9], stirring:[[.5, 2.2, 0], 9], size:[[0, .5, 0], 6.5] }[k];
+  if (T) ctx.flyTo(T[0], T[1]);
+  if (k === 'size') eventCap({ en:'Tip: switch 🧊 Cubes ↔ 🧂 Powder, then add a scoop and compare the speed.', zh:'提示：切换 🧊 块状 ↔ 🧂 粉末，再加一勺，比比溶解速度。' });
+  if (k === 'stirring' && S.stir === 0) eventCap({ en:'Drag the 🥄 Stir slider to stir.', zh:'拖动 🥄 搅拌 滑块开始搅拌。' });
+}
+App.three = { focus, setSolute };
+
+/* ---------- controls ---------- */
+const tempIn = Lab.$('#tempIn'), stirIn = Lab.$('#stirIn');
+tempIn.oninput = () => { S.Tt = +tempIn.value; Lab.$('#tempOut').textContent = S.Tt + ' °C'; };
+stirIn.oninput = () => { S.stir = stirIn.value / 100; };
+const setT = T => { S.Tt = T; tempIn.value = T; Lab.$('#tempOut').textContent = T + ' °C'; };
+const setStir = s => { S.stir = s; stirIn.value = s * 100; };
+Lab.$('#addBtn').onclick = addScoop;
+Lab.$('#formBtn').onclick = () => { App.powder = !App.powder; renderControls(); eventCap(App.powder ? { en:'Powder: each scoop is 16 tiny grains — lots of surface area.', zh:'粉末：每勺是 16 粒小颗粒——表面积很大。' } : { en:'Cubes: each scoop is 2 big lumps — less surface area.', zh:'块状：每勺是 2 块大方块——表面积较小。' }); };
+Lab.$('#seedBtn').onclick = () => {
+  if (S.D > solub(S.key, S.T) * 1.005){ S.seeded = true; for (let i = 0; i < 5; i++) addPiece(.03, false); eventCap({ en:'💎 Seed crystal added — the extra solute crystallizes out fast!', zh:'💎 放入晶种——多余的溶质迅速结晶析出！' }); }
+  else { addPiece(.05, true); eventCap({ en:'The solution is not supersaturated, so the tiny seed crystal just dissolves.', zh:'溶液不是过饱和的，所以这粒小晶种直接溶解了。' }); }
+};
+Lab.$('#molBtn').onclick = () => setMol(!oMesh.visible);
+Lab.$('#resetBtn').onclick = () => { story.stop(); clearBeaker(); setT(20); S.T = 20; setStir(0); App.select(null); ctx.home(); ctx.caption(null); };
+
+/* ---------- story ---------- */
+const story = Lab3D.story('#stage', STEPS, i => {
+  if (i === 0){ App.solute = 'sugar'; renderControls(); S.key = 'sugar'; clearBeaker(); dotMat.color.set(sol().dot); pieceMat.color.set(sol().color); pieceMat.transparent = false; pieceMat.opacity = 1; setT(20); S.T = 20; setStir(0); setMol(true); App.select('solvent', true); ctx.flyTo([0, 1.6, 0], 9); }
+  if (i === 1){ setMol(false); setStir(0); setT(20); if (!K.length && S.D < 1) addScoop(); App.select('solute', true); ctx.home(); }
+  if (i === 2){ setStir(.8); App.select('stirring', true); }
+  if (i === 3){ setStir(.4); setT(20); S.T = 20; const s = solub('sugar', 20); if (S.D < s){ S.D = s; } if (U() < 15){ addScoop(); addScoop(); } App.select('saturated', true); ctx.flyTo([0, 1, 0], 9); }
+  if (i === 4){ setT(80); setStir(.6); App.select('temperature', true); ctx.home(); }
+  if (i === 5){ S.D += U(); K.length = 0; S.seeded = false; S.T = Math.max(S.T, 70); setT(20); setStir(0); App.select('saturated', true); }
+});
+Lab.$('#storyBtn').onclick = () => story.start();
+
+/* ---------- per-frame ---------- */
+let statT = 0;
+const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new V(), pos = new V(), tv = new V();
+ctx.onFrame((dt, t) => {
+  const fov = Math.min(70, 40 * Math.max(1, 1.25 / ctx.camera.aspect)); if (Math.abs(ctx.camera.fov - fov) > .1){ ctx.camera.fov = fov; ctx.camera.updateProjectionMatrix(); }
+  /* temperature approaches the dial */
+  const dT = S.Tt - S.T; if (Math.abs(dT) > .01) S.T += Math.sign(dT) * Math.min(Math.abs(dT), dt * 14);
+  const Sol = solub(S.key, S.T), fT = RATE.fT(S.T), fS = RATE.fS(S.stir);
+  /* falling pieces */
+  for (const k of K){
+    if (k.settled) continue;
+    const wasAbove = k.p.y > TOP;
+    k.vy = k.p.y > TOP ? k.vy - 9.8 * dt : Math.max(k.vy - 9.8 * dt, -1.2);
+    k.p.y += k.vy * dt;
+    if (wasAbove && k.p.y <= TOP){ k.vy *= .25; k.wet = true; if (Math.random() < .5) splash(k.p.x, k.p.z); }
+    if (k.p.y <= k.base){ k.p.y = k.base; k.settled = true; }
+  }
+  /* dissolve or crystallize */
+  const wet = K.filter(k => k.wet);
+  if (S.D < Sol && wet.length){
+    const A = wet.reduce((a, k) => a + Math.pow(k.m, 2 / 3), 0), drive = Math.min(1, (Sol - S.D) / (.06 * Sol + .3));
+    const dm = Math.min(RATE.K * A * fT * fS * drive * dt, Sol - S.D);
+    for (const k of wet) k.m -= dm * Math.pow(k.m, 2 / 3) / A;
+    S.D += dm;
+    for (let i = K.length - 1; i >= 0; i--) if (K[i].wet && K[i].m < .015){ S.D += Math.max(0, K[i].m); K.splice(i, 1); }
+  } else if (S.D > Sol * 1.002 && (wet.length || S.seeded)){
+    const dm = Math.min((S.D - Sol) * .7 * dt + .3 * dt, S.D - Sol);
+    if (!wet.length) addPiece(.03, false);
+    const k = K[Math.random() * K.length | 0];
+    if (k.m > lumpMass() * 1.6 && K.length < MAXK) addPiece(dm, false); else k.m += dm;
+    S.D -= dm;
+  }
+  if (S.D <= Sol) S.seeded = false;
+  /* settled pieces drift a little when stirred */
+  const ang = S.stir * dt * .5;
+  if (ang) for (const k of K) if (k.settled){ const c = Math.cos(ang), s = Math.sin(ang), x = k.p.x; k.p.x = x * c - k.p.z * s; k.p.z = x * s + k.p.z * c; k.rot.y += ang * 2; }
+  K.forEach((k, i) => { const h = sideOf(k), sh = SHAPE[S.key]; if (k.settled) k.p.y = Math.max(FLOOR + h * sh[1] / 2, k.base - (k.h0 || h) / 2 + h / 2); else k.h0 = h;
+    pos.copy(k.p); q.setFromEuler(k.rot); sc.set(h * sh[0], h * sh[1], h * sh[2]); m4.compose(pos, q, sc); pile.setMatrixAt(i, m4); });
+  pile.count = K.length; pile.instanceMatrix.needsUpdate = true;
+  /* dissolved particles: count follows D; random walk faster when hot; swirl when stirred */
+  const want = Math.min(MAXP, Math.round(S.D / DOT));
+  for (let n = 0; P.length < want && n < 25; n++){ const src = wet.length ? wet[Math.random() * wet.length | 0].p : null; P.push({ p:src ? src.clone().add(new V(rnd(.15), Math.random() * .2, rnd(.15))) : randIn(), v:new V() }); }
+  if (P.length > want) P.length = Math.max(want, P.length - 25);
+  const sp = .25 + S.T / 100 * .9, w = S.stir * 2.4;
+  const move = (o, s) => {
+    o.v.x += rnd(s) * dt * 6; o.v.y += rnd(s) * dt * 6; o.v.z += rnd(s) * dt * 6; o.v.multiplyScalar(.96);
+    o.p.addScaledVector(o.v, dt);
+    if (w){ const r = Math.hypot(o.p.x, o.p.z), a = w * dt * (.4 + r / PR * .6), c = Math.cos(a), s2 = Math.sin(a), x = o.p.x; o.p.x = x * c - o.p.z * s2; o.p.z = x * s2 + o.p.z * c; }
+    const r = Math.hypot(o.p.x, o.p.z); if (r > PR){ o.p.x *= PR / r; o.p.z *= PR / r; o.v.x *= -.5; o.v.z *= -.5; }
+    if (o.p.y < FLOOR + .08){ o.p.y = FLOOR + .08; o.v.y = Math.abs(o.v.y); } if (o.p.y > TOP - .08){ o.p.y = TOP - .08; o.v.y = -Math.abs(o.v.y); }
+  };
+  q.identity(); sc.set(1, 1, 1);
+  P.forEach((o, i) => { move(o, sp); m4.compose(o.p, q, sc); dots.setMatrixAt(i, m4); });
+  dots.count = P.length; dots.instanceMatrix.needsUpdate = true;
+  if (oMesh.visible){
+    const qq = new THREE.Quaternion();
+    WM.forEach((o, i) => { move(o, sp * 1.2); qq.setFromAxisAngle(o.w, dt * sp * 3); o.q.multiply(qq);
+      m4.compose(o.p, q, sc); oMesh.setMatrixAt(i, m4);
+      tv.copy(H1).applyQuaternion(o.q).add(o.p); m4.compose(tv, q, sc); hMesh.setMatrixAt(i * 2, m4);
+      tv.copy(H2).applyQuaternion(o.q).add(o.p); m4.compose(tv, q, sc); hMesh.setMatrixAt(i * 2 + 1, m4); });
+    oMesh.instanceMatrix.needsUpdate = hMesh.instanceMatrix.needsUpdate = true;
+  }
+  /* liquid tint = concentration of a colored solute */
+  const tint = Math.min(1, S.D * sol().tintK);
+  tmpC.copy(WATER0).lerp(new THREE.Color(sol().tint), tint); waterMat.color.copy(tmpC); waterMat.opacity = .34 + .4 * tint;
+  /* stirring rod: rests against the wall, circles when stirring */
+  S.ang += S.stir * dt * 5;
+  const rr = S.stir > 0 ? .95 : 1.35, tilt = S.stir > 0 ? .17 : .25, ra = S.stir > 0 ? S.ang : .9;
+  const rad = new V(Math.cos(ra), 0, Math.sin(ra));
+  rodG.position.set(rad.x * rr, FLOOR + .05, rad.z * rr); rodG.quaternion.setFromUnitVectors(UP, rad.clone().multiplyScalar(Math.sin(tilt)).add(new V(0, Math.cos(tilt), 0)).normalize());
+  /* thermometer column + hot plate glow + steam */
+  const ch = .25 + S.T / 100 * 3.9; thCol.scale.y = ch; thCol.position.y = ch / 2;
+  const heat = clamp((S.T - 22) / 78, 0, 1);
+  steamMat.opacity = .2 * clamp((S.T - 55) / 40, 0, 1);
+  steam.forEach(s => { const u = s.userData; u.t += dt * (.25 + heat * .3); if (u.t > 1){ u.t = 0; u.x = rnd(1.3); u.z = rnd(1.3); } s.position.set(u.x + Math.sin(t + u.z * 5) * .2, TOP + .2 + u.t * 2.2, u.z); s.scale.setScalar(.5 + u.t * 1.2); s.visible = steamMat.opacity > .01; });
+  ripples.forEach(r => { const u = r.userData; if (u.t < 1){ u.t = Math.min(1, u.t + dt * 1.6); r.scale.setScalar(.2 + u.t * 1.2); r.material.opacity = .7 * (1 - u.t); } });
+  /* highlight the selected idea */
+  const HL = { solvent:[oMat, hMat], solute:[dotMat, pieceMat], solution:[waterMat], concentration:[waterMat, dotMat], saturated:[pieceMat], temperature:[colMat], stirring:[rodMat], size:[pieceMat] }[App.sel] || [];
+  const glow = .3 + .18 * Math.sin(t * 4);
+  [oMat, hMat, dotMat, pieceMat, waterMat, colMat, rodMat].forEach(m => m.emissive.copy(m.color).multiplyScalar(HL.includes(m) ? glow : 0));
+  plateMat.emissive.setRGB(.95 * heat, .18 * heat, .05 * heat); if (App.sel === 'temperature') plateMat.emissive.addScalar(glow * .25);
+  /* state + events + meter */
+  const Ut = U(), st = S.D > Sol * 1.005 && Ut < .05 ? 'super' : (S.D >= Sol * .995 ? 'sat' : 'un');
+  if (st !== S.state){
+    const nm = sol().name;
+    if (st === 'sat' && Ut > .3) eventCap({ en:`Saturated! At ${Math.round(S.T)} °C, 100 g of water holds only about ${Sol.toFixed(1)} g of ${nm.en}.`, zh:`饱和了!${Math.round(S.T)} °C 时,100 g 水最多只能溶解约 ${Sol.toFixed(1)} g ${nm.zh}。` });
+    if (st === 'super') eventCap({ en:'Supersaturated: more is dissolved than should be! Try 💎 Seed crystal.', zh:'过饱和：溶解的量超过了溶解度！试试 💎 晶种。' });
+    S.state = st;
+  }
+  pileA.visible = Ut > .05;
+  if (capTimer > 0){ capTimer -= dt; if (capTimer <= 0 && !story.active) ctx.caption(null); }
+  statT -= dt; if (statT <= 0){ statT = .12; App.setStats({ T:S.T, D:S.D, U:Ut, S:Sol }); }
+});
+setSolute('sugar'); ctx.caption(null); capTimer = 0;
+renderInfo(); renderChips();
+</script>
+</body>
+</html>

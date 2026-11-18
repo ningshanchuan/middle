@@ -1,0 +1,680 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maps &amp; Projections: Flattening the Earth</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/lab3d.js"></script><script src="../shared/photos.js"></script>
+<style>
+.tl-card{padding:16px}
+.tl-dots{display:flex;justify-content:space-between;gap:4px;margin:10px 4px 0;font-size:12px;font-weight:800;color:var(--ink-2)}
+.tl-dots span.on{color:var(--brand)}
+@media (max-width:560px){.tl-dots span:nth-child(even){visibility:hidden}}
+/* page-specific styles */
+.stage .pill input[type=range]{width:150px}
+.projname{font-family:Fredoka;font-weight:600;color:var(--brand);white-space:nowrap}
+.bigstat{font-family:Fredoka;font-size:28px;font-weight:600;color:var(--brand);line-height:1.1}
+.gabox{position:relative;aspect-ratio:10/7;min-height:0;overflow:hidden;align-self:start;width:100%}
+.gabox canvas{cursor:pointer}
+.pool2{display:flex;flex-wrap:wrap;gap:8px}
+.pool2 button{border:2px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:999px;padding:7px 13px;font-weight:800;font-size:14px}
+.pool2 button.sel{border-color:var(--brand);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 25%,transparent)}
+.pool2 button.done{border-color:var(--good);opacity:.55}
+.measure{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.measure input{width:120px;border:2px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:9px 12px;font:inherit;font-weight:800}
+.purpose{font-size:15px;color:var(--ink-2);background:var(--surface-2);border-radius:12px;padding:10px 12px;min-height:44px}
+table.lab td:first-child{font-weight:800}
+.explorer .info{max-height:740px;overflow:auto}
+@media (max-width:980px){ .explorer .info{max-height:none} }
+@media (max-width:560px){ .stage .pill input[type=range]{width:100px} }
+</style>
+</head>
+<body data-subject="geography" data-topic="map-projections">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="地理 · 地图与地球仪技能">Geography · Map &amp; Globe Skills</span>
+  <h1 data-zh-html="地图与投影：<em>把地球压平</em>">Maps &amp; Projections: <em>Flattening the Earth</em></h1>
+  <p class="lead" data-zh="在很多挂图上，格陵兰岛看起来和非洲一样大。真的吗？（不是：非洲大约是它的 14 倍！）地球是圆的，地图却是平的。把地球仪“剥开、展平”时会发生什么？拖动滑块把地球仪展开成墨卡托、罗宾森等不同的地图投影，看看哪些地方被拉伸变形了。">On many wall maps Greenland looks as big as Africa. Is it? (No: Africa is about 14 times bigger!) Earth is round, but maps are flat. What happens when you peel a globe and press it flat? Drag the slider to unwrap the globe into Mercator, Robinson and other map projections — and watch what gets stretched.</p>
+</header>
+
+<section class="wrap" id="explore" data-nav="Globe → Map" data-nav-zh="地球仪 → 地图">
+  <div class="explorer">
+    <div class="stage card" id="stage" data-3d>
+      <div class="toolbar">
+        <button class="tbtn" id="resetBtn" data-zh="⌂ 重置">⌂ Reset</button>
+        <button class="tbtn" id="storyBtn" data-zh="🍊 剥开地球（故事）">🍊 Peel the globe (story)</button>
+        <button class="tbtn" id="tissotBtn" data-zh="⭕ 变形圆">⭕ Distortion circles</button>
+        <button class="tbtn" id="grlBtn" data-zh="🟧 格陵兰 vs 非洲">🟧 Greenland vs Africa</button>
+        <button class="tbtn on" id="gridBtn" data-zh="▦ 经纬网">▦ Grid</button>
+      </div>
+      <div class="bottombar">
+        <div class="pill"><span data-zh="🌐 地球仪">🌐 Globe</span><input id="unwrap" type="range" min="0" max="100" value="0"><span data-zh="🗺 地图">🗺 Map</span></div>
+        <div class="pill"><span class="projname" id="projName"></span></div>
+        <div class="tip" data-zh="拖动旋转 · 滚轮缩放 · 点击国家查看真实面积">Drag to rotate · Scroll to zoom · Click a country to see its true size</div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="chips" id="chips"></div>
+  <div class="card table-wrap" style="margin-top:18px">
+    <table class="lab">
+      <thead><tr><th data-zh="投影">Projection</th><th data-zh="保持正确的">Keeps correct</th><th data-zh="被扭曲的">Distorts</th><th data-zh="适合用来">Best for</th></tr></thead>
+      <tbody>
+        <tr><td data-zh="地球仪">Globe</td><td data-zh="形状、面积、距离、方向全部正确">Shape, size, distance and direction</td><td data-zh="没有变形（但一次只能看到一半）">Nothing (but you only see half at once)</td><td data-zh="看清整个地球的真实样子">Seeing Earth as it really is</td></tr>
+        <tr><td data-zh="墨卡托投影">Mercator</td><td data-zh="形状（小范围）和方向">Shapes (locally) and directions</td><td data-zh="面积：越靠近两极放大越多">Size: huge near the poles</td><td data-zh="航海、网络地图">Ship navigation, web street maps</td></tr>
+        <tr><td data-zh="罗宾森投影">Robinson</td><td data-zh="都不完全正确，但都不太离谱">Nothing exactly, but nothing badly</td><td data-zh="两极附近的形状和面积">Shapes and sizes near the poles</td><td data-zh="教室里的世界挂图">Classroom world wall maps</td></tr>
+        <tr><td data-zh="高尔–彼得斯投影">Gall–Peters</td><td data-zh="面积（各国大小比例正确）">Size (equal area)</td><td data-zh="形状：被拉长或压扁">Shape: stretched and squashed</td><td data-zh="比较各国、各大洲的真实面积">Comparing the true sizes of countries</td></tr>
+        <tr><td data-zh="等距圆柱投影">Equirectangular</td><td data-zh="沿经线方向的距离">North–south distances</td><td data-zh="高纬度地区东西方向被拉宽">East–west stretching at high latitudes</td><td data-zh="电脑地图贴图、简单网格图">Computer map textures, simple grids</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h3 style="margin:26px 0 12px;font-size:24px" data-zh="拖一拖：世界地图是怎样一步步变准的">Scrub through time: how world maps got better</h3>
+  <div class="card tl-card">
+    <div class="timebar" id="tlBar"><button aria-label="play">▶</button><input type="range" min="0" max="7" step="1" value="0" aria-label="time"><output></output></div>
+    <div class="tl-dots" id="tlDots"></div>
+    <h3 id="tlTitle" style="margin:12px 0 4px"></h3>
+    <p id="tlText" style="margin:0;color:var(--ink-2)"></p>
+    <details class="peek" style="margin-top:12px"><summary data-zh="为什么永远画不出完美的平面世界地图？">Why can a flat world map never be perfect?</summary><p data-zh="试着把橘子皮压平：它一定会裂开或被拉长。球面不可能完全摊平，所以每一种投影都要在形状、面积、距离和方向之间有所取舍。">Try pressing an orange peel flat: it has to tear or stretch. A round surface cannot be flattened perfectly, so every projection gives up something: shape, size, distance or direction.</p></details>
+  </div>
+</section>
+
+<section class="wrap" id="elements" data-nav="Map elements" data-nav-zh="地图要素">
+  <div class="sec-head">
+    <h2 data-zh="游戏：地图要素与比例尺">Game: map elements &amp; scale</h2>
+    <p data-zh="好地图都有“地图要素”帮助你读懂它。“标注”模式：选一个名称，再点击地图上对应的编号。“测量”模式：依次点击两座城市，用比例尺算出实际距离。">Good maps have elements that help you read them. “Label it” mode: pick a name, then click the matching number on the map. “Measure it” mode: click two cities and use the scale to find the real distance.</p>
+  </div>
+  <div class="sim">
+    <div class="card simbox gabox"><canvas id="gaMap"></canvas></div>
+    <div class="card simside">
+      <div class="seg" id="gaMode"><button data-m="label" class="on" data-zh="🏷 标注">🏷 Label it</button><button data-m="measure" data-zh="📏 测量">📏 Measure it</button></div>
+      <div id="gaLabel">
+        <p data-zh="先点一个名称，再点地图上的编号圆圈。">Tap a name, then tap the numbered circle on the map.</p>
+        <div class="pool2" id="gaPool" style="margin-top:10px"></div>
+      </div>
+      <div id="gaMeasure" style="display:none">
+        <p data-zh="依次点击两座城市。地图上的“尺子”会显示图上距离（厘米）。比例尺：1 厘米 = 50 千米。">Click two cities. The ruler shows the map distance in cm. Scale: 1 cm = 50 km.</p>
+        <div class="bigstat" id="gaDist" style="margin:8px 0">–</div>
+        <div class="measure"><input id="gaAns" type="number" min="0" step="1" placeholder="km" data-zh-placeholder="千米"><button class="btn" id="gaCheck" data-zh="检查">Check</button></div>
+      </div>
+      <div class="purpose" id="gaPurpose"></div>
+      <div class="result" id="gaMsg"></div>
+      <div class="counters">
+        <div class="counter"><b id="gaC1">0/5</b><span data-zh="标对的要素">elements labeled</span></div>
+        <div class="counter"><b id="gaC2">0</b><span data-zh="算对的距离">distances correct</span></div>
+      </div>
+      <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="“TODALSIG”：标题（Title）、方向（Orientation/指向标）、日期（Date）、作者（Author）、图例（Legend）、比例尺（Scale）、插图（Inset）、网格（Grid）。">“TODALSIG”: Title, Orientation (compass rose), Date, Author, Legend, Scale, Inset, Grid.</span></div>
+      <button class="btn ghost" id="gaReset" data-zh="重新开始">Start over</button>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real photos" data-nav-zh="实景照片">
+  <div class="sec-head">
+    <h2 data-zh="看看真实的样子">See the real thing</h2>
+    <p data-zh="点击照片放大。影片和录音不会自动播放。">Click a photo to enlarge it. Videos and sound never start by themselves.</p>
+  </div>
+  <div id="gallery"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 地图与投影测验">🧠 Maps &amp; projections quiz</h3><p class="sub" data-zh="选出正确答案。">Pick the best answer.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 地图类型分一分">🗂️ Sort the map types</h3><p class="sub" data-zh="这张地图主要显示什么？把它拖到（或先点再点方框）正确的地图类型里。">What does each map mainly show? Drag it (or tap it, then tap a box) into the right map type.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="对应佐治亚州社会研究 SS6G / SS7G 的“地图与地球仪技能”：比较不同地图的用途；使用图例获取信息；使用图形比例尺计算距离；使用插图（位置图）。建议：（1）先播放“剥开地球”故事，再让学生打开“变形圆”，比较同样大小的圆在各种投影中的样子；（2）打开“格陵兰 vs 非洲”，在墨卡托和高尔–彼得斯投影之间切换，让学生解释为什么网络地图上的格陵兰看起来很大；（3）点击不同纬度的国家（如加拿大和刚果（金）），记录“看起来放大了几倍”；（4）测量模式中让学生写出算式：图上距离 × 比例 = 实际距离。">Supports Georgia Social Studies SS6G / SS7G Map &amp; Globe Skills: compare and contrast the uses of different maps; use a map key/legend; use graphic scales to determine distances; use inset maps. Suggestions: (1) play the “Peel the globe” story, then turn on the distortion circles and compare identical circles across projections; (2) turn on “Greenland vs Africa” and switch between Mercator and Gall–Peters — ask why Greenland looks huge on web maps; (3) click countries at different latitudes (Canada vs DR Congo) and record how many times bigger each looks; (4) in Measure mode, have students write the equation: map distance × scale = real distance.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+/* ===== GEO kit: real country shapes (world-atlas 2.0.2 = Natural Earth 1:110m) + lookups + drawing ===== */
+const GEO = window.GEO = { feats:null };
+const NAMES = {
+  asia:'Kazakhstan:哈萨克斯坦|Uzbekistan:乌兹别克斯坦|Indonesia:印度尼西亚|Timor-Leste:东帝汶|Israel:以色列|Lebanon:黎巴嫩|Palestine:巴勒斯坦|Jordan:约旦|United Arab Emirates:阿联酋|Qatar:卡塔尔|Kuwait:科威特|Iraq:伊拉克|Oman:阿曼|Cambodia:柬埔寨|Thailand:泰国|Laos:老挝|Myanmar:缅甸|Vietnam:越南|North Korea:朝鲜|South Korea:韩国|Mongolia:蒙古|India:印度|Bangladesh:孟加拉国|Bhutan:不丹|Nepal:尼泊尔|Pakistan:巴基斯坦|Afghanistan:阿富汗|Tajikistan:塔吉克斯坦|Kyrgyzstan:吉尔吉斯斯坦|Turkmenistan:土库曼斯坦|Iran:伊朗|Syria:叙利亚|Armenia:亚美尼亚|Sri Lanka:斯里兰卡|China:中国|Taiwan:中国台湾|Azerbaijan:阿塞拜疆|Georgia:格鲁吉亚|Philippines:菲律宾|Malaysia:马来西亚|Brunei:文莱|Japan:日本|Yemen:也门|Saudi Arabia:沙特阿拉伯|N. Cyprus:北塞浦路斯|Cyprus:塞浦路斯|Turkey:土耳其',
+  africa:'Tanzania:坦桑尼亚|W. Sahara:西撒哈拉|Dem. Rep. Congo:刚果(金)|Somalia:索马里|Kenya:肯尼亚|Sudan:苏丹|Chad:乍得|South Africa:南非|Lesotho:莱索托|Zimbabwe:津巴布韦|Botswana:博茨瓦纳|Namibia:纳米比亚|Senegal:塞内加尔|Mali:马里|Mauritania:毛里塔尼亚|Benin:贝宁|Niger:尼日尔|Nigeria:尼日利亚|Cameroon:喀麦隆|Togo:多哥|Ghana:加纳|Côte d\'Ivoire:科特迪瓦|Guinea:几内亚|Guinea-Bissau:几内亚比绍|Liberia:利比里亚|Sierra Leone:塞拉利昂|Burkina Faso:布基纳法索|Central African Rep.:中非|Congo:刚果(布)|Gabon:加蓬|Eq. Guinea:赤道几内亚|Zambia:赞比亚|Malawi:马拉维|Mozambique:莫桑比克|eSwatini:斯威士兰|Angola:安哥拉|Burundi:布隆迪|Madagascar:马达加斯加|Gambia:冈比亚|Tunisia:突尼斯|Algeria:阿尔及利亚|Eritrea:厄立特里亚|Morocco:摩洛哥|Egypt:埃及|Libya:利比亚|Ethiopia:埃塞俄比亚|Djibouti:吉布提|Somaliland:索马里兰地区|Uganda:乌干达|Rwanda:卢旺达|S. Sudan:南苏丹',
+  europe:'Russia:俄罗斯|Norway:挪威|France:法国|Sweden:瑞典|Belarus:白俄罗斯|Ukraine:乌克兰|Poland:波兰|Austria:奥地利|Hungary:匈牙利|Moldova:摩尔多瓦|Romania:罗马尼亚|Lithuania:立陶宛|Latvia:拉脱维亚|Estonia:爱沙尼亚|Germany:德国|Bulgaria:保加利亚|Greece:希腊|Albania:阿尔巴尼亚|Croatia:克罗地亚|Switzerland:瑞士|Luxembourg:卢森堡|Belgium:比利时|Netherlands:荷兰|Portugal:葡萄牙|Spain:西班牙|Ireland:爱尔兰|Italy:意大利|Denmark:丹麦|United Kingdom:英国|Iceland:冰岛|Slovenia:斯洛文尼亚|Finland:芬兰|Slovakia:斯洛伐克|Czechia:捷克|Bosnia and Herz.:波黑|Macedonia:北马其顿|Serbia:塞尔维亚|Montenegro:黑山|Kosovo:科索沃',
+  namerica:'Canada:加拿大|United States of America:美国|Haiti:海地|Dominican Rep.:多米尼加|Bahamas:巴哈马|Greenland:格陵兰岛|Mexico:墨西哥|Panama:巴拿马|Costa Rica:哥斯达黎加|Nicaragua:尼加拉瓜|Honduras:洪都拉斯|El Salvador:萨尔瓦多|Guatemala:危地马拉|Belize:伯利兹|Puerto Rico:波多黎各|Jamaica:牙买加|Cuba:古巴|Trinidad and Tobago:特立尼达和多巴哥',
+  samerica:'Argentina:阿根廷|Chile:智利|Falkland Is.:马尔维纳斯群岛(福克兰群岛)|Uruguay:乌拉圭|Brazil:巴西|Bolivia:玻利维亚|Peru:秘鲁|Colombia:哥伦比亚|Venezuela:委内瑞拉|Guyana:圭亚那|Suriname:苏里南|Ecuador:厄瓜多尔|Paraguay:巴拉圭',
+  oceania:'Australia:澳大利亚|New Zealand:新西兰|Papua New Guinea:巴布亚新几内亚|Fiji:斐济|Vanuatu:瓦努阿图|New Caledonia:新喀里多尼亚|Solomon Is.:所罗门群岛',
+  antarctica:'Antarctica:南极洲'
+};
+GEO.zh = { 'Fr. S. Antarctic Lands':'法属南部领地' }; GEO.cont = {};
+for (const c in NAMES) NAMES[c].split('|').forEach(s => { const [en, zh] = s.split(':'); GEO.zh[en] = zh; GEO.cont[en] = c; });
+GEO.CONT = { asia:{en:'Asia',zh:'亚洲'}, africa:{en:'Africa',zh:'非洲'}, namerica:{en:'North America',zh:'北美洲'}, samerica:{en:'South America',zh:'南美洲'},
+  antarctica:{en:'Antarctica',zh:'南极洲'}, europe:{en:'Europe',zh:'欧洲'}, oceania:{en:'Australia/Oceania',zh:'大洋洲'}, other:{en:'Island',zh:'岛屿'} };
+GEO.OCEAN = { pacific:{en:'Pacific Ocean',zh:'太平洋'}, atlantic:{en:'Atlantic Ocean',zh:'大西洋'}, indian:{en:'Indian Ocean',zh:'印度洋'},
+  southern:{en:'Southern Ocean',zh:'南大洋'}, arctic:{en:'Arctic Ocean',zh:'北冰洋'}, caspian:{en:'Caspian Sea (a lake)',zh:'里海（湖泊）'} };
+GEO.cname = n => Lab.lang === 'zh' ? (GEO.zh[n] || n) : n;
+/* unwrap longitudes so rings never jump across ±180°; rings that wrap all the way round (Antarctica) are closed via the pole */
+function prepRing(ring){
+  const out = []; let off = 0, prev = null;
+  for (const [lon, lat] of ring){ let x = lon + off; if (prev != null){ while (x - prev > 180){ off -= 360; x -= 360; } while (x - prev < -180){ off += 360; x += 360; } } out.push([x, lat]); prev = x; }
+  if (Math.abs(out[out.length - 1][0] - out[0][0]) > 180){ const pole = out.reduce((s, p) => s + p[1], 0) < 0 ? -90 : 90; out.push([out[out.length - 1][0], pole], [out[0][0], pole]); }
+  return out;
+}
+GEO.ready = (async () => {
+  try {
+    const topojson = await import('https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/+esm');
+    const world = await (await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json')).json();
+    GEO.feats = topojson.feature(world, world.objects.countries).features.filter(f => f.geometry).map(f => {
+      const G = f.geometry, raw = G.type === 'Polygon' ? [G.coordinates] : G.coordinates, name = f.properties.name;
+      const polys = raw.map(poly => { const rings = poly.map(prepRing), b = [1e9, 1e9, -1e9, -1e9]; let cx = 0;
+        for (const [x, y] of rings[0]){ b[0] = Math.min(b[0], x); b[1] = Math.min(b[1], y); b[2] = Math.max(b[2], x); b[3] = Math.max(b[3], y); cx += x; }
+        return { rings, bbox:b, cx:cx / rings[0].length }; });
+      return { name, cont:GEO.cont[name] || 'other', raw, polys };
+    });
+  } catch (e){ console.warn('World map data unavailable:', e); GEO.feats = null; }
+  return GEO.feats;
+})();
+const inRing = (r, x, y) => { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++){ const a = r[i], b = r[j]; if ((a[1] > y) !== (b[1] > y) && x < (b[0] - a[0]) * (y - a[1]) / (b[1] - a[1]) + a[0]) c = !c; } return c; };
+GEO.find = (lat, lon) => {
+  if (!GEO.feats) return null;
+  for (const f of GEO.feats) for (const p of f.polys) for (const x of [lon, lon + 360, lon - 360]){
+    const b = p.bbox; if (x < b[0] || x > b[2] || lat < b[1] || lat > b[3]) continue;
+    if (inRing(p.rings[0], x, lat) && !p.rings.slice(1).some(h => inRing(h, x, lat))) return { f, p };
+  }
+  return null;
+};
+GEO.polyCont = (f, p, lon) => f.name === 'Russia' ? (lon > 0 && lon < 60 ? 'europe' : 'asia') : (f.name === 'France' && p.cx < -30 ? 'samerica' : f.cont);
+function atlWest(lat){ return lat >= 18 ? -100 : lat >= 14 ? -90 : lat >= 10 ? -85 : lat >= 9 ? -84 : lat >= 7 ? -77.5 : lat >= -56 ? -71 : -67; }
+GEO.ocean = (lat, lon) => {
+  if (lat < -60) return 'southern';
+  if (lat > 66) return 'arctic';
+  if (lat > 36 && lat < 47.5 && lon > 46.5 && lon < 55) return 'caspian';
+  const east = lat >= 47 ? 45 : lat >= 30 ? 42 : 20;
+  if (lon >= atlWest(lat) && lon <= east) return 'atlantic';
+  if ((lon > 20 && lon < 100 && lat < 30) || (lon >= 100 && lon < 147 && lat < -8 && !(lon > 129 && lat > -11) && !(lon > 135 && lat > -18))) return 'indian';
+  return 'pacific';
+};
+GEO.where = (lat, lon) => { const h = GEO.find(lat, lon); return h ? { land:true, country:h.f.name, cont:GEO.polyCont(h.f, h.p, lon) } : { land:false, ocean:GEO.ocean(lat, lon) }; };
+GEO.dist = (a1, o1, a2, o2) => { const r = Math.PI / 180, h = Math.sin((a2 - a1) * r / 2) ** 2 + Math.cos(a1 * r) * Math.cos(a2 * r) * Math.sin((o2 - o1) * r / 2) ** 2; return 12742 * Math.asin(Math.min(1, Math.sqrt(h))); };
+/* draw land on an equirectangular canvas: x = (lon+180)/360·W, y = (90-lat)/180·H. colorFn(continentKey, feature) -> fill or null */
+GEO.draw = (g, W, H, colorFn, stroke, lw) => {
+  const X = L => (L + 180) / 360 * W, Y = la => (90 - la) / 180 * H;
+  for (const f of GEO.feats || []) for (const p of f.polys){
+    const offs = [0]; if (p.bbox[0] < -180) offs.push(360); if (p.bbox[2] > 180) offs.push(-360);
+    const parts = f.name === 'Russia' ? [['europe', 0, 60], ['asia', 60, 600], ['asia', -600, 0]] : [[GEO.polyCont(f, p, p.cx)]];
+    for (const [ck, a, b] of parts){
+      const col = colorFn(ck, f); if (!col) continue;
+      g.save(); if (a != null){ g.beginPath(); g.rect(X(a), -10, X(b) - X(a), H + 20); g.clip(); }
+      for (const off of offs){
+        g.beginPath(); for (const r of p.rings){ r.forEach(([L, la], i) => i ? g.lineTo(X(L + off), Y(la)) : g.moveTo(X(L + off), Y(la))); g.closePath(); }
+        g.fillStyle = col; g.fill('evenodd'); if (stroke){ g.strokeStyle = stroke; g.lineWidth = lw || 1; g.stroke(); }
+      }
+      g.restore();
+    }
+  }
+};
+/* a "natural" land colour that changes with latitude (ice → forest → desert → rainforest) */
+GEO.landGrad = (g, H, y0 = 0) => { const gr = g.createLinearGradient(0, y0, 0, y0 + H);
+  [[0,'#f1f5f8'],[.1,'#e1ebe4'],[.17,'#a9cf8f'],[.3,'#86bf6b'],[.37,'#cdbd7e'],[.42,'#d9c88c'],[.47,'#76b664'],[.53,'#69ad5b'],[.6,'#cfbf84'],[.68,'#93c574'],[.78,'#b2d29a'],[.835,'#eef3f6'],[1,'#f6f9fb']].forEach(([o, c]) => gr.addColorStop(o, c)); return gr; };
+GEO.fmtLat = (v, d = 1) => { const a = Math.abs(v).toFixed(d); if (Math.abs(v) < .05) return '0°'; return Lab.lang === 'zh' ? (v > 0 ? '北纬 ' : '南纬 ') + a + '°' : a + '°' + (v > 0 ? 'N' : 'S'); };
+GEO.fmtLon = (v, d = 1) => { const a = Math.abs(v).toFixed(d); if (Math.abs(v) < .05 || Math.abs(v) > 179.95) return a.replace(/\.0+$/, '') + '°'; return Lab.lang === 'zh' ? (v > 0 ? '东经 ' : '西经 ') + a + '°' : a + '°' + (v > 0 ? 'E' : 'W'); };
+GEO.fmtLL = (lat, lon, d = 1) => GEO.fmtLat(lat, d) + (Lab.lang === 'zh' ? ',' : ', ') + GEO.fmtLon(lon, d);
+GEO.placeName = w => w.land ? Lab.L(GEO.CONT[w.cont]) + ' · ' + GEO.cname(w.country) : Lab.L(GEO.OCEAN[w.ocean]);
+/* ===== Projection math (shared with the 3D module) — angles in radians, result in units of R ===== */
+const PM = window.PM = {};
+const RX = [1,.9986,.9954,.99,.9822,.973,.96,.9427,.9216,.8962,.8679,.835,.7986,.7597,.7186,.6732,.6213,.5722,.5322];
+const RY = [0,.062,.124,.186,.248,.31,.372,.434,.4958,.5571,.6176,.6769,.7346,.7903,.8435,.8936,.9394,.9761,1];
+const rInterp = (T, deg) => { const a = Math.min(17.999, Math.abs(deg) / 5), i = Math.floor(a), f = a - i; return T[i] + (T[i + 1] - T[i]) * f; };
+const MERC_MAX = 1.4;   // Mercator is cut at about 80° — the poles would be infinitely far away
+PM.xy = (p, phi, lam, R = 1) => {
+  if (p === 'mercator'){ const c = Math.max(-MERC_MAX, Math.min(MERC_MAX, phi)); return [R * lam, R * Math.log(Math.tan(Math.PI / 4 + c / 2))]; }
+  if (p === 'robinson'){ const d = phi * 180 / Math.PI; return [.8487 * R * rInterp(RX, d) * lam, 1.3523 * R * rInterp(RY, d) * Math.sign(phi)]; }
+  if (p === 'peters') return [R * lam / Math.SQRT2, R * Math.SQRT2 * Math.sin(phi)];
+  return [R * lam, R * phi];
+};
+PM.ext = { equirect:[Math.PI, Math.PI / 2], mercator:[Math.PI, Math.log(Math.tan(Math.PI / 4 + MERC_MAX / 2))], robinson:[.8487 * Math.PI, 1.3523], peters:[Math.PI / Math.SQRT2, Math.SQRT2] };
+/* how many times bigger an area looks at this latitude, compared with the same area at the equator */
+PM.areaFactor = (p, latDeg) => {
+  const f = phi => { const h = 1e-3, dx = PM.xy(p, phi, 1)[0], dy = (PM.xy(p, phi + h, 0)[1] - PM.xy(p, phi - h, 0)[1]) / (2 * h); return Math.abs(dx * dy) / Math.cos(phi); };
+  const phi = Math.max(-1.39, Math.min(1.39, latDeg * Math.PI / 180)); return f(phi) / f(0);
+};
+/* true area of a country from its outline (spherical polygon area) */
+GEO.area = f => {
+  if (f.name === 'Antarctica') return 14.0e6;
+  let A = 0; const r = Math.PI / 180;
+  for (const p of f.polys) p.rings.forEach((ring, j) => { let s = 0; for (let i = 0; i < ring.length - 1; i++){ const [x1, y1] = ring[i], [x2, y2] = ring[i + 1]; s += (x2 - x1) * r * (2 + Math.sin(y1 * r) + Math.sin(y2 * r)); } A += (j ? -1 : 1) * Math.abs(s) / 2; });
+  return A * 6371 * 6371;
+};
+const fmtArea = a => Lab.lang === 'zh' ? (a >= 1e5 ? Math.round(a / 1e4).toLocaleString() + ' 万平方千米' : Math.round(a).toLocaleString() + ' 平方千米') : (a >= 1e6 ? (a / 1e6).toFixed(1) + ' million km²' : Math.round(a).toLocaleString() + ' km²');
+
+/* ===== Projections (bilingual) ===== */
+const PROJ = {
+  globe:{color:'#2f7fd1', name:{en:'Globe',zh:'地球仪'}, job:{en:'The only true model of Earth',zh:'唯一真实的地球模型'},
+    facts:{en:['A globe shows correct shapes, sizes, distances and directions all at the same time.','But you can only see half of Earth at once, and a globe is hard to fold, carry or print in a book.','Every flat map has to stretch, squeeze or cut the globe. These changes are called distortion.'],
+      zh:['地球仪能同时正确地表示形状、面积、距离和方向。','但一次只能看到半个地球，而且不能折叠，不方便携带，也印不到书上。','任何平面地图都必须拉伸、压缩或剪开地球表面，这些变化叫做“变形”。']},
+    hint:{en:'Try to flatten an orange peel: it tears or stretches. Maps have the same problem!',zh:'试着把橘子皮压平：它一定会裂开或被拉伸。地图也有同样的问题！'},
+    mix:{en:'A globe is a scale model, not a projection — it is the one way to show Earth with no distortion.',zh:'地球仪是按比例缩小的模型，不是投影——它是唯一没有变形的表示方法。'}},
+  mercator:{color:'#e5484d', name:{en:'Mercator projection',zh:'墨卡托投影'}, job:{en:'True directions and shapes — but giant polar areas',zh:'方向和形状正确，但两极附近面积被严重放大'},
+    facts:{en:['Made by Gerardus Mercator in 1569 for sailors.','Latitude and longitude lines cross at right angles, so a straight line on the map is a constant compass direction — perfect for navigation.','Areas get bigger and bigger toward the poles: Greenland looks as big as Africa, but Africa is about 14 times bigger.','Online street maps use a version of Mercator because, when zoomed in, shapes and angles look right.'],
+      zh:['1569 年由墨卡托为航海者绘制。','经线和纬线互相垂直，所以图上的直线就是一个固定的罗盘方向，非常适合航海。','越靠近两极，面积被放得越大：格陵兰岛看起来和非洲一样大，其实非洲大约是它的 14 倍。','网络街道地图使用墨卡托投影的一种变体，因为放大后街道的形状和角度是准确的。']},
+    hint:{en:'Mercator = Mariners (sailors): great directions, terrible sizes.',zh:'墨卡托投影是“航海家的地图”：方向准，面积不准。'},
+    mix:{en:'Greenland (about 2.2 million km²) is NOT as big as Africa (about 30 million km²). Mercator stretches land near the poles.',zh:'格陵兰岛（约 217 万平方千米）并没有非洲（约 3,000 万平方千米）那么大，是墨卡托投影把高纬度地区放大了。'}},
+  robinson:{color:'#2fb36d', name:{en:'Robinson projection',zh:'罗宾森投影'}, job:{en:'A compromise: nothing perfect, nothing terrible',zh:'折中方案：都不完美，但都不太离谱'},
+    facts:{en:['Created by Arthur Robinson in 1963 to make a world map that “looks right”.','Curved meridians make the world look round, like a globe.','Shape, size, distance and direction are all a little off, but none badly — except near the poles.','National Geographic used it for its world maps from 1988 to 1998.'],
+      zh:['1963 年由罗宾森设计，目的是让世界地图“看起来顺眼”。','弯曲的经线让世界看起来是圆的，像地球仪一样。','形状、面积、距离和方向都有一点变形，但都不严重（两极附近除外）。','美国《国家地理》杂志在 1988–1998 年用它绘制世界地图。']},
+    hint:{en:'Robinson = Rounded and Reasonable.',zh:'罗宾森投影：圆圆的、“差不多”的折中地图。'}},
+  peters:{color:'#8e6cf0', name:{en:'Gall–Peters projection',zh:'高尔–彼得斯投影'}, job:{en:'Equal area: true sizes, stretched shapes',zh:'等积投影：面积正确，形状被拉长'},
+    facts:{en:['An equal-area map: every country is shown at its correct size compared with the others.','Shapes are badly stretched: Africa and South America look long and thin.','Described by James Gall in 1855 and promoted by Arno Peters in 1973 to show how big countries near the equator really are.'],
+      zh:['它是一种等积投影：各国之间的面积比例都是正确的。','但形状被严重拉伸：非洲和南美洲看起来又细又长。','1855 年由高尔提出，1973 年彼得斯大力推广，用来显示赤道附近国家的真实大小。']},
+    hint:{en:'Peters = Proper sizes (but Pulled shapes).',zh:'彼得斯投影：大小“对”，形状“拉”。'},
+    mix:{en:'Equal area does not mean correct shape. No flat map can keep both shape and size correct everywhere.',zh:'面积正确不等于形状正确。没有任何平面地图能处处同时保持形状和面积都正确。'}},
+  equirect:{color:'#f5b82e', name:{en:'Equirectangular projection',zh:'等距圆柱投影'}, job:{en:'A simple grid of equal squares',zh:'由相等方格组成的简单网格'},
+    facts:{en:['Every degree of latitude and longitude is drawn the same size, so the grid is made of squares.','North–south distances along the meridians are correct.','Land near the poles is stretched sideways (east–west).','It is easy for computers to make — the picture wrapped around this 3D globe is drawn this way!'],
+      zh:['经度和纬度每 1° 都画成一样长，所以网格是由正方形组成的。','沿经线（南北方向）的距离是正确的。','高纬度地区在东西方向被拉宽。','电脑很容易绘制这种地图——这个 3D 地球仪上贴的图片就是这样画的！']},
+    hint:{en:'Equirectangular = EQUal squares.',zh:'“等距”：经纬度每一度都等长，画成方格。'}}
+};
+const ORDER = ['globe','mercator','robinson','peters','equirect'];
+const STORY = [
+  {en:'1 · A globe shows Earth correctly: true sizes, shapes, distances and directions.',zh:'1 · 地球仪能正确地表示地球：面积、形状、距离和方向都是真实的。'},
+  {en:'2 · Cut the globe along the 180° meridian and stretch it into a cylinder…',zh:'2 · 沿 180° 经线把地球仪剪开，拉伸成一个圆筒……'},
+  {en:'3 · …then unroll the cylinder flat. This is the Mercator projection.',zh:'3 · ……再把圆筒展开压平，这就是墨卡托投影。'},
+  {en:'4 · Every red circle was the SAME size on the globe. Near the poles they balloon: that is distortion!',zh:'4 · 这些红圈在地球仪上一样大。越靠近两极，它们被放得越大：这就是变形！'},
+  {en:'5 · Greenland (orange) looks as big as Africa (purple). On a globe Africa is about 14 times bigger!',zh:'5 · 格陵兰岛（橙色）看起来和非洲（紫色）一样大。在地球仪上，非洲大约是它的 14 倍！'},
+  {en:'6 · Gall–Peters shows true sizes but stretches shapes. Compare Greenland and Africa now.',zh:'6 · 高尔–彼得斯投影显示真实面积，但形状被拉伸。现在再比一比格陵兰岛和非洲。'},
+  {en:'7 · Robinson balances everything. Remember: every flat map distorts something!',zh:'7 · 罗宾森投影在各方面取得平衡。记住：每一种平面地图都会让某些东西变形！'}
+];
+
+/* ===== Info panel ===== */
+const App = window.APP = { proj:'mercator', sel:'globe', country:null, morph:0, three:null };
+App.select = (k, from3D) => { App.sel = k; if (k !== 'globe') App.proj = k; renderInfo(); renderChips(); if (!from3D && App.three) App.three.show(k); };
+App.showCountry = (name, lat, lon) => { App.sel = '@c'; App.country = { name, lat, lon }; renderInfo(); renderChips(); };
+App.setMorph = m => { const was = App.morph >= .5; App.morph = m; renderProjName(); if (App.sel === '@c' && was !== (m >= .5)) renderInfo(); };
+const T = (en, zh) => Lab.lang === 'zh' ? zh : en;
+function renderProjName(){ const p = App.morph >= .5 ? PROJ[App.proj] : PROJ.globe; Lab.$('#projName').innerHTML = `<i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${p.color};margin-right:6px"></i>${Lab.L(p.name)}`; }
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel;
+  if (k === '@c'){
+    const c = App.country, f = (GEO.feats || []).find(x => x.name === c.name); if (!f) return;
+    const area = GEO.area(f), big = f.polys.reduce((a, p) => (p.bbox[2] - p.bbox[0]) * (p.bbox[3] - p.bbox[1]) > (a.bbox[2] - a.bbox[0]) * (a.bbox[3] - a.bbox[1]) ? p : a), lat = (big.bbox[1] + big.bbox[3]) / 2;
+    const flat = App.morph >= .5, p = App.proj, fac = PM.areaFactor(p, lat), pn = Lab.L(PROJ[p].name), ga = area / 153910, af = 30.37e6 / area;
+    let look;
+    if (!flat) look = T('On the globe it is shown at its true size and shape.','在地球仪上，它以真实的大小和形状显示。');
+    else if (p === 'peters') look = T(`On the ${pn} it is shown at its true relative size — but its shape is stretched.`, `在${pn}上,它的面积比例是真实的,但形状被拉伸了。`);
+    else look = T(`On the ${pn}, at about ${Math.abs(lat).toFixed(0)}° latitude, it looks about ${fac.toFixed(1)}× bigger than the same area at the equator.`, `在${pn}上,它位于纬度约 ${Math.abs(lat).toFixed(0)}° 处,看起来比赤道上同样大的地区大约大 ${fac.toFixed(1)} 倍。`);
+    box.innerHTML = `<span class="tag">${T('Country','国家/地区')} · ${Lab.L(GEO.CONT[GEO.polyCont(f, big, c.lon)])}</span>
+      <h3><span class="dot" style="background:${flat && p !== 'peters' && fac > 1.6 ? '#e5484d' : '#2fb36d'}"></span>${GEO.cname(f.name)}</h3>
+      <div class="bigstat">${T('True area ≈ ','真实面积 ≈ ')}${fmtArea(area)}</div>
+      <ul>
+        <li>${look}</li>
+        <li>${ga >= 1 ? T(`That is about ${ga.toFixed(ga < 10 ? 1 : 0)} times the size of the state of Georgia (USA).`, `大约是美国佐治亚州面积的 ${ga.toFixed(ga < 10 ? 1 : 0)} 倍。`) : T(`That is about ${(ga * 100).toFixed(0)}% of the size of the state of Georgia (USA).`, `大约是美国佐治亚州面积的 ${(ga * 100).toFixed(0)}%。`)}</li>
+        ${f.cont !== 'africa' && af > 1.05 ? `<li>${T(`Africa is about ${af.toFixed(af < 10 ? 1 : 0)} times bigger.`, `非洲大约是它的 ${af.toFixed(af < 10 ? 1 : 0)} 倍。`)}</li>` : ''}
+      </ul>
+      <div class="memory"><b>${T('💡 Check with a globe','💡 用地球仪核对')}</b>${T('How big a country LOOKS depends on the projection. Only the globe (and equal-area maps) show true sizes.','一个国家“看起来”多大，取决于所用的投影。只有地球仪（以及等积投影）能显示真实的大小。')}</div>
+      <p class="muted" style="font-size:13px;margin:0">${T('Areas are calculated from a simplified 1:110 million outline, so they are approximate.','面积是根据简化的 1:1.1 亿轮廓计算的，只是近似值。')}</p>
+      <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+      <div class="nav"><button id="pBack">${T('◀ Back to ','◀ 返回')}${Lab.L(PROJ[flat ? p : 'globe'].name)}</button></div>`;
+    Lab.$('#speakBtn').onclick = () => Lab.speak(GEO.cname(f.name) + '. ' + fmtArea(area) + '. ' + look);
+    Lab.$('#pBack').onclick = () => App.select(flat ? p : 'globe', true);
+    return;
+  }
+  const p = PROJ[k], i = ORDER.indexOf(k);
+  box.innerHTML = `<span class="tag">${k === 'globe' ? T('Model','模型') : T('Map projection','地图投影')} ${i + 1}/${ORDER.length}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${T('💡 Memory hint','💡 记忆小窍门')}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${T('⚠️ Common mix-up:','⚠️ 容易混淆：')}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="pPrev">${T('◀ Previous','◀ 上一个')}</button><button id="pNext">${T('Next ▶','下一个 ▶')}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. '));
+  Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
+  Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
+}
+function renderChips(){
+  Lab.$('#chips').innerHTML = ORDER.map(k => `<button class="chip ${App.sel === k ? 'on' : ''}" data-k="${k}"><i style="background:${PROJ[k].color}"></i>${Lab.L(PROJ[k].name)}</button>`).join('');
+  Lab.$$('#chips .chip').forEach(c => c.onclick = () => App.select(c.dataset.k));
+}
+Lab.onLang(() => { renderInfo(); renderChips(); renderProjName(); });
+/* ===== Map elements + scale game on a map of Georgia (logical canvas 1000 × 700) ===== */
+(function(){
+  const cv = Lab.$('#gaMap'), g = cv.getContext('2d'), KM = 1.1, CM = 50 * KM;   // 1.1 px per km → 1 map-cm (50 km) = 55 px
+  const P = (lat, lon) => [500 + (lon + 83.2) * 93.66 * KM, 365 + (32.7 - lat) * 110.9 * KM];
+  const GA = [[34.98,-85.61],[34.99,-84.32],[35.0,-83.11],[34.72,-83.35],[34.48,-82.9],[33.95,-82.55],[33.6,-82.2],[33.38,-81.95],[33.15,-81.75],[32.9,-81.5],[32.6,-81.4],[32.4,-81.2],[32.15,-81.0],[32.03,-80.85],[31.75,-81.1],[31.4,-81.3],[31.0,-81.45],[30.71,-81.45],[30.75,-81.75],[30.6,-82.05],[30.36,-82.05],[30.57,-82.2],[30.6,-82.6],[30.66,-83.5],[30.7,-84.4],[30.71,-84.86],[31.0,-85.0],[31.5,-85.1],[32.0,-85.05],[32.3,-84.95],[32.6,-85.1],[32.87,-85.18]];
+  const OCEAN = [[33.9,-78.5],[33.0,-79.5],[32.5,-80.3],[32.03,-80.85],[31.75,-81.1],[31.4,-81.3],[31.0,-81.45],[30.71,-81.45],[30.0,-81.33],[29.0,-80.9],[29.0,-76],[33.9,-76]];
+  const CITY = [['Atlanta','亚特兰大',33.75,-84.39,1],['Savannah','萨凡纳',32.08,-81.09],['Augusta','奥古斯塔',33.47,-81.97],['Macon','梅肯',32.84,-83.63],['Columbus','哥伦布',32.46,-84.99],
+    ['Athens','雅典',33.96,-83.38],['Valdosta','瓦尔多斯塔',30.83,-83.28],['Albany','奥尔巴尼',31.58,-84.16],['Dalton','多尔顿',34.77,-84.97],['Brunswick','不伦瑞克',31.15,-81.49]]
+    .map(([en, zh, lat, lon, cap]) => ({ name:{en, zh}, lat, lon, cap:!!cap, p:P(lat, lon) }));
+  const EL = {
+    title:{box:[20, 15, 400, 72], name:{en:'Title',zh:'标题'}, why:{en:'Tells you what the map is about.',zh:'告诉你这张地图表示的是什么内容。'}},
+    inset:{box:[20, 92, 222, 232], name:{en:'Inset map',zh:'插图（位置图）'}, why:{en:'A small extra map that shows where the main map is located — here, Georgia inside the USA.',zh:'一幅额外的小地图，显示主图所在的位置——这里显示佐治亚州在美国的位置。'}},
+    compass:{box:[840, 45, 960, 175], name:{en:'Compass rose',zh:'指向标'}, why:{en:'Shows directions: north, east, south, west (and NE, SE, SW, NW in between).',zh:'表示方向：北、东、南、西（以及中间的东北、东南、西南、西北）。'}},
+    scale:{box:[22, 618, 300, 690], name:{en:'Scale',zh:'比例尺'}, why:{en:'Compares a distance on the map with the real distance on the ground: here 1 cm = 50 km.',zh:'把图上距离和实际距离进行比较：这里 1 厘米代表 50 千米。'}},
+    legend:{box:[768, 470, 985, 688], name:{en:'Legend (key)',zh:'图例'}, why:{en:'Explains what the symbols and colors on the map mean.',zh:'解释地图上各种符号和颜色的含义。'}}
+  };
+  const KEYS = Object.keys(EL);
+  const S = { mode:'label', num:{}, done:{}, pick:null, a:null, b:null, okLabels:0, okDist:0 };
+  let W = 0;
+  const T = (en, zh) => Lab.lang === 'zh' ? zh : en;
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const isDark = () => { const r = document.documentElement.dataset.theme; return r ? r === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches; };
+  function resize(){ const b = cv.getBoundingClientRect(); if (!b.width) return; const d = Math.min(2, devicePixelRatio || 1); W = cv.width = Math.round(b.width * d); cv.height = Math.round(b.height * d); draw(); }
+  new ResizeObserver(resize).observe(cv);
+  addEventListener('labtheme', () => draw());
+  const poly = pts => { g.beginPath(); pts.forEach(([la, lo], i) => { const [x, y] = P(la, lo); i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.closePath(); };
+  const rbox = (x0, y0, x1, y1, fill, stroke) => { g.beginPath(); g.roundRect(x0, y0, x1 - x0, y1 - y0, 10); g.fillStyle = fill; g.fill(); g.strokeStyle = stroke; g.lineWidth = 1.5; g.stroke(); };
+  function star(x, y, r, fill){ g.beginPath(); for (let i = 0; i < 10; i++){ const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * .45 : r; g.lineTo(x + rr * Math.cos(a), y + rr * Math.sin(a)); } g.closePath(); g.fillStyle = fill; g.fill(); }
+  const tri = (x, y, s, c) => { g.beginPath(); g.moveTo(x, y - s); g.lineTo(x + s, y + s * .7); g.lineTo(x - s, y + s * .7); g.closePath(); g.fillStyle = c; g.fill(); };
+  function draw(){
+    if (!W) return;
+    const dark = isDark(), ink = css('--ink'), ink2 = css('--ink-2'), paper = dark ? '#1b2740' : '#f3f1e7', card = dark ? '#151f35' : '#ffffff', line = css('--line');
+    g.setTransform(W / 1000, 0, 0, W / 1000, 0, 0);
+    g.fillStyle = paper; g.fillRect(0, 0, 1000, 700);
+    poly(OCEAN); g.fillStyle = dark ? '#1d4a78' : '#bfdcf3'; g.fill();
+    g.font = 'italic 700 20px Nunito, sans-serif'; g.fillStyle = dark ? '#9cc7ee' : '#3f78ad'; g.textAlign = 'center'; g.fillText(T('Atlantic Ocean','大西洋'), 880, 390);
+    g.font = '800 15px Nunito, sans-serif'; g.fillStyle = ink2;
+    [[T('ALABAMA','亚拉巴马州'), 160, 430], [T('FLORIDA','佛罗里达州'), 520, 688], [T('SOUTH CAROLINA','南卡罗来纳州'), 790, 250], [T('TENNESSEE','田纳西州'), 470, 80], [T('NORTH CAROLINA','北卡罗来纳州'), 690, 80]].forEach(([t, x, y]) => g.fillText(t, x, y));
+    poly(GA); g.fillStyle = dark ? '#4a5a32' : '#f6e7a8'; g.fill(); g.lineWidth = 3; g.strokeStyle = dark ? '#c9b46a' : '#8a6d2b'; g.stroke();
+    [[34.75,-84.3],[34.86,-83.9],[34.66,-83.62],[34.88,-84.62],[34.6,-84.05]].forEach(([la, lo]) => { const [x, y] = P(la, lo); tri(x, y, 10, dark ? '#b49064' : '#8b5e34'); });
+    g.textAlign = 'left';
+    for (const c of CITY){ const [x, y] = c.p, sel = c === S.a || c === S.b;
+      if (c.cap) star(x, y, 12, '#e5484d'); else { g.beginPath(); g.arc(x, y, 6, 0, 7); g.fillStyle = ink; g.fill(); }
+      if (sel){ g.beginPath(); g.arc(x, y, 14, 0, 7); g.strokeStyle = css('--accent'); g.lineWidth = 3; g.stroke(); }
+      g.font = (c.cap ? '800 18px' : '700 15px') + ' Nunito, sans-serif'; g.fillStyle = ink; const L = Lab.L(c.name), right = x > 640;
+      g.textAlign = right ? 'right' : 'left'; g.fillText(L, x + (right ? -12 : 12), y + 5); }
+    /* title */
+    rbox(...EL.title.box, card, line); g.textAlign = 'left'; g.fillStyle = ink; g.font = '700 26px Fredoka, sans-serif'; g.fillText(T('Georgia: Major Cities','佐治亚州：主要城市'), 36, 54);
+    /* inset */
+    rbox(...EL.inset.box, card, line);
+    const I = (la, lo) => [28 + (lo + 125) / 59 * 186, 100 + (50 - la) / 26 * 124];
+    const usa = (GEO.feats || []).find(f => f.name === 'United States of America');
+    if (usa){ g.fillStyle = dark ? '#3a4a66' : '#d9dccf'; for (const p of usa.polys){ if (p.bbox[0] < -126 || p.bbox[1] < 23) continue; g.beginPath(); p.rings[0].forEach(([lo, la], i) => { const [x, y] = I(la, lo); i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.fill(); } }
+    else { g.fillStyle = ink2; g.font = '700 16px Nunito'; g.textAlign = 'center'; g.fillText(T('USA','美国'), 121, 170); }
+    g.beginPath(); GA.forEach(([la, lo], i) => { const [x, y] = I(la, lo); i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.closePath(); g.fillStyle = '#e5484d'; g.fill();
+    g.fillStyle = ink2; g.font = '700 12px Nunito, sans-serif'; g.textAlign = 'left'; g.fillText(T('Georgia in the USA','佐治亚州在美国的位置'), 30, 226);
+    /* compass rose */
+    const cx = 900, cy = 112; g.save(); g.translate(cx, cy);
+    for (let i = 0; i < 8; i++){ const r = i % 2 ? 26 : 46; g.rotate(Math.PI / 4); g.beginPath(); g.moveTo(0, -r); g.lineTo(7, 0); g.lineTo(-7, 0); g.closePath(); g.fillStyle = i % 2 ? ink2 : (i === 7 ? '#e5484d' : ink); g.fill(); }
+    g.restore(); g.font = '800 16px Nunito, sans-serif'; g.fillStyle = ink; g.textAlign = 'center';
+    const NESW = Lab.lang === 'zh' ? ['北','东','南','西'] : ['N','E','S','W']; g.fillText(NESW[0], cx, cy - 52); g.fillText(NESW[1], cx + 56, cy + 6); g.fillText(NESW[2], cx, cy + 66); g.fillText(NESW[3], cx - 56, cy + 6);
+    /* scale bar */
+    rbox(...EL.scale.box, card, line);
+    for (let i = 0; i < 4; i++){ g.fillStyle = i % 2 ? card : ink; g.fillRect(38 + i * CM, 646, CM, 10); } g.strokeStyle = ink; g.lineWidth = 1.5; g.strokeRect(38, 646, 4 * CM, 10);
+    g.font = '700 12px Nunito, sans-serif'; g.fillStyle = ink; g.textAlign = 'center'; for (let i = 0; i <= 4; i++) g.fillText(i * 50, 38 + i * CM, 640);
+    g.textAlign = 'left'; g.fillText(T('km','千米'), 38 + 4 * CM + 8, 656); g.font = '800 13px Nunito, sans-serif'; g.fillText(T('1 cm = 50 km','1 厘米 = 50 千米'), 40, 680);
+    /* legend */
+    rbox(...EL.legend.box, card, line); g.font = '700 18px Fredoka, sans-serif'; g.fillStyle = ink; g.fillText(T('Legend','图例'), 784, 498);
+    g.font = '700 14px Nunito, sans-serif'; const LY = [528, 562, 596, 630, 664];
+    star(796, LY[0] - 5, 10, '#e5484d'); g.beginPath(); g.arc(796, LY[1] - 5, 6, 0, 7); g.fillStyle = ink; g.fill(); tri(796, LY[2] - 4, 9, dark ? '#b49064' : '#8b5e34');
+    g.strokeStyle = dark ? '#c9b46a' : '#8a6d2b'; g.lineWidth = 3; g.beginPath(); g.moveTo(784, LY[3] - 5); g.lineTo(808, LY[3] - 5); g.stroke(); g.fillStyle = dark ? '#1d4a78' : '#bfdcf3'; g.fillRect(785, LY[4] - 14, 22, 16);
+    g.fillStyle = ink; [T('State capital','州首府'), T('City','城市'), T('Mountains','山地'), T('State border','州界'), T('Ocean','海洋')].forEach((t, i) => g.fillText(t, 820, LY[i]));
+    /* number badges (label mode) */
+    if (S.mode === 'label') for (const k of KEYS){ const b = EL[k].box, x = b[2] - 4, y = b[1] + 4, done = S.done[k], hot = S.pick && !done;
+      g.beginPath(); g.arc(x, y, 17, 0, 7); g.fillStyle = done ? '#1aa36b' : hot ? css('--brand') : css('--accent'); g.fill(); g.lineWidth = 3; g.strokeStyle = '#fff'; g.stroke();
+      g.fillStyle = '#fff'; g.font = '800 17px Nunito, sans-serif'; g.textAlign = 'center'; g.fillText(done ? '✓' : S.num[k], x, y + 6); }
+    /* ruler (measure mode) */
+    if (S.mode === 'measure' && S.a && S.b){
+      const [x1, y1] = S.a.p, [x2, y2] = S.b.p, d = Math.hypot(x2 - x1, y2 - y1), ux = (x2 - x1) / d, uy = (y2 - y1) / d;
+      g.strokeStyle = css('--accent'); g.lineWidth = 4; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
+      g.lineWidth = 2; for (let s = 0; s <= d + .1; s += CM / 2){ const big = Math.round(s / (CM / 2)) % 2 === 0, L = big ? 10 : 5; g.beginPath(); g.moveTo(x1 + ux * s - uy * L, y1 + uy * s + ux * L); g.lineTo(x1 + ux * s + uy * L, y1 + uy * s - ux * L); g.stroke(); }
+      const cmv = (d / CM).toFixed(1), mx = (x1 + x2) / 2 - uy * 26, my = (y1 + y2) / 2 + ux * 26;
+      g.font = '800 17px Nunito, sans-serif'; g.textAlign = 'center'; const tw = g.measureText(cmv + ' cm').width + 16; rbox(mx - tw / 2, my - 16, mx + tw / 2, my + 10, card, css('--accent')); g.fillStyle = ink; g.fillText(cmv + T(' cm',' 厘米'), mx, my + 2);
+    }
+  }
+  const msg = (t, good) => { const m = Lab.$('#gaMsg'); m.textContent = t; m.className = 'result ' + (good === true ? 'good' : good === false ? 'bad' : ''); };
+  const purpose = t => Lab.$('#gaPurpose').textContent = t || '';
+  function renderPool(){
+    Lab.$('#gaPool').innerHTML = Lab.shuffle(KEYS).map(k => `<button data-k="${k}" class="${S.done[k] ? 'done' : ''} ${S.pick === k ? 'sel' : ''}" ${S.done[k] ? 'disabled' : ''}>${Lab.L(EL[k].name)}</button>`).join('');
+    Lab.$$('#gaPool button').forEach(b => b.onclick = () => { S.pick = S.pick === b.dataset.k ? null : b.dataset.k; Lab.$$('#gaPool button').forEach(x => x.classList.toggle('sel', x.dataset.k === S.pick)); draw(); });
+  }
+  function counters(){ Lab.$('#gaC1').textContent = `${S.okLabels}/5`; Lab.$('#gaC2').textContent = S.okDist; }
+  function start(){ const n = Lab.shuffle([1, 2, 3, 4, 5]); KEYS.forEach((k, i) => S.num[k] = n[i]); S.done = {}; S.pick = null; S.okLabels = 0; S.a = S.b = null; Lab.$('#gaDist').textContent = '–'; msg(''); purpose(S.mode === 'label' ? T('Each element has a job. Label one to find out what it does!','每个地图要素都有自己的作用。标对一个就能看到它的作用！') : T('Tip: the ruler ticks are every 0.5 cm.','提示：尺子上每一小格是 0.5 厘米。')); renderPool(); counters(); draw(); }
+  function setMode(m){ S.mode = m; Lab.$$('#gaMode button').forEach(b => b.classList.toggle('on', b.dataset.m === m)); Lab.$('#gaLabel').style.display = m === 'label' ? '' : 'none'; Lab.$('#gaMeasure').style.display = m === 'measure' ? '' : 'none'; start(); }
+  cv.addEventListener('click', e => {
+    const b = cv.getBoundingClientRect(), x = (e.clientX - b.left) / b.width * 1000, y = (e.clientY - b.top) / b.height * 700;
+    if (S.mode === 'label'){
+      const k = KEYS.find(k => { const bx = EL[k].box; return x >= bx[0] - 18 && x <= bx[2] + 18 && y >= bx[1] - 18 && y <= bx[3] + 18; });
+      if (!k) return; if (!S.pick) return msg(T('First tap a name on the right.','先在右边点一个名称。'));
+      if (S.done[k]) return;
+      if (k === S.pick){ S.done[k] = true; S.okLabels++; msg(T('✅ Correct: ','✅ 正确：') + Lab.L(EL[k].name), true); purpose('📌 ' + Lab.L(EL[k].name) + T(': ',':') + Lab.L(EL[k].why)); S.pick = null; renderPool();
+        if (S.okLabels === 5) msg(T('🎉 All five map elements labeled!','🎉 五个地图要素全部标对了！'), true); }
+      else msg(T(`❌ Number ${S.num[k]} is not the ${Lab.L(EL[S.pick].name).toLowerCase()}. Try another number.`, `❌ ${S.num[k]} 号不是“${Lab.L(EL[S.pick].name)}”,再试试别的编号。`), false);
+      counters(); draw(); return;
+    }
+    const c = CITY.map(c => ({ c, d:Math.hypot(c.p[0] - x, c.p[1] - y) })).sort((a, b) => a.d - b.d)[0];
+    if (c.d > 32) return;
+    if (!S.a || S.b){ S.a = c.c; S.b = null; Lab.$('#gaDist').textContent = Lab.L(c.c.name) + ' → ?'; }
+    else if (c.c !== S.a){ S.b = c.c; const cmv = (Math.hypot(S.b.p[0] - S.a.p[0], S.b.p[1] - S.a.p[1]) / CM).toFixed(1); Lab.$('#gaDist').textContent = `${Lab.L(S.a.name)} → ${Lab.L(S.b.name)}: ${cmv} ${T('cm','厘米')}`; Lab.$('#gaAns').value = ''; Lab.$('#gaAns').focus({ preventScroll:true }); }
+    msg(''); draw();
+  });
+  Lab.$('#gaCheck').onclick = () => {
+    if (!S.a || !S.b) return msg(T('Click two cities first.','先点两座城市。'));
+    const cmv = +(Math.hypot(S.b.p[0] - S.a.p[0], S.b.p[1] - S.a.p[1]) / CM).toFixed(1), exp = Math.round(cmv * 50), ans = +Lab.$('#gaAns').value;
+    const real = Math.round(GEO.dist(S.a.lat, S.a.lon, S.b.lat, S.b.lon));
+    if (Math.abs(ans - exp) <= Math.max(10, exp * .06)){ S.okDist++; msg(T(`✅ Yes! ${cmv} cm × 50 km = ${exp} km. (Straight-line distance on Earth: ≈ ${real} km.)`, `✅ 对!${cmv} 厘米 × 50 千米 = ${exp} 千米。(地球上的直线距离约为 ${real} 千米。)`), true); }
+    else msg(T(`❌ Multiply the map distance by the scale: ${cmv} cm × 50 km per cm = ?`, `❌ 用图上距离乘以比例:${cmv} 厘米 × 每厘米 50 千米 = ?`), false);
+    counters();
+  };
+  Lab.$('#gaAns').addEventListener('keydown', e => { if (e.key === 'Enter') Lab.$('#gaCheck').click(); });
+  Lab.$$('#gaMode button').forEach(b => b.onclick = () => setMode(b.dataset.m));
+  Lab.$('#gaReset').onclick = start;
+  Lab.onLang(() => { renderPool(); draw(); });
+  GEO.ready.then(draw);
+  start();
+})();
+
+/* ===== Quiz ===== */
+const o = (en, zh) => ({en, zh});
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('Why does every flat map have some distortion?','为什么每一种平面地图都会有变形？'), options:[o('A round surface cannot be flattened without stretching or cutting','球面无法在不拉伸或剪开的情况下压平'),o('Mapmakers make mistakes on purpose','制图者故意出错'),o('Earth is actually flat','地球其实是平的'),o('Printers cannot print round things','打印机印不出圆形')], answer:0},
+  {q:o('Which model shows Earth with NO distortion?','哪种模型表示地球时没有变形？'), options:[o('A globe','地球仪'),o('Mercator map','墨卡托地图'),o('Robinson map','罗宾森地图'),o('Gall–Peters map','高尔–彼得斯地图')], answer:0},
+  {q:o('On a Mercator map, which area looks much bigger than it really is?','在墨卡托地图上，哪个地区看起来比实际大得多？'), options:[o('Greenland','格陵兰岛'),o('Brazil','巴西'),o('Indonesia','印度尼西亚'),o('Kenya','肯尼亚')], answer:0, explain:o('Mercator enlarges areas near the poles. Greenland looks as big as Africa, but Africa is about 14 times larger.','墨卡托投影会放大高纬度地区。格陵兰岛看起来和非洲一样大，其实非洲大约是它的 14 倍。')},
+  {q:o('Why did sailors like the Mercator projection?','航海者为什么喜欢墨卡托投影？'), options:[o('A straight line on it is a constant compass direction','图上的直线就是固定的罗盘方向'),o('It shows true sizes','它显示真实的面积'),o('It shows the poles clearly','它把两极表示得很清楚'),o('It is round like a globe','它像地球仪一样是圆的')], answer:0},
+  {q:o('The Gall–Peters projection is best for…','高尔–彼得斯投影最适合用来……'), options:[o('Comparing the true sizes of countries','比较各国的真实面积'),o('Navigating a ship','驾驶船只导航'),o('Showing correct shapes','显示正确的形状'),o('Measuring street directions','测量街道方向')], answer:0, explain:o('It is an equal-area map, but shapes get stretched.','它是等积投影，但形状被拉伸了。')},
+  {q:o('The Robinson projection is called a “compromise” because…','罗宾森投影被称为“折中”投影，是因为……'), options:[o('It distorts everything a little instead of one thing a lot','它让各方面都有一点变形，而不是某一方面严重变形'),o('It has no distortion','它完全没有变形'),o('It only shows the oceans','它只显示海洋'),o('It was made by two people','它是两个人一起设计的')], answer:0},
+  {q:o('Which map element explains what the symbols and colors mean?','哪个地图要素解释了符号和颜色的含义？'), options:[o('Legend (key)','图例'),o('Compass rose','指向标'),o('Title','标题'),o('Scale','比例尺')], answer:0},
+  {q:o('Which map element shows directions such as north and east?','哪个地图要素表示北、东等方向？'), options:[o('Compass rose','指向标'),o('Legend','图例'),o('Inset map','插图'),o('Scale','比例尺')], answer:0},
+  {q:o('A map scale says 1 cm = 50 km. Two towns are 3 cm apart on the map. How far apart are they really?','比例尺是 1 厘米 = 50 千米，两个城镇在图上相距 3 厘米，实际相距多远？'), options:[o('150 km','150 千米'),o('53 km','53 千米'),o('50 km','50 千米'),o('17 km','17 千米')], answer:0, explain:o('3 cm × 50 km per cm = 150 km.','3 厘米 × 每厘米 50 千米 = 150 千米。')},
+  {q:o('What is an inset map?','什么是插图（位置图）?'), options:[o('A small extra map that shows location or detail','一幅显示位置或细节的额外小地图'),o('The map\'s title','地图的标题'),o('A list of symbols','符号列表'),o('A map of the ocean floor','海底地图')], answer:0},
+  {q:o('A map showing mountains, rivers and elevation colors is a…','显示山脉、河流和用颜色表示海拔的地图是……'), options:[o('Physical map','自然地图（地形图）'),o('Political map','政区图'),o('Thematic map','专题地图'),o('Road map','交通图')], answer:0},
+  {q:o('A map showing average rainfall across the USA is a…','显示美国各地平均降水量的地图是……'), options:[o('Thematic map','专题地图'),o('Political map','政区图'),o('Physical map','自然地图'),o('Inset map','插图')], answer:0, explain:o('Thematic maps show one topic or theme, like rainfall, population or climate.','专题地图表示某一个主题，如降水、人口或气候。')}
+], { count:10 });
+
+/* ===== Sort game ===== */
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'pol',en:'Political map',zh:'政区图'},{id:'phy',en:'Physical map',zh:'自然地图'},{id:'the',en:'Thematic map',zh:'专题地图'}],
+  items:[
+    {en:'Country borders and capitals',zh:'国界和首都',bin:'pol'},{en:'State boundaries and state capitals',zh:'州界和州首府',bin:'pol'},{en:'Names of countries in Africa',zh:'非洲各国的名称',bin:'pol'},{en:'Cities and county lines',zh:'城市和县界',bin:'pol'},
+    {en:'Mountains, rivers and plains',zh:'山脉、河流和平原',bin:'phy'},{en:'Elevation shown with colors',zh:'用颜色表示海拔',bin:'phy'},{en:'Deserts and lakes',zh:'沙漠和湖泊',bin:'phy'},{en:'Ocean depths',zh:'海洋深度',bin:'phy'},
+    {en:'Population density',zh:'人口密度',bin:'the'},{en:'Average yearly rainfall',zh:'年平均降水量',bin:'the'},{en:'Climate regions',zh:'气候类型分布',bin:'the'},{en:'Where corn is grown',zh:'玉米种植区',bin:'the'}
+  ]
+});
+</script>
+<script>
+/* ===== Added: time scrubber + "See the real thing" gallery ===== */
+(() => {
+const o = (en, zh) => ({ en, zh }), $ = s => document.querySelector(s);
+/* shared .timebar: ▶ plays through once, dragging pauses */
+function timebar(sel, render, ms){ const bar = $(sel); if (!bar) return; const b = bar.querySelector('button'), s = bar.querySelector('input'); let t = null;
+  const stop = () => { clearInterval(t); t = null; b.textContent = '▶'; };
+  b.onclick = () => { if (t) return stop(); if (+s.value >= +s.max) s.value = s.min; b.textContent = '⏸'; render();
+    t = setInterval(() => { if (+s.value >= +s.max) return stop(); s.value = +s.value + (+s.step || 1); render(); }, ms || 900); };
+  s.oninput = () => { stop(); render(); }; Lab.onLang(render); }
+const MONTHS = [o('January','1 月'),o('February','2 月'),o('March','3 月'),o('April','4 月'),o('May','5 月'),o('June','6 月'),o('July','7 月'),o('August','8 月'),o('September','9 月'),o('October','10 月'),o('November','11 月'),o('December','12 月')];
+/* live progress for the sort game (the shared game only gives a total at the end) */
+(() => { const host = $('#sort'); if (!host) return; const out = document.createElement('div'); out.className = 'muted'; out.style.cssText = 'font-weight:800;font-size:14px;margin-top:6px'; host.after(out);
+  const upd = () => { const done = host.querySelectorAll('.bin .chip').length, all = done + host.querySelectorAll('.pool .chip').length; out.textContent = Lab.lang === 'zh' ? `已分好 ${done} / ${all}` : `Sorted ${done} / ${all}`; };
+  new MutationObserver(upd).observe(host, { childList:true, subtree:true }); Lab.onLang(upd); })();
+/* Milestones in world mapping (well-known dates; "about 150" is approximate) */
+const TL = [
+  { y:o('about 150','约 150 年'), s:'150', t:o('Ptolemy draws a grid','托勒密画出经纬网'), d:o('In Roman Egypt, the scholar Ptolemy lists places by latitude and longitude and explains how to draw the round Earth on flat paper. His known world has no Americas, no Australia and no Pacific Ocean.','在罗马统治下的埃及，学者托勒密用纬度和经度记录地点，并说明怎样把圆的地球画在平面上。他知道的世界里没有美洲、澳大利亚和太平洋。') },
+  { y:o('1492','1492 年'), s:'1492', t:o('The oldest globe that still exists','现存最古老的地球仪'), d:o('Martin Behaim builds a globe in Nuremberg, Germany. It was finished before news of Columbus’s voyage arrived, so the Americas are missing.','马丁·贝海姆在德国纽伦堡造了一个地球仪。它完成时，哥伦布航行的消息还没传回来，所以上面没有美洲。') },
+  { y:o('1507','1507 年'), s:'1507', t:o('“America” appears on a map','地图上第一次出现“America”'), d:o('The mapmaker Martin Waldseemüller prints a big world map that uses the name “America” for the first time.','制图师马丁·瓦尔德泽米勒印了一幅大型世界地图，第一次用了“America”（亚美利加）这个名字。') },
+  { y:o('1569','1569 年'), s:'1569', t:o('Mercator’s map for sailors','墨卡托为航海者画的地图'), d:o('Gerardus Mercator makes a map on which a ship’s steady compass course is a straight line. Sailors love it. The price: lands near the poles look far too big.','杰拉杜斯·墨卡托画出一种地图：船只保持固定罗盘方向的航线在图上是一条直线，水手们非常喜欢。代价是：靠近两极的陆地被放得太大。') },
+  { y:o('1884','1884 年'), s:'1884', t:o('One prime meridian for everyone','全世界统一本初子午线'), d:o('At a meeting in Washington, D.C., countries agree that the line through Greenwich, England is 0° longitude. Before this, different countries’ maps counted from different lines.','各国在美国华盛顿开会，同意把通过英国格林尼治的经线定为 0° 经线。在此之前，不同国家的地图从不同的经线起算。') },
+  { y:o('1963','1963 年'), s:'1963', t:o('Robinson’s “looks right” map','罗宾森的“看着顺眼”地图'), d:o('Arthur Robinson designs a projection that is not exactly right about anything but not badly wrong about anything either. It becomes a favorite for classroom wall maps.','阿瑟·罗宾森设计了一种投影：没有哪一项完全准确，但也没有哪一项错得离谱。它成了教室挂图最爱用的投影之一。') },
+  { y:o('1972','1972 年'), s:'1972', t:o('A photo of the whole Earth','一张完整的地球照片'), d:o('The Apollo 17 astronauts photograph the whole sunlit Earth on their way to the Moon: the “Blue Marble”. People can finally compare their maps with the real thing.','阿波罗 17 号的宇航员在飞往月球途中拍下了被阳光照亮的整个地球——“蓝色弹珠”。人们终于可以拿地图和真实的地球对照了。') },
+  { y:o('2005','2005 年'), s:'2005', t:o('Maps on every screen','人人屏幕上都有地图'), d:o('Google Maps goes online. Web maps use a version of Mercator’s 1569 projection because it keeps streets and buildings the right shape when you zoom in.','谷歌地图上线。网络地图使用墨卡托 1569 年投影的一个变种，因为放大时街道和建筑的形状不会变形。') }
+];
+function drawTL(){ const i = +$('#tlBar input').value, e = TL[i]; $('#tlBar output').textContent = Lab.L(e.y);
+  $('#tlDots').innerHTML = TL.map((x, k) => `<span class="${k === i ? 'on' : ''}">${x.s}</span>`).join('');
+  $('#tlTitle').textContent = Lab.L(e.t); $('#tlText').textContent = Lab.L(e.d); }
+timebar('#tlBar', drawTL, 3500);
+/* Real media from Wikimedia Commons: URLs, credit and licence copied from the Commons API helper */
+LabPhotos.render($('#gallery'), [
+  { kind:o('About 1450','约 1450 年'), src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/23/PtolemyWorldMap.jpg/960px-PtolemyWorldMap.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A world map made in Florence, Italy, in the mid-1400s, based on Ptolemy’s ancient instructions. Where are the Americas? Nobody in Europe knew about them yet.', zh:'15 世纪中期在意大利佛罗伦萨根据托勒密的古老方法绘制的世界地图。美洲在哪里？那时欧洲人还不知道美洲。', credit:'Credited to Francesco di Antonio del Chierico', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:PtolemyWorldMap.jpg' },
+  { kind:o('1492 globe','1492 年地球仪'), src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/42/Behaim_Globus.jpg/960px-Behaim_Globus.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Martin Behaim’s “Erdapfel” (“earth apple”), the oldest globe that still exists. The Americas are not on it yet.', zh:'马丁·贝海姆的“地球苹果”，现存最古老的地球仪。上面还没有美洲。', credit:'Martin Behaim / Georg Glockendon', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Behaim_Globus.jpg' },
+  { kind:o('Compass rose','指向标'), src:'https://upload.wikimedia.org/wikipedia/commons/d/d2/Compass_rose_from_Catalan_Atlas_%281375%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'The first compass rose ever drawn on a map, from the Catalan Atlas of 1375. Today’s compass roses still point to N, E, S and W.', zh:'地图上最早的指向标，出自 1375 年的《加泰罗尼亚地图集》。今天的指向标仍然标出东南西北。', credit:'Cresques Abraham', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Compass_rose_from_Catalan_Atlas_(1375).jpg' },
+  { kind:o('Mercator, 1569','墨卡托，1569 年'), src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4b/Mercator_1569_world_map_composite.jpg/960px-Mercator_1569_world_map_composite.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Gerardus Mercator’s 1569 world map, all 18 sheets put together. Notice how huge the lands near the top and bottom look.', zh:'杰拉杜斯·墨卡托 1569 年的世界地图，由 18 张图拼成。注意靠近上下两边的陆地看起来有多大。', credit:'Gerardus Mercator', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Mercator_1569_world_map_composite.jpg' },
+  { kind:o('Measuring distortion','测量变形'), src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/24/Tissot_indicatrix_world_map_Mercator_proj.svg/960px-Tissot_indicatrix_world_map_Mercator_proj.svg.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A Mercator map covered with circles that are all the same size on the real globe. Near the poles the circles balloon: that is the stretching.', zh:'一张墨卡托地图，上面的圆圈在真实的地球上都一样大。越靠近两极，圆圈被放得越大，这就是变形。', credit:'Eric Gaba (Sting - fr:Sting)', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Tissot_indicatrix_world_map_Mercator_proj.svg' },
+  { kind:o('Robinson','罗宾森投影'), src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/96/Robinson_projection_SW.jpg/960px-Robinson_projection_SW.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The world on the Robinson projection, made from NASA satellite images. Shapes and sizes are a little off everywhere, but nothing is badly wrong.', zh:'用美国国家航空航天局卫星图像制作的罗宾森投影世界地图。各地的形状和大小都略有偏差，但都不离谱。', credit:'Strebe', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Robinson_projection_SW.jpg' },
+  { kind:o('1972 photo','1972 年照片'), src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/70/The_Blue_Marble%2C_AS17-148-22727.jpg/960px-The_Blue_Marble%2C_AS17-148-22727.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'“The Blue Marble”: the whole Earth photographed by the Apollo 17 crew on their way to the Moon. A globe is the only map with no distortion.', zh:'“蓝色弹珠”：阿波罗 17 号宇航员在飞往月球途中拍下的完整地球。只有地球仪是没有变形的“地图”。', credit:'Harrison Schmitt / Apollo 17', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:The_Blue_Marble,_AS17-148-22727.jpg' },
+  { kind:o('Topographic map','地形图'), src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c3/Topographic_map_of_Kaweah_River.JPG/960px-Topographic_map_of_Kaweah_River.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A US Geological Survey topographic map of the Kaweah River leaving Sequoia National Park, California. The brown contour lines show the shape of the land.', zh:'美国地质调查局绘制的地形图：卡威亚河流出加利福尼亚州红杉国家公园的一段。棕色等高线显示地面的高低起伏。', credit:'United States Geological Survey', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Topographic_map_of_Kaweah_River.JPG' },
+  { type:'video', kind:o('Video','视频'), media:'https://upload.wikimedia.org/wikipedia/commons/9/9e/Dymaxion_2003_animation_remastered.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9e/Dymaxion_2003_animation_remastered.webm/960px--Dymaxion_2003_animation_remastered.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9e/Dymaxion_2003_animation_remastered.webm/960px--Dymaxion_2003_animation_remastered.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Watch a globe turn into a 20-sided shape and unfold into a flat map: Buckminster Fuller’s Dymaxion projection.', zh:'看一看：地球仪变成一个二十面体，再展开成一张平面地图——巴克敏斯特·富勒的“戴马克松”投影。', credit:'Annaaurora', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Dymaxion_2003_animation_remastered.webm' }
+]);
+})();
+</script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const App = window.APP, D2R = Math.PI / 180, R = 3;
+const ctx = Lab3D.stage('#stage', { THREE, OrbitControls, camera:[0, 1.2, 17], minDistance:5, maxDistance:45 });
+const { scene } = ctx;
+
+/* ---------- texture: land, borders, grid, Tissot circles, highlights ---------- */
+const TW = 2048, TH = 1024, cv = document.createElement('canvas'); cv.width = TW; cv.height = TH;
+const g2 = cv.getContext('2d'), tex = new THREE.CanvasTexture(cv);
+tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = ctx.renderer.capabilities.getMaxAnisotropy();
+const opt = { tissot:false, grl:false, grid:true, sel:null };
+const X = lo => (lo + 180) / 360 * TW, Y = la => (90 - la) / 180 * TH;
+function circle(lat0, lon0, rad){   // points of a small circle of angular radius rad (degrees) on the sphere
+  const p1 = lat0 * D2R, d = rad * D2R, pts = [];
+  for (let i = 0; i <= 48; i++){ const th = i / 48 * Math.PI * 2, p2 = Math.asin(Math.sin(p1) * Math.cos(d) + Math.cos(p1) * Math.sin(d) * Math.cos(th));
+    const l2 = lon0 * D2R + Math.atan2(Math.sin(th) * Math.sin(d) * Math.cos(p1), Math.cos(d) - Math.sin(p1) * Math.sin(p2)); pts.push([p2 / D2R, l2 / D2R]); }
+  return pts;
+}
+function paint(){
+  const oc = g2.createLinearGradient(0, 0, 0, TH); [[0,'#8fb6d9'],[.2,'#3274b8'],[.5,'#3e8bd2'],[.8,'#3274b8'],[1,'#8fb6d9']].forEach(([s, c]) => oc.addColorStop(s, c));
+  g2.fillStyle = oc; g2.fillRect(0, 0, TW, TH);
+  if (GEO.feats){ const land = GEO.landGrad(g2, TH);
+    GEO.draw(g2, TW, TH, (ck, f) => f.name === opt.sel ? '#ff4d6d' : opt.grl && f.name === 'Greenland' ? '#ff8a3d' : opt.grl && ck === 'africa' ? '#9b7ff0' : land, 'rgba(40,60,40,.45)', 1.3); }
+  else { g2.fillStyle = '#7cb867'; [[-100,45,30,18],[-60,-15,14,24],[20,5,22,30],[90,50,55,22],[134,-25,16,10],[-40,72,10,8]].forEach(([lo, la, rx, ry]) => { g2.beginPath(); g2.ellipse(X(lo), Y(la), rx / 360 * TW, ry / 180 * TH, 0, 0, 7); g2.fill(); }); }
+  if (opt.grid){
+    g2.strokeStyle = 'rgba(255,255,255,.45)'; g2.lineWidth = 1.6;
+    for (let la = -75; la <= 75; la += 15){ g2.beginPath(); g2.moveTo(0, Y(la)); g2.lineTo(TW, Y(la)); g2.stroke(); }
+    for (let lo = -165; lo <= 180; lo += 15){ g2.beginPath(); g2.moveTo(X(lo), 0); g2.lineTo(X(lo), TH); g2.stroke(); }
+    g2.lineWidth = 3.5; g2.strokeStyle = 'rgba(229,72,77,.9)'; g2.beginPath(); g2.moveTo(0, Y(0)); g2.lineTo(TW, Y(0)); g2.stroke();
+    g2.strokeStyle = 'rgba(245,184,46,.95)'; g2.beginPath(); g2.moveTo(X(0), 0); g2.lineTo(X(0), TH); g2.stroke();
+  }
+  if (opt.tissot) for (const la of [-75, -60, -30, 0, 30, 60, 75]) for (const lo of [-150, -90, -30, 30, 90, 150]){
+    g2.beginPath(); circle(la, lo, 6).forEach(([a, b], i) => i ? g2.lineTo(X(b), Y(a)) : g2.moveTo(X(b), Y(a))); g2.closePath();
+    g2.fillStyle = 'rgba(229,72,77,.62)'; g2.fill(); g2.strokeStyle = '#fff'; g2.lineWidth = 2.5; g2.stroke();
+  }
+  tex.needsUpdate = true;
+}
+paint();
+GEO.ready.then(f => { paint(); if (!f){ ctx.caption({en:'⚠️ Country shapes could not load (offline?). Showing simple continents.',zh:'⚠️ 国家轮廓无法加载（可能未联网），这里显示简化的大陆。'}); setTimeout(() => ctx.caption(null), 7000); } });
+
+/* ---------- one mesh that morphs: sphere → cylinder → flat map ---------- */
+const SU = 180, SV = 96, geo = new THREE.PlaneGeometry(1, 1, SU, SV);
+const pos = geo.attributes.position, uvA = geo.attributes.uv, N = pos.count;
+const PHI = new Float32Array(N), LAM = new Float32Array(N), SPH = new Float32Array(N * 3), FA = new Float32Array(N * 2), FB = new Float32Array(N * 2);
+for (let i = 0; i < N; i++){
+  const lam = (uvA.getX(i) - .5) * 2 * Math.PI, phi = (uvA.getY(i) - .5) * Math.PI; PHI[i] = phi; LAM[i] = lam;
+  SPH[3 * i] = R * Math.cos(phi) * Math.sin(lam); SPH[3 * i + 1] = R * Math.sin(phi); SPH[3 * i + 2] = R * Math.cos(phi) * Math.cos(lam);
+}
+const fillFlat = (arr, p) => { for (let i = 0; i < N; i++){ const [x, y] = PM.xy(p, PHI[i], LAM[i], R); arr[2 * i] = x; arr[2 * i + 1] = y; } };
+let projFrom = App.proj, projTo = App.proj; fillFlat(FA, projFrom); fillFlat(FB, projTo);
+const st = { m:0, mt:0, k:1 }, ease = x => x * x * (3 - 2 * x);
+function morph(sx, sy, sz, xp, yp, m, out){
+  if (m <= .5){ const a = ease(m / .5), cx = R * Math.sin(xp / R), cz = R * Math.cos(xp / R); out[0] = sx + (cx - sx) * a; out[1] = sy + (yp - sy) * a; out[2] = sz + (cz - sz) * a; return; }
+  const s = ease((m - .5) / .5); if (s > .999){ out[0] = xp; out[1] = yp; out[2] = R; return; }
+  const rho = R / (1 - s); out[0] = rho * Math.sin(xp / rho); out[1] = yp; out[2] = rho * Math.cos(xp / rho) - rho + R;
+}
+const tmp = [0, 0, 0];
+function update(){
+  const k = ease(st.k);
+  for (let i = 0; i < N; i++){ const xp = FA[2 * i] + (FB[2 * i] - FA[2 * i]) * k, yp = FA[2 * i + 1] + (FB[2 * i + 1] - FA[2 * i + 1]) * k; morph(SPH[3 * i], SPH[3 * i + 1], SPH[3 * i + 2], xp, yp, st.m, tmp); pos.setXYZ(i, tmp[0], tmp[1], tmp[2]); }
+  pos.needsUpdate = true; geo.computeVertexNormals(); geo.computeBoundingSphere();
+}
+const map = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map:tex, emissive:0xffffff, emissiveMap:tex, emissiveIntensity:.32, roughness:.9, metalness:0, side:THREE.DoubleSide }));
+scene.add(map); ctx.pickable(map, 'map'); update();
+function posAt(lat, lon){   // where a lat/lon point is right now (for labels)
+  const phi = lat * D2R, lam = lon * D2R, a = PM.xy(projFrom, phi, lam, R), b = PM.xy(projTo, phi, lam, R), k = ease(st.k), out = [0, 0, 0];
+  morph(R * Math.cos(phi) * Math.sin(lam), R * Math.sin(phi), R * Math.cos(phi) * Math.cos(lam), a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, st.m, out);
+  return new THREE.Vector3(out[0], out[1], out[2] + .05);
+}
+function setProjection(p){
+  if (p === projTo) return;
+  const k = ease(st.k); for (let i = 0; i < 2 * N; i++) FA[i] += (FB[i] - FA[i]) * k;
+  projFrom = projTo; projTo = p; fillFlat(FB, p); st.k = 0;
+}
+
+/* ---------- labels that ride along with the morph ---------- */
+const anchors = [];
+function tag(text, lat, lon, want){ const a = new THREE.Object3D(); map.add(a); const L = ctx.label(text, a); anchors.push({ a, L, lat, lon, want }); return L; }
+tag({en:'Greenland',zh:'格陵兰岛'}, 74, -41, () => opt.grl); tag({en:'Africa',zh:'非洲'}, 6, 21, () => opt.grl);
+tag({en:'Equator',zh:'赤道'}, 2.5, -120, () => opt.grid); tag({en:'Prime meridian',zh:'本初子午线'}, 40, 4, () => opt.grid);
+const camDir = new THREE.Vector3(), wp = new THREE.Vector3();
+function placeTags(){
+  camDir.copy(ctx.camera.position).sub(ctx.controls.target).normalize();
+  for (const t of anchors){ t.a.position.copy(posAt(t.lat, t.lon)); const w = t.want(); if (!w){ t.L.visible = false; continue; }
+    t.a.getWorldPosition(wp); const front = st.m > .75 || wp.normalize().dot(camDir) > .1; t.L.visible = front; }
+}
+
+/* ---------- camera framing ---------- */
+function fit(){
+  const b = ctx.el.getBoundingClientRect(), aspect = b.width / Math.max(1, b.height), tn = Math.tan(20 * D2R);
+  if (st.mt < .3) return ctx.flyToPose([0, 1.2, 17], [0, 0, 0]);
+  const [hw, hh] = PM.ext[projTo]; const d = Math.max(hh * R / tn, hw * R / (tn * aspect)) * 1.22 + R;
+  ctx.flyToPose([0, 0, d], [0, 0, 0]);
+}
+
+/* ---------- UI ---------- */
+const slider = Lab.$('#unwrap');
+function show(k){ if (story.active) story.stop(); go(k); }
+function go(k){ if (k === 'globe') st.mt = 0; else { setProjection(k); st.mt = 1; } setTimeout(fit, 30); }
+App.three = { show };
+slider.oninput = () => { if (story.active) story.stop(); st.m = st.mt = slider.value / 100; update(); App.setMorph(st.m); };
+slider.onchange = fit;
+const setBtn = (id, on) => Lab.$(id).classList.toggle('on', on);
+Lab.$('#tissotBtn').onclick = () => { opt.tissot = !opt.tissot; setBtn('#tissotBtn', opt.tissot); paint(); };
+Lab.$('#grlBtn').onclick = () => { opt.grl = !opt.grl; setBtn('#grlBtn', opt.grl); paint(); };
+Lab.$('#gridBtn').onclick = () => { opt.grid = !opt.grid; setBtn('#gridBtn', opt.grid); paint(); };
+Lab.$('#resetBtn').onclick = () => { story.stop(); Object.assign(opt, { tissot:false, grl:false, grid:true, sel:null }); ['#tissotBtn', '#grlBtn'].forEach(i => setBtn(i, false)); setBtn('#gridBtn', true); paint(); App.select('globe', true); st.mt = 0; ctx.home(); };
+const whereUV = uv => { const lat = (uv.y - .5) * 180, lon = (uv.x - .5) * 360; return { lat, lon, w:GEO.where(lat, lon) }; };
+ctx.hoverText((k, h) => { if (!h || !h.uv || !GEO.feats) return ''; const { w } = whereUV(h.uv); return w.land ? GEO.cname(w.country) : Lab.L(GEO.OCEAN[w.ocean]); });
+ctx.onPick((k, h) => {
+  if (!k || !h.uv || !GEO.feats) return;
+  const { lat, lon, w } = whereUV(h.uv);
+  if (!w.land){ opt.sel = null; paint(); return; }
+  opt.sel = w.country; paint(); App.showCountry(w.country, lat, lon);
+});
+
+/* ---------- story: peel the globe ---------- */
+const story = Lab3D.story('#stage', STORY, i => {
+  const set = (t, gr) => { opt.tissot = t; opt.grl = gr; setBtn('#tissotBtn', t); setBtn('#grlBtn', gr); opt.sel = null; paint(); };
+  if (i === 0){ set(false, false); setProjection('mercator'); App.select('globe', true); st.mt = 0; }
+  if (i === 1){ set(false, false); setProjection('mercator'); App.select('mercator', true); st.mt = .5; }
+  if (i === 2){ set(false, false); setProjection('mercator'); App.select('mercator', true); st.mt = 1; }
+  if (i === 3){ set(true, false); setProjection('mercator'); App.select('mercator', true); st.mt = 1; }
+  if (i === 4){ set(false, true); setProjection('mercator'); App.select('mercator', true); st.mt = 1; }
+  if (i === 5){ set(true, true); setProjection('peters'); App.select('peters', true); st.mt = 1; }
+  if (i === 6){ set(true, false); setProjection('robinson'); App.select('robinson', true); st.mt = 1; }
+  setTimeout(fit, 30);
+});
+Lab.$('#storyBtn').onclick = () => story.start();
+
+/* ---------- per-frame ---------- */
+ctx.onFrame(dt => {
+  let ch = false;
+  const d = st.mt - st.m; if (Math.abs(d) > 1e-4){ st.m += Math.sign(d) * Math.min(Math.abs(d), dt * .75); ch = true; slider.value = Math.round(st.m * 100); App.setMorph(st.m); }
+  if (st.k < 1){ st.k = Math.min(1, st.k + dt * 1.3); ch = true; }
+  if (ch) update();
+  placeTags();
+  if (st.m < .02 && !story.active) map.rotation.y = (map.rotation.y + dt * .08) % (Math.PI * 2); else map.rotation.y = (map.rotation.y > Math.PI ? map.rotation.y - Math.PI * 2 : map.rotation.y) * .9;
+});
+renderInfo(); renderChips(); renderProjName();
+</script>
+</body>
+</html>

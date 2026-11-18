@@ -1,0 +1,669 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reproduction &amp; Selective Breeding</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/photos.js"></script>
+<script src="../shared/lab3d.js"></script>
+<style>
+/* page-specific styles */
+#explore .explorer{align-items:start}
+#stage{height:640px}
+#info{max-height:640px;min-height:0;overflow:auto}
+@media (max-width:980px){#stage{height:540px}#info{max-height:none}}
+.storybar button{white-space:nowrap}
+@media (max-width:560px){.storybar{bottom:112px}.storybar button{padding:7px 10px}}
+.toolbar .seg button{padding:5px 11px}
+.lab-label3d.head{font-size:13px;color:var(--brand)}
+.lab-label3d.sub{font-size:11px;color:var(--ink-2)}
+.now{background:var(--surface-2);border-radius:12px;padding:9px 12px;font-weight:700;font-size:15px;display:flex;flex-direction:column;gap:4px}
+.cmp .box ul{margin:8px 0 0;padding-left:20px;font-size:15px;color:var(--ink-2)}
+.cmp .box h4{margin:10px 0 0;font-size:15px}
+.cmp .pro{color:var(--good)} .cmp .con{color:var(--bad)}
+/* selective breeding */
+.pop{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px}
+.indiv{position:relative;border:2px solid var(--line);background:var(--surface-2);border-radius:14px;padding:6px 2px 4px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:118px;gap:4px;font-weight:800;font-size:12px;color:var(--ink-2)}
+.indiv.sel{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--surface));box-shadow:0 0 0 2px var(--accent)}
+.indiv .pick{position:absolute;top:4px;right:5px;font-size:12px}
+.indiv.best::before{content:"★";position:absolute;top:3px;left:6px;color:var(--warn);font-size:14px}
+.ear{width:18px;border-radius:9px 9px 6px 6px;background:radial-gradient(circle at 50% 50%,#ffd84d 38%,#e0a800 40%,transparent 62%) 0 0/6px 6px,#f1c232;box-shadow:inset -2px 0 0 rgba(0,0,0,.12);position:relative}
+.ear::after{content:"";position:absolute;left:-5px;right:-5px;bottom:-4px;height:45%;border-radius:0 0 10px 10px;background:linear-gradient(90deg,#4caf50,#7ccf6a 50%,#4caf50);clip-path:polygon(0 100%,0 30%,25% 0,40% 60%,50% 10%,60% 60%,75% 0,100% 30%,100% 100%)}
+.dog{line-height:1;display:block}
+.goal{display:flex;align-items:center;gap:10px;font-weight:800}
+.goal .track{flex:1;height:14px;background:var(--surface-2);border-radius:999px;overflow:hidden}
+.goal .track div{height:100%;background:var(--good);width:0;transition:width .4s}
+@media (max-width:560px){.pop{grid-template-columns:repeat(4,minmax(0,1fr))}}
+</style>
+</head>
+<body data-subject="biology" data-topic="reproduction">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="生物 · 生殖">Biology · Reproduction</span>
+  <h1 data-zh-html="生殖与<em>选择育种</em>">Reproduction &amp; <em>Selective Breeding</em></h1>
+  <p class="lead" data-zh="一个生物可以只有一个亲本吗？生物用两种方式繁殖后代：一个亲本复制自己（无性生殖），或两个亲本的基因组合在一起（有性生殖）。拖动时间滑块，看细菌分裂、水螅出芽、花朵受精，再亲手培育出更大的玉米！">Can a living thing have just one parent? Living things make offspring in two ways: one parent copies itself (asexual reproduction), or genes from two parents combine (sexual reproduction). Scrub the timeline to watch a bacterium split, a hydra bud and a flower get fertilized, then breed bigger corn yourself!</p>
+</header>
+
+<section class="wrap" id="explore" data-nav="3D Model" data-nav-zh="3D 模型">
+  <div class="explorer">
+    <div class="stage card" id="stage" data-3d>
+      <div class="toolbar">
+        <div class="seg" id="viewSeg"></div>
+        <button class="tbtn on" id="playBtn">⏸ Pause</button>
+        <button class="tbtn" id="geneBtn" data-zh="🧬 基因颜色">🧬 Gene colors</button>
+        <button class="tbtn" id="storyBtn" data-zh="📖 故事">📖 Story</button>
+        <button class="tbtn" id="resetBtn" data-zh="⌂ 重置">⌂ Reset</button>
+      </div>
+      <div class="bottombar">
+        <div class="pill"><span data-zh="⏱ 时间">⏱ Time</span><input id="time" type="range" min="0" max="100" value="0"></div>
+        <div class="tip" data-zh="拖动旋转 · 滚轮缩放 · 点击任意部分">Drag to rotate · Scroll to zoom · Click any part</div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="chips" id="chips"></div>
+</section>
+
+<section class="wrap" id="compare" data-nav="Compare" data-nav-zh="比一比">
+  <div class="sec-head">
+    <h2 data-zh="无性生殖 vs 有性生殖">Asexual vs sexual reproduction</h2>
+    <p data-zh="两种方式各有优缺点。关键区别：后代的基因是和亲本完全相同，还是一种新的组合？">Each way has strengths and weaknesses. The key difference: are the offspring’s genes identical to the parent’s, or a brand-new mix?</p>
+  </div>
+  <div class="grid2 cmp">
+    <div class="box card"><div class="ico">🧫</div><h3 data-zh="无性生殖：1 个亲本">Asexual: 1 parent</h3>
+      <p data-zh="后代是亲本的“克隆”，遗传信息完全相同。">Offspring are clones with identical genetic information.</p>
+      <ul><li data-zh="二分裂：细菌一分为二">Binary fission: bacteria split in two</li><li data-zh="出芽生殖：水螅、酵母长出芽体">Budding: hydra and yeast grow buds</li><li data-zh="孢子生殖：霉菌、蕨类释放孢子">Spores: molds and ferns release spores</li><li data-zh="营养繁殖：马铃薯块茎、草莓匍匐茎">Vegetative propagation: potato eyes, strawberry runners</li><li data-zh="再生：涡虫被切开后，每段都能长成新个体">Regeneration: a planarian cut in pieces regrows into new worms</li></ul>
+      <h4 class="pro" data-zh="👍 优点">👍 Advantages</h4><ul><li data-zh="快速，不需要寻找配偶">Fast, no need to find a mate</li><li data-zh="一个个体就能形成一个种群">One individual can start a whole population</li></ul>
+      <h4 class="con" data-zh="👎 缺点">👎 Disadvantages</h4><ul><li data-zh="没有遗传变异：一种疾病或环境变化可能消灭所有个体">No genetic variation: one disease or change can wipe them all out</li></ul></div>
+    <div class="box card"><div class="ico">🌸</div><h3 data-zh="有性生殖：2 个亲本">Sexual: 2 parents</h3>
+      <p data-zh="精子（或花粉中的精子）和卵细胞结合（受精），后代得到双方各一半的基因。">A sperm (or sperm from pollen) joins an egg (fertilization). Offspring get half their genes from each parent.</p>
+      <ul><li data-zh="动物：鱼、青蛙、鸟、人">Animals: fish, frogs, birds, humans</li><li data-zh="开花植物：花粉 + 胚珠 → 种子">Flowering plants: pollen + ovule → seed</li><li data-zh="每个后代都是独一无二的组合（同卵双胞胎除外）">Each offspring is a unique mix (except identical twins)</li></ul>
+      <h4 class="pro" data-zh="👍 优点">👍 Advantages</h4><ul><li data-zh="产生遗传变异：有些后代可能更适应变化的环境">Creates genetic variation: some offspring may survive changes better</li></ul>
+      <h4 class="con" data-zh="👎 缺点">👎 Disadvantages</h4><ul><li data-zh="较慢，需要找到配偶，消耗更多能量">Slower, needs a mate, uses more energy</li><li data-zh="每个亲本只传下一半的基因">Each parent passes on only half its genes</li></ul></div>
+  </div>
+  <div class="mix" style="margin-top:16px"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="“无性生殖”不等于“简单的生物才会”。很多植物（草莓、马铃薯）和一些动物（海星、蚜虫）既能无性生殖，也能有性生殖。">“Asexual” does not mean “only simple organisms”. Many plants (strawberries, potatoes) and some animals (sea stars, aphids) can reproduce both asexually and sexually.</span></div>
+</section>
+
+<section class="wrap" id="breeding" data-nav="Selective Breeding" data-nav-zh="选择育种">
+  <div class="sec-head">
+    <h2 data-zh="游戏：选择育种">Game: selective breeding</h2>
+    <p data-zh="几千年来，人类挑选具有理想性状的动植物作为亲本（人工选择）。野生的大刍草穗子只有几厘米长，经过一代代挑选，才变成今天的玉米。每一代选出 2~4 个亲本，看看需要几代才能达到目标！">For thousands of years, people have chosen plants and animals with the traits they want as parents (artificial selection). Wild teosinte had ears only a few centimeters long; generation after generation of choosing turned it into modern corn. Pick 2–4 parents each generation. How many generations to reach the goal?</p>
+  </div>
+  <div class="sim">
+    <div class="card simside">
+      <div class="btnrow"><div class="seg" id="spSeg"></div></div>
+      <p id="goalText"></p>
+      <div class="pop" id="pop"></div>
+      <div class="btnrow">
+        <button class="btn" id="breedBtn" data-zh="🌱 培育下一代">🌱 Breed next generation</button>
+        <button class="btn ghost" id="randBtn" data-zh="🎲 随机交配（对照）">🎲 Random mating (control)</button>
+        <button class="btn ghost" id="sbReset" data-zh="↺ 重新开始">↺ Start over</button>
+      </div>
+      <div class="result" id="sbMsg"></div>
+    </div>
+    <div class="card simside">
+      <div class="counters">
+        <div class="counter"><b id="sbGen">0</b><span data-zh="代数">generation</span></div>
+        <div class="counter"><b id="sbAvg">–</b><span data-zh="平均值">population average</span></div>
+        <div class="counter"><b id="sbVar">–</b><span data-zh="遗传多样性（仍有变化的基因数）">genetic variety (genes still varied)</span></div>
+        <div class="counter"><b id="sbPar">0 / 4</b><span data-zh="已选亲本（2~4 个）">parents chosen (2–4)</span></div>
+      </div>
+      <div class="goal"><span data-zh="目标进度">Goal</span><div class="track"><div id="sbGoal"></div></div></div>
+      <div class="simbox" style="min-height:300px"><canvas id="sbCv"></canvas></div>
+      <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="自然选择由环境“挑选”；人工选择（选择育种）由人来“挑选”。">Natural selection: nature does the choosing. Artificial (selective) breeding: people do the choosing.</span></div>
+    </div>
+  </div>
+  <div class="grid3" style="margin-top:18px">
+    <div class="box card"><div class="ico">🌽</div><h3 data-zh="大刍草 → 玉米">Teosinte → corn</h3><p data-zh="大约 9000 年前，墨西哥的农民开始挑选穗子更大、更软的大刍草，逐渐培育出了玉米。">About 9,000 years ago, farmers in Mexico began choosing teosinte with bigger, softer ears, slowly creating corn.</p></div>
+    <div class="box card"><div class="ico">🐕</div><h3 data-zh="狼 → 各种狗">Wolves → dog breeds</h3><p data-zh="所有狗都是由狼驯化而来。人们挑选体形、毛色或性格，培育出吉娃娃、牧羊犬等几百个品种。">All dogs came from wolves. Choosing for size, coat or behavior produced hundreds of breeds, from Chihuahuas to sheepdogs.</p></div>
+    <div class="box card"><div class="ico">🧪</div><h3 data-zh="基因工程">Genetic engineering</h3><p data-zh="科学家直接把一个基因放进另一种生物，例如让细菌生产治疗糖尿病的胰岛素，或让抗虫玉米自己产生杀虫蛋白。">Scientists move a gene directly into another organism, e.g. bacteria that make insulin for diabetes, or insect-resistant (Bt) corn.</p></div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real photos" data-nav-zh="真实影像">
+  <div id="gallery"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 生殖测验">🧠 Reproduction quiz</h3><p class="sub" data-zh="选出正确答案。">Pick the best answer.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分一分">🗂️ Sort it</h3><p class="sub" data-zh="这是有性生殖还是无性生殖？拖动或先点再点方框。">Sexual or asexual reproduction? Drag, or tap then tap a box.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="对应佐治亚州标准 S7L3b（建立并使用模型，说明无性生殖产生遗传信息相同的后代，而有性生殖产生遗传变异）和 S7L3c（提出问题并收集信息，说明人类如何通过选择育种影响理想性状的遗传）。建议：打开“基因颜色”，让学生说出为什么细菌和水螅的后代颜色与亲本相同，而种子是两种颜色混合。">Supports GSE S7L3b (develop and use a model to describe how asexual reproduction results in offspring with identical genetic information while sexual reproduction results in genetic variation) and S7L3c (ask questions and gather information about how humans influence the inheritance of desired traits through selective breeding). Tip: turn on “Gene colors” and ask why the bacterium and hydra offspring match their parent while the seed is a blend of two colors.</p>
+    <p data-zh="选择育种游戏中，“遗传多样性”会随着只挑少数几个亲本而下降，可借此讨论选择育种的代价（近亲繁殖、抗病能力下降）。用“随机交配”作为对照组。">In the breeding game, “genetic variety” drops when only a few parents are chosen each time: discuss costs of selective breeding (inbreeding, less disease resistance). Use “Random mating” as the control group.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<!--REAL-PHOTOS-->
+<script>
+/* ===== See the real thing: real photos / clips (Wikimedia Commons, freely licensed; credit shown under each) ===== */
+(function(){
+const P = [
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3a/E._coli_Bacteria_%287316101966%29.jpg/960px-E._coli_Bacteria_%287316101966%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Asexual, one parent: E. coli bacteria. Each bacterium makes offspring by splitting in two (binary fission).', zh:'无性生殖，一个亲本：大肠杆菌。每个细菌都靠一分为二（二分裂）来繁殖后代。', kind:{en:'Electron micrograph (SEM)',zh:'扫描电镜照片'}, credit:'NIAID', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:E._coli_Bacteria_(7316101966).jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/69/Hidra_en_proceso_de_gemaci%C3%B3n_vista_en_campo_oscuro.jpg/960px-Hidra_en_proceso_de_gemaci%C3%B3n_vista_en_campo_oscuro.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Asexual, one parent: a budding hydra. The small “branch” on its side is a bud growing into a new hydra.', zh:'无性生殖，一个亲本：一只正在出芽的水螅。它身体侧面的小“分枝”就是一个芽体，正在长成一只新水螅。', kind:{en:'Light micrograph',zh:'光学显微镜照片'}, credit:'Brandon Antonio Segura Torres & Priscilla Vieto Bonilla', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Hidra_en_proceso_de_gemaci%C3%B3n_vista_en_campo_oscuro.jpg' },
+  { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/8/85/Hidra_en_gemaci%C3%B3n.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/85/Hidra_en_gemaci%C3%B3n.webm/960px--Hidra_en_gemaci%C3%B3n.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/85/Hidra_en_gemaci%C3%B3n.webm/960px--Hidra_en_gemaci%C3%B3n.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Video: a hydra budding, filmed through a microscope.', zh:'视频：显微镜下拍到的水螅出芽。', kind:{en:'Microscope video',zh:'显微镜视频'}, credit:'Brandon Antonio Segura Torres & Priscilla Vieto Bonilla', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Hidra_en_gemaci%C3%B3n.webm' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/36/Bryophyllum_daigremontianum_nahaufnahme1.jpg/960px-Bryophyllum_daigremontianum_nahaufnahme1.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Plants can do it too: a close-up of Bryophyllum daigremontianum, nicknamed “mother of thousands”, a plant known for growing baby plantlets on its leaves.', zh:'植物也会无性生殖：大叶落地生根（Bryophyllum daigremontianum）的特写。这种植物因为能在叶片上长出许多小植株而出名。', kind:{en:'Photo',zh:'照片'}, credit:'CrazyD', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Bryophyllum_daigremontianum_nahaufnahme1.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9c/Aphid_giving_birth.jpg/960px-Aphid_giving_birth.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'An aphid giving birth to live young. Female aphids can produce babies without a mate.', zh:'一只蚜虫正在产下幼虫。雌蚜虫不需要交配也能生出后代。', kind:{en:'Photo',zh:'照片'}, credit:'Frederick Depuydt', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Aphid_giving_birth.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/8/86/Sperm-egg.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Sexual, two parents: a sperm cell fertilizing an egg cell. Each carries half of the offspring’s genes.', zh:'有性生殖，两个亲本：一个精子正在使卵细胞受精。它们各自带着后代一半的基因。', kind:{en:'Micrograph',zh:'显微照片'}, credit:'Unknown author', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Sperm-egg.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a4/Misc_pollen.jpg/960px-Misc_pollen.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Pollen grains from several common plants. Pollen carries a flower’s male sex cells. Colors added by computer.', zh:'几种常见植物的花粉粒。花粉里带着花的雄性生殖细胞。颜色是用电脑加上去的。', kind:{en:'Electron micrograph (SEM)',zh:'扫描电镜照片'}, scale:{en:'magnified about 500 times',zh:'放大约 500 倍'}, credit:'Dartmouth College Electron Microscope Facility', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Misc_pollen.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cb/Maize-teosinte.jpg/960px-Maize-teosinte.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Selective breeding: wild teosinte, a teosinte–maize hybrid, and modern maize (corn). People chose which plants to breed for thousands of years.', zh:'人工选择：野生的大刍草、大刍草与玉米的杂交种，以及现代玉米。几千年来，人们一直在挑选要留种的植株。', kind:{en:'Photo',zh:'照片'}, credit:'John Doebley', license:'CC BY 3.0', page:'https://commons.wikimedia.org/wiki/File:Maize-teosinte.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0a/Mikrofoto.de-Hydra_15.jpg/960px-Mikrofoto.de-Hydra_15.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', _x:1, en:'A green hydra (Hydra viridissima), a tiny freshwater animal with tentacles.', zh:'一只绿水螅（Hydra viridissima），一种长着触手的微小淡水动物。', kind:{en:'Light micrograph',zh:'光学显微镜照片'}, credit:'Frank Fox', license:'CC BY-SA 3.0 de', page:'https://commons.wikimedia.org/wiki/File:Mikrofoto.de-Hydra_15.jpg' }
+];
+window.REALFIG = { bud:P[1], fission:P[0], hydra:P[8], pollen:P[6] };
+if (window.LabPhotos) LabPhotos.render('#gallery', P.filter(p => !p._x), { title:{en:'See the real thing',zh:'看看真实的样子'}, sub:{en:'One parent or two? Real living things caught in the act of reproducing. Click any picture to enlarge it; the video plays only when you press play.',zh:'一个亲本还是两个亲本？这些都是真实的生物正在繁殖时被拍下的画面。点击图片可以放大；视频要按下播放键才会播放。'} });
+})();
+</script>
+<!--/REAL-PHOTOS-->
+<script>
+const o = (en, zh) => ({en, zh});
+/* ===== Stations of the 3D model ===== */
+const STN = {
+  fission:{ name:o('Binary fission','二分裂'), type:o('Asexual · 1 parent','无性生殖 · 1 个亲本'), color:'#4f8ff0' },
+  budding:{ name:o('Budding','出芽生殖'), type:o('Asexual · 1 parent','无性生殖 · 1 个亲本'), color:'#2fb36d' },
+  flower:{ name:o('Fertilization in a flower','花的受精'), type:o('Sexual · 2 parents','有性生殖 · 2 个亲本'), color:'#e5489b' }
+};
+const PHASES = {
+  fission:[{u:.35, t:o('Growing and copying its circular DNA','长大，并复制环状 DNA')}, {u:.7, t:o('The cell pinches in the middle','细胞从中间向内凹陷、缢裂')}, {u:2, t:o('Two identical daughter cells','两个完全相同的子细胞')}],
+  budding:[{u:.4, t:o('A small bump (bud) grows on the side','体侧长出一个小突起（芽体）')}, {u:.75, t:o('The bud grows tentacles and a mouth','芽体长出触手和口')}, {u:2, t:o('The bud breaks off: a new, identical hydra','芽体脱落，成为一只新的、相同的水螅')}],
+  flower:[{u:.3, t:o('A bee brings pollen from another flower to the stigma','蜜蜂把另一朵花的花粉带到柱头上')}, {u:.6, t:o('A pollen tube grows down the style','花粉管沿着花柱向下生长')}, {u:.78, t:o('A sperm cell travels down the tube to the egg','精子沿花粉管到达胚珠里的卵细胞')}, {u:.86, t:o('Fertilization! Sperm + egg → zygote','受精！精子 + 卵细胞 → 受精卵')}, {u:2, t:o('The ovule becomes a seed; the petals wither','胚珠发育成种子，花瓣凋谢')}]
+};
+const phaseOf = (s, p) => PHASES[s].findIndex(ph => p < ph.u);
+
+/* ===== Clickable parts (bilingual) ===== */
+const PARTS = {
+  fission:{st:'fission', color:'#7fc8f8', name:o('Binary fission','二分裂'), job:o('One cell splits into two','一个细胞分成两个'),
+    facts:{en:['Bacteria reproduce this way. It is a type of asexual reproduction.','The cell copies its DNA, grows longer, then pinches in two across the middle.','In good conditions, some bacteria such as E. coli can divide about every 20 minutes.'],
+           zh:['细菌用这种方式繁殖，它属于无性生殖。','细胞先复制 DNA、伸长，然后从中间缢裂成两个。','条件适宜时，大肠杆菌等细菌大约每 20 分钟就能分裂一次。']},
+    hint:o('Fission = splitting: 1 → 2 → 4 → 8 …','分裂 = 一分为二：1 → 2 → 4 → 8……'),
+    mix:o('Binary fission is not the same as mitosis. Bacteria have no nucleus, so they divide in a simpler way.','二分裂和有丝分裂不一样。细菌没有细胞核，分裂方式更简单。')},
+  dnaCopy:{st:'fission', color:'#ff9f43', name:o('Copied DNA','复制的 DNA'), job:o('Each new cell needs a full set of instructions','每个新细胞都需要一整套“说明书”'),
+    facts:{en:['A bacterium has one loop-shaped (circular) chromosome floating in its cytoplasm. It has no nucleus.','Before splitting, it makes an exact copy of the loop.','One copy goes to each daughter cell, so both get identical genes.'],
+           zh:['细菌只有一条环状的染色体，漂浮在细胞质中，没有细胞核。','分裂之前，它先把这个 DNA 环精确地复制一份。','每个子细胞各得到一份，所以它们的基因完全相同。']},
+    hint:o('Copy first, then split.','先复制，再分裂。')},
+  daughter:{st:'fission', color:'#5ec27a', name:o('Daughter cells','子细胞'), job:o('Identical clones of the parent','与亲本相同的克隆'),
+    facts:{en:['The two new cells have the same DNA as the parent cell: they are clones.','Each daughter cell can grow and divide again.','Rare copying mistakes (mutations) are the main source of variation in bacteria.'],
+           zh:['两个新细胞的 DNA 和亲本细胞一样：它们是克隆。','每个子细胞都能继续生长、再次分裂。','偶尔出现的复制错误（突变）是细菌变异的主要来源。']},
+    hint:o('Clone = an exact genetic copy.','克隆 = 遗传信息完全相同的复制品。')},
+  hydra:{st:'budding', color:'#8fd6a8', name:o('Hydra (parent)','水螅（亲本）'), job:o('A tiny freshwater animal','一种微小的淡水动物'),
+    facts:{en:['Hydra is a small animal related to jellyfish, about 1 cm long.','It catches tiny prey with stinging tentacles.','When food is plentiful it reproduces asexually by budding. It can also reproduce sexually.'],
+           zh:['水螅是一种和水母有亲缘关系的小动物，长约 1 厘米。','它用带刺细胞的触手捕捉微小的猎物。','食物充足时，它通过出芽进行无性生殖；它也能进行有性生殖。']},
+    hint:o('Hydra can even regrow lost parts (regeneration), like the monster in the myth.','水螅还能长回失去的部分（再生），就像神话里的九头蛇。')},
+  bud:{st:'budding', color:'#f6c26b', name:o('Bud','芽体'), job:o('A new organism growing from the parent','从亲本身上长出的新个体'),
+    facts:{en:['Budding: a small outgrowth develops into a new individual and breaks off.','The bud has the same genes as the parent, so it is a clone.','Yeast (a fungus), some sponges and corals also reproduce by budding.'],
+           zh:['出芽生殖：亲本身上长出的小突起发育成新个体，然后脱落。','芽体的基因与亲本相同，所以它是克隆。','酵母菌（一种真菌）、某些海绵和珊瑚也进行出芽生殖。']},
+    hint:o('A bud is like a branch that breaks off and lives on its own.','芽体就像一根树枝，掉下来后能独立生活。'),
+    mix:o('A bud is not a baby made by two parents. Only one parent is involved, so there is no new mix of genes.','芽体不是两个亲本生的“宝宝”。只有一个亲本参与，所以没有新的基因组合。')},
+  petal:{st:'flower', color:'#ff8fb1', name:o('Petal','花瓣'), job:o('Attracts pollinators','吸引传粉者'),
+    facts:{en:['Bright colors and scent attract bees, butterflies and birds.','Pollinators get nectar as food and carry pollen from flower to flower.','After fertilization the petals wither and fall off.'],
+           zh:['鲜艳的颜色和香味吸引蜜蜂、蝴蝶和鸟类。','传粉者以花蜜为食，同时把花粉从一朵花带到另一朵花。','受精后，花瓣会凋谢脱落。']},
+    hint:o('Petals are advertisements: “Food here!”','花瓣就像广告牌：“这里有好吃的！”')},
+  stamen:{st:'flower', color:'#ffc93c', name:o('Stamen (male part)','雄蕊（雄性部分）'), job:o('Makes pollen','产生花粉'),
+    facts:{en:['Stamen = anther (makes pollen) + filament (the stalk).','Pollen grains carry the plant’s male sex cells (sperm).','A flower usually has several stamens around the pistil.'],
+           zh:['雄蕊 = 花药（产生花粉）+ 花丝（细长的柄）。','花粉粒中含有植物的雄性生殖细胞（精子）。','一朵花通常有好几枚雄蕊，围绕在雌蕊周围。']},
+    hint:o('STAMEN has “MEN” in it: the male part.','雄蕊的“雄”= 男性部分。')},
+  pollen:{st:'flower', color:'#6aa8ff', name:o('Pollen grain','花粉粒'), job:o('Carries the sperm cells','携带精子'),
+    facts:{en:['Pollination: pollen moves from an anther to a stigma, by wind, water or animals like this bee.','Here the pollen comes from a different (blue) flower. Cross-pollination mixes genes from two parents.','Each pollen grain carries half of the father plant’s chromosomes.'],
+           zh:['传粉：花粉从花药转移到柱头上，可以靠风、水或像这只蜜蜂一样的动物。','这里的花粉来自另一朵（蓝色的）花。异花传粉让两个亲本的基因混合。','每粒花粉只携带父本植物一半的染色体。']},
+    hint:o('Pollination just delivers the pollen. Fertilization comes later.','传粉只是“送货”，受精发生在后面。'),
+    mix:o('Pollination and fertilization are different steps. Pollination moves pollen; fertilization is when sperm and egg join.','传粉和受精是两个不同的步骤：传粉是移动花粉，受精是精子和卵细胞结合。')},
+  pistil:{st:'flower', color:'#c77dff', name:o('Pistil (female part)','雌蕊（雌性部分）'), job:o('Stigma + style + ovary','柱头 + 花柱 + 子房'),
+    facts:{en:['The sticky stigma at the top catches pollen.','The style is the stalk that connects the stigma to the ovary.','The ovary holds the ovules. After fertilization the ovary becomes the fruit.'],
+           zh:['顶端黏黏的柱头能粘住花粉。','花柱是连接柱头和子房的细长部分。','子房里有胚珠。受精后，子房发育成果实。']},
+    hint:o('Ovary → fruit, ovule → seed.','子房 → 果实，胚珠 → 种子。')},
+  pollenTube:{st:'flower', color:'#ffe066', name:o('Pollen tube','花粉管'), job:o('A tunnel to the egg','通往卵细胞的“隧道”'),
+    facts:{en:['After landing on the stigma, the pollen grain grows a tube down through the style.','Sperm cells travel down the tube to an ovule.','This lets flowering plants reproduce sexually without needing water to swim in.'],
+           zh:['花粉落到柱头上后，会长出一根花粉管，穿过花柱向下生长。','精子沿着花粉管到达胚珠。','这样开花植物不需要水，也能完成有性生殖。']},
+    hint:o('The pollen grain builds its own slide down to the egg.','花粉粒给自己搭了一条通往卵细胞的“滑梯”。')},
+  ovule:{st:'flower', color:'#ff6fa6', name:o('Ovule & egg','胚珠与卵细胞'), job:o('Holds the female sex cell','含有雌性生殖细胞'),
+    facts:{en:['Each ovule contains an egg cell with half of the mother plant’s chromosomes.','Fertilization: a sperm nucleus fuses with the egg, making a zygote with a full set of chromosomes.','Enrichment: flowering plants send two sperm. One fertilizes the egg; the other helps make the seed’s food store.'],
+           zh:['每个胚珠里有一个卵细胞，只含母本植物一半的染色体。','受精：精子的细胞核与卵细胞融合，形成含有完整染色体的受精卵。','拓展：开花植物会送来两个精子，一个与卵细胞结合，另一个参与形成种子里储存的养料（双受精）。']},
+    hint:o('Sperm + egg = zygote → embryo → seed.','精子 + 卵细胞 = 受精卵 → 胚 → 种子。')},
+  seed:{st:'flower', color:'#b07d4f', name:o('Seed','种子'), job:o('A baby plant in a protective coat','包在种皮里的“植物宝宝”'),
+    facts:{en:['After fertilization the ovule develops into a seed, and the ovary into a fruit.','A seed holds an embryo (tiny plant) and stored food.','Its genes are a new mix from both parents: genetic variation.'],
+           zh:['受精后，胚珠发育成种子，子房发育成果实。','种子里有胚（小植物）和储存的养料。','它的基因是来自双亲的新组合，这就是遗传变异。']},
+    hint:o('Turn on “Gene colors”: blue pollen + pink egg → purple seed.','打开“基因颜色”：蓝色花粉 + 粉色卵细胞 → 紫色种子。'),
+    mix:o('Seeds are not clones of the parent plant. Each seed is a unique combination, like brothers and sisters.','种子不是母株的克隆。每粒种子都是独特的组合，就像兄弟姐妹一样。')}
+};
+const ORDER = ['fission','dnaCopy','daughter','hydra','bud','petal','stamen','pollen','pistil','pollenTube','ovule','seed'];
+const VIEWS = { all:o('All','全部'), fission:o('Fission','分裂'), budding:o('Budding','出芽'), flower:o('Flower','花') };
+
+/* ===== App state shared with the 3D module ===== */
+const App = window.REP = { sel:null, three:null, view:'all', p:0, phases:{} };
+App.select = (k, from3D) => { App.sel = k; renderInfo(); renderChips(); if (!from3D && App.three) App.three.focus(k); };
+App.setView = v => { App.view = v; renderView(); if (App.three) App.three.view(v); };
+App.phaseTick = () => { const box = Lab.$('#phaseNow'); if (box) box.innerHTML = phaseHTML(); };
+function phaseHTML(){
+  const st = App.sel ? PARTS[App.sel].st : null, list = st ? [st] : ['fission', 'budding', 'flower'];
+  return list.map(s => `<div><b style="color:${STN[s].color}">${Lab.L(STN[s].name)}:</b> ${Lab.L(PHASES[s][Math.max(0, phaseOf(s, App.p))].t)}</div>`).join('');
+}
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel;
+  if (!k){
+    box.innerHTML = `<span class="tag">${Lab.L({en:'Making offspring',zh:'繁殖后代'})}</span>
+      <h3>${Lab.L({en:'One parent or two?',zh:'一个亲本，还是两个？'})}</h3>
+      <p class="muted" style="margin:0">${Lab.L({en:'Three living things are reproducing at the same time. Drag the Time slider or press Play, and click any part to learn about it.',zh:'三种生物正在同时繁殖。拖动“时间”滑块或点击播放，再点击任意部分了解它。'})}</p>
+      <div class="now" id="phaseNow">${phaseHTML()}</div>
+      <div class="memory"><b>${Lab.L({en:'💡 Big idea',zh:'💡 核心概念'})}</b>${Lab.L({en:'Asexual: 1 parent → identical offspring (clones). Sexual: 2 parents → offspring with a new mix of genes (variation).',zh:'无性生殖：1 个亲本 → 相同的后代（克隆）。有性生殖：2 个亲本 → 基因重新组合的后代（变异）。'})}</div>
+      <div class="nav"><button id="startBtn">${Lab.L({en:'Start with bacteria ▶',zh:'从细菌开始 ▶'})}</button></div>`;
+    Lab.$('#startBtn').onclick = () => App.select('fission');
+    return;
+  }
+  const p = PARTS[k], i = ORDER.indexOf(k), S = STN[p.st];
+  box.innerHTML = `<span class="tag" style="color:${S.color};background:color-mix(in srgb,${S.color} 15%,transparent)">${Lab.L(S.type)} · ${Lab.L(S.name)}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>${window.REALFIG && REALFIG[k] ? LabPhotos.figure(REALFIG[k]) : ''}
+    <div class="now" id="phaseNow">${phaseHTML()}</div>
+    <div class="memory"><b>${Lab.L({en:'💡 Memory hint',zh:'💡 记忆小窍门'})}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${Lab.L({en:'⚠️ Common mix-up:',zh:'⚠️ 容易混淆：'})}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="pPrev">${Lab.L({en:'◀ Previous',zh:'◀ 上一个'})}</button><button id="pNext">${Lab.L({en:'Next ▶',zh:'下一个 ▶'})}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts), Lab.L(p.hint)].join('. '));
+  Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
+  Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
+}
+function renderChips(){
+  Lab.$('#chips').innerHTML = ORDER.map(k => `<button class="chip ${App.sel === k ? 'on' : ''}" data-k="${k}" style="border-left:4px solid ${STN[PARTS[k].st].color}"><i style="background:${PARTS[k].color};border:1px solid rgba(0,0,0,.15)"></i>${Lab.L(PARTS[k].name)}</button>`).join('');
+  Lab.$$('#chips .chip').forEach(c => c.onclick = () => App.select(c.dataset.k));
+}
+function renderView(){
+  Lab.$('#viewSeg').innerHTML = Object.keys(VIEWS).map(v => `<button data-v="${v}" class="${App.view === v ? 'on' : ''}">${Lab.L(VIEWS[v])}</button>`).join('');
+  Lab.$$('#viewSeg button').forEach(b => b.onclick = () => App.setView(b.dataset.v));
+}
+Lab.onLang(() => { renderInfo(); renderChips(); renderView(); });
+/* ===== Selective breeding game =====
+   Model: the trait is controlled by 10 genes (each with a "big" allele 1 and a "small" allele 0), plus a little environmental noise.
+   Each offspring gets one random allele per gene from each of the 2 chosen parents. */
+const SP = {
+  corn:{ icon:'🌽', name:o('🌽 Corn: bigger ears','🌽 玉米：穗子更大'), unit:'cm', base:4, k:1, f0:.15, goal:16, dir:1, max:26, trait:o('ear length','穗长'),
+    goalT:o('Goal: raise the average ear length from teosinte size (about 6 cm) to at least 16 cm. Tap the 2–4 best ears to be parents.','目标：把平均穗长从大刍草的大小（约 6 厘米）提高到至少 16 厘米。点选穗子最大的 2~4 株作为亲本。') },
+  dog:{ icon:'🐕', name:o('🐕 Dogs: smaller size','🐕 狗：体形更小'), unit:'kg', base:3, k:1.9, f0:.85, goal:10, dir:-1, max:45, trait:o('body mass','体重'),
+    goalT:o('Goal: breed wolf-sized dogs (about 35 kg) down to an average of 10 kg or less. Tap the 2–4 smallest dogs to be parents.','目标：把像狼一样大的狗（约 35 千克）培育到平均 10 千克或更轻。点选最小的 2~4 只作为亲本。') }
+};
+const NL = 10, NPOP = 16;
+const SB = { sp:'corn', gen:0, pop:[], sel:[], hist:[], prev:null, start:0, done:false, lastRandom:false };
+const rnd = () => Math.random();
+function mkInd(a){
+  const S = SP[SB.sp], s = a.reduce((x, y) => x + y, 0), noise = (rnd() + rnd() + rnd() - 1.5) * S.k * 1.1;
+  return { a, v:Math.max(S.base * .6, S.base + S.k * s + noise) };
+}
+const meanOf = pop => pop.reduce((x, p) => x + p.v, 0) / pop.length;
+function variety(){ let n = 0; for (let i = 0; i < NL; i++){ let ones = 0; for (const p of SB.pop) ones += p.a[2 * i] + p.a[2 * i + 1]; if (ones > 0 && ones < 2 * SB.pop.length) n++; } return n; }   // genes that still have both versions in the population
+function sbStart(sp){
+  if (sp) SB.sp = sp;
+  const S = SP[SB.sp];
+  SB.pop = Array.from({length:NPOP}, () => mkInd(Array.from({length:2 * NL}, () => rnd() < S.f0 ? 1 : 0)));
+  SB.gen = 0; SB.sel = []; SB.prev = null; SB.done = false; SB.start = meanOf(SB.pop); SB.hist = [SB.start];
+  Lab.$('#sbMsg').textContent = ''; Lab.$('#sbMsg').className = 'result';
+  sbRender();
+}
+const MUT = .02;   // chance that an allele mutates (flips) when passed on: new variation
+function childOf(A, B){ const a = [], f = x => rnd() < MUT ? 1 - x : x; for (let i = 0; i < NL; i++){ a.push(f(A.a[2 * i + (rnd() < .5 ? 1 : 0)]), f(B.a[2 * i + (rnd() < .5 ? 1 : 0)])); } return mkInd(a); }
+function pairFrom(pa){ const s = Lab.shuffle(pa); return [s[0], s[1]]; }
+function sbBreed(random){
+  let pa;
+  if (random){ const s = Lab.shuffle(SB.pop.map((_, i) => i)); pa = [SB.pop[s[0]], SB.pop[s[1]]]; }
+  else { if (SB.sel.length < 2){ msg(o('Choose at least 2 parents first (tap 2 to 4 individuals).','请先至少选择 2 个亲本（点击 2~4 个个体）。'), false); return; } pa = SB.sel.map(i => SB.pop[i]); }
+  const S = SP[SB.sp], before = meanOf(SB.pop);
+  SB.prev = SB.pop.map(p => p.v);
+  SB.pop = Array.from({length:NPOP}, () => childOf(...pairFrom(pa)));
+  SB.gen++; SB.sel = []; const m = meanOf(SB.pop); SB.hist.push(m);
+  const d = m - before, ds = (d >= 0 ? '+' : '') + d.toFixed(1) + ' ' + S.unit;
+  const reached = S.dir > 0 ? m >= S.goal : m <= S.goal;
+  if (reached && !SB.done){ SB.done = true; msg(Lab.lang === 'zh' ? `🎉 用了 ${SB.gen} 代就达到目标!平均${Lab.L(S.trait)}:${m.toFixed(1)} ${S.unit}。` : `🎉 Goal reached in ${SB.gen} generations! Average ${Lab.L(S.trait)}: ${m.toFixed(1)} ${S.unit}.`, true); }
+  else if (random) msg(Lab.lang === 'zh' ? `🎲 随机交配:平均值变化 ${ds}。没有人工挑选,性状就没有固定的方向。` : `🎲 Random mating: the average changed by ${ds}. Without choosing, the trait has no direction.`, null);
+  else msg(Lab.lang === 'zh' ? `第 ${SB.gen} 代:平均${Lab.L(S.trait)} ${m.toFixed(1)} ${S.unit}(${ds})。` : `Generation ${SB.gen}: average ${Lab.L(S.trait)} ${m.toFixed(1)} ${S.unit} (${ds}).`, d * S.dir > 0 ? true : null);
+  sbRender();
+}
+function msg(t, good){ const m = Lab.$('#sbMsg'); m.textContent = typeof t === 'string' ? t : Lab.L(t); m.className = 'result ' + (good === true ? 'good' : good === false ? 'bad' : ''); }
+function sbRender(){
+  const S = SP[SB.sp];
+  Lab.$('#spSeg').innerHTML = Object.keys(SP).map(k => `<button data-k="${k}" class="${SB.sp === k ? 'on' : ''}">${Lab.L(SP[k].name)}</button>`).join('');
+  Lab.$$('#spSeg button').forEach(b => b.onclick = () => sbStart(b.dataset.k));
+  Lab.$('#goalText').textContent = Lab.L(S.goalT);
+  const best = SB.pop.reduce((bi, p, i) => (p.v - SB.pop[bi].v) * S.dir > 0 ? i : bi, 0);
+  Lab.$('#pop').innerHTML = SB.pop.map((p, i) => {
+    const vis = SB.sp === 'corn' ? `<div class="ear" style="height:${10 + p.v / S.max * 64}px"></div>` : `<span class="dog" style="font-size:${12 + Math.sqrt(p.v / S.max) * 38}px">🐕</span>`;
+    const si = SB.sel.indexOf(i);
+    return `<button class="indiv ${si >= 0 ? 'sel' : ''} ${i === best ? 'best' : ''}" data-i="${i}" title="${p.v.toFixed(1)} ${S.unit}">${si >= 0 ? `<span class="pick">✔</span>` : ''}${vis}<span>${SB.sp === 'corn' ? p.v.toFixed(1) : Math.round(p.v)} ${S.unit}</span></button>`;
+  }).join('');
+  Lab.$$('#pop .indiv').forEach(b => b.onclick = () => {
+    const i = +b.dataset.i, k = SB.sel.indexOf(i);
+    if (k >= 0) SB.sel.splice(k, 1); else { SB.sel.push(i); if (SB.sel.length > 4) SB.sel.shift(); }
+    sbRender();
+  });
+  const m = meanOf(SB.pop);
+  Lab.$('#sbGen').textContent = SB.gen;
+  Lab.$('#sbAvg').textContent = m.toFixed(1) + ' ' + S.unit;
+  Lab.$('#sbVar').textContent = variety() + ' / ' + NL;
+  Lab.$('#sbPar').textContent = SB.sel.length + ' / 4';
+  Lab.$('#sbGoal').style.width = Math.max(0, Math.min(100, (m - SB.start) / (S.goal - SB.start) * 100)) + '%';
+  drawSB();
+}
+function drawSB(){
+  const cv = Lab.$('#sbCv'), r = cv.getBoundingClientRect(); if (!r.width) return;
+  const d = Math.min(devicePixelRatio || 1, 2); cv.width = r.width * d; cv.height = r.height * d;
+  const g = cv.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0);
+  const css = getComputedStyle(document.documentElement), c = n => css.getPropertyValue(n).trim();
+  const W = r.width, H = r.height, S = SP[SB.sp], brand = c('--brand'), ink2 = c('--ink-2'), line = c('--line'), acc = c('--accent');
+  g.clearRect(0, 0, W, H); g.font = '700 12px Nunito, "Microsoft YaHei", sans-serif'; g.textBaseline = 'middle';
+  /* histogram of this generation (bars) and last generation (outline) */
+  const L = 34, R = W - 10, T = 22, B = H * .56, nb = 13, bw = (R - L) / nb, step = S.max / nb;
+  const bin = vals => { const h = new Array(nb).fill(0); vals.forEach(v => h[Math.min(nb - 1, Math.floor(v / step))]++); return h; };
+  const cur = bin(SB.pop.map(p => p.v)), prev = SB.prev ? bin(SB.prev) : null, top = Math.max(6, ...cur, ...(prev || [0]));
+  g.fillStyle = ink2; g.textAlign = 'left'; g.fillText(Lab.L(o('This generation (bars) vs last (outline)','本代（实心）与上一代（轮廓）')), L, 9);
+  g.strokeStyle = line; g.beginPath(); g.moveTo(L, B); g.lineTo(R, B); g.stroke();
+  for (let i = 0; i < nb; i++){
+    const x = L + i * bw, h = (B - T) * cur[i] / top;
+    g.fillStyle = brand; g.globalAlpha = .85; g.fillRect(x + 2, B - h, bw - 4, h); g.globalAlpha = 1;
+    if (prev && prev[i]){ const hp = (B - T) * prev[i] / top; g.strokeStyle = ink2; g.setLineDash([3, 3]); g.strokeRect(x + 3, B - hp, bw - 6, hp); g.setLineDash([]); }
+  }
+  g.fillStyle = ink2; g.textAlign = 'center';
+  for (let v = 0; v <= S.max; v += S.max > 30 ? 10 : 5) g.fillText(v, L + v / S.max * (R - L), B + 11);
+  const gx = L + S.goal / S.max * (R - L);
+  g.strokeStyle = acc; g.lineWidth = 2; g.setLineDash([6, 4]); g.beginPath(); g.moveTo(gx, T - 4); g.lineTo(gx, B); g.stroke(); g.setLineDash([]); g.lineWidth = 1;
+  g.fillStyle = acc; g.fillText(Lab.L(o('goal','目标')), gx, T - 10 < 6 ? 30 : T + 2);
+  /* average per generation */
+  const T2 = B + 34, B2 = H - 18, n = Math.max(8, SB.hist.length);
+  g.fillStyle = ink2; g.textAlign = 'left'; g.fillText(Lab.L(o('Average ' , '每代平均')) + (Lab.lang === 'zh' ? Lab.L(S.trait) : Lab.L(S.trait)) + ' (' + S.unit + ')', L, T2 - 12);
+  g.strokeStyle = line; g.strokeRect(L, T2, R - L, B2 - T2);
+  const yOf = v => B2 - (B2 - T2) * v / S.max, xOf = i => L + (R - L) * i / (n - 1);
+  g.strokeStyle = acc; g.setLineDash([6, 4]); g.beginPath(); g.moveTo(L, yOf(S.goal)); g.lineTo(R, yOf(S.goal)); g.stroke(); g.setLineDash([]);
+  g.strokeStyle = brand; g.lineWidth = 2.5; g.beginPath(); SB.hist.forEach((v, i) => i ? g.lineTo(xOf(i), yOf(v)) : g.moveTo(xOf(i), yOf(v))); g.stroke(); g.lineWidth = 1;
+  SB.hist.forEach((v, i) => { g.beginPath(); g.arc(xOf(i), yOf(v), 3.5, 0, 7); g.fillStyle = brand; g.fill(); });
+  g.fillStyle = ink2; g.textAlign = 'right'; g.fillText(Lab.L(o('generation →','代数 →')), R - 4, B2 + 10);
+}
+Lab.$('#breedBtn').onclick = () => sbBreed(false);
+Lab.$('#randBtn').onclick = () => sbBreed(true);
+Lab.$('#sbReset').onclick = () => sbStart();
+new ResizeObserver(drawSB).observe(Lab.$('#sbCv').parentElement);
+addEventListener('labtheme', drawSB); matchMedia('(prefers-color-scheme: dark)').addEventListener('change', drawSB);
+Lab.onLang(() => { if (!SB.pop.length) sbStart(); else sbRender(); });
+/* ===== Quiz ===== */
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('How many parents are involved in asexual reproduction?','无性生殖有几个亲本参与？'), options:[o('One','一个'),o('Two','两个'),o('Three','三个'),o('None','没有')], answer:0, explain:o('One parent produces offspring by itself, with no gametes joining.','一个亲本自己就能产生后代，不需要配子结合。')},
+  {q:o('Offspring from asexual reproduction are…','无性生殖产生的后代……'), options:[o('Genetically identical to the parent','与亲本的遗传信息完全相同'),o('A mix of two parents','是两个亲本的混合'),o('Always bigger than the parent','总是比亲本大'),o('Unable to reproduce','不能繁殖')], answer:0, explain:o('They are clones: same DNA as the single parent (except for rare mutations).','它们是克隆，与唯一的亲本 DNA 相同（偶尔的突变除外）。')},
+  {q:o('Bacteria usually reproduce by…','细菌通常通过什么方式繁殖？'), options:[o('Binary fission','二分裂'),o('Pollination','传粉'),o('Fertilization','受精'),o('Seeds','种子')], answer:0, explain:o('The cell copies its DNA and splits into two identical cells.','细胞复制 DNA，然后分裂成两个相同的细胞。')},
+  {q:o('A hydra grows a small new hydra on its side that later breaks off. This is…','水螅体侧长出一只小水螅，后来脱落了。这是……'), options:[o('Budding','出芽生殖'),o('Fertilization','受精'),o('Pollination','传粉'),o('Selective breeding','选择育种')], answer:0, explain:o('Budding is a type of asexual reproduction: the bud is a clone of the parent.','出芽生殖是一种无性生殖，芽体是亲本的克隆。')},
+  {q:o('Which is an example of SEXUAL reproduction?','下面哪一项属于有性生殖？'), options:[o('A sperm fertilizes an egg','精子与卵细胞结合'),o('A potato sprouts from an “eye”','马铃薯从芽眼长出新株'),o('A bacterium splits in two','细菌一分为二'),o('Yeast forms a bud','酵母菌长出芽体')], answer:0, explain:o('Sexual reproduction joins gametes from two parents.','有性生殖是两个亲本的配子结合。')},
+  {q:o('What is the main advantage of sexual reproduction?','有性生殖最主要的优点是什么？'), options:[o('Genetic variation helps a species survive changes','遗传变异帮助物种适应环境变化'),o('It is faster','速度更快'),o('No mate is needed','不需要配偶'),o('Offspring are identical','后代完全相同')], answer:0, explain:o('Different offspring mean some may survive a new disease or a changing environment.','后代各不相同，其中一些可能在新疾病或环境变化中存活下来。')},
+  {q:o('What is an advantage of asexual reproduction?','无性生殖的一个优点是什么？'), options:[o('It is fast and needs no mate','速度快，不需要配偶'),o('It creates lots of variation','产生大量变异'),o('It always makes stronger offspring','总能产生更强壮的后代'),o('It needs two parents','需要两个亲本')], answer:0, explain:o('One organism can quickly produce many offspring, but they all share the same weaknesses.','一个个体就能迅速产生许多后代，但它们的弱点也都一样。')},
+  {q:o('Pollination is…','传粉是指……'), options:[o('Moving pollen from an anther to a stigma','花粉从花药转移到柱头'),o('A sperm joining an egg','精子与卵细胞结合'),o('A seed sprouting','种子萌发'),o('Petals falling off','花瓣脱落')], answer:0, explain:o('Pollination delivers pollen. Fertilization happens later, inside the ovule.','传粉是“送花粉”，受精之后才在胚珠里发生。')},
+  {q:o('After fertilization, an ovule develops into a…','受精后，胚珠发育成……'), options:[o('Seed','种子'),o('Fruit','果实'),o('Petal','花瓣'),o('Pollen grain','花粉粒')], answer:0, explain:o('Ovule → seed, and ovary → fruit.','胚珠 → 种子，子房 → 果实。')},
+  {q:o('Selective breeding means…','选择育种是指……'), options:[o('People choose parents with desired traits','人们挑选具有理想性状的个体作为亲本'),o('Nature chooses who survives','由自然决定谁能存活'),o('Organisms choose their own mates randomly','生物随机选择配偶'),o('Cells split in two','细胞一分为二')], answer:0, explain:o('Also called artificial selection: humans decide which individuals reproduce.','也叫人工选择：由人决定哪些个体繁殖后代。')},
+  {q:o('Modern corn was bred from…','现代玉米是由什么培育而来的？'), options:[o('Teosinte, a wild grass','大刍草，一种野生禾草'),o('Wheat','小麦'),o('Sunflowers','向日葵'),o('Bacteria','细菌')], answer:0, explain:o('Farmers in Mexico selected teosinte with bigger ears over thousands of years.','几千年间，墨西哥的农民不断挑选穗子更大的大刍草。')},
+  {q:o('Which is an example of genetic engineering?','下面哪一项是基因工程的例子？'), options:[o('Putting a human insulin gene into bacteria','把人的胰岛素基因放进细菌'),o('Choosing the fastest horses to breed','挑选跑得最快的马来繁殖'),o('A strawberry plant sending out runners','草莓长出匍匐茎'),o('A bee pollinating a flower','蜜蜂给花传粉')], answer:0, explain:o('Genetic engineering moves a gene directly into an organism’s DNA. Choosing horses is selective breeding.','基因工程是把基因直接放进生物的 DNA 中；挑选马匹属于选择育种。')}
+], { count:10 });
+
+/* ===== Sort game ===== */
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'a',en:'Asexual (1 parent)',zh:'无性生殖（1 个亲本）'},{id:'s',en:'Sexual (2 parents)',zh:'有性生殖（2 个亲本）'}],
+  items:[
+    {en:'A bacterium splits in two',zh:'细菌一分为二',bin:'a'},{en:'Yeast forms a bud',zh:'酵母菌长出芽体',bin:'a'},{en:'A potato sprouts from an “eye”',zh:'马铃薯从芽眼长出新株',bin:'a'},
+    {en:'Strawberry runners root into new plants',zh:'草莓的匍匐茎生根长成新植株',bin:'a'},{en:'Bread mold releases spores',zh:'面包霉释放孢子',bin:'a'},{en:'A planarian piece regrows into a new worm',zh:'涡虫的一段再生成新个体',bin:'a'},
+    {en:'Pollen fertilizes an ovule',zh:'花粉中的精子使胚珠受精',bin:'s'},{en:'Frog eggs are fertilized by sperm',zh:'青蛙的卵与精子结合',bin:'s'},{en:'A puppy has traits from both parents',zh:'小狗具有父母双方的性状',bin:'s'},
+    {en:'Sea turtles hatch from fertilized eggs',zh:'海龟从受精卵中孵出',bin:'s'},{en:'A human baby develops from a zygote',zh:'人类婴儿由受精卵发育而来',bin:'s'}
+  ]
+});
+</script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const App = window.REP, V = THREE.Vector3, C = c => new THREE.Color(c), PI = Math.PI;
+const ctx = Lab3D.stage('#stage', { THREE, OrbitControls, camera:[0, 5.2, 18.5], target:[0, 2.5, 0], minDistance:2.5, maxDistance:50 });
+const { scene } = ctx;
+const sm = x => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
+const ALL = [], GENE = [];
+function mat(key, color, op = 1, extra = {}){ const m = ctx.mat(color, op, { transparent:true, ...extra }); m.userData = { key, op, e0:m.emissive.clone(), glow:0 }; ALL.push(m); return m; }
+const geneCol = (m, g) => { GENE.push({ m, n:m.color.clone(), g:C(g) }); return m; };
+const SX = { fission:-7.1, budding:0, flower:7.1 };
+let genes = false, playing = true;
+
+/* ---------- pedestals + station labels ---------- */
+for (const s in SX){
+  const ped = new THREE.Mesh(new THREE.CylinderGeometry(2.7, 2.9, .3, 56), new THREE.MeshPhysicalMaterial({ color:STN[s].color, transparent:true, opacity:.2, roughness:.35, clearcoat:.7 }));
+  ped.position.set(SX[s], .15, 0); scene.add(ped);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(2.75, .05, 8, 72), new THREE.MeshBasicMaterial({ color:STN[s].color, transparent:true, opacity:.6 }));
+  rim.rotation.x = PI / 2; rim.position.set(SX[s], .31, 0); scene.add(rim);
+  ctx.label(STN[s].name, new V(SX[s], .1, 3.05), { cls:'head' });
+  ctx.label(STN[s].type, new V(SX[s], -.5, 3.05), { cls:'sub' });
+}
+
+/* ---------- 1. binary fission: a deformable capsule that stretches, pinches and splits ---------- */
+const FS = new THREE.Group(); FS.position.set(SX.fission, 2.4, 0); scene.add(FS);
+const cellGeo = new THREE.CapsuleGeometry(.62, 1.5, 14, 36), cellBase = cellGeo.attributes.position.array.slice();
+cellGeo.boundingSphere = new THREE.Sphere(new V(), 3.2);
+const cell = new THREE.Mesh(cellGeo, geneCol(mat('fission', '#7fc8f8', .5, { roughness:.12, clearcoat:1, depthWrite:false }), '#ffb067'));
+cell.rotation.z = PI / 2; FS.add(cell);
+const gRibo = new THREE.SphereGeometry(.05, 8, 6), riboMat = mat('fission', '#2f63a8');
+const ribo = new THREE.InstancedMesh(gRibo, riboMat, 46), riboBase = [], dm = new THREE.Matrix4();
+for (let i = 0; i < 46; i++){ const a = Math.random() * PI * 2, r = Math.sqrt(Math.random()) * .44; riboBase.push(new V(Math.cos(a) * r, (Math.random() * 2 - 1) * 1.15, Math.sin(a) * r)); }
+cell.add(ribo);
+const flagCurve = new THREE.CatmullRomCurve3(Array.from({length:12}, (_, i) => new V(Math.sin(i * 1.2) * .16, -i * .2, Math.cos(i * 1.2) * .16)));
+const flag = new THREE.Mesh(new THREE.TubeGeometry(flagCurve, 60, .035, 6), mat('fission', '#5a8fc8')); cell.add(flag);
+ctx.pickable(cell, 'fission');
+const gRing = new THREE.TorusGeometry(.3, .055, 10, 44), dnaMat = geneCol(mat('dnaCopy', '#ff9f43', 1, { emissive:C('#5a2a00') }), '#ff7b1c');
+const dnaA = new THREE.Mesh(gRing, dnaMat), dnaB = new THREE.Mesh(gRing, dnaMat); cell.add(dnaA, dnaB); ctx.pickable(dnaA, 'dnaCopy'); ctx.pickable(dnaB, 'dnaCopy');
+const dauMat = geneCol(mat('daughter', '#86d39b', .5, { roughness:.12, clearcoat:1, depthWrite:false }), '#ffb067');
+const D = [-1, 1].map(side => {
+  const g = new THREE.Group(); g.visible = false; FS.add(g);
+  const c = new THREE.Mesh(new THREE.CapsuleGeometry(.62, 1.5, 12, 32), dauMat); c.rotation.z = PI / 2; g.add(c);
+  const rb = new THREE.InstancedMesh(gRibo, mat('daughter', '#2f7a4a'), 16);
+  for (let i = 0; i < 16; i++){ const a = Math.random() * PI * 2, r = Math.sqrt(Math.random()) * .42; dm.makeTranslation((Math.random() * 2 - 1) * 1.05, Math.cos(a) * r, Math.sin(a) * r); rb.setMatrixAt(i, dm); }
+  g.add(rb); ctx.pickable(g, 'daughter');
+  const ring = new THREE.Mesh(gRing, dnaMat); g.add(ring); ctx.pickable(ring, 'dnaCopy');
+  return { g, side, ring };
+});
+function applyFission(p){
+  const stretch = 1 + .8 * sm(p / .38), pinch = sm((p - .33) / .37), split = p >= .7;
+  cell.visible = !split; D.forEach(d => d.visible = split);
+  if (!split){
+    const arr = cellGeo.attributes.position.array, w = y => 1 - pinch * .96 * Math.exp(-(y * y) / .3);
+    for (let i = 0; i < arr.length; i += 3){ const y = cellBase[i + 1] * stretch, k = w(y); arr[i] = cellBase[i] * k; arr[i + 1] = y; arr[i + 2] = cellBase[i + 2] * k; }
+    cellGeo.attributes.position.needsUpdate = true; cellGeo.computeVertexNormals();
+    riboBase.forEach((b, i) => { const y = b.y * stretch, k = w(y); dm.makeTranslation(b.x * k, y, b.z * k); ribo.setMatrixAt(i, dm); }); ribo.instanceMatrix.needsUpdate = true;
+    flag.position.y = -1.3 * stretch;
+    const c = 1.2 * sm((p - .08) / .32); dnaA.position.y = -c; dnaB.position.y = c;
+    dnaB.visible = p > .03; dnaB.scale.setScalar(Math.max(.01, sm((p - .03) / .2)));
+  } else {
+    const e = sm((p - .7) / .3), dc = 1.23 + 1.05 * e;
+    D.forEach(d => { d.g.position.x = d.side * dc; d.g.scale.set(.9 + .1 * e, .95 + .05 * e, .95 + .05 * e); });
+  }
+}
+
+/* ---------- 2. hydra budding ---------- */
+const BS = new THREE.Group(); BS.position.x = SX.budding; scene.add(BS);
+const gHydra = new THREE.LatheGeometry([[0, 0], [.34, .02], [.42, .14], [.37, .5], [.33, 1.4], [.36, 2.2], [.44, 2.7], [.4, 2.95], [.22, 3.12], [.08, 3.22], [0, 3.24]].map(([r, y]) => new THREE.Vector2(r, y)), 40);
+const tentCurve = new THREE.CatmullRomCurve3([new V(0, 0, 0), new V(.25, .35, 0), new V(.6, .55, 0), new V(1, .45, 0), new V(1.35, .15, 0), new V(1.55, -.22, 0)]);
+const gTent = new THREE.TubeGeometry(tentCurve, 30, .045, 8);
+function makeHydra(key, col){
+  const g = new THREE.Group();
+  const bm = geneCol(mat(key, col, .85, { roughness:.35, clearcoat:.6, sheen:.6, sheenColor:C('#ffffff') }), '#2ec4b6'), tm = geneCol(mat(key, col), '#25a99d');
+  g.add(new THREE.Mesh(gHydra, bm));
+  const piv = [];
+  for (let i = 0; i < 6; i++){ const p = new THREE.Group(); p.position.y = 3.02; p.rotation.y = i / 6 * PI * 2; const t = new THREE.Mesh(gTent, tm); t.position.x = .28; p.add(t); g.add(p); piv.push(p); }
+  ctx.pickable(g, key);
+  return { g, piv };
+}
+const HY = makeHydra('hydra', '#9ad9a8'); HY.g.position.y = .3; BS.add(HY.g);
+const BUD = makeHydra('bud', '#d5e58a'); BS.add(BUD.g);
+const ATT = new V(.33, 1.72, 0), GROUND = new V(1.85, .3, 1.05);
+function applyBud(p){
+  const a = sm(p / .4), b = sm((p - .4) / .35), c = sm((p - .75) / .25), S = .5 * (.55 * a + .45 * b);
+  BUD.g.visible = a > .01;
+  BUD.g.scale.set(S, S * (.35 + .65 * b), S);
+  BUD.piv.forEach(pv => pv.scale.setScalar(Math.max(.001, b)));
+  BUD.g.position.lerpVectors(ATT, GROUND, c); BUD.g.position.y += Math.sin(PI * c) * .45;
+  BUD.g.rotation.z = -1.1 * (1 - c);
+}
+const bubbles = Array.from({length:18}, (_, i) => {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(.05 + Math.random() * .05, 10, 8), new THREE.MeshPhysicalMaterial({ color:'#bfe9ff', transparent:true, opacity:.4, roughness:.05, clearcoat:1 }));
+  const a = Math.random() * PI * 2, r = 1.5 + Math.random() * 1; m.position.set(Math.cos(a) * r, 0, Math.sin(a) * r); m.userData.ph = Math.random(); BS.add(m); return m;
+});
+
+/* ---------- 3. flower fertilization ---------- */
+const FL = new THREE.Group(); FL.position.set(SX.flower, .3, 0); scene.add(FL);
+const UP = new V(0, 1, 0);
+function rod(geo, m, a, b){ const me = new THREE.Mesh(geo, m), d = b.clone().sub(a); me.position.copy(a).addScaledVector(d, .5); me.scale.set(1, d.length(), 1); me.quaternion.setFromUnitVectors(UP, d.normalize()); return me; }
+const stemMat = mat('stemF', '#3f9c4a');
+FL.add(rod(new THREE.CylinderGeometry(.07, .09, 1, 10), stemMat, new V(0, 0, 0), new V(0, 2.1, 0)));
+for (const s of [-1, 1]){ const lf = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 10), mat('stemF', '#58bb62', 1, { side:THREE.DoubleSide })); lf.scale.set(.55, .05, .22); lf.position.set(s * .5, .9 + (s > 0 ? .3 : 0), 0); lf.rotation.z = s * .4; FL.add(lf); }
+const rec = new THREE.Mesh(new THREE.SphereGeometry(.24, 16, 12), stemMat); rec.position.y = 2.1; FL.add(rec);
+for (let i = 0; i < 5; i++){ const pv = new THREE.Group(); pv.position.y = 2.15; pv.rotation.y = i / 5 * PI * 2 + .3; const se = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), stemMat); se.scale.set(.4, .04, .16); se.position.x = .35; se.rotation.z = -.5; pv.add(se); FL.add(pv); }
+const petalMat = mat('petal', '#ff8fb1', .6, { side:THREE.DoubleSide, sheen:1, sheenColor:C('#ffffff'), depthWrite:false });
+const petals = [];
+for (let i = 0; i < 5; i++){ const pv = new THREE.Group(); pv.position.y = 2.28; pv.rotation.y = i / 5 * PI * 2; const pe = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 12), petalMat); pe.scale.set(.78, .05, .44); pe.position.x = .72; pv.add(pe); FL.add(pv); petals.push(pe); ctx.pickable(pe, 'petal'); }
+const ovary = new THREE.Mesh(new THREE.SphereGeometry(.4, 24, 18), mat('pistil', '#c77dff', .28, { depthWrite:false })); ovary.scale.set(1, 1.15, 1); ovary.position.y = 2.55; FL.add(ovary);
+const style = new THREE.Mesh(new THREE.CylinderGeometry(.065, .08, 1.05, 14), mat('pistil', '#d6a6ff', .38, { depthWrite:false })); style.position.y = 3.42; FL.add(style);
+const stigma = new THREE.Mesh(new THREE.SphereGeometry(.17, 18, 12), mat('pistil', '#a35ee8')); stigma.scale.set(1, .55, 1); stigma.position.y = 3.98; FL.add(stigma);
+[ovary, style, stigma].forEach(m => ctx.pickable(m, 'pistil'));
+const OVP = [new V(-.13, 2.46, .12), new V(.15, 2.52, .07), new V(0, 2.66, -.13)], ovules = OVP.map((p, i) => {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(.09, 16, 12), mat('ovule', '#ffb3cf', 1, { clearcoat:1 })); m.position.copy(p); FL.add(m); ctx.pickable(m, 'ovule');
+  if (i) geneCol(m.material, '#ff4f9a'); return m;
+});
+const gFil = new THREE.CylinderGeometry(.018, .022, 1, 6), filMat = mat('stamen', '#f3e7b0'), antMat = mat('stamen', '#ffc93c', 1, { clearcoat:.2, roughness:.8 });
+for (let i = 0; i < 5; i++){
+  const a = i / 5 * PI * 2 + .63, end = new V(Math.cos(a) * .58, 3.4, Math.sin(a) * .58);
+  const f = rod(gFil, filMat, new V(Math.cos(a) * .12, 2.4, Math.sin(a) * .12), end); FL.add(f); ctx.pickable(f, 'stamen');
+  const an = new THREE.Mesh(new THREE.CapsuleGeometry(.05, .14, 4, 10), antMat); an.position.copy(end); an.rotation.set(0, -a, PI / 2); FL.add(an); ctx.pickable(an, 'stamen');
+}
+const tubeCurve = new THREE.CatmullRomCurve3([new V(0, 4.02, 0), new V(0, 3.6, 0), new V(.01, 3.0, 0), new V(-.04, 2.82, .04), new V(-.11, 2.58, .1), new V(-.13, 2.5, .12)]);
+const TS = 80, tubeGeo = new THREE.TubeGeometry(tubeCurve, TS, .03, 8);
+const tube = new THREE.Mesh(tubeGeo, mat('pollenTube', '#ffe066', 1, { emissive:C('#8a6d00') })); FL.add(tube); ctx.pickable(tube, 'pollenTube');
+const sperm = new THREE.Mesh(new THREE.SphereGeometry(.05, 12, 10), mat('pollenTube', '#ffffff', 1, { emissive:C('#ffe9a0') })); FL.add(sperm); ctx.pickable(sperm, 'pollenTube');
+const pollen = new THREE.Mesh(new THREE.IcosahedronGeometry(.1, 1), geneCol(mat('pollen', '#8fb8ff', 1, { flatShading:true, clearcoat:.2 }), '#2f6dff')); FL.add(pollen); ctx.pickable(pollen, 'pollen');
+/* donor flower (the blue "father" plant) */
+const DON = new V(2.1, 0, -1.7), donor = new THREE.Group(); donor.position.copy(DON); FL.add(donor);
+donor.add(rod(new THREE.CylinderGeometry(.04, .05, 1, 8), stemMat, new V(0, 0, 0), new V(0, 1.55, 0)));
+const donMat = geneCol(mat('pollen', '#7aa2ff', .9, { side:THREE.DoubleSide }), '#2f6dff');
+for (let i = 0; i < 5; i++){ const pv = new THREE.Group(); pv.position.y = 1.6; pv.rotation.y = i / 5 * PI * 2; const pe = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), donMat); pe.scale.set(.36, .04, .2); pe.position.x = .33; pe.rotation.z = .4; pv.add(pe); donor.add(pv); }
+const dc = new THREE.Mesh(new THREE.SphereGeometry(.1, 12, 10), antMat); dc.position.y = 1.65; donor.add(dc);
+ctx.pickable(donor, 'pollen');
+/* bee */
+const bee = new THREE.Group(); FL.add(bee);
+const beeBody = new THREE.Mesh(new THREE.SphereGeometry(.2, 18, 14), mat('pollen', '#ffcf33')); beeBody.scale.set(1.5, 1, 1); bee.add(beeBody);
+const black = mat('pollen', '#2a2320');
+for (const x of [-.08, .1]){ const s = new THREE.Mesh(new THREE.TorusGeometry(.19, .045, 8, 24), black); s.rotation.y = PI / 2; s.position.x = x; s.scale.set(1, 1, 1); bee.add(s); }
+const head = new THREE.Mesh(new THREE.SphereGeometry(.13, 14, 10), black); head.position.x = .34; bee.add(head);
+const wingMat = mat('pollen', '#ffffff', .55, { depthWrite:false }), wings = [-1, 1].map(s => { const pv = new THREE.Group(); pv.position.set(0, .14, s * .06); const w = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), wingMat); w.scale.set(.2, .02, .13); w.position.z = s * .14; pv.add(w); bee.add(pv); return pv; });
+ctx.pickable(bee, 'pollen');
+const B0 = new V(DON.x, 1.95, DON.z), B1 = new V(0, 4.3, 0), B2 = new V(-3, 5.6, 1.4), STG = new V(0, 4.09, 0);
+const geneLabels = [
+  ctx.label({ en:'Identical clones', zh:'完全相同的克隆' }, new V(SX.fission, 4.1, 0)),
+  ctx.label({ en:'Bud = clone of parent', zh:'芽体 = 亲本的克隆' }, new V(SX.budding + 1.9, 2.4, 1.1)),
+  ctx.label({ en:'Seed = new mix of 2 parents', zh:'种子 = 两个亲本的新组合' }, new V(SX.flower, 1.6, 1.2))
+];
+geneLabels.forEach(L => L.visible = false);
+const ov0 = ovules[0], OVN = C('#ffb3cf'), OVG = C('#ff4f9a'), SEEDN = C('#b07d4f'), SEEDG = C('#8e4fd6'), tmpC = new THREE.Color();
+function applyFlower(p){
+  const u = sm(p / .22), v = sm((p - .22) / .12);
+  bee.visible = p < .34;
+  if (p < .22){ bee.position.lerpVectors(B0, B1, u); bee.position.y += Math.sin(PI * u) * 1.3; }
+  else bee.position.lerpVectors(B1, B2, v);
+  const dir = p < .22 ? B1.clone().sub(B0) : B2.clone().sub(B1); bee.rotation.y = Math.atan2(-dir.z, dir.x);
+  if (p < .22) pollen.position.copy(bee.position).add(new V(0, -.22, 0)); else pollen.position.copy(STG);
+  pollen.scale.setScalar(1 - .35 * sm((p - .6) / .2));
+  const fr = sm((p - .3) / .3); tube.visible = fr > .001; tubeGeo.setDrawRange(0, Math.floor(fr * TS) * 8 * 6);
+  sperm.visible = p > .6 && p < .8; if (sperm.visible) sperm.position.copy(tubeCurve.getPointAt(Math.min(1, (p - .6) / .17)));
+  ov0.material.userData.glow = Math.max(0, 1 - Math.abs(p - .82) / .05) * .9;
+  const s = sm((p - .84) / .16), key = s > .05 ? 'seed' : 'ovule';
+  ov0.scale.setScalar(1 + 1.3 * s); ov0.material.userData.key = key; ov0.userData.pickKey = key;
+  ovary.scale.set(1 + .25 * s, 1.15 + .2 * s, 1 + .25 * s);
+  const w = sm((p - .86) / .14);
+  petals.forEach(pe => { pe.rotation.z = .5 - 1.3 * w; pe.position.y = -.2 * w; });
+  petalMat.userData.op = .6 * (1 - .75 * w);
+}
+function seedColor(){ const s = sm((App.p - .84) / .16); tmpC.copy(genes ? OVG : OVN).lerp(genes ? SEEDG : SEEDN, s); return tmpC; }
+
+/* ---------- apply time ---------- */
+const st = { p:0 }, tgt = { p:0 }; let spd = 2.5, lastP = -1, phaseKey = '';
+function applyAll(p){ applyFission(p); applyBud(p); applyFlower(p); App.p = p; }
+
+/* ---------- views / focus ---------- */
+const POSE = { fission:[[SX.fission, 4.3, 8.6], [SX.fission, 2.3, 0]], budding:[[0, 4.3, 9.2], [0, 2, 0]], flower:[[SX.flower, 4.7, 8.4], [SX.flower, 2.7, 0]] };
+function view(v){ if (v === 'all') ctx.home(); else ctx.flyToPose(...POSE[v]); }
+function focus(k){
+  if (!k) return;
+  const s = PARTS[k].st; App.view = s; renderView();
+  if (['pistil', 'pollenTube', 'ovule', 'seed', 'stamen'].includes(k)) ctx.flyToPose([SX.flower + .8, 4.1, 5], [SX.flower, 3.05, 0]);
+  else ctx.flyToPose(...POSE[s]);
+}
+App.three = { view, focus };
+ctx.hoverText(k => PARTS[k] ? Lab.L(PARTS[k].name) : '');
+ctx.onPick(k => { if (k && k !== App.sel) App.select(k, false); });
+
+/* ---------- controls ---------- */
+const playBtn = Lab.$('#playBtn'), timeEl = Lab.$('#time'), geneBtn = Lab.$('#geneBtn');
+function setPlay(on){ playing = on; playBtn.classList.toggle('on', on); playBtn.textContent = Lab.L(on ? { en:'⏸ Pause', zh:'⏸ 暂停' } : { en:'▶ Play', zh:'▶ 播放' }); }
+function setGenes(on){ genes = on; geneBtn.classList.toggle('on', on); geneLabels.forEach(L => L.visible = on); }
+Lab.onLang(() => setPlay(playing));
+playBtn.onclick = () => { story.stop(); if (!playing && st.p >= 1) st.p = tgt.p = 0; setPlay(!playing); };
+geneBtn.onclick = () => setGenes(!genes);
+timeEl.oninput = () => { story.stop(); setPlay(false); spd = 2.5; tgt.p = timeEl.value / 100; };
+Lab.$('#resetBtn').onclick = () => { story.stop(); setGenes(false); st.p = tgt.p = 0; setPlay(true); App.select(null); App.setView('all'); };
+
+/* ---------- story ---------- */
+const STEPS = [
+  {en:'1 · Binary fission: the bacterium copies its single loop of DNA and grows longer.', zh:'1 · 二分裂：细菌复制它唯一的环状 DNA，同时伸长。'},
+  {en:'2 · It pinches in two. Result: 2 identical daughter cells (clones). Only 1 parent, no sex cells.', zh:'2 · 它从中间缢裂成两半，得到 2 个完全相同的子细胞（克隆）。只有 1 个亲本，不需要生殖细胞。'},
+  {en:'3 · Budding: the hydra grows a bud that develops tentacles and breaks off as an identical little hydra.', zh:'3 · 出芽生殖：水螅长出芽体，芽体长出触手后脱落，成为一只相同的小水螅。'},
+  {en:'4 · Sexual reproduction: a bee carries pollen from a blue flower to the stigma of the pink flower (pollination).', zh:'4 · 有性生殖：蜜蜂把蓝色花朵的花粉带到粉色花朵的柱头上（传粉）。'},
+  {en:'5 · The pollen grows a tube down the style. A sperm cell travels through it to the egg inside an ovule.', zh:'5 · 花粉沿花柱长出花粉管，精子通过花粉管到达胚珠里的卵细胞。'},
+  {en:'6 · Fertilization: sperm + egg → zygote. The ovule becomes a seed with genes from BOTH parents: variation!', zh:'6 · 受精：精子 + 卵细胞 → 受精卵。胚珠发育成种子，它的基因来自双亲：产生了变异！'}
+];
+const story = Lab3D.story('#stage', STEPS, i => {
+  setPlay(false); spd = .22;
+  const go = (v, from, to, sel) => { App.view = v; renderView(); view(v); if (from != null) st.p = from; tgt.p = to; App.select(sel, true); };
+  if (i === 0){ setGenes(false); go('fission', 0, .34, 'dnaCopy'); }
+  if (i === 1) go('fission', .34, 1, 'daughter');
+  if (i === 2) go('budding', 0, 1, 'bud');
+  if (i === 3) go('flower', 0, .3, 'pollen');
+  if (i === 4) go('flower', .3, .8, 'pollenTube');
+  if (i === 5){ setGenes(true); go('flower', .8, 1, 'seed'); }
+}, () => { spd = 2.5; App.select(null, true); App.setView('all'); });
+Lab.$('#storyBtn').onclick = () => story.start();
+
+/* ---------- per frame ---------- */
+let hold = 0;
+ctx.onFrame((dt, t) => {
+  const zw = Math.min(1, ctx.camera.aspect / 1.5); if (Math.abs(ctx.camera.zoom - zw) > .005){ ctx.camera.zoom = zw; ctx.camera.updateProjectionMatrix(); }
+  if (playing){
+    if (st.p >= 1){ hold += dt; if (hold > 1.8){ hold = 0; st.p = tgt.p = 0; } }
+    else { st.p = tgt.p = Math.min(1, st.p + dt * .075); }
+  } else { const d = tgt.p - st.p; if (Math.abs(d) > 1e-4) st.p += Math.sign(d) * Math.min(Math.abs(d), dt * spd); }
+  if (playing || story.active) timeEl.value = Math.round(st.p * 100);
+  if (Math.abs(st.p - lastP) > 1e-5){ applyAll(st.p); lastP = st.p; }
+  const pk = ['fission', 'budding', 'flower'].map(s => phaseOf(s, st.p)).join();
+  if (pk !== phaseKey){ phaseKey = pk; App.phaseTick(); }
+  /* idle animation */
+  flag.rotation.y = t * 6; dnaA.rotation.z = t * .6; dnaB.rotation.z = -t * .6; D.forEach(d => d.ring.rotation.z = t * .6);
+  FS.position.y = 2.4 + Math.sin(t * 1.1) * .06; FS.rotation.x = Math.sin(t * .5) * .08;
+  [HY, BUD].forEach((h, j) => h.piv.forEach((pv, i) => { pv.children[0].rotation.z = Math.sin(t * 1.6 + i + j) * .14; }));
+  HY.g.rotation.z = Math.sin(t * .7) * .025;
+  bubbles.forEach(b => { const u = (t * .22 + b.userData.ph) % 1; b.position.y = .4 + u * 4.4; b.material.opacity = .45 * Math.sin(PI * u); });
+  wings.forEach((w, i) => w.rotation.x = (i ? 1 : -1) * Math.sin(t * 40) * .5);
+  if (bee.visible && st.p < .22) bee.position.y += Math.sin(t * 9) * .003;
+  /* colors + highlight */
+  for (const G of GENE) G.m.color.lerp(genes ? G.g : G.n, Math.min(1, dt * 4));
+  ov0.material.color.lerp(seedColor(), Math.min(1, dt * 6));
+  const sel = App.sel;
+  for (const m of ALL){
+    const on = sel && m.userData.key === sel, dim = sel && !on;
+    m.emissive.copy(m.color).multiplyScalar((on ? .3 + .15 * Math.sin(t * 4) : 0) + m.userData.glow).add(m.userData.e0);
+    m.opacity += ((dim ? .18 : m.userData.op) - m.opacity) * Math.min(1, dt * 8);
+  }
+});
+applyAll(0); renderInfo(); renderChips(); renderView();
+</script>
+</body>
+</html>

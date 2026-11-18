@@ -1,0 +1,664 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Photosynthesis & Respiration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/photos.js"></script>
+<script src="../shared/lab3d.js"></script>
+<style>
+/* page-specific styles */
+.night{position:absolute;inset:0;background:#050a18;opacity:0;transition:opacity .4s;pointer-events:none}
+.hud{display:flex;gap:10px;font-weight:800;font-size:13px}
+.hud b{font-family:Fredoka;font-size:17px;margin-left:4px}
+.eqs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.eq{padding:20px;display:flex;flex-direction:column;gap:12px}
+.eq h3{font-size:22px;display:flex;align-items:center;gap:10px}
+.eq .where{font-weight:800;color:var(--ink-2);font-size:14px}
+.formula{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-weight:800}
+.mol{display:inline-flex;align-items:center;gap:6px;border-radius:12px;padding:6px 10px;background:var(--surface-2);border:1px solid var(--line);font-size:15px}
+.mol i{width:12px;height:12px;border-radius:50%;flex:none}
+.op{font-family:Fredoka;font-size:22px;color:var(--ink-2)}
+.arrow{font-family:Fredoka;font-size:24px;color:var(--brand)}
+.mol.energy{background:color-mix(in srgb,var(--warn) 22%,var(--surface));border-color:color-mix(in srgb,var(--warn) 60%,transparent)}
+.seg.small button{padding:5px 11px;font-size:13px}
+.cycle{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center;margin-top:16px;padding:18px}
+.cycle .mid{text-align:center;font-weight:800;color:var(--ink-2);font-size:14px}
+.cycle .mid div{font-size:26px;line-height:1.1}
+.jar-ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.toggle{border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:999px;padding:6px 12px;font-weight:800;font-size:14px}
+.toggle.on{background:var(--brand);color:var(--brand-ink);border-color:transparent}
+.graphbox{position:relative;height:170px;border-radius:14px;background:var(--surface-2);overflow:hidden}
+.graphbox canvas{position:absolute;inset:0;width:100%;height:100%}
+.meter{height:10px;border-radius:999px;background:var(--surface-2);overflow:hidden;margin-top:4px}
+.meter div{height:100%;border-radius:999px;transition:width .2s}
+.counters.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:980px){.eqs{grid-template-columns:1fr}.cycle{grid-template-columns:1fr}.cycle .mid div{transform:rotate(90deg)}}
+@media (max-width:560px){.hud{display:none}.counters.three{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body data-subject="biology" data-topic="photosynthesis">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="生物 · 细胞中的能量">Biology · Energy in cells</span>
+  <h1 data-zh-html="光合作用与<em>呼吸作用</em>">Photosynthesis &amp; <em>Respiration</em></h1>
+  <p class="lead" data-zh="一棵大树用来“长身体”的材料从哪里来？（提示：主要来自空气！）植物把阳光“装进”糖里，几乎所有生物再把糖“拆开”来获得能量。走进一个叶肉细胞，看看叶绿体和线粒体如何互相交换二氧化碳、水、氧气和葡萄糖。">Where does a giant tree get the material to build itself? (Hint: mostly from the air!) Plants pack sunlight into sugar, and almost every living thing then breaks that sugar apart for energy. Step inside a leaf cell and watch the chloroplast and the mitochondrion trade carbon dioxide, water, oxygen and glucose.</p>
+</header>
+
+<section class="wrap" id="explore" data-nav="3D Cell" data-nav-zh="3D 细胞">
+  <div class="explorer">
+    <div class="stage card" id="stage" data-3d>
+      <div class="toolbar">
+        <button class="tbtn on" id="rotBtn" data-zh="⟳ 旋转">⟳ Spin</button>
+        <button class="tbtn" id="resetBtn" data-zh="⌂ 重置">⌂ Reset</button>
+        <button class="tbtn" id="storyBtn" data-zh="☀️ 追踪能量（故事）">☀️ Follow the energy (story)</button>
+        <button class="tbtn" id="labelBtn" data-zh="🏷 标签">🏷 Labels</button>
+      </div>
+      <div class="bottombar">
+        <div class="pill"><span data-zh="☀️ 光照强度">☀️ Light</span><input id="light" type="range" min="0" max="100" value="70"><b id="lightVal">70%</b></div>
+        <div class="pill hud"><span data-zh="葡萄糖 制造">Glucose made</span><b id="made">0</b><span data-zh="消耗">used</span><b id="used">0</b></div>
+        <div class="tip" data-zh="拖动旋转 · 滚轮缩放 · 点击细胞器或分子">Drag to rotate · Scroll to zoom · Click an organelle or molecule</div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="chips" id="chips"></div>
+</section>
+
+<section class="wrap" id="equations" data-nav="Equations" data-nav-zh="反应式">
+  <div class="sec-head">
+    <h2 data-zh="两个互为相反的反应">Two reactions that run in opposite directions</h2>
+    <p data-zh="光合作用的产物正是呼吸作用的原料，反过来也一样。切换“文字/化学式”来读这两个反应式。">The outputs of photosynthesis are exactly the inputs of respiration, and the other way round. Switch between words and formulas to read both equations.</p>
+  </div>
+  <div class="seg small" id="eqMode" style="margin-bottom:14px"><button data-m="words" class="on" data-zh="文字">Words</button><button data-m="formula" data-zh="化学式">Formula</button></div>
+  <div class="eqs">
+    <div class="eq card">
+      <h3><span>🌿</span><span data-zh="光合作用">Photosynthesis</span></h3>
+      <div class="where" data-zh="发生在：植物、藻类细胞的叶绿体中 · 需要光">Where: chloroplasts of plant and algae cells · needs light</div>
+      <div class="formula" id="eqP"></div>
+      <p class="muted" style="margin:0" data-zh="光能被叶绿素吸收，并以化学能的形式储存在葡萄糖中。">Light energy is captured by chlorophyll and stored as chemical energy in glucose.</p>
+    </div>
+    <div class="eq card">
+      <h3><span>🔥</span><span data-zh="细胞呼吸">Cellular respiration</span></h3>
+      <div class="where" data-zh="发生在：几乎所有细胞（包括植物细胞）的线粒体中 · 白天黑夜都进行">Where: mitochondria of almost all cells (plants too!) · day and night</div>
+      <div class="formula" id="eqR"></div>
+      <p class="muted" style="margin:0" data-zh="葡萄糖中储存的能量被释放出来，变成细胞能直接使用的 ATP。">The energy stored in glucose is released and turned into ATP, the energy the cell can use directly.</p>
+    </div>
+  </div>
+  <div class="cycle card">
+    <div><h3 data-zh="🌿 叶绿体">🌿 Chloroplast</h3><p class="muted" style="margin:4px 0 0" data-zh="捕获能量 → 制造葡萄糖，释放氧气">Captures energy → makes glucose, releases O₂</p></div>
+    <div class="mid"><div>⇄</div><span data-zh="葡萄糖 + 氧气 ⟶ ⟵ 二氧化碳 + 水">glucose + O₂ ⟶ ⟵ CO₂ + H₂O</span></div>
+    <div style="text-align:right"><h3 data-zh="🔥 线粒体">🔥 Mitochondrion</h3><p class="muted" style="margin:4px 0 0" data-zh="释放能量 → 产生 ATP，放出二氧化碳和水">Releases energy → makes ATP, gives off CO₂ + H₂O</p></div>
+  </div>
+  <div class="table-wrap card" style="margin-top:16px">
+    <table class="lab" id="cmpTable"></table>
+  </div>
+  <div class="mix" style="margin-top:16px"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="“植物进行光合作用，动物进行呼吸作用”是错的！植物也有线粒体，白天黑夜都在进行呼吸作用。白天光合作用通常比呼吸作用快，所以植物整体上放出氧气。">“Plants do photosynthesis, animals do respiration” is wrong! Plants have mitochondria too and respire day and night. In daylight, photosynthesis is usually faster than respiration, so overall a plant gives off oxygen.</span></div>
+</section>
+
+<section class="wrap" id="jar" data-nav="Jar Lab" data-nav-zh="密封瓶实验">
+  <div class="sec-head">
+    <h2 data-zh="实验：让密封瓶保持平衡">Lab: balance the sealed jar</h2>
+    <p data-zh="密封的瓶子里装着水、一株水草（伊乐藻）和一只蜗牛。水中加了溴麝香草酚蓝指示剂：二氧化碳少时呈蓝色，多时变黄。改变条件，看看谁能活下来。">A sealed jar holds water, a water plant (elodea) and a snail. The water contains bromothymol blue (BTB) indicator: it is blue when CO₂ is low and turns yellow when CO₂ is high. Change the conditions and see who survives.</p>
+  </div>
+  <div class="sim">
+    <div class="simbox card" id="jarBox"><canvas id="jarCv"></canvas></div>
+    <div class="card simside">
+      <div class="jar-ctl">
+        <button class="toggle on" id="tPlant" data-zh="🌿 水草">🌿 Plant</button>
+        <button class="toggle on" id="tSnail" data-zh="🐌 蜗牛">🐌 Snail</button>
+        <div class="seg small" id="lightMode"><button data-m="on" data-zh="☀️ 开灯">☀️ Light on</button><button data-m="off" data-zh="🌙 关灯">🌙 Dark</button><button data-m="cycle" class="on" data-zh="🔁 昼夜">🔁 Day/night</button></div>
+      </div>
+      <label class="ctl"><span><span data-zh="速度">Speed</span>: <b id="spdVal">×2</b></span><input id="spd" type="range" min="1" max="8" value="2"></label>
+      <div class="counters three">
+        <div class="counter"><b id="mO2">0</b><span data-zh="氧气 O₂">oxygen O₂</span><div class="meter"><div id="barO2" style="background:#3fa0f0"></div></div></div>
+        <div class="counter"><b id="mCO2">0</b><span data-zh="二氧化碳 CO₂">carbon dioxide CO₂</span><div class="meter"><div id="barCO2" style="background:#e8a33a"></div></div></div>
+        <div class="counter"><b id="mClock">D1 06:00</b><span data-zh="时间">time</span></div>
+        <div class="counter"><b id="mPlant">100%</b><span data-zh="水草健康">plant health</span></div>
+        <div class="counter"><b id="mSnail">100%</b><span data-zh="蜗牛健康">snail health</span></div>
+        <div class="counter"><b id="mBubbles">0</b><span data-zh="氧气泡">O₂ bubbles</span></div>
+      </div>
+      <div class="graphbox"><canvas id="graphCv"></canvas></div>
+      <div class="legend"><span><i style="background:#3fa0f0"></i><span data-zh="氧气">Oxygen</span></span><span><i style="background:#e8a33a"></i><span data-zh="二氧化碳">Carbon dioxide</span></span><span><i style="background:var(--line)"></i><span data-zh="阴影 = 夜晚">shaded = night</span></span></div>
+      <div class="result" id="jarMsg"></div>
+      <div class="btnrow"><button class="btn" id="jarRun" data-zh="⏸ 暂停">⏸ Pause</button><button class="btn ghost" id="jarReset" data-zh="↺ 重新开始">↺ Restart</button></div>
+      <div class="memory"><b data-zh="💡 试一试">💡 Try this</b><span data-zh="只留蜗牛会怎样？只留水草并一直开灯又会怎样？哪种组合能让瓶子长期保持平衡？">What happens with only the snail? With only the plant and the light always on? Which combination keeps the jar balanced for days?</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real photos" data-nav-zh="真实影像">
+  <div id="gallery"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 能量测验">🧠 Energy quiz</h3><p class="sub" data-zh="选出正确答案。">Pick the best answer.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分一分">🗂️ Sort it</h3><p class="sub" data-zh="这句话描述的是光合作用、呼吸作用，还是两者都对？拖动（或先点再点方框）。">Does each statement describe photosynthesis, respiration, or both? Drag it (or tap it, then tap a box).</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="对应佐治亚州标准 S7L2（细胞结构与功能：叶绿体与线粒体）并联系 S7L4（能量在生态系统中的流动与物质循环）。建议：①把“光照强度”滑块拉到 0，问学生为什么线粒体仍在工作；②在密封瓶实验中先只放蜗牛，让学生预测指示剂颜色变化，再加入水草验证；③强调物质（碳、氧原子）循环利用，而能量单向流动，最终以热的形式散失。">Supports GSE S7L2 (cell structures and functions: chloroplasts and mitochondria) and connects to S7L4 (energy flow and cycling of matter in ecosystems). Ideas: (1) drag the Light slider to 0 and ask why the mitochondrion keeps working; (2) in the jar lab, start with only the snail, have students predict the BTB color change, then add the plant to test; (3) stress that matter (carbon and oxygen atoms) is recycled, while energy flows one way and is eventually lost as heat.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<!--REAL-PHOTOS-->
+<script>
+/* ===== See the real thing: real photos / clips (Wikimedia Commons, freely licensed; credit shown under each) ===== */
+(function(){
+const P = [
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f4/Leaf_1_web.jpg/960px-Leaf_1_web.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A leaf: a solar-powered sugar factory. Its veins carry water in and sugar out.', zh:'一片叶子：一座靠太阳能运转的“制糖厂”。叶脉把水运进来，把糖运出去。', kind:{en:'Photo',zh:'照片'}, credit:'Jon Sullivan', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Leaf_1_web.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/Cross_section_of_Arabidopsis_thaliana%2C_a_C3_plant..jpg/960px-Cross_section_of_Arabidopsis_thaliana%2C_a_C3_plant..jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A leaf cut across and magnified (Arabidopsis thaliana). A leaf is only a few layers of cells thick!', zh:'把一片叶子（拟南芥）横着切开并放大。原来一片叶子只有几层细胞那么厚！', kind:{en:'Light micrograph',zh:'光学显微镜照片'}, credit:'Ninghui Shi', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Cross_section_of_Arabidopsis_thaliana,_a_C3_plant..jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/38/Bryum_capillare_leaf_cells.jpg/960px-Bryum_capillare_leaf_cells.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Living leaf cells of the moss Bryum capillare. The green balls are chloroplasts, where photosynthesis happens.', zh:'一种真藓（Bryum capillare）活的叶片细胞。绿色的小球就是叶绿体，光合作用就在这里进行。', kind:{en:'Light micrograph',zh:'光学显微镜照片'}, credit:'Des_Callaghan', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Bryum_capillare_leaf_cells.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/2/2b/Chloroplast_in_leaf_of_Anemone_sp_TEM_85000x.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Inside one chloroplast (anemone leaf). The dark stripes are grana, stacks of membranes that hold the chlorophyll.', zh:'一个叶绿体的内部（银莲花叶片）。深色的条纹是基粒，也就是一叠叠含有叶绿素的膜。', kind:{en:'Electron micrograph (TEM)',zh:'透射电镜照片'}, scale:{en:'magnified 85,000 times',zh:'放大 85,000 倍'}, credit:'and3k and caper437', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Chloroplast_in_leaf_of_Anemone_sp_TEM_85000x.png' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/09/Tomato_leaf_stomate_1-color.jpg/960px-Tomato_leaf_stomate_1-color.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A stoma (pore) on a tomato leaf. CO₂ goes in and O₂ comes out through tiny “mouths” like this. Colors added by computer.', zh:'番茄叶片上的一个气孔。二氧化碳从这样的“小嘴”进入，氧气从这里出去。颜色是用电脑加上去的。', kind:{en:'Electron micrograph',zh:'电子显微镜照片'}, credit:'Photohound', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Tomato_leaf_stomate_1-color.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/3/38/Stomata_open_close.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Stomata of the plant Arabidopsis: an opening stoma (top) and a closed one (bottom).', zh:'拟南芥的气孔：上面是正在张开的气孔，下面是关闭的气孔。', kind:{en:'Light micrograph',zh:'光学显微镜照片'}, credit:'KuriPop', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Stomata_open_close.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/0/0c/Mitochondria%2C_mammalian_lung_-_TEM.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Two mitochondria (from mammal lung tissue). This is where cellular respiration releases the energy stored in sugar.', zh:'两个线粒体（来自哺乳动物的肺组织）。细胞呼吸就在这里把糖里储存的能量释放出来。', kind:{en:'Electron micrograph (TEM)',zh:'透射电镜照片'}, credit:'Louisa Howard', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Mitochondria,_mammalian_lung_-_TEM.jpg' },
+  { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/d/dd/Video-_cytoplasmic_streaming_in_Egeria_densa.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dd/Video-_cytoplasmic_streaming_in_Egeria_densa.webm/960px--Video-_cytoplasmic_streaming_in_Egeria_densa.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dd/Video-_cytoplasmic_streaming_in_Egeria_densa.webm/960px--Video-_cytoplasmic_streaming_in_Egeria_densa.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Video: chloroplasts on the move inside living leaf cells of the water plant Egeria densa, carried along by the flowing cytoplasm.', zh:'视频：水生植物水蕴草（Egeria densa）活的叶片细胞里，叶绿体随着流动的细胞质不停地移动。', kind:{en:'Microscope video',zh:'显微镜视频'}, scale:{en:'magnified 300 times',zh:'放大 300 倍'}, credit:'Berkshire Community College Bioscience Image Library', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Video-_cytoplasmic_streaming_in_Egeria_densa.webm' }
+];
+window.REALFIG = { chlorophyll:P[3], chloroplast:P[2], co2:P[4], mito:P[6] };
+if (window.LabPhotos) LabPhotos.render('#gallery', P.filter(p => !p._x), { title:{en:'See the real thing',zh:'看看真实的样子'}, sub:{en:'Where photosynthesis and respiration really happen: real leaves, real chloroplasts and real mitochondria. Click any picture to enlarge it; the video plays only when you press play.',zh:'光合作用和呼吸作用真正发生的地方：真实的叶片、叶绿体和线粒体。点击图片可以放大；视频要按下播放键才会播放。'} });
+})();
+</script>
+<!--/REAL-PHOTOS-->
+<script>
+/* ===== Parts of the scene (bilingual) ===== */
+const o = (en, zh) => ({en, zh});
+const PARTS = {
+  light:{color:'#fbbf24', name:o('Sunlight (light energy)','阳光（光能）'), job:o('The energy source','能量的来源'),
+    facts:{en:['Light is energy, not food. Plants capture it and store it in the chemical bonds of sugar.','Brighter light makes photosynthesis faster, up to a limit. Try the Light slider.','Almost all the energy in every food chain started as sunlight captured by producers.'],
+      zh:['光是能量，不是食物。植物捕获光能，并把它储存在糖的化学键里。','光照越强，光合作用越快（但有一个上限）。试试“光照强度”滑块。','几乎每条食物链中的能量，最初都来自生产者捕获的阳光。']},
+    hint:o('Photo = light, synthesis = putting together: “building with light”.','“光合”就是“用光来合成”。')},
+  chlorophyll:{color:'#15803d', name:o('Chlorophyll (in grana)','叶绿素（位于基粒中）'), job:o('The green pigment that absorbs light','吸收光能的绿色色素'),
+    facts:{en:['Chlorophyll sits in the membranes of the coin-like stacks (grana) inside each chloroplast.','It absorbs red and blue light best and reflects green light. That is why leaves look green.','In autumn, chlorophyll breaks down and the hidden yellow and orange pigments show.'],
+      zh:['叶绿素位于叶绿体内一叠叠像硬币一样的结构（基粒）的膜上。','它最容易吸收红光和蓝光，而把绿光反射出去，所以叶子看起来是绿色的。','秋天叶绿素分解，原本被遮住的黄色、橙色色素就显露出来了。']},
+    hint:o('Chlorophyll is the cell’s solar panel; the grana are stacks of panels.','叶绿素就像细胞的太阳能板，基粒就是一叠叠太阳能板。')},
+  chloroplast:{color:'#3fae4a', name:o('Chloroplast','叶绿体'), job:o('Where photosynthesis happens','进行光合作用的场所'),
+    facts:{en:['Found in plant and algae cells, mostly in leaves. Animal cells do not have chloroplasts.','Inside are stacks called grana, surrounded by a fluid called stroma, where glucose is built.','It turns light energy into chemical energy stored in glucose.'],
+      zh:['存在于植物和藻类细胞中，主要在叶片里。动物细胞没有叶绿体。','里面有一叠叠的基粒，周围是基质；葡萄糖就在基质中合成。','它把光能转化为储存在葡萄糖中的化学能。']},
+    hint:o('Chloro- means green: the green sugar factory.','“叶绿”体：叶子里绿色的制糖工厂。'),
+    mix:o('Not every plant cell has chloroplasts. Root cells live in the dark soil and usually have none.','并不是所有植物细胞都有叶绿体。根细胞生活在黑暗的土壤中，通常没有叶绿体。')},
+  co2:{color:'#4b5563', name:o('Carbon dioxide (CO₂)','二氧化碳（CO₂）'), job:o('Input of photosynthesis · output of respiration','光合作用的原料 · 呼吸作用的产物'),
+    facts:{en:['CO₂ from the air enters the leaf through tiny pores called stomata.','Its carbon atoms become the backbone of glucose. Making 1 glucose takes 6 CO₂.','Mitochondria give CO₂ back out when they break glucose down.'],
+      zh:['空气中的二氧化碳通过叶片上叫做气孔的小孔进入叶子。','它的碳原子成为葡萄糖的“骨架”。制造 1 个葡萄糖需要 6 个 CO₂。','线粒体分解葡萄糖时，又把二氧化碳释放出来。']},
+    hint:o('Carbon in → sugar; sugar burned → carbon out.','碳进来 → 变成糖；糖被分解 → 碳又出去。'),
+    mix:o('A tree does not grow by “eating soil”. Most of its mass comes from CO₂ in the air!','大树不是靠“吃土”长大的，它的大部分质量来自空气中的二氧化碳！')},
+  h2o:{color:'#3fa0f0', name:o('Water (H₂O)','水 (H₂O)'), job:o('Input of photosynthesis · output of respiration','光合作用的原料 · 呼吸作用的产物'),
+    facts:{en:['Roots absorb water; it travels up xylem tubes into the leaves.','In the chloroplast, water molecules are split. Their oxygen atoms are released as O₂ gas.','Making 1 glucose uses 6 H₂O. Respiration gives 6 H₂O back.'],
+      zh:['根吸收水分，水沿着导管向上运输到叶片。','在叶绿体中，水分子被分解，其中的氧原子以氧气的形式释放出来。','制造 1 个葡萄糖要用 6 个水分子，呼吸作用又会产生 6 个水分子。']},
+    hint:o('The oxygen we breathe was split out of water by plants.','我们呼吸的氧气是植物从水里“拆”出来的。')},
+  glucose:{color:'#d9a441', name:o('Glucose (C₆H₁₂O₆)','葡萄糖（C₆H₁₂O₆）'), job:o('Sugar that stores chemical energy','储存化学能的糖'),
+    facts:{en:['Glucose is built in the chloroplast and has 6 carbon atoms.','Plants burn it for energy, use it to build cellulose for cell walls, or store it as starch (potatoes, rice, seeds).','When an animal eats a plant, it takes in this stored energy.'],
+      zh:['葡萄糖在叶绿体中合成，含有 6 个碳原子。','植物用它来提供能量、合成细胞壁中的纤维素，或把它储存为淀粉（如土豆、大米、种子）。','动物吃植物时，就获得了这些储存的能量。']},
+    hint:o('Glucose = energy in the bank; ATP = cash in your pocket.','葡萄糖 = 存在银行里的钱；ATP = 口袋里的零花钱。'),
+    mix:o('Glucose is not energy itself. It is matter that stores energy in its chemical bonds.','葡萄糖本身不是能量，它是在化学键中储存能量的物质。')},
+  o2:{color:'#ef4444', name:o('Oxygen (O₂)','氧气（O₂）'), job:o('Output of photosynthesis · input of respiration','光合作用的产物 · 呼吸作用的原料'),
+    facts:{en:['Oxygen leaves the leaf through the stomata.','Almost all the oxygen in the air was made by photosynthesis. Ocean algae and phytoplankton make about half of it.','Mitochondria need O₂ to break glucose down completely.'],
+      zh:['氧气通过气孔离开叶片。','空气中几乎所有的氧气都来自光合作用，其中大约一半是海洋中的藻类和浮游植物产生的。','线粒体需要氧气才能把葡萄糖彻底分解。']},
+    hint:o('Plants make O₂ in the light; everyone (plants too) uses O₂ all the time.','植物在光下制造氧气；所有生物（包括植物）时刻都在消耗氧气。')},
+  mito:{color:'#ff7f50', name:o('Mitochondrion','线粒体'), job:o('Where cellular respiration happens','进行细胞呼吸的场所'),
+    facts:{en:['Found in almost all plant AND animal cells.','Its inner membrane is folded into cristae, giving lots of surface area for making ATP.','Busy cells, such as muscle cells, contain thousands of mitochondria.'],
+      zh:['几乎所有植物细胞和动物细胞中都有线粒体。','它的内膜向内折叠形成嵴，大大增加了制造 ATP 的面积。','需要大量能量的细胞（比如肌肉细胞）里有成千上万个线粒体。']},
+    hint:o('The powerhouse of the cell. Plural: mitochondria.','细胞的“动力车间”。'),
+    mix:o('Cellular respiration is not breathing. Breathing moves air in and out of lungs; respiration is a chemical reaction inside every cell. Breathing supplies its O₂.','细胞呼吸不等于呼吸运动。呼吸运动是让空气进出肺；细胞呼吸是每个细胞内进行的化学反应。呼吸运动为它提供氧气。')},
+  atp:{color:'#c084fc', name:o('Energy (ATP)','能量（ATP）'), job:o('Usable energy for the cell','细胞可以直接使用的能量'),
+    facts:{en:['Respiration releases the energy stored in glucose and packs it into ATP molecules.','Cells spend ATP to move, grow, divide, build proteins and pump materials.','Some energy is always lost as heat. That is why you warm up when you exercise.'],
+      zh:['呼吸作用把葡萄糖中储存的能量释放出来，并装进 ATP 分子里。','细胞用 ATP 来运动、生长、分裂、合成蛋白质和运输物质。','总有一部分能量以热的形式散失，所以运动时你会觉得身体发热。']},
+    hint:o('Matter cycles; energy flows one way (sun → glucose → ATP → heat).','物质循环利用；能量单向流动（阳光 → 葡萄糖 → ATP → 热）。')}
+};
+const ORDER = ['light','chlorophyll','chloroplast','co2','h2o','glucose','o2','mito','atp'];
+
+/* ===== Story: follow the energy ===== */
+const STORY = [
+  o('1 · Sunlight shines on the leaf. Light energy is where it all begins.','1 · 阳光照在叶片上。一切都从光能开始。'),
+  o('2 · CO₂ from the air enters through stomata. Water arrives from the roots through xylem.','2 · 空气中的二氧化碳从气孔进入；水从根部沿导管运来。'),
+  o('3 · Chlorophyll in the grana absorbs the light. The chloroplast uses that energy to join CO₂ and H₂O.','3 · 基粒中的叶绿素吸收光能，叶绿体利用这些能量把二氧化碳和水结合起来。'),
+  o('4 · Products: glucose (stored energy) and oxygen. Extra O₂ leaves the leaf.','4 · 产物：葡萄糖（储存能量）和氧气。多余的氧气离开叶片。'),
+  o('5 · Glucose and O₂ travel to the mitochondrion, the cell’s powerhouse.','5 · 葡萄糖和氧气来到线粒体——细胞的“动力车间”。'),
+  o('6 · Respiration: glucose + O₂ → CO₂ + H₂O + energy (ATP). The CO₂ and water can be used again!','6 · 呼吸作用：葡萄糖 + 氧气 → 二氧化碳 + 水 + 能量（ATP）。二氧化碳和水又可以被再次利用！'),
+  o('7 · Lights out: photosynthesis stops, but respiration keeps going all night, using stored sugar.','7 · 关灯后：光合作用停止，但呼吸作用整夜都在继续，消耗储存的糖。')
+];
+
+/* ===== Info panel / selection ===== */
+const App = window.PS = { sel:null, three:null };
+App.select = (k, from3D) => { App.sel = k; renderInfo(); renderChips(); if (!from3D && App.three) App.three.focus(k); };
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel;
+  if (!k){
+    box.innerHTML = `<span class="tag">${Lab.L(o('Inside a leaf cell','叶肉细胞内部'))}</span>
+      <h3>${Lab.L(o('Two energy machines','两台能量机器'))}</h3>
+      <p class="muted" style="margin:0">${Lab.L(o('The green chloroplast captures light and builds glucose. The orange mitochondrion breaks glucose down to release energy. Watch the molecules flow between them, and click anything to learn more.','绿色的叶绿体捕获光能、合成葡萄糖；橙色的线粒体分解葡萄糖、释放能量。观察分子在它们之间流动，点击任何东西了解更多。'))}</p>
+      <div class="formula">${chip('co2')}<span class="op">+</span>${chip('h2o')}<span class="arrow">⇄</span>${chip('glucose')}<span class="op">+</span>${chip('o2')}</div>
+      <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(o('Photosynthesis stores energy; respiration releases it. The atoms just go round and round.','光合作用储存能量，呼吸作用释放能量；而原子在两者之间不断循环。'))}</div>
+      <div class="nav"><button id="startBtn">${Lab.L(o('Start with sunlight ▶','从阳光开始 ▶'))}</button></div>`;
+    Lab.$('#startBtn').onclick = () => App.select('light');
+    return;
+  }
+  const p = PARTS[k], i = ORDER.indexOf(k);
+  box.innerHTML = `<span class="tag">${Lab.L(['mito','atp'].includes(k) ? o('Respiration','呼吸作用') : ['co2','h2o','glucose','o2'].includes(k) ? o('Molecule','分子') : o('Photosynthesis','光合作用'))}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>${window.REALFIG && REALFIG[k] ? LabPhotos.figure(REALFIG[k]) : ''}
+    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts), p.mix ? Lab.L(p.mix) : ''].join('. '));
+  Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
+  Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
+}
+function renderChips(){
+  Lab.$('#chips').innerHTML = ORDER.map(k => `<button class="chip ${App.sel===k?'on':''}" data-k="${k}"><i style="background:${PARTS[k].color}"></i>${Lab.L(PARTS[k].name)}</button>`).join('');
+  Lab.$$('#chips .chip').forEach(c => c.onclick = () => App.select(c.dataset.k));
+}
+
+/* ===== Equations + comparison table ===== */
+let eqMode = 'words';
+const MOL = { co2:o('carbon dioxide','二氧化碳'), h2o:o('water','水'), glucose:o('glucose','葡萄糖'), o2:o('oxygen','氧气') };
+const FORM = { co2:'CO₂', h2o:'H₂O', glucose:'C₆H₁₂O₆', o2:'O₂' };
+function chip(k, n){ const words = eqMode === 'words'; return `<span class="mol"><i style="background:${PARTS[k].color}"></i>${words ? Lab.L(MOL[k]) : (n ? n : '') + FORM[k]}</span>`; }
+function renderEq(){
+  const w = eqMode === 'words', plus = '<span class="op">+</span>', arr = '<span class="arrow">→</span>';
+  const light = `<span class="mol energy">☀️ ${Lab.L(o('light energy','光能'))}</span>`, energy = `<span class="mol energy">⚡ ${Lab.L(o('energy (ATP)','能量（ATP）'))}</span>`;
+  Lab.$('#eqP').innerHTML = [chip('co2', 6), plus, chip('h2o', 6), plus, light, arr, chip('glucose'), plus, chip('o2', 6)].join('');
+  Lab.$('#eqR').innerHTML = [chip('glucose'), plus, chip('o2', 6), arr, chip('co2', 6), plus, chip('h2o', 6), plus, energy].join('');
+  Lab.$$('#eqMode button').forEach(b => b.classList.toggle('on', b.dataset.m === eqMode));
+  const rows = [
+    [o('','') , o('🌿 Photosynthesis','🌿 光合作用'), o('🔥 Cellular respiration','🔥 细胞呼吸')],
+    [o('Where?','在哪里？'), o('Chloroplasts','叶绿体'), o('Mitochondria','线粒体')],
+    [o('Who does it?','哪些生物？'), o('Plants, algae, some bacteria (producers)','植物、藻类和某些细菌（生产者）'), o('Almost all living things, including plants','几乎所有生物，包括植物')],
+    [o('Inputs (reactants)','原料（反应物）'), o('CO₂ + H₂O + light energy','二氧化碳 + 水 + 光能'), o('Glucose + O₂','葡萄糖 + 氧气')],
+    [o('Outputs (products)','产物（生成物）'), o('Glucose + O₂','葡萄糖 + 氧气'), o('CO₂ + H₂O + energy (ATP)','二氧化碳 + 水 + 能量（ATP）')],
+    [o('Energy','能量'), o('Stored (light → chemical)','储存（光能 → 化学能）'), o('Released (chemical → ATP + heat)','释放（化学能 → ATP + 热）')],
+    [o('When?','什么时候？'), o('Only in light','只在有光时'), o('All the time, day and night','时刻进行，白天黑夜都有')]
+  ];
+  Lab.$('#cmpTable').innerHTML = rows.map((r, i) => `<tr>${r.map((c, j) => i === 0 || j === 0 ? `<th>${Lab.L(c)}</th>` : `<td>${Lab.L(c)}</td>`).join('')}</tr>`).join('');
+  if (App.sel === null) renderInfo();
+}
+Lab.$$('#eqMode button').forEach(b => b.onclick = () => { eqMode = b.dataset.m; renderEq(); });
+Lab.onLang(() => { renderInfo(); renderChips(); renderEq(); });
+</script>
+<script>
+/* ===== Sealed-jar simulation (elodea + snail + BTB indicator) ===== */
+(function(){
+  const cv = Lab.$('#jarCv'), gc = Lab.$('#graphCv'), box = Lab.$('#jarBox');
+  const S = {};
+  let running = true, mode = 'cycle', speed = 2, bubbles = [], hist = [], lastMsg = '';
+  function reset(){
+    Object.assign(S, { t:0, o2:50, co2:30, plant:Lab.$('#tPlant').classList.contains('on'), snail:Lab.$('#tSnail').classList.contains('on'), ph:1, sh:1, nb:0, P:0, sx:.35, sdir:1, acc:0 });
+    hist = []; bubbles = [];
+  }
+  const hour = () => (6 + S.t) % 24;
+  function lightLevel(){
+    if (mode === 'on') return 1;
+    if (mode === 'off') return 0;
+    const h = hour(); return h > 6 && h < 18 ? Math.min(1, Math.sin(Math.PI * (h - 6) / 12) * 1.4) : 0;
+  }
+  function step(dh){
+    const L = lightLevel(), plantAlive = S.plant && S.ph > 0, snailAlive = S.snail && S.sh > 0;
+    const P = plantAlive ? 16 * L * S.co2 / (S.co2 + 10) * (.3 + .7 * S.ph) : 0;
+    const Rp = plantAlive ? 1.2 * S.o2 / (S.o2 + 2) : 0;
+    const Rs = snailAlive ? 2.5 * S.o2 / (S.o2 + 4) : 0;
+    let d = (P - Rp - Rs) * dh;
+    d = Math.max(-S.o2, Math.min(S.co2, d));          // can't use more than is there
+    S.o2 += d; S.co2 -= d; S.t += dh; S.P = P; S.L = L;
+    if (snailAlive){ S.sh += (S.o2 < 12 ? -.07 * (12 - S.o2) / 12 : .03) * dh; if (S.co2 > 70) S.sh -= .02 * dh; S.sh = Math.max(0, Math.min(1, S.sh)); }
+    if (plantAlive){ S.ph += (S.o2 < 3 ? -.04 : .02) * dh; S.ph = Math.max(0, Math.min(1, S.ph)); }
+    S.acc += P * dh * .35;                              // bubbles released
+    while (S.acc > 1){ S.acc -= 1; S.nb++; bubbles.push({ x:.25 + Math.random() * .3, y:.55 + Math.random() * .2, r:2 + Math.random() * 3, v:.08 + Math.random() * .05 }); }
+  }
+  function message(){
+    const z = Lab.lang === 'zh';
+    if (S.snail && S.sh <= 0) return [o('🐌 The snail ran out of oxygen. Without a working plant in the light, nothing puts O₂ back into the water.','🐌 蜗牛缺氧死了。没有在光下进行光合作用的植物，就没有东西能把氧气补回水中。'), false];
+    if (S.plant && S.ph <= 0) return [o('🌿 The plant died: in the dark it can only respire, and it used up the oxygen it needs.','🌿 水草死了：在黑暗中它只能进行呼吸作用，把自己需要的氧气用光了。'), false];
+    if (!S.plant && !S.snail) return [o('The jar is empty. Add the plant, the snail, or both.','瓶子是空的。放入水草、蜗牛，或者两者都放。'), null];
+    if (S.plant && S.snail && mode === 'cycle' && S.t > 48) return [o('⚖️ Balanced! The O₂ made by day makes up for what both use by day and night.','⚖️ 平衡了！白天产生的氧气补足了两者昼夜消耗的氧气。'), true];
+    if (S.plant && S.snail && mode === 'on' && S.t > 24) return [o('⚖️ Steady: photosynthesis and respiration now run at the same speed.','⚖️ 稳定：光合作用和呼吸作用的速度已经相等。'), true];
+    if (!S.snail && S.L > .5 && S.co2 < 3) return [o('CO₂ is almost used up, so photosynthesis slows down. The plant needs a CO₂ source, such as a snail!','二氧化碳快用完了，光合作用变慢。水草需要二氧化碳的来源，比如一只蜗牛！'), null];
+    if (!S.plant) return [o('Only respiration: O₂ falls, CO₂ rises, and the BTB turns yellow.','只有呼吸作用：氧气减少，二氧化碳增加，指示剂变黄。'), null];
+    if (S.L < .1) return [o('🌙 Dark: no photosynthesis. Everything only respires, so O₂ falls and CO₂ rises.','🌙 黑暗中没有光合作用。所有生物只进行呼吸作用，氧气减少、二氧化碳增加。'), null];
+    return [o('☀️ Light: photosynthesis is faster than respiration, so O₂ rises and bubbles appear on the leaves.','☀️ 有光：光合作用比呼吸作用快，氧气增加，叶片上冒出气泡。'), null];
+  }
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  function fit(c){ const b = c.parentElement.getBoundingClientRect(), d = Math.min(devicePixelRatio, 2); if (c.width !== Math.round(b.width * d) || c.height !== Math.round(b.height * d)){ c.width = Math.round(b.width * d); c.height = Math.round(b.height * d); } const x = c.getContext('2d'); x.setTransform(d, 0, 0, d, 0, 0); return [x, b.width, b.height]; }
+  const mixc = (a, b, u) => { const p = s => [1, 3, 5].map(i => parseInt(s.slice(i, i + 2), 16)); const A = p(a), B = p(b); return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * u)).join(',')})`; };
+  function btb(co2){ return co2 < 22 ? mixc('#2f6fd6', '#3f9f6a', co2 / 22) : mixc('#3f9f6a', '#e3c235', Math.min(1, (co2 - 22) / 30)); }
+  function drawJar(tm){
+    const [x, W, H] = fit(cv), L = S.L ?? lightLevel();
+    x.clearRect(0, 0, W, H);
+    x.fillStyle = `rgba(5,10,24,${.55 * (1 - L)})`; x.fillRect(0, 0, W, H);
+    // lamp
+    const lx = W * .14, ly = Math.max(40, (H - Math.min(H * .76, Math.min(W * .56, H * .62, 380) * 1.35)) / 2);
+    if (L > .02){ const g = x.createRadialGradient(lx, ly, 4, lx, ly, W * .5); g.addColorStop(0, `rgba(255,214,80,${.55 * L})`); g.addColorStop(1, 'rgba(255,214,80,0)'); x.fillStyle = g; x.fillRect(0, 0, W, H); }
+    x.fillStyle = L > .02 ? '#ffd23f' : '#6b7280'; x.beginPath(); x.arc(lx, ly, 16, 0, 7); x.fill();
+    x.fillStyle = css('--ink-2'); x.font = '700 13px Nunito'; x.textAlign = 'center';
+    x.fillText(L > .02 ? (Lab.lang === 'zh' ? '光' : 'light') : (Lab.lang === 'zh' ? '黑暗' : 'dark'), lx, ly + 34);
+    // jar geometry
+    const jw = Math.min(W * .56, H * .62, 380), jh = Math.min(H * .76, jw * 1.35), jx = W * .55 - jw / 2, jy = (H - jh) / 2 + 12, r = 26, wt = jy + jh * .14, bot = jy + jh;
+    const jarPath = () => { x.beginPath(); x.moveTo(jx, jy); x.lineTo(jx, bot - r); x.quadraticCurveTo(jx, bot, jx + r, bot); x.lineTo(jx + jw - r, bot); x.quadraticCurveTo(jx + jw, bot, jx + jw, bot - r); x.lineTo(jx + jw, jy); };
+    x.save(); jarPath(); x.closePath(); x.clip();
+    x.fillStyle = btb(S.co2); x.globalAlpha = .55; x.fillRect(jx, wt, jw, bot - wt); x.globalAlpha = 1;
+    x.fillStyle = 'rgba(255,255,255,.35)'; x.fillRect(jx, wt, jw, 3);
+    for (let i = 0; i < 46; i++){ const gx = jx + (i * 37 % 100) / 100 * jw, gy = bot - 6 - (i * 13 % 3) * 6; x.fillStyle = i % 3 ? '#9c8b72' : '#7d6c55'; x.beginPath(); x.ellipse(gx, gy, 9, 6, 0, 0, 7); x.fill(); }
+    // elodea
+    if (S.plant){
+      const healthy = S.ph, stem = mixc('#7a6a3a', '#2f9e44', healthy), leaf = mixc('#8a7a40', '#3fbf55', healthy);
+      [[.3, .62], [.42, .74], [.55, .56]].forEach(([fx, fh], k) => {
+        const bx = jx + jw * fx, top = bot - (bot - wt) * fh;
+        x.strokeStyle = stem; x.lineWidth = 3; x.beginPath();
+        for (let s = 0; s <= 20; s++){ const u = s / 20, yy = bot - 8 - (bot - 8 - top) * u, xx = bx + Math.sin(u * 3 + tm * 1.2 + k) * 8 * u; s ? x.lineTo(xx, yy) : x.moveTo(xx, yy); }
+        x.stroke(); x.fillStyle = leaf;
+        for (let s = 2; s <= 20; s += 2){ const u = s / 20, yy = bot - 8 - (bot - 8 - top) * u, xx = bx + Math.sin(u * 3 + tm * 1.2 + k) * 8 * u;
+          for (const sd of [-1, 1]){ x.beginPath(); x.ellipse(xx + sd * 8, yy, 8, 3, sd * .5, 0, 7); x.fill(); } }
+      });
+    }
+    // snail
+    if (S.snail){
+      const alive = S.sh > 0, sx = jx + jw * S.sx, sy = bot - 16;
+      x.save(); x.translate(sx, sy); x.scale(1.35, 1.35); if (S.sdir < 0) x.scale(-1, 1); if (!alive){ x.rotate(Math.PI); x.translate(0, 8); }
+      x.fillStyle = alive ? mixc('#9aa0a6', '#c9b49a', S.sh) : '#8b8f96';
+      x.beginPath(); x.ellipse(4, 6, 24, 6, 0, 0, 7); x.fill();
+      if (alive){ x.strokeStyle = x.fillStyle; x.lineWidth = 2; x.beginPath(); x.moveTo(22, 2); x.lineTo(28, -8); x.moveTo(18, 2); x.lineTo(22, -9); x.stroke(); }
+      x.fillStyle = alive ? '#b5651d' : '#7c6f64'; x.beginPath(); x.arc(-2, -4, 14, 0, 7); x.fill();
+      x.strokeStyle = 'rgba(0,0,0,.35)'; x.lineWidth = 2; x.beginPath(); for (let a = 0; a < 12; a += .3){ const rr = 12 - a; x.lineTo(-2 + Math.cos(a) * rr, -4 + Math.sin(a) * rr); } x.stroke();
+      x.restore();
+    }
+    // bubbles
+    x.strokeStyle = 'rgba(255,255,255,.9)'; x.lineWidth = 1.5;
+    bubbles.forEach(b => { x.beginPath(); x.arc(jx + jw * b.x, wt + (bot - wt) * b.y, b.r, 0, 7); x.stroke(); });
+    x.restore();
+    // glass + lid
+    x.strokeStyle = css('--ink-2'); x.lineWidth = 3; jarPath(); x.stroke();
+    x.fillStyle = '#8b95a7'; x.fillRect(jx - 8, jy - 14, jw + 16, 16);
+    x.fillStyle = 'rgba(255,255,255,.25)'; x.fillRect(jx + 10, jy + 10, 8, jh - 40);
+    x.fillStyle = css('--ink'); x.font = '800 13px Nunito'; x.textAlign = 'left';
+    x.fillText(Lab.lang === 'zh' ? '密封' : 'SEALED', jx, jy - 22);
+    // BTB scale
+    const sx0 = W - 34, sy0 = H * .2, sh0 = H * .5, g2 = x.createLinearGradient(0, sy0 + sh0, 0, sy0);
+    g2.addColorStop(0, '#2f6fd6'); g2.addColorStop(.4, '#3f9f6a'); g2.addColorStop(1, '#e3c235');
+    x.fillStyle = g2; x.fillRect(sx0, sy0, 14, sh0); x.strokeStyle = css('--line'); x.strokeRect(sx0, sy0, 14, sh0);
+    const my = sy0 + sh0 - Math.min(1, S.co2 / 55) * sh0; x.fillStyle = css('--ink'); x.beginPath(); x.moveTo(sx0 - 3, my); x.lineTo(sx0 - 11, my - 6); x.lineTo(sx0 - 11, my + 6); x.fill();
+    x.font = '700 11px Nunito'; x.textAlign = 'center'; x.fillStyle = css('--ink-2');
+    x.fillText('CO₂ ↑', sx0 + 7, sy0 - 8); x.fillText('BTB', sx0 + 7, sy0 + sh0 + 16);
+  }
+  function drawGraph(){
+    const [x, W, H] = fit(gc); x.clearRect(0, 0, W, H);
+    const span = 96, t1 = Math.max(span, S.t), t0 = t1 - span, X = t => (t - t0) / span * (W - 30) + 26, Y = v => H - 16 - v / 80 * (H - 28);
+    x.fillStyle = css('--line');
+    hist.forEach((p, i) => { if (p.L < .1 && i){ const a = X(hist[i - 1].t), b = X(p.t); x.globalAlpha = .55; x.fillRect(a, 6, b - a + .5, H - 22); x.globalAlpha = 1; } });
+    x.strokeStyle = css('--ink-2'); x.lineWidth = 1; x.beginPath(); x.moveTo(26, 6); x.lineTo(26, H - 16); x.lineTo(W - 4, H - 16); x.stroke();
+    x.fillStyle = css('--ink-2'); x.font = '700 11px Nunito'; x.textAlign = 'right'; x.fillText('80', 22, 14); x.fillText('0', 22, H - 16);
+    x.textAlign = 'center'; x.fillText(Lab.lang === 'zh' ? '时间（小时）→' : 'time (hours) →', W / 2, H - 3);
+    for (const [k, c] of [['o2', '#3fa0f0'], ['co2', '#e8a33a']]){ x.strokeStyle = c; x.lineWidth = 2.5; x.beginPath(); hist.forEach((p, i) => i ? x.lineTo(X(p.t), Y(p[k])) : x.moveTo(X(p.t), Y(p[k]))); x.stroke(); }
+  }
+  function ui(){
+    const f = v => v.toFixed(0);
+    Lab.$('#mO2').textContent = f(S.o2); Lab.$('#mCO2').textContent = f(S.co2);
+    Lab.$('#barO2').style.width = Math.min(100, S.o2 / 80 * 100) + '%'; Lab.$('#barCO2').style.width = Math.min(100, S.co2 / 80 * 100) + '%';
+    const h = hour(), day = Math.floor((6 + S.t) / 24) + 1;
+    Lab.$('#mClock').textContent = (Lab.lang === 'zh' ? '第' + day + '天 ' : 'D' + day + ' ') + String(Math.floor(h)).padStart(2, '0') + ':' + String(Math.floor(h % 1 * 60)).padStart(2, '0');
+    Lab.$('#mPlant').textContent = S.plant ? Math.round(S.ph * 100) + '%' : '—';
+    Lab.$('#mSnail').textContent = S.snail ? Math.round(S.sh * 100) + '%' : '—';
+    Lab.$('#mBubbles').textContent = S.nb;
+    const [m, good] = message(), el = Lab.$('#jarMsg'), txt = Lab.L(m);
+    if (txt !== lastMsg){ el.textContent = txt; el.className = 'result ' + (good === true ? 'good' : good === false ? 'bad' : ''); lastMsg = txt; }
+  }
+  let last = performance.now(), histAcc = 0;
+  function loop(now){
+    requestAnimationFrame(loop);
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    const b = box.getBoundingClientRect(); if (b.bottom < 0 || b.top > innerHeight) return;
+    if (running){
+      let dh = dt * speed; while (dh > 0){ const s = Math.min(.05, dh); step(s); dh -= s; histAcc += s; if (histAcc > .25){ histAcc = 0; hist.push({ t:S.t, o2:S.o2, co2:S.co2, L:S.L }); if (hist.length > 420) hist.shift(); } }
+      if (S.snail && S.sh > 0){ S.sx += S.sdir * dt * .02 * speed * (.3 + .7 * S.sh); if (S.sx > .72) S.sdir = -1; if (S.sx < .2) S.sdir = 1; }
+      bubbles.forEach(q => q.y -= q.v * dt * 2); bubbles = bubbles.filter(q => q.y > .02);
+    }
+    if (S.L === undefined) S.L = lightLevel();
+    drawJar(now / 1000); drawGraph(); ui();
+  }
+  Lab.$('#tPlant').onclick = e => { const on = e.currentTarget.classList.toggle('on'); S.plant = on; if (on) S.ph = 1; };
+  Lab.$('#tSnail').onclick = e => { const on = e.currentTarget.classList.toggle('on'); S.snail = on; if (on) S.sh = 1; };
+  Lab.$$('#lightMode button').forEach(b => b.onclick = () => { mode = b.dataset.m; Lab.$$('#lightMode button').forEach(x => x.classList.toggle('on', x === b)); S.L = lightLevel(); });
+  Lab.$('#spd').oninput = e => { speed = +e.target.value; Lab.$('#spdVal').textContent = '×' + speed; };
+  const runLbl = () => { const b = Lab.$('#jarRun'); b.dataset.en = running ? '⏸ Pause' : '▶ Run'; b.dataset.zh = running ? '⏸ 暂停' : '▶ 继续'; b.textContent = Lab.lang === 'zh' ? b.dataset.zh : b.dataset.en; };
+  Lab.$('#jarRun').onclick = () => { running = !running; runLbl(); };
+  Lab.$('#jarReset').onclick = () => { reset(); running = true; runLbl(); };
+  Lab.onLang(() => { lastMsg = ''; });
+  reset(); requestAnimationFrame(loop);
+})();
+
+/* ===== Quiz ===== */
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('Where does photosynthesis take place?','光合作用在哪里进行？'), options:[o('In chloroplasts','叶绿体中'),o('In mitochondria','线粒体中'),o('In the nucleus','细胞核中'),o('In the cell wall','细胞壁中')], answer:0, explain:o('Chloroplasts contain chlorophyll, which captures light energy.','叶绿体中含有叶绿素，能捕获光能。')},
+  {q:o('Which are the INPUTS (reactants) of photosynthesis?','光合作用的原料（反应物）是什么？'), options:[o('Carbon dioxide, water and light energy','二氧化碳、水和光能'),o('Glucose and oxygen','葡萄糖和氧气'),o('Oxygen and water','氧气和水'),o('Soil and sunlight','土壤和阳光')], answer:0},
+  {q:o('Which are the products of cellular respiration?','细胞呼吸的产物是什么？'), options:[o('Carbon dioxide, water and energy (ATP)','二氧化碳、水和能量（ATP）'),o('Glucose and oxygen','葡萄糖和氧气'),o('Chlorophyll and light','叶绿素和光'),o('Oxygen only','只有氧气')], answer:0, explain:o('Respiration: glucose + O₂ → CO₂ + H₂O + energy.','呼吸作用：葡萄糖 + 氧气 → 二氧化碳 + 水 + 能量。')},
+  {q:o('Which organisms carry out cellular respiration?','哪些生物进行细胞呼吸？'), options:[o('Both plants and animals','植物和动物都进行'),o('Only animals','只有动物'),o('Only plants','只有植物'),o('Only bacteria','只有细菌')], answer:0, explain:o('Plants have mitochondria too, and they respire all the time.','植物也有线粒体，并且时刻都在进行呼吸作用。')},
+  {q:o('Why do most leaves look green?','为什么大多数叶子看起来是绿色的？'), options:[o('Chlorophyll reflects green light','叶绿素反射绿光'),o('Chlorophyll absorbs green light best','叶绿素最容易吸收绿光'),o('Leaves are full of green water','叶子里充满绿色的水'),o('Glucose is green','葡萄糖是绿色的')], answer:0, explain:o('Chlorophyll absorbs mostly red and blue light; the green light bounces back to our eyes.','叶绿素主要吸收红光和蓝光，绿光被反射到我们的眼睛里。')},
+  {q:o('Where does most of the mass of a growing tree come from?','一棵树长大时，增加的质量主要来自哪里？'), options:[o('Carbon dioxide from the air','空气中的二氧化碳'),o('Soil','土壤'),o('Sunlight','阳光'),o('Fertilizer','肥料')], answer:0, explain:o('The carbon atoms in glucose, cellulose and starch come from CO₂ taken in through the stomata.','葡萄糖、纤维素和淀粉中的碳原子都来自通过气孔吸收的二氧化碳。')},
+  {q:o('What happens to a plant’s photosynthesis at night?','夜晚植物的光合作用会怎样？'), options:[o('It stops, but respiration continues','停止了，但呼吸作用还在继续'),o('It speeds up','变快了'),o('It turns into respiration','变成了呼吸作用'),o('Both stop','两者都停止')], answer:0},
+  {q:o('Cellular respiration releases energy that is stored in…','细胞呼吸释放的能量原本储存在……'), options:[o('Glucose','葡萄糖中'),o('Oxygen','氧气中'),o('Water','水中'),o('Carbon dioxide','二氧化碳中')], answer:0},
+  {q:o('A snail is sealed alone in a jar of water in the dark. What happens to the CO₂ level?','把一只蜗牛单独密封在一瓶水中并放在黑暗处，二氧化碳含量会怎样变化？'), options:[o('It rises','升高'),o('It falls','降低'),o('It stays the same','保持不变'),o('It drops to zero right away','立刻降为零')], answer:0, explain:o('The snail respires, giving off CO₂, and nothing removes it. BTB would turn yellow.','蜗牛进行呼吸作用放出二氧化碳，却没有东西吸收它，溴麝香草酚蓝会变黄。')},
+  {q:o('How are photosynthesis and respiration related?','光合作用和呼吸作用之间是什么关系？'), options:[o('The products of one are the reactants of the other','一个的产物正是另一个的原料'),o('They are the same reaction','它们是同一个反应'),o('They both need light','它们都需要光'),o('They both happen only in animals','它们都只在动物体内进行')], answer:0},
+  {q:o('What gas do plants give off overall on a sunny day?','晴天时，植物总体上放出的是什么气体？'), options:[o('Oxygen','氧气'),o('Carbon dioxide','二氧化碳'),o('Nitrogen','氮气'),o('Hydrogen','氢气')], answer:0, explain:o('In bright light, photosynthesis is faster than respiration, so there is extra O₂.','强光下光合作用比呼吸作用快，所以有多余的氧气放出。')},
+  {q:o('In photosynthesis, energy is changed from…','在光合作用中，能量的转化形式是……'), options:[o('Light energy to chemical energy','光能 → 化学能'),o('Chemical energy to light energy','化学能 → 光能'),o('Heat energy to light energy','热能 → 光能'),o('Sound energy to chemical energy','声能 → 化学能')], answer:0}
+], { count:10 });
+
+/* ===== Sort game ===== */
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'p',en:'🌿 Photosynthesis',zh:'🌿 光合作用'},{id:'r',en:'🔥 Respiration',zh:'🔥 呼吸作用'},{id:'b',en:'⇄ Both',zh:'⇄ 两者都是'}],
+  items:[
+    {en:'Happens in chloroplasts',zh:'在叶绿体中进行',bin:'p',color:PARTS.chloroplast.color},{en:'Needs light',zh:'需要光',bin:'p',color:PARTS.light.color},
+    {en:'Releases oxygen',zh:'释放氧气',bin:'p',color:PARTS.o2.color},{en:'Takes in carbon dioxide',zh:'吸收二氧化碳',bin:'p',color:PARTS.co2.color},
+    {en:'Happens in mitochondria',zh:'在线粒体中进行',bin:'r',color:PARTS.mito.color},{en:'Releases energy from glucose',zh:'释放葡萄糖中的能量',bin:'r',color:PARTS.atp.color},
+    {en:'Gives off carbon dioxide',zh:'放出二氧化碳',bin:'r',color:PARTS.co2.color},{en:'Happens in animal cells',zh:'在动物细胞中进行',bin:'r'},
+    {en:'Happens in plant cells',zh:'在植物细胞中进行',bin:'b'},{en:'Involves glucose',zh:'与葡萄糖有关',bin:'b',color:PARTS.glucose.color},
+    {en:'Involves water',zh:'与水有关',bin:'b',color:PARTS.h2o.color}
+  ]
+});
+</script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+const App = window.PS, V = THREE.Vector3;
+const ctx = Lab3D.stage('#stage', { THREE, OrbitControls, camera:[0, 2.4, 23], target:[0, 1.2, 0], minDistance:5, maxDistance:40 });
+const { scene } = ctx;
+const night = document.createElement('div'); night.className = 'night'; ctx.el.prepend(night);   // behind the canvas: darkens only the background
+const world = new THREE.Group(); scene.add(world);
+
+/* ---------- materials, grouped by part key for highlight / dimming ---------- */
+const MATS = {};
+const reg = (k, m) => { (MATS[k] ||= []).push(m); m.userData.base = m.opacity; return m; };
+const pm = (k, c, op = 1, extra = {}) => reg(k, ctx.mat(c, op, { transparent:true, ...extra }));
+
+/* ---------- the leaf cell ---------- */
+const wallMat = new THREE.MeshPhysicalMaterial({ color:'#7cc47f', transparent:true, opacity:.14, roughness:.3, clearcoat:1, side:THREE.DoubleSide, depthWrite:false });
+const wall = new THREE.Mesh(new RoundedBoxGeometry(15, 8.6, 7, 5, 1.3), wallMat); wall.renderOrder = 5; world.add(wall);
+
+const nucleus = new THREE.Mesh(new THREE.SphereGeometry(1.05, 32, 24), ctx.mat('#8b5cf6', .55, { transparent:true })); nucleus.position.set(-.2, -2.65, -1.7); world.add(nucleus);
+const starch = new THREE.Mesh(new THREE.SphereGeometry(.45, 20, 14), pm('glucose', '#f3e8c8', .9)); starch.scale.set(1.4, .8, 1); starch.position.set(.6, -3.05, 1.3); world.add(starch); ctx.pickable(starch, 'glucose');
+
+/* stoma (two guard cells on the left wall) and the xylem vein underneath */
+const STOMA = new V(-7.55, -1, 0), XYL = new V(-3, -4.3, 0);
+const stoma = new THREE.Group(); stoma.position.copy(STOMA); world.add(stoma);
+const guardMat = pm('co2', '#4caf50', .95);
+for (const s of [-1, 1]){ const g = new THREE.Mesh(new THREE.TorusGeometry(.55, .22, 14, 28, Math.PI), guardMat); g.rotation.set(0, Math.PI / 2, s < 0 ? Math.PI / 2 : -Math.PI / 2); g.position.z = s * .05; g.scale.set(1, 1.5, 1); stoma.add(g); }
+ctx.pickable(stoma, 'co2');
+const xylem = new THREE.Mesh(new THREE.CylinderGeometry(.55, .55, 5, 24, 1, true), pm('h2o', '#3fa0f0', .35, { side:THREE.DoubleSide, depthWrite:false }));
+xylem.position.set(-3, -6.8, 0); world.add(xylem); ctx.pickable(xylem, 'h2o');
+
+/* chloroplast: double membrane + grana stacks + lamellae */
+const C = new V(-3.3, .7, 0);
+const chloro = new THREE.Group(); chloro.position.copy(C); chloro.rotation.z = .12; world.add(chloro);
+const outer = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 32), pm('chloroplast', '#5cc46a', .3, { depthWrite:false, side:THREE.DoubleSide }));
+outer.scale.set(2.75, 1.38, 1.55); chloro.add(outer);
+const stroma = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 28), pm('chloroplast', '#9be3a2', .18, { depthWrite:false }));
+stroma.scale.set(2.55, 1.2, 1.38); chloro.add(stroma);
+ctx.pickable(outer, 'chloroplast');
+const granaMat = pm('chlorophyll', '#15803d', 1), lamMat = pm('chlorophyll', '#2f9e44', .8);
+const disc = new THREE.CylinderGeometry(.33, .33, .075, 26), grana = new THREE.Group(); chloro.add(grana);
+const gpos = [[-1.85, -.1, .3], [-1.15, .35, -.4], [-.45, -.25, .45], [.25, .3, -.3], [.95, -.2, .35], [1.6, .25, -.2], [-.2, .15, -.85], [.6, -.1, .9]];
+gpos.forEach(([x, y, z], i) => { const n = 4 + (i % 3); for (let k = 0; k < n; k++){ const d = new THREE.Mesh(disc, granaMat); d.position.set(x, y + (k - (n - 1) / 2) * .11, z); grana.add(d); } });
+for (let i = 0; i < gpos.length - 3; i++){ const a = new V(...gpos[i]), b = new V(...gpos[i + 1]), m = new THREE.Mesh(new THREE.BoxGeometry(a.distanceTo(b), .03, .16), lamMat); m.position.copy(a).add(b).multiplyScalar(.5); m.quaternion.setFromUnitVectors(new V(1, 0, 0), b.clone().sub(a).normalize()); grana.add(m); }
+ctx.pickable(grana, 'chlorophyll');
+
+/* mitochondrion: outer + inner membrane + cristae folds */
+const M = new V(3.7, -.8, .4);
+const mito = new THREE.Group(); mito.position.copy(M); mito.rotation.set(.15, -.25, -.1); world.add(mito);
+const mOuter = new THREE.Mesh(new THREE.CapsuleGeometry(1.05, 2.6, 10, 32), pm('mito', '#ff8a5c', .38, { depthWrite:false, side:THREE.DoubleSide }));
+mOuter.rotation.z = Math.PI / 2; mOuter.scale.set(1, 1, .9); mito.add(mOuter);
+const mInner = new THREE.Mesh(new THREE.CapsuleGeometry(.88, 2.4, 8, 28), pm('mito', '#ffb38a', .3, { depthWrite:false }));
+mInner.rotation.z = Math.PI / 2; mInner.scale.set(1, 1, .88); mito.add(mInner);
+const cristaMat = pm('mito', '#e2582a', .95);
+for (let i = 0; i < 8; i++){ const up = i % 2 ? 1 : -1, c = new THREE.Mesh(new THREE.CapsuleGeometry(.07, .95, 4, 10), cristaMat); c.scale.set(1, 1, 7.5); c.position.set(-1.75 + i * .5, up * .32, 0); mito.add(c); }
+ctx.pickable(mito, 'mito');
+
+/* sun + light rays */
+const SUN = new V(-8.2, 6.2, 2);
+const sun = new THREE.Mesh(new THREE.SphereGeometry(1.1, 32, 24), reg('light', new THREE.MeshBasicMaterial({ color:'#ffd23f', transparent:true })));
+sun.position.copy(SUN); world.add(sun); ctx.pickable(sun, 'light');
+const glowMat = reg('light', new THREE.MeshBasicMaterial({ color:'#ffe58a', transparent:true, opacity:.28, blending:THREE.AdditiveBlending, depthWrite:false }));
+const glow = new THREE.Mesh(new THREE.SphereGeometry(1.9, 32, 24), glowMat); glow.position.copy(SUN); world.add(glow);
+const rayMat = reg('light', new THREE.MeshBasicMaterial({ color:'#ffd23f', transparent:true, opacity:.2, blending:THREE.AdditiveBlending, depthWrite:false }));
+const RAYS = [new V(-4.6, 1.2, .4), new V(-3, 1.1, -.4), new V(-1.6, .9, .5)];
+const rays = RAYS.map(end => { const d = end.clone().sub(SUN), m = new THREE.Mesh(new THREE.CylinderGeometry(.07, .22, d.length(), 10, 1, true), rayMat); m.position.copy(SUN).addScaledVector(d, .5); m.quaternion.setFromUnitVectors(new V(0, 1, 0), d.normalize()); world.add(m); return m; });
+rays.forEach(r => ctx.pickable(r, 'light'));
+
+/* ---------- molecules (pooled particles) ---------- */
+const G = { s17:new THREE.SphereGeometry(.17, 16, 12), s15:new THREE.SphereGeometry(.15, 16, 12), s10:new THREE.SphereGeometry(.1, 12, 10), hex:new THREE.CylinderGeometry(.26, .26, .11, 6), oct:new THREE.OctahedronGeometry(.17), photon:new THREE.SphereGeometry(.09, 10, 8) };
+const MM = { c:pm('co2', '#3b4350'), co:pm('co2', '#aeb6c2'), wo:pm('h2o', '#3fa0f0'), wh:pm('h2o', '#f4f8ff'), oo:pm('o2', '#ef4444'), gl:pm('glucose', '#e2b04a', 1, { emissive:'#000' }), atp:pm('atp', '#c084fc', 1), ph:reg('light', new THREE.MeshBasicMaterial({ color:'#fff3a0', transparent:true })) };
+function build(type){
+  const g = new THREE.Group(), add = (geo, m, x = 0, y = 0, z = 0) => { const s = new THREE.Mesh(geo, m); s.position.set(x, y, z); g.add(s); };
+  if (type === 'co2'){ add(G.s17, MM.c); add(G.s15, MM.co, .27); add(G.s15, MM.co, -.27); }
+  if (type === 'h2o'){ add(G.s17, MM.wo); add(G.s10, MM.wh, .17, .13); add(G.s10, MM.wh, -.17, .13); }
+  if (type === 'o2'){ add(G.s15, MM.oo, .12); add(G.s15, MM.oo, -.12); }
+  if (type === 'glucose'){ add(G.hex, MM.gl); }
+  if (type === 'atp'){ add(G.oct, MM.atp); }
+  if (type === 'light'){ add(G.photon, MM.ph); }
+  world.add(g); ctx.pickable(g, type); return g;
+}
+const pool = {}, live = [], SCALE = { co2:1.55, h2o:1.55, o2:1.55, glucose:1.8, atp:1.5, light:1 };
+let speedK = 1;
+function spawn(type, pts, opt = {}){
+  const g = (pool[type] ||= []).pop() || build(type);
+  g.visible = true; g.scale.setScalar(SCALE[type]);
+  const curve = new THREE.CatmullRomCurve3(pts.map(p => p.clone()));
+  live.push({ g, type, curve, u:-(opt.delay || 0), dur:curve.getLength() / (opt.speed || 1.7), spin:new V(Math.random(), Math.random(), Math.random()).multiplyScalar(2), onArrive:opt.onArrive, shrink:opt.shrink !== false });
+  g.position.copy(pts[0]); if (opt.delay) g.visible = false;
+}
+const J = (p, r = .6) => p.clone().add(new V((Math.random() - .5) * r * 2, (Math.random() - .5) * r, (Math.random() - .5) * r));
+const OUT_L = () => new V(-12.5, -1 + Math.random() * 3, (Math.random() - .5) * 3);
+
+/* flows */
+let L = .7, made = 0, used = 0, pAcc = 0, rAcc = .5, phAcc = 0, pTick = 0;
+function photosynthesisTick(){
+  spawn('co2', [OUT_L(), J(STOMA.clone().add(new V(-1.2, 0, 0)), .3), J(new V(-5.6, 0, 0), .4), J(C, .9)]);
+  spawn('h2o', [new V(-3, -9.5, (Math.random() - .5) * .5), J(XYL, .2), J(new V(-3.2, -1.4, .2), .3), J(C, .9)], { delay:.6 });
+  pTick++;
+  spawn('o2', [J(C, .6), J(new V(-5.8, -.6, .2), .3), J(STOMA, .2), OUT_L().setY(.5 + Math.random() * 2)], { delay:2.2, shrink:false });
+  if (pTick % 3 === 0){ made++; spawn('glucose', [J(C, .4), J(new V(-1.2, -2.2, 1.2), .3), J(starch.position, .2)], { delay:2.4 }); }
+}
+function respirationTick(){
+  const fromC = L > .3;
+  if (fromC) made++;
+  spawn('glucose', fromC ? [J(C, .4), J(new V(.2, .9, 1), .4), J(M, .8)] : [J(starch.position, .2), J(new V(2, -2.4, 1), .3), J(M, .8)], { onArrive:respire });
+  spawn('o2', fromC ? [J(C, .4), J(new V(.3, -.4, -.6), .4), J(M, .8)] : [STOMA.clone().add(new V(-3, 0, 0)), J(STOMA, .2), J(new V(-1.5, -2, 1.6), .4), J(M, .8)], { speed:fromC ? 1.7 : 2.6 });
+}
+function respire(){
+  used++;
+  for (let i = 0; i < 3; i++){ const p = J(M, .8), d = new V(Math.random() - .5, Math.random() * .8, Math.random() - .5).normalize().multiplyScalar(2.4); spawn('atp', [p, p.clone().addScaledVector(d, .5), p.clone().add(d)], { speed:1.4, delay:i * .15 }); }
+  const back = L > .3;
+  spawn('co2', back ? [J(M, .6), J(new V(.2, 1.6, -.6), .4), J(C, .9)] : [J(M, .6), J(new V(0, -1.6, 1.8), .4), J(new V(-6, -1, .4), .3), J(STOMA, .2), OUT_L()], { delay:.3 });
+  spawn('h2o', back ? [J(M, .6), J(new V(.6, -1.9, -.6), .4), J(C, .9)] : [J(M, .6), J(new V(5.5, -2.8, 1.2), .6), J(new V(5.8, 2.4, -1.5), .8)], { delay:.5 });
+}
+function updateParticles(dt){
+  for (let i = live.length - 1; i >= 0; i--){
+    const p = live[i]; p.u += dt * speedK / p.dur;
+    if (p.u < 0) continue;
+    p.g.visible = true;
+    if (p.u >= 1){ live.splice(i, 1); p.g.visible = false; pool[p.type].push(p.g); p.onArrive && p.onArrive(); continue; }
+    p.curve.getPointAt(p.u, p.g.position);
+    p.g.rotation.x += p.spin.x * dt; p.g.rotation.y += p.spin.y * dt;
+    const base = SCALE[p.type];
+    p.g.scale.setScalar(base * (p.shrink ? Math.min(1, (1 - p.u) * 8) : 1) * Math.min(1, p.u * 10 + .2));
+  }
+}
+function photons(dt){
+  phAcc += dt * 9 * L;
+  while (phAcc > 1){ phAcc--; const end = RAYS[Math.random() * 3 | 0]; spawn('light', [SUN.clone(), end.clone().lerp(C, .4)], { speed:9 }); }
+}
+
+/* ---------- labels ---------- */
+const LBL = [
+  ctx.label(PARTS.chloroplast.name, chloro, { offset:[0, 1.9, 0] }),
+  ctx.label(PARTS.mito.name, mito, { offset:[0, 1.6, 0] }),
+  ctx.label({ en:'Nucleus', zh:'细胞核' }, nucleus, { offset:[0, 1.3, 0] }),
+  ctx.label({ en:'Stoma (air in/out)', zh:'气孔（气体进出）' }, stoma, { offset:[0, 1.2, 0] }),
+  ctx.label({ en:'Xylem: water from roots', zh:'导管：来自根的水' }, xylem, { offset:[1.8, -1, 0] }),
+  ctx.label({ en:'Stored starch', zh:'储存的淀粉' }, starch, { offset:[0, -.8, 0] }),
+  ctx.label({ en:'Sun', zh:'太阳' }, sun, { offset:[0, 1.7, 0] })
+];
+let labelsOn = true;
+Lab.$('#labelBtn').classList.add('on');
+Lab.$('#labelBtn').onclick = () => { labelsOn = !labelsOn; LBL.forEach(l => l.visible = labelsOn); Lab.$('#labelBtn').classList.toggle('on', labelsOn); };
+
+/* ---------- controls ---------- */
+function setLight(v){ L = v / 100; Lab.$('#light').value = v; Lab.$('#lightVal').textContent = v + '%'; }
+Lab.$('#light').oninput = e => { if (story.active) story.stop(); setLight(+e.target.value); };
+let spin = true;
+const setSpin = on => { spin = on; Lab.$('#rotBtn').classList.toggle('on', on); };
+Lab.$('#rotBtn').onclick = () => setSpin(!spin);
+Lab.$('#resetBtn').onclick = () => { story.stop(); App.select(null); setLight(70); world.rotation.y = 0; ctx.home(); };
+
+const FOCUS = { light:[SUN, 12], chlorophyll:[C, 6], chloroplast:[C, 9], co2:[STOMA, 10], h2o:[new V(-3, -3, 0), 11], glucose:[new V(.3, -.5, .6), 12], o2:[new V(-5, 0, 0), 11], mito:[M, 9], atp:[M, 7.5] };
+function focus(k){ if (!k) return ctx.home(); const [p, d] = FOCUS[k]; const w = p.clone(); world.localToWorld(w); ctx.flyTo(w, d); }
+App.three = { focus };
+ctx.hoverText(k => Lab.L(PARTS[k].name));
+ctx.onPick(k => { if (k !== App.sel) App.select(k, false); });
+
+/* ---------- story ---------- */
+const story = Lab3D.story('#stage', STORY, i => {
+  setSpin(false); world.rotation.y = 0;
+  const acts = [['light', 100], ['co2', 100], ['chlorophyll', 100], ['o2', 100], ['glucose', 90], ['mito', 90], ['atp', 0]];
+  const [k, v] = acts[i]; setLight(v); App.select(k, false);
+}, () => { setLight(70); App.select(null, false); });
+Lab.$('#storyBtn').onclick = () => story.start();
+
+/* ---------- per-frame ---------- */
+const dirLights = []; scene.traverse(o => { if (o.isDirectionalLight || o.isHemisphereLight) dirLights.push([o, o.intensity]); });
+let shownMade = -1, shownUsed = -1;
+ctx.onFrame((dt, t) => {
+  if (spin) world.rotation.y = Math.sin(t * .22) * .45;
+  pAcc += dt * .75 * L; while (pAcc > 1){ pAcc--; photosynthesisTick(); }
+  rAcc += dt * .32; while (rAcc > 1){ rAcc--; respirationTick(); }
+  photons(dt); updateParticles(dt);
+  night.style.opacity = (1 - L) * .7;
+  dirLights.forEach(([o, i0]) => o.intensity = i0 * (.45 + .55 * L));
+  glow.scale.setScalar(.7 + .6 * L + Math.sin(t * 2) * .03); sun.scale.setScalar(.75 + .3 * L);
+  sun.material.color.set(L > .02 ? '#ffd23f' : '#6b6a55');
+  const sel = App.sel;
+  for (const k in MATS){
+    const on = sel === k, dim = sel && !on;
+    const baseGlow = (k === 'chlorophyll' || k === 'chloroplast') ? .18 * L : k === 'mito' ? .12 : 0;
+    for (const m of MATS[k]){
+      if (m.emissive) m.emissive.set(m.color).multiplyScalar(baseGlow + (on ? .35 + .2 * Math.sin(t * 4) : 0));
+      const target = (k === 'light' && m !== sun.material ? m.userData.base * (m === rayMat ? L * 1.3 : 1) : m.userData.base) * (dim ? .18 : 1);
+      m.opacity += (target - m.opacity) * Math.min(1, dt * 8);
+    }
+  }
+  nucleus.material.opacity = sel ? .15 : .55; wallMat.opacity = sel ? .06 : .12;
+  if (made !== shownMade){ shownMade = made; Lab.$('#made').textContent = made; }
+  if (used !== shownUsed){ shownUsed = used; Lab.$('#used').textContent = used; }
+});
+renderInfo(); renderChips(); renderEq();
+</script>
+</body>
+</html>

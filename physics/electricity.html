@@ -1,0 +1,714 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Electric Circuits</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/lab3d.js"></script>
+<script src="../shared/photos.js"></script>
+<style>
+/* page-specific styles */
+.explorer{align-items:start}
+#stage{height:640px}
+.hud{position:absolute;left:12px;bottom:70px;z-index:4;display:flex;flex-direction:column;gap:4px;max-width:min(380px,72%);pointer-events:none}
+.hud div{background:color-mix(in srgb,var(--surface) 90%,transparent);border:1px solid var(--line);border-radius:10px;padding:4px 10px;font-size:13px;font-weight:800;color:var(--ink);box-shadow:var(--shadow)}
+.hud .warn{color:var(--bad)}
+.pill .mini{border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:999px;padding:3px 10px;font-weight:800;font-size:13px}
+.pill .mini.on{background:var(--ink);color:var(--surface)}
+.pill input[type=range]{width:100px}
+.tools{display:flex;flex-wrap:wrap;gap:6px}
+.tools button{border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:12px;padding:7px 11px;font-weight:800;font-size:14px}
+.tools button.on{background:var(--ink);color:var(--surface)}
+.simbox.tall{min-height:430px}
+.mats{display:flex;flex-wrap:wrap;gap:6px}
+.mats button{border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:12px;padding:6px 10px;font-weight:800;font-size:14px}
+.mats button.on{outline:3px solid var(--brand)}
+.mats button.yes{border-color:var(--good)} .mats button.no{border-color:var(--bad)}
+.tester svg{width:100%;max-width:420px;height:auto;display:block;margin:0 auto}
+.ohmbar{height:18px;border-radius:999px;background:var(--surface-2);overflow:hidden;border:1px solid var(--line)}
+.ohmbar div{height:100%;background:linear-gradient(90deg,#4fc3ff,#ffb000,#ff4d4d);width:0;transition:width .2s}
+.lab-label3d.pole{font-size:17px;padding:0 8px}
+.big{font-family:Fredoka;font-size:30px;font-weight:700}
+.vs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:16px}
+@media (max-width:560px){ #stage{height:500px} .vs{grid-template-columns:1fr} }
+</style>
+</head>
+<body data-subject="physics" data-topic="electricity">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="物理 · 电">Physics · Electricity</span>
+  <h1 data-zh-html="电路：<em>让电流动起来</em>">Electric Circuits: <em>Make It Flow</em></h1>
+  <p class="lead" data-zh="为什么老式彩灯串里坏了一个灯泡，整串都不亮，而家里一盏灯坏了，其他灯照样亮？在 3D 电路板上合上开关，看电子沿导线流动、小灯泡发光。比较串联和并联：拧下一个灯泡会发生什么？再加一节电池呢？">Why does one burnt-out bulb switch off a whole string of old holiday lights, but not the other lights in your house? Close the switch on a 3D circuit board and watch electrons stream through the wires as bulbs light up. Compare series and parallel: what happens when you unscrew a bulb, or add another battery cell?</p>
+</header>
+
+<section class="wrap" id="explore" data-nav="3D circuit" data-nav-zh="3D 电路">
+  <div class="explorer">
+    <div class="stage card" id="stage" data-3d>
+      <div class="toolbar">
+        <button class="tbtn on" data-mode="series" data-zh="🔗 串联">🔗 Series</button>
+        <button class="tbtn" data-mode="parallel" data-zh="🔀 并联">🔀 Parallel</button>
+        <button class="tbtn" id="storyBtn" data-zh="▶ 故事">▶ Story</button>
+        <button class="tbtn" id="convBtn" data-zh="⇄ 电流方向">⇄ Current direction</button>
+        <button class="tbtn" id="resetBtn" data-zh="⌂ 重置">⌂ Reset</button>
+      </div>
+      <div class="hud" id="hud"></div>
+      <div class="bottombar">
+        <div class="pill"><span data-zh="🔋 电池">🔋 Cells</span><input id="cells" type="range" min="1" max="4" value="2"><b id="cellsVal">3.0 V</b></div>
+        <div class="pill"><span data-zh="💡 灯泡">💡 Bulbs</span><button class="mini" data-n="1">1</button><button class="mini on" data-n="2">2</button><button class="mini" data-n="3">3</button></div>
+        <div class="tip" data-zh="点击开关可以断开或闭合 · 点击灯泡查看说明并拧下它">Click a switch to open/close it · Click a bulb to learn about it and unscrew it</div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="chips" id="chips"></div>
+</section>
+
+<section class="wrap" id="builder" data-nav="Circuit builder" data-nav-zh="电路搭建">
+  <div class="sec-head">
+    <h2 data-zh="模拟：自己搭电路">Simulation: build your own circuit</h2>
+    <p data-zh="选一个工具，点击网格上的连线位置放置导线、灯泡或开关。电池固定在左边。用“弄坏灯泡”工具做个测试：串联和并联里，其他灯泡还亮吗？">Pick a tool, then click a gap in the grid to place a wire, bulb or switch. The battery stays on the left. Use the “Break a bulb” tool to test: do the other bulbs stay lit in series? In parallel?</p>
+  </div>
+  <div class="sim">
+    <div class="card simbox tall"><canvas id="bCv"></canvas></div>
+    <div class="card simside">
+      <h3 data-zh="工具">Tools</h3>
+      <div class="tools" id="tools">
+        <button class="on" data-tool="wire" data-zh="〰️ 导线">〰️ Wire</button>
+        <button data-tool="bulb" data-zh="💡 灯泡">💡 Bulb</button>
+        <button data-tool="sw" data-zh="🔘 开关（再点切换）">🔘 Switch (click again to flip)</button>
+        <button data-tool="break" data-zh="💥 弄坏/修好灯泡">💥 Break / fix bulb</button>
+        <button data-tool="erase" data-zh="🧽 橡皮擦">🧽 Eraser</button>
+      </div>
+      <div class="btnrow">
+        <button class="btn ghost" data-preset="series" data-zh="示例：串联">Example: series</button>
+        <button class="btn ghost" data-preset="parallel" data-zh="示例：并联">Example: parallel</button>
+        <button class="btn ghost" data-preset="clear" data-zh="清空">Clear</button>
+      </div>
+      <label class="ctl"><span><span data-zh="电池电压">Battery voltage</span>: <b id="bVolt">3.0 V</b></span><input id="bCells" type="range" min="1" max="4" value="2"></label>
+      <div class="counters">
+        <div class="counter"><b id="bAmp">0 A</b><span data-zh="电池输出的电流">current from battery</span></div>
+        <div class="counter"><b id="bLit">0 / 0</b><span data-zh="发光的灯泡">bulbs lit</span></div>
+      </div>
+      <div class="result" id="bMsg"></div>
+      <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="串联只有一条路：一处断，处处断。并联有很多条路：每个灯泡都有自己的路。">Series = one path: one break stops everything. Parallel = many paths: each bulb has its own road.</span></div>
+    </div>
+  </div>
+  <div class="card table-wrap" style="margin-top:18px">
+    <table class="lab">
+      <thead><tr><th></th><th data-zh="🔗 串联电路">🔗 Series circuit</th><th data-zh="🔀 并联电路">🔀 Parallel circuit</th></tr></thead>
+      <tbody>
+        <tr><th data-zh="电流的路径">Paths for current</th><td data-zh="只有一条">Only one</td><td data-zh="有两条或更多条（支路）">Two or more (branches)</td></tr>
+        <tr><th data-zh="一个灯泡坏了">One bulb breaks</th><td data-zh="所有灯泡都熄灭">All bulbs go out</td><td data-zh="其他灯泡照样亮">The others stay lit</td></tr>
+        <tr><th data-zh="增加灯泡后">Adding more bulbs</th><td data-zh="每个灯泡都变暗（总电阻变大，电流变小）">Each gets dimmer (more resistance, less current)</td><td data-zh="每个灯泡亮度不变（但电池输出的总电流变大，用得更快）">Each stays just as bright (but the battery supplies more total current and runs down faster)</td></tr>
+        <tr><th data-zh="电流">Current</th><td data-zh="处处相等">The same everywhere</td><td data-zh="干路电流 = 各支路电流之和">Total = sum of the branch currents</td></tr>
+        <tr><th data-zh="电压">Voltage</th><td data-zh="各灯泡分享电池电压">Bulbs share the battery voltage</td><td data-zh="每条支路都得到全部电压">Each branch gets the full voltage</td></tr>
+        <tr><th data-zh="生活中的例子">Everyday example</th><td data-zh="老式节日彩灯串、手电筒里的电池">Old holiday light strings, cells in a flashlight</td><td data-zh="家庭电路、汽车前灯">Home wiring, car headlights</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="wrap" id="materials" data-nav="Conductors &amp; Ohm’s law" data-nav-zh="导体与欧姆定律">
+  <div class="sec-head">
+    <h2 data-zh="导体、绝缘体与欧姆定律">Conductors, insulators &amp; Ohm’s law</h2>
+    <p data-zh="把不同的材料接进测试电路的缺口里。灯泡亮了，说明它是导体。">Place different materials across the gap in a test circuit. If the bulb lights, the material is a conductor.</p>
+  </div>
+  <div class="sim">
+    <div class="card simside tester">
+      <h3 data-zh="🔍 导体检测器">🔍 Conductor tester</h3>
+      <div id="testSvg"></div>
+      <div class="mats" id="mats"></div>
+      <div class="result" id="matMsg"></div>
+      <div class="counters">
+        <div class="counter"><b id="nCond">0</b><span data-zh="找到的导体">conductors found</span></div>
+        <div class="counter"><b id="nIns">0</b><span data-zh="找到的绝缘体">insulators found</span></div>
+      </div>
+    </div>
+    <div class="card simside">
+      <h3 data-zh="⚖️ 欧姆定律：I = U ÷ R">⚖️ Ohm’s law: I = V ÷ R</h3>
+      <p data-zh="电压（U） 是推动电荷的“推力”，电阻（R） 是阻碍电流的“阻力”，电流（I） 是电荷流动的快慢。">Voltage (V) is the push on the charges, resistance (R) is how much the path resists, and current (I) is the rate of flow.</p>
+      <label class="ctl"><span><span data-zh="电压">Voltage</span>: <b id="oV">6 V</b></span><input id="oVs" type="range" min="1.5" max="12" step="1.5" value="6"></label>
+      <label class="ctl"><span><span data-zh="电阻">Resistance</span>: <b id="oR">3 Ω</b></span><input id="oRs" type="range" min="1" max="24" step="1" value="3"></label>
+      <div class="big" id="oI">2.00 A</div>
+      <div class="ohmbar"><div id="oBar"></div></div>
+      <div class="memory"><b data-zh="💡 水管类比">💡 Water-pipe model</b><span data-zh="电压像水泵的压力，电流像水流的大小，电阻像水管变窄的地方。压力越大，水流越大；水管越窄，水流越小。">Voltage is like the pump’s pressure, current is like how much water flows, and resistance is like a narrow section of pipe. More pressure → more flow; narrower pipe → less flow.</span></div>
+    </div>
+  </div>
+  <div class="vs">
+    <div class="box card"><div class="ico">🎈</div><h3 data-zh="静电">Static electricity</h3><p data-zh="摩擦气球时，电子从头发转移到气球上，电荷“停留”在表面不流动。异种电荷相互吸引，同种电荷相互排斥。在绝缘体上，电荷停在摩擦过的地方；在导体上，电荷会散布到整个表面。">Rubbing a balloon moves electrons from your hair to the balloon. The charge builds up and stays put. Opposite charges attract; like charges repel. On an insulator, charge stays where it was rubbed; on a conductor, it spreads over the whole surface.</p></div>
+    <div class="box card"><div class="ico">🔌</div><h3 data-zh="电流">Current electricity</h3><p data-zh="在闭合电路中，电池推动电荷沿导线持续流动。电流能把电能转化为光能、热能和动能，我们的电器都靠它工作。闪电则是一次巨大的静电放电。">In a closed circuit, a battery pushes charges to flow steadily through wires. Current turns electrical energy into light, heat and motion, which is how our devices work. Lightning is a giant static discharge.</p></div>
+  </div>
+  <div class="mix" style="margin-top:16px"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="灯泡不会“用掉”电流。流进灯泡的电流和流出灯泡的电流一样大，被消耗的是电能（转化为光和热）。">Bulbs do not “use up” current. The current flowing out of a bulb equals the current flowing in. What gets used is energy, which turns into light and heat.</span></div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real photos" data-nav-zh="真实影像">
+  <div id="gallery"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 电路测验">🧠 Circuits quiz</h3><p class="sub" data-zh="选出正确答案。">Pick the best answer.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分一分：导体还是绝缘体？">🗂️ Sort it: conductor or insulator?</h3><p class="sub" data-zh="把每种材料拖到（或先点再点方框）正确的组里。">Drag each material (or tap it, then tap a box) into the right group.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="对应佐治亚州标准 S8P5：获取、评价并交流关于电、磁和重力是自然界主要力量的信息。S8P5b：设计并开展探究，说明电荷在导体和绝缘体中的分布；S8P5c：探究影响电力和磁力强弱的因素（例如干电池的数量）。">Supports GSE S8P5 (electricity, magnetism and gravity as major forces in nature), especially S8P5b (investigate the distribution of charge in conductors and insulators) and S8P5c (factors such as the number of dry cells that affect electric and magnetic forces).</p>
+    <p data-zh="建议：先让学生预测，再在 3D 电路中验证：①串联中增加灯泡，亮度如何变化？②并联中拧下一个灯泡，其他灯泡会怎样？③增加电池节数，电流怎样变化？用电流表读数支持结论。模型中电池视为理想电源（无内阻），灯丝电阻视为恒定 3 Ω。">Have students predict, then test in the 3D circuit: (1) how brightness changes when bulbs are added in series; (2) what happens to the others when one parallel bulb is unscrewed; (3) how the current changes with more cells. Use ammeter readings as evidence. The model treats the battery as ideal (no internal resistance) and each filament as a constant 3 Ω.</p>
+    <p data-zh="常见误解：电流在灯泡中被“用完”；离电池近的灯泡更亮；电池里储存的是“电子”；电子从电池飞速冲到灯泡。">Misconceptions to probe: current is “used up” by bulbs; bulbs nearer the battery are brighter; batteries store electrons; electrons race from the battery to the bulb.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+const o = (en, zh) => ({en, zh});
+/* ===== Parts of the circuit (bilingual) ===== */
+const PARTS = {
+  battery:{color:'#2f6fd6', name:o('Battery (cells)','电池（电池组）'), job:o('The energy source that pushes charges around the loop','电源：推动电荷在电路中流动'),
+    facts:{en:['Voltage, measured in volts (V), is the “push” a battery gives to charges.','Each cell here gives 1.5 V. Cells joined end-to-end (in series) add up: 3 cells = 4.5 V.','Inside the battery, chemical energy is changed into electrical energy.','Electrons leave the negative (−) terminal, travel around the circuit, and return to the positive (+) terminal.'],
+           zh:['电压的单位是伏特（V），它是电池对电荷的“推力”。','这里每节电池提供 1.5 V。电池首尾相连（串联）时电压相加：3 节 = 4.5 V。','电池内部把化学能转化为电能。','电子从负极（−） 出发，沿电路流动，再回到正极（+）。']},
+    hint:o('Voltage is the push; current is the flow.','电压是“推力”，电流是“流动”。'),
+    mix:o('A battery does not store electrons to be used up. The wires are already full of electrons; the battery supplies energy to push them.','电池里装的不是要“用完”的电子。导线里本来就充满了电子，电池提供能量去推动它们。')},
+  wire:{color:'#c87533', name:o('Wire (conductor)','导线（导体）'), job:o('Gives the current a path','为电流提供通路'),
+    facts:{en:['Copper is a good conductor: its electrons move easily from atom to atom.','The plastic coating is an insulator. It keeps the current inside the wire and protects you.','Current flows only when there is a complete, unbroken loop: a closed circuit.','If a wire connects the battery’s terminals with nothing else in the path, that is a short circuit. The current is huge and the wire gets dangerously hot.'],
+           zh:['铜是良好的导体，它的电子很容易在原子之间移动。','外面的塑料皮是绝缘体，它让电流只在导线里流动，也保护我们的安全。','只有形成完整、没有断开的回路（闭合电路），电流才会流动。','如果导线直接把电池两极连起来、中间没有用电器，就是短路。电流非常大，导线会变得很烫，非常危险。']},
+    hint:o('No loop, no flow!','没有回路，就没有电流！'),
+    mix:o('Current is not used up. The same current that enters a bulb comes out the other side.','电流不会被用掉。流进灯泡的电流和流出灯泡的电流一样大。')},
+  switch:{color:'#e0841b', name:o('Switch','开关'), job:o('Opens or closes the path','断开或接通电路'),
+    facts:{en:['A closed switch completes the loop, so current flows.','An open switch leaves an air gap. Air is an insulator, so the current stops everywhere in that loop at once.','In a parallel circuit, each branch can have its own switch, like the light switches in each room of your home.','Click any switch on the board to flip it.'],
+           zh:['闭合的开关让回路完整，电流就能流动。','断开的开关留下一段空气间隙。空气是绝缘体，所以整个回路里的电流会同时停止。','在并联电路中，每条支路都可以有自己的开关，就像家里每个房间各有一个电灯开关。','点击电路板上的任意开关来切换它。']},
+    hint:o('Closed = Current flows (both start with C!). Open = Off.','开关“闭合”电路通，开关“断开”电路断。'),
+    mix:o('Opening a switch does not trap electricity in the wires. The flow simply stops.','断开开关并不会把电“关”在导线里，只是电荷停止了流动。')},
+  bulb:{color:'#ffc93c', name:o('Light bulb (load)','小灯泡（用电器）'), job:o('Changes electrical energy into light and heat','把电能转化为光能和内能（热）'),
+    facts:{en:['The thin tungsten filament has high resistance. Current heats it until it glows.','More current through a bulb means more power, so it glows brighter.','In series, bulbs share the battery’s voltage, so each gets less and they are dimmer.','In parallel, every bulb gets the full battery voltage, so each is as bright as a single bulb alone.'],
+           zh:['细细的钨丝电阻很大，电流把它加热到发光。','通过灯泡的电流越大，功率越大，灯泡就越亮。','串联时，各个灯泡分享电池的电压，每个分到的少，所以较暗。','并联时，每个灯泡都得到电池的全部电压，所以每个都和单独一个灯泡一样亮。']},
+    hint:o('Series: one goes out, all go out. Parallel: the others stay on.','串联：一个灭，全都灭。并联：其他的照样亮。'),
+    mix:o('In a series loop, the bulb nearest the battery is NOT brighter. The current is the same everywhere in the loop.','串联电路中，离电池近的灯泡并不会更亮，回路中各处电流都相同。')},
+  ammeter:{color:'#5c677d', name:o('Ammeter','电流表'), job:o('Measures current in amperes (A)','测量电流，单位是安培（A）'),
+    facts:{en:['Current is how much charge flows past a point each second, measured in amperes (amps, A).','An ammeter is connected in series, right in the path of the current.','Ohm’s law: current = voltage ÷ resistance (I = V ÷ R).','In parallel, the total current from the battery is the sum of the branch currents.'],
+           zh:['电流表示每秒通过导线某一截面的电荷有多少，单位是安培（安，A）。','电流表要串联在电路中，让电流从它里面流过。','欧姆定律：电流 = 电压 ÷ 电阻（I = U ÷ R）。','并联电路中，干路的总电流等于各支路电流之和。']},
+    hint:o('Amps measure the flow, like liters per second in a water pipe.','安培衡量“流量”，就像水管里每秒流过多少升水。')},
+  electron:{color:'#45c8ff', name:o('Electrons (moving charge)','电子（移动的电荷）'), job:o('Tiny negative charges that flow in metal wires','在金属导线中流动的带负电的微粒'),
+    facts:{en:['The blue dots are electrons. They flow from the − terminal, through the circuit, to the + terminal.','Scientists draw “conventional current” the other way, from + to −. That rule was chosen before electrons were discovered.','The dots move faster when the current is bigger.','Real electrons drift slowly, but the whole wire is full of them, so they all start moving together and the bulb lights instantly.'],
+           zh:['蓝色小点代表电子，它们从负极出发，经过电路流向正极。','科学上规定的“电流方向”正好相反，是从正极流向负极，这是在发现电子之前就定下的规定。','电流越大，小点移动得越快。','真实的电子移动得很慢，但导线里到处都是电子，它们同时开始移动，所以灯泡一接通就亮。']},
+    hint:o('Electrons go Negative → Positive; conventional current goes + → −.','电子：负极 → 正极；电流方向：正极 → 负极。'),
+    mix:o('Electrons do not race from the battery to the bulb. They all start drifting at the same moment, everywhere in the loop.','电子并不是从电池“冲”到灯泡的，整个回路里的电子是同时开始移动的。')}
+};
+const ORDER = ['battery','wire','switch','bulb','ammeter','electron'];
+
+/* ===== Story ===== */
+const STORY = [
+  o('1 · A closed circuit: battery, switch, wires and one bulb make a complete loop. Electrons flow and the bulb glows.','1 · 闭合电路：电池、开关、导线和一个灯泡组成完整的回路。电子流动，灯泡发光。'),
+  o('2 · Open the switch: the loop is broken by an air gap. Current stops everywhere at once, and the bulb goes dark.','2 · 断开开关：回路被空气隔断，整个电路的电流同时停止，灯泡熄灭。'),
+  o('3 · Series: three bulbs on ONE path. They share the voltage, so the current is smaller and every bulb is dimmer.','3 · 串联：三个灯泡在同一条路上。它们分享电压，电流变小，每个灯泡都变暗。'),
+  o('4 · Unscrew one bulb in series: the only path is broken, so ALL the bulbs go out.','4 · 在串联电路中拧下一个灯泡：唯一的通路断了，所有灯泡都熄灭。'),
+  o('5 · Parallel: each bulb has its OWN path to the battery, so each gets the full voltage and glows brightly.','5 · 并联：每个灯泡都有自己通往电池的路，都得到全部电压，所以都很亮。'),
+  o('6 · Unscrew one bulb in parallel: the other paths are still complete, so the other bulbs stay lit. Homes are wired this way.','6 · 在并联电路中拧下一个灯泡：其他通路仍然完整，其他灯泡照样亮。家庭电路就是这样连接的。'),
+  o('7 · Add more cells: more voltage pushes more current through the same resistance (Ohm’s law), so the bulbs glow brighter.','7 · 增加电池节数：电压越大，通过同样电阻的电流越大（欧姆定律），灯泡就越亮。')
+];
+
+/* ===== Circuit state + solver (ideal battery, 3 Ω bulbs) ===== */
+const RB = 3;
+const C = window.CIRC = { mode:'series', n:2, cells:2, sw:{ s0:true, s1:true, s2:true, s3:true }, out:{ b1:false, b2:false, b3:false }, conv:false, sel:null, bulb:'b1', three:null, res:null };
+C.ids = () => ['b1', 'b2', 'b3'].slice(0, C.n);
+C.solve = () => {
+  const V = C.cells * 1.5, ids = C.ids(), r = { V, I:0, bulbs:{}, why:null };
+  if (C.mode === 'series'){
+    const ok = C.sw.s0 && ids.every(b => !C.out[b]), I = ok ? V / (C.n * RB) : 0;
+    ids.forEach(b => r.bulbs[b] = { I, U:I * RB }); r.I = I; r.Rt = C.n * RB;
+    if (!C.sw.s0) r.why = 'switch'; else if (!ok) r.why = 'bulb';
+  } else {
+    ids.forEach((b, k) => { const I = C.sw.s0 && C.sw['s' + (k + 1)] && !C.out[b] ? V / RB : 0; r.bulbs[b] = { I, U:I ? V : 0 }; r.I += I; });
+    if (!C.sw.s0) r.why = 'switch'; else if (!r.I) r.why = 'branches';
+  }
+  ids.forEach(b => r.bulbs[b].glow = Math.min(1, Math.pow(r.bulbs[b].I ** 2 * RB / 12, .45)));
+  return r;
+};
+C.update = () => { C.res = C.solve(); renderHud(); if (C.three) C.three.refresh(); };
+
+/* ===== Info panel ===== */
+C.select = (k, from3D) => { C.sel = k; renderInfo(); renderChips(); if (!from3D && C.three) C.three.focus(k); };
+/* ===== Real photos (Wikimedia Commons, freely licensed) ===== */
+const PHOTOS = [
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/73/400_points_breadboard.jpg/960px-400_points_breadboard.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A breadboard lets you build a circuit without solder. Wires and parts push into the holes, and metal strips hidden underneath connect each row.', zh:'面包板可以让你不用焊接就搭出电路。导线和元件插进小孔里，板子下面藏着的金属条把每一排连通。', kind:{en:'Lab equipment', zh:'实验器材'}, credit:'oomlout', license:'CC BY-SA 2.0', page:'https://commons.wikimedia.org/wiki/File:400_points_breadboard.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/3/3a/Gluehlampe_01_KMJ.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'An ordinary light bulb (60 watts). Find the very thin wire inside, the filament: when current flows through it, it gets hot enough to glow.', zh:'一只普通的白炽灯泡（60瓦）。找找里面那根很细的灯丝：电流通过时，它会热到发光。', kind:{en:'Photo', zh:'照片'}, credit:'KMJ', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Gluehlampe_01_KMJ.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/55/IKEA_LADDA_rechargeable_AA-batteries.jpg/960px-IKEA_LADDA_rechargeable_AA-batteries.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A stack of four rechargeable AA cells. A battery stores chemical energy and pushes current around a circuit.', zh:'叠在一起的四节AA充电电池。电池储存着化学能，能推动电流在电路中流动。', kind:{en:'Photo', zh:'照片'}, credit:'RAIL P (RAIL.PHOTOGRAPHY)', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:IKEA_LADDA_rechargeable_AA-batteries.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/31/Fluke_UDC.jpg/960px-Fluke_UDC.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A multimeter set to measure DC voltage (the kind that comes from batteries). The same meter can also be switched to measure current, like the ammeter in the 3D model.', zh:'一台调到直流电压挡的万用表（电池提供的就是直流电）。它也可以切换成测量电流，作用就像3D模型里的电流表。', kind:{en:'Photo', zh:'照片'}, credit:'Christiankral', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Fluke_UDC.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/67/Transmission_Lines_Crossing_a_Grassy_Valley.jpg/960px-Transmission_Lines_Crossing_a_Grassy_Valley.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'High-voltage power lines on steel towers. These carry 240,000 volts from power plants toward towns and cities. They are the wires of a giant circuit.', zh:'钢塔上的高压输电线。它们以24万伏的电压把电从发电厂送往城镇，是一个巨大电路里的“导线”。', kind:{en:'Photo', zh:'照片'}, credit:'Kkiefuik', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Transmission_Lines_Crossing_a_Grassy_Valley.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/13/Lightning_over_Oradea_Romania_3.jpg/960px-Lightning_over_Oradea_Romania_3.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Lightning during a 2005 thunderstorm in Romania. It is a giant electric spark: charge jumps through the air instead of flowing along a wire.', zh:'2005年罗马尼亚一场雷暴中的闪电。闪电是一个巨大的电火花：电荷没有沿着导线流动，而是直接穿过空气。', kind:{en:'Photo', zh:'照片'}, credit:'Mircea Madau', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Lightning_over_Oradea_Romania_3.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ae/Van_de_Graaff_at_American_Museum_of_Science_and_Energy_Oak_Ridge.jpg/960px-Van_de_Graaff_at_American_Museum_of_Science_and_Energy_Oak_Ridge.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A visitor touches a Van de Graaff generator at a science museum in Oak Ridge, Tennessee. It builds up static electricity: charge that stays put instead of flowing in a circuit.', zh:'美国田纳西州橡树岭一家科技馆里，参观者用手触摸范德格拉夫起电机。它积累的是静电：电荷停留在原处，而不是在电路中流动。', kind:{en:'Science museum demo', zh:'科技馆演示'}, credit:'U.S. Department of Energy (Oak Ridge)', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Van_de_Graaff_at_American_Museum_of_Science_and_Energy_Oak_Ridge.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/19/Dyker_Lights_%2862317%29.jpg/960px-Dyker_Lights_%2862317%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Holiday lights in Dyker Heights, Brooklyn, New York. Thousands of bulbs on many separate circuits. Think back to the hook question: series or parallel?', zh:'美国纽约布鲁克林戴克高地的节日彩灯。成千上万只灯泡，分布在许多条电路上。想想开头的问题：它们是串联还是并联？', kind:{en:'Photo', zh:'照片'}, credit:'Rhododendrites', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Dyker_Lights_(62317).jpg' }
+];
+LabPhotos.render('#gallery', PHOTOS, { title:{en:'See the real thing', zh:'看看真实的样子'}, sub:{en:'Real photos of this physics in everyday life and in the lab. Click any picture to enlarge it.', zh:'生活中和实验室里的真实照片。点击图片可以放大。'} });
+/* photos shown inside the info panel */
+PARTS.wire.photo = PHOTOS[0]; PARTS.bulb.photo = PHOTOS[1]; PARTS.battery.photo = PHOTOS[2]; PARTS.ammeter.photo = PHOTOS[3]; PARTS.electron.photo = PHOTOS[5];
+/* ===== end real photos ===== */
+
+function renderInfo(){
+  const box = Lab.$('#info'), k = C.sel;
+  if (!k){
+    box.innerHTML = `<span class="tag">${Lab.L(o('Circuit board','电路板'))}</span>
+      <h3>${Lab.L(o('A circuit is a loop','电路是一个回路'))}</h3>
+      <p class="muted" style="margin:0">${Lab.L(o('Charges flow only around a complete loop. Click the switches to open and close the loop, change the number of cells and bulbs, and compare series with parallel.','电荷只能沿完整的回路流动。点击开关断开或闭合电路，改变电池和灯泡的数量，比较串联与并联。'))}</p>
+      <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(o('A battery provides the push (voltage), the loop provides the path, and the bulbs turn electrical energy into light.','电池提供推力（电压），回路提供通路，灯泡把电能转化为光能。'))}</div>
+      <div class="nav"><button id="startBtn">${Lab.L(o('Start with the battery ▶','从电池开始 ▶'))}</button></div>`;
+    Lab.$('#startBtn').onclick = () => C.select('battery');
+    return;
+  }
+  const p = PARTS[k], i = ORDER.indexOf(k), bi = C.ids().indexOf(C.bulb);
+  const extra = k === 'bulb' && bi >= 0 ? `<button class="btn" id="unscrew">${Lab.L(C.out[C.bulb] ? o('🔩 Screw bulb ' + (bi + 1) + ' back in', '🔩 把灯泡 ' + (bi + 1) + ' 拧回去') : o('🔧 Unscrew bulb ' + (bi + 1), '🔧 拧下灯泡 ' + (bi + 1)))}</button>` : '';
+  box.innerHTML = `<span class="tag">${Lab.L(o('Circuit part','电路元件'))}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    ${p.photo ? LabPhotos.figure(p.photo) : ''}
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    ${extra}
+    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
+  if (extra) Lab.$('#unscrew').onclick = () => { C.out[C.bulb] = !C.out[C.bulb]; C.update(); renderInfo(); };
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. '));
+  Lab.$('#pPrev').onclick = () => C.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
+  Lab.$('#pNext').onclick = () => C.select(ORDER[(i + 1) % ORDER.length]);
+}
+function renderChips(){
+  Lab.$('#chips').innerHTML = ORDER.map(k => `<button class="chip ${C.sel===k?'on':''}" data-k="${k}"><i style="background:${PARTS[k].color}"></i>${Lab.L(PARTS[k].name)}</button>`).join('');
+  Lab.$$('#chips .chip').forEach(c => c.onclick = () => C.select(c.dataset.k));
+}
+function renderHud(){
+  const r = C.res || C.solve(), f2 = x => x.toFixed(2), lines = [];
+  const U = Lab.lang === 'zh' ? 'U' : 'V';
+  lines.push(`🔋 ${r.V.toFixed(1)} V (${C.cells} × 1.5 V) · Ⓐ ${Lab.L(o('total','干路'))} ${f2(r.I)} A · ${C.conv ? '🟠 + → −' : '🔵 e⁻ − → +'}`);
+  if (!r.I){
+    const why = { switch:o('the main switch is open','总开关断开了'), bulb:o('a bulb is unscrewed, so the only path is broken','有灯泡被拧下，唯一的通路断了'), branches:o('every branch is open','所有支路都断开了') }[r.why];
+    lines.push(`<span class="warn">⛔ ${Lab.L(o('Open circuit: ','断路：'))}${Lab.L(why)}</span>`);
+  } else if (C.mode === 'series'){
+    lines.push(`💡 ${Lab.L(o('Each bulb','每个灯泡'))}: ${f2(r.I)} A · ${r.bulbs.b1.U.toFixed(1)} V &nbsp; I = ${U} ÷ R = ${r.V.toFixed(1)} ÷ ${r.Rt} = ${f2(r.I)} A`);
+  } else {
+    lines.push('💡 ' + C.ids().map((b, k) => `${k + 1}: ${f2(r.bulbs[b].I)} A`).join(' · ') + ` &nbsp; ${Lab.L(o('each closed branch','每条接通的支路'))}: I = ${r.V.toFixed(1)} ÷ ${RB} = ${f2(r.V / RB)} A`);
+  }
+  const hud = Lab.$('#hud'); hud.innerHTML = lines.map(t => `<div>${t}</div>`).join('');
+  hud.style.bottom = (Lab.$('#stage .bottombar').offsetHeight + (Lab.$('#stage .storybar.show') ? 74 : 22)) + 'px';
+  Lab.$('#cellsVal').textContent = r.V.toFixed(1) + ' V';
+}
+addEventListener('resize', renderHud);
+Lab.onLang(() => { renderInfo(); renderChips(); renderHud(); });
+
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const REDRAW = [];
+addEventListener('labtheme', () => REDRAW.forEach(f => f()));
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => REDRAW.forEach(f => f()));
+function fit(cv){
+  const b = cv.parentElement.getBoundingClientRect(), d = Math.min(2, devicePixelRatio || 1);
+  const w = Math.max(1, Math.round(b.width * d)), h = Math.max(1, Math.round(b.height * d)); if (cv.width !== w || cv.height !== h){ cv.width = w; cv.height = h; }
+  const g = cv.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0); return { g, W:b.width, H:b.height };
+}
+
+/* ===== Circuit builder (grid + real nodal analysis) ===== */
+(function(){
+  const cv = Lab.$('#bCv'), COLS = 5, ROWS = 3, RW = .001, RINT = .1, BAT = 'v00';
+  let tool = 'wire', E = 3, hover = null, sol = null, geo = null;
+  const ST = {}, edges = [];
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS - 1; c++) edges.push({ id:`h${c}${r}`, a:[c, r], b:[c + 1, r] });
+  for (let r = 0; r < ROWS - 1; r++) for (let c = 0; c < COLS; c++) edges.push({ id:`v${c}${r}`, a:[c, r], b:[c, r + 1] });
+  const idx = ([c, r]) => r * COLS + c;
+  const PRESETS = {
+    series:{ h00:'sw', h10:'bulb', h20:'bulb', h30:'wire', v40:'wire', v41:'wire', h32:'wire', h22:'wire', h12:'wire', h02:'wire', v01:'wire' },
+    parallel:{ h00:'sw', h10:'wire', h20:'wire', h30:'wire', v20:'bulb', v21:'wire', v30:'bulb', v31:'wire', v40:'bulb', v41:'wire', h02:'wire', h12:'wire', h22:'wire', h32:'wire', v01:'wire' },
+    clear:{ v01:'wire' }
+  };
+  function load(p){ for (const k in ST) delete ST[k]; ST[BAT] = { t:'bat' }; for (const id in PRESETS[p]) ST[id] = { t:PRESETS[p][id], open:false, broken:false }; solve(); }
+  function gauss(A, b){
+    const n = b.length, M = A.map((r, i) => [...r, b[i]]);
+    for (let c = 0; c < n; c++){
+      let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+      [M[c], M[p]] = [M[p], M[c]]; const d = M[c][c] || 1e-12;
+      for (let r = 0; r < n; r++){ if (r === c) continue; const f = M[r][c] / d; if (!f) continue; for (let k = c; k <= n; k++) M[r][k] -= f * M[c][k]; }
+    }
+    return M.map((r, i) => r[n] / (r[i] || 1e-12));
+  }
+  const cond = e => { const s = ST[e.id]; if (!s || s.t === 'bat') return 0; if (s.t === 'wire') return 1 / RW; if (s.t === 'sw') return s.open ? 0 : 1 / RW; return s.broken ? 0 : 1 / RB; };
+  function solve(){
+    const N = COLS * ROWS, G = Array.from({ length:N }, () => new Array(N).fill(0)), I = new Array(N).fill(0);
+    const add = (a, b, g) => { G[a][a] += g; G[b][b] += g; G[a][b] -= g; G[b][a] -= g; };
+    edges.forEach(e => { const g = cond(e); if (g) add(idx(e.a), idx(e.b), g); });
+    const p = idx([0, 0]), n = idx([0, 1]); add(p, n, 1 / RINT); I[p] += E / RINT; I[n] -= E / RINT;   // battery as Norton source
+    for (let i = 0; i < N; i++) G[i][i] += 1e-9;
+    for (let j = 0; j < N; j++) G[n][j] = 0; G[n][n] = 1; I[n] = 0;   // ground the − terminal
+    const v = gauss(G, I), cur = {};
+    edges.forEach(e => { const g = cond(e); cur[e.id] = g ? g * (v[idx(e.a)] - v[idx(e.b)]) : 0; });
+    const Ib = (E - (v[p] - v[n])) / RINT; cur[BAT] = -Ib;
+    sol = { cur, Ib, short:Ib > 8 }; report();
+  }
+  const glowOf = id => { const s = ST[id]; if (!s || s.t !== 'bulb' || s.broken || !sol) return 0; return Math.min(1, Math.pow(sol.cur[id] ** 2 * RB / 12, .45)); };
+  function report(){
+    const bulbs = Object.keys(ST).filter(k => ST[k].t === 'bulb'), lit = bulbs.filter(k => glowOf(k) > .12).length, m = Lab.$('#bMsg');
+    Lab.$('#bVolt').textContent = E.toFixed(1) + ' V';
+    Lab.$('#bAmp').textContent = (sol.short ? '⚡ ' : '') + Math.abs(sol.Ib).toFixed(2) + ' A';
+    Lab.$('#bLit').textContent = lit + ' / ' + bulbs.length;
+    if (sol.short){ m.className = 'result bad'; m.textContent = Lab.L(o('⚠️ Short circuit! The current takes an easy path with no bulb. Wires get hot and the battery drains fast.','⚠️ 短路！电流走了一条没有用电器的捷径，导线会发热，电池很快耗尽。')); }
+    else if (Math.abs(sol.Ib) < 1e-3){ m.className = 'result bad'; m.textContent = Lab.L(o('Open circuit: there is no complete loop from + back to −, so no current flows.','断路：没有从正极回到负极的完整回路，所以没有电流。')); }
+    else { m.className = 'result good'; m.textContent = Lab.lang === 'zh' ? `闭合电路!电流 ${Math.abs(sol.Ib).toFixed(2)} A,${lit} 个灯泡发光。${lit < bulbs.length ? '有的灯泡不在完整回路里。' : ''}` : `Closed circuit! ${Math.abs(sol.Ib).toFixed(2)} A flows and ${lit} bulb${lit === 1 ? '' : 's'} light up.${lit < bulbs.length ? ' Some bulbs are not in a complete loop.' : ''}`; }
+  }
+  function layout(W, H){ const mx = 50, my = 46, sx = (W - 2 * mx) / (COLS - 1), sy = (H - 2 * my) / (ROWS - 1); return ([c, r]) => [mx + c * sx, my + r * sy]; }
+  function draw(t = 0){
+    const { g, W, H } = fit(cv); if (W < 10 || !sol) return;
+    const P = geo = layout(W, H), ink = css('--ink'), ink2 = css('--ink-2'), line = css('--line'), surf = css('--surface'), brand = css('--brand'), bad = css('--bad');
+    g.fillStyle = surf; g.fillRect(0, 0, W, H);
+    for (const e of edges){
+      const [x0, y0] = P(e.a), [x1, y1] = P(e.b), s = ST[e.id], mx = (x0 + x1) / 2, my = (y0 + y1) / 2, dx = (x1 - x0), dy = (y1 - y0), L = Math.hypot(dx, dy), ux = dx / L, uy = dy / L;
+      if (hover === e.id){ g.strokeStyle = brand; g.globalAlpha = .25; g.lineWidth = 18; g.lineCap = 'round'; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.globalAlpha = 1; g.lineCap = 'butt'; }
+      if (!s){ g.strokeStyle = line; g.lineWidth = 2; g.setLineDash([5, 7]); g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.setLineDash([]); continue; }
+      const hot = sol.short && Math.abs(sol.cur[e.id]) > 4;
+      const gap = s.t === 'wire' ? 0 : s.t === 'bat' ? 14 : s.t === 'bulb' ? 18 : 16;
+      g.strokeStyle = hot ? bad : ink; g.lineWidth = 4;
+      g.beginPath(); g.moveTo(x0, y0); g.lineTo(mx - ux * gap, my - uy * gap); g.moveTo(mx + ux * gap, my + uy * gap); g.lineTo(x1, y1); g.stroke();
+      if (s.t === 'bat'){
+        g.lineWidth = 4; g.strokeStyle = ink; g.beginPath(); g.moveTo(mx - uy * 18 - ux * 6, my + ux * 18 - uy * 6); g.lineTo(mx + uy * 18 - ux * 6, my - ux * 18 - uy * 6); g.stroke();
+        g.lineWidth = 7; g.beginPath(); g.moveTo(mx - uy * 9 + ux * 6, my + ux * 9 + uy * 6); g.lineTo(mx + uy * 9 + ux * 6, my - ux * 9 + uy * 6); g.stroke();
+        g.fillStyle = ink; g.font = '800 15px Nunito, sans-serif'; g.textAlign = 'right'; g.fillText('+', mx - 22, my - 8); g.fillText('−', mx - 22, my + 18);
+        g.font = '800 12px Nunito, sans-serif'; g.textAlign = 'left'; g.fillStyle = ink2; g.fillText(E.toFixed(1) + ' V', mx + 22, my + 4);
+      } else if (s.t === 'bulb'){
+        const gl = glowOf(e.id);
+        if (gl > .02){ const rg = g.createRadialGradient(mx, my, 4, mx, my, 16 + 34 * gl); rg.addColorStop(0, `rgba(255,214,90,${.85 * gl + .1})`); rg.addColorStop(1, 'rgba(255,214,90,0)'); g.fillStyle = rg; g.beginPath(); g.arc(mx, my, 16 + 34 * gl, 0, 7); g.fill(); }
+        g.fillStyle = s.broken ? line : gl > .02 ? `rgb(255,${200 + 40 * gl | 0},${90 + 100 * gl | 0})` : surf; g.strokeStyle = ink; g.lineWidth = 3;
+        g.beginPath(); g.arc(mx, my, 15, 0, 7); g.fill(); g.stroke();
+        g.lineWidth = 2; g.beginPath();
+        if (s.broken){ g.moveTo(mx - 9, my - 4); g.lineTo(mx - 2, my + 3); g.lineTo(mx + 2, my - 3); g.lineTo(mx + 9, my + 4); }
+        else { g.moveTo(mx - 10, my - 10); g.lineTo(mx + 10, my + 10); g.moveTo(mx + 10, my - 10); g.lineTo(mx - 10, my + 10); }
+        g.stroke();
+      } else if (s.t === 'sw'){
+        const ax = mx - ux * gap, ay = my - uy * gap, bx = mx + ux * gap, by = my + uy * gap;
+        g.fillStyle = ink; g.beginPath(); g.arc(ax, ay, 4.5, 0, 7); g.arc(bx, by, 4.5, 0, 7); g.fill();
+        const ang = s.open ? -.6 : -.13, ca = Math.cos(ang), sa = Math.sin(ang), ex = ax + (ux * ca - uy * sa) * gap * 2, ey = ay + (uy * ca + ux * sa) * gap * 2;
+        g.strokeStyle = s.open ? bad : ink; g.lineWidth = 4; g.beginPath(); g.moveTo(ax, ay); g.lineTo(ex, ey); g.stroke();
+      }
+      /* moving electrons (opposite to conventional current) */
+      const I = sol.cur[e.id];
+      if (s.t !== 'bat' && Math.abs(I) > .005){
+        const sp = Math.min(150, 18 + 30 * Math.abs(I)), dir = I > 0 ? -1 : 1;
+        g.fillStyle = '#2aa9e0';
+        for (let k = 0; k < L; k += 18){ let d = ((k + dir * t * sp) % L + L) % L; if (s.t !== 'wire' && Math.abs(d - L / 2) < gap) continue; g.beginPath(); g.arc(x0 + ux * d, y0 + uy * d, 3.2, 0, 7); g.fill(); }
+      }
+    }
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++){ const [x, y] = P([c, r]); g.fillStyle = ink2; g.beginPath(); g.arc(x, y, 4, 0, 7); g.fill(); }
+  }
+  function nearest(ev){
+    if (!geo) return null; const b = cv.getBoundingClientRect(), x = ev.clientX - b.left, y = ev.clientY - b.top; let best = null, bd = 20;
+    for (const e of edges){ const [x0, y0] = geo(e.a), [x1, y1] = geo(e.b), dx = x1 - x0, dy = y1 - y0, u = Math.max(0, Math.min(1, ((x - x0) * dx + (y - y0) * dy) / (dx * dx + dy * dy))), d = Math.hypot(x - x0 - u * dx, y - y0 - u * dy); if (d < bd && u > .12 && u < .88){ bd = d; best = e.id; } }
+    return best;
+  }
+  cv.addEventListener('pointermove', ev => { hover = nearest(ev); cv.style.cursor = hover ? 'pointer' : 'default'; });
+  cv.addEventListener('pointerleave', () => hover = null);
+  cv.addEventListener('click', ev => {
+    const id = nearest(ev); if (!id) return;
+    if (id === BAT){ const m = Lab.$('#bMsg'); m.className = 'result'; m.textContent = Lab.L(o('The battery stays here. Change its voltage with the slider.','电池固定在这里，用滑块改变它的电压。')); return; }
+    const s = ST[id];
+    if (tool === 'erase') delete ST[id];
+    else if (tool === 'break'){ if (s && s.t === 'bulb') s.broken = !s.broken; }
+    else if (tool === 'sw' && s && s.t === 'sw') s.open = !s.open;
+    else ST[id] = { t:tool, open:false, broken:false };
+    solve();
+  });
+  Lab.$$('#tools button').forEach(b => b.onclick = () => { tool = b.dataset.tool; Lab.$$('#tools button').forEach(x => x.classList.toggle('on', x === b)); });
+  Lab.$$('[data-preset]').forEach(b => b.onclick = () => load(b.dataset.preset));
+  Lab.$('#bCells').oninput = e => { E = 1.5 * e.target.value; solve(); };
+  load('series');
+  (function loop(t){ requestAnimationFrame(loop); const r = cv.getBoundingClientRect(); if (r.bottom < 0 || r.top > innerHeight) return; draw(t / 1000); })(0);
+  REDRAW.push(() => draw()); Lab.onLang(() => sol && report());
+})();
+
+/* ===== Conductor tester ===== */
+(function(){
+  const MATS = [
+    { n:o('Copper wire','铜丝'), c:'#c87533', yes:true }, { n:o('Aluminum foil','铝箔'), c:'#c0c6cc', yes:true }, { n:o('Iron nail','铁钉'), c:'#7a7f87', yes:true },
+    { n:o('Steel paper clip','钢制回形针'), c:'#9aa3ad', yes:true }, { n:o('Pencil lead (graphite)','铅笔芯（石墨）'), c:'#4a4a4a', yes:true },
+    { n:o('Plastic ruler','塑料尺'), c:'#4fa3e0', yes:false }, { n:o('Rubber band','橡皮筋'), c:'#e07a5f', yes:false }, { n:o('Wooden stick','木棍'), c:'#c49a6c', yes:false },
+    { n:o('Glass rod','玻璃棒'), c:'#bfe6f2', yes:false }, { n:o('Cotton string','棉线'), c:'#efe9da', yes:false }
+  ];
+  let cur = null; const found = new Set();
+  function svg(){
+    const m = cur != null ? MATS[cur] : null, lit = m && m.yes;
+    Lab.$('#testSvg').innerHTML = `<svg viewBox="0 0 320 160" role="img" aria-label="test circuit">
+      ${lit ? '<circle cx="160" cy="38" r="40" fill="rgba(255,214,90,.45)"/>' : ''}
+      <g stroke="var(--ink)" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M40 66 V38 H142"/><path d="M178 38 H280 V128 H206"/><path d="M40 100 V128 H114"/>
+      </g>
+      <rect x="26" y="66" width="28" height="34" rx="5" fill="#2f6fd6" stroke="var(--ink)" stroke-width="2"/><text x="60" y="76" font-size="14" font-weight="800" fill="var(--ink)">+</text>
+      <circle cx="160" cy="38" r="18" fill="${lit ? '#ffd65a' : 'var(--surface-2)'}" stroke="var(--ink)" stroke-width="3"/>
+      <path d="M150 30 L170 46 M170 30 L150 46" stroke="var(--ink)" stroke-width="2"/>
+      <rect x="112" y="120" width="12" height="16" fill="var(--ink-2)"/><rect x="196" y="120" width="12" height="16" fill="var(--ink-2)"/>
+      ${m ? `<rect x="122" y="121" width="76" height="14" rx="4" fill="${m.c}" stroke="var(--ink)" stroke-width="1.5"/>` : `<text x="160" y="133" text-anchor="middle" font-size="12" font-weight="700" fill="var(--ink-2)">${Lab.L(o('gap','缺口'))}</text>`}
+      ${lit ? '<g fill="#2aa9e0"><circle cx="90" cy="38" r="3.5"/><circle cx="230" cy="38" r="3.5"/><circle cx="280" cy="90" r="3.5"/><circle cx="40" cy="120" r="3.5"/></g>' : ''}
+    </svg>`;
+  }
+  function render(){
+    Lab.$('#mats').innerHTML = MATS.map((m, k) => `<button data-k="${k}" class="${cur === k ? 'on ' : ''}${found.has(k) ? (m.yes ? 'yes' : 'no') : ''}"><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${m.c};margin-right:6px;border:1px solid rgba(0,0,0,.2)"></i>${Lab.L(m.n)}</button>`).join('');
+    Lab.$$('#mats button').forEach(b => b.onclick = () => { cur = +b.dataset.k; found.add(cur); render(); });
+    svg();
+    const msg = Lab.$('#matMsg');
+    if (cur == null){ msg.className = 'result'; msg.textContent = Lab.L(o('Pick a material to test.','选择一种材料来测试。')); }
+    else { const m = MATS[cur]; msg.className = 'result ' + (m.yes ? 'good' : 'bad');
+      msg.textContent = m.yes ? Lab.L(o('💡 The bulb lights! ','💡 灯泡亮了！')) + Lab.L(m.n) + Lab.L(o(' is a conductor: its electrons can move freely.',' 是导体：它的电子可以自由移动。'))
+                              : Lab.L(o('The bulb stays dark. ','灯泡不亮。')) + Lab.L(m.n) + Lab.L(o(' is an insulator: its electrons are held tightly.',' 是绝缘体：它的电子被束缚得很紧。')); }
+    Lab.$('#nCond').textContent = [...found].filter(k => MATS[k].yes).length + ' / 5';
+    Lab.$('#nIns').textContent = [...found].filter(k => !MATS[k].yes).length + ' / 5';
+  }
+  Lab.onLang(render); render();
+})();
+
+/* ===== Ohm's law ===== */
+(function(){
+  function upd(){ const V = +Lab.$('#oVs').value, R = +Lab.$('#oRs').value, I = V / R;
+    Lab.$('#oV').textContent = V + ' V'; Lab.$('#oR').textContent = R + ' Ω'; Lab.$('#oI').textContent = `I = ${V} ÷ ${R} = ${I.toFixed(2)} A`; Lab.$('#oBar').style.width = Math.min(100, I / 12 * 100) + '%'; }
+  Lab.$('#oVs').oninput = upd; Lab.$('#oRs').oninput = upd; upd();
+})();
+
+/* ===== Quiz ===== */
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('What does a circuit need for current to flow?','电路中要有电流，需要什么条件？'), options:[o('A complete (closed) loop with an energy source','有电源，并且是完整的闭合回路'),o('Only a battery','只要有电池'),o('Only a bulb','只要有灯泡'),o('An open switch','一个断开的开关')], answer:0},
+  {q:o('Three bulbs are in series. One burns out. What happens?','三个灯泡串联，其中一个烧坏了，会怎样？'), options:[o('All the bulbs go out','所有灯泡都熄灭'),o('Only that bulb goes out','只有那个灯泡熄灭'),o('The others get brighter','其他灯泡变亮'),o('Nothing changes','没有变化')], answer:0, explain:o('A series circuit has only one path, so a break anywhere stops the current everywhere.','串联电路只有一条通路，任何一处断开，整个电路都没有电流。')},
+  {q:o('Three bulbs are in parallel. One is removed. The others…','三个灯泡并联，拿掉一个，其他灯泡会……'), options:[o('stay lit','继续亮'),o('all go out','全部熄灭'),o('start flashing','开始闪烁'),o('explode','爆炸')], answer:0, explain:o('Each parallel branch is its own complete path to the battery.','并联的每条支路都是一条通往电池的完整通路。')},
+  {q:o('How are the lights and outlets in a home usually wired?','家庭中的电灯和插座通常怎样连接？'), options:[o('In parallel','并联'),o('In series','串联'),o('Not connected at all','根本不连接'),o('With no switches','没有开关')], answer:0},
+  {q:o('Electric current is measured in…','电流的单位是……'), options:[o('amperes (A)','安培（A）'),o('volts (V)','伏特（V）'),o('ohms (Ω)','欧姆（Ω）'),o('watts (W)','瓦特（W）')], answer:0},
+  {q:o('Voltage is best described as…','对电压最好的描述是……'), options:[o('the push that makes charges move','推动电荷移动的“推力”'),o('the number of wires','导线的数量'),o('how bright a bulb is','灯泡有多亮'),o('the speed of light','光速')], answer:0},
+  {q:o('A 6 V battery is connected to a 3 Ω bulb. What is the current?','6 V 的电池接一个 3 Ω 的灯泡，电流是多少？'), options:[o('2 A','2 A'),o('18 A','18 A'),o('0.5 A','0.5 A'),o('9 A','9 A')], answer:0, explain:o('I = V ÷ R = 6 V ÷ 3 Ω = 2 A.','I = U ÷ R = 6 V ÷ 3 Ω = 2 A。')},
+  {q:o('Which material is a good conductor?','下列哪种材料是良好的导体？'), options:[o('Copper','铜'),o('Rubber','橡胶'),o('Plastic','塑料'),o('Dry wood','干木头')], answer:0},
+  {q:o('Why are wires coated in plastic?','导线外面为什么要包一层塑料？'), options:[o('Plastic is an insulator that keeps current in the wire and protects people','塑料是绝缘体，让电流留在导线里并保护人'),o('Plastic makes the current faster','塑料让电流更快'),o('Plastic stores electricity','塑料能储存电'),o('Plastic is a conductor','塑料是导体')], answer:0},
+  {q:o('You add more bulbs in series to the same battery. The bulbs…','在同一电池上串联更多灯泡，灯泡会……'), options:[o('get dimmer because the current gets smaller','变暗，因为电流变小了'),o('get brighter','变亮'),o('stay exactly the same','完全不变'),o('turn off the battery','把电池关掉')], answer:0, explain:o('More resistance in one path means less current: I = V ÷ R.','同一条路上电阻变大，电流就变小：I = U ÷ R。')},
+  {q:o('A balloon rubbed on your hair sticks to a wall. This is…','在头发上摩擦过的气球能吸在墙上，这是……'), options:[o('static electricity: charge built up on a surface','静电：电荷积聚在物体表面'),o('current electricity in a circuit','电路中的电流'),o('magnetism','磁力'),o('gravity','重力')], answer:0},
+  {q:o('In a wire, electrons flow…','在导线中，电子……'), options:[o('from the − terminal around to the + terminal','从负极经过电路流向正极'),o('from + to −','从正极流向负极'),o('only inside the battery','只在电池里流动'),o('back and forth randomly with no direction','杂乱无章，没有方向')], answer:0, explain:o('Electrons are negative, so they are pushed away from − and pulled toward +. Conventional current is drawn the other way.','电子带负电，被负极排斥、被正极吸引。规定的电流方向与此相反。')}
+], { count:10 });
+
+/* ===== Sort ===== */
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'c',en:'Conductor',zh:'导体'},{id:'i',en:'Insulator',zh:'绝缘体'}],
+  items:[
+    {en:'Copper wire',zh:'铜线',bin:'c'},{en:'Aluminum can',zh:'铝罐',bin:'c'},{en:'Gold ring',zh:'金戒指',bin:'c'},{en:'Salt water',zh:'盐水',bin:'c'},{en:'Graphite',zh:'石墨',bin:'c'},
+    {en:'Rubber gloves',zh:'橡胶手套',bin:'i'},{en:'Plastic spoon',zh:'塑料勺',bin:'i'},{en:'Glass cup',zh:'玻璃杯',bin:'i'},{en:'Dry wood',zh:'干木头',bin:'i'},{en:'Air',zh:'空气',bin:'i'}
+  ]
+});
+C.res = C.solve(); renderInfo(); renderChips(); renderHud();
+</script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const C = window.CIRC, V = THREE.Vector3, UP = new V(0, 1, 0);
+const STG = document.querySelector('#stage'), K = Math.max(1, 1.3 / ((STG.clientWidth || 800) / (STG.clientHeight || 640)));
+const ctx = Lab3D.stage('#stage', { THREE, OrbitControls, camera:[0, 13.5, 12.5].map(v => v * K), target:[0, 0, .3], minDistance:5, maxDistance:40 });
+const { scene } = ctx;
+const WY = .16, BX = -6.5, ZT = -3.5, ZB = 3.5;
+
+/* ---------- circuit board ---------- */
+const board = new THREE.Mesh(new THREE.BoxGeometry(17, .4, 10.6), ctx.mat('#1d6b48', 1, { roughness:.7, clearcoat:.2 }));
+board.position.y = -.2; scene.add(board);
+const grid = new THREE.GridHelper(16, 32, 0x2f8a60, 0x2f8a60); grid.position.y = .004; grid.scale.z = 10 / 16; grid.material.transparent = true; grid.material.opacity = .45; scene.add(grid);
+for (const [x, z] of [[-8, -4.8], [8, -4.8], [-8, 4.8], [8, 4.8]]){ const s = new THREE.Mesh(new THREE.CylinderGeometry(.18, .18, .06, 16), ctx.mat('#c9ccd2', 1, { metalness:.8, roughness:.3 })); s.position.set(x, .03, z); scene.add(s); }
+
+/* ---------- shared geometry/materials ---------- */
+const unitCyl = new THREE.CylinderGeometry(1, 1, 1, 12), jointGeo = new THREE.SphereGeometry(.07, 12, 8);
+const wireMat = ctx.mat('#e4e8ee', 1, { roughness:.45 }), copper = ctx.mat('#d9a441', 1, { metalness:.8, roughness:.3 }), steel = ctx.mat('#c4c9d1', 1, { metalness:.8, roughness:.3 });
+const dark = ctx.mat('#262b34', 1, { roughness:.6 }), cream = ctx.mat('#e8e1d0', 1, { roughness:.7 });
+function cyl(a, b, r, mat, parent){
+  const A = new V(a.x, WY, a.z), d = new V(b.x - a.x, 0, b.z - a.z), L = d.length(); if (L < 1e-3) return;
+  const m = new THREE.Mesh(unitCyl, mat); m.position.copy(A).addScaledVector(d, .5); m.scale.set(r, L, r); m.quaternion.setFromUnitVectors(UP, d.normalize()); parent.add(m); return m;
+}
+const P = (x, z) => ({ x, z });
+
+/* ---------- component builders ---------- */
+function makeBattery(parent){
+  const g = new THREE.Group(); g.position.set(BX, 0, 0);
+  const holder = new THREE.Mesh(new THREE.BoxGeometry(1.3, .32, 4.9), dark); holder.position.y = .16; g.add(holder);
+  for (const z of [-2.25, 2.25]){ const t = new THREE.Mesh(new THREE.BoxGeometry(.9, .7, .08), steel); t.position.set(0, .45, z); g.add(t); }
+  const body = ctx.mat('#2f6fd6', 1, { roughness:.35 });
+  for (let k = 0; k < 4; k++){
+    const zc = -2.2 + .55 + k * 1.1;
+    if (k < C.cells){
+      const cell = new THREE.Mesh(new THREE.CylinderGeometry(.4, .4, 1, 24).rotateX(Math.PI / 2), body); cell.position.set(0, .62, zc);
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(.41, .41, .22, 24).rotateX(Math.PI / 2), steel); band.position.set(0, .62, zc - .4);
+      const nub = new THREE.Mesh(new THREE.CylinderGeometry(.13, .13, .1, 16).rotateX(Math.PI / 2), steel); nub.position.set(0, .62, zc - .55);
+      g.add(cell, band, nub);
+    } else { const bar = new THREE.Mesh(new THREE.BoxGeometry(.16, .1, 1.05), steel); bar.position.set(0, .36, zc); g.add(bar); }
+  }
+  parent.add(g); ctx.pickable(g, 'battery'); return { g, p:P(BX, 0), h:0 };
+}
+function makeSwitch(parent, id, p, dir){
+  const g = new THREE.Group(); g.position.set(p.x, 0, p.z); g.rotation.y = dir === 'z' ? -Math.PI / 2 : 0;
+  const base = new THREE.Mesh(new THREE.BoxGeometry(1.3, .12, .62), cream); base.position.y = .06; g.add(base);
+  for (const x of [-.5, .5]){ const post = new THREE.Mesh(new THREE.CylinderGeometry(.09, .09, .26, 12), copper); post.position.set(x, .25, 0); g.add(post); }
+  const pivot = new THREE.Group(); pivot.position.set(-.5, .36, 0); g.add(pivot);
+  const lever = new THREE.Mesh(new THREE.BoxGeometry(1.02, .06, .15), copper); lever.position.x = .51; pivot.add(lever);
+  const knob = new THREE.Mesh(new THREE.BoxGeometry(.16, .22, .26), ctx.mat('#e5484d')); knob.position.set(.85, .12, 0); pivot.add(knob);
+  parent.add(g); ctx.pickable(g, 'switch:' + id); return { g, p, h:.5, pivot, id, ang:C.sw[id] ? 0 : .8 };
+}
+function makeBulb(parent, id, p, dir){
+  const g = new THREE.Group(); g.position.set(p.x, 0, p.z); g.rotation.y = dir === 'z' ? -Math.PI / 2 : 0;
+  const base = new THREE.Mesh(new THREE.BoxGeometry(.9, .24, .56), dark); base.position.y = .12; g.add(base);
+  const sock = new THREE.Mesh(new THREE.CylinderGeometry(.26, .3, .22, 20), steel); sock.position.y = .35; g.add(sock);
+  const top = new THREE.Group(); g.add(top);
+  const screw = new THREE.Mesh(new THREE.CylinderGeometry(.22, .22, .28, 20), steel); screw.position.y = .58; top.add(screw);
+  const glassM = new THREE.MeshPhysicalMaterial({ color:'#fff8e1', roughness:.05, transparent:true, opacity:.35, depthWrite:false, emissive:'#ffcf70', emissiveIntensity:0, clearcoat:1 });
+  const glass = new THREE.Mesh(new THREE.SphereGeometry(.44, 28, 20), glassM); glass.position.y = 1.08; top.add(glass);
+  const filM = new THREE.MeshStandardMaterial({ color:'#6b5a3a', emissive:'#ffb347', emissiveIntensity:0 });
+  const fil = new THREE.Mesh(new THREE.TorusGeometry(.13, .022, 8, 24, Math.PI * 1.4), filM); fil.position.y = 1.05; fil.rotation.z = Math.PI * .8; top.add(fil);
+  for (const x of [-.1, .1]){ const s = new THREE.Mesh(new THREE.CylinderGeometry(.012, .012, .4, 6), steel); s.position.set(x, .85, 0); top.add(s); }
+  const haloM = new THREE.MeshBasicMaterial({ color:'#ffd36b', transparent:true, opacity:0, depthWrite:false, blending:THREE.AdditiveBlending });
+  const halo = new THREE.Mesh(new THREE.SphereGeometry(.75, 20, 14), haloM); halo.position.y = 1.08; top.add(halo);
+  const light = new THREE.PointLight('#ffcf70', 0, 7, 2); light.position.y = 1.1; top.add(light);
+  parent.add(g); ctx.pickable(g, 'bulb:' + id);
+  const L = ctx.label({ en:'Bulb ' + id[1], zh:'灯泡 ' + id[1] }, top, { offset:[0, 1.85, 0] }); labels.push(L);
+  return { g, p, h:.45, id, top, glassM, filM, haloM, halo, light, glow:0, lift:0 };
+}
+const amCanvas = document.createElement('canvas'); amCanvas.width = 256; amCanvas.height = 128;
+const amTex = new THREE.CanvasTexture(amCanvas); amTex.colorSpace = THREE.SRGBColorSpace; let amLast = null;
+function drawAmmeter(I){
+  const t = I.toFixed(2) + ' A'; if (t === amLast) return; amLast = t;
+  const g = amCanvas.getContext('2d'); g.fillStyle = '#0d1f14'; g.fillRect(0, 0, 256, 128);
+  g.fillStyle = I > 0 ? '#5dff9a' : '#2f6f48'; g.font = 'bold 64px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(t, 128, 70);
+  g.font = 'bold 22px sans-serif'; g.fillStyle = '#7fbf95'; g.fillText('AMMETER', 128, 20); amTex.needsUpdate = true;
+}
+function makeAmmeter(parent, p){
+  const g = new THREE.Group(); g.position.set(p.x, 0, p.z);
+  const box = new THREE.Mesh(new THREE.BoxGeometry(1.45, .55, .95), ctx.mat('#30363f')); box.position.y = .28; g.add(box);
+  const scr = new THREE.Mesh(new THREE.PlaneGeometry(1.2, .6).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map:amTex })); scr.position.y = .565; g.add(scr);
+  for (const x of [-.72, .72]){ const t = new THREE.Mesh(new THREE.CylinderGeometry(.08, .08, .2, 12), x < 0 ? ctx.mat('#e5484d') : dark); t.position.set(x, .3, 0); g.add(t); }
+  parent.add(g); ctx.pickable(g, 'ammeter'); return { g, p, h:.75 };
+}
+
+/* ---------- layout + build ---------- */
+let root = null, labels = [], comps = {}, flows = [], gaps = [], builtKey = '';
+function wires(pts){
+  for (let i = 1; i < pts.length; i++){
+    const a = pts[i - 1], b = pts[i], L = Math.hypot(b.x - a.x, b.z - a.z), ux = (b.x - a.x) / L, uz = (b.z - a.z) / L, at = t => P(a.x + ux * t, a.z + uz * t), cuts = [];
+    for (const g of gaps){ const t = (g.p.x - a.x) * ux + (g.p.z - a.z) * uz, off = Math.abs((g.p.x - a.x) * uz - (g.p.z - a.z) * ux); if (off < .01 && t > -.01 && t < L + .01) cuts.push([t - g.h, t + g.h]); }
+    cuts.sort((p, q) => p[0] - q[0]); let s = 0;
+    for (const [c0, c1] of cuts){ if (c0 > s) cyl(at(s), at(c0), .07, wireMat, root); s = Math.max(s, c1); }
+    if (s < L) cyl(at(s), at(L), .07, wireMat, root);
+  }
+  pts.forEach(p => { const j = new THREE.Mesh(jointGeo, wireMat); j.position.set(p.x, WY, p.z); root.add(j); });
+}
+const sumFrom = k => () => C.ids().slice(k).reduce((s, b) => s + (C.res ? C.res.bulbs[b].I : 0), 0);
+function build(){
+  if (root){ ctx.unpickable(root); scene.remove(root); }
+  labels.forEach(L => L.remove()); labels = []; comps = {}; flows = []; gaps = [];
+  root = new THREE.Group(); scene.add(root); ctx.pickable(root, 'wire');
+  const bp = P(BX, -2.25), bn = P(BX, 2.25), n = C.n, ids = C.ids();
+  comps.battery = makeBattery(root);
+  if (C.mode === 'series'){
+    const xs = { 1:[1.5], 2:[-.2, 3.2], 3:[-1.5, 1.5, 4.5] }[n];
+    comps.s0 = makeSwitch(root, 's0', P(-4, ZT), 'x'); comps.ammeter = makeAmmeter(root, P(-1.3, ZT));
+    ids.forEach((b, k) => comps[b] = makeBulb(root, b, P(xs[k], ZB), 'x'));
+    gaps = Object.values(comps).filter(c => c.h);
+    const loop = [bn, P(BX, ZB), P(6.5, ZB), P(6.5, ZT), P(BX, ZT), bp];
+    wires(loop); flows.push({ pts:loop, cur:() => C.res ? C.res.I : 0 });
+  } else {
+    const xs = { 1:[3], 2:[1.5, 5], 3:[.6, 3.3, 6] }[n], xl = xs[n - 1];
+    comps.s0 = makeSwitch(root, 's0', P(-4, ZT), 'x'); comps.ammeter = makeAmmeter(root, P(-1.6, ZT));
+    ids.forEach((b, k) => { comps['s' + (k + 1)] = makeSwitch(root, 's' + (k + 1), P(xs[k], -1.4), 'z'); comps[b] = makeBulb(root, b, P(xs[k], 1.4), 'z'); });
+    gaps = Object.values(comps).filter(c => c.h);
+    wires([bp, P(BX, ZT), P(xl, ZT)]); wires([bn, P(BX, ZB), P(xl, ZB)]); xs.forEach(x => wires([P(x, ZB), P(x, ZT)]));
+    flows.push({ pts:[bn, P(BX, ZB), P(xs[0], ZB)], cur:sumFrom(0) });
+    xs.forEach((x, k) => {
+      if (k){ flows.push({ pts:[P(xs[k - 1], ZB), P(x, ZB)], cur:sumFrom(k) }); flows.push({ pts:[P(x, ZT), P(xs[k - 1], ZT)], cur:sumFrom(k) }); }
+      flows.push({ pts:[P(x, ZB), P(x, ZT)], cur:() => C.res ? C.res.bulbs[ids[k]].I : 0 });
+    });
+    flows.push({ pts:[P(xs[0], ZT), P(BX, ZT), bp], cur:sumFrom(0) });
+  }
+  flows.forEach(f => { f.cum = [0]; for (let i = 1; i < f.pts.length; i++) f.cum.push(f.cum[i - 1] + Math.hypot(f.pts[i].x - f.pts[i - 1].x, f.pts[i].z - f.pts[i - 1].z)); f.len = f.cum[f.cum.length - 1]; f.phase = 0; });
+  labels.push(ctx.label('+', new V(BX - .95, .7, -2.25), { cls:'pole' }), ctx.label('−', new V(BX - .95, .7, 2.25), { cls:'pole' }));
+  labels.push(ctx.label(() => C.cells * 1.5 + ' V', new V(BX, 1.35, 0)));
+  root.children.forEach(ch => { if (ch.isMesh) ctx.pickable(ch, 'wire'); });
+  builtKey = C.mode + C.n + C.cells;
+}
+
+/* ---------- electrons (instanced) ---------- */
+const MAXE = 900, eMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(.085, 10, 8), new THREE.MeshBasicMaterial({ color:'#45c8ff' }), MAXE);
+eMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); eMesh.frustumCulled = false; scene.add(eMesh); ctx.pickable(eMesh, 'electron');
+const m4 = new THREE.Matrix4(), SP = .45;
+function placeElectrons(dt){
+  let n = 0;
+  for (const f of flows){
+    const I = f.cur(); f.phase += (C.conv ? -1 : 1) * (I > 1e-6 ? .15 + .5 * I : 0) * dt;
+    for (let s0 = 0; s0 < f.len - 1e-3 && n < MAXE; s0 += SP){
+      const s = ((s0 + f.phase) % f.len + f.len) % f.len;
+      let i = 1; while (i < f.cum.length - 1 && f.cum[i] < s) i++;
+      const a = f.pts[i - 1], b = f.pts[i], u = (s - f.cum[i - 1]) / ((f.cum[i] - f.cum[i - 1]) || 1), x = a.x + (b.x - a.x) * u, z = a.z + (b.z - a.z) * u;
+      if (gaps.some(g => Math.abs(g.p.x - x) < g.h && Math.abs(g.p.z - z) < g.h)) continue;
+      m4.makeTranslation(x, WY + .1, z); eMesh.setMatrixAt(n++, m4);
+    }
+  }
+  eMesh.count = n; eMesh.instanceMatrix.needsUpdate = true;
+}
+
+/* ---------- refresh / picking / focus ---------- */
+function refresh(){
+  if (C.mode + C.n + C.cells !== builtKey) build();
+  eMesh.material.color.set(C.conv ? '#ff9a3c' : '#45c8ff');
+  drawAmmeter(C.res ? C.res.I : 0);
+}
+ctx.hoverText(k => { const [part, id] = k.split(':'); let t = Lab.L(PARTS[part].name); if (part === 'switch') t += ' · ' + Lab.L(C.sw[id] ? { en:'closed', zh:'闭合' } : { en:'open', zh:'断开' }); return t; });
+ctx.onPick(k => {
+  if (!k) return; const [part, id] = k.split(':');
+  if (part === 'switch'){ C.sw[id] = !C.sw[id]; C.update(); }
+  if (part === 'bulb') C.bulb = id;
+  C.select(part, true);
+});
+function focus(k){
+  const c = k === 'battery' ? comps.battery : k === 'switch' ? comps.s0 : k === 'bulb' ? (comps[C.bulb] || comps.b1) : k === 'ammeter' ? comps.ammeter : null;
+  if (!c) return ctx.home();
+  ctx.flyTo(new V(c.p.x, .6, c.p.z), 8);
+}
+C.three = { refresh, focus };
+
+/* ---------- controls ---------- */
+function syncUI(){
+  Lab.$$('[data-mode]').forEach(b => b.classList.toggle('on', b.dataset.mode === C.mode));
+  Lab.$$('[data-n]').forEach(b => b.classList.toggle('on', +b.dataset.n === C.n));
+  Lab.$('#cells').value = C.cells; Lab.$('#convBtn').classList.toggle('on', C.conv);
+}
+function setState(s){ Object.assign(C, s); if (s.sw) C.sw = Object.assign({ s0:true, s1:true, s2:true, s3:true }, s.sw); if (s.out) C.out = Object.assign({ b1:false, b2:false, b3:false }, s.out); syncUI(); C.update(); }
+Lab.$$('[data-mode]').forEach(b => b.onclick = () => { story.stop(); setState({ mode:b.dataset.mode }); });
+Lab.$$('[data-n]').forEach(b => b.onclick = () => { story.stop(); setState({ n:+b.dataset.n }); });
+Lab.$('#cells').oninput = e => setState({ cells:+e.target.value });
+Lab.$('#convBtn').onclick = () => setState({ conv:!C.conv });
+const DEF = { mode:'series', n:2, cells:2, sw:{}, out:{}, conv:false };
+Lab.$('#resetBtn').onclick = () => { story.stop(); setState(DEF); C.select(null); ctx.home(); };
+const STEPS = [
+  [{ mode:'series', n:1, cells:2, sw:{}, out:{} }, 'wire'],
+  [{ mode:'series', n:1, cells:2, sw:{ s0:false }, out:{} }, 'switch'],
+  [{ mode:'series', n:3, cells:2, sw:{}, out:{} }, 'bulb', 'b1'],
+  [{ mode:'series', n:3, cells:2, sw:{}, out:{ b2:true } }, 'bulb', 'b2'],
+  [{ mode:'parallel', n:3, cells:2, sw:{}, out:{} }, 'bulb', 'b1'],
+  [{ mode:'parallel', n:3, cells:2, sw:{}, out:{ b2:true } }, 'bulb', 'b2'],
+  [{ mode:'parallel', n:3, cells:4, sw:{}, out:{} }, 'battery']
+];
+const story = Lab3D.story('#stage', STORY, i => { const [s, part, b] = STEPS[i]; if (b) C.bulb = b; setState(s); ctx.home(); C.select(part, true); renderHud(); }, () => setTimeout(renderHud));
+Lab.$('#storyBtn').onclick = () => story.start();
+
+/* ---------- per-frame animation ---------- */
+ctx.onFrame((dt, t) => {
+  placeElectrons(dt);
+  for (const id in comps){
+    const c = comps[id];
+    if (c.pivot){ const tgt = C.sw[c.id] ? 0 : .8; c.ang += (tgt - c.ang) * Math.min(1, dt * 10); c.pivot.rotation.z = c.ang; }
+    if (c.top){
+      const r = C.res && C.res.bulbs[c.id], tg = r ? r.glow : 0, out = C.out[c.id];
+      c.glow += (tg - c.glow) * Math.min(1, dt * 6); c.lift += ((out ? 1 : 0) - c.lift) * Math.min(1, dt * 6);
+      const gl = c.glow * (1 + .03 * Math.sin(t * 30));
+      c.filM.emissiveIntensity = gl * 3; c.glassM.emissiveIntensity = gl * 1.2; c.glassM.opacity = .35 + gl * .4;
+      c.haloM.opacity = gl * .45; c.halo.scale.setScalar(.8 + gl * .9); c.light.intensity = gl * 6;
+      c.top.position.y = c.lift * .9; c.top.rotation.z = c.lift * .35;
+    }
+  }
+});
+C.res = C.solve(); build(); refresh(); syncUI();
+</script>
+</body>
+</html>

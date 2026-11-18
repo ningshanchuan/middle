@@ -1,0 +1,649 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oceans, Waves &amp; Currents</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/lab3d.js"></script>
+<script src="../shared/photos.js"></script>
+<style>
+/* page-specific styles */
+#stage .pill input[type=range]{width:110px}
+#stage .tip{max-width:170px}
+#waveBox{min-height:400px}
+#densBox{min-height:380px}
+.readout{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.tankctl{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tankctl .card{padding:12px;display:flex;flex-direction:column;gap:8px;box-shadow:none;background:var(--surface-2)}
+.tankctl h4{font-family:Fredoka;font-size:17px;margin:0}
+.dens{font-family:Fredoka;font-size:22px;font-weight:700}
+.badge{display:inline-block;font-size:12px;font-weight:800;padding:2px 8px;border-radius:999px;background:var(--ink);color:var(--surface);margin-left:6px;vertical-align:3px}
+.presets{display:flex;flex-wrap:wrap;gap:6px}
+.presets button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 11px;font-weight:800;font-size:13px}
+.legend2{display:flex;gap:14px;flex-wrap:wrap;font-size:14px;font-weight:700;color:var(--ink-2)}
+.legend2 i{display:inline-block;width:22px;height:5px;border-radius:3px;margin-right:6px;vertical-align:middle}
+@media (max-width:560px){.tankctl,.readout{grid-template-columns:1fr}}
+</style>
+</head>
+<body data-subject="earth" data-topic="oceans">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="地球科学 · 海洋">Earth Science · The Oceans</span>
+  <h1 data-zh-html="海洋：<em>海底、波浪与洋流</em>">Oceans: <em>Sea Floor, Waves &amp; Currents</em></h1>
+  <p class="lead" data-zh="地球上最长的山脉在哪里？提示：它几乎全都藏在海水下面。海洋覆盖了地球表面的约 71%，下面藏着比陆地上更长的山脉和更深的峡谷。潜入 3D 海底，再切换到地球仪，看看暖流和寒流怎样在全世界流动！">Where is the longest mountain range on Earth? Hint: almost all of it is under water. Oceans cover about 71% of Earth’s surface and hide mountain ranges longer, and canyons deeper, than any on land. Dive across the 3D sea floor, then switch to the globe to see warm and cold currents circle the world!</p>
+</header>
+
+<section class="wrap" id="explore" data-nav="3D Ocean" data-nav-zh="3D 海洋">
+  <div class="explorer">
+    <div class="stage card" id="stage" data-3d>
+      <div class="toolbar">
+        <button class="tbtn on" id="vFloor" data-zh="🌊 海底地形">🌊 Ocean floor</button>
+        <button class="tbtn" id="vGlobe" data-zh="🌍 洋流">🌍 Currents</button>
+        <button class="tbtn" id="rotBtn" data-zh="⟳ 旋转">⟳ Spin</button>
+        <button class="tbtn" id="resetBtn" data-zh="⌂ 重置">⌂ Reset</button>
+        <button class="tbtn" id="storyBtn" data-zh="🤿 海底之旅（故事）">🤿 Sea-floor dive (story)</button>
+        <button class="tbtn on" id="labelBtn" data-zh="🏷 标签">🏷 Labels</button>
+      </div>
+      <div class="bottombar">
+        <div class="pill"><span data-zh="🌬 风速">🌬 Wind</span><input id="wind" type="range" min="0" max="25" value="8"><b id="windVal" style="min-width:54px">8 m/s</b></div>
+        <div class="tip" id="tip" data-zh="垂直方向已夸大 · 点击任意地形">Vertical scale exaggerated · Click any feature</div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="chips" id="chips"></div>
+  <div class="legend2" id="curLegend" style="margin-top:10px;display:none"><span><i style="background:#e5484d"></i><span data-zh="暖流（从赤道流向两极）">Warm current (from the equator toward the poles)</span></span><span><i style="background:#2f86d6"></i><span data-zh="寒流（从两极流向赤道）">Cold current (from the poles toward the equator)</span></span></div>
+</section>
+
+<section class="wrap" id="waves" data-nav="Waves" data-nav-zh="波浪">
+  <div class="sec-head">
+    <h2 data-zh="波浪实验槽">Wave tank</h2>
+    <p data-zh="大多数海浪是风吹过海面时把能量传给海水形成的。调大风速，看看波高、波长有什么变化，再观察小鸭子：海水真的随波浪向前跑了吗？">Most ocean waves form when wind passes its energy to the water. Turn up the wind and watch the wave height and wavelength change. Then watch the duck: does the water really travel with the wave?</p>
+  </div>
+  <div class="sim">
+    <div class="card simbox" id="waveBox"><canvas id="waveCv"></canvas></div>
+    <div class="card simside">
+      <h3 data-zh="风和波浪">Wind &amp; waves</h3>
+      <label class="ctl"><span><span data-zh="风速">Wind speed</span>: <b id="wsVal"></b></span><input id="ws" type="range" min="0" max="25" step=".5" value="8"></label>
+      <label class="ctl" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="orbits" checked style="width:18px;height:18px;accent-color:var(--brand)"><span data-zh="显示水质点的运动轨迹">Show water particle paths</span></label>
+      <label class="ctl" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="beach" checked style="width:18px;height:18px;accent-color:var(--brand)"><span data-zh="右侧有浅滩（波浪破碎）">Shallow beach on the right (waves break)</span></label>
+      <div class="readout">
+        <div class="counter"><b id="wH">—</b><span data-zh="波高（波峰到波谷）">wave height (crest to trough)</span></div>
+        <div class="counter"><b id="wL">—</b><span data-zh="波长（波峰到波峰）">wavelength (crest to crest)</span></div>
+        <div class="counter"><b id="wT">—</b><span data-zh="周期（每个波经过的时间）">period (time per wave)</span></div>
+        <div class="counter"><b id="wB" style="font-size:19px">—</b><span data-zh="海况">sea state</span></div>
+      </div>
+      <div class="mix"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="波浪传递的是能量，不是水。水质点只是在原地画圈，所以小鸭子基本上原地上下起伏。">Waves carry energy, not water. Water particles just move in circles, so the duck mostly bobs up and down in place.</span></div>
+      <p style="font-size:14px" data-zh-html="🌙 潮汐是最长的“波浪”，由月球和太阳的引力引起。去看看 <a href='../astronomy/tides.html' data-lab-link>潮汐</a> 主题！">🌙 Tides are the longest “waves” of all, caused by the pull of the Moon and Sun. See the <a href="../astronomy/tides.html" data-lab-link>Tides</a> topic!</p>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="density" data-nav="Deep currents" data-nav-zh="深层洋流">
+  <div class="sec-head">
+    <h2 data-zh="实验：冷水和咸水会下沉吗？">Lab: does cold, salty water sink?</h2>
+    <p data-zh="深层洋流不是风吹出来的，而是由海水密度的差异推动的。为隔板两边的海水设定温度和盐度，然后抽掉隔板！">Deep currents are not pushed by wind. They are driven by differences in the density of seawater. Set the temperature and salinity on each side of the divider, then lift it!</p>
+  </div>
+  <div class="sim">
+    <div class="card simbox" id="densBox"><canvas id="densCv"></canvas></div>
+    <div class="card simside">
+      <div class="presets" id="presets"></div>
+      <div class="tankctl">
+        <div class="card"><h4 data-zh="左侧海水">Left water</h4>
+          <label class="ctl"><span>🌡 <b id="lTv"></b></span><input id="lT" type="range" min="0" max="30" value="2"></label>
+          <label class="ctl"><span>🧂 <b id="lSv"></b></span><input id="lS" type="range" min="0" max="40" value="35"></label>
+          <div><span class="dens" id="lD"></span><span id="lBadge"></span></div></div>
+        <div class="card"><h4 data-zh="右侧海水">Right water</h4>
+          <label class="ctl"><span>🌡 <b id="rTv"></b></span><input id="rT" type="range" min="0" max="30" value="25"></label>
+          <label class="ctl"><span>🧂 <b id="rSv"></b></span><input id="rS" type="range" min="0" max="40" value="35"></label>
+          <div><span class="dens" id="rD"></span><span id="rBadge"></span></div></div>
+      </div>
+      <div class="btnrow"><button class="btn" id="lift" data-zh="⬆ 抽掉隔板">⬆ Lift the divider</button><button class="btn ghost" id="dReset" data-zh="↺ 重来">↺ Reset</button></div>
+      <div class="result" id="densMsg"></div>
+    </div>
+  </div>
+  <div class="grid3" style="margin-top:18px">
+    <div class="card box"><div class="ico">🧂</div><h3 data-zh="海水为什么是咸的？">Why is the sea salty?</h3><p data-zh="雨水慢慢溶解岩石中的矿物质，河流把这些盐分带进大海。海水蒸发时只有水离开，盐留了下来，经过亿万年越积越多。">Rain slowly dissolves minerals from rocks, and rivers carry these salts to the sea. When seawater evaporates only the water leaves, so the salt has built up over millions of years.</p></div>
+    <div class="card box"><div class="ico">⚖️</div><h3 data-zh="盐度：平均 35‰">Salinity: about 35 ‰</h3><p data-zh="平均每 1 千克海水中约有 35 克盐（3.5%），主要是氯化钠。炎热干燥、蒸发强的海区（如红海）更咸；河口和冰雪融化的地方更淡。">On average, 1 kg of seawater holds about 35 g of salt (3.5%), mostly sodium chloride. Hot, dry seas with lots of evaporation (like the Red Sea) are saltier; river mouths and melting ice make water fresher.</p></div>
+    <div class="card box"><div class="ico">🔁</div><h3 data-zh="全球海洋“传送带”">The global “conveyor belt”</h3><p data-zh="在格陵兰和南极附近，海水变得又冷又咸（结冰时盐被留在水中），密度变大而下沉，沿海底缓慢流向全世界。走完一圈大约需要 1000 年！">Near Greenland and Antarctica, seawater becomes very cold and salty (freezing sea ice leaves its salt behind), so it grows denser and sinks, then creeps along the sea floor around the world. One full loop takes about 1,000 years!</p></div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real Photos" data-nav-zh="真实照片">
+  <div class="sec-head">
+    <h2 data-zh="看看真实的样子">See the real thing</h2>
+    <p data-zh="没人能把海水抽干来看海底，所以科学家靠潜水器、声呐和卫星。点击照片可以放大；影片和录音不会自动播放。">Nobody can drain the ocean to look at the sea floor, so scientists use submarines, sonar and satellites. Click a photo to enlarge it; the clip never starts by itself.</p>
+  </div>
+  <div id="gallery"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 海洋测验">🧠 Ocean quiz</h3><p class="sub" data-zh="选出正确答案。">Pick the best answer.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分一分">🗂️ Sort it</h3><p class="sub" data-zh="把每个名称拖到（或先点再点方框）正确的组。">Drag each name (or tap it, then tap a box) into the right group.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="对应佐治亚州标准 S6E3：认识水在地球过程中的重要作用，包括海洋的组成（盐度）、海底地形（大陆架、大陆坡、深海平原、海沟、洋中脊），以及波浪、洋流和潮汐的成因。建议：先用“海底之旅”故事走一遍海底地形，让学生画出简单的剖面图；再切换到“洋流”，请学生找出暖流和寒流的规律（暖流离开赤道、寒流流向赤道；北半球顺时针、南半球逆时针）；最后用密度实验解释深层洋流，并把墨西哥湾暖流与佐治亚州沿海联系起来。">Supports GSE S6E3: the significant role of water in Earth processes, including ocean composition (salinity), ocean-floor topography (shelf, slope, abyssal plain, trench, mid-ocean ridge), and the causes of waves, currents and tides. Suggested use: run the Sea-floor dive story and have students sketch a simple profile; switch to Currents and ask students to find the patterns (warm currents leave the equator, cold currents flow toward it; gyres turn clockwise in the north and counterclockwise in the south); finish with the density lab to explain deep currents, and connect the Gulf Stream to Georgia’s coast.</p>
+    <p data-zh="说明：海底模型的垂直比例被大大夸大；洋流路线为示意。常见误区：波浪把水推向岸边；海洋最深处在大洋中央；所有洋流都是风吹出来的。">Note: the sea-floor model is greatly vertically exaggerated, and current paths are simplified. Common misconceptions: waves move water toward the shore; the deepest ocean is in the middle; all currents are caused by wind.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+/* ===== Ocean-floor features + surface currents (bilingual) ===== */
+const WARM = '#e5484d', COLD = '#2f86d6';
+const PARTS = {
+  shelf:{color:'#d9c08a', name:{en:'Continental shelf',zh:'大陆架'}, job:{en:'The shallow, gently sloping edge of a continent',zh:'大陆浅而平缓的边缘'},
+    facts:{en:['The flooded edge of a continent, usually less than about 200 m deep.','Sunlight reaches much of it, so it is rich in sea life and holds most of the world’s fishing grounds.','Oil and natural gas are often drilled here.','During ice ages, sea level was lower and much of the shelf was dry land.'],
+           zh:['被海水淹没的大陆边缘，水深一般不超过约 200 米。','阳光可以照到大部分区域，所以海洋生物丰富，世界上大部分渔场都在这里。','这里常常开采石油和天然气。','冰期时海平面较低，大陆架的大部分曾是陆地。']},
+    hint:{en:'Shelf = a shallow “shelf” sticking out from the continent.',zh:'大陆架就像从大陆伸出来的一块浅浅的“架子”。'}},
+  slope:{color:'#b89c6e', name:{en:'Continental slope',zh:'大陆坡'}, job:{en:'The steep drop from the shelf to the deep sea',zh:'从大陆架陡降到深海'},
+    facts:{en:['It marks the true edge of the continent.','The depth drops from about 200 m to 3,000–4,000 m.','Underwater avalanches of sediment carve deep submarine canyons into it.'],
+           zh:['它标志着大陆真正的边缘。','水深从约 200 米下降到 3000~4000 米。','海底沉积物的“雪崩”在这里切出深深的海底峡谷。']},
+    hint:{en:'Slope = steep.',zh:'大陆坡 = 陡。'}},
+  rise:{color:'#a58c68', name:{en:'Continental rise',zh:'大陆隆（大陆基）'}, job:{en:'A gentle pile of sediment at the foot of the slope',zh:'大陆坡脚下平缓的沉积物堆积'},
+    facts:{en:['Sediment sliding down the slope piles up here in a wide, gentle apron.','It connects the continental slope to the abyssal plain.'],
+           zh:['从大陆坡滑落下来的沉积物在这里堆积成一片宽阔平缓的“裙边”。','它连接着大陆坡和深海平原。']},
+    hint:{en:'Shelf → slope → rise: three steps from land down to the deep ocean.',zh:'大陆架 → 大陆坡 → 大陆隆：从陆地走向深海的三级台阶。'}},
+  plain:{color:'#8f8577', name:{en:'Abyssal plain',zh:'深海平原'}, job:{en:'The flat, deep ocean floor',zh:'平坦的深海海底'},
+    facts:{en:['One of the flattest places on Earth, about 4,000–6,000 m deep.','Covered by a thick blanket of fine mud and the tiny shells of plankton that sank from above.','Totally dark and near freezing, yet strange animals still live here.'],
+           zh:['地球上最平坦的地方之一，水深约 4000~6000 米。','覆盖着厚厚一层细泥和从上面沉下来的浮游生物微小外壳。','这里一片漆黑、接近冰点，却仍然生活着奇特的动物。']},
+    hint:{en:'Abyss means a bottomless pit: very deep and very flat.',zh:'深海平原：又深又平。'}},
+  seamount:{color:'#7a6a5d', name:{en:'Seamount',zh:'海山'}, job:{en:'An underwater volcanic mountain',zh:'海底的火山山峰'},
+    facts:{en:['A volcano that rises at least 1,000 m above the sea floor but does not reach the surface.','A seamount whose top was flattened by waves when it was near the surface is called a guyot.','Seamounts are hot spots for fish, corals and other life.'],
+           zh:['从海底隆起至少 1000 米、但没有露出海面的火山。','如果海山的顶部曾在接近海面时被海浪削平，就叫作平顶海山。','海山是鱼类、珊瑚等生物聚集的“热点”。']},
+    hint:{en:'Seamount = sea + mountain.',zh:'海山 = 海里的山。'}},
+  ridge:{color:'#c0452f', name:{en:'Mid-ocean ridge',zh:'大洋中脊'}, job:{en:'An underwater mountain chain where new sea floor forms',zh:'形成新洋底的海底山脉'},
+    facts:{en:['The longest mountain range on Earth, about 65,000 km long, winding through every ocean.','Plates pull apart here (a divergent boundary). Magma rises into the central rift valley and cools into new ocean crust: sea-floor spreading.','Rock gets older the farther it is from the ridge.','Iceland is a piece of the Mid-Atlantic Ridge that rises above sea level.'],
+           zh:['地球上最长的山脉，全长约 65000 千米，蜿蜒穿过各大洋。','板块在这里分离（离散型边界）。岩浆沿中央裂谷上涌，冷却后形成新的洋壳，这就是海底扩张。','离洋中脊越远，岩石越古老。','冰岛是大西洋中脊露出海面的一部分。']},
+    hint:{en:'The ridge is where sea floor is “born”.',zh:'洋中脊是洋底“出生”的地方。'}},
+  trench:{color:'#4a4a5e', name:{en:'Ocean trench',zh:'海沟'}, job:{en:'The deepest part of the ocean',zh:'海洋中最深的地方'},
+    facts:{en:['A long, narrow, very deep valley where one plate sinks beneath another (subduction).','The Mariana Trench in the Pacific is about 11,000 m deep. Mount Everest would fit inside with room to spare.','Strong earthquakes and tsunamis often start near trenches.'],
+           zh:['一个板块俯冲到另一个板块之下的地方，形成又长又窄、非常深的海沟（俯冲作用）。','太平洋的马里亚纳海沟深约 11000 米，把珠穆朗玛峰放进去也露不出海面。','强烈的地震和海啸常常发生在海沟附近。']},
+    hint:{en:'The trench is where sea floor is “recycled”.',zh:'海沟是洋底被“回收”的地方。'},
+    mix:{en:'The deepest water is not in the middle of the ocean. Trenches lie near the edges of oceans, beside island arcs or continents.',zh:'海洋最深处并不在大洋中央；海沟通常位于大洋边缘，靠近岛弧或大陆。'}},
+  arc:{color:'#5f8f4a', name:{en:'Volcanic island arc',zh:'火山岛弧'}, job:{en:'A curved chain of volcanic islands beside a trench',zh:'海沟旁一串弧形排列的火山岛'},
+    facts:{en:['The sinking plate releases water that helps the rock above it melt. This magma rises to form a curved chain of volcanoes.','Japan, the Aleutian Islands and the Mariana Islands are island arcs.','They are part of the Pacific “Ring of Fire”.'],
+           zh:['下沉的板块释放出水，使上方的岩石熔化成岩浆，岩浆上升形成一串弧形排列的火山。','日本群岛、阿留申群岛和马里亚纳群岛都是岛弧。','它们都属于环太平洋“火山带”。']},
+    hint:{en:'Trenches and volcanic arcs come as a pair.',zh:'海沟和火山岛弧总是成对出现。'}},
+  gulf:{color:WARM, warm:1, name:{en:'Gulf Stream & North Atlantic Drift',zh:'墨西哥湾暖流与北大西洋暖流'}, job:{en:'Warm surface current',zh:'温暖的表层洋流'},
+    facts:{en:['Carries warm water from the Gulf of Mexico north along the US East Coast, past Georgia, then across the Atlantic.','It moves more water than all the world’s rivers combined.','Its heat keeps western Europe much milder than other places at the same latitude.'],
+           zh:['把墨西哥湾的温暖海水沿美国东海岸（经过佐治亚州外海）向北输送，再横穿大西洋。','它输送的水量比全世界所有河流加起来还多。','它带来的热量使西欧比同纬度的其他地方温和得多。']},
+    hint:{en:'Warm currents flow from the equator toward the poles.',zh:'暖流从赤道附近流向两极。'}},
+  kuroshio:{color:WARM, warm:1, name:{en:'Kuroshio Current',zh:'日本暖流（黑潮）'}, job:{en:'Warm surface current',zh:'温暖的表层洋流'},
+    facts:{en:['The Pacific Ocean’s version of the Gulf Stream, flowing north past Taiwan and Japan.','“Kuroshio” means “black current” in Japanese, because its deep blue water looks dark.','It warms the climate of southern Japan.'],
+           zh:['它是太平洋中的“墨西哥湾暖流”，向北流经台湾岛东侧和日本。','“黑潮”这个名字来自它深蓝得发黑的海水。','它让日本南部的气候更加温暖。']},
+    hint:{en:'Fast, warm currents run along the WEST side of ocean basins.',zh:'快速的暖流沿大洋的西侧流动。'}},
+  brazil:{color:WARM, warm:1, name:{en:'Brazil Current',zh:'巴西暖流'}, job:{en:'Warm surface current',zh:'温暖的表层洋流'},
+    facts:{en:['Flows south along the coast of Brazil, carrying warm tropical water.','Gyres in the Southern Hemisphere turn counterclockwise, so the warm current on the west side flows south.'],
+           zh:['沿巴西海岸向南流，输送温暖的热带海水。','南半球的大洋环流呈逆时针方向，所以大洋西侧的暖流向南流。']},
+    hint:{en:'Southern Hemisphere: the loops spin the other way.',zh:'南半球：环流的旋转方向正好相反。'}},
+  california:{color:COLD, name:{en:'California Current',zh:'加利福尼亚寒流'}, job:{en:'Cold surface current',zh:'寒冷的表层洋流'},
+    facts:{en:['Carries cold water south along the west coast of North America.','It cools the coast, so San Francisco summers are often foggy and chilly.','Winds push surface water offshore and cold, nutrient-rich water rises from below (upwelling), feeding rich fisheries.'],
+           zh:['沿北美洲西海岸向南输送冷水。','它使沿岸变凉，所以旧金山的夏天常常多雾、凉爽。','风把表层海水推离海岸，下面寒冷而富含养分的海水上涌（上升流），养育了丰富的渔业资源。']},
+    hint:{en:'Cold currents flow from the poles toward the equator.',zh:'寒流从高纬度流向赤道。'}},
+  humboldt:{color:COLD, name:{en:'Humboldt (Peru) Current',zh:'秘鲁寒流'}, job:{en:'Cold surface current',zh:'寒冷的表层洋流'},
+    facts:{en:['Flows north along the west coast of South America, bringing cold water from the Southern Ocean.','Upwelling makes it one of the richest fishing areas on Earth.','The cold water helps make the Atacama Desert one of the driest places on Earth.','During El Niño, warm water spreads east, upwelling weakens and fish catches drop.'],
+           zh:['沿南美洲西海岸向北流动，带来南大洋的冷水。','上升流使这里成为地球上最富饶的渔场之一。','冷海水还使阿塔卡马沙漠成为地球上最干燥的地方之一。','厄尔尼诺发生时，温暖的海水向东扩展，上升流减弱，渔获量下降。']},
+    hint:{en:'Cold water + upwelling = lots of fish.',zh:'冷水 + 上升流 = 鱼多。'}},
+  canary:{color:COLD, name:{en:'Canary Current',zh:'加那利寒流'}, job:{en:'Cold surface current',zh:'寒冷的表层洋流'},
+    facts:{en:['Flows south along northwest Africa and closes the North Atlantic loop.','It cools the coast and helps keep the western Sahara dry.'],
+           zh:['沿非洲西北海岸向南流，使北大西洋的环流形成闭合的圈。','它使沿岸变凉，也让撒哈拉西部更加干燥。']},
+    hint:{en:'North Atlantic loop: Gulf Stream → North Atlantic Drift → Canary → North Equatorial: clockwise.',zh:'北大西洋环流：墨西哥湾暖流 → 北大西洋暖流 → 加那利寒流 → 北赤道暖流，顺时针。'}},
+  labrador:{color:COLD, name:{en:'Labrador Current',zh:'拉布拉多寒流'}, job:{en:'Cold surface current',zh:'寒冷的表层洋流'},
+    facts:{en:['Carries icy Arctic water and icebergs south past Canada.','Where it meets the warm Gulf Stream near Newfoundland, thick fog forms and fish are plentiful.','An iceberg carried by this current sank the Titanic in 1912.'],
+           zh:['把冰冷的北冰洋海水和冰山向南带过加拿大沿岸。','它在纽芬兰附近与温暖的墨西哥湾暖流相遇，形成浓雾，鱼类也很丰富。','1912 年，被这股洋流带来的冰山撞沉了泰坦尼克号。']},
+    hint:{en:'The Labrador Current is the North Atlantic’s “refrigerator”.',zh:'拉布拉多寒流是北大西洋的“冰箱”。'}},
+  acc:{color:COLD, name:{en:'Antarctic Circumpolar Current',zh:'南极绕极流（西风漂流）'}, job:{en:'The biggest current on Earth',zh:'地球上最大的洋流'},
+    facts:{en:['It flows from west to east all the way around Antarctica.','No continents block its path, and strong westerly winds keep it moving.','It keeps warmer water away from Antarctica, helping the continent stay frozen.'],
+           zh:['它自西向东环绕南极洲流动。','没有大陆阻挡，强劲的西风推动它不停流动。','它把较暖的海水挡在南极洲之外，使南极洲保持冰冻。']},
+    hint:{en:'A giant ring of cold water around the bottom of the world.',zh:'环绕地球“底部”的巨大冷水环。'}},
+  gyre:{color:'#9b7fc4', name:{en:'Gyres & equatorial currents',zh:'大洋环流与赤道洋流'}, job:{en:'Wind + Earth’s spin + continents = giant loops',zh:'风 + 地球自转 + 大陆 = 巨大的环流'},
+    facts:{en:['Trade winds blowing toward the equator push the equatorial currents west.','Because Earth spins, moving water curves (the Coriolis effect): to the right in the Northern Hemisphere and to the left in the Southern.','With continents in the way, this makes huge loops called gyres: clockwise in the north, counterclockwise in the south.','Floating plastic collects in the calm centers of gyres, like the Great Pacific Garbage Patch.'],
+           zh:['吹向赤道的信风推动赤道洋流向西流。','由于地球自转，流动的海水会发生偏转（科里奥利效应）：北半球向右偏，南半球向左偏。','再加上大陆的阻挡，形成了巨大的环形洋流，叫作大洋环流：北半球顺时针，南半球逆时针。','漂浮的塑料垃圾会聚集在环流平静的中心，比如“太平洋垃圾带”。']},
+    hint:{en:'Surface currents = wind + Coriolis effect + continents.',zh:'表层洋流 = 风 + 科里奥利效应 + 大陆阻挡。'},
+    mix:{en:'Surface currents are driven mainly by wind. Deep currents are driven by differences in density (temperature and salinity).',zh:'表层洋流主要由风驱动；深层洋流则由密度差异（温度和盐度）驱动。'}}
+};
+const ORDER_F = ['shelf','slope','rise','plain','seamount','ridge','trench','arc'];
+const ORDER_C = ['gulf','kuroshio','brazil','california','humboldt','canary','labrador','acc','gyre'];
+const DIVE = [
+  {en:'1 · Leaving the coast, we cross the shallow, sunlit continental shelf.',zh:'1 · 离开海岸，我们先经过浅浅的、阳光充足的大陆架。',k:'shelf'},
+  {en:'2 · The continental slope plunges steeply down toward the deep sea.',zh:'2 · 大陆坡陡然向深海倾斜而下。',k:'slope'},
+  {en:'3 · At its foot, piles of sediment form the gentle continental rise.',zh:'3 · 坡脚下，堆积的沉积物形成平缓的大陆隆。',k:'rise'},
+  {en:'4 · The abyssal plain: dark, cold, flat and about 4–6 km deep. A seamount rises from it.',zh:'4 · 深海平原：黑暗、寒冷、平坦，水深约 4~6 千米，上面耸立着一座海山。',k:'plain'},
+  {en:'5 · The mid-ocean ridge: plates pull apart and magma builds new sea floor.',zh:'5 · 大洋中脊：板块在这里分离，岩浆形成新的洋底。',k:'ridge'},
+  {en:'6 · The trench: one plate dives under another, making the deepest water on Earth.',zh:'6 · 海沟：一个板块俯冲到另一个板块之下，形成地球上最深的海水。',k:'trench'},
+  {en:'7 · Magma from the sinking plate rises to build a volcanic island arc. Land ho!',zh:'7 · 俯冲板块产生的岩浆上升，形成火山岛弧。看见陆地啦！',k:'arc'}
+];
+
+/* ===== Info panel / selection ===== */
+const App = window.OCEAN = { sel:null, view:'floor', three:null };
+const order = () => App.view === 'floor' ? ORDER_F : ORDER_C;
+App.select = (k, from3D) => { App.sel = k; renderInfo(); renderChips(); if (!from3D && App.three) App.three.focus(k); };
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel, floor = App.view === 'floor';
+  if (!k){
+    box.innerHTML = floor ? `<span class="tag">${Lab.L({en:'Ocean floor',zh:'海底地形'})}</span>
+      <h3>${Lab.L({en:'The sea floor is not flat',zh:'海底并不平坦'})}</h3>
+      <p class="muted" style="margin:0">${Lab.L({en:'If you drained the ocean you would see wide plains, the longest mountain chain on Earth and trenches deeper than Everest is tall. Click a feature, or take the sea-floor dive.',zh:'如果把海水抽干，你会看到宽广的平原、地球上最长的山脉，以及比珠穆朗玛峰还深的海沟。点击一种地形，或者开始“海底之旅”。'})}</p>
+      <div class="memory"><b>${Lab.L({en:'💡 Memory hint',zh:'💡 记忆小窍门'})}</b>${Lab.L({en:'From the coast out: “Some Sharks Rarely Prefer Real Treats”: Shelf, Slope, Rise, Plain, Ridge, Trench.',zh:'从海岸往外：大陆架 → 大陆坡 → 大陆隆 → 深海平原 → 大洋中脊 → 海沟。'})}</div>
+      <div class="nav"><button id="startBtn">${Lab.L({en:'Start at the coast ▶',zh:'从海岸开始 ▶'})}</button></div>`
+    : `<span class="tag">${Lab.L({en:'Surface currents',zh:'表层洋流'})}</span>
+      <h3>${Lab.L({en:'Rivers in the sea',zh:'海洋中的“河流”'})}</h3>
+      <p class="muted" style="margin:0">${Lab.L({en:'Winds push the ocean’s surface into great currents. Red currents carry warm water away from the equator; blue currents bring cold water toward it. The moving arrows show the direction. Click a current.',zh:'风推动海洋表面形成巨大的洋流。红色的暖流把温暖的海水带离赤道，蓝色的寒流把冷水带向赤道，移动的箭头表示流向。点击一条洋流。'})}</p>
+      <div class="memory"><b>${Lab.L({en:'💡 Memory hint',zh:'💡 记忆小窍门'})}</b>${Lab.L({en:'North = clockwise, South = counterclockwise.',zh:'北半球顺时针，南半球逆时针。'})}</div>
+      <div class="nav"><button id="startBtn">${Lab.L({en:'Start with the Gulf Stream ▶',zh:'从墨西哥湾暖流开始 ▶'})}</button></div>`;
+    Lab.$('#startBtn').onclick = () => App.select(floor ? 'shelf' : 'gulf');
+    return;
+  }
+  const p = PARTS[k], ord = ORDER_F.includes(k) ? ORDER_F : ORDER_C, i = ord.indexOf(k);
+  const tag = ORDER_F.includes(k) ? {en:'Ocean-floor feature',zh:'海底地形'} : p.warm ? {en:'Warm current',zh:'暖流'} : k === 'gyre' ? {en:'How currents work',zh:'洋流的成因'} : {en:'Cold current',zh:'寒流'};
+  box.innerHTML = `<span class="tag">${Lab.L(tag)}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    ${p.photo ? LabPhotos.figure(p.photo) : ''}
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L({en:'💡 Memory hint',zh:'💡 记忆小窍门'})}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${Lab.L({en:'⚠️ Common mix-up:',zh:'⚠️ 容易混淆：'})}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="pPrev">${Lab.L({en:'◀ Previous',zh:'◀ 上一个'})}</button><button id="pNext">${Lab.L({en:'Next ▶',zh:'下一个 ▶'})}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. '));
+  Lab.$('#pPrev').onclick = () => App.select(ord[(i - 1 + ord.length) % ord.length]);
+  Lab.$('#pNext').onclick = () => App.select(ord[(i + 1) % ord.length]);
+}
+function renderChips(){
+  Lab.$('#chips').innerHTML = order().map(k => `<button class="chip ${App.sel===k?'on':''}" data-k="${k}"><i style="background:${PARTS[k].color}"></i>${Lab.L(PARTS[k].name)}</button>`).join('');
+  Lab.$$('#chips .chip').forEach(c => c.onclick = () => App.select(c.dataset.k));
+  Lab.$('#curLegend').style.display = App.view === 'floor' ? 'none' : '';
+}
+Lab.onLang(() => { renderInfo(); renderChips(); });
+
+/* ===== Wave tank ===== */
+(function(){
+  const cv = Lab.$('#waveCv'), g = cv.getContext('2d'), box = Lab.$('#waveBox'), ws = Lab.$('#ws');
+  let W = 0, H = 0;
+  const state = () => { const U = +ws.value, Hs = .0214 * U * U, T = .73 * U, L = 1.56 * T * T; return { U, Hs, T, L }; };
+  function sea(U){ const s = [[.5,{en:'Calm',zh:'无风'}],[3.4,{en:'Light breeze',zh:'轻风'}],[8,{en:'Moderate breeze',zh:'和风'}],[13.9,{en:'Strong breeze',zh:'强风'}],[20.8,{en:'Gale',zh:'大风'}],[99,{en:'Storm',zh:'暴风'}]]; return Lab.L(s.find(x => U < x[0])[1]); }
+  function readout(){
+    const s = state(), zh = Lab.lang === 'zh';
+    Lab.$('#wsVal').textContent = s.U + ' m/s (' + Math.round(s.U * 3.6) + ' km/h)';
+    Lab.$('#wH').textContent = s.U < .5 ? '0 m' : s.Hs.toFixed(s.Hs < 1 ? 2 : 1) + ' m';
+    Lab.$('#wL').textContent = s.U < .5 ? '—' : Math.round(s.L) + ' m';
+    Lab.$('#wT').textContent = s.U < .5 ? '—' : s.T.toFixed(1) + (zh ? ' 秒' : ' s');
+    Lab.$('#wB').textContent = sea(s.U);
+  }
+  ws.oninput = readout;
+  function resize(){ const b = box.getBoundingClientRect(), d = Math.min(devicePixelRatio, 2); W = b.width; H = b.height; cv.width = W * d; cv.height = H * d; g.setTransform(d, 0, 0, d, 0, 0); }
+  new ResizeObserver(resize).observe(box); resize();
+  const phi = new Float32Array(4096), amp = new Float32Array(4096);
+  function frame(now){
+    requestAnimationFrame(frame);
+    if (!W) return;
+    const t = now / 1000, s = state(), css = getComputedStyle(document.documentElement), ink = css.getPropertyValue('--ink').trim(), ink2 = css.getPropertyValue('--ink-2').trim();
+    const beach = Lab.$('#beach').checked, orb = Lab.$('#orbits').checked;
+    const y0 = H * .4, Lpx = Math.min(W * .55, 70 + s.L * .9), A = s.U < .5 ? 0 : Math.min(H * .13, 4 + s.Hs * 6), k = 2 * Math.PI / Lpx, w = 2 * Math.PI / (1.1 + s.T * .1), xb = beach ? W * .62 : W * 2;
+    // phase and amplitude along the tank (waves shorten and grow over the shallow beach)
+    let p = 0; const n = Math.min(4095, Math.ceil(W));
+    for (let x = 0; x <= n; x++){ const sh = clamp((x - xb) / (W - xb)); phi[x] = p; amp[x] = A * (1 + 1.3 * sh) * (sh > .85 ? Math.max(.25, 1 - (sh - .85) * 5) : 1); p += k * (1 + 1.4 * sh); }
+    const yAt = x => { const i = Math.max(0, Math.min(n, x | 0)); return y0 - amp[i] * Math.cos(phi[i] - w * t); };
+    g.clearRect(0, 0, W, H);
+    // sky + water
+    const floorY = x => x < xb ? H - 20 : H - 20 - (x - xb) / (W - xb) * (H * .55);
+    g.beginPath(); g.moveTo(0, yAt(0)); for (let x = 1; x <= n; x += 2) g.lineTo(x, yAt(x)); g.lineTo(W, H); g.lineTo(0, H); g.closePath();
+    const grd = g.createLinearGradient(0, y0 - A, 0, H); grd.addColorStop(0, '#5aa9e6'); grd.addColorStop(1, '#1d4f91'); g.fillStyle = grd; g.fill();
+    // sea floor / beach
+    g.fillStyle = '#d9c08a'; g.beginPath(); g.moveTo(0, H); for (let x = 0; x <= W; x += 6) g.lineTo(x, floorY(x)); g.lineTo(W, H); g.closePath(); g.fill();
+    // foam where waves break
+    if (beach && A > 0){ g.fillStyle = 'rgba(255,255,255,.9)'; for (let x = (xb + (W - xb) * .7) | 0; x < W; x += 3){ const c = Math.cos(phi[x] - w * t); if (c > .7){ g.beginPath(); g.arc(x, yAt(x) - 2, 2.5 + Math.random() * 2.5, 0, 6.283); g.fill(); } } }
+    // water-particle orbits (shrink with depth, disappear below wave base = L/2)
+    if (orb && A > 0){
+      for (let col = 0; col < 7; col++){ const x0 = (col + .5) * Math.min(xb, W) / 7; for (let r = 0; r < 4; r++){ const d = r * Lpx * .14 + 6, rr = (amp[x0 | 0] || A) * Math.exp(-k * d); if (y0 + d > floorY(x0) - 6) continue; const cx = x0, cy = y0 + d, ph = phi[x0 | 0] - w * t;
+        g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 1; g.beginPath(); g.arc(cx, cy, Math.max(.5, rr), 0, 6.283); g.stroke();
+        g.fillStyle = '#ffffff'; g.beginPath(); g.arc(cx + rr * Math.sin(ph), cy - rr * Math.cos(ph), 3, 0, 6.283); g.fill(); } }
+      const wb = y0 + Lpx / 2; if (wb < H - 24){ g.strokeStyle = 'rgba(255,255,255,.6)'; g.setLineDash([6, 6]); g.beginPath(); g.moveTo(0, wb); g.lineTo(Math.min(xb, W), wb); g.stroke(); g.setLineDash([]); g.fillStyle = '#fff'; g.font = '700 12px Nunito, sans-serif'; g.textAlign = 'left'; g.fillText(Lab.L({en:'wave base (½ wavelength): no motion below',zh:'波基面（半个波长）：以下海水几乎不动'}), 8, wb - 6); }
+    }
+    // duck rides the orbit
+    const dx = Math.min(xb, W) * .45, dph = phi[dx | 0] - w * t, dA = amp[dx | 0];
+    g.font = '28px sans-serif'; g.textAlign = 'center'; g.fillText('🦆', dx + dA * Math.sin(dph) * .9, y0 - dA * Math.cos(dph) - 4);
+    // labels: crest, trough, height, wavelength
+    if (A > 3){
+      let c1 = -1; for (let x = 20; x < Math.min(xb, W) - 20; x++){ const a = (phi[x] - w * t) / (2 * Math.PI); if (Math.abs(a - Math.round(a)) < k / (2 * Math.PI) * .6){ if (c1 < 0) c1 = x; else if (x - c1 > Lpx * .8){ var c2 = x; break; } } }
+      if (c1 > 0){
+        g.fillStyle = ink; g.strokeStyle = ink; g.lineWidth = 2; g.font = '800 13px Nunito, sans-serif'; g.textAlign = 'center';
+        g.fillText(Lab.L({en:'crest',zh:'波峰'}), c1, yAt(c1) - 34);
+        const tr = c1 + Lpx / 2; if (tr < W - 10) g.fillText(Lab.L({en:'trough',zh:'波谷'}), tr, yAt(tr) + 22);
+        // height arrow
+        g.beginPath(); g.moveTo(c1 - 22, yAt(c1)); g.lineTo(c1 - 22, y0 + A); g.stroke(); g.setLineDash([3, 3]); g.beginPath(); g.moveTo(c1 - 30, y0 + A); g.lineTo(tr, y0 + A); g.stroke(); g.setLineDash([]);
+        g.textAlign = 'right'; g.fillText(Lab.L({en:'height',zh:'波高'}), c1 - 28, y0 + 4);
+        if (typeof c2 !== 'undefined'){ const ya = y0 - A - 50; g.beginPath(); g.moveTo(c1, ya); g.lineTo(c2, ya); g.stroke(); [c1, c2].forEach(x => { g.beginPath(); g.moveTo(x, ya - 6); g.lineTo(x, ya + 6); g.stroke(); }); g.textAlign = 'center'; g.fillText(Lab.L({en:'wavelength',zh:'波长'}), (c1 + c2) / 2, ya - 8); }
+      }
+    }
+    if (beach && A > 0){ g.fillStyle = ink2; g.font = '800 13px Nunito, sans-serif'; g.textAlign = 'right'; g.fillText(Lab.L({en:'shallow water: waves slow, grow taller, then break',zh:'浅水区：波浪变慢、变高，然后破碎'}), W - 10, H - 8); }
+    if (A === 0){ g.fillStyle = '#fff'; g.font = '800 15px Nunito, sans-serif'; g.textAlign = 'center'; g.fillText(Lab.L({en:'No wind, no waves. Turn up the wind!',zh:'没有风，就没有浪。把风调大！'}), W / 2, y0 + 40); }
+  }
+  const clamp = x => Math.max(0, Math.min(1, x));
+  readout(); Lab.onLang(readout); requestAnimationFrame(frame);
+})();
+
+/* ===== Density current tank ===== */
+(function(){
+  const cv = Lab.$('#densCv'), g = cv.getContext('2d'), box = Lab.$('#densBox');
+  const el = id => Lab.$('#' + id);
+  const rho = (T, S) => 1000 + .78 * S - .0055 * (T - 4) * (T - 4);
+  let W = 0, H = 0, lifted = false, prog = 0, done = false, dots = [];
+  for (let i = 0; i < 260; i++) dots.push([Math.random(), Math.random()]);
+  const PRESETS = [
+    {n:{en:'🧊 Polar vs tropical',zh:'🧊 极地海水 vs 热带海水'}, v:[2, 35, 25, 35]},
+    {n:{en:'🏞️ River meets the sea',zh:'🏞️ 河水入海'}, v:[15, 0, 15, 35]},
+    {n:{en:'🔥 Hot & salty vs cold & fresh',zh:'🔥 热而咸 vs 冷而淡'}, v:[28, 40, 4, 5]},
+    {n:{en:'⚖️ Same water',zh:'⚖️ 完全相同的海水'}, v:[12, 35, 12, 35]}];
+  function renderPresets(){ el('presets').innerHTML = PRESETS.map((p, i) => `<button data-i="${i}">${Lab.L(p.n)}</button>`).join(''); Lab.$$('#presets button').forEach(b => b.onclick = () => { const v = PRESETS[+b.dataset.i].v; el('lT').value = v[0]; el('lS').value = v[1]; el('rT').value = v[2]; el('rS').value = v[3]; reset(); }); }
+  const vals = () => { const lT = +el('lT').value, lS = +el('lS').value, rT = +el('rT').value, rS = +el('rS').value; return { lT, lS, rT, rS, lD:rho(lT, lS), rD:rho(rT, rS) }; };
+  function update(){
+    const v = vals(), zh = Lab.lang === 'zh';
+    el('lTv').textContent = v.lT + ' °C'; el('rTv').textContent = v.rT + ' °C';
+    el('lSv').textContent = (zh ? '盐度 ' : 'salinity ') + v.lS + ' ‰'; el('rSv').textContent = (zh ? '盐度 ' : 'salinity ') + v.rS + ' ‰';
+    el('lD').textContent = v.lD.toFixed(1) + ' kg/m³'; el('rD').textContent = v.rD.toFixed(1) + ' kg/m³';
+    const diff = v.lD - v.rD, badge = Lab.L({en:'denser',zh:'密度更大'});
+    el('lBadge').innerHTML = diff > .2 ? `<span class="badge">${badge}</span>` : ''; el('rBadge').innerHTML = diff < -.2 ? `<span class="badge">${badge}</span>` : '';
+  }
+  function reset(){ lifted = false; prog = 0; done = false; el('densMsg').textContent = ''; el('densMsg').className = 'result'; update(); }
+  ['lT', 'lS', 'rT', 'rS'].forEach(id => el(id).oninput = reset);
+  el('lift').onclick = () => { if (!lifted){ lifted = true; prog = 0; done = false; } };
+  el('dReset').onclick = reset;
+  const tcol = T => { const u = T / 30; return `rgb(${Math.round(40 + 200 * u)},${Math.round(110 + 20 * Math.sin(u * 3))},${Math.round(230 - 180 * u)})`; };
+  function message(v){
+    const d = v.lD - v.rD, zh = Lab.lang === 'zh';
+    if (Math.abs(d) < .3) return Lab.L({en:'Same density, so nothing slides under anything. The two waters just slowly mix.',zh:'密度相同，谁也不会钻到谁的下面，两边的水只会慢慢混合。'});
+    const side = d > 0 ? (zh ? '左侧' : 'left') : (zh ? '右侧' : 'right'), dn = d > 0 ? [v.lT, v.lS] : [v.rT, v.rS], lt = d > 0 ? [v.rT, v.rS] : [v.lT, v.lS];
+    const why = [];
+    if (dn[0] < lt[0] - 1) why.push(zh ? '更冷' : 'colder'); if (dn[1] > lt[1] + 1) why.push(zh ? '更咸' : 'saltier');
+    return zh ? `${side}的海水${why.length ? '(' + why.join('、') + ')' : ''}密度更大,沿着底部流到另一边,较轻的水浮到上面。深层洋流正是这样形成的:在两极附近,又冷又咸的海水下沉,沿海底流向全球。`
+              : `The ${side} water is denser${why.length ? ' (' + why.join(' and ') + ')' : ''}, so it slides along the bottom while the lighter water rides over the top. This is how deep currents form: near the poles, cold, salty water sinks and spreads along the ocean floor around the globe.`;
+  }
+  function draw(dt){
+    if (!W) return;
+    const v = vals(), css = getComputedStyle(document.documentElement), ink = css.getPropertyValue('--ink').trim(), ink2 = css.getPropertyValue('--ink-2').trim();
+    const x0 = 24, x1 = W - 24, top = 40, bot = H - 30, Wt = x1 - x0, Ht = bot - top, mid = (x0 + x1) / 2;
+    const d = v.lD - v.rD, same = Math.abs(d) < .3;
+    if (lifted && !done){ prog = Math.min(1, prog + dt * (same ? .5 : .1 * Math.sqrt(Math.abs(d)) + .05)); if (prog >= 1){ done = true; const m = el('densMsg'); m.textContent = message(v); m.className = 'result good'; } }
+    g.clearRect(0, 0, W, H);
+    const denseLeft = d >= 0, cD = denseLeft ? tcol(v.lT) : tcol(v.rT), cL = denseLeft ? tcol(v.rT) : tcol(v.lT), sD = denseLeft ? v.lS : v.rS, sL = denseLeft ? v.rS : v.lS;
+    // light water fills the tank; dense water drawn as a gravity current along the floor
+    const p = same ? 0 : prog, hx = x => { // height of dense fluid above the floor at x (dense on the left)
+      const xa = (Wt / 2) * (1 - p), xf = Wt / 2 + p * Wt / 2, Hl = Ht * (1 - p / 2), Hn = Ht / 2, u = x - x0;
+      if (u <= xa) return Hl; if (u >= xf) return 0; return Hl + (Hn - Hl) * (u - xa) / Math.max(1, xf - xa);
+    };
+    const X = x => denseLeft ? x : x0 + x1 - x;
+    g.fillStyle = cL; g.fillRect(x0, top, Wt, Ht);
+    g.fillStyle = cD; g.beginPath(); g.moveTo(X(x0), bot); for (let x = x0; x <= x1; x += 4) g.lineTo(X(x), bot - hx(x)); g.lineTo(X(x1), bot); g.closePath(); g.fill();
+    if (same && lifted){ g.fillStyle = cD; g.globalAlpha = prog * .5; g.fillRect(x0, top, Wt, Ht); g.globalAlpha = 1; }
+    // salt specks
+    g.fillStyle = 'rgba(255,255,255,.75)';
+    dots.forEach(([a, b], i) => { const x = x0 + a * Wt, y = top + b * Ht, inDense = (bot - y) < hx(denseLeft ? x : x0 + x1 - x), s = inDense ? sD : sL; if ((i % 40) < s) g.fillRect(x, y, 2, 2); });
+    // tank
+    g.strokeStyle = ink2; g.lineWidth = 3; g.beginPath(); g.moveTo(x0, top - 10); g.lineTo(x0, bot); g.lineTo(x1, bot); g.lineTo(x1, top - 10); g.stroke();
+    if (!lifted){ g.fillStyle = ink2; g.fillRect(mid - 3, top - 18, 6, Ht + 18); }
+    g.fillStyle = ink; g.font = '800 14px Nunito, sans-serif'; g.textAlign = 'center';
+    g.fillText(Lab.L({en:'Left',zh:'左'}) + ' · ' + v.lD.toFixed(1), x0 + Wt / 4, top - 14); g.fillText(Lab.L({en:'Right',zh:'右'}) + ' · ' + v.rD.toFixed(1), x0 + Wt * .75, top - 14);
+    g.fillStyle = ink2; g.font = '700 12px Nunito, sans-serif'; g.fillText(Lab.L({en:'color = temperature (blue cold → red warm) · white specks = salt',zh:'颜色 = 温度（蓝冷 → 红暖）· 白点 = 盐'}), W / 2, H - 9);
+  }
+  function resize(){ const b = box.getBoundingClientRect(), dd = Math.min(devicePixelRatio, 2); W = b.width; H = b.height; cv.width = W * dd; cv.height = H * dd; g.setTransform(dd, 0, 0, dd, 0, 0); }
+  new ResizeObserver(resize).observe(box); resize();
+  let last = performance.now();
+  function loop(now){ const dt = Math.min(.05, (now - last) / 1000); last = now; draw(dt); requestAnimationFrame(loop); }
+  Lab.onLang(() => { renderPresets(); update(); if (done) el('densMsg').textContent = message(vals()); });
+  reset(); requestAnimationFrame(loop);
+})();
+
+/* ===== Quiz ===== */
+const o = (en, zh) => ({en, zh});
+/* ===== Real photos (Wikimedia Commons; licences checked with the Commons API helper, URLs exactly as returned) ===== */
+const PHOTOS = [
+  { part:'ridge', kind:{en:'Deep-sea photo',zh:'深海照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/90/MARUM_Schwarzer_Raucher.jpg/960px-MARUM_Schwarzer_Raucher.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A “black smoker” on the Mid-Atlantic Ridge. Scalding, mineral-rich water shoots out of the sea floor where the plates pull apart.', zh:'大西洋中脊上的“黑烟囱”。在板块张裂的地方，滚烫、富含矿物质的热水从海底喷涌而出。', scale:{en:'3,300 m (about 2 miles) under water',zh:'水下 3300 米'}, credit:'MARUM, Universität Bremen', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:MARUM_Schwarzer_Raucher.jpg' },
+  { part:'seamount', kind:{en:'Sonar map',zh:'声呐地形图'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/70/Uracas_3d_hires.jpg/960px-Uracas_3d_hires.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Three undersea volcanoes near Farallon de Pajaros in the Pacific, mapped by a ship’s multibeam sonar. Colors show depth, not real colors.', zh:'太平洋法拉隆德帕哈罗斯岛附近的三座海底火山，由船上的多波束声呐测绘而成。颜色表示深度，不是真实的颜色。', scale:{en:'Mariana Islands, western Pacific',zh:'西太平洋马里亚纳群岛'}, credit:'NOAA Vents Program', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Uracas_3d_hires.jpg' },
+  { kind:{en:'Photo · 1978',zh:'照片 · 1978 年'}, src:'https://upload.wikimedia.org/wikipedia/commons/f/f6/ALVIN_submersible.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Alvin, a deep-diving research submarine, photographed in 1978. Subs like this let scientists see the deep sea floor with their own eyes.', zh:'1978 年拍摄的深潜科考潜水器“阿尔文号”。有了这样的潜水器，科学家才能亲眼看到深海海底。', credit:'NOAA', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:ALVIN_submersible.jpg' },
+  { part:'gulf', kind:{en:'Satellite image',zh:'卫星影像'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fd/SST_Gulf_stream.jpeg/960px-SST_Gulf_stream.jpeg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The Gulf Stream seen by its temperature in 2005. The warm current shows up as a bright ribbon flowing north along the US East Coast.', zh:'2005 年卫星测得的海面温度图中的墨西哥湾暖流。这股暖流像一条明亮的带子，沿美国东海岸向北流去。', scale:{en:'North Atlantic Ocean',zh:'北大西洋'}, credit:'NASA (MODIS)', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:SST_Gulf_stream.jpeg' },
+  { kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2a/Big_wave_breaking_in_Santa_Cruz.jpg/960px-Big_wave_breaking_in_Santa_Cruz.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A big wave breaking at Santa Cruz, California. Wind blowing over the open ocean made this wave, and it breaks when it reaches shallow water.', zh:'美国加利福尼亚州圣克鲁斯的一道大浪。它是风吹过开阔洋面形成的，到了浅水处就会破碎。', scale:{en:'Santa Cruz, California, USA',zh:'美国加利福尼亚州圣克鲁斯'}, credit:'Brocken Inaglory', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Big_wave_breaking_in_Santa_Cruz.jpg' },
+  { kind:{en:'High tide',zh:'高潮'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e7/Bay_of_Fundy_-_Tide_In.jpg/960px-Bay_of_Fundy_-_Tide_In.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'High tide at Alma on the Bay of Fundy, Canada. Now compare the next photo, taken at the same spot.', zh:'加拿大芬迪湾阿尔马的高潮。再看下一张在同一地点拍的照片。', scale:{en:'Alma, New Brunswick, Canada',zh:'加拿大新不伦瑞克省阿尔马'}, credit:'Dylan Kereluk', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Bay_of_Fundy_-_Tide_In.jpg' },
+  { kind:{en:'Low tide',zh:'低潮'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/92/Bay_of_Fundy_-_Tide_Out.jpg/960px-Bay_of_Fundy_-_Tide_Out.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The same place at low tide: the sea has drained far away. Tides are caused mainly by the Moon’s gravity.', zh:'同一地点的低潮：海水退得远远的。潮汐主要是月球的引力引起的。', scale:{en:'Alma, New Brunswick, Canada',zh:'加拿大新不伦瑞克省阿尔马'}, credit:'Dylan Kereluk', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Bay_of_Fundy_-_Tide_Out.jpg' },
+  { type:'video', kind:{en:'NASA video · 63 MB',zh:'NASA 影片 · 63 MB'}, media:'https://upload.wikimedia.org/wikipedia/commons/6/67/NASA_-_Perpetual_Ocean_CCmTY0PKGDs.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/67/NASA_-_Perpetual_Ocean_CCmTY0PKGDs.webm/960px--NASA_-_Perpetual_Ocean_CCmTY0PKGDs.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/67/NASA_-_Perpetual_Ocean_CCmTY0PKGDs.webm/960px--NASA_-_Perpetual_Ocean_CCmTY0PKGDs.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Watch: “Perpetual Ocean”, a NASA visualization of ocean surface currents around the world from 2005 to 2007. Look for the Gulf Stream and the swirling eddies. (Large file: needs a good connection.)', zh:'看一看：美国国家航空航天局制作的《永恒的海洋》，展示了 2005—2007 年全球海洋表层洋流的流动。找一找墨西哥湾暖流和打着旋的涡流。（文件较大，需要较好的网络。）', credit:'NASA Goddard Space Flight Center', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:NASA_-_Perpetual_Ocean_CCmTY0PKGDs.webm' }
+];
+PHOTOS.forEach(it => { if (it.part && PARTS[it.part]) PARTS[it.part].photo = it; });
+LabPhotos.render(Lab.$('#gallery'), PHOTOS);
+
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('What is the average salinity of ocean water?','海水的平均盐度是多少？'), options:[o('About 35 g of salt per kg (3.5%)','每千克约 35 克盐（3.5%）'),o('About 50%','约 50%'),o('About 0.01%','约 0.01%'),o('About 20%','约 20%')], answer:0},
+  {q:o('Why is the ocean salty?','海水为什么是咸的？'), options:[o('Rivers carry dissolved minerals from rocks, and evaporation leaves the salt behind','河流带来岩石中溶解的矿物质，蒸发时盐被留下'),o('Fish make salt','鱼会制造盐'),o('Rain is salty','雨水是咸的'),o('Salt falls from space','盐从太空掉下来')], answer:0},
+  {q:o('The shallow, gently sloping edge of a continent under the sea is the…','大陆在海面下浅而平缓的边缘叫作……'), options:[o('Continental shelf','大陆架'),o('Abyssal plain','深海平原'),o('Trench','海沟'),o('Mid-ocean ridge','大洋中脊')], answer:0},
+  {q:o('Where is the deepest water in the ocean?','海洋中最深的地方在哪里？'), options:[o('In ocean trenches','海沟'),o('On the continental shelf','大陆架'),o('On top of the mid-ocean ridge','大洋中脊顶部'),o('On the abyssal plain','深海平原')], answer:0, explain:o('The Mariana Trench is about 11,000 m deep.','马里亚纳海沟深约 11000 米。')},
+  {q:o('What happens at a mid-ocean ridge?','大洋中脊处发生了什么？'), options:[o('Plates pull apart and new sea floor forms','板块分离，形成新的洋底'),o('One plate sinks under another','一个板块俯冲到另一个之下'),o('Rivers drop sediment','河流沉积泥沙'),o('Coral reefs grow','珊瑚礁生长')], answer:0},
+  {q:o('The highest point of a wave is the ___ and the lowest point is the ___.','波浪的最高点叫___，最低点叫___。'), options:[o('Crest; trough','波峰；波谷'),o('Trough; crest','波谷；波峰'),o('Wavelength; height','波长；波高'),o('Ridge; trench','中脊；海沟')], answer:0},
+  {q:o('What causes most ocean waves?','大多数海浪是由什么引起的？'), options:[o('Wind blowing over the water','风吹过海面'),o('Fish swimming','鱼游动'),o('Salt dissolving','盐溶解'),o('The Sun’s light pressure','阳光的压力')], answer:0},
+  {q:o('As a wave passes in deep water, a floating duck mostly…','在深水中，波浪经过时，漂浮的小鸭子主要……'), options:[o('Moves up and down in a circle, staying in about the same place','在原地附近做圆周运动，上下起伏'),o('Travels with the wave all the way to shore','随波浪一路被推到岸边'),o('Sinks','沉下去'),o('Stays perfectly still','完全不动')], answer:0, explain:o('Waves carry energy, not water.','波浪传递的是能量，不是水。')},
+  {q:o('Surface currents are driven mainly by…','表层洋流主要由什么驱动？'), options:[o('Wind (plus Earth’s spin and the continents)','风（再加上地球自转和大陆阻挡）'),o('Differences in salinity only','只有盐度差异'),o('Earthquakes','地震'),o('The Moon’s light','月光')], answer:0},
+  {q:o('Deep ocean currents are driven by differences in…','深层洋流是由什么的差异驱动的？'), options:[o('Density (temperature and salinity)','密度（温度和盐度）'),o('Wind speed','风速'),o('Wave height','波高'),o('Fish populations','鱼的数量')], answer:0},
+  {q:o('Which seawater is the densest?','哪种海水密度最大？'), options:[o('Cold and salty','冷而咸'),o('Warm and fresh','暖而淡'),o('Warm and salty','暖而咸'),o('Cold and fresh','冷而淡')], answer:0},
+  {q:o('The Gulf Stream off Georgia’s coast is a…','佐治亚州外海的墨西哥湾暖流是……'), options:[o('Warm current flowing north','向北流的暖流'),o('Cold current flowing south','向南流的寒流'),o('Deep, cold current','深层寒流'),o('Tide','潮汐')], answer:0},
+  {q:o('Because of the Coriolis effect, currents in the Northern Hemisphere curve…','由于科里奥利效应，北半球的洋流会向哪边偏转？'), options:[o('To the right (gyres turn clockwise)','向右（环流呈顺时针）'),o('To the left (gyres turn counterclockwise)','向左（环流呈逆时针）'),o('Straight up','向上'),o('They do not curve','不偏转')], answer:0}
+], { count:10 });
+
+/* ===== Sort game ===== */
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'warm',en:'Warm current',zh:'暖流'},{id:'cold',en:'Cold current',zh:'寒流'},{id:'floor',en:'Ocean-floor feature',zh:'海底地形'}],
+  items:[
+    {en:'Gulf Stream',zh:'墨西哥湾暖流',bin:'warm',color:WARM},{en:'Kuroshio Current',zh:'日本暖流（黑潮）',bin:'warm',color:WARM},{en:'Brazil Current',zh:'巴西暖流',bin:'warm',color:WARM},{en:'East Australian Current',zh:'东澳大利亚暖流',bin:'warm',color:WARM},
+    {en:'California Current',zh:'加利福尼亚寒流',bin:'cold',color:COLD},{en:'Humboldt (Peru) Current',zh:'秘鲁寒流',bin:'cold',color:COLD},{en:'Canary Current',zh:'加那利寒流',bin:'cold',color:COLD},{en:'Labrador Current',zh:'拉布拉多寒流',bin:'cold',color:COLD},
+    {en:'Mariana Trench',zh:'马里亚纳海沟',bin:'floor'},{en:'Mid-Atlantic Ridge',zh:'大西洋中脊',bin:'floor'},{en:'Continental shelf',zh:'大陆架',bin:'floor'},{en:'Abyssal plain',zh:'深海平原',bin:'floor'}
+  ]
+});
+</script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const App = window.OCEAN, V = THREE.Vector3;
+const ctx = Lab3D.stage('#stage', { THREE, OrbitControls, camera:[3, 9.5, 17.5], target:[.5, -2.6, 0], minDistance:4, maxDistance:45 });
+const { scene } = ctx;
+const clamp01 = x => Math.max(0, Math.min(1, x)), smooth = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+const ZH = 3.5, FZ = ZH, SEAM = { x:-2.5, z:-1.5 };
+
+/* ================= OCEAN-FLOOR PROFILE ================= */
+const floor = new THREE.Group(); scene.add(floor);
+const PTS = [[-11, 1.2], [-9.6, 1.0], [-8.6, .3], [-8.0, -.12], [-6.2, -.45], [-5.15, -2.6], [-4, -3.25], [-3.4, -3.45], [-1.6, -3.45], [-.9, -2.6], [-.45, -1.45], [-.15, -1.9], [.15, -1.9], [.45, -1.45], [.9, -2.6], [1.6, -3.45], [4.6, -3.5], [5.6, -3.75], [6.4, -5.9], [6.8, -5.7], [7.6, -3.0], [8.3, -.8], [8.8, 1.35], [9.4, -.2], [10.2, -1.4], [11.2, -1.6]];
+function prof(x){ for (let i = 0; i < PTS.length - 1; i++){ const [x0, y0] = PTS[i], [x1, y1] = PTS[i + 1]; if (x <= x1 || i === PTS.length - 2){ const t = clamp01((x - x0) / (x1 - x0)); return y0 + (y1 - y0) * (1 - Math.cos(Math.PI * t)) / 2; } } return 0; }
+const ridgeOff = z => z > .8 ? .3 : z < -1.4 ? -.25 : 0;
+function H(x, z){
+  const xx = x - ridgeOff(z) * (1 - smooth(1.0, 1.6, Math.abs(x)));
+  let h = prof(xx);
+  if (x > 7.2) h = -2 + (h + 2) * (.5 + .5 * Math.cos(z * 1.5));
+  h += 1.6 * Math.exp(-((x - SEAM.x) ** 2 + (z - SEAM.z) ** 2) / .35);
+  return h + .05 * Math.sin(x * 3.1 + z * 1.7) + .04 * Math.sin(z * 4.3 - x);
+}
+const FEAT = [[null, -11, -8.6], ['shelf', -8.6, -6.2], ['slope', -6.2, -5.1], ['rise', -5.1, -3.6], ['plain', -3.6, -1.3], ['ridge', -1.3, 1.3], ['plain', 1.3, 5.4], ['trench', 5.4, 7.2], ['arc', 7.2, 11.2]];
+const BASE = { null:'#7a9a55', shelf:'#d9c08a', slope:'#b89c6e', rise:'#a58c68', plain:'#8f8577', ridge:'#5a4f4f', trench:'#4a4a55', arc:'#6a5d50' };
+const FMAT = {}, cA = new THREE.Color(), cB = new THREE.Color();
+FEAT.forEach(([k, x0, x1]) => {
+  const sx = Math.max(4, Math.round((x1 - x0) * 9)), g = new THREE.PlaneGeometry(x1 - x0, ZH * 2, sx, 50); g.rotateX(-Math.PI / 2); g.translate((x0 + x1) / 2, 0, 0);
+  const p = g.attributes.position, col = new Float32Array(p.count * 3);
+  for (let i = 0; i < p.count; i++){
+    const x = p.getX(i), z = p.getZ(i), y = H(x, z); p.setY(i, y);
+    cA.set(BASE[k]).multiplyScalar(.85 + .15 * Math.sin(x * 5 + z * 3));
+    if (y > .05) cA.set(y < .35 ? '#e3d29d' : y < 1.0 ? '#6aa84f' : '#7d6a55');
+    if (k === 'ridge' && Math.abs(x - ridgeOff(z)) < .18) cA.lerp(cB.set('#8a2c1a'), .7);
+    col.set([cA.r, cA.g, cA.b], i * 3);
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals();
+  const m = FMAT[k] || (FMAT[k] = new THREE.MeshStandardMaterial({ vertexColors:true, roughness:.92 }));
+  const mesh = new THREE.Mesh(g, m); floor.add(mesh); if (k) ctx.pickable(mesh, k);
+});
+// glowing magma in the ridge's rift valley
+const magmaM = new THREE.MeshStandardMaterial({ color:'#ff6a2a', emissive:'#ff4a10', emissiveIntensity:.9 });
+[[-3.5, -1.4], [-1.4, .8], [.8, 3.5]].forEach(([z0, z1]) => { const zc = (z0 + z1) / 2, off = ridgeOff(zc), b = new THREE.Mesh(new THREE.BoxGeometry(.1, .05, z1 - z0 - .05), magmaM); b.position.set(off, H(off, zc) + .02, zc); floor.add(b); ctx.pickable(b, 'ridge'); });
+
+/* front cut face: sediment, oceanic crust, mantle and the water column */
+const XS = []; for (let x = -11; x <= 11.2 + 1e-6; x += .05) XS.push(x);
+function band(top, bot, mat, key, colorFn){
+  const s = new THREE.Shape(); XS.forEach((x, i) => { const y = top(x); i ? s.lineTo(x, y) : s.moveTo(x, y); });
+  for (let i = XS.length - 1; i >= 0; i--) s.lineTo(XS[i], Math.min(bot(XS[i]), top(XS[i]) - .0001));
+  const g = new THREE.ShapeGeometry(s);
+  if (colorFn){ const p = g.attributes.position, c = new Float32Array(p.count * 3); for (let i = 0; i < p.count; i++){ colorFn(p.getY(i), cA); c.set([cA.r, cA.g, cA.b], i * 3); } g.setAttribute('color', new THREE.BufferAttribute(c, 3)); }
+  const m = new THREE.Mesh(g, mat); m.position.z = FZ; floor.add(m); if (key) ctx.pickable(m, key); return m;
+}
+const hF = x => H(x, FZ);
+const flat = c => new THREE.MeshStandardMaterial({ color:c, roughness:.95, side:THREE.DoubleSide });
+band(hF, x => hF(x) - .3, flat('#b8a27e'));
+band(x => hF(x) - .3, () => -6.4, flat('#4e4643'));
+band(() => -6.4, () => -7.2, flat('#9a4a2c'));
+const deepA = new THREE.Color('#7fd0ff'), deepB = new THREE.Color('#0b2a5c');
+band(x => Math.max(0, hF(x)), hF, new THREE.MeshBasicMaterial({ vertexColors:true, transparent:true, opacity:.55, depthWrite:false, side:THREE.DoubleSide }), null, (y, c) => c.copy(deepA).lerp(deepB, clamp01(-y / 6)));
+
+/* animated sea surface + a bobbing boat */
+const SX0 = -8.3, SX1 = 11.2, sGeo = new THREE.PlaneGeometry(SX1 - SX0, ZH * 2, 140, 40); sGeo.rotateX(-Math.PI / 2); sGeo.translate((SX0 + SX1) / 2, 0, 0);
+const sBase = sGeo.attributes.position.array.slice();
+const seaM = ctx.mat('#2f86d6', .26, { depthWrite:false, roughness:.1, clearcoat:1 });
+floor.add(new THREE.Mesh(sGeo, seaM));
+const boat = new THREE.Group(); floor.add(boat);
+{ const hull = new THREE.Mesh(new THREE.BoxGeometry(.9, .2, .34), ctx.mat('#9a5a32')); boat.add(hull);
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(.025, .025, .9, 6), ctx.mat('#5a3a20')); mast.position.y = .55; boat.add(mast);
+  const sh = new THREE.Shape(); sh.moveTo(0, 0); sh.lineTo(.5, 0); sh.lineTo(0, .75); sh.closePath();
+  const sail = new THREE.Mesh(new THREE.ShapeGeometry(sh), ctx.mat('#ffffff', 1, { side:THREE.DoubleSide })); sail.position.set(.03, .15, 0); boat.add(sail); }
+const BOAT_X = -3.2;
+let wind = 8;
+const waveP = () => { const A = .02 + .012 * wind, L = .9 + .12 * wind, k = 2 * Math.PI / L, w = Math.sqrt(9.8 * k) * .45; return { A, k, w }; };
+
+/* floor labels */
+const fl = (key, x, y, z) => { const a = new THREE.Object3D(); a.position.set(x, y, z); floor.add(a); return ctx.label(PARTS[key].name, a); };
+const floorLabels = [
+  fl('shelf', -7.3, .55, FZ), fl('slope', -5.7, -1.2, FZ), fl('rise', -4.4, -2.6, FZ), fl('plain', 3.4, -3.0, FZ), fl('seamount', SEAM.x, -1.4, SEAM.z),
+  fl('ridge', 0, -.9, FZ), fl('trench', 6.5, -5.2, FZ), fl('arc', 8.8, 2.0, 0)
+];
+{ const a = new THREE.Object3D(); a.position.set(10.6, .35, FZ); floor.add(a); floorLabels.push(ctx.label({en:'sea level',zh:'海平面'}, a)); }
+
+/* ================= GLOBE WITH SURFACE CURRENTS ================= */
+const globe = new THREE.Group(); globe.visible = false; scene.add(globe);
+const R = 3.2;
+const globeM = new THREE.MeshStandardMaterial({ color:'#2b6cb0', roughness:.85 });
+globe.add(new THREE.Mesh(new THREE.SphereGeometry(R, 64, 48), globeM));
+Lab3D.texture(THREE, Lab3D.TEX + 'planets/earth_atmos_2048.jpg', tex => { if (tex){ globeM.map = tex; globeM.color.set('#ffffff'); globeM.needsUpdate = true; } });
+const ll = (lat, lon, r = R) => { const ph = (90 - lat) * Math.PI / 180, th = (lon + 180) * Math.PI / 180; return new V(-r * Math.sin(ph) * Math.cos(th), r * Math.cos(ph), r * Math.sin(ph) * Math.sin(th)); };
+{ const eq = new THREE.Mesh(new THREE.TorusGeometry(R + .01, .008, 6, 160), new THREE.MeshBasicMaterial({ color:'#ffffff', transparent:true, opacity:.55 })); eq.rotation.x = Math.PI / 2; globe.add(eq); }
+const ring = (lat, a, b, step) => { const p = []; for (let lon = a; lon <= b; lon += step) p.push([lat, lon]); return p; };
+const CUR = [
+  ['gulf', 1, [[24, -82], [25.5, -80], [30, -80], [35, -75], [38.5, -69], [40.5, -60], [43, -48], [48, -35], [52, -25], [57, -15], [62, -5], [67, 6]]],
+  ['canary', 0, [[44, -12], [37, -13], [30, -15], [24, -18], [18, -20], [13, -24]]],
+  ['labrador', 0, [[64, -58], [58, -56], [52, -53], [47, -50], [43, -50]]],
+  ['brazil', 1, [[-8, -34], [-14, -37], [-20, -39.5], [-26, -45], [-32, -49], [-38, -54]]],
+  ['california', 0, [[49, -128], [43, -126], [37, -124], [31, -120], [24, -115]]],
+  ['kuroshio', 1, [[18, 124], [23, 123.5], [27, 127], [31, 131], [34, 137], [36, 143], [38, 150]]],
+  ['humboldt', 0, [[-45, -77], [-38, -75.5], [-30, -73.5], [-22, -72.5], [-15, -77], [-7, -82], [-2, -86]]],
+  ['acc', 0, ring(-58, -180, 160, 20), true],
+  ['gyre', 1, [[13, -22], [12, -35], [13, -48], [15, -60], [18, -72]]],
+  ['gyre', 1, [[-3, 8], [-4, -10], [-6, -25], [-8, -33]]],
+  ['gyre', 0, [[-40, -52], [-40, -30], [-39, -10], [-37, 5], [-34, 14]]],
+  ['gyre', 0, [[-34, 16], [-28, 14], [-21, 12], [-14, 10]]],
+  ['gyre', 1, [[38, 150], [41, 165], [43, 180], [44, -165], [45, -150], [47, -135], [48, -128]]],
+  ['gyre', 1, [[22, -112], [16, -125], [13, -145], [13, -170], [14, 170], [15, 150], [16, 132], [18, 124]]],
+  ['gyre', 1, [[-2, -88], [-5, -110], [-8, -140], [-11, -170], [-13, 165], [-14, 155], [-15, 153]]],
+  ['gyre', 1, [[-15, 153], [-20, 155], [-26, 154.5], [-32, 153], [-37, 151]]],
+  ['gyre', 1, [[-12, 105], [-13, 90], [-12, 70], [-10, 50]]],
+  ['gyre', 1, [[-15, 41], [-25, 36], [-31, 31], [-36, 24]]]
+];
+const CMATS = {}, arrows = [], curLabels = [], coneG = new THREE.ConeGeometry(.075, .22, 8), UP = new V(0, 1, 0);
+const pickM = new THREE.MeshBasicMaterial({ transparent:true, opacity:0, depthWrite:false });
+CUR.forEach(([k, warm, wp, closed]) => {
+  const pts = [];
+  const raw = wp.map(([a, b]) => ll(a, b, R + .06));
+  if (closed) raw.push(raw[0].clone());
+  for (let i = 0; i < raw.length - 1; i++){ const a = raw[i], b = raw[i + 1], n = Math.max(2, Math.ceil(a.angleTo(b) / .04)); for (let s = 0; s < n; s++) pts.push(a.clone().lerp(b, s / n).setLength(R + .06)); }
+  if (!closed) pts.push(raw[raw.length - 1]);
+  const curve = new THREE.CatmullRomCurve3(pts, !!closed), len = curve.getLength();
+  const m = new THREE.MeshStandardMaterial({ color:warm ? WARM : COLD, emissive:warm ? WARM : COLD, emissiveIntensity:.25, transparent:true, opacity:k === 'gyre' ? .75 : 1 });
+  (CMATS[k] = CMATS[k] || []).push(m);
+  const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, Math.ceil(len * 30), k === 'gyre' ? .025 : .035, 6, !!closed), m); globe.add(tube);
+  const fat = new THREE.Mesh(new THREE.TubeGeometry(curve, Math.ceil(len * 10), .13, 6, !!closed), pickM); globe.add(fat); ctx.pickable(fat, k);
+  const na = Math.max(2, Math.round(len / 1.2));
+  for (let i = 0; i < na; i++){ const c = new THREE.Mesh(coneG, m); globe.add(c); arrows.push({ c, curve, len, u0:i / na, closed }); }
+  if (k !== 'gyre'){ const a = new THREE.Object3D(); a.position.copy(curve.getPointAt(k === 'acc' ? .3 : .5)).multiplyScalar(1.06); globe.add(a); curLabels.push({ L:ctx.label(PARTS[k].name, a), a, k }); }
+});
+[[30, -40, {en:'↻ clockwise gyre',zh:'↻ 顺时针环流'}], [-25, -18, {en:'↺ counterclockwise gyre',zh:'↺ 逆时针环流'}], [25, -150, {en:'↻ clockwise gyre',zh:'↻ 顺时针环流'}], [-28, -110, {en:'↺ counterclockwise gyre',zh:'↺ 逆时针环流'}], [0, -25, {en:'Equator',zh:'赤道'}]].forEach(([la, lo, t]) => { const a = new THREE.Object3D(); a.position.copy(ll(la, lo, R + .1)); globe.add(a); curLabels.push({ L:ctx.label(t, a), a, k:'gyre' }); });
+const GLOBE_ROT = -.87;
+globe.rotation.y = GLOBE_ROT; let globeTarget = GLOBE_ROT;
+
+/* ================= views, labels, controls ================= */
+let labelsOn = true;
+const camDir = new V(), wpos = new V();
+function setLabels(on){ labelsOn = on; floorLabels.forEach(L => L.visible = on); Lab.$('#labelBtn').classList.toggle('on', on); }
+Lab.$('#labelBtn').onclick = () => setLabels(!labelsOn);
+const GLOBE_HOME = [[0, 3.2, 11.5], [0, 0, 0]];
+function setView(v, keepSel){
+  App.view = v; floor.visible = v === 'floor'; globe.visible = v === 'globe';
+  Lab.$('#vFloor').classList.toggle('on', v === 'floor'); Lab.$('#vGlobe').classList.toggle('on', v === 'globe');
+  const tip = Lab.$('#tip'); tip.dataset.en = v === 'floor' ? 'Vertical scale exaggerated · Click any feature' : 'Drag to turn the globe · Click a current';
+  tip.dataset.zh = v === 'floor' ? '垂直方向已夸大 · 点击任意地形' : '拖动转动地球 · 点击一条洋流'; Lab.translate(tip.parentNode);
+  if (!keepSel) App.select(null, true); else { renderInfo(); renderChips(); }
+  if (v === 'floor') ctx.home(); else { globeTarget = GLOBE_ROT; ctx.flyToPose(...GLOBE_HOME); }
+}
+Lab.$('#vFloor').onclick = () => { if (story.active) story.stop(); setView('floor'); };
+Lab.$('#vGlobe').onclick = () => { if (story.active) story.stop(); setView('globe'); };
+let spin = false;
+const setSpin = on => { spin = on; Lab.$('#rotBtn').classList.toggle('on', on); };
+Lab.$('#rotBtn').onclick = () => setSpin(!spin);
+const windEl = Lab.$('#wind');
+windEl.oninput = () => { wind = +windEl.value; Lab.$('#windVal').textContent = wind + ' m/s'; };
+Lab.$('#resetBtn').onclick = () => { story.stop(); setSpin(false); floor.rotation.y = 0; wind = 8; windEl.value = 8; Lab.$('#windVal').textContent = '8 m/s'; setView(App.view); };
+
+/* selection + focus */
+const keyAt = (k, hit) => k === 'plain' && hit && Math.hypot(hit.point.x - SEAM.x, hit.point.z - SEAM.z) < .8 && hit.point.y > -3.05 ? 'seamount' : k;
+ctx.hoverText((k, hit) => Lab.L(PARTS[keyAt(k, hit)].name));
+ctx.onPick((k, hit) => { if (k == null) return; k = keyAt(k, hit); if (k !== App.sel) App.select(k, false); });
+const FX = { shelf:-7.3, slope:-5.6, rise:-4.4, plain:3.2, seamount:SEAM.x, ridge:0, trench:6.4, arc:8.6 };
+function floorPose(k){ const x = FX[k], z = k === 'seamount' ? SEAM.z : 0, y = Math.min(0, H(x, z)); return [[x + 2.2, y + 3.2, z + 8.5], [x, y * .75, z]]; }
+function focus(k){
+  if (!k) return App.view === 'floor' ? ctx.home() : ctx.flyToPose(...GLOBE_HOME);
+  if (ORDER_F.includes(k)){ if (App.view !== 'floor') setView('floor', true); return ctx.flyToPose(...floorPose(k)); }
+  if (App.view !== 'globe') setView('globe', true);
+  const c = CUR.find(x => x[0] === k), wp = c[2][Math.floor(c[2].length / 2)], p = ll(wp[0], k === 'acc' ? -60 : wp[1]);
+  globeTarget = -Math.atan2(p.x, p.z);
+  const lat = (k === 'acc' ? -58 : wp[0]) * Math.PI / 180;
+  ctx.flyToPose([0, Math.sin(lat) * 10.5, Math.cos(lat) * 10.5], [0, 0, 0]);
+}
+App.three = { focus };
+
+/* story: dive across the sea floor */
+const story = Lab3D.story('#stage', DIVE, (i, s) => { setSpin(false); if (App.view !== 'floor') setView('floor', true); App.select(s.k, true); ctx.flyToPose(...floorPose(s.k)); }, () => ctx.home());
+Lab.$('#storyBtn').onclick = () => story.start();
+
+/* ================= per-frame ================= */
+ctx.onFrame((dt, t) => {
+  const sel = App.sel, pulse = .3 + .2 * Math.sin(t * 4);
+  if (floor.visible){
+    if (spin) floor.rotation.y = Math.sin(t * .25) * .5;
+    const { A, k, w } = waveP(), sp = sGeo.attributes.position;
+    for (let i = 0; i < sp.count; i++){ const x = sBase[i * 3], z = sBase[i * 3 + 2]; sp.array[i * 3 + 1] = A * Math.cos(k * x - w * t) + A * .35 * Math.cos(1.7 * k * x + .6 * z - 1.3 * w * t); }
+    sp.needsUpdate = true; sGeo.computeVertexNormals();
+    const ph = k * BOAT_X - w * t; boat.position.set(BOAT_X - A * Math.sin(ph), A * Math.cos(ph) + .06, .6); boat.rotation.z = -Math.atan(A * k * Math.sin(ph)) * .8;
+    for (const key in FMAT) if (key !== 'null') FMAT[key].emissive.set(PARTS[key] ? PARTS[key].color : '#000').multiplyScalar((sel === key || (sel === 'seamount' && key === 'plain')) ? pulse * .6 : 0);
+  }
+  if (globe.visible){
+    if (spin) globeTarget += dt * .25;
+    let d = globeTarget - globe.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); globe.rotation.y += d * Math.min(1, dt * 3);
+    const sp = wind / 8 * .5;
+    arrows.forEach(a => { let u = (a.u0 + t * sp / a.len) % 1; const p = a.curve.getPointAt(u), tg = a.curve.getTangentAt(u); a.c.position.copy(p); a.c.quaternion.setFromUnitVectors(UP, tg); });
+    for (const key in CMATS){ const on = sel === key, dim = sel && !on; CMATS[key].forEach(m => { m.emissiveIntensity = on ? .5 + .4 * Math.sin(t * 5) : .25; m.opacity += ((dim ? .2 : key === 'gyre' ? .75 : 1) - m.opacity) * Math.min(1, dt * 8); }); }
+    camDir.copy(ctx.camera.position).normalize();
+    curLabels.forEach(c => { c.a.getWorldPosition(wpos); c.L.visible = labelsOn && wpos.normalize().dot(camDir) > .25; });
+  }
+});
+setLabels(true);
+renderInfo(); renderChips();
+</script>
+</body>
+</html>

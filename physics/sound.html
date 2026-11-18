@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sound</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/lab3d.js"></script>
+<script src="../shared/photos.js"></script>
+<style>
+/* page-specific styles */
+.hud{position:absolute;right:12px;bottom:64px;z-index:5;width:236px;background:color-mix(in srgb,var(--surface) 92%,transparent);border:1px solid var(--line);border-radius:14px;padding:10px 12px;box-shadow:var(--shadow);font-size:13px;font-weight:700}
+.hud h4{font-size:14px;margin:0 0 4px}
+.hud .ln{display:flex;justify-content:space-between;gap:8px;color:var(--ink-2);margin-top:3px}
+.hud .ln b{color:var(--ink);text-align:right}
+.hud .st{margin-top:6px;border-top:1px solid var(--line);padding-top:6px;font-size:12.5px}
+.seg.med button{padding:6px 10px;font-size:13.5px}
+.bigplay{font-size:18px;padding:12px 18px}
+.presets{display:flex;flex-wrap:wrap;gap:6px}
+.db{display:grid;grid-template-columns:auto 1fr auto;gap:6px 10px;align-items:center;font-size:14px;font-weight:700}
+.db .bar{height:10px;border-radius:99px;background:linear-gradient(90deg,var(--good),var(--warn),var(--bad))}
+.db small{color:var(--ink-2);font-weight:700}
+@media (max-width:560px){.hud{bottom:112px;right:8px;width:200px;font-size:12px}}
+</style>
+</head>
+<body data-subject="physics" data-topic="sound">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="物理 · 波">Physics · Waves</span>
+  <h1 data-zh-html="声音：<em>听得见的振动</em>">Sound: <em>Vibrations You Can Hear</em></h1>
+  <p class="lead" data-zh="站在大音箱旁边，为什么胸口都能感到“咚咚”的震动？所有的声音都来自振动。看扬声器怎样把空气分子推成一圈圈的密部和疏部，跟着声波走进耳朵、到达大脑；再亲手调出高低、强弱不同的声音，用回声测量距离。">Why can you feel a loud speaker thump in your chest? Every sound comes from a vibration. Watch a speaker push air molecules into compressions and rarefactions, follow the sound wave into the ear and on to the brain — then make your own high, low, loud and soft tones and measure distances with echoes.</p>
+</header>
+
+<section class="wrap" id="explore" data-nav="3D Sound" data-nav-zh="3D 声音">
+  <div class="explorer">
+    <div class="stage card" id="stage" data-3d>
+      <div class="toolbar">
+        <button class="tbtn" id="storyBtn" data-zh="📖 从扬声器到大脑（故事）">📖 Speaker to brain (story)</button>
+        <div class="seg med" id="medSeg">
+          <button data-m="air" class="on" data-zh="空气">Air</button>
+          <button data-m="water" data-zh="水">Water</button>
+          <button data-m="steel" data-zh="钢">Steel</button>
+          <button data-m="vacuum" data-zh="真空">Vacuum</button>
+        </div>
+        <button class="tbtn" id="pauseBtn" data-zh="⏸ 暂停">⏸ Pause</button>
+        <button class="tbtn on" id="labelBtn" data-zh="🏷 标签">🏷 Labels</button>
+        <button class="tbtn" id="homeBtn" data-zh="⌂ 视角">⌂ View</button>
+      </div>
+      <div class="hud" id="hud">
+        <h4 data-zh="🔊 声音读数">🔊 Sound readout</h4>
+        <div class="ln"><span data-zh="介质">Medium</span><b id="hM"></b></div>
+        <div class="ln"><span data-zh="声速">Speed of sound</span><b id="hV"></b></div>
+        <div class="ln"><span data-zh="频率（音调）">Frequency (pitch)</span><b id="hF"></b></div>
+        <div class="ln"><span data-zh="波长 λ = v ÷ f">Wavelength λ = v ÷ f</span><b id="hL"></b></div>
+        <div class="ln"><span data-zh="响度">Loudness</span><b id="hD"></b></div>
+      </div>
+      <div class="bottombar">
+        <div class="pill"><span data-zh="🎵 音调">🎵 Pitch</span><input id="pitch" type="range" min="0" max="100" value="45"></div>
+        <div class="pill"><span data-zh="📢 响度">📢 Loudness</span><input id="loud" type="range" min="5" max="100" value="60"></div>
+        <div class="tip" data-zh="拖动旋转 · 滚轮缩放 · 点击扬声器、空气、耳朵各部分">Drag to rotate · Scroll to zoom · Click the speaker, the air, parts of the ear</div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="result" id="hS" style="margin-top:12px;font-size:15px"></div>
+  <div class="chips" id="chips"></div>
+</section>
+
+<section class="wrap" id="tone" data-nav="Tone generator" data-nav-zh="音调发生器">
+  <div class="sec-head">
+    <h2 data-zh="实验：音调发生器">Lab: tone generator</h2>
+    <p data-zh="点击“开始”就能听到声音（请先把音量调低）。改变频率，听音调怎样变化；改变音量，看波形的振幅怎样变化。示波器显示的是 10 毫秒内的声波。">Press Start to hear a tone (turn your volume down first!). Change the frequency to hear the pitch change, and change the volume to see the amplitude of the waveform change. The oscilloscope shows 10 milliseconds of the sound wave.</p>
+  </div>
+  <div class="sim">
+    <div class="card simbox" style="min-height:400px"><canvas id="scope"></canvas></div>
+    <div class="card simside">
+      <button class="btn bigplay" id="toneBtn" data-zh="▶ 开始播放">▶ Start tone</button>
+      <label class="ctl"><span><span data-zh="频率">Frequency</span>: <b id="tFv">440 Hz</b></span><input id="tF" type="range" min="0" max="1000" value="560"></label>
+      <label class="ctl"><span><span data-zh="音量">Volume</span>: <b id="tVv">30%</b></span><input id="tV" type="range" min="0" max="100" value="30"></label>
+      <div class="presets" id="wavePick"></div>
+      <div class="presets" id="presets"></div>
+      <div class="counters">
+        <div class="counter"><b id="tP">2.27 ms</b><span data-zh="周期 T = 1/f">period T = 1/f</span></div>
+        <div class="counter"><b id="tL">0.78 m</b><span data-zh="空气中的波长">wavelength in air</span></div>
+        <div class="counter"><b id="tN">A4</b><span data-zh="最接近的音符">nearest musical note</span></div>
+        <div class="counter"><b id="tC">4.4</b><span data-zh="10 毫秒内的波数">waves in 10 ms</span></div>
+      </div>
+      <div class="result" id="tMsg" style="font-size:15px"></div>
+    </div>
+  </div>
+  <div class="grid2" style="margin-top:16px">
+    <div class="card box">
+      <h3 data-zh="📢 响度与分贝（dB）">📢 Loudness in decibels (dB)</h3>
+      <p data-zh="振幅越大，声音越响。分贝每增加 10，声音的强度就变为原来的 10 倍。">Bigger amplitude = louder sound. Every +10 dB means the sound is 10 times more intense.</p>
+      <div class="db" style="margin-top:10px">
+        <span>🍃</span><div class="bar" style="width:20%"></div><small data-zh="树叶沙沙 · 20 dB">Rustling leaves · 20 dB</small>
+        <span>🗣️</span><div class="bar" style="width:45%"></div><small data-zh="正常交谈 · 60 dB">Conversation · 60 dB</small>
+        <span>🚚</span><div class="bar" style="width:65%"></div><small data-zh="繁忙交通 · 85 dB">Heavy traffic · 85 dB</small>
+        <span>🎸</span><div class="bar" style="width:83%"></div><small data-zh="摇滚音乐会 · 110 dB">Rock concert · 110 dB</small>
+        <span>✈️</span><div class="bar" style="width:100%"></div><small data-zh="喷气发动机 · 140 dB">Jet engine · 140 dB</small>
+      </div>
+      <div class="mix" style="margin-top:12px"><b data-zh="⚠️ 注意：">⚠️ Careful:</b><span data-zh="长时间处在 85 dB 以上的声音中会损伤耳蜗中的毛细胞，而且无法恢复。戴耳机时请把音量调低！">Long exposure to sounds above 85 dB damages the hair cells in your cochlea, and they do not heal. Keep earbuds turned down!</span></div>
+    </div>
+    <div class="card box">
+      <h3 data-zh="🚑 多普勒效应">🚑 The Doppler effect</h3>
+      <p data-zh="救护车开过来时警笛声的音调更高，开走时音调更低。这是因为声源向你靠近时，声波被“挤”在一起，波长变短、频率变高；声源远离时，声波被“拉”开，频率变低。">An ambulance siren sounds higher as it comes toward you and lower as it drives away. When the source moves toward you the waves are squeezed together (shorter wavelength, higher frequency); when it moves away they are stretched out (lower frequency).</p>
+      <div class="memory" style="margin-top:12px"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="“近高远低”：声源靠近，音调升高；声源远离，音调降低。人耳能听到约 20 ~ 20 000 Hz 的声音，低于 20 Hz 的叫次声波，高于 20 000 Hz 的叫超声波。">“Coming = higher, going = lower.” Humans hear about 20–20,000 Hz. Below 20 Hz is infrasound; above 20,000 Hz is ultrasound.</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="echo" data-nav="Echoes" data-nav-zh="回声">
+  <div class="sec-head">
+    <h2 data-zh="回声测距计算器">Echo distance calculator</h2>
+    <p data-zh="回声是声音遇到障碍物后反射回来的声波。声音要走一个来回，所以：距离 = 声速 × 时间 ÷ 2。蝙蝠、海豚和船上的声呐都用这个方法测距离。">An echo is a sound wave reflected back from a surface. The sound travels there AND back, so: distance = speed × time ÷ 2. Bats, dolphins and ship sonar all measure distance this way.</p>
+  </div>
+  <div class="sim">
+    <div class="card simbox" style="min-height:300px"><canvas id="echoCv"></canvas></div>
+    <div class="card simside">
+      <div class="presets" id="echoMed"></div>
+      <label class="ctl"><span><span data-zh="听到回声所用的时间">Time until the echo is heard</span>: <b id="eTv">2.0 s</b></span><input id="eT" type="range" min="0.2" max="6" step="0.1" value="2"></label>
+      <div class="formula" id="eOut" style="font-family:Fredoka;font-size:20px;background:var(--surface-2);border-radius:12px;padding:10px 12px"></div>
+      <p class="muted" id="eNote" style="margin:0"></p>
+      <div class="table-wrap"><table class="lab" style="min-width:0">
+        <thead><tr><th data-zh="介质">Medium</th><th data-zh="声速（约）">Speed of sound (approx.)</th></tr></thead>
+        <tbody>
+          <tr><td data-zh="空气（20 °C）">Air (20 °C)</td><td>343 m/s</td></tr>
+          <tr><td data-zh="水">Water</td><td>1 480 m/s</td></tr>
+          <tr><td data-zh="钢">Steel</td><td>5 960 m/s</td></tr>
+          <tr><td data-zh="真空">Vacuum</td><td data-zh="0 —— 不能传声">0 — sound cannot travel</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real photos" data-nav-zh="真实影像">
+  <div id="gallery"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 声音测验">🧠 Sound quiz</h3><p class="sub" data-zh="选出正确答案。">Pick the best answer.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分一分：音调高还是低？">🗂️ Sort it: high or low pitch?</h3><p class="sub" data-zh="想一想：振动得快（频率高）还是慢（频率低）？小而紧绷的物体通常音调高，大而松弛的物体通常音调低。">Ask: does it vibrate fast (high frequency) or slowly (low frequency)? Small, tight things usually sound high; big, loose things usually sound low.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="对应佐治亚州标准 S8P4：声波是机械波，需要介质才能传播，其行为不同于光等电磁波。本页涉及：不同介质对波速的影响（固体 > 液体 > 气体，真空中无法传播）；频率与音调、振幅与响度的关系；以及人耳如何感知声音（外耳、耳道、鼓膜、听小骨、耳蜗、听神经）。">Supports GSE S8P4: sound is a mechanical wave that needs a medium and behaves differently from electromagnetic waves such as light. This page covers how different media affect wave speed (solids > liquids > gases; no sound in a vacuum), the link between frequency and pitch and between amplitude and loudness, and how the human ear perceives sound (outer ear, ear canal, eardrum, ossicles, cochlea, auditory nerve).</p>
+    <p data-zh="课堂建议：① 播放音调前先提醒学生把音量调低；音频只有在点击按钮后才会开始。② 让学生在保持频率不变的情况下切换介质，观察波长怎样变化（λ = v ÷ f）。③ 用回声计算器做“声呐”问题：船发出声波 2 秒后收到回声，海有多深？（1480 × 2 ÷ 2 = 1480 m）。④ 讨论听力保护：长时间处在 85 dB 以上的环境会损伤耳蜗中的毛细胞，而且毛细胞不能再生。3D 动画中的振动被大大放慢了。">Classroom ideas: (1) Remind students to start with a low volume; audio only starts after a button click. (2) Keep the frequency fixed and switch media to see how the wavelength changes (λ = v ÷ f). (3) Use the echo calculator for a sonar problem: a ship hears its echo after 2 s — how deep is the sea? (1480 × 2 ÷ 2 = 1480 m.) (4) Discuss hearing protection: long exposure above 85 dB damages the hair cells in the cochlea, and they do not grow back. Vibrations in the 3D animation are slowed down enormously.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+/* ===== Parts (bilingual) ===== */
+const PARTS = {
+  speaker:{color:'#9b6bff', name:{en:'Speaker cone (vibration)',zh:'扬声器纸盆（振动）'}, job:{en:'Every sound starts with a vibration',zh:'所有的声音都始于振动'},
+    facts:{en:['The speaker cone moves back and forth very fast. Each push squeezes the air in front of it; each pull spreads it out.','How many times per second it vibrates is the frequency, measured in hertz (Hz).','How far it moves (the amplitude) decides how loud the sound is.'],
+           zh:['扬声器纸盆飞快地前后振动。每向前推一次，就把前方的空气挤紧；每向后拉一次，就让空气变稀疏。','每秒振动的次数叫频率，单位是赫兹（Hz）。','振动的幅度（振幅）决定声音有多响。']},
+    hint:{en:'Touch your throat while you hum: you can feel the vibration.',zh:'哼歌时摸摸喉咙，就能感到声带在振动。'}},
+  particles:{color:'#8ab4f8', name:{en:'Air molecules (the medium)',zh:'空气分子（介质）'}, job:{en:'Pass the vibration along',zh:'把振动传递下去'},
+    facts:{en:['Sound is a mechanical wave: it needs a medium — a solid, liquid or gas — to travel through.','Each molecule just jiggles back and forth around its place and bumps the next one. The molecules do not fly from the speaker to your ear.','Sound travels faster in liquids and fastest in solids, because their particles are closer together: air ≈ 343 m/s, water ≈ 1480 m/s, steel ≈ 5960 m/s.'],
+           zh:['声音是机械波，需要介质（固体、液体或气体）才能传播。','每个分子只是在原位置附近前后振动，并撞击下一个分子。分子并不会从扬声器一路飞到你的耳朵里。','声音在液体中传得更快，在固体中最快，因为它们的粒子靠得更近：空气约 343 m/s，水约 1480 m/s，钢约 5960 m/s。']},
+    hint:{en:'Solids > liquids > gases for the speed of sound — the opposite of what many people guess!',zh:'声速：固体 > 液体 > 气体，和很多人的猜测正好相反！'},
+    mix:{en:'In space (a vacuum) there are no particles to vibrate, so explosions in space would be totally silent. Try the Vacuum button!',zh:'太空是真空，没有可以振动的粒子，所以太空中的爆炸是完全无声的。试试“真空”按钮！'}},
+  compression:{color:'#f97316', name:{en:'Compression',zh:'密部'}, job:{en:'Air squeezed together',zh:'被挤紧的空气'},
+    facts:{en:['A compression is a region where air molecules are crowded together, at slightly higher pressure.','Sound is a longitudinal wave: the molecules vibrate in the same direction the wave travels.','The distance from one compression to the next is one wavelength. For a fixed speed, higher pitch → shorter wavelength.'],
+           zh:['密部是空气分子挤在一起、压强稍高的区域。','声波是纵波：分子的振动方向与波的传播方向相同。','相邻两个密部之间的距离就是一个波长。波速一定时，音调越高，波长越短。']},
+    hint:{en:'Compression = Crowded.',zh:'密部 = 分子“密密麻麻”。'}},
+  rarefaction:{color:'#38bdf8', name:{en:'Rarefaction',zh:'疏部'}, job:{en:'Air spread apart',zh:'变稀疏的空气'},
+    facts:{en:['A rarefaction is a region where air molecules are spread out, at slightly lower pressure.','Compressions and rarefactions alternate as the wave moves outward from the source.','Your eardrum is pushed in by compressions and pulled out by rarefactions.'],
+           zh:['疏部是空气分子分散开、压强稍低的区域。','声波从声源向外传播时，密部和疏部交替出现。','密部把鼓膜向里推，疏部把鼓膜向外拉。']},
+    hint:{en:'Rarefaction = Rare (few) molecules.',zh:'疏部 = 分子“稀疏”。'}},
+  outer:{color:'#f1a77f', name:{en:'Outer ear (pinna)',zh:'外耳（耳廓）'}, job:{en:'Collects sound waves',zh:'收集声波'},
+    facts:{en:['The curved outer ear acts like a funnel, gathering sound waves and directing them into the ear canal.','Its shape also helps your brain tell whether a sound comes from in front or behind.','Animals like rabbits and cats can turn their outer ears toward a sound.'],
+           zh:['弯曲的耳廓像漏斗一样，把声波收集起来，引入耳道。','耳廓的形状还能帮助大脑判断声音来自前方还是后方。','兔子和猫等动物能把耳廓转向声音的方向。']},
+    hint:{en:'Cup your hand behind your ear — sounds get louder. You made a bigger pinna!',zh:'把手拢在耳后，声音会变响——你做了一个更大的耳廓！'}},
+  canal:{color:'#d9896a', name:{en:'Ear canal',zh:'耳道'}, job:{en:'Carries sound to the eardrum',zh:'把声音传到鼓膜'},
+    facts:{en:['The ear canal is a tube about 2.5 cm long that leads from the outer ear to the eardrum.','It contains earwax, which traps dust and protects the ear.','Never push objects into your ear canal: you could damage the eardrum.'],
+           zh:['耳道是一条约 2.5 厘米长的管道，从外耳通向鼓膜。','耳道里有耳垢，可以粘住灰尘、保护耳朵。','千万不要把东西塞进耳道，可能会损伤鼓膜。']},
+    hint:{en:'Outer ear → canal → eardrum: the sound “hallway”.',zh:'外耳 → 耳道 → 鼓膜：声音的“走廊”。'}},
+  eardrum:{color:'#f472b6', name:{en:'Eardrum',zh:'鼓膜'}, job:{en:'Vibrates with the sound wave',zh:'随声波一起振动'},
+    facts:{en:['The eardrum is a thin, tight membrane, like the skin of a drum.','Compressions push it in, rarefactions let it move out, so it vibrates at the same frequency as the sound.','Louder sounds make it vibrate with a bigger amplitude.'],
+           zh:['鼓膜是一层又薄又紧的膜，就像鼓面一样。','密部把它向里推，疏部让它向外移，所以它以和声音相同的频率振动。','声音越响，鼓膜振动的幅度越大。']},
+    hint:{en:'Eardrum = a tiny drum that sound plays on.',zh:'鼓膜就像一面被声音敲响的小鼓。'}},
+  ossicles:{color:'#eadfc8', name:{en:'Ossicles (hammer, anvil, stirrup)',zh:'听小骨（锤骨、砧骨、镫骨）'}, job:{en:'Amplify the vibrations',zh:'放大振动'},
+    facts:{en:['Three tiny bones in the middle ear: the hammer (malleus), anvil (incus) and stirrup (stapes).','They act like levers, passing the vibrations from the eardrum to the cochlea and making them stronger.','The stirrup is the smallest bone in the human body — about 3 mm long.'],
+           zh:['中耳里有三块小骨头：锤骨、砧骨和镫骨。','它们像杠杆一样，把鼓膜的振动传给耳蜗，并把振动放大。','镫骨是人体最小的骨头，只有约 3 毫米长。']},
+    hint:{en:'H-A-S: Hammer, Anvil, Stirrup — in that order.',zh:'按顺序记：锤骨 → 砧骨 → 镫骨。'}},
+  cochlea:{color:'#e879a6', name:{en:'Cochlea',zh:'耳蜗'}, job:{en:'Turns vibrations into nerve signals',zh:'把振动转化为神经信号'},
+    facts:{en:['The cochlea is a snail-shaped tube filled with fluid and lined with thousands of tiny hair cells.','Vibrations make waves in the fluid; the hair cells bend and send electrical signals.','High pitches are detected near the start of the spiral, low pitches near the tip — watch the glowing spot move as you change the pitch.'],
+           zh:['耳蜗是一条像蜗牛壳一样的管道，里面充满液体，排列着成千上万个微小的毛细胞。','振动在液体中形成波，毛细胞弯曲后发出电信号。','高音由螺旋起始处感受，低音由螺旋顶端感受——改变音调，看看发光点怎样移动。']},
+    hint:{en:'Cochlea sounds like “cockle” — a snail-like shell.',zh:'耳蜗，顾名思义，长得像蜗牛壳。'},
+    mix:{en:'You do not “hear” with your ears alone. The ear turns sound into signals, but it is your brain that hears.',zh:'我们并不是只用耳朵“听”。耳朵把声音转化为信号，真正“听到”声音的是大脑。'}},
+  nerve:{color:'#facc15', name:{en:'Auditory nerve → brain',zh:'听神经 → 大脑'}, job:{en:'Carries signals to the brain',zh:'把信号传给大脑'},
+    facts:{en:['The auditory nerve carries electrical signals from the cochlea to the brain.','The brain interprets the signals as pitch, loudness and the kind of sound — a voice, music or a dog barking.','Using two ears lets the brain work out where a sound is coming from.'],
+           zh:['听神经把电信号从耳蜗传到大脑。','大脑把这些信号解读为音调、响度和声音的种类，比如说话声、音乐或狗叫声。','两只耳朵一起工作，大脑就能判断声音从哪里来。']},
+    hint:{en:'Ear collects → bones amplify → cochlea converts → brain understands.',zh:'耳朵收集 → 听小骨放大 → 耳蜗转化 → 大脑理解。'}}
+};
+const ORDER = ['speaker','particles','compression','rarefaction','outer','canal','eardrum','ossicles','cochlea','nerve'];
+const MEDIA = { air:{en:'Air',zh:'空气',v:343}, water:{en:'Water',zh:'水',v:1480}, steel:{en:'Steel',zh:'钢',v:5960}, vacuum:{en:'Vacuum',zh:'真空',v:0} };
+const STORY = [
+  {en:'1 · Sound starts with a vibration: the speaker cone moves back and forth.',zh:'1 · 声音始于振动：扬声器纸盆前后振动。'},
+  {en:'2 · Each push squeezes air molecules together (compression); each pull spreads them apart (rarefaction).',zh:'2 · 每次向前推，把空气分子挤紧（密部）；每次向后拉，让分子变稀疏（疏部）。'},
+  {en:'3 · The molecules only jiggle back and forth, but the compressions race outward — about 343 m/s in air.',zh:'3 · 分子只是前后振动，但密部飞快地向外传播——在空气中约 343 m/s。'},
+  {en:'4 · The outer ear collects the sound waves and funnels them into the ear canal.',zh:'4 · 耳廓收集声波，把它们引入耳道。'},
+  {en:'5 · The waves make the eardrum vibrate at the same frequency as the sound.',zh:'5 · 声波使鼓膜以与声音相同的频率振动。'},
+  {en:'6 · Three tiny bones — hammer, anvil and stirrup — pass the vibrations on and amplify them.',zh:'6 · 三块听小骨——锤骨、砧骨和镫骨——把振动传下去并放大。'},
+  {en:'7 · In the fluid-filled cochlea, hair cells turn vibrations into electrical signals.',zh:'7 · 在充满液体的耳蜗中，毛细胞把振动转化为电信号。'},
+  {en:'8 · The auditory nerve carries the signals to the brain, which hears the sound.',zh:'8 · 听神经把信号传给大脑，大脑“听到”了声音。'},
+  {en:'9 · Remove the air: in a vacuum there is nothing to vibrate, so no sound can travel!',zh:'9 · 抽走空气：真空中没有可以振动的物质，声音无法传播！'}
+];
+
+/* ===== App state ===== */
+const App = window.SD = { sel:null, three:null, medium:'air' };
+App.freq = () => Math.round(100 * Math.pow(20, +Lab.$('#pitch').value / 100));   // 100–2000 Hz
+App.loud = () => +Lab.$('#loud').value / 100;
+App.dB = () => Math.round(35 + 60 * App.loud());
+App.select = (k, from3D) => { App.sel = k; renderInfo(); renderChips(); if (!from3D && App.three) App.three.focus(k); };
+App.setMedium = m => { App.medium = m; Lab.$$('#medSeg button').forEach(b => b.classList.toggle('on', b.dataset.m === m)); hudUI(); };
+Lab.$$('#medSeg button').forEach(b => b.onclick = () => App.setMedium(b.dataset.m));
+function hudUI(){
+  const M = MEDIA[App.medium], f = App.freq(), vac = !M.v;
+  Lab.$('#hM').textContent = Lab.L(M); Lab.$('#hV').textContent = vac ? '0 m/s' : M.v.toLocaleString('en') + ' m/s';
+  Lab.$('#hF').textContent = f + ' Hz'; Lab.$('#hL').textContent = vac ? '—' : (M.v / f).toFixed(2) + ' m'; Lab.$('#hD').textContent = '≈ ' + App.dB() + ' dB';
+  Lab.$('#hS').innerHTML = vac ? `<span style="color:var(--bad)">${Lab.L({en:'🚫 No particles to vibrate: the eardrum stays still. Sound cannot travel through a vacuum.',zh:'🚫 没有可以振动的粒子：鼓膜一动不动。声音不能在真空中传播。'})}</span>`
+    : Lab.L({en:`${f < 300 ? '🐘 Low' : f < 900 ? '🎤 Medium' : '🐦 High'} pitch: your eardrum vibrates ${f} times every second.`,zh:`${f < 300 ? '🐘 低' : f < 900 ? '🎤 中' : '🐦 高'}音:你的鼓膜每秒振动 ${f} 次。`});
+}
+['pitch', 'loud'].forEach(id => Lab.$('#' + id).addEventListener('input', hudUI));
+/* ===== Real photos (Wikimedia Commons, freely licensed) ===== */
+const PHOTOS = [
+  { src:'https://upload.wikimedia.org/wikipedia/commons/9/91/Rice_Kellogg_loudspeaker_2.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'One of the first cone loudspeakers, built by Chester Rice and Edward Kellogg in the 1920s. The cone moves in and out to push the air, just like the speaker in the 3D model.', zh:'最早的锥形扬声器之一，由赖斯和凯洛格在20世纪20年代制成。纸盆前后振动推动空气，和3D模型里的扬声器一样。', kind:{en:'Historic photo', zh:'历史照片'}, credit:'Chester W. Rice, Edward W. Kellogg', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Rice_Kellogg_loudspeaker_2.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/b/b2/TuningFork659Hz.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'A tuning fork tuned to 659 Hz. Strike it and its prongs vibrate 659 times every second, giving one pure note.', zh:'一把659赫兹的音叉。敲击它，叉股每秒振动659次，发出一个纯正的音。', kind:{en:'Photo', zh:'照片'}, credit:'see source page', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:TuningFork659Hz.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/68/Chladni_plate_01.jpg/960px-Chladni_plate_01.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A museum exhibit of Chladni plates. Sprinkle sand on a metal plate and make it vibrate: the sand collects along the lines that stay still, showing the pattern of the vibration.', zh:'科技馆里的克拉德尼板展品。在金属板上撒沙子，再让金属板振动：沙子会聚集在不振动的线上，显示出振动的图样。', kind:{en:'Science museum demo', zh:'科技馆展品'}, credit:'Estes Objeth (exhibit)', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Chladni_plate_01.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d0/FA-18_Hornet_breaking_sound_barrier_%287_July_1999%29.jpg/960px-FA-18_Hornet_breaking_sound_barrier_%287_July_1999%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A U.S. Navy jet breaking the sound barrier. It is flying about as fast as sound travels, around 760 mph (340 m/s), and a cloud forms around it.', zh:'美国海军的一架战斗机正在突破音障。它的速度和声音传播的速度差不多，约每秒340米，周围出现了一团云雾。', kind:{en:'Photo', zh:'照片'}, credit:'Ensign John Gay, U.S. Navy', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:FA-18_Hornet_breaking_sound_barrier_(7_July_1999).jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cb/Obstetric_ultrasound_scan_monitor_showing_20-week_human_fetus_profile_in_Navi_Mumbai_2015.jpg/960px-Obstetric_ultrasound_scan_monitor_showing_20-week_human_fetus_profile_in_Navi_Mumbai_2015.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'An ultrasound scan of a baby before birth. The machine sends out sound too high for us to hear and builds a picture from the echoes.', zh:'胎儿的B超（超声波）检查画面。仪器发出人耳听不到的超声波，再根据回声拼出图像。', kind:{en:'Medical image', zh:'医学影像'}, credit:'Goleisureintl', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Obstetric_ultrasound_scan_monitor_showing_20-week_human_fetus_profile_in_Navi_Mumbai_2015.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/a/a0/Theater_horn_loudspeaker_1928.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'A huge horn loudspeaker built in 1928 for movie theaters. The horn shape helps send the sound out into a big room.', zh:'1928年为电影院制造的巨型号筒扬声器。号筒的形状帮助把声音传遍整个大厅。', kind:{en:'Historic photo', zh:'历史照片'}, credit:'G. C. B. Rowe', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Theater_horn_loudspeaker_1928.jpg' },
+  { type:'audio', media:'https://upload.wikimedia.org/wikipedia/commons/7/70/Tuning-fork-440Hz.ogg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', en:'Listen: a tuning fork playing 440 Hz, the note A that orchestras tune to. Its prongs vibrate 440 times every second.', zh:'听一听：440赫兹的音叉声，这是乐团调音用的A音。叉股每秒振动440次。', kind:{en:'Audio', zh:'音频'}, credit:'jmuehlhans', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Tuning-fork-440Hz.ogg' }
+];
+LabPhotos.render('#gallery', PHOTOS, { title:{en:'See the real thing', zh:'看看真实的样子'}, sub:{en:'Real photos of this physics in everyday life and in the lab. Click any picture to enlarge it; nothing plays until you press play.', zh:'生活中和实验室里的真实照片。点击图片可以放大；视频和音频不会自动播放。'} });
+/* photos shown inside the info panel */
+PARTS.speaker.photo = PHOTOS[0]; PARTS.particles.photo = PHOTOS[2];
+/* ===== end real photos ===== */
+
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel;
+  if (!k){
+    box.innerHTML = `<span class="tag">${Lab.L({en:'How sound travels',zh:'声音如何传播'})}</span>
+      <h3>${Lab.L({en:'Vibration → medium → ear',zh:'振动 → 介质 → 耳朵'})}</h3>
+      <p class="muted" style="margin:0">${Lab.L({en:'The speaker makes the air vibrate. The vibration travels through the air as a longitudinal wave, and your ear turns it into signals for your brain. Click any part to learn more, or play the story.',zh:'扬声器使空气振动，振动以纵波的形式在空气中传播，耳朵再把它转化为传给大脑的信号。点击任何部分了解更多，或者播放故事。'})}</p>
+      <div class="memory"><b>${Lab.L({en:'💡 Big idea',zh:'💡 核心概念'})}</b>${Lab.L({en:'Pitch depends on frequency. Loudness depends on amplitude. Sound needs a medium.',zh:'音调由频率决定，响度由振幅决定，声音的传播需要介质。'})}</div>
+      <div class="nav"><button id="startBtn">${Lab.L({en:'Start with the speaker ▶',zh:'从扬声器开始 ▶'})}</button></div>`;
+    Lab.$('#startBtn').onclick = () => App.select('speaker');
+    return;
+  }
+  const p = PARTS[k], i = ORDER.indexOf(k);
+  box.innerHTML = `<span class="tag">${Lab.L(i < 4 ? {en:'Making sound',zh:'声音的产生与传播'} : {en:'The human ear',zh:'人耳'})}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    ${p.photo ? LabPhotos.figure(p.photo) : ''}
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L({en:'💡 Memory hint',zh:'💡 记忆小窍门'})}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${Lab.L({en:'⚠️ Common mix-up:',zh:'⚠️ 容易混淆：'})}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="pPrev">${Lab.L({en:'◀ Previous',zh:'◀ 上一个'})}</button><button id="pNext">${Lab.L({en:'Next ▶',zh:'下一个 ▶'})}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. '));
+  Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
+  Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
+}
+function renderChips(){
+  Lab.$('#chips').innerHTML = ORDER.map(k => `<button class="chip ${App.sel===k?'on':''}" data-k="${k}"><i style="background:${PARTS[k].color}"></i>${Lab.L(PARTS[k].name)}</button>`).join('');
+  Lab.$$('#chips .chip').forEach(c => c.onclick = () => App.select(c.dataset.k));
+}
+Lab.onLang(() => { renderInfo(); renderChips(); hudUI(); });
+
+/* ===== helpers ===== */
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function fit(cv){
+  const r = cv.parentElement.getBoundingClientRect(), d = devicePixelRatio || 1;
+  if (cv._w !== r.width || cv._h !== r.height){ cv._w = r.width; cv._h = r.height; cv.width = r.width * d; cv.height = r.height * d; }
+  const c = cv.getContext('2d'); c.setTransform(d, 0, 0, d, 0, 0); return { c, W:r.width, H:r.height };
+}
+const setBtn = (el, en, zh) => { el.dataset.en = en; el.dataset.zh = zh; el.textContent = Lab.L({ en, zh }); };
+
+/* ===== Tone generator (Web Audio starts only after a click) ===== */
+(function(){
+  const fEl = Lab.$('#tF'), vEl = Lab.$('#tV'), cv = Lab.$('#scope'), btn = Lab.$('#toneBtn');
+  const WAVES = [{id:'sine',en:'Sine',zh:'正弦波'},{id:'square',en:'Square',zh:'方波'},{id:'triangle',en:'Triangle',zh:'三角波'},{id:'sawtooth',en:'Sawtooth',zh:'锯齿波'}];
+  const PRE = [{f:110,en:'Low A · 110 Hz',zh:'低音 A · 110 Hz'},{f:440,en:'Middle A · 440 Hz',zh:'中音 A · 440 Hz'},{f:1760,en:'High A · 1760 Hz',zh:'高音 A · 1760 Hz'},{f:4000,en:'Very high · 4000 Hz',zh:'很高 · 4000 Hz'}];
+  const NOTES = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
+  let ac = null, osc = null, gain = null, an = null, buf = null, playing = false, type = 'sine';
+  const freq = () => Math.round(20 * Math.pow(250, +fEl.value / 1000));   // 20–5000 Hz (log slider)
+  const vol = () => Math.pow(+vEl.value / 100, 2) * .3;
+  function start(){
+    if (!ac){ const AC = window.AudioContext || window.webkitAudioContext; if (!AC){ msg(Lab.L({en:'⚠️ This browser does not support Web Audio.',zh:'⚠️ 这个浏览器不支持网页音频。'})); return; }
+      ac = new AC(); gain = ac.createGain(); gain.gain.value = 0; an = ac.createAnalyser(); an.fftSize = 2048; buf = new Float32Array(an.fftSize); gain.connect(an); an.connect(ac.destination); }
+    if (ac.state === 'suspended') ac.resume();
+    osc = ac.createOscillator(); osc.type = type; osc.frequency.value = freq(); osc.connect(gain); osc.start();
+    gain.gain.setTargetAtTime(vol(), ac.currentTime, .03); playing = true; ui();
+  }
+  function stop(){ if (!playing) return; const t = ac.currentTime; gain.gain.setTargetAtTime(0, t, .03); const o = osc; setTimeout(() => { try { o.stop(); o.disconnect(); } catch(e){} }, 250); osc = null; playing = false; ui(); }
+  btn.onclick = () => playing ? stop() : start();
+  document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); });
+  function setF(f){ fEl.value = Math.round(Math.log(f / 20) / Math.log(250) * 1000); ui(); }
+  fEl.oninput = vEl.oninput = ui;
+  function msg(t){ Lab.$('#tMsg').textContent = t; }
+  function ui(){
+    const f = freq();
+    if (playing && osc){ osc.frequency.setTargetAtTime(f, ac.currentTime, .02); osc.type = type; gain.gain.setTargetAtTime(vol(), ac.currentTime, .03); }
+    setBtn(btn, playing ? '⏹ Stop tone' : '▶ Start tone', playing ? '⏹ 停止播放' : '▶ 开始播放'); btn.classList.toggle('alt', playing);
+    Lab.$('#tFv').textContent = f + ' Hz'; Lab.$('#tVv').textContent = vEl.value + '%';
+    Lab.$('#tP').textContent = (1000 / f).toFixed(f > 1000 ? 3 : 2) + ' ms'; Lab.$('#tL').textContent = (343 / f).toFixed(f > 1000 ? 3 : 2) + ' m'; Lab.$('#tC').textContent = (f / 100).toFixed(1);
+    const midi = Math.round(69 + 12 * Math.log2(f / 440)); Lab.$('#tN').textContent = NOTES[((midi % 12) + 12) % 12] + (Math.floor(midi / 12) - 1);
+    msg(Lab.L(f < 60 ? {en:'🐘 Very low — close to the lowest sounds humans can hear (≈ 20 Hz). You may feel it more than hear it on small speakers.',zh:'🐘 非常低，接近人耳能听到的最低频率（约 20 Hz）。用小音箱时可能更像是“感觉”到而不是听到。'}
+      : f < 300 ? {en:'🥁 Low pitch — like a bass drum or a tuba. Slow vibrations, long wavelengths.',zh:'🥁 低音，就像大鼓或大号。振动慢，波长长。'}
+      : f < 1200 ? {en:'🎤 Middle pitch — the range of human voices and most melodies.',zh:'🎤 中音，人声和大多数旋律都在这个范围。'}
+      : {en:'🐦 High pitch — like a whistle or a bird. Fast vibrations, short wavelengths. (Humans hear up to about 20,000 Hz.)',zh:'🐦 高音，就像哨声或鸟鸣。振动快，波长短。（人耳最高能听到约 20 000 Hz。）'}));
+    Lab.$$('#wavePick button').forEach(b => b.classList.toggle('on', b.dataset.w === type));
+  }
+  function renderBtns(){
+    Lab.$('#wavePick').innerHTML = WAVES.map(w => `<button class="tbtn" data-w="${w.id}">${Lab.L(w)}</button>`).join('') + `<span class="muted" style="font-size:13px;align-self:center">${Lab.L({en:'same pitch, different timbre (sound quality)',zh:'音调相同，音色不同'})}</span>`;
+    Lab.$$('#wavePick button').forEach(b => b.onclick = () => { type = b.dataset.w; ui(); });
+    Lab.$('#presets').innerHTML = PRE.map((p, i) => `<button class="tbtn" data-i="${i}">${Lab.L(p)}</button>`).join('');
+    Lab.$$('#presets button').forEach(b => b.onclick = () => setF(PRE[+b.dataset.i].f));
+    ui();
+  }
+  const shape = (x) => type === 'square' ? Math.sign(Math.sin(x)) : type === 'triangle' ? 2 / Math.PI * Math.asin(Math.sin(x)) : type === 'sawtooth' ? 2 * (x / (2 * Math.PI) - Math.floor(x / (2 * Math.PI) + .5)) : Math.sin(x);
+  function draw(){
+    const { c, W, H } = fit(cv);
+    if (W){
+      const ink2 = css('--ink-2'), line = css('--line'), mid = H / 2, top = 40, amp = (H - 90) / 2, x0 = 14, w = W - 28;
+      c.clearRect(0, 0, W, H);
+      c.strokeStyle = line; c.lineWidth = 1; c.fillStyle = ink2; c.font = '700 11px Nunito, sans-serif'; c.textAlign = 'center';
+      for (let i = 0; i <= 10; i++){ const x = x0 + i / 10 * w; c.beginPath(); c.moveTo(x, top); c.lineTo(x, H - 30); c.stroke(); if (i % 2 === 0) c.fillText(i + ' ms', x, H - 14); }
+      c.beginPath(); c.moveTo(x0, mid); c.lineTo(x0 + w, mid); c.stroke();
+      c.strokeStyle = css('--brand'); c.lineWidth = 2.5; c.beginPath();
+      if (playing && an){
+        an.getFloatTimeDomainData(buf); const n = Math.round(ac.sampleRate * .01); let s0 = 0;
+        for (let i = 1; i < buf.length - n; i++) if (buf[i - 1] < 0 && buf[i] >= 0){ s0 = i; break; }
+        for (let i = 0; i < n; i++){ const x = x0 + i / n * w, y = mid - buf[s0 + i] / .3 * amp; i ? c.lineTo(x, y) : c.moveTo(x, y); }
+      } else {
+        const f = freq(), a = vol() / .3, n = Math.min(4000, Math.max(400, Math.round(f * .01 * 40)));
+        for (let i = 0; i <= n; i++){ const t = i / n * .01, x = x0 + i / n * w, y = mid - shape(2 * Math.PI * f * t) * a * amp; i ? c.lineTo(x, y) : c.moveTo(x, y); }
+      }
+      c.stroke();
+      c.fillStyle = css('--ink'); c.font = '800 14px Nunito, sans-serif'; c.textAlign = 'left';
+      c.fillText(playing ? Lab.L({en:'🔊 Live waveform (what your speaker is playing)',zh:'🔊 实时波形（扬声器正在播放的声音）'}) : Lab.L({en:'👀 Preview — press Start to hear it',zh:'👀 预览——按“开始播放”就能听到'}), x0, 24);
+      c.fillStyle = ink2; c.font = '700 12px Nunito, sans-serif'; c.textAlign = 'right'; c.fillText(Lab.L({en:'taller = louder · more waves = higher pitch',zh:'越高 = 越响 · 波越密 = 音调越高'}), x0 + w, 24);
+    }
+    requestAnimationFrame(draw);
+  }
+  Lab.onLang(renderBtns); requestAnimationFrame(draw);
+})();
+
+/* ===== Echo calculator ===== */
+(function(){
+  const cv = Lab.$('#echoCv'), tEl = Lab.$('#eT');
+  const MED = [{id:'air',en:'🗣️ Air — shout at a cliff',zh:'🗣️ 空气——对着山崖喊',v:343},{id:'water',en:'🚢 Water — ship sonar',zh:'🚢 水——船上的声呐',v:1480}];
+  let med = 0, t0 = performance.now();
+  function render(){
+    Lab.$('#echoMed').innerHTML = MED.map((m, i) => `<button class="tbtn ${i===med?'on':''}" data-i="${i}">${Lab.L(m)}</button>`).join('');
+    Lab.$$('#echoMed button').forEach(b => b.onclick = () => { med = +b.dataset.i; render(); });
+    const t = +tEl.value, v = MED[med].v, d = v * t / 2;
+    Lab.$('#eTv').textContent = t.toFixed(1) + ' s';
+    Lab.$('#eOut').innerHTML = `d = v × t ÷ 2 = ${v} × ${t.toFixed(1)} ÷ 2 = <b style="color:var(--brand)">${Math.round(d).toLocaleString('en')} m</b>`;
+    Lab.$('#eNote').textContent = Lab.L(med ? {en:`The sea floor is about ${Math.round(d).toLocaleString('en')} m below the ship. Sound travels about 4× faster in water than in air.`,zh:`海底在船下方约 ${Math.round(d)} 米处。声音在水中的传播速度约是空气中的 4 倍。`}
+      : {en:`The cliff is about ${Math.round(d)} m away. Why divide by 2? The sound had to travel to the cliff and back.`,zh:`山崖大约在 ${Math.round(d)} 米外。为什么要除以 2?因为声音要到山崖再返回,走了一个来回。`});
+  }
+  tEl.oninput = render;
+  function draw(now){
+    const { c, W, H } = fit(cv);
+    if (W){
+      c.clearRect(0, 0, W, H);
+      const ink = css('--ink'), ink2 = css('--ink-2'), x0 = 70, x1 = W - 70, y = H / 2 + 10, T = 1.2 + +tEl.value * .5, u = ((now - t0) / 1000 % T) / T;
+      if (med){ c.fillStyle = 'rgba(59,130,246,.12)'; c.fillRect(0, 30, W, H - 30); }
+      c.font = '44px serif'; c.textAlign = 'center'; c.fillText(med ? '🚢' : '🧍', x0 - 20, y + 14);
+      c.fillStyle = ink2; c.beginPath(); c.moveTo(x1, 40); c.lineTo(W, 40); c.lineTo(W, H - 10); c.lineTo(x1 - 14, H - 10); c.lineTo(x1 + 8, H * .6); c.lineTo(x1 - 6, H * .35); c.closePath(); c.fill();
+      c.fillStyle = ink; c.font = '800 13px Nunito, sans-serif'; c.fillText(Lab.L(med ? {en:'sea floor',zh:'海底'} : {en:'cliff',zh:'山崖'}), x1 + 30, 30);
+      const go = u < .5, p = go ? u * 2 : (u - .5) * 2, x = go ? x0 + p * (x1 - x0 - 12) : x1 - 12 - p * (x1 - x0 - 12);
+      c.strokeStyle = go ? css('--accent') : css('--brand'); c.lineWidth = 3;
+      for (let k = 0; k < 3; k++){ c.beginPath(); c.arc(x - (go ? k * 12 : -k * 12), y, 26 - k * 4, go ? -.7 : Math.PI - .7, go ? .7 : Math.PI + .7); c.stroke(); }
+      c.strokeStyle = ink2; c.lineWidth = 1.5; c.setLineDash([5, 5]); c.beginPath(); c.moveTo(x0, H - 34); c.lineTo(x1 - 12, H - 34); c.stroke(); c.setLineDash([]);
+      c.fillStyle = ink2; c.font = '700 13px Nunito, sans-serif'; c.fillText('d = ' + Math.round(MED[med].v * +tEl.value / 2).toLocaleString('en') + ' m', (x0 + x1) / 2, H - 42);
+      c.fillStyle = ink; c.textAlign = 'left'; c.fillText((go ? Lab.L({en:'→ sound going out',zh:'→ 声音传出去'}) : Lab.L({en:'← echo coming back',zh:'← 回声传回来'})) + `   t = ${(u * +tEl.value).toFixed(1)} s`, 14, 22);
+    }
+    requestAnimationFrame(draw);
+  }
+  Lab.onLang(render); requestAnimationFrame(draw);
+})();
+
+/* ===== Quiz ===== */
+const o = (en, zh) => ({en, zh});
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('All sounds are produced by…','所有的声音都是由什么产生的？'), options:[o('vibrations','振动'),o('light','光'),o('magnets','磁铁'),o('heat only','只有热')], answer:0},
+  {q:o('Why can’t sound travel through outer space?','为什么声音不能在太空中传播？'), options:[o('Space is a vacuum with no particles to vibrate','太空是真空，没有可以振动的粒子'),o('It is too cold','太冷了'),o('Sound is too slow','声音太慢了'),o('Light blocks it','光把它挡住了')], answer:0},
+  {q:o('In which material does sound travel fastest?','声音在哪种物质中传播得最快？'), options:[o('Steel','钢'),o('Water','水'),o('Air','空气'),o('A vacuum','真空')], answer:0, explain:o('Solids > liquids > gases: about 5960, 1480 and 343 m/s.','固体 > 液体 > 气体：分别约为 5960、1480 和 343 m/s。')},
+  {q:o('The pitch of a sound depends mainly on its…','声音的音调主要取决于……'), options:[o('frequency','频率'),o('amplitude','振幅'),o('speed','速度'),o('medium’s colour','介质的颜色')], answer:0},
+  {q:o('Turning up the volume increases the sound wave’s…','把音量调大，增大的是声波的……'), options:[o('amplitude','振幅'),o('frequency','频率'),o('wavelength','波长'),o('speed','速度')], answer:0},
+  {q:o('Sound is what kind of wave?','声波是哪种波？'), options:[o('A longitudinal mechanical wave','纵波，机械波'),o('A transverse electromagnetic wave','横波，电磁波'),o('A light wave','光波'),o('It is not a wave','它不是波')], answer:0},
+  {q:o('Which part of the ear turns vibrations into electrical nerve signals?','耳朵的哪一部分把振动转化为神经电信号？'), options:[o('Cochlea','耳蜗'),o('Eardrum','鼓膜'),o('Outer ear','外耳'),o('Ear canal','耳道')], answer:0},
+  {q:o('What do the hammer, anvil and stirrup do?','锤骨、砧骨和镫骨有什么作用？'), options:[o('Amplify vibrations and pass them to the cochlea','放大振动并传给耳蜗'),o('Collect sound waves from the air','从空气中收集声波'),o('Send signals to the brain','把信号传给大脑'),o('Make earwax','分泌耳垢')], answer:0},
+  {q:o('You hear your echo from a cliff 2 s after shouting. Sound travels 343 m/s. How far away is the cliff?','你喊叫 2 秒后听到山崖的回声，声速为 343 m/s。山崖有多远？'), options:[o('343 m','343 m'),o('686 m','686 m'),o('171.5 m','171.5 m'),o('1372 m','1372 m')], answer:0, explain:o('d = v × t ÷ 2 = 343 × 2 ÷ 2 = 343 m (there and back).','d = v × t ÷ 2 = 343 × 2 ÷ 2 = 343 m（声音走了一个来回）。')},
+  {q:o('An ambulance siren sounds higher as it approaches. This is called…','救护车驶近时警笛声音调变高，这叫做……'), options:[o('the Doppler effect','多普勒效应'),o('an echo','回声'),o('refraction','折射'),o('resonance','共振')], answer:0},
+  {q:o('A sound has a frequency of 343 Hz in air (v = 343 m/s). What is its wavelength?','空气中一个声音的频率是 343 Hz（声速 343 m/s），它的波长是多少？'), options:[o('1 m','1 m'),o('343 m','343 m'),o('0.5 m','0.5 m'),o('117 649 m','117 649 m')], answer:0, explain:o('λ = v ÷ f = 343 ÷ 343 = 1 m.','λ = v ÷ f = 343 ÷ 343 = 1 m。')},
+  {q:o('Which sound is most likely to damage your hearing with long exposure?','长时间听哪种声音最可能损伤听力？'), options:[o('A rock concert at 110 dB','110 dB 的摇滚音乐会'),o('A whisper at 30 dB','30 dB 的悄悄话'),o('Normal talking at 60 dB','60 dB 的正常交谈'),o('Rustling leaves at 20 dB','20 dB 的树叶沙沙声')], answer:0}
+], { count:10 });
+
+/* ===== Sort game ===== */
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'hi',en:'High pitch (high frequency)',zh:'音调高（频率高）'},{id:'lo',en:'Low pitch (low frequency)',zh:'音调低（频率低）'}],
+  items:[
+    {en:'A bird chirping',zh:'小鸟啾啾叫',bin:'hi',color:'#38bdf8'},{en:'A mosquito’s whine',zh:'蚊子的嗡嗡声',bin:'hi',color:'#38bdf8'},
+    {en:'A piccolo',zh:'短笛',bin:'hi',color:'#38bdf8'},{en:'A referee’s whistle',zh:'裁判的哨子',bin:'hi',color:'#38bdf8'},
+    {en:'A short, tight guitar string',zh:'又短又紧的吉他弦',bin:'hi',color:'#38bdf8'},{en:'A small bell',zh:'小铃铛',bin:'hi',color:'#38bdf8'},
+    {en:'A tuba',zh:'大号',bin:'lo',color:'#f97316'},{en:'Thunder rumbling',zh:'隆隆的雷声',bin:'lo',color:'#f97316'},
+    {en:'A bass drum',zh:'低音大鼓',bin:'lo',color:'#f97316'},{en:'A long, loose guitar string',zh:'又长又松的吉他弦',bin:'lo',color:'#f97316'},
+    {en:'A big gong',zh:'大锣',bin:'lo',color:'#f97316'},{en:'An elephant’s rumble',zh:'大象低沉的叫声',bin:'lo',color:'#f97316'}
+  ]
+});
+</script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const App = window.SD, V = THREE.Vector3, TAU = Math.PI * 2;
+const ctx = Lab3D.stage('#stage', { THREE, OrbitControls, camera:[1.2, 2.2, 27], target:[1.2, -1.7, 0], minDistance:2.5, maxDistance:45 });
+const { scene } = ctx;
+const SRC = new V(-9.2, 0, 0), RMAX = 14.6, NP = 1500, HALF = .52;
+let ph = 0, paused = false;
+const dotTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), r = g.createRadialGradient(32, 32, 0, 32, 32, 32); r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(.6, 'rgba(255,255,255,.9)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+
+/* ---------- materials ---------- */
+const M = { cab:ctx.mat('#2b2f3a'), cone:ctx.mat('#9b6bff', 1, { side:THREE.DoubleSide }), cap:ctx.mat('#6d4fd1'), skin:ctx.mat('#f1b48f', 1, { side:THREE.DoubleSide }),
+  canal:ctx.mat('#d9896a', .75, { side:THREE.DoubleSide, depthWrite:false }), drum:ctx.mat('#f472b6'), bone:ctx.mat('#eadfc8'), coch:ctx.mat('#e879a6'), nerve:ctx.mat('#facc15'), brain:ctx.mat('#f4a6c8'), mol:ctx.mat('#e5484d') };
+const KEYMATS = { speaker:[M.cone, M.cap], particles:[M.mol], outer:[M.skin], canal:[M.canal], eardrum:[M.drum], ossicles:[M.bone], cochlea:[M.coch], nerve:[M.nerve, M.brain] };
+
+/* ---------- speaker ---------- */
+const spk = new THREE.Group(); scene.add(spk);
+const cab = new THREE.Mesh(new THREE.BoxGeometry(2, 3.8, 2.8), M.cab); cab.position.set(-10.4, 0, 0); spk.add(cab);
+const coneG = new THREE.Group(); spk.add(coneG);
+const cone = new THREE.Mesh(new THREE.CylinderGeometry(1.15, .3, .6, 36, 1, true), M.cone); cone.rotation.z = -Math.PI / 2; coneG.add(cone);
+const dust = new THREE.Mesh(new THREE.SphereGeometry(.32, 20, 12, 0, TAU, 0, Math.PI / 2), M.cap); dust.rotation.z = -Math.PI / 2; dust.position.x = -.25; coneG.add(dust);
+const surround = new THREE.Mesh(new THREE.TorusGeometry(1.18, .08, 8, 36), M.cab); surround.rotation.y = Math.PI / 2; surround.position.x = .3; coneG.add(surround);
+coneG.position.set(-9.1, 0, 0);
+const tw = new THREE.Mesh(new THREE.CylinderGeometry(.3, .15, .25, 20, 1, true), M.cone); tw.rotation.z = -Math.PI / 2; tw.position.set(-9.3, 1.35, 0); spk.add(tw);
+ctx.pickable(spk, 'speaker');
+
+/* ---------- air particles (spherical longitudinal wave) ---------- */
+const P = [];
+while (P.length < NP){ const r = 1 + Math.random() * (RMAX - 1), th = Math.acos(1 - Math.random() * (1 - Math.cos(HALF))), az = Math.random() * TAU;
+  P.push({ r, d:new V(Math.cos(th), Math.sin(th) * Math.cos(az), Math.sin(th) * Math.sin(az)) }); }
+const pGeo = new THREE.BufferGeometry(); pGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NP * 3), 3)); pGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(NP * 3), 3));
+const pMat = new THREE.PointsMaterial({ size:.16, map:dotTex, alphaTest:.05, vertexColors:true, transparent:true, depthWrite:false });
+const pts = new THREE.Points(pGeo, pMat); scene.add(pts);
+const tagged = [4.5, 7.5, 10.5].map((r, i) => { const m = new THREE.Mesh(new THREE.SphereGeometry(.17, 16, 12), M.mol); scene.add(m); ctx.pickable(m, 'particles'); return { m, r, d:new V(1, [.12, -.18, .2][i], [.1, .05, -.15][i]).normalize() }; });
+
+/* compression / rarefaction shells */
+const capGeo = new THREE.SphereGeometry(1, 40, 10, 0, TAU, 0, HALF); capGeo.rotateZ(-Math.PI / 2);
+const mkShells = (col, key) => Array.from({ length:16 }, () => { const m = new THREE.Mesh(capGeo, new THREE.MeshBasicMaterial({ color:col, transparent:true, opacity:.25, side:THREE.DoubleSide, depthWrite:false })); m.position.copy(SRC); scene.add(m); ctx.pickable(m, key); return m; });
+const compS = mkShells('#f97316', 'compression'), rareS = mkShells('#38bdf8', 'rarefaction');
+const jar = new THREE.Mesh(new THREE.CylinderGeometry(3.3, 3.3, 13, 40, 1, true), new THREE.MeshPhysicalMaterial({ color:'#cfe8ff', transparent:true, opacity:.16, side:THREE.DoubleSide, depthWrite:false, roughness:.05 }));
+jar.rotation.z = Math.PI / 2; jar.position.set(-2, 0, 0); scene.add(jar);
+
+/* ---------- ear (schematic, enlarged) ---------- */
+const ear = new THREE.Group(); scene.add(ear);
+const pinG = new THREE.Group(); pinG.position.set(6.0, .3, 0); ear.add(pinG);
+const helixG = new THREE.TorusGeometry(1.55, .3, 14, 40, Math.PI * 1.55); helixG.rotateZ(Math.PI * .72); helixG.rotateY(Math.PI / 2);
+pinG.add(new THREE.Mesh(helixG, M.skin));
+const concha = new THREE.Mesh(new THREE.SphereGeometry(1.05, 28, 16, 0, TAU, 0, Math.PI / 2), M.skin); concha.rotation.z = Math.PI / 2; concha.scale.set(1, .55, 1); concha.position.x = .45; pinG.add(concha);
+const lobe = new THREE.Mesh(new THREE.SphereGeometry(.42, 18, 12), M.skin); lobe.position.set(.1, -1.55, .2); lobe.scale.set(.6, 1, 1); pinG.add(lobe);
+ctx.pickable(pinG, 'outer');
+const canal = new THREE.Mesh(new THREE.CylinderGeometry(.34, .3, 1.9, 22, 1, true), M.canal); canal.rotation.z = Math.PI / 2; canal.position.set(7.15, 0, 0); ear.add(canal); ctx.pickable(canal, 'canal');
+const drum = new THREE.Mesh(new THREE.CylinderGeometry(.42, .42, .05, 28), M.drum); drum.rotation.z = Math.PI / 2; drum.position.set(8.15, 0, 0); ear.add(drum); ctx.pickable(drum, 'eardrum');
+const oss = new THREE.Group(); ear.add(oss);
+const hammer = new THREE.Mesh(new THREE.CapsuleGeometry(.07, .5, 4, 10), M.bone); hammer.position.set(8.3, .25, 0); hammer.rotation.z = -.5; oss.add(hammer);
+const anvil = new THREE.Mesh(new THREE.DodecahedronGeometry(.16), M.bone); anvil.position.set(8.6, .52, 0); oss.add(anvil);
+const stirrup = new THREE.Mesh(new THREE.TorusGeometry(.13, .035, 8, 16, Math.PI), M.bone); stirrup.position.set(8.95, .35, 0); stirrup.rotation.z = -Math.PI / 2; oss.add(stirrup);
+const foot = new THREE.Mesh(new THREE.CylinderGeometry(.12, .12, .04, 14), M.bone); foot.rotation.z = Math.PI / 2; foot.position.set(9.12, .35, 0); oss.add(foot);
+ctx.pickable(oss, 'ossicles');
+const spiral = []; for (let i = 0; i <= 160; i++){ const a = i / 160 * TAU * 2.6, R = .8 * (1 - i / 160 * .78); spiral.push(new V(9.45 + i / 160 * .55, -.45 + R * Math.cos(a), R * Math.sin(a) * .9)); }
+const spiralC = new THREE.CatmullRomCurve3(spiral);
+const coch = new THREE.Mesh(new THREE.TubeGeometry(spiralC, 220, .15, 10), M.coch); ear.add(coch); ctx.pickable(coch, 'cochlea');
+const spot = new THREE.Mesh(new THREE.SphereGeometry(.2, 16, 12), new THREE.MeshBasicMaterial({ color:'#fff7a8', transparent:true })); ear.add(spot);
+const nerveC = new THREE.CatmullRomCurve3([new V(10.05, -.45, 0), new V(10.9, -.2, -.2), new V(11.6, 1, -.4), new V(12.3, 2.5, -.6)]);
+const nerve = new THREE.Mesh(new THREE.TubeGeometry(nerveC, 60, .1, 8), M.nerve); ear.add(nerve); ctx.pickable(nerve, 'nerve');
+const brain = new THREE.Group(); brain.position.set(12.8, 3.3, -.7); ear.add(brain);
+[-.38, .38].forEach(z => { const h = new THREE.Mesh(new THREE.SphereGeometry(.8, 22, 16), M.brain); h.scale.set(1.25, .8, .62); h.position.z = z; brain.add(h); });
+ctx.pickable(brain, 'nerve');
+const imp = Array.from({ length:4 }, () => { const m = new THREE.Mesh(new THREE.SphereGeometry(.09, 10, 8), new THREE.MeshBasicMaterial({ color:'#fffbe6', transparent:true })); ear.add(m); return m; });
+
+/* ---------- labels ---------- */
+const labels = [
+  ctx.label({en:'Speaker',zh:'扬声器'}, new V(-10.4, 2.35, 0)), ctx.label(PARTS.compression.name, new V()), ctx.label(PARTS.rarefaction.name, new V()),
+  ctx.label({en:'Air molecule ↔',zh:'空气分子 ↔'}, tagged[0].m, { offset:[0, .55, 0] }),
+  ctx.label({en:'Outer ear',zh:'外耳'}, new V(6, 2.35, 0)), ctx.label({en:'Ear canal',zh:'耳道'}, new V(7.05, -.75, 0)), ctx.label({en:'Eardrum',zh:'鼓膜'}, new V(8.1, 1.05, 0)),
+  ctx.label({en:'Ossicles',zh:'听小骨'}, new V(8.85, 1.6, 0)), ctx.label({en:'Cochlea',zh:'耳蜗'}, new V(9.9, -1.6, 0)), ctx.label({en:'Auditory nerve',zh:'听神经'}, new V(11.9, .9, -.4)), ctx.label({en:'Brain',zh:'大脑'}, new V(12.8, 4.35, -.7))
+];
+const shellLabels = labels.slice(1, 3);
+let labelsOn = true;
+Lab.$('#labelBtn').onclick = () => { labelsOn = !labelsOn; Lab.$('#labelBtn').classList.toggle('on', labelsOn); labels.forEach(L => L.visible = labelsOn); };
+
+/* ---------- selection / focus ---------- */
+const POSES = { speaker:[[-5.5, 2, 8], [-9.5, 0, 0]], compression:[[-2, 4.5, 12], [-3, 0, 0]], rarefaction:[[-2, 4.5, 12], [-3, 0, 0]], particles:[[-3, 2, 7], [-3.5, 0, 0]],
+  outer:[[3, 1.5, 6.5], [6.5, .3, 0]], canal:[[6, 1.2, 4.2], [7.3, 0, 0]], eardrum:[[7.2, .8, 3], [8.2, 0, 0]], ossicles:[[8, 1.1, 2.6], [8.75, .35, 0]], cochlea:[[9, .9, 3.6], [9.9, -.3, 0]], nerve:[[9.5, 2.8, 8], [11.5, 1.6, -.3]] };
+function focus(k){ const p = POSES[k]; p ? ctx.flyToPose(p[0], p[1]) : ctx.home(); }
+App.three = { focus };
+ctx.hoverText(k => Lab.L(PARTS[k].name));
+ctx.onPick(k => { if (k !== App.sel) App.select(k, true); if (k) focus(k); });
+const setBtn = (el, en, zh) => { el.dataset.en = en; el.dataset.zh = zh; el.textContent = Lab.L({ en, zh }); };
+Lab.$('#pauseBtn').onclick = () => { paused = !paused; Lab.$('#pauseBtn').classList.toggle('on', paused); setBtn(Lab.$('#pauseBtn'), paused ? '▶ Play' : '⏸ Pause', paused ? '▶ 播放' : '⏸ 暂停'); };
+Lab.$('#homeBtn').onclick = () => { App.select(null, true); ctx.home(); };
+const origSetMedium = App.setMedium;
+App.setMedium = m => { origSetMedium(m); if (!story.active) ctx.caption(m === 'vacuum' ? {en:'Vacuum: no particles, so the vibration has nothing to travel through. Silence!',zh:'真空：没有粒子，振动无法传播。一片寂静！'} : null); };
+Lab.$$('#medSeg button').forEach(b => b.onclick = () => App.setMedium(b.dataset.m));
+
+/* ---------- story ---------- */
+const story = Lab3D.story('#stage', STORY, i => {
+  if (i < 8 && App.medium === 'vacuum') App.setMedium('air');
+  const keys = ['speaker', 'compression', 'particles', 'outer', 'eardrum', 'ossicles', 'cochlea', 'nerve'];
+  if (i < 8){ App.select(keys[i], true); focus(keys[i]); }
+  else { App.setMedium('vacuum'); App.select('particles', true); ctx.home(); }
+}, () => { if (App.medium === 'vacuum') App.setMedium('air'); });
+Lab.$('#storyBtn').onclick = () => story.start();
+
+/* ---------- per-frame ---------- */
+const cAir = { air:new THREE.Color('#7fb2ff'), water:new THREE.Color('#2f7cf6'), steel:new THREE.Color('#9aa6b5') }, cComp = new THREE.Color('#f97316'), cRare = new THREE.Color('#bfe6ff'), cT = new THREE.Color();
+const tmp = new V();
+ctx.onFrame((dt, t) => {
+  const f = App.freq(), loud = App.loud(), med = App.medium, vac = med === 'vacuum', vReal = MEDIA[med].v || 343;
+  const pn = Math.log(f / 100) / Math.log(20), fv = .35 + 1.25 * pn, lam = Math.max(.9, Math.min(7, 2.6 * Math.sqrt(440 / f) * Math.pow(vReal / 343, .25))), k = TAU / lam;
+  if (!paused) ph += TAU * fv * dt;
+  const Ap = Math.min(.08 + .45 * loud, .75 / k), Acone = .06 + .22 * loud;
+  coneG.position.x = -9.1 + Acone * Math.sin(-ph);
+  // particles
+  pts.visible = !vac; const pos = pGeo.attributes.position.array, col = pGeo.attributes.color.array, base = cAir[med] || cAir.air;
+  if (!vac) for (let i = 0; i < NP; i++){
+    const p = P[i], phi = k * p.r - ph, r = p.r + Ap * Math.sin(phi), dens = -Math.cos(phi);
+    pos[i * 3] = SRC.x + p.d.x * r; pos[i * 3 + 1] = SRC.y + p.d.y * r; pos[i * 3 + 2] = SRC.z + p.d.z * r;
+    cT.copy(base).lerp(dens > 0 ? cComp : cRare, Math.abs(dens) * (.25 + .55 * loud)); col[i * 3] = cT.r; col[i * 3 + 1] = cT.g; col[i * 3 + 2] = cT.b;
+  }
+  pGeo.attributes.position.needsUpdate = true; pGeo.attributes.color.needsUpdate = true;
+  tagged.forEach(T => { T.m.visible = !vac; const r = T.r + Ap * Math.sin(k * T.r - ph) * 1.4; T.m.position.copy(SRC).addScaledVector(T.d, r); });
+  // shells
+  const sh = (arr, phase, sel, L, ang) => { let n0 = Math.ceil((k * 1.2 - ph - phase) / TAU); arr.forEach((m, j) => { const r = (phase + ph + TAU * (n0 + j)) / k;
+    m.visible = !vac && r > 1.2 && r < 13.2; if (m.visible){ m.scale.setScalar(r); m.material.opacity = (sel ? .42 : .2) * (.4 + .6 * loud) * Math.min(1, (13.2 - r) / 3); } if (j === 2) L.at.set(SRC.x + r * Math.cos(ang), r * Math.sin(ang), 0); }); };
+  sh(compS, Math.PI, App.sel === 'compression', shellLabels[0], .5); sh(rareS, 0, App.sel === 'rarefaction', shellLabels[1], -.5);
+  shellLabels.forEach(L => L.visible = labelsOn && !vac);
+  jar.visible = vac;
+  // ear response (arrives with the wave's phase at the eardrum)
+  const rEar = 17.35, drive = vac ? 0 : Math.sin(k * rEar - ph), aD = .03 + .09 * loud;
+  drum.position.x = 8.15 + aD * drive; drum.scale.set(1, 1, 1);
+  oss.position.x = aD * .8 * drive;
+  const u = Math.max(.03, Math.min(.95, 1 - pn * .9 - .05)); spiralC.getPointAt(u, tmp); spot.position.copy(tmp);
+  spot.visible = !vac; spot.material.opacity = .45 + .5 * loud * (.6 + .4 * Math.abs(drive)); spot.scale.setScalar(.8 + .6 * loud);
+  imp.forEach((m, j) => { m.visible = !vac; const s = ((t * (.5 + loud) + j / imp.length) % 1); nerveC.getPointAt(s, tmp); m.position.copy(tmp); m.material.opacity = 1 - s * .5; });
+  // highlight
+  const sel = App.sel;
+  for (const key in KEYMATS) for (const m of KEYMATS[key]) m.emissive.set(m.color).multiplyScalar(sel === key ? .3 + .15 * Math.sin(t * 4) : 0);
+});
+hudUI(); renderInfo(); renderChips();
+</script>
+</body>
+</html>

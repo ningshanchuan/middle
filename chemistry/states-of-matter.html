@@ -1,0 +1,728 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>States of Matter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/lab3d.js"></script>
+<script src="../shared/photos.js"></script>
+<style>
+/* page-specific styles */
+#stage .lab-caption{left:16px;transform:none;max-width:calc(100% - 260px);text-align:left}
+#stage .tip{display:none}
+#stage .storybar{bottom:68px}
+.readout{position:absolute;right:12px;top:60px;z-index:4;width:224px;background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:12px;display:flex;flex-direction:column;gap:6px}
+.readout .temp{font-family:Fredoka;font-size:38px;font-weight:700;line-height:1}
+.readout .phase{font-weight:800;font-size:15px;border-radius:999px;padding:3px 10px;align-self:flex-start;color:#1b2333}
+.readout .mini{position:relative;height:96px;background:var(--surface-2);border-radius:10px;overflow:hidden}
+.readout .mini canvas{position:absolute;inset:0;width:100%;height:100%}
+.readout small{color:var(--ink-2);font-weight:700;font-size:12px}
+.pill.heat{gap:8px;flex-wrap:wrap}
+.pill.heat input[type=range]{width:180px}
+.pill.heat button{border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:999px;padding:4px 10px;font-weight:800;font-size:13px}
+.pill.heat button.on{background:var(--ink);color:var(--surface)}
+.statecards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.statecards .box{text-align:left}
+.statecards .box canvas{width:100%;height:110px;display:block;border-radius:12px;background:var(--surface-2);margin-bottom:8px}
+.statecards dl{margin:6px 0 0;font-size:14px;display:grid;grid-template-columns:auto 1fr;gap:2px 8px}
+.statecards dt{color:var(--ink-2);font-weight:700}
+.statecards dd{margin:0;font-weight:700}
+.phasemap{padding:10px 14px}
+.phasemap svg{width:100%;max-width:720px;display:block;margin:0 auto}
+.phasemap path{stroke-width:5;fill:none;stroke-linecap:round}
+.phasemap path.hot{stroke:#ff7a59;marker-end:url(#ahot)}
+.phasemap path.cold{stroke:#3f8cff;marker-end:url(#acold)}
+.phasemap text{font:800 15px Nunito,"Microsoft YaHei",sans-serif;fill:var(--ink);text-anchor:middle;paint-order:stroke;stroke:var(--surface);stroke-width:5px}
+.phasemap .node text{font-size:17px;fill:#1b2333;stroke:none}
+.phasemap .pc{cursor:pointer;transition:opacity .15s}
+.phasemap .pc:hover{opacity:.7}
+.phasemap .pc.on path{stroke-width:8}
+.phasemap .pc.on circle{stroke:var(--ink);stroke-width:4}
+.sublabel{font-weight:800;color:var(--ink-2);font-size:13px;letter-spacing:.05em;text-transform:uppercase;margin:26px 0 10px}
+@media (max-width:980px){.statecards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.readout{width:140px;padding:8px;top:96px}.readout .mini,.readout small{display:none}.readout .temp{font-size:28px}#stage .lab-caption{max-width:calc(100% - 170px)}.pill.heat input[type=range]{width:120px}.statecards{grid-template-columns:1fr}}
+</style>
+</head>
+<body data-subject="chemistry" data-topic="states-of-matter">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="化学 · 物质的状态">Chemistry · States of matter</span>
+  <h1 data-zh-html="物质的状态：<em>粒子在跳舞</em>">States of Matter: <em>Dancing Particles</em></h1>
+  <p class="lead" data-zh="冰为什么会化成一滩水？太阳一晒，水坑又为什么不见了？冰、水和水蒸气是同一种物质——都是水分子！区别只在于分子运动得多快、彼此靠得多近。给这盒水分子加热或冷却，看看会发生什么。">Why does ice melt into a puddle, and why does the puddle vanish on a sunny day? Ice, water and steam are the same substance: water molecules! The only difference is how fast the molecules move and how close together they stay. Heat up or cool down this box of water molecules and watch what happens.</p>
+</header>
+
+<section class="wrap" id="explore" data-nav="3D Particle Box" data-nav-zh="3D 粒子盒">
+  <div class="explorer">
+    <div class="stage card" id="stage" data-3d>
+      <div class="toolbar">
+        <button class="tbtn" id="rotBtn" data-zh="⟳ 旋转">⟳ Spin</button>
+        <button class="tbtn" id="resetBtn" data-zh="⌂ 重置">⌂ Reset</button>
+        <button class="tbtn" id="storyBtn" data-zh="▶ 导览：从冰到水蒸气">▶ Tour: ice to steam</button>
+        <button class="tbtn" id="plasmaBtn" data-zh="⚡ 等离子体">⚡ Plasma</button>
+      </div>
+      <div class="readout" id="readout" aria-live="polite"></div>
+      <div class="bottombar">
+        <div class="pill heat"><span data-zh="🔥 加入的热量">🔥 Heat added</span><input id="energy" type="range" min="0" max="1000" value="40" aria-label="heat energy"><button id="coolBtn" data-zh="❄ 自动冷却">❄ Auto-cool</button><button id="heatBtn" data-zh="🔥 自动加热">🔥 Auto-heat</button></div>
+        <div class="tip" data-zh="拖动旋转 · 点击分子">Drag to rotate · Click a molecule</div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="chips" id="chips"></div>
+</section>
+
+<section class="wrap" id="compare" data-nav="Compare States" data-nav-zh="比较三态">
+  <div class="sec-head">
+    <h2 data-zh="粒子模型：四种状态大比拼">The particle model: four states side by side</h2>
+    <p data-zh="所有物质都由不停运动的微小粒子构成。粒子之间的吸引力和粒子的运动速度，决定了物质是固体、液体还是气体。">All matter is made of tiny particles that never stop moving. The attraction between particles and how fast they move decide whether a substance is a solid, liquid or gas.</p>
+  </div>
+  <div class="statecards" id="statecards"></div>
+  <div class="sublabel" data-zh="物态变化地图（点击箭头，在上方 3D 盒子里观看）">Change-of-state map (click an arrow to watch it in the 3D box above)</div>
+  <div class="card phasemap">
+    <svg viewBox="0 0 600 310" role="img" aria-label="phase change map">
+      <defs>
+        <marker id="ahot" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#ff7a59"/></marker>
+        <marker id="acold" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#3f8cff"/></marker>
+      </defs>
+      <g class="pc" data-k="melting"><path d="M140 238 L460 238" class="hot"/><text x="300" y="228" data-zh="熔化 ↑吸热">melting ↑heat in</text></g>
+      <g class="pc" data-k="freezing"><path d="M460 272 L140 272" class="cold"/><text x="300" y="295" data-zh="凝固 ↓放热">freezing ↓heat out</text></g>
+      <g class="pc" data-k="vaporization"><path d="M500 210 L352 82" class="hot"/><text x="470" y="132" data-zh="汽化 ↑">vaporization ↑</text></g>
+      <g class="pc" data-k="condensation"><path d="M326 102 L470 226" class="cold"/><text x="372" y="176" data-zh="液化 ↓">condensation ↓</text></g>
+      <g class="pc" data-k="sublimation"><path d="M100 210 L248 82" class="hot"/><text x="130" y="132" data-zh="升华 ↑">sublimation ↑</text></g>
+      <g class="pc" data-k="deposition"><path d="M274 102 L130 226" class="cold"/><text x="228" y="176" data-zh="凝华 ↓">deposition ↓</text></g>
+      <g class="pc node" data-k="gas"><circle cx="300" cy="60" r="40" fill="#ff9f6b"/><text x="300" y="66" data-zh="气体">Gas</text></g>
+      <g class="pc node" data-k="solid"><circle cx="92" cy="255" r="40" fill="#8ecbff"/><text x="92" y="261" data-zh="固体">Solid</text></g>
+      <g class="pc node" data-k="liquid"><circle cx="508" cy="255" r="40" fill="#4d8dff"/><text x="508" y="261" data-zh="液体">Liquid</text></g>
+    </svg>
+  </div>
+  <div class="mix" style="margin-top:16px"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="物质变成气体时，粒子本身并不会变大，变大的是粒子之间的距离。水蒸气中的水分子和冰里的水分子一模一样。">Particles do NOT get bigger when a substance turns into a gas. The SPACE between them grows. A water molecule in steam is exactly the same as one in ice.</span></div>
+</section>
+
+<section class="wrap" id="curve" data-nav="Heating Curve" data-nav-zh="加热曲线">
+  <div class="sec-head">
+    <h2 data-zh="实验：绘制加热曲线">Lab: plot a heating curve</h2>
+    <p data-zh="用恒定功率的加热器加热 10 g 物质，每秒记录一次温度。注意曲线上的“平台”：温度不变，但仍在吸收热量！">Heat 10 g of a substance with a steady heater and record its temperature. Watch for the flat “plateaus”: the temperature stops rising even though heat keeps flowing in!</p>
+  </div>
+  <div class="sim">
+    <div class="card simbox" style="min-height:400px"><canvas id="curveCv"></canvas></div>
+    <div class="card simside">
+      <h3 data-zh="实验设置">Lab setup</h3>
+      <div class="seg" id="subSeg"><button data-s="water" class="on" data-zh="水">Water</button><button data-s="ethanol" data-zh="酒精（乙醇）">Ethanol</button></div>
+      <div class="seg" id="dirSeg"><button data-d="heat" class="on" data-zh="🔥 加热曲线">🔥 Heating</button><button data-d="cool" data-zh="❄ 冷却曲线">❄ Cooling</button></div>
+      <label class="ctl"><span><span data-zh="加热器功率">Heater power</span>: <b id="powV">200</b> W</span><input id="pow" type="range" min="50" max="500" step="10" value="200"></label>
+      <div class="btnrow"><button class="btn" id="runBtn" data-zh="▶ 开始">▶ Start</button><button class="btn ghost" id="rstBtn" data-zh="重来">Reset</button></div>
+      <div class="counters">
+        <div class="counter"><b id="cvT">—</b><span data-zh="温度（°C）">temperature (°C)</span></div>
+        <div class="counter"><b id="cvTime">0</b><span data-zh="时间（s）">time (s)</span></div>
+      </div>
+      <div class="result" id="cvMsg"></div>
+      <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="平台 = 物态正在变化。斜线 = 温度在变化。热量在平台上被用来“拆开”粒子之间的吸引力。">Flat = changing state. Slope = changing temperature. On a plateau, the heat is used to pull particles apart, not to speed them up.</span></div>
+    </div>
+  </div>
+
+  <div class="sublabel" data-zh="压强实验：活塞与气体">Pressure lab: gas in a piston</div>
+  <div class="sim">
+    <div class="card simbox" style="min-height:340px"><canvas id="gasCv"></canvas></div>
+    <div class="card simside">
+      <h3 data-zh="气体压强">Gas pressure</h3>
+      <p data-zh="气体粒子不停地撞击容器壁，产生压强。推动活塞或改变温度，观察压强计。">Gas particles constantly hit the walls of their container. Those hits create pressure. Push the piston or change the temperature and watch the gauge.</p>
+      <label class="ctl"><span><span data-zh="体积（活塞位置）">Volume (piston)</span>: <b id="volV">100</b>%</span><input id="vol" type="range" min="30" max="100" value="100"></label>
+      <label class="ctl"><span><span data-zh="温度">Temperature</span>: <b id="gtV">25</b> °C</span><input id="gt" type="range" min="-100" max="300" value="25"></label>
+      <div class="counters">
+        <div class="counter"><b id="pV">1.00</b><span data-zh="压强（相对值）">pressure (relative)</span></div>
+        <div class="counter"><b id="hitV">0</b><span data-zh="每秒撞击器壁次数">wall hits per second</span></div>
+      </div>
+      <div class="result" id="gasMsg"></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real photos" data-nav-zh="真实影像">
+  <div id="gallery"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 物质状态测验">🧠 States of matter quiz</h3><p class="sub" data-zh="选出正确答案。">Pick the best answer.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分一分：吸热还是放热？">🗂️ Sort it: heat added or heat removed?</h3><p class="sub" data-zh="把每个物态变化拖到（或先点再点方框）正确的组里。">Drag each change of state (or tap it, then tap a box) into the right group.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="对应佐治亚州标准 S8P1：用粒子模型描述固体、液体、气体（及等离子体）中粒子的排列与运动，并解释加热或冷却引起的物态变化（熔化、凝固、汽化、液化、升华、凝华）。3D 模型的热量滑块按真实比例设计：让学生注意汽化需要的热量约是熔化的 7 倍（2260 J/g 对 334 J/g）。可提问：为什么在平台阶段温度不变？（热量用于克服粒子间的吸引力，而不是增加粒子的平均动能。）还可指出冰的密度比水小，所以冰浮在水上。说明：真实水在 100 °C 以下也会蒸发（只发生在表面），模型为简化未显示。">Supports GSE S8P1: use the particle model to describe the arrangement and motion of particles in solids, liquids, gases (and plasma), and explain changes of state caused by heating or cooling (melting, freezing, vaporization, condensation, sublimation, deposition). The 3D heat slider uses real proportions: ask students to notice that boiling needs about 7× more energy than melting (2260 J/g vs 334 J/g). Ask: why does the temperature stay flat on a plateau? (The energy overcomes attractions between particles instead of raising their average kinetic energy.) You can also point out that ice is less dense than water, which is why ice floats. Note: real water also evaporates below 100 °C (only at the surface); the model leaves this out for simplicity.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+/* ===== Real photos (Wikimedia Commons, freely licensed) ===== */
+const LPQ = '?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', LPU = 'https://upload.wikimedia.org/wikipedia/commons/', LPT = 'https://thumb.wikimedia.org/wikipedia/commons/thumb/', LPP = 'https://commons.wikimedia.org/wiki/File:';
+const LPK = { photo:{en:'Photo', zh:'照片'}, demo:{en:'Lab demo', zh:'实验演示'}, video:{en:'Video · time-lapse', zh:'视频 · 延时摄影'} };
+const lpS = (dir, file, it) => Object.assign({ src:LPT + dir + '/' + file + '/960px-' + file + LPQ, page:LPP + file }, it);   // scaled thumbnail
+const lpO = (dir, file, it) => Object.assign({ src:LPU + dir + '/' + file + LPQ + '_unscaled', page:LPP + file }, it);          // small original
+const RP = {
+  ice:lpO('9/9e', 'Ice_cubes_openphoto.jpg', { kind:LPK.photo, credit:'Darren Hester', license:'CC BY-SA 2.5',
+    en:'Solid: ice cubes keep their own shape. Inside, the water molecules are locked in place and can only vibrate.',
+    zh:'固体：冰块有自己固定的形状。在冰里，水分子被“锁”在原位，只能振动。' }),
+  boiling:lpO('1/18', 'Kochendes_wasser02.jpg', { kind:LPK.photo, credit:'Markus Schweiss', license:'CC BY-SA 3.0',
+    en:'Liquid → gas: boiling water. The bubbles are not air. They are water vapor forming inside the liquid.',
+    zh:'液体 → 气体：沸腾的水。这些气泡不是空气，而是在水里面形成的水蒸气。' }),
+  bottle:lpS('e/eb', 'Dew_on_grass.jpg', { kind:LPK.photo, credit:'Supraja kannan', license:'CC BY-SA 4.0',
+    en:'Gas → liquid: dew on the grass. Nobody watered it. Invisible water vapor in the air cooled down overnight and condensed into drops.',
+    zh:'气体 → 液体：草叶上的露水。没有人给草浇水，是空气中看不见的水蒸气在夜里遇冷，液化成了小水珠。' }),
+  frost:lpO('b/b8', 'Frost_on_window.jpg', { kind:LPK.photo, credit:'Thunk', license:'Public domain',
+    en:'Gas → solid: frost on a window. Water vapor turned straight into ice crystals without becoming liquid first. That is deposition.',
+    zh:'气体 → 固体：窗户上的霜。水蒸气没有先变成液体，而是直接变成了冰晶，这叫凝华。' }),
+  dryIce:lpS('5/51', 'Dry_Ice_Sublimation_2.jpg', { kind:LPK.photo, credit:'Christopher (Salem, OR)', license:'CC BY-SA 2.0',
+    en:'Solid → gas: dry ice (frozen carbon dioxide) never melts into a puddle. It sublimates, going straight to gas. Dry ice is −78 °C (−109 °F): never touch it with bare hands.',
+    zh:'固体 → 气体：干冰（固态二氧化碳）不会化成一滩液体，而是直接升华成气体。干冰的温度是 −78 °C，千万不要徒手去碰。' }),
+  nitrogen:lpS('b/ba', 'Liquid_nitrogen_dsc04496.jpg', { kind:LPK.demo, credit:'David Monniaux', license:'CC BY-SA 3.0',
+    en:'Liquid nitrogen boiling at room temperature. Its boiling point is −196 °C (−321 °F), so an ordinary room is far hotter than it can stand. Handled only by trained people.',
+    zh:'液氮在室温下沸腾。它的沸点是 −196 °C，普通的房间对它来说已经太热了。只能由受过训练的人操作。' }),
+  plasmaLamp:lpS('2/26', 'Plasma-lamp_2.jpg', { kind:LPK.photo, credit:'Luc Viatour', license:'CC BY-SA 3.0',
+    en:'Plasma, the fourth state: a plasma lamp. Electricity pulls electrons off the gas atoms inside, and the charged gas glows.',
+    zh:'第四种状态——等离子体：一盏等离子球灯。电把球内气体原子的电子“拽”了下来，带电的气体就发出光来。' }),
+  lightning:lpS('4/4b', 'Lightning3.jpg', { kind:LPK.photo, credit:'U.S. Air Force photo by Edward Aspera Jr.', license:'Public domain',
+    en:'Lightning over Las Cruces, New Mexico. A lightning bolt is plasma too: air heated until it glows.',
+    zh:'美国新墨西哥州拉斯克鲁塞斯上空的闪电。闪电也是等离子体：空气被加热到发光。' }),
+  meltVideo:{ type:'video', kind:LPK.video, credit:'alwaysshooting (Flickr)', license:'CC BY 2.0', page:LPP + 'Melting_Ice_time_lapse.webm',
+    media:'https://upload.wikimedia.org/wikipedia/commons/7/75/Melting_Ice_time_lapse.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original',
+    poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/75/Melting_Ice_time_lapse.webm/960px--Melting_Ice_time_lapse.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo',
+    en:'Video (9 seconds): ice melting in time-lapse. Solid → liquid. The real melting took about 20 minutes. Watch the ice lose its shape.',
+    zh:'视频（9 秒）：冰融化的延时摄影。固体 → 液体。真实的融化过程大约用了 20 分钟。看冰是怎样一点点失去形状的。' }
+};
+const REAL_PIC = { solid:RP.ice, vaporization:RP.boiling, condensation:RP.bottle, deposition:RP.frost, sublimation:RP.dryIce, plasma:RP.lightning };
+const realFig = k => REAL_PIC[k] ? LabPhotos.figure(REAL_PIC[k]) : '';
+LabPhotos.render('#gallery', [RP.ice, RP.meltVideo, RP.boiling, RP.bottle, RP.frost, RP.dryIce, RP.nitrogen, RP.plasmaLamp, RP.lightning], {
+  title:{en:'See the real thing', zh:'看看真实的样子'},
+  sub:{en:'The particle box shows what the molecules are doing. This is what you actually see when matter changes state. Click a picture to enlarge it; the video plays only when you press play.', zh:'粒子盒让你看到分子在做什么。而物态变化时，你真正能看到的是这些。点击图片可放大；视频只有按下播放键才会播放。'} });
+/* ===== end real photos ===== */
+const o = (en, zh) => ({en, zh});
+/* ===== Water heating data (per gram): ice from −40 °C to steam at 150 °C ===== */
+const W = { c_ice:2.09, c_liq:4.18, c_gas:2.01, Lf:334, Lv:2260, T0:-40, T1:150 };
+const E1 = W.c_ice * (0 - W.T0), E2 = E1 + W.Lf, E3 = E2 + W.c_liq * 100, E4 = E3 + W.Lv, EMAX = E4 + W.c_gas * (W.T1 - 100);
+function phaseAt(E){
+  if (E < E1) return { T:W.T0 + E / W.c_ice, phase:'solid', f:0 };
+  if (E < E2) return { T:0, phase:'melting', f:(E - E1) / W.Lf };
+  if (E < E3) return { T:(E - E2) / W.c_liq, phase:'liquid', f:0 };
+  if (E < E4) return { T:100, phase:'boiling', f:(E - E3) / W.Lv };
+  return { T:100 + (E - E4) / W.c_gas, phase:'gas', f:0 };
+}
+const COL = { particle:'#e5484d', temperature:'#f59f00', solid:'#8ecbff', liquid:'#4d8dff', gas:'#ff9f6b', plasma:'#c77dff',
+  melting:'#3fbf9a', freezing:'#4dabf7', vaporization:'#ff8a5c', condensation:'#74c0fc', sublimation:'#f783ac', deposition:'#b197fc' };
+
+/* ===== Parts / concepts ===== */
+const PARTS = {
+  particle:{name:o('Water molecule (H₂O)','水分子（H₂O）'), job:o('The tiny particle that makes up water','构成水的微小粒子'),
+    facts:{en:['All matter is made of tiny particles (atoms or molecules) that are always moving.','Each water molecule is 1 oxygen atom (red) joined to 2 hydrogen atoms (white).','Ice, liquid water and steam are made of exactly the same molecules. Only their spacing and motion change.'],
+           zh:['所有物质都由不停运动的微小粒子（原子或分子）构成。','每个水分子由 1 个氧原子（红色）和 2 个氢原子（白色）构成。','冰、水和水蒸气由完全相同的分子构成，改变的只是分子的间距和运动方式。']},
+    hint:o('Same molecules, different dance moves.','同样的分子，不同的“舞步”。'),
+    mix:o('Changing state is a PHYSICAL change. No new substance forms: H₂O stays H₂O.','物态变化是物理变化，没有生成新物质：H₂O 还是 H₂O。')},
+  temperature:{name:o('Temperature','温度'), job:o('How fast the particles move on average','粒子平均运动的快慢'),
+    facts:{en:['Temperature measures the average kinetic energy (motion energy) of the particles.','Hotter = particles move faster. Colder = particles move slower.','At absolute zero (−273 °C) particle motion is at its lowest possible level.'],
+           zh:['温度反映粒子的平均动能（运动的能量）。','温度越高，粒子运动越快；温度越低，粒子运动越慢。','在绝对零度（−273 °C）时，粒子的运动达到最低限度。']},
+    hint:o('Thermometer = particle speedometer.','温度计就是粒子的“速度表”。'),
+    mix:o('Heat and temperature are different. Heat is energy that flows; temperature is how fast particles move. On a plateau, heat flows in but temperature stays the same!','热量和温度不同。热量是流动的能量，温度表示粒子运动的快慢。在“平台”阶段，热量不断流入，温度却保持不变！')},
+  solid:{name:o('Solid','固体'), job:o('Fixed shape and fixed volume','有固定的形状和体积'),
+    facts:{en:['Particles are packed tightly in a regular pattern (a lattice).','They cannot move past each other. They only vibrate in place.','Strong attractions hold the particles together.'],
+           zh:['粒子紧密地按规则的方式排列（晶格）。','粒子不能相互移动位置，只能在原地振动。','粒子之间有很强的吸引力，把它们束缚在一起。']},
+    hint:o('Solid = soldiers standing in rows, wiggling in place.','固体像排好队的士兵：站在原地微微晃动。'),
+    mix:o('Particles in a solid ARE moving. They vibrate, even in ice.','固体中的粒子也在运动——即使在冰里，它们也在振动。')},
+  liquid:{name:o('Liquid','液体'), job:o('Fixed volume, takes the shape of its container','体积固定，形状随容器改变'),
+    facts:{en:['Particles are still close together but can slide past one another.','That is why liquids flow and can be poured.','Water is unusual: liquid water is denser than ice, so ice floats.'],
+           zh:['粒子仍然靠得很近，但可以相互滑动。','所以液体能流动，可以倾倒。','水很特别：液态水的密度比冰大，所以冰会浮在水面上。']},
+    hint:o('Liquid = people moving through a crowded hallway.','液体像在拥挤走廊里穿行的人群。'),
+    mix:o('Liquid particles are NOT spread far apart. They are almost as close as in a solid.','液体粒子并没有离得很远，它们几乎和固体中一样紧密。')},
+  gas:{name:o('Gas','气体'), job:o('No fixed shape or volume: fills its container','没有固定的形状和体积，会充满整个容器'),
+    facts:{en:['Particles are far apart and move fast in straight lines until they hit something.','Attractions between them are very weak.','Because there is so much empty space, gases can be squeezed (compressed).'],
+           zh:['粒子相距很远，沿直线高速运动，直到撞上别的东西。','粒子之间的吸引力非常弱。','因为粒子之间有大量空隙，气体可以被压缩。']},
+    hint:o('Gas = kids at recess running in every direction.','气体像课间操场上四处奔跑的孩子。'),
+    mix:o('Gas particles do not get bigger. The space between them gets bigger.','气体粒子本身不会变大，变大的是粒子之间的空隙。')},
+  plasma:{name:o('Plasma','等离子体'), job:o('Super-hot, electrically charged gas','超高温、带电的气体'),
+    facts:{en:['At extremely high temperatures, electrons are stripped off atoms, leaving charged ions and free electrons.','Plasma glows and conducts electricity: lightning, the Sun, neon signs and auroras.','Most of the visible matter in the universe (stars!) is plasma.'],
+           zh:['在极高的温度下，电子从原子上脱离，形成带电的离子和自由电子。','等离子体会发光、能导电：闪电、太阳、霓虹灯和极光都是等离子体。','宇宙中可见物质的大部分（恒星！）都是等离子体。']},
+    hint:o('Plasma = gas that got so hot it lost its electrons.','等离子体 = 热到“丢掉”电子的气体。'),
+    mix:o('Plasma is not the same as blood plasma. Same word, totally different meaning!','这里的等离子体和血浆（英文也叫 plasma）完全不同！')},
+  melting:{name:o('Melting','熔化'), job:o('Solid → liquid (heat is absorbed)','固态 → 液态（吸收热量）'),
+    facts:{en:['Ice melts at 0 °C. This is its melting point.','While melting, the temperature stays at 0 °C until all the ice has melted. The energy breaks the lattice apart.','Melting 1 g of ice takes 334 J of energy.'],
+           zh:['冰在 0 °C 熔化，这是它的熔点。','熔化过程中温度保持在 0 °C，直到冰全部熔化。吸收的能量用来拆开晶格。','熔化 1 g 冰需要 334 J 的能量。']},
+    hint:o('Melting point = freezing point: the same temperature, opposite directions.','熔点 = 凝固点：同一个温度，方向相反。')},
+  freezing:{name:o('Freezing','凝固'), job:o('Liquid → solid (heat is released)','液态 → 固态（放出热量）'),
+    facts:{en:['Water freezes at 0 °C, the same temperature at which ice melts.','Particles slow down until attractions lock them into a lattice.','Freezing releases heat. Farmers spray water on fruit trees on frosty nights so the freezing water protects the fruit.'],
+           zh:['水在 0 °C 凝固，和冰熔化的温度相同。','粒子运动变慢，直到吸引力把它们锁进晶格中。','凝固会放出热量。果农在霜冻的夜晚给果树喷水，水凝固时放出的热量可以保护果实。']},
+    hint:o('Freezing is melting run backwards.','凝固就是熔化的“倒放”。')},
+  vaporization:{name:o('Vaporization (boiling & evaporation)','汽化（沸腾和蒸发）'), job:o('Liquid → gas (heat is absorbed)','液态 → 气态（吸收热量）'),
+    facts:{en:['Evaporation happens only at the surface and at any temperature. That is how puddles dry up.','Boiling happens throughout the liquid at the boiling point: 100 °C for water at sea level.','Boiling 1 g of water takes 2260 J, almost 7 times more than melting it!'],
+           zh:['蒸发只发生在液体表面，在任何温度下都能进行，水坑就是这样变干的。','沸腾在液体内部和表面同时发生，只在沸点进行：海平面上水的沸点是 100 °C。','让 1 g 水沸腾汽化需要 2260 J，几乎是熔化所需能量的 7 倍！']},
+    hint:o('Evaporation = surface only. Boiling = bubbles everywhere.','蒸发只在表面，沸腾到处冒泡。'),
+    mix:o('The bubbles in boiling water are water vapor, not air.','沸水中的气泡是水蒸气，不是空气。')},
+  condensation:{name:o('Condensation','液化'), job:o('Gas → liquid (heat is released)','气态 → 液态（放出热量）'),
+    facts:{en:['When water vapor cools, the molecules slow down and cling together into droplets.','Examples: dew on grass, a foggy bathroom mirror, clouds.','The “sweat” on a cold glass is water vapor from the air condensing, not water leaking through.'],
+           zh:['水蒸气遇冷时，分子运动变慢，聚集成小水滴。','例子：草叶上的露水、浴室里起雾的镜子、云。','冰饮料杯外壁的“汗珠”是空气中的水蒸气液化形成的，不是杯里的水渗出来的。']},
+    hint:o('Condensation = vapor “condenses” (crowds together) into drops.','液化：水蒸气“挤”到一起变成水滴。'),
+    mix:o('The white “steam” you see above a kettle is actually tiny liquid droplets. Real water vapor is invisible!','水壶口上方看到的“白气”其实是液化形成的小水滴，真正的水蒸气是看不见的！')},
+  sublimation:{name:o('Sublimation','升华'), job:o('Solid → gas, skipping the liquid (heat is absorbed)','固态直接变成气态（吸收热量）'),
+    facts:{en:['Particles at the surface of a solid escape straight into the gas.','Dry ice (solid carbon dioxide) sublimates at −78 °C: it never becomes a puddle.','Snow can slowly disappear on cold, sunny, dry days without melting.'],
+           zh:['固体表面的粒子直接“逃”成气体。','干冰（固态二氧化碳）在 −78 °C 升华，不会化成一滩液体。','在寒冷、晴朗、干燥的日子里，积雪不经熔化也会慢慢消失。']},
+    hint:o('Sublimation skips the liquid stage, like taking the elevator past a floor.','升华跳过了液态，就像电梯直接越过一层楼。'),
+    mix:o('In this demo, ice sublimates because we imagine a very low pressure (like a freeze-dryer). At normal pressure it happens only slowly.','本演示假设压强很低（像冻干机里那样），所以冰会升华。在普通气压下，冰的升华非常缓慢。')},
+  deposition:{name:o('Deposition','凝华'), job:o('Gas → solid, skipping the liquid (heat is released)','气态直接变成固态（放出热量）'),
+    facts:{en:['Gas particles lose energy and lock straight into a solid.','Frost on a cold window and snowflakes form by deposition.','It is the reverse of sublimation.'],
+           zh:['气体粒子失去能量，直接锁进固体中。','寒冷窗户上的霜和雪花都是凝华形成的。','它是升华的逆过程。']},
+    hint:o('Frost = water vapor turning directly to ice crystals.','霜 = 水蒸气直接变成冰晶。')}
+};
+const ORDER = ['particle','temperature','solid','liquid','gas','plasma','melting','freezing','vaporization','condensation','sublimation','deposition'];
+
+/* ===== Simulation state (shared with the 3D module) ===== */
+const SOM = window.SOM = { E:40 / 1000 * EMAX, target:null, rate:0, auto:0, plasma:false, sub:0, subTarget:0, sel:null, three:null };
+SOM.state = () => { const p = phaseAt(SOM.E); p.plasma = SOM.plasma; p.sub = SOM.sub; return p; };
+const slider = Lab.$('#energy');
+const phaseName = { solid:o('Solid (ice)','固态（冰）'), melting:o('Melting','正在熔化'), liquid:o('Liquid (water)','液态（水）'), boiling:o('Boiling','正在沸腾'), gas:o('Gas (steam)','气态（水蒸气）'), plasma:o('Plasma','等离子体') };
+const phaseCol = { solid:COL.solid, melting:COL.melting, liquid:COL.liquid, boiling:COL.vaporization, gas:COL.gas, plasma:COL.plasma };
+SOM.currentKey = () => {
+  if (SOM.plasma) return 'plasma';
+  if (SOM.sub > 0 || SOM.subTarget > 0) return SOM.subTarget >= SOM.sub ? 'sublimation' : 'deposition';
+  const p = phaseAt(SOM.E).phase;
+  if (p === 'melting') return SOM.auto < 0 || (SOM.target != null && SOM.target < SOM.E) ? 'freezing' : 'melting';
+  if (p === 'boiling') return SOM.auto < 0 || (SOM.target != null && SOM.target < SOM.E) ? 'condensation' : 'vaporization';
+  return p;
+};
+function setAuto(a){ SOM.auto = a; SOM.target = null; Lab.$('#heatBtn').classList.toggle('on', a > 0); Lab.$('#coolBtn').classList.toggle('on', a < 0); }
+SOM.goTo = (E, rate, from) => { SOM.plasma = false; SOM.sub = SOM.subTarget = 0; setAuto(0); if (from != null) SOM.E = from; SOM.target = E; SOM.rate = rate || EMAX / 6; syncPlasmaBtn(); };
+SOM.setPlasma = on => { SOM.plasma = on; SOM.sub = SOM.subTarget = 0; setAuto(0); if (on) SOM.E = EMAX; syncPlasmaBtn(); };
+function syncPlasmaBtn(){ Lab.$('#plasmaBtn').classList.toggle('on', SOM.plasma); }
+slider.oninput = () => { if (SOM.three && SOM.three.storyActive()) SOM.three.stopStory(); SOM.plasma = false; SOM.sub = SOM.subTarget = 0; setAuto(0); SOM.E = slider.value / 1000 * EMAX; syncPlasmaBtn(); };
+Lab.$('#heatBtn').onclick = () => { SOM.plasma = false; SOM.sub = SOM.subTarget = 0; syncPlasmaBtn(); setAuto(SOM.auto > 0 ? 0 : 1); };
+Lab.$('#coolBtn').onclick = () => { SOM.plasma = false; SOM.sub = SOM.subTarget = 0; syncPlasmaBtn(); setAuto(SOM.auto < 0 ? 0 : -1); };
+Lab.$('#plasmaBtn').onclick = () => SOM.setPlasma(!SOM.plasma);
+
+/* ===== Chip actions: jump to a state or animate a change ===== */
+const ACT = {
+  solid:() => SOM.goTo(40), liquid:() => SOM.goTo(E2 + 209), gas:() => SOM.goTo(EMAX - 30), plasma:() => SOM.setPlasma(true),
+  melting:() => SOM.goTo(E2 + 60, 110, E1 - 40), freezing:() => SOM.goTo(E1 - 40, 110, E2 + 60),
+  vaporization:() => SOM.goTo(E4 + 40, 550, E3 - 40), condensation:() => SOM.goTo(E3 - 40, 550, E4 + 40),
+  sublimation:() => { SOM.goTo(40); SOM.target = null; SOM.sub = 0; SOM.subTarget = 1; }, deposition:() => { SOM.goTo(40); SOM.target = null; SOM.sub = 1; SOM.subTarget = 0; }
+};
+
+/* ===== Info panel / chips ===== */
+SOM.select = (k, from3D) => { SOM.sel = k; renderInfo(); renderChips(); if (!from3D && ACT[k]) ACT[k](); };
+function renderInfo(){
+  const box = Lab.$('#info'), k = SOM.sel;
+  if (!k){
+    box.innerHTML = `<span class="tag">${Lab.L(o('Particle box','粒子盒'))}</span>
+      <h3>${Lab.L(o('125 water molecules in a box','盒子里的 125 个水分子'))}</h3>
+      <p class="muted" style="margin:0">${Lab.L(o('Drag the Heat slider (or press Auto-heat) to add energy. Watch the thermometer card: the temperature climbs, then stops on a plateau while the state changes. Click a molecule to learn about the state it is in.','拖动“加入的热量”滑块（或按“自动加热”）来加入能量。观察温度卡片：温度先上升，物态变化时停在“平台”上。点击一个分子，了解它所处的状态。'))}</p>
+      <ul>${Lab.L({en:['Solid: vibrate in place','Liquid: slide past each other','Gas: fly apart and fill the box'],zh:['固体：在原地振动','液体：相互滑动','气体：四散飞开、充满盒子']}).map(f => `<li>${f}</li>`).join('')}</ul>
+      <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(o('Adding heat makes particles move faster and spread apart. Removing heat slows them down and lets attractions pull them together.','加热让粒子运动更快、彼此分开；放热让粒子变慢，吸引力把它们拉到一起。'))}</div>
+      <div class="nav"><button id="startBtn">${Lab.L(o('Start with solids ▶','从固体开始 ▶'))}</button></div>`;
+    Lab.$('#startBtn').onclick = () => SOM.select('solid');
+    return;
+  }
+  const p = PARTS[k], i = ORDER.indexOf(k);
+  box.innerHTML = `<span class="tag">${Lab.L(i < 2 ? o('Key idea','关键概念') : i < 6 ? o('State of matter','物质的状态') : o('Change of state','物态变化'))}</span>
+    <h3><span class="dot" style="background:${COL[k]}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    ${realFig(k)}
+    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. '));
+  Lab.$('#pPrev').onclick = () => SOM.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
+  Lab.$('#pNext').onclick = () => SOM.select(ORDER[(i + 1) % ORDER.length]);
+}
+function renderChips(){
+  Lab.$('#chips').innerHTML = ORDER.map(k => `<button class="chip ${SOM.sel===k?'on':''}" data-k="${k}"><i style="background:${COL[k]}"></i>${Lab.L(PARTS[k].name)}</button>`).join('');
+  Lab.$$('#chips .chip').forEach(c => c.onclick = () => SOM.select(c.dataset.k));
+  Lab.$$('.phasemap .pc').forEach(g => g.classList.toggle('on', g.dataset.k === SOM.sel));
+}
+Lab.$$('.phasemap .pc').forEach(g => g.addEventListener('click', () => { SOM.select(g.dataset.k); Lab.$('#explore').scrollIntoView({ behavior:'smooth' }); }));
+
+/* ===== Readout card with a live mini heating curve ===== */
+Lab.$('#readout').innerHTML = `<div class="temp" id="rT"></div><span class="phase" id="rP"></span><small id="rE"></small><div class="mini"><canvas id="miniCv"></canvas></div><small id="rNote"></small>`;
+function curvePts(){ const pts = []; for (let i = 0; i <= 200; i++){ const E = i / 200 * EMAX; pts.push([E, phaseAt(E).T]); } return pts; }
+const CURVE = curvePts();
+function renderReadout(){
+  const p = SOM.state(), key = SOM.plasma ? 'plasma' : p.phase;
+  Lab.$('#rT').textContent = SOM.plasma ? '> 10 000 °C' : `${p.T.toFixed(p.T % 1 && Math.abs(p.T) < 100 ? 1 : 0)} °C`;
+  const pe = Lab.$('#rP'); pe.textContent = SOM.sub > 0 && !SOM.plasma ? Lab.L(SOM.subTarget >= SOM.sub ? PARTS.sublimation.name : PARTS.deposition.name) : Lab.L(phaseName[key]); pe.style.background = phaseCol[key];
+  Lab.$('#rE').textContent = Lab.L(o('Heat added: ','已加入热量：')) + Math.round(SOM.E) + ' J/g';
+  const note = SOM.plasma ? o('Electrons torn off: ions + free electrons','电子被剥离：离子 + 自由电子') : p.phase === 'melting' ? o(`Plateau! ${Math.round(p.f * 100)}% melted, still 0 °C`, `平台!已熔化 ${Math.round(p.f * 100)}%,仍为 0 °C`) : p.phase === 'boiling' ? o(`Plateau! ${Math.round(p.f * 100)}% boiled away, still 100 °C`, `平台!已汽化 ${Math.round(p.f * 100)}%,仍为 100 °C`) : o('Temperature rising or falling with heat','温度随热量升高或降低');
+  Lab.$('#rNote').textContent = Lab.L(note);
+  const cv = Lab.$('#miniCv'), b = cv.getBoundingClientRect(); if (!b.width) return;
+  const d = Math.min(devicePixelRatio || 1, 2); if (cv.width !== Math.round(b.width * d)){ cv.width = Math.round(b.width * d); cv.height = Math.round(b.height * d); }
+  const g = cv.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, b.width, b.height);
+  const css = getComputedStyle(document.documentElement), X = E => 6 + E / EMAX * (b.width - 12), Y = T => b.height - 8 - (T - W.T0) / (W.T1 - W.T0) * (b.height - 16);
+  g.strokeStyle = css.getPropertyValue('--line').trim(); g.setLineDash([3, 3]); [0, 100].forEach(T => { g.beginPath(); g.moveTo(4, Y(T)); g.lineTo(b.width - 4, Y(T)); g.stroke(); }); g.setLineDash([]);
+  g.fillStyle = css.getPropertyValue('--ink-2').trim(); g.font = '700 9px Nunito, sans-serif'; g.fillText('0 °C', 8, Y(0) - 3); g.fillText('100 °C', 8, Y(100) - 3);
+  g.lineWidth = 2.5; g.strokeStyle = css.getPropertyValue('--brand').trim(); g.beginPath(); CURVE.forEach(([E, T], i) => i ? g.lineTo(X(E), Y(T)) : g.moveTo(X(E), Y(T))); g.stroke();
+  if (!SOM.plasma){ g.fillStyle = '#ff7a59'; g.beginPath(); g.arc(X(SOM.E), Y(p.T), 5, 0, 6.283); g.fill(); }
+}
+/* ===== Energy loop (auto heat/cool, chip animations, sublimation demo) ===== */
+(function(){
+  let last = performance.now();
+  function loop(now){
+    requestAnimationFrame(loop);
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    if (SOM.auto){ SOM.E = Math.max(0, Math.min(EMAX, SOM.E + SOM.auto * EMAX / 28 * dt)); if (SOM.E <= 0 || SOM.E >= EMAX) setAuto(0); }
+    else if (SOM.target != null){ const d = SOM.target - SOM.E, step = SOM.rate * dt; if (Math.abs(d) <= step){ SOM.E = SOM.target; SOM.target = null; } else SOM.E += Math.sign(d) * step; }
+    if (SOM.sub !== SOM.subTarget){ const d = SOM.subTarget - SOM.sub; SOM.sub += Math.sign(d) * Math.min(Math.abs(d), dt * .12); if (SOM.sub <= 0 && SOM.subTarget === 0) SOM.sub = 0; }
+    if (document.activeElement !== slider) slider.value = Math.round(SOM.E / EMAX * 1000);
+    renderReadout();
+  }
+  requestAnimationFrame(loop);
+})();
+
+/* ===== State comparison cards (animated mini particle views) ===== */
+const CARDS = [
+  { k:'solid', shape:o('Fixed','固定'), vol:o('Fixed','固定'), space:o('Packed tightly in a pattern','紧密、有规则排列'), move:o('Vibrate in place','在原地振动'), ex:o('Ice, rock, wood','冰、岩石、木头') },
+  { k:'liquid', shape:o('Takes container’s shape','随容器改变'), vol:o('Fixed','固定'), space:o('Close but jumbled','靠得近但无规则'), move:o('Slide past each other','相互滑动'), ex:o('Water, juice, oil','水、果汁、油') },
+  { k:'gas', shape:o('Fills container','充满容器'), vol:o('Fills container','充满容器'), space:o('Very far apart','相距很远'), move:o('Fast, in all directions','向各个方向快速运动'), ex:o('Steam, air, helium','水蒸气、空气、氦气') },
+  { k:'plasma', shape:o('Fills container','充满容器'), vol:o('Fills container','充满容器'), space:o('Ions and free electrons','离子和自由电子'), move:o('Extremely fast; glows','极快，会发光'), ex:o('Lightning, the Sun, neon signs','闪电、太阳、霓虹灯') }
+];
+function renderCards(){
+  const lab = { shape:o('Shape','形状'), vol:o('Volume','体积'), space:o('Spacing','粒子排列'), move:o('Motion','粒子运动'), ex:o('Examples','例子') };
+  Lab.$('#statecards').innerHTML = CARDS.map((c, i) => `<div class="card box"><canvas data-i="${i}"></canvas><h3><span style="color:${COL[c.k]}">●</span> ${Lab.L(PARTS[c.k].name)}</h3>
+    <dl>${['shape','vol','space','move','ex'].map(f => `<dt>${Lab.L(lab[f])}</dt><dd>${Lab.L(c[f])}</dd>`).join('')}</dl></div>`).join('');
+}
+(function cardLoop(){
+  const P = CARDS.map((c, i) => Array.from({length:c.k === 'solid' ? 30 : c.k === 'liquid' ? 26 : 12}, (_, j) => ({ x:Math.random(), y:Math.random(), vx:(Math.random() - .5), vy:(Math.random() - .5), j })));
+  function draw(t){
+    requestAnimationFrame(draw);
+    Lab.$$('#statecards canvas').forEach(cv => {
+      const b = cv.getBoundingClientRect(); if (!b.width || b.bottom < 0 || b.top > innerHeight) return;
+      const d = Math.min(devicePixelRatio || 1, 2); if (cv.width !== Math.round(b.width * d)){ cv.width = Math.round(b.width * d); cv.height = Math.round(b.height * d); }
+      const g = cv.getContext('2d'), i = +cv.dataset.i, k = CARDS[i].k, W2 = b.width, H2 = b.height, r = 6; g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, W2, H2);
+      P[i].forEach(p => {
+        let x, y;
+        if (k === 'solid'){ const cols = 10, cx = p.j % cols, cy = p.j / cols | 0; x = W2 / 2 - cols * 6.5 + cx * 13 + 6 + Math.sin(t / 90 + p.j) * 1.5; y = H2 - 14 - cy * 13 + Math.cos(t / 80 + p.j * 2) * 1.5; }
+        else {
+          const sp = k === 'liquid' ? .25 : k === 'gas' ? 1.1 : 1.8, floor = k === 'liquid' ? .55 : 0;
+          p.x += p.vx * sp * .016; p.y += p.vy * sp * .016; if (p.x < 0 || p.x > 1) p.vx *= -1; if (p.y < floor || p.y > 1) p.vy *= -1; p.x = Math.max(0, Math.min(1, p.x)); p.y = Math.max(floor, Math.min(1, p.y));
+          x = r + p.x * (W2 - 2 * r); y = r + p.y * (H2 - 2 * r);
+        }
+        g.fillStyle = k === 'plasma' ? (p.j % 2 ? '#ffd6ff' : COL.plasma) : COL[k]; g.beginPath(); g.arc(x, y, k === 'plasma' && p.j % 2 ? 2.5 : r, 0, 6.283); g.fill();
+        if (k === 'plasma' && !(p.j % 2)){ g.fillStyle = 'rgba(199,125,255,.25)'; g.beginPath(); g.arc(x, y, r * 2, 0, 6.283); g.fill(); }
+      });
+    });
+  }
+  requestAnimationFrame(draw);
+})();
+Lab.onLang(() => { renderInfo(); renderChips(); renderCards(); });
+
+/* ===== Quiz ===== */
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('In which state are particles packed tightly and only vibrate in place?','在哪种状态中，粒子紧密排列、只在原地振动？'), options:[o('Solid','固态'),o('Liquid','液态'),o('Gas','气态'),o('Plasma','等离子态')], answer:0},
+  {q:o('Which state has a fixed volume but takes the shape of its container?','哪种状态体积固定，但形状随容器改变？'), options:[o('Liquid','液态'),o('Solid','固态'),o('Gas','气态'),o('None of them','都不是')], answer:0},
+  {q:o('What happens to water molecules when water boils?','水沸腾时，水分子会怎样？'), options:[o('They move faster and spread far apart','运动更快，彼此分得很开'),o('They get bigger','分子变大'),o('They turn into new molecules','变成了新的分子'),o('They stop moving','停止运动')], answer:0, explain:o('The molecules stay H₂O. They just gain energy and separate.','分子仍然是 H₂O，只是获得能量后彼此分开。')},
+  {q:o('Gas → liquid is called…','气态 → 液态叫做……'), options:[o('Condensation','液化'),o('Evaporation','蒸发'),o('Sublimation','升华'),o('Melting','熔化')], answer:0},
+  {q:o('Solid → gas, skipping the liquid stage, is called…','固态不经液态直接变成气态，叫做……'), options:[o('Sublimation','升华'),o('Deposition','凝华'),o('Freezing','凝固'),o('Condensation','液化')], answer:0, explain:o('Dry ice sublimates: it turns straight into carbon dioxide gas.','干冰会升华，直接变成二氧化碳气体。')},
+  {q:o('While ice is melting, its temperature…','冰在熔化的过程中，温度……'), options:[o('Stays at 0 °C until all the ice melts','保持 0 °C，直到冰全部熔化'),o('Rises steadily','稳定上升'),o('Drops','下降'),o('Jumps to 100 °C','跳到 100 °C')], answer:0, explain:o('The energy goes into breaking the lattice, not into speeding up the molecules. That is the flat plateau on a heating curve.','能量用来拆开晶格，而不是让分子运动加快，这就是加热曲线上的平台。')},
+  {q:o('Which change of state RELEASES heat?','下列哪种物态变化会“放出”热量？'), options:[o('Freezing','凝固'),o('Melting','熔化'),o('Boiling','沸腾'),o('Sublimation','升华')], answer:0},
+  {q:o('Water droplets form on the outside of a cold glass. This is…','冰饮料杯外壁出现小水珠，这是……'), options:[o('Condensation of water vapor from the air','空气中的水蒸气液化'),o('Water leaking through the glass','杯里的水渗了出来'),o('Melting of the glass','玻璃熔化了'),o('Sublimation','升华')], answer:0},
+  {q:o('Temperature is a measure of…','温度反映的是……'), options:[o('The average kinetic energy (speed) of particles','粒子的平均动能（运动快慢）'),o('The size of the particles','粒子的大小'),o('The number of particles','粒子的数量'),o('The color of a substance','物质的颜色')], answer:0},
+  {q:o('Why can a gas be compressed (squeezed) easily?','为什么气体容易被压缩？'), options:[o('There is lots of empty space between particles','粒子之间有大量空隙'),o('Gas particles are soft','气体粒子是软的'),o('Gas particles do not move','气体粒子不运动'),o('Gases have no mass','气体没有质量')], answer:0},
+  {q:o('Lightning and the Sun are examples of which state of matter?','闪电和太阳是哪种物质状态的例子？'), options:[o('Plasma','等离子态'),o('Solid','固态'),o('Liquid','液态'),o('Gas only','普通气态')], answer:0},
+  {q:o('If you push a piston to make a gas’s volume smaller (same temperature), the pressure…','保持温度不变，推动活塞使气体体积变小，压强会……'), options:[o('Increases, because particles hit the walls more often','增大，因为粒子撞击器壁更频繁'),o('Decreases','减小'),o('Stays the same','不变'),o('Drops to zero','降为零')], answer:0}
+], { count:10 });
+
+/* ===== Sort game ===== */
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'add',en:'Heat added (absorbs energy)',zh:'吸热（吸收能量）'},{id:'rem',en:'Heat removed (releases energy)',zh:'放热（放出能量）'}],
+  items:[
+    {en:'Melting',zh:'熔化',bin:'add',color:COL.melting},{en:'Boiling',zh:'沸腾',bin:'add',color:COL.vaporization},{en:'Evaporation',zh:'蒸发',bin:'add',color:COL.vaporization},
+    {en:'Sublimation',zh:'升华',bin:'add',color:COL.sublimation},{en:'Freezing',zh:'凝固',bin:'rem',color:COL.freezing},{en:'Condensation',zh:'液化',bin:'rem',color:COL.condensation},
+    {en:'Deposition',zh:'凝华',bin:'rem',color:COL.deposition},{en:'A puddle dries up in the sun',zh:'水坑在阳光下变干',bin:'add'},{en:'A block of dry ice shrinks',zh:'一块干冰越来越小',bin:'add'},
+    {en:'Dew forms on grass at night',zh:'夜晚草叶上形成露水',bin:'rem'},{en:'Frost forms on a window',zh:'窗户上结霜',bin:'rem'},{en:'A lake freezes in winter',zh:'冬天湖面结冰',bin:'rem'}
+  ]
+});
+</script>
+<script>
+const TOK = {};
+function readTok(){ const s = getComputedStyle(document.documentElement); ['--ink','--ink-2','--line','--surface','--surface-2','--brand','--accent','--good','--bad','--stage-1','--stage-2'].forEach(k => TOK[k.slice(2)] = s.getPropertyValue(k).trim()); }
+readTok(); window.addEventListener('labtheme', readTok); matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readTok);
+function fitCanvas(cv){ const b = cv.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (cv.width !== Math.round(b.width * d) || cv.height !== Math.round(b.height * d)){ cv.width = Math.round(b.width * d); cv.height = Math.round(b.height * d); } const g = cv.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0); return { g, W:b.width, H:b.height }; }
+const onScreen = el => { const b = el.getBoundingClientRect(); return b.bottom > 0 && b.top < innerHeight; };
+
+/* ===== Heating / cooling curve plotter ===== */
+(function(){
+  const SUBS = {
+    water:{ name:o('water','水'), mp:0, bp:100, cs:2.09, cl:4.18, cg:2.01, Lf:334, Lv:2260, lo:-30, hi:130 },
+    ethanol:{ name:o('ethanol','酒精'), mp:-114, bp:78, cs:.97, cl:2.44, cg:1.42, Lf:108, Lv:841, lo:-140, hi:110 }
+  };
+  const MASS = 10, SPEED = 10;                       // 10 g sample; simulated time runs 10× faster than real time
+  const S = { sub:'water', dir:'heat', P:200, run:false, t:0, pts:[], marks:[] };
+  const cv = Lab.$('#curveCv');
+  const seg = s => { const L = []; let q = 0; const add = (kind, dq, T0, T1) => { L.push({ kind, q0:q, q1:q + dq, T0, T1 }); q += dq; };
+    add('solid', s.cs * (s.mp - s.lo) * MASS, s.lo, s.mp); add('melt', s.Lf * MASS, s.mp, s.mp); add('liquid', s.cl * (s.bp - s.mp) * MASS, s.mp, s.bp); add('boil', s.Lv * MASS, s.bp, s.bp); add('gas', s.cg * (s.hi - s.bp) * MASS, s.bp, s.hi); return { L, Q:q }; };
+  function tempAt(q){ const { L, Q } = seg(SUBS[S.sub]); if (S.dir === 'cool') q = Q - q; q = Math.max(0, Math.min(Q, q)); const s = L.find(x => q <= x.q1) || L[L.length - 1]; const u = (q - s.q0) / (s.q1 - s.q0 || 1); return { T:s.T0 + (s.T1 - s.T0) * u, kind:s.kind, f:u }; }
+  const total = () => seg(SUBS[S.sub]).Q / S.P;                  // seconds of heating
+  function reset(){ S.t = 0; S.pts = []; S.marks = []; S.run = false; setRunLabel(); report(); }
+  const kindName = { solid:o('solid','固态'), melt:o('melting','熔化中'), liquid:o('liquid','液态'), boil:o('boiling','沸腾中'), gas:o('gas','气态') };
+  const kindNameCool = { melt:o('freezing','凝固中'), boil:o('condensing','液化中') };
+  const kindCol = { solid:'#8ecbff', melt:'#3fbf9a', liquid:'#4d8dff', boil:'#ff8a5c', gas:'#ff9f6b' };
+  function step(dt){
+    if (!S.run) return;
+    const T = total(); S.t = Math.min(T, S.t + dt * SPEED);
+    const r = tempAt(S.t * S.P); S.pts.push([S.t, r.T, r.kind]);
+    if ((r.kind === 'melt' || r.kind === 'boil') && !S.marks.find(m => m.kind === r.kind)) S.marks.push({ kind:r.kind, t:S.t, T:r.T });
+    if (S.t >= T){ S.run = false; setRunLabel(); }
+  }
+  function draw(){
+    const { g, W, H } = fitCanvas(cv), s = SUBS[S.sub], T = total();
+    g.fillStyle = TOK.surface; g.fillRect(0, 0, W, H);
+    const L = 52, R = 16, Tp = 22, B = 40, X = t => L + t / T * (W - L - R), Y = v => H - B - (v - (s.lo - 10)) / ((s.hi + 10) - (s.lo - 10)) * (H - B - Tp);
+    g.strokeStyle = TOK.line; g.lineWidth = 1; g.font = '700 12px Nunito, sans-serif'; g.fillStyle = TOK['ink-2'];
+    const stepT = s.hi - s.lo > 200 ? 50 : 20;
+    for (let v = Math.ceil((s.lo - 10) / stepT) * stepT; v <= s.hi + 10; v += stepT){ g.beginPath(); g.moveTo(L, Y(v)); g.lineTo(W - R, Y(v)); g.stroke(); g.textAlign = 'right'; g.textBaseline = 'middle'; g.fillText(v + '°', L - 6, Y(v)); }
+    const stepX = T > 300 ? 60 : T > 120 ? 30 : 10;
+    for (let t = 0; t <= T; t += stepX){ g.textAlign = 'center'; g.textBaseline = 'top'; g.fillText(Math.round(t), X(t), H - B + 6); }
+    g.fillStyle = TOK.ink; g.textAlign = 'center'; g.fillText(Lab.L(o('time (s)','时间（s）')), (L + W - R) / 2, H - 16);
+    g.save(); g.translate(14, (Tp + H - B) / 2); g.rotate(-Math.PI / 2); g.fillText(Lab.L(o('temperature (°C)','温度（°C）')), 0, 0); g.restore();
+    // reference lines at melting/boiling points
+    g.setLineDash([5, 5]); g.strokeStyle = TOK['ink-2'];
+    [[s.mp, o('melting/freezing point','熔点/凝固点')], [s.bp, o('boiling point','沸点')]].forEach(([v, lab]) => { g.beginPath(); g.moveTo(L, Y(v)); g.lineTo(W - R, Y(v)); g.stroke(); g.textAlign = 'right'; g.textBaseline = 'bottom'; g.fillStyle = TOK['ink-2']; g.fillText(`${Lab.L(lab)} ${v} °C`, W - R - 4, Y(v) - 3); });
+    g.setLineDash([]);
+    // the plotted curve, colored by state
+    g.lineWidth = 4; g.lineCap = 'round';
+    for (let i = 1; i < S.pts.length; i++){ const a = S.pts[i - 1], b = S.pts[i]; g.strokeStyle = kindCol[b[2]]; g.beginPath(); g.moveTo(X(a[0]), Y(a[1])); g.lineTo(X(b[0]), Y(b[1])); g.stroke(); }
+    S.marks.forEach(m => { const lab = S.dir === 'cool' ? kindNameCool[m.kind] : kindName[m.kind]; g.fillStyle = kindCol[m.kind]; g.font = '800 13px Nunito, sans-serif'; g.textAlign = 'left'; g.textBaseline = 'bottom'; g.fillText('▬ ' + Lab.L(o('plateau: ','平台：')) + Lab.L(lab), X(m.t) + 4, Y(m.T) - 8); });
+    const last = S.pts[S.pts.length - 1]; if (last){ g.fillStyle = '#ff7a59'; g.beginPath(); g.arc(X(last[0]), Y(last[1]), 6, 0, 6.283); g.fill(); }
+    if (!S.pts.length){ g.fillStyle = TOK['ink-2']; g.font = '800 15px Nunito, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(Lab.L(o('Press ▶ Start to begin recording','按“▶ 开始”记录数据')), (L + W) / 2, (Tp + H - B) / 2); }
+  }
+  function report(){
+    const last = S.pts[S.pts.length - 1], s = SUBS[S.sub];
+    Lab.$('#cvT').textContent = last ? last[1].toFixed(1) : (S.dir === 'cool' ? s.hi : s.lo);
+    Lab.$('#cvTime').textContent = Math.round(S.t);
+    const m = Lab.$('#cvMsg');
+    if (!last){ m.textContent = Lab.L(o(`Sample: 10 g of ${s.name.en}, starting at ${S.dir === 'cool' ? s.hi : s.lo} °C.`, `样品:10 g ${s.name.zh},起始温度 ${S.dir === 'cool' ? s.hi : s.lo} °C。`)); m.className = 'result'; return; }
+    const k = last[2], cool = S.dir === 'cool';
+    if (k === 'melt' || k === 'boil'){ const nm = cool ? kindNameCool[k] : kindName[k]; m.textContent = Lab.L(o(`Plateau at ${last[1]} °C: ${nm.en}! ${cool ? 'Heat is being released' : 'Heat goes into separating particles'}, so the temperature stays flat.`, `${last[1]} °C 处出现平台:${nm.zh}!${cool ? '物质正在放出热量' : '热量用来让粒子彼此分开'},所以温度保持不变。`)); m.className = 'result good'; }
+    else { m.textContent = Lab.L(o(`The ${kindName[k].en} is ${cool ? 'cooling down' : 'warming up'}: particles are ${cool ? 'slowing down' : 'speeding up'}.`, `${kindName[k].zh}物质正在${cool ? '降温' : '升温'}:粒子运动正在${cool ? '变慢' : '加快'}。`)); m.className = 'result'; }
+  }
+  const runBtn = Lab.$('#runBtn');
+  function setRunLabel(){ runBtn.textContent = S.run ? Lab.L(o('⏸ Pause','⏸ 暂停')) : S.t > 0 && S.t < total() ? Lab.L(o('▶ Resume','▶ 继续')) : Lab.L(o('▶ Start','▶ 开始')); }
+  runBtn.onclick = () => { if (S.t >= total()) reset(); S.run = !S.run; setRunLabel(); };
+  Lab.$('#rstBtn').onclick = reset;
+  Lab.$$('#subSeg button').forEach(b => b.onclick = () => { S.sub = b.dataset.s; Lab.$$('#subSeg button').forEach(x => x.classList.toggle('on', x === b)); reset(); });
+  Lab.$$('#dirSeg button').forEach(b => b.onclick = () => { S.dir = b.dataset.d; Lab.$$('#dirSeg button').forEach(x => x.classList.toggle('on', x === b)); reset(); });
+  Lab.$('#pow').oninput = e => { S.P = +e.target.value; Lab.$('#powV').textContent = S.P; reset(); };
+  let last = performance.now(), tick = 0;
+  function loop(now){ requestAnimationFrame(loop); const dt = Math.min(.05, (now - last) / 1000); last = now; if (!onScreen(cv)) return; step(dt); draw(); if ((tick = (tick + 1) % 5) === 0) report(); }
+  Lab.onLang(() => { setRunLabel(); report(); });
+  requestAnimationFrame(loop);
+})();
+
+/* ===== Gas in a piston: pressure from wall collisions ===== */
+(function(){
+  const cv = Lab.$('#gasCv'), N = 60;
+  const S = { vol:1, T:25, ps:[], hits:0, imp:0, hitRate:0, P:1, P0:null, acc:0 };
+  for (let i = 0; i < N; i++){ const a = Math.random() * 6.283; S.ps.push({ x:Math.random() * .9 + .05, y:Math.random() * .9 + .05, vx:Math.cos(a), vy:Math.sin(a) }); }
+  const speed = () => .55 * Math.sqrt((S.T + 273.15) / 298.15);
+  const dims = (W, H) => ({ cw:W - 48 - 70, ch:H - 48 });
+  function step(dt, W, H){
+    const { cw, ch } = dims(W, H), A = cw / ch, v = speed(), boxW = S.vol * A;   // x ∈ [0, vol·A], y ∈ [0, 1] (units of box height)
+    S.ps.forEach(p => {
+      const s = Math.hypot(p.vx, p.vy) || 1; p.vx = p.vx / s * v; p.vy = p.vy / s * v;      // every particle moves at the thermal speed
+      if (p.x > boxW) p.x = boxW * Math.random();
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      if (p.x < 0){ p.x = -p.x; p.vx = Math.abs(p.vx); S.hits++; S.imp += Math.abs(p.vx); }
+      if (p.x > boxW){ p.x = 2 * boxW - p.x; p.vx = -Math.abs(p.vx); S.hits++; S.imp += Math.abs(p.vx); if (p.x < 0) p.x = boxW / 2; }
+      if (p.y < 0){ p.y = -p.y; p.vy = Math.abs(p.vy); S.hits++; S.imp += Math.abs(p.vy); }
+      if (p.y > 1){ p.y = 2 - p.y; p.vy = -Math.abs(p.vy); S.hits++; S.imp += Math.abs(p.vy); }
+    });
+    S.acc += dt;
+    if (S.acc > .5){
+      const perim = 2 * (boxW + 1), P = S.imp / S.acc / perim;           // momentum per time per wall length
+      const P0 = N * .55 * .55 / (4 * A); S.P = S.P * .6 + (P / P0) * .4;  /* P0 = ideal-gas value at full volume, 25 °C */ S.hitRate = S.hitRate * .6 + (S.hits / S.acc) * .4;
+      S.hits = 0; S.imp = 0; S.acc = 0; report();
+    }
+  }
+  function draw(){
+    const { g, W, H } = fitCanvas(cv), pad = 24, cw = W - 2 * pad - 70, ch = H - 2 * pad, x0 = pad, y0 = pad, xr = x0 + cw * S.vol;
+    g.fillStyle = TOK.surface; g.fillRect(0, 0, W, H);
+    g.fillStyle = TOK['surface-2']; g.fillRect(x0, y0, xr - x0, ch);
+    g.strokeStyle = TOK.ink; g.lineWidth = 3; g.beginPath(); g.moveTo(xr, y0); g.lineTo(x0, y0); g.lineTo(x0, y0 + ch); g.lineTo(xr, y0 + ch); g.stroke();
+    g.fillStyle = '#8a97ad'; g.fillRect(xr, y0 - 6, 12, ch + 12); g.fillRect(xr + 12, y0 + ch / 2 - 6, W - xr - 12 - pad - 40, 12);
+    const hot = Math.max(0, Math.min(1, (S.T + 100) / 400));
+    S.ps.forEach(p => { g.fillStyle = `hsl(${220 - hot * 200}, 85%, 58%)`; g.beginPath(); g.arc(x0 + p.x * ch, y0 + p.y * ch, 5, 0, 6.283); g.fill(); });
+    // pressure gauge
+    const gx = W - pad - 26, gy = pad + 30, r = 24, a = Math.PI * (.75 + Math.min(1.5, S.P / 4 * 1.5));
+    g.fillStyle = TOK['surface-2']; g.strokeStyle = TOK.ink; g.lineWidth = 2; g.beginPath(); g.arc(gx, gy, r, 0, 6.283); g.fill(); g.stroke();
+    g.strokeStyle = '#e0475b'; g.lineWidth = 3; g.beginPath(); g.moveTo(gx, gy); g.lineTo(gx + Math.cos(a) * (r - 5), gy + Math.sin(a) * (r - 5)); g.stroke();
+    g.fillStyle = TOK['ink-2']; g.font = '800 11px Nunito, sans-serif'; g.textAlign = 'center'; g.fillText(Lab.L(o('pressure','压强')), gx, gy + r + 14);
+  }
+  function report(){
+    Lab.$('#pV').textContent = S.P.toFixed(2); Lab.$('#hitV').textContent = Math.round(S.hitRate);
+    const m = Lab.$('#gasMsg');
+    if (S.vol < .95 && S.T > 60){ m.textContent = Lab.L(o('Smaller AND hotter: particles are faster and the walls are closer, so pressure soars!','体积更小、温度更高：粒子更快、器壁更近，压强大幅升高！')); m.className = 'result bad'; }
+    else if (S.vol < .95){ m.textContent = Lab.L(o('Less space: particles hit the walls more often, so the pressure goes up.','空间变小：粒子撞击器壁更频繁，所以压强增大。')); m.className = 'result good'; }
+    else if (S.T > 40){ m.textContent = Lab.L(o('Hotter: particles move faster and hit the walls harder and more often, so the pressure goes up.','温度升高：粒子运动更快，撞击器壁更猛、更频繁，所以压强增大。')); m.className = 'result good'; }
+    else if (S.T < 10){ m.textContent = Lab.L(o('Colder: particles slow down, so the pressure drops.','温度降低：粒子变慢，所以压强减小。')); m.className = 'result'; }
+    else { m.textContent = Lab.L(o('Push the piston in or heat the gas.','推动活塞或给气体加热试试。')); m.className = 'result'; }
+  }
+  Lab.$('#vol').oninput = e => { S.vol = +e.target.value / 100; Lab.$('#volV').textContent = e.target.value; };
+  Lab.$('#gt').oninput = e => { S.T = +e.target.value; Lab.$('#gtV').textContent = S.T; };
+  let last = performance.now();
+  function loop(now){ requestAnimationFrame(loop); const dt = Math.min(.04, (now - last) / 1000); last = now; if (!onScreen(cv)) return; const b = cv.getBoundingClientRect(); for (let k = 0; k < 2; k++) step(dt / 2, b.width, b.height); draw(); }
+  Lab.onLang(report);
+  requestAnimationFrame(loop);
+})();
+</script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const V = THREE.Vector3;
+const ctx = Lab3D.stage('#stage', { THREE, OrbitControls, camera:[1.6, 3.2, 12.5], target:[1.6, .1, 0], minDistance:4, maxDistance:30 });
+const { scene } = ctx;
+const world = new THREE.Group(); scene.add(world);
+
+/* ---------- container, heater, thermometer ---------- */
+const BX = 2.6, Y0 = -2.4, Y1 = 2.8, N = 125;
+const boxGeo = new THREE.BoxGeometry(BX * 2, Y1 - Y0, BX * 2);
+const glass = new THREE.Mesh(boxGeo, new THREE.MeshPhysicalMaterial({ color:0xbfdcff, transparent:true, opacity:.08, roughness:.1, depthWrite:false, side:THREE.DoubleSide }));
+glass.position.y = (Y0 + Y1) / 2; world.add(glass);
+const edges = new THREE.LineSegments(new THREE.EdgesGeometry(boxGeo), new THREE.LineBasicMaterial({ color:0x7f9cc4 })); edges.position.copy(glass.position); world.add(edges);
+const heaterMat = new THREE.MeshStandardMaterial({ color:0x55606f, emissive:0x000000, roughness:.4 });
+const heater = new THREE.Mesh(new THREE.BoxGeometry(BX * 2 + .4, .3, BX * 2 + .4), heaterMat); heater.position.y = Y0 - .2; world.add(heater); ctx.pickable(heater, 'temperature');
+const coils = new THREE.Mesh(new THREE.TorusGeometry(1.6, .07, 8, 60), new THREE.MeshBasicMaterial({ color:0x333333 })); coils.rotation.x = Math.PI / 2; coils.position.y = Y0 - .03; world.add(coils);
+const thermo = new THREE.Group(); thermo.position.set(BX + .75, 0, 0); world.add(thermo);
+const tube = new THREE.Mesh(new THREE.CylinderGeometry(.17, .17, 4.4, 20, 1, true), new THREE.MeshPhysicalMaterial({ color:0xffffff, transparent:true, opacity:.14, depthWrite:false })); tube.position.y = .5; thermo.add(tube);
+const bulb = new THREE.Mesh(new THREE.SphereGeometry(.3, 20, 14), new THREE.MeshStandardMaterial({ color:0xe0475b })); bulb.position.y = -1.9; thermo.add(bulb);
+const colGeo = new THREE.CylinderGeometry(.11, .11, 1, 12); colGeo.translate(0, .5, 0);
+const column = new THREE.Mesh(colGeo, new THREE.MeshStandardMaterial({ color:0xe0475b, emissive:0xe0475b, emissiveIntensity:.35 })); column.renderOrder = 2; column.position.y = -1.7; thermo.add(column);
+ctx.pickable(thermo, 'temperature');
+const tY = T => Math.max(.05, Math.min(4.2, (T + 50) / 210 * 4.2));                 // −50 … 160 °C along the tube
+[0, 100].forEach(T => { const tick = new THREE.Mesh(new THREE.BoxGeometry(.32, .025, .02), new THREE.MeshBasicMaterial({ color:0x4a5878 })); tick.position.set(0, -1.7 + tY(T), .17); thermo.add(tick); ctx.label(T + ' °C', tick, { offset:[.55, 0, 0] }); });
+
+/* ---------- molecules (instanced O + 2 H) ---------- */
+const OMat = ctx.mat('#e5484d', 1, { emissive:new THREE.Color('#e5484d'), emissiveIntensity:0 }), HMat = ctx.mat('#f1f3f7');
+const OM = new THREE.InstancedMesh(new THREE.SphereGeometry(.2, 16, 12), OMat, N), HM = new THREE.InstancedMesh(new THREE.SphereGeometry(.12, 12, 10), HMat, N * 2);
+[OM, HM].forEach(m => { m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.boundingSphere = new THREE.Sphere(new V(0, .2, 0), 6); m.frustumCulled = false; world.add(m); ctx.pickable(m, 'p'); });
+const A = .62, SLOTS = [];
+for (let j = 0; j < 5; j++) for (let i = 0; i < 5; i++) for (let k = 0; k < 5; k++) SLOTS.push(new V((i - 2) * A, Y0 + .32 + j * A, (k - 2) * A));
+const slotFree = SLOTS.map(() => true), slotQ = SLOTS.map((s, n) => new THREE.Quaternion().setFromEuler(new THREE.Euler(0, (n % 2) * Math.PI / 2, ((n >> 1) % 2) * .4)));
+const M = Array.from({length:N}, (_, i) => ({ st:0, slot:i, pos:SLOTS[i].clone(), vel:new V(), q:slotQ[i].clone(), w:new V() }));
+M.forEach(m => slotFree[m.slot] = false);
+const H1 = new V(.19, .147, 0), H2 = new V(-.19, .147, 0);
+
+/* electrons for plasma */
+const eGeo = new THREE.BufferGeometry(), ePos = new Float32Array(N * 3), eVel = [];
+for (let i = 0; i < N; i++){ ePos[i*3] = (Math.random() - .5) * 4; ePos[i*3+1] = Math.random() * 4 - 2; ePos[i*3+2] = (Math.random() - .5) * 4; eVel.push(new V().randomDirection().multiplyScalar(6)); }
+eGeo.setAttribute('position', new THREE.BufferAttribute(ePos, 3));
+const electrons = new THREE.Points(eGeo, new THREE.PointsMaterial({ color:0x7fd3ff, size:.12, transparent:true, opacity:.95 })); electrons.visible = false; electrons.frustumCulled = false; world.add(electrons);
+
+/* ---------- phase bookkeeping: move molecules between solid / liquid / gas ---------- */
+const center = new V(0, 0, 0);
+function counts(){ const c = [0, 0, 0]; M.forEach(m => c[m.st]++); return c; }
+function pick(st, score){ let best = null, bs = -Infinity; M.forEach(m => { if (m.st === st){ const s = score(m); if (s > bs){ bs = s; best = m; } } }); return best; }
+function toSolid(m){ let bi = -1, bs = Infinity; SLOTS.forEach((s, i) => { if (slotFree[i]){ const sc = s.y * 10 + Math.hypot(s.x, s.z) + s.distanceTo(m.pos) * .3; if (sc < bs){ bs = sc; bi = i; } } }); if (bi < 0) return; m.st = 0; m.slot = bi; slotFree[bi] = false; }
+function leaveSolid(m, to){ slotFree[m.slot] = true; m.st = to; m.vel.set((Math.random() - .5) * .6, to === 2 ? 2 : .2, (Math.random() - .5) * .6); m.w.randomDirection().multiplyScalar(to === 2 ? 4 : 1.2); }
+function rebalance(){
+  const p = SOM.state(); let want;
+  if (p.plasma) want = [0, 0, N];
+  else if (p.sub > 0){ const g = Math.round(p.sub * N); want = [N - g, 0, g]; }
+  else if (p.phase === 'solid') want = [N, 0, 0];
+  else if (p.phase === 'melting'){ const s = Math.round((1 - p.f) * N); want = [s, N - s, 0]; }
+  else if (p.phase === 'liquid') want = [0, N, 0];
+  else if (p.phase === 'boiling'){ const g = Math.round(p.f * N); want = [0, N - g, g]; }
+  else want = [0, 0, N];
+  for (let guard = 0; guard < N * 2; guard++){
+    const c = counts();
+    if (c[0] > want[0]){ const m = pick(0, m => SLOTS[m.slot].y * 10 + Math.hypot(SLOTS[m.slot].x, SLOTS[m.slot].z)); leaveSolid(m, c[1] < want[1] ? 1 : 2); }
+    else if (c[2] > want[2]){ const m = pick(2, m => -m.pos.y); if (c[1] < want[1]){ m.st = 1; m.vel.multiplyScalar(.2); } else toSolid(m); }
+    else if (c[1] > want[1]){ if (c[0] < want[0]) toSolid(pick(1, m => -m.pos.y)); else { const m = pick(1, m => m.pos.y); m.st = 2; m.vel.set((Math.random() - .5), 2.5, (Math.random() - .5)); m.w.randomDirection().multiplyScalar(4); } }
+    else break;
+  }
+  return p;
+}
+
+/* ---------- physics ---------- */
+const tmp = new V(), d = new V(), clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+function physics(dt, p){
+  const T = p.T, vLiq = .35 + .9 * clamp(T / 100, 0, 1), vGas = p.plasma ? 5 : 2.3 * Math.sqrt((T + 273) / 373), amp = .02 + .07 * clamp((T + 40) / 40, 0, 1);
+  for (let i = 0; i < N; i++){
+    const a = M[i]; if (a.st === 0) continue;
+    if (a.st === 1) a.vel.y -= 9 * dt;
+    for (let j = 0; j < N; j++){
+      if (i === j) continue; const b = M[j];
+      d.subVectors(a.pos, b.pos); const r = d.length(); if (r > .8 || r < 1e-4) continue;
+      if (a.st === 1 && b.st !== 2){
+        if (r < .58) a.vel.addScaledVector(d, (.58 - r) / r * 60 * dt);
+        else if (b.st === 1) a.vel.addScaledVector(d, -(r - .58) / r * 3 * dt);           // weak attraction keeps the liquid together
+      } else if (a.st === 2 && b.st !== 2 && r < .5){ a.vel.addScaledVector(d, (.5 - r) / r * 80 * dt); }
+    }
+    const s = a.vel.length() || 1e-3, target = a.st === 1 ? vLiq : vGas;
+    if (a.st === 1){ a.vel.add(tmp.set(Math.random() - .5, Math.random() - .5, Math.random() - .5).multiplyScalar(vLiq * 9 * dt)); a.vel.multiplyScalar(1 + (target / s - 1) * Math.min(1, dt * 2.5)); }
+    else a.vel.multiplyScalar(1 + (target / s - 1) * Math.min(1, dt * 1.5));
+    a.pos.addScaledVector(a.vel, dt);
+    const lim = BX - .22, bounce = a.st === 2 ? 1 : .3;
+    if (a.pos.x < -lim){ a.pos.x = -lim; a.vel.x = Math.abs(a.vel.x) * bounce; } if (a.pos.x > lim){ a.pos.x = lim; a.vel.x = -Math.abs(a.vel.x) * bounce; }
+    if (a.pos.z < -lim){ a.pos.z = -lim; a.vel.z = Math.abs(a.vel.z) * bounce; } if (a.pos.z > lim){ a.pos.z = lim; a.vel.z = -Math.abs(a.vel.z) * bounce; }
+    if (a.pos.y < Y0 + .22){ a.pos.y = Y0 + .22; a.vel.y = Math.abs(a.vel.y) * bounce; } if (a.pos.y > Y1 - .22){ a.pos.y = Y1 - .22; a.vel.y = -Math.abs(a.vel.y) * bounce; }
+  }
+  return amp;
+}
+const mtx = new THREE.Matrix4(), qd = new THREE.Quaternion(), one = new V(1, 1, 1), zero = new V(0, 0, 0), hp = new V();
+function writeInstances(t, amp, plasma){
+  for (let i = 0; i < N; i++){
+    const m = M[i];
+    if (m.st === 0){
+      const s = SLOTS[m.slot]; tmp.set(s.x + Math.sin(t * 13 + i) * amp, s.y + Math.sin(t * 11 + i * 2.1) * amp, s.z + Math.cos(t * 12 + i * 1.3) * amp);
+      m.pos.lerp(tmp, .15); m.q.slerp(slotQ[m.slot], .1);
+    } else { qd.setFromAxisAngle(tmp.copy(m.w).normalize(), m.w.length() * .016); m.q.multiply(qd); }
+    mtx.compose(m.pos, m.q, one); OM.setMatrixAt(i, mtx);
+    [H1, H2].forEach((h, k) => { hp.copy(h).applyQuaternion(m.q).add(m.pos); mtx.compose(hp, m.q, plasma ? zero : one); HM.setMatrixAt(i * 2 + k, mtx); });
+  }
+  OM.instanceMatrix.needsUpdate = HM.instanceMatrix.needsUpdate = true;
+}
+
+/* ---------- picking ---------- */
+ctx.hoverText(k => k === 'p' ? Lab.L(PARTS.particle.name) + ' · ' + Lab.L(PARTS[SOM.currentKey()].name) : Lab.L(PARTS[k].name));
+ctx.onPick(k => { if (!k) return; SOM.select(k === 'p' ? SOM.currentKey() : k, true); });
+let spin = false;
+function setSpin(on){ spin = on; Lab.$('#rotBtn').classList.toggle('on', on); }
+Lab.$('#rotBtn').onclick = () => setSpin(!spin);
+Lab.$('#resetBtn').onclick = () => { story.stop(); setSpin(false); SOM.goTo(40, EMAX, 40); SOM.select(null, true); ctx.home(); world.rotation.y = 0; };
+
+/* ---------- guided story: ice → steam ---------- */
+const STEPS = [
+  {en:'1 · Ice at −40 °C: water molecules are locked in a lattice. They only vibrate in place.', zh:'1 · −40 °C 的冰：水分子被锁在晶格中，只能在原地振动。', go:() => SOM.goTo(0, EMAX, 0), k:'solid'},
+  {en:'2 · Adding heat: the ice warms up and the molecules vibrate faster, until the thermometer reads 0 °C.', zh:'2 · 加热：冰的温度升高，分子振动加快，直到温度计显示 0 °C。', go:() => SOM.goTo(E1, 30, 0), k:'temperature'},
+  {en:'3 · Melting plateau: the energy breaks the lattice apart. The temperature STAYS at 0 °C until all the ice has melted.', zh:'3 · 熔化平台：能量用来拆开晶格。直到冰全部熔化，温度一直“停”在 0 °C。', go:() => SOM.goTo(E2, 85, E1), k:'melting'},
+  {en:'4 · Liquid water: molecules stay close but slide past each other. The temperature climbs toward 100 °C.', zh:'4 · 液态水：分子仍然靠得很近，但可以相互滑动。温度向 100 °C 攀升。', go:() => SOM.goTo(E3, 110, E2), k:'liquid'},
+  {en:'5 · Boiling plateau: stuck at 100 °C again. Boiling needs almost 7× more energy than melting!', zh:'5 · 沸腾平台：温度再次停在 100 °C。沸腾汽化需要的能量几乎是熔化的 7 倍！', go:() => SOM.goTo(E4, 520, E3), k:'vaporization'},
+  {en:'6 · Steam: fast molecules fly apart and fill the whole container. Same H₂O molecules, much more space between them.', zh:'6 · 水蒸气：高速运动的分子四散飞开，充满整个容器。还是 H₂O 分子，只是彼此间距大得多。', go:() => SOM.goTo(EMAX, 50, E4), k:'gas'}
+];
+const story = Lab3D.story('#stage', STEPS, (i, s) => { s.go(); SOM.select(s.k, true); }, () => {});
+Lab.$('#storyBtn').onclick = () => story.start();
+SOM.three = { storyActive:() => story.active, stopStory:() => story.stop() };
+
+/* ---------- per-frame ---------- */
+let lastE = SOM.E;
+ctx.onFrame((dt, t) => {
+  if (spin) world.rotation.y += dt * .3;
+  const p = rebalance();
+  let amp = 0; for (let k = 0; k < 2; k++) amp = physics(dt / 2, p);
+  writeInstances(t, amp, p.plasma);
+  // plasma look
+  electrons.visible = p.plasma; OMat.color.set(p.plasma ? '#c77dff' : '#e5484d'); OMat.emissive.set(OMat.color); OMat.emissiveIntensity = p.plasma ? .8 + .3 * Math.sin(t * 9) : (SOM.sel === 'particle' ? .3 + .2 * Math.sin(t * 5) : 0);
+  if (p.plasma){ for (let i = 0; i < N; i++){ const v = eVel[i]; for (let a = 0; a < 3; a++){ const lim = a === 1 ? [Y0 + .1, Y1 - .1] : [-BX + .1, BX - .1]; ePos[i*3+a] += v.getComponent(a) * dt; if (ePos[i*3+a] < lim[0] || ePos[i*3+a] > lim[1]){ v.setComponent(a, -v.getComponent(a)); ePos[i*3+a] = clamp(ePos[i*3+a], lim[0], lim[1]); } } } eGeo.attributes.position.needsUpdate = true; }
+  // thermometer + heater glow
+  column.scale.y = tY(p.plasma ? 999 : p.T);
+  const dE = SOM.E - lastE; lastE = SOM.E;
+  const heating = SOM.auto > 0 || dE > .01 || p.plasma, cooling = SOM.auto < 0 || dE < -.01 || (SOM.subTarget < SOM.sub);
+  heaterMat.emissive.set(heating ? '#ff5a1f' : cooling ? '#3aa0ff' : '#000000'); heaterMat.emissiveIntensity = heating || cooling ? .6 + .25 * Math.sin(t * 6) : 0;
+  coils.material.color.set(heating ? '#ff7a3a' : cooling ? '#7cc4ff' : '#333333');
+});
+
+</script>
+</body>
+</html>

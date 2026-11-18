@@ -1,0 +1,779 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Landforms &amp; Waterways</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/lab3d.js"></script><script src="../shared/photos.js"></script>
+<style>
+.cyn-card{padding:16px}
+.cyn{display:block;width:100%;height:auto;max-height:300px;border-radius:12px;margin-top:12px}
+.cyn .sky{fill:var(--surface-2)}
+/* page-specific styles */
+.pill output{font-family:Fredoka;font-weight:700;min-width:62px;display:inline-block;text-align:right}
+.pill small{color:var(--ink-2);font-weight:700}
+.kind{display:inline-flex;gap:6px;align-items:center;font-size:13px;font-weight:800;padding:3px 10px;border-radius:999px;background:var(--surface-2);color:var(--ink-2);align-self:flex-start}
+.ex{font-size:15px;color:var(--ink-2)}
+.ex b{color:var(--ink)}
+#topoBox{aspect-ratio:22/15;min-height:0;align-self:start;cursor:crosshair;touch-action:none}
+#topoBox canvas{touch-action:none}
+.topo-read{position:absolute;left:10px;bottom:10px;z-index:2;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:4px 10px;font-weight:800;font-size:14px;pointer-events:none;box-shadow:var(--shadow)}
+#profCv{width:100%;height:150px;display:block;background:var(--surface-2);border-radius:12px}
+#tOpts{gap:8px}
+#tOpts .btn{flex:1 1 40%}
+#tOpts .btn.right{background:var(--good)} #tOpts .btn.wrong{background:var(--bad);color:#fff}
+.tq{font-weight:800;font-size:18px;min-height:52px}
+.pairs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.pair{padding:16px;display:flex;flex-direction:column;gap:8px}
+.pair .duo{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;text-align:center}
+.pair .duo b{display:block;font-family:Fredoka;font-weight:600;font-size:17px}
+.pair .duo span.vs{font-weight:800;color:var(--ink-2)}
+.pair svg{width:100%;max-width:110px;height:auto;display:block;margin:0 auto 4px;border-radius:12px}
+.pair p{margin:0;font-size:14px;color:var(--ink-2)}
+.pair svg .w{fill:#4aa3df} .pair svg .g{fill:#79bf57} .pair svg .s{stroke:#2b6b9c;stroke-width:2;fill:none}
+@media (max-width:980px){.pairs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.pairs{grid-template-columns:1fr}.pill input[type=range]{width:100px}}
+</style>
+</head>
+<body data-subject="geography" data-topic="landforms">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="地理 · 自然地理特征">Geography · Physical features</span>
+  <h1 data-zh-html="地形与<em>水系</em>">Landforms &amp; <em>Waterways</em></h1>
+  <p class="lead" data-zh="一条河怎么能切出 1600 米深的大峡谷？地球表面并不平坦：有高耸的山脉、平坦的高原和平原，也有河流、湖泊、海湾和海峡。转动下面的 3D 立体地形模型，点击任意地方认识它，再跟着一条河从山上一直流到大海！">How can a river carve a canyon a mile deep? Earth’s surface is anything but flat: towering mountains, flat plateaus and plains, plus rivers, lakes, gulfs and straits. Spin the 3D diorama below, click anywhere to name what you see, then follow a river all the way from the mountains to the sea!</p>
+</header>
+
+<section class="wrap" id="explore" data-nav="3D Landforms" data-nav-zh="3D 地形">
+  <div class="explorer">
+    <div class="stage card" id="stage" data-3d>
+      <div class="toolbar">
+        <button class="tbtn" id="rotBtn" data-zh="⟳ 旋转">⟳ Spin</button>
+        <button class="tbtn" id="resetBtn" data-zh="⌂ 重置">⌂ Reset</button>
+        <button class="tbtn" id="storyBtn" data-zh="🏞 河流之旅（故事）">🏞 River journey (story)</button>
+        <button class="tbtn on" id="labelBtn" data-zh="🏷 标签">🏷 Labels</button>
+        <button class="tbtn" id="contourBtn" data-zh="〰 等高线">〰 Contour lines</button>
+      </div>
+      <div class="bottombar">
+        <div class="pill"><span data-zh="🌊 海平面">🌊 Sea level</span><input id="sea" type="range" min="-40" max="60" value="0"><output id="seaOut">0 m</output><small id="seaInfo"></small></div>
+        <div class="tip" data-zh="拖动旋转 · 滚轮缩放 · 点击地形任意位置">Drag to rotate · Scroll to zoom · Click anywhere on the land or water</div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="chips" id="chips"></div>
+</section>
+
+<section class="wrap" id="topo" data-nav="Topo map" data-nav-zh="等高线地图">
+  <div class="sec-head">
+    <h2 data-zh="读一读地形图（等高线地图）">Read a topographic (contour) map</h2>
+    <p data-zh="这是从正上方看下去的同一片土地。每条棕色的等高线把海拔相同的点连起来，相邻两条线相差 200 米（等高距）。在地图上拖动画一条线，就能看到这里的地形剖面图。">This is the same land seen from straight above. Each brown contour line joins points of the same elevation, and neighboring lines are 200 m apart (the contour interval). Drag a line across the map to slice the land and see its cross-section.</p>
+  </div>
+  <div class="sim">
+    <div class="card simbox" id="topoBox"><canvas id="topoCv"></canvas><div class="topo-read" id="topoRead"></div></div>
+    <div class="card simside">
+      <h3 data-zh="🧭 等高线挑战">🧭 Contour challenge</h3>
+      <div class="tq" id="tq"></div>
+      <div class="btnrow" id="tOpts"></div>
+      <div class="result" id="tMsg"></div>
+      <div class="counters">
+        <div class="counter"><b id="tOk">0</b><span data-zh="答对">correct</span></div>
+        <div class="counter"><b id="tAll">0</b><span data-zh="已答">answered</span></div>
+      </div>
+      <button class="btn" id="tNext" data-zh="下一题 ▶">Next question ▶</button>
+      <h3 style="font-size:18px" data-zh="✂️ 地形剖面图">✂️ Cross-section</h3>
+      <canvas id="profCv"></canvas>
+      <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="等高线密集 = 坡陡；等高线稀疏 = 坡缓；闭合的小圆圈 = 山顶。">Lines close together = steep. Lines far apart = gentle. Small closed circles = a hilltop.</span></div>
+    </div>
+  </div>
+  <div class="legend" id="topoLegend" style="margin-top:12px"></div>
+</section>
+
+<section class="wrap" id="pairs" data-nav="Opposites" data-nav-zh="对比记忆">
+  <div class="sec-head">
+    <h2 data-zh="成对记忆：陆地与水的“反义词”">Remember them in pairs: land and water “opposites”</h2>
+    <p data-zh="许多地形和水体刚好是一对“反义词”：把陆地和水互换，就得到另一个。">Many landforms and bodies of water come in opposite pairs: swap land and water and you get the other one.</p>
+  </div>
+  <div class="pairs">
+    <div class="pair card"><div class="duo">
+      <div><svg viewBox="0 0 100 70"><rect class="w" width="100" height="70"/><path class="g" d="M30 20 Q50 8 70 22 Q80 40 62 52 Q40 60 28 46 Q20 32 30 20Z"/></svg><b data-zh="岛屿">Island</b></div><span class="vs">↔</span>
+      <div><svg viewBox="0 0 100 70"><rect class="g" width="100" height="70"/><path class="w" d="M30 20 Q50 8 70 22 Q80 40 62 52 Q40 60 28 46 Q20 32 30 20Z"/></svg><b data-zh="湖泊">Lake</b></div></div>
+      <p data-zh="岛屿：陆地被水包围。湖泊：水被陆地包围。">Island: land surrounded by water. Lake: water surrounded by land.</p></div>
+    <div class="pair card"><div class="duo">
+      <div><svg viewBox="0 0 100 70"><rect class="w" width="100" height="70"/><path class="g" d="M0 0 H100 V22 H62 Q66 50 50 62 Q34 50 38 22 H0Z"/></svg><b data-zh="半岛">Peninsula</b></div><span class="vs">↔</span>
+      <div><svg viewBox="0 0 100 70"><rect class="g" width="100" height="70"/><path class="w" d="M0 70 H100 V48 H64 Q68 20 50 10 Q32 20 36 48 H0Z"/></svg><b data-zh="海湾">Gulf / bay</b></div></div>
+      <p data-zh="半岛：伸入水中的陆地（三面环水）。海湾：伸入陆地的水（三面被陆地包围）。">Peninsula: land poking into water (water on 3 sides). Gulf: water poking into land (land on 3 sides).</p></div>
+    <div class="pair card"><div class="duo">
+      <div><svg viewBox="0 0 100 70"><rect class="w" width="100" height="70"/><path class="g" d="M0 20 H36 Q47 35 36 50 H0Z M100 20 H64 Q53 35 64 50 H100Z"/></svg><b data-zh="海峡">Strait</b></div><span class="vs">↔</span>
+      <div><svg viewBox="0 0 100 70"><rect class="g" width="100" height="70"/><path class="w" d="M0 20 H36 Q47 35 36 50 H0Z M100 20 H64 Q53 35 64 50 H100Z"/></svg><b data-zh="地峡">Isthmus</b></div></div>
+      <p data-zh="海峡：连接两片水域的狭窄水道。地峡：连接两块陆地的狭窄陆地。">Strait: narrow water joining two waters. Isthmus: narrow land joining two lands.</p></div>
+    <div class="pair card"><div class="duo">
+      <div><svg viewBox="0 0 100 70"><rect class="w" y="58" width="100" height="12"/><path class="g" d="M0 58 L14 58 L22 24 L78 24 L86 58 L100 58 L100 70 L0 70Z"/></svg><b data-zh="高原">Plateau</b></div><span class="vs">↔</span>
+      <div><svg viewBox="0 0 100 70"><rect class="w" y="58" width="100" height="12"/><path class="g" d="M0 58 L0 50 Q50 46 100 50 L100 70 L0 70Z"/></svg><b data-zh="平原">Plain</b></div></div>
+      <p data-zh="两者都平坦，但高原地势高，平原地势低。">Both are flat, but a plateau is high and a plain is low.</p></div>
+  </div>
+  <div class="mix" style="margin-top:16px"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="海峡（narrow strait）是连接两片大水域的狭窄水道；地峡（isthmus）是连接两块大陆地的狭窄陆地，例如巴拿马地峡。巴拿马运河是人工开凿的水道，不是天然海峡。">A strait is a narrow strip of WATER joining two big bodies of water. An isthmus is a narrow strip of LAND joining two big land areas, like the Isthmus of Panama. The Panama Canal is a human-made waterway, not a natural strait.</span></div>
+  <h3 style="margin:26px 0 12px;font-size:24px" data-zh="拖一拖：一条河怎样切出大峡谷">Scrub through time: how a river carves a canyon</h3>
+  <div class="card cyn-card">
+    <div class="timebar" id="cynBar"><button aria-label="play">▶</button><input type="range" min="0" max="60" step="1" value="0" aria-label="time"><output></output></div>
+    <svg class="cyn" id="cynSvg" viewBox="0 0 600 250" role="img" aria-label="canyon cross-section">
+      <rect class="sky" width="600" height="250"/>
+      <rect y="60" width="600" height="45" fill="#d9b48a"/><rect y="105" width="600" height="45" fill="#c98f62"/><rect y="150" width="600" height="45" fill="#b4714c"/><rect y="195" width="600" height="55" fill="#7d5a4a"/>
+      <polygon class="sky" id="cynCut" points="300,60 300,60 300,60 300,60"/>
+      <rect id="cynRiver" x="286" y="58" width="28" height="5" rx="2" fill="#2f86d6"/>
+    </svg>
+    <div class="counters" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-top:12px">
+      <div class="counter"><b id="cynDepth">0</b><span data-zh="峡谷深度">canyon depth</span></div>
+      <div class="counter"><b id="cynEsb">0</b><span data-zh="相当于几座帝国大厦叠起来">Empire State Buildings stacked</span></div>
+      <div class="counter"><b id="cynRate">0.3 mm</b><span data-zh="平均每年下切（约 3 张纸厚）">cut per year (about 3 sheets of paper)</span></div>
+    </div>
+    <p class="muted" style="font-size:13px;margin:10px 0 12px" data-zh="以美国科罗拉多大峡谷为例的简化示意图：假设科罗拉多河用大约 600 万年匀速切出约 1600 米深。年代和速度都是近似值。">A simplified picture based on the Grand Canyon in Arizona: it assumes the Colorado River cut down about 1,600 m (1 mile) at a steady speed over roughly 6 million years. Dates and speeds are approximate.</p>
+    <details class="peek"><summary data-zh="水这么软，怎么切得动石头？">Water is soft. How can it cut rock?</summary><p data-zh="切石头的其实是河水带着的沙子和石块。它们像砂纸一样，一年又一年地磨河床。这叫“侵蚀”。河流越陡、水越急，切得越快。">The real cutting tools are the sand and stones the river carries. Like sandpaper, they grind the riverbed year after year. This is called erosion. The steeper and faster the river, the faster it cuts.</p></details>
+    <details class="peek"><summary data-zh="为什么峡谷壁像一层层的蛋糕？">Why do the canyon walls look like a layer cake?</summary><p data-zh="高原是由一层层岩石叠起来的，越往下越古老。河流往下切，就像切蛋糕一样把这些岩层露了出来。">A plateau is built of rock layers stacked on top of each other, with the oldest at the bottom. As the river cuts down, it slices through them like a knife through cake and shows every layer.</p></details>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real photos" data-nav-zh="实景照片">
+  <div class="sec-head">
+    <h2 data-zh="看看真实的样子">See the real thing</h2>
+    <p data-zh="点击照片放大。影片和录音不会自动播放。">Click a photo to enlarge it. Videos and sound never start by themselves.</p>
+  </div>
+  <div id="gallery"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 地形测验">🧠 Landforms quiz</h3><p class="sub" data-zh="选出正确答案。">Pick the best answer.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分一分：陆地还是水体？">🗂️ Sort it: land or water?</h3><p class="sub" data-zh="把每个词拖到（或先点再点方框）正确的组里。">Drag each term (or tap it, then tap a box) into the right group.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="对应佐治亚州社会研究课程标准 SS6G 与 SS7G（如 SS6G1、SS6G8、SS6G11、SS7G1、SS7G5、SS7G8：在地图上找出各地区的主要自然地理特征，例如安第斯山脉、亚马孙河、伊比利亚半岛、波斯湾、霍尔木兹海峡、喜马拉雅山脉），以及地图与地球仪技能（读等高线、比例尺、指北针）。本页帮助学生先掌握这些特征的“词汇”。">Supports the Georgia Social Studies standards SS6G and SS7G (e.g., SS6G1, SS6G8, SS6G11, SS7G1, SS7G5, SS7G8: locate major physical features of each region, such as the Andes, the Amazon River, the Iberian Peninsula, the Persian Gulf, the Strait of Hormuz and the Himalayas), plus the map & globe skills of reading contour lines, scale and a compass rose. This page builds the vocabulary first.</p>
+    <p data-zh="课堂建议：① 播放“河流之旅”故事，让学生说出每一步河流在“侵蚀”还是“沉积”。② 把海平面调高 150 米，问：哪些地形最先被淹？为什么三角洲城市最担心海平面上升？③ 打开“等高线”，对照下方的地形图，让学生在两种视图中找到同一座高原。④ 让学生在地形图上画一条穿过峡谷的剖面线，描述峡谷的形状。">Ideas: ① Play the River journey story and ask whether the river is eroding or depositing at each step. ② Raise sea level by 150 m and ask which landforms flood first and why delta cities worry most about rising seas. ③ Turn on Contour lines and find the same plateau in both the 3D model and the topographic map. ④ Have students drag a cross-section through the canyon and describe its shape.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+/* ===== Landforms & bodies of water (bilingual) ===== */
+const LAND = {en:'Landform',zh:'地形'}, WATER = {en:'Body of water',zh:'水体'};
+const PARTS = {
+  mountain:{color:'#8d6e63', kind:LAND, name:{en:'Mountains',zh:'山脉'}, job:{en:'High land with steep sides and peaks',zh:'高耸、坡陡、有山峰的地形'},
+    facts:{en:['Mountains rise steeply far above the land around them. A long chain of mountains is a mountain range.','Most big ranges form where tectonic plates collide and push rock upward (the Himalayas) or where volcanoes erupt.','It gets colder as you climb, so high peaks can stay snow-covered all year.'],
+           zh:['山地高高耸立在周围土地之上，坡度陡峭。连绵成串的山叫山脉。','大多数大山脉形成于板块相互碰撞、把岩石向上挤压的地方（如喜马拉雅山脉），也有的由火山喷发形成。','海拔越高气温越低，所以很高的山峰可能终年积雪。']},
+    ex:{en:'Himalayas (Mount Everest, 8,849 m), Andes, Rocky Mountains, Alps, Blue Ridge Mountains in north Georgia.',zh:'喜马拉雅山脉（珠穆朗玛峰 8849 米）、安第斯山脉、落基山脉、阿尔卑斯山脉、美国佐治亚州北部的蓝岭山脉。'},
+    hint:{en:'Mountains = high + steep + peaks. On a contour map, their lines are packed tightly together.',zh:'山地 = 高 + 陡 + 有山峰。在等高线地图上，它的等高线挤得很密。'},
+    mix:{en:'A hill and a mountain are both raised land, but a mountain is much higher and steeper.',zh:'丘陵和山地都是隆起的土地，但山地更高、更陡。'}},
+  plateau:{color:'#d4a03c', kind:LAND, name:{en:'Plateau',zh:'高原'}, job:{en:'High land that is flat on top',zh:'地势高、顶部平坦的地形'},
+    facts:{en:['A plateau is a large area of high, fairly flat land with at least one steep side, like a giant table (it is also called a tableland).','The Tibetan Plateau averages about 4,500 m high and is nicknamed the “Roof of the World”.','Rivers often cut deep canyons into plateaus, like the Colorado River in the Colorado Plateau.'],
+           zh:['高原是面积广大、地势高而比较平坦的地区，至少有一侧坡度很陡，就像一张巨大的桌子。','青藏高原平均海拔约 4500 米，被称为“世界屋脊”。','河流常在高原上切出深深的峡谷，比如科罗拉多河切穿科罗拉多高原。']},
+    ex:{en:'Tibetan Plateau, Colorado Plateau, Deccan Plateau (India), Mexican Plateau, Brazilian Highlands.',zh:'青藏高原、科罗拉多高原、德干高原（印度）、墨西哥高原、巴西高原。'},
+    hint:{en:'Plateau = “plate” held up high: flat on top, high up.',zh:'高原 = 高高举起的“盘子”：顶平、地势高。'},
+    mix:{en:'Plateaus and plains are BOTH flat. The difference is height: a plateau is high, a plain is low.',zh:'高原和平原都很平坦，区别在高度：高原地势高，平原地势低。'}},
+  plain:{color:'#6cbf4f', kind:LAND, name:{en:'Plain',zh:'平原'}, job:{en:'Large, flat, low land',zh:'面积广大、平坦、地势低的土地'},
+    facts:{en:['Plains are wide areas of flat or gently rolling land, usually at low elevation.','Rivers spread rich soil over plains when they flood, so plains are great for farming.','Flat land is easy to build roads, railways and cities on, so most people in the world live on plains.'],
+           zh:['平原是地面平坦或略有起伏的广阔地区，海拔通常较低。','河流泛滥时把肥沃的泥沙铺在平原上，所以平原很适合发展农业。','平坦的土地便于修建道路、铁路和城市，所以世界上大多数人生活在平原上。']},
+    ex:{en:'Great Plains (USA), North European Plain, North China Plain, Amazon Plain, Georgia’s Coastal Plain.',zh:'北美大平原、北欧平原、华北平原、亚马孙平原、佐治亚州沿海平原。'},
+    hint:{en:'Plain = plain and simple: flat and low.',zh:'平原，平原：又平又低。'}},
+  valley:{color:'#2e9e6a', kind:LAND, name:{en:'Valley',zh:'山谷（河谷）'}, job:{en:'Low land between hills or mountains',zh:'山地或丘陵之间的低地'},
+    facts:{en:['A valley is a long, low area between hills or mountains, often with a river flowing through it.','Fast mountain rivers carve V-shaped valleys. Glaciers scrape out wide U-shaped valleys.','Valleys are sheltered and have water and good soil, so many towns are built in them.'],
+           zh:['山谷是山地或丘陵之间狭长的低地，常有河流从中流过。','湍急的山区河流切出“V”形谷，冰川则刨出宽阔的“U”形谷。','山谷避风、有水、土壤好，所以许多城镇建在山谷里。']},
+    ex:{en:'Great Rift Valley (Africa), Yosemite Valley (U-shaped), Indus Valley, Rhine Valley.',zh:'东非大裂谷、约塞米蒂谷（U 形谷）、印度河谷、莱茵河谷。'},
+    hint:{en:'V for “very fast river”, U for “ultra-slow glacier”.',zh:'V 形谷：河水快速下切；U 形谷：冰川缓慢刨蚀。'}},
+  canyon:{color:'#d0603a', kind:LAND, name:{en:'Canyon',zh:'峡谷'}, job:{en:'A deep, narrow valley with cliff walls',zh:'又深又窄、两壁陡峭的谷地'},
+    facts:{en:['A canyon (or gorge) is a very deep, narrow valley with steep, cliff-like sides.','Most canyons are carved by a river cutting down through rock over millions of years (erosion).','The walls show layers of rock. The deeper the layer, the older it usually is.'],
+           zh:['峡谷是又深又窄、两壁像悬崖一样陡峭的谷地。','大多数峡谷是河流经过数百万年向下侵蚀岩石形成的。','谷壁上可以看到一层层岩石，通常越深的岩层越古老。']},
+    ex:{en:'Grand Canyon (about 1.8 km deep, carved by the Colorado River), Yarlung Tsangpo Grand Canyon (Tibet), Tallulah Gorge (Georgia).',zh:'美国大峡谷（深约 1.8 千米，由科罗拉多河切成）、雅鲁藏布大峡谷（西藏）、佐治亚州塔卢拉峡谷。'},
+    hint:{en:'Canyon = a valley that went extreme: deeper, narrower, steeper.',zh:'峡谷 = “加强版”山谷：更深、更窄、更陡。'},
+    mix:{en:'Canyons are not made by earthquakes splitting the ground. Running water slowly wore the rock away.',zh:'峡谷不是地震把地面裂开形成的，而是流水慢慢把岩石侵蚀掉形成的。'}},
+  river:{color:'#2f8fe0', kind:WATER, name:{en:'River',zh:'河流'}, job:{en:'Fresh water flowing downhill to the sea',zh:'从高处流向大海的淡水水流'},
+    facts:{en:['A river starts at its source (often in mountains) and ends at its mouth, where it flows into a lake, sea or ocean.','Smaller streams that join a river are called tributaries.','Rivers carry sediment (sand, silt and mud) and drop it where the water slows down.'],
+           zh:['河流从源头（常在山区）出发，在河口流入湖泊、海或大洋。','汇入一条河的较小河流叫做支流。','河流搬运泥沙，在水流变慢的地方把泥沙沉积下来。']},
+    ex:{en:'Nile (longest), Amazon (most water), Yangtze, Mississippi, Chattahoochee (Georgia).',zh:'尼罗河（最长）、亚马孙河（水量最大）、长江、密西西比河、查塔胡奇河（佐治亚州）。'},
+    hint:{en:'Source = start, mouth = end. A river’s “mouth” is where it “drinks” into the sea.',zh:'源头 = 起点，河口 = 终点。'},
+    mix:{en:'Rivers do not always flow south. They flow DOWNHILL in any direction. The Nile flows north!',zh:'河流并不总是向南流，而是向低处流，任何方向都可能。尼罗河就是向北流的！'}},
+  delta:{color:'#b5c85a', kind:LAND, name:{en:'Delta',zh:'三角洲'}, job:{en:'New land built at a river’s mouth',zh:'在河口堆积形成的新陆地'},
+    facts:{en:['When a river reaches the sea it slows down and drops its sediment. Over time this builds a fan- or triangle-shaped delta.','The name comes from the Greek letter delta (Δ), a triangle.','Delta soil is very fertile, so deltas are crowded with farms and people, but they flood easily.'],
+           zh:['河流入海时流速减慢，泥沙沉积下来，日积月累形成扇形或三角形的三角洲。','“三角洲”这个名字来自希腊字母 Δ（三角形）。','三角洲土壤非常肥沃，农田和人口密集，但也很容易发生洪水。']},
+    ex:{en:'Nile Delta, Ganges–Brahmaputra Delta (largest), Mississippi Delta, Yangtze River Delta, Pearl River Delta.',zh:'尼罗河三角洲、恒河—布拉马普特拉河三角洲（世界最大）、密西西比河三角洲、长江三角洲、珠江三角洲。'},
+    hint:{en:'Δ delta = a triangle of mud at the river’s mouth.',zh:'Δ 三角洲 = 河口的一块“三角形泥土”。'},
+    mix:{en:'A delta is LAND made of sediment, not a body of water.',zh:'三角洲是泥沙堆成的陆地，不是水体。'}},
+  lake:{color:'#45b3e6', kind:WATER, name:{en:'Lake',zh:'湖泊'}, job:{en:'Water surrounded by land',zh:'四周被陆地包围的水体'},
+    facts:{en:['A lake is a body of water surrounded by land. Most lakes are fresh water.','Lakes fill low places: hollows dug by glaciers, cracks in the crust, old volcano craters, or dams.','A reservoir is a human-made lake behind a dam, like Lake Lanier in Georgia.'],
+           zh:['湖泊是四周被陆地包围的水体，大多数是淡水湖。','湖泊填满了地面的低洼处：冰川刨出的洼地、地壳断裂处、火山口，或是水坝拦出的地方。','水库是水坝拦蓄形成的人工湖，比如佐治亚州的拉尼尔湖。']},
+    ex:{en:'Great Lakes (USA/Canada), Lake Baikal (deepest), Lake Victoria (Africa), Caspian Sea (largest, salty).',zh:'五大湖（美国/加拿大）、贝加尔湖（最深）、维多利亚湖（非洲）、里海（面积最大，咸水湖）。'},
+    hint:{en:'Lake is the opposite of island: water inside land.',zh:'湖泊和岛屿是一对“反义词”：湖是陆地中的水。'}},
+  island:{color:'#e0a94b', kind:LAND, name:{en:'Island',zh:'岛屿'}, job:{en:'Land surrounded by water',zh:'四周被水包围的陆地'},
+    facts:{en:['An island is land completely surrounded by water and smaller than a continent.','Islands can form from volcanoes (Hawaii), from pieces of continents (Madagascar), or from coral reefs.','A group of islands is an archipelago, such as Japan, Indonesia or the Philippines.'],
+           zh:['岛屿是四周完全被水包围、比大陆小的陆地。','岛屿可以由火山形成（夏威夷），也可以是从大陆分离出来的（马达加斯加），还可以由珊瑚礁形成。','一群岛屿叫做群岛，例如日本、印度尼西亚和菲律宾。']},
+    ex:{en:'Greenland (largest island), Madagascar, Great Britain, Hawaii, Taiwan, Georgia’s Sea Islands.',zh:'格陵兰岛（世界最大岛）、马达加斯加岛、大不列颠岛、夏威夷、台湾岛、佐治亚州的海岛群。'},
+    hint:{en:'Island: “is land”, but land with water all around.',zh:'岛：四面环水的一块陆地。'},
+    mix:{en:'Australia is surrounded by water, but it is counted as a continent, not an island.',zh:'澳大利亚虽然四面环海，但它被算作大陆，而不是岛屿。'}},
+  peninsula:{color:'#9b6ad6', kind:LAND, name:{en:'Peninsula',zh:'半岛'}, job:{en:'Land with water on three sides',zh:'三面环水的陆地'},
+    facts:{en:['A peninsula is land surrounded by water on three sides and still joined to the mainland on one side.','The word comes from Latin “paene insula”: almost an island.','The Arabian Peninsula is the largest peninsula in the world.'],
+           zh:['半岛是三面被水包围、一面与大陆相连的陆地。','英文 peninsula 来自拉丁语“paene insula”，意思是“几乎是岛”。','阿拉伯半岛是世界上最大的半岛。']},
+    ex:{en:'Florida, Korean Peninsula, Iberian Peninsula (Spain & Portugal), Italy, Arabian Peninsula, Shandong Peninsula.',zh:'佛罗里达半岛、朝鲜半岛、伊比利亚半岛（西班牙和葡萄牙）、意大利（亚平宁半岛）、阿拉伯半岛、山东半岛。'},
+    hint:{en:'Peninsula = “almost an island”: three sides water, one side land.',zh:'半岛 = “半个岛”：三面是水，一面连着陆地。'},
+    mix:{en:'Don’t mix up peninsula and gulf: a peninsula is land poking into water, a gulf is water poking into land.',zh:'别把半岛和海湾弄混：半岛是伸进水里的陆地，海湾是伸进陆地的水。'}},
+  gulf:{color:'#2a6fb8', kind:WATER, name:{en:'Gulf (bay)',zh:'海湾'}, job:{en:'Sea partly surrounded by land',zh:'被陆地部分包围的海域'},
+    facts:{en:['A gulf is a large part of an ocean or sea that reaches into the land and is partly surrounded by it.','A bay is similar but usually smaller with a wider opening.','Gulfs have calm water for ports. The Gulf of Mexico and the Persian Gulf are busy shipping and oil areas.'],
+           zh:['海湾是伸入陆地、被陆地部分包围的一大片海洋或海域。','较小、开口较宽的通常叫“湾”（bay）。','海湾风浪较小，适合建港口。墨西哥湾和波斯湾都是繁忙的航运区和石油产区。']},
+    ex:{en:'Gulf of Mexico, Persian Gulf, Gulf of Guinea, Bay of Bengal, Hudson Bay, Bohai Sea.',zh:'墨西哥湾、波斯湾、几内亚湾、孟加拉湾、哈得孙湾、渤海。'},
+    hint:{en:'Gulf = a “gulp” of sea taken into the land.',zh:'海湾 = 大海“咬”进陆地的一口。'}},
+  strait:{color:'#17a2b8', kind:WATER, name:{en:'Strait',zh:'海峡'}, job:{en:'Narrow water joining two big waters',zh:'连接两片大水域的狭窄水道'},
+    facts:{en:['A strait is a narrow channel of water that connects two larger bodies of water and separates two pieces of land.','Ships crowd through straits, so they are important “chokepoints” for trade.','About one-fifth of the world’s oil passes through the Strait of Hormuz.'],
+           zh:['海峡是连接两片较大水域、同时把两块陆地隔开的狭窄水道。','船只要挤过海峡才能通行，所以海峡是重要的贸易“咽喉要道”。','世界上大约五分之一的石油要经过霍尔木兹海峡。']},
+    ex:{en:'Strait of Gibraltar (Atlantic ↔ Mediterranean), Strait of Hormuz, Bering Strait, Taiwan Strait, Strait of Malacca.',zh:'直布罗陀海峡（大西洋 ↔ 地中海）、霍尔木兹海峡、白令海峡、台湾海峡、马六甲海峡。'},
+    hint:{en:'Strait = a “straight” narrow lane of water for ships. Watch the boat!',zh:'海峡 = 船只通行的狭窄“水上通道”。看那艘小船！'},
+    mix:{en:'A strait is natural water. An isthmus is narrow LAND. A canal is a channel that people dug.',zh:'海峡是天然水道；地峡是狭窄的陆地；运河是人工开挖的水道。'}},
+  ocean:{color:'#1f4f99', kind:WATER, name:{en:'Ocean & coast',zh:'海洋与海岸'}, job:{en:'The huge salty water around the continents',zh:'环绕大陆的广阔咸水'},
+    facts:{en:['Oceans are the largest bodies of salt water. They cover about 71% of Earth’s surface.','There are five oceans: Pacific (largest), Atlantic, Indian, Southern and Arctic.','The coast is where land meets the sea. Move the sea-level slider to see how coastlines change.'],
+           zh:['海洋是最大的咸水水体，覆盖地球表面约 71%。','世界上有五大洋：太平洋（最大）、大西洋、印度洋、南大洋和北冰洋。','海岸是陆地与海洋相接的地方。拖动“海平面”滑块，看看海岸线怎样变化。']},
+    ex:{en:'Pacific Ocean, Atlantic Ocean (Georgia’s coast), Indian Ocean, Mediterranean Sea, Caribbean Sea.',zh:'太平洋、大西洋（佐治亚州海岸）、印度洋、地中海、加勒比海。'},
+    hint:{en:'Elevation is measured from sea level (0 m).',zh:'海拔是从海平面（0 米）算起的。'},
+    mix:{en:'If sea level rises, low land like deltas and coastal plains floods first, not mountains or plateaus.',zh:'如果海平面上升，最先被淹没的是三角洲、沿海平原这样的低地，而不是山地或高原。'}}
+};
+const ORDER = ['mountain','plateau','plain','valley','canyon','river','delta','lake','island','peninsula','gulf','strait','ocean'];
+const KM = 500;   // 1 model unit of height = 500 m
+
+/* ===== Procedural terrain (shared by the 3D model and the contour map) ===== */
+const LF = window.LF = (function(){
+  const sm = (a, b, x) => { let t = (x - a) / (b - a); t = t < 0 ? 0 : t > 1 ? 1 : t; return t * t * (3 - 2 * t); };
+  const hash = (i, j) => { const s = Math.sin(i * 127.1 + j * 311.7) * 43758.5453; return s - Math.floor(s); };
+  function vn(x, z){ const i = Math.floor(x), j = Math.floor(z), fx = x - i, fz = z - j, u = fx * fx * (3 - 2 * fx), v = fz * fz * (3 - 2 * fz);
+    const a = hash(i, j), b = hash(i + 1, j), c = hash(i, j + 1), d = hash(i + 1, j + 1); return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v; }
+  function fbm(x, z){ let s = 0, a = .5, f = 1; for (let k = 0; k < 4; k++){ s += a * vn(x * f, z * f); f *= 2.03; a *= .5; } return s; }
+  function path(pts){ const seg = []; let L = 0; for (let i = 0; i < pts.length - 1; i++){ const [ax, az] = pts[i], [bx, bz] = pts[i + 1], len = Math.hypot(bx - ax, bz - az); seg.push({ ax, az, bx, bz, len, L0:L }); L += len; } return { pts, seg, L }; }
+  function near(p, x, z){ let best = 1e9, bt = 0; for (const s of p.seg){ const dx = s.bx - s.ax, dz = s.bz - s.az; let u = ((x - s.ax) * dx + (z - s.az) * dz) / (s.len * s.len); u = u < 0 ? 0 : u > 1 ? 1 : u;
+      const d = Math.hypot(x - s.ax - dx * u, z - s.az - dz * u); if (d < best){ best = d; bt = (s.L0 + u * s.len) / p.L; } } return { d:best, t:bt }; }
+  const coastX = z => 4.4 + .35 * Math.sin(1.3 * z) + .2 * Math.sin(3.1 * z + 1);
+  const MX = coastX(3.2) + .12, MZ = 3.2;
+  const RIVER = path([[-8.3,-4.7],[-7.2,-3.6],[-6.0,-2.5],[-4.8,-1.3],[-3.6,-.1],[-2.6,.9],[-1.5,1.5],[-.4,1.1],[.6,1.6],[1.4,2.6],[2.4,2.9],[3.2,2.6],[MX,MZ]]);
+  const CANYON = path([[-2.9,-5.9],[-1.9,-5.2],[-.8,-5.0],[.3,-4.4],[1.3,-3.9],[2.2,-3.3],[2.9,-2.9]]);
+  const RN = path([[-10.4,-6.8],[-8.4,-6.0],[-6.6,-4.7],[-5.2,-3.4],[-4.0,-2.7]]), RS = path([[-10.9,-3.1],[-9.2,-1.9],[-7.6,-.6],[-6.4,.6],[-5.6,1.6]]);
+  const DIST = [-.62, 0, .55].map(a => path([[MX - .1, MZ], [MX + 1.75 * Math.cos(a), MZ + 1.75 * Math.sin(a)]]));
+  const riverBed = t => .06 + .14 * (1 - t) + .95 * Math.pow(Math.max(0, 1 - t / .45), 1.5);
+  const canyonBed = t => .55 - .42 * t;
+  const LAKE = { x:-2.6, z:4.3, level:.2, r:1.25 };
+  function S(x, z){
+    const f = fbm(x * .5 + 7, z * .5);
+    /* --- land mask --- */
+    const c = coastX(z); let L = sm(c + .45, c - .45, x);
+    const ge = Math.hypot((x - 3.4) / 2.4, (z + 2.6) / 1.3), g = 1 - sm(.85, 1.1, ge); L *= 1 - g;
+    const hl = sm(-4.0, -4.6, z) * sm(7.8, 7.0, x + .4 * Math.sin(z * 1.7)); L = Math.max(L, hl);
+    const zc = -.25 + .18 * Math.sin(x * 1.4), hw = .8 - .22 * sm(4, 7.8, x), pen = sm(hw + .25, hw - .15, Math.abs(z - zc)) * sm(8.0, 7.55, x) * sm(3, 4, x); L = Math.max(L, pen);
+    const di = Math.hypot(x - 9.35, z + .1) + .15 * (fbm(x * 2, z * 2) - .45), isl = sm(1.15, .9, di); L = Math.max(L, isl);
+    const fx = x - MX + .1, fz = z - MZ, fr = Math.hypot(fx, fz), fan = sm(1.95, 1.55, fr) * sm(-.3, .15, fx) * sm(1.05, .8, Math.abs(Math.atan2(fz, Math.max(fx, 1e-3)))); L = Math.max(L, fan);
+    /* --- land height --- */
+    let HL = .27 + .1 * f + .35 * sm(-2, -8, x) * fbm(x * .8, z * .8);
+    const n1 = near(RN, x, z), n2 = near(RS, x, z);
+    const ridge = (n, o) => (2.2 + 1.1 * fbm(x * .9 + o, z * .9)) * Math.exp(-(((n.d / 1.25)) ** 2)) * (.6 + .4 * Math.sin(Math.PI * Math.min(1, n.t * 1.1))) + .4 * Math.abs(vn(x * 2.2 + o, z * 2.2) - .5) * 2 * Math.exp(-(((n.d / .9)) ** 2));
+    const M = Math.max(ridge(n1, 3), ridge(n2, 11)) + .25 * Math.exp(-(((Math.min(n1.d, n2.d) / 2.4)) ** 2));
+    HL += M;
+    const pe = Math.hypot((x + .6) / 2.7, (z + 4.9) / 1.8) + .08 * (fbm(x * 1.5, z * 1.5) - .45), p = sm(1.08, .92, pe);
+    HL = Math.max(HL, HL + (1.5 + .06 * fbm(x * 2, z * 2) - HL) * p);
+    HL += .32 * pen * sm(4.3, 5.5, x) * sm(.9, .1, Math.abs(z - zc)) * fbm(x * 1.3, z * 1.3) * 2;
+    HL += isl * (.75 * Math.exp(-((((di) / .55)) ** 2)) + .1 * fbm(x * 3, z * 3));
+    /* valley + river channel */
+    const rv = near(RIVER, x, z), k = 1.6 + (.18 - 1.6) * sm(.25, .5, rv.t), carve = riverBed(rv.t) + k * Math.max(0, rv.d - .06), w = sm(1.8, 1.2, rv.d);
+    HL = HL + (Math.min(HL, carve) - HL) * w;
+    /* canyon */
+    const cn = near(CANYON, x, z), cw = (cn.d - .13) * 6.5, cbed = canyonBed(cn.t) + Math.max(0, cw + .06 * Math.sin(cw * 16));
+    HL = Math.min(HL, cbed);
+    /* lake */
+    const dl = Math.hypot(x - LAKE.x, z - LAKE.z) + .12 * (f - .45); HL = Math.min(HL, .04 + .6 * Math.max(0, dl - .7));
+    /* delta */
+    HL = HL + (.09 + .04 * fbm(x * 3, z * 3) - HL) * fan;
+    let dd = 9; for (const q of DIST) dd = Math.min(dd, near(q, x, z).d);
+    if (fan > .05) HL = Math.min(HL, -.06 + .7 * Math.max(0, dd - .07) + (1 - fan));
+    const sea = -.75 + .15 * fbm(x * .7, z * .7);
+    const h = sea + (HL - sea) * L;
+    return { h, L, g, pen, isl, fan, p, M, rv, cn, dl };
+  }
+  const H = (x, z) => S(x, z).h;
+  function classify(x, z, seaLevel = 0){
+    const s = S(x, z), wet = s.h < seaLevel;
+    if (Math.hypot(x - LAKE.x, z - LAKE.z) < 1.3 && s.h < LAKE.level + .01 && seaLevel < LAKE.level) return 'lake';
+    if (x > 7.45 && x < 8.5 && Math.abs(z + .2) < .85 && wet) return 'strait';
+    if (s.isl > .4 && !wet) return 'island';
+    if (s.fan > .3 && x > MX - .4) return wet && seaLevel > .1 ? 'ocean' : 'delta';
+    if (s.cn.d < .5 && s.p > .15) return 'canyon';
+    if (s.rv.d < .2 && !wet) return 'river';
+    if (wet && (s.g > .4 || (z < -.95 && z > -4.3 && x < 7.7))) return 'gulf';
+    if (wet) return 'ocean';
+    if (s.pen > .5 && x > 4.1) return 'peninsula';
+    if (s.p > .5) return 'plateau';
+    if (s.rv.t < .42 && s.rv.d < 1.1) return 'valley';
+    if (s.M > .75) return 'mountain';
+    return 'plain';
+  }
+  const PINS = { mountain:[-7.3,-5.3], plateau:[-.4,-6.1], plain:[.9,4.9], valley:[-5.9,-2.3], canyon:[.3,-4.4], river:[-.4,1.1], delta:[MX + .9, MZ + .1],
+    lake:[LAKE.x, LAKE.z], island:[9.35,-.1], peninsula:[6.0,-.3], gulf:[4.7,-2.6], strait:[7.98,-.2], ocean:[8.6,4.6] };
+  return { S, H, classify, sm, fbm, RIVER, CANYON, DIST, riverBed, canyonBed, LAKE, PINS, near, X:[-11, 11], Z:[-7.5, 7.5] };
+})();
+/* ===== Story: a river's journey from mountains to the sea ===== */
+const STORY = [
+  {en:'1 · A river begins at its source high in the mountains, fed by melting snow, rain and springs.',zh:'1 · 河流发源于高山上的源头，由融化的冰雪、雨水和泉水汇集而成。', key:'river', at:[-8.0,-4.4], d:9},
+  {en:'2 · Rushing downhill, the fast water erodes the rock and cuts a V-shaped valley between the mountain ridges.',zh:'2 · 河水奔流而下，不断侵蚀岩石，在两条山脊之间切出一条“V”形河谷。', key:'valley', at:[-5.9,-2.3], d:9},
+  {en:'3 · Nearby, a stream has cut down through the flat, high plateau for millions of years, carving a deep canyon.',zh:'3 · 不远处，一条小河数百万年来不断向下切割平坦的高原，形成了深深的峡谷。', key:'canyon', at:[.1,-4.5], d:8},
+  {en:'4 · On the low, flat plain the river slows down and winds in loops (meanders). Its floods leave rich soil for farms and towns.',zh:'4 · 到了地势低平的平原，河流变慢、弯弯曲曲（河曲）。洪水留下肥沃的土壤，适合农田和城镇。', key:'plain', at:[-.4,2.2], d:10},
+  {en:'5 · At its mouth the river slows almost to a stop and drops its sediment, building a fan-shaped delta into the sea.',zh:'5 · 在河口，水流几乎停下来，泥沙大量沉积，向海中堆积出扇形的三角洲。', key:'delta', at:[4.7,3.2], d:7},
+  {en:'6 · Along the coast: a gulf reaches into the land, a peninsula pokes into the sea, and a narrow strait separates it from an island.',zh:'6 · 沿着海岸：海湾伸入陆地，半岛伸入大海，一条狭窄的海峡把半岛和岛屿隔开。', key:'strait', at:[7.2,-1.0], d:10}
+];
+
+/* ===== Info panel / selection ===== */
+const App = window.LANDF = { sel:null, three:null };
+App.select = (k, from3D) => { App.sel = k; renderInfo(); renderChips(); if (App.three) App.three.highlight(k, !from3D); };
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel;
+  if (!k){
+    box.innerHTML = `<span class="tag">${Lab.L({en:'Physical geography',zh:'自然地理'})}</span>
+      <h3>${Lab.L({en:'The shape of the land',zh:'大地的形状'})}</h3>
+      <p class="muted" style="margin:0">${Lab.L({en:'A landform is a natural shape of Earth’s surface, like a mountain or a plain. Bodies of water, like rivers, lakes and gulfs, fill the low places. Click any spot on the model, or a pin, to find out what it is.',zh:'地形是地球表面的自然形态，比如山地和平原。河流、湖泊、海湾等水体则充满了低洼的地方。点击模型上的任意位置或标记，看看它是什么。'})}</p>
+      <div class="memory"><b>${Lab.L({en:'💡 Big idea',zh:'💡 核心概念'})}</b>${Lab.L({en:'Water always flows downhill, from high landforms to low ones, and slowly reshapes the land as it goes.',zh:'水总是从高处流向低处，在流动中慢慢改变着大地的模样。'})}</div>
+      <div class="nav"><button id="startBtn">${Lab.L({en:'Start with mountains ▶',zh:'从山脉开始 ▶'})}</button></div>`;
+    Lab.$('#startBtn').onclick = () => App.select('mountain');
+    return;
+  }
+  const p = PARTS[k], i = ORDER.indexOf(k);
+  box.innerHTML = `<span class="tag">${Lab.L(p.kind)}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="ex"><b>${Lab.L({en:'🌍 Real examples: ',zh:'🌍 实例：'})}</b>${Lab.L(p.ex)}</div>
+    <div class="memory"><b>${Lab.L({en:'💡 Memory hint',zh:'💡 记忆小窍门'})}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${Lab.L({en:'⚠️ Common mix-up:',zh:'⚠️ 容易混淆：'})}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="pPrev">${Lab.L({en:'◀ Previous',zh:'◀ 上一个'})}</button><button id="pNext">${Lab.L({en:'Next ▶',zh:'下一个 ▶'})}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts), Lab.L(p.ex)].join('. '));
+  Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
+  Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
+}
+function renderChips(){
+  Lab.$('#chips').innerHTML = ORDER.map(k => `<button class="chip ${App.sel===k?'on':''}" data-k="${k}"><i style="background:${PARTS[k].color}"></i>${Lab.L(PARTS[k].name)}</button>`).join('');
+  Lab.$$('#chips .chip').forEach(c => c.onclick = () => App.select(c.dataset.k));
+}
+Lab.onLang(() => { renderInfo(); renderChips(); });
+const cssv = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+/* ===== Topographic (contour) map + cross-section + challenge ===== */
+(function(){
+  const box = Lab.$('#topoBox'), cv = Lab.$('#topoCv'), g = cv.getContext('2d'), pc = Lab.$('#profCv'), pg = pc.getContext('2d');
+  const GW = 264, GH = 180, X0 = -11, Z0 = -7.5, SX = 22, SZ = 15, STEP = 200 / KM;   // contour interval 200 m
+  const HG = new Float32Array(GW * GH);
+  for (let j = 0; j < GH; j++) for (let i = 0; i < GW; i++) HG[j * GW + i] = LF.H(X0 + SX * i / (GW - 1), Z0 + SZ * j / (GH - 1));
+  const elev = h => Math.round(h * KM / 10) * 10;
+  const TINTS = [['#8fcf7a',0],['#b7dc83',200],['#e2e39a',400],['#efd28a',600],['#e3b877',800],['#cf9c6a',1000],['#b88a6a',1200],['#ece8e2',1400]];
+  const WATERC = '#a9d6f2';
+  const hex = c => [parseInt(c.slice(1,3),16), parseInt(c.slice(3,5),16), parseInt(c.slice(5,7),16)];
+  /* base tint image at grid resolution */
+  const off = document.createElement('canvas'); off.width = GW; off.height = GH;
+  (function(){ const o = off.getContext('2d'), im = o.createImageData(GW, GH);
+    for (let j = 0; j < GH; j++) for (let i = 0; i < GW; i++){
+      const h = HG[j * GW + i], x = X0 + SX * i / (GW - 1), z = Z0 + SZ * j / (GH - 1), e = h * KM;
+      const lake = Math.hypot(x - LF.LAKE.x, z - LF.LAKE.z) < 1.3 && h < LF.LAKE.level;
+      let c = WATERC; if (h >= 0 && !lake){ c = TINTS[0][0]; for (const t of TINTS) if (e >= t[1]) c = t[0]; }
+      const [r, gg, b] = hex(c), shade = h < 0 && !lake ? Math.max(.82, 1 + h * .25) : 1, k = (j * GW + i) * 4;
+      im.data[k] = r * shade; im.data[k + 1] = gg * shade; im.data[k + 2] = b * shade; im.data[k + 3] = 255; }
+    o.putImageData(im, 0, 0); })();
+  /* marching squares → segments in grid coordinates */
+  function iso(level){
+    const out = [];
+    for (let j = 0; j < GH - 1; j++) for (let i = 0; i < GW - 1; i++){
+      const a = HG[j * GW + i], b = HG[j * GW + i + 1], c = HG[(j + 1) * GW + i + 1], d = HG[(j + 1) * GW + i], p = [];
+      if ((a < level) !== (b < level)) p.push(i + (level - a) / (b - a), j);
+      if ((b < level) !== (c < level)) p.push(i + 1, j + (level - b) / (c - b));
+      if ((c < level) !== (d < level)) p.push(i + 1 - (level - c) / (d - c), j + 1);
+      if ((d < level) !== (a < level)) p.push(i, j + 1 - (level - d) / (a - d));
+      if (p.length >= 4) out.push(p[0], p[1], p[2], p[3]);
+      if (p.length === 8) out.push(p[4], p[5], p[6], p[7]);
+    }
+    return out;
+  }
+  const LEVELS = []; for (let v = STEP; v < 3.6; v += STEP) LEVELS.push({ v, seg:iso(v), index:Math.round(v * KM) % 1000 === 0 });
+  const COAST = iso(0);
+  /* geometry helpers */
+  let W = 0, Hh = 0;
+  const toPx = (x, z) => [(x - X0) / SX * W, (z - Z0) / SZ * Hh];
+  const toW = (px, py) => [X0 + px / W * SX, Z0 + py / Hh * SZ];
+  const slope = (x, z) => Math.hypot(LF.H(x + .12, z) - LF.H(x - .12, z), LF.H(x, z + .12) - LF.H(x, z - .12)) / .24;
+  /* state */
+  let line = { a:[-9.6,-4.0], b:[2.2,-5.6] }, drag = null, hover = null;
+  const T = { q:null, ok:0, all:0, done:false, order:[] };
+  function resize(){ const r = box.getBoundingClientRect(), dpr = Math.min(devicePixelRatio, 2); W = r.width; Hh = r.height; if (!W) return;
+    cv.width = W * dpr; cv.height = Hh * dpr; g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const pr = pc.getBoundingClientRect(); pc.width = pr.width * dpr; pc.height = pr.height * dpr; pg.setTransform(dpr, 0, 0, dpr, 0, 0); draw(); profile(); }
+  function strokeSeg(seg){ g.beginPath(); const fx = W / (GW - 1), fy = Hh / (GH - 1); for (let k = 0; k < seg.length; k += 4){ g.moveTo(seg[k] * fx, seg[k + 1] * fy); g.lineTo(seg[k + 2] * fx, seg[k + 3] * fy); } g.stroke(); }
+  function poly(pts, w, col){ g.strokeStyle = col; g.lineWidth = w; g.lineCap = g.lineJoin = 'round'; g.beginPath(); pts.forEach(([x, z], k) => { const [px, py] = toPx(x, z); k ? g.lineTo(px, py) : g.moveTo(px, py); }); g.stroke(); }
+  function pin(x, z, txt, col){ const [px, py] = toPx(x, z); g.fillStyle = col; g.strokeStyle = '#fff'; g.lineWidth = 2.5; g.beginPath(); g.arc(px, py, 11, 0, 7); g.fill(); g.stroke();
+    g.fillStyle = '#fff'; g.font = '800 13px Nunito, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, px, py + .5); }
+  function tagText(x, y, txt){ g.font = '800 12px Nunito, sans-serif'; const w = g.measureText(txt).width + 10; g.fillStyle = cssv('--surface'); g.globalAlpha = .9; g.fillRect(x - w / 2, y - 9, w, 18); g.globalAlpha = 1; g.fillStyle = cssv('--ink'); g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, x, y); }
+  function draw(){
+    if (!W) return;
+    g.imageSmoothingEnabled = true; g.drawImage(off, 0, 0, W, Hh);
+    g.lineCap = 'round';
+    for (const L of LEVELS){ g.strokeStyle = 'rgba(120,72,30,.85)'; g.lineWidth = L.index ? 2.2 : 1; strokeSeg(L.seg); }
+    g.strokeStyle = '#2f6f9f'; g.lineWidth = 1.6; strokeSeg(COAST);
+    poly(LF.RIVER.pts, 3, '#2f7fd0'); poly(LF.CANYON.pts, 1.8, '#2f7fd0'); LF.DIST.forEach(d => poly(d.pts, 1.6, '#2f7fd0'));
+    /* north arrow + scale bar */
+    const ink = cssv('--ink');
+    g.fillStyle = ink; g.strokeStyle = ink; g.lineWidth = 2; const nx = W - 26, ny = 18;
+    g.beginPath(); g.moveTo(nx, ny); g.lineTo(nx - 7, ny + 18); g.lineTo(nx, ny + 13); g.lineTo(nx + 7, ny + 18); g.closePath(); g.fill();
+    tagText(nx, ny + 30, Lab.L({en:'N',zh:'北'}));
+    const sb = W * 5 / SX, sx = W - sb - 16, sy = Hh - 18;   // 1 unit = 2 km
+    g.fillStyle = ink; g.fillRect(sx, sy, sb / 2, 5); g.fillStyle = cssv('--surface'); g.fillRect(sx + sb / 2, sy, sb / 2, 5); g.strokeStyle = ink; g.lineWidth = 1; g.strokeRect(sx, sy, sb, 5);
+    tagText(sx + sb / 2, sy - 11, Lab.L({en:'0 ——— 10 km',zh:'0 ——— 10 千米'}));
+    /* cross-section line */
+    const [ax, ay] = toPx(...line.a), [bx, by] = toPx(...line.b), acc = cssv('--accent');
+    g.setLineDash([7, 5]); g.strokeStyle = acc; g.lineWidth = 2.5; g.beginPath(); g.moveTo(ax, ay); g.lineTo(bx, by); g.stroke(); g.setLineDash([]);
+    g.fillStyle = acc; [[ax, ay], [bx, by]].forEach(([x, y]) => { g.beginPath(); g.arc(x, y, 5, 0, 7); g.fill(); });
+    /* challenge points */
+    if (T.q) T.q.pts.forEach((p, k) => { pin(p.x, p.z, 'AB'[k], k ? '#7c4dff' : '#e5484d'); if (T.done && T.q.type !== 'feature'){ const [px, py] = toPx(p.x, p.z); tagText(px, py + 22, (T.q.type === 'steeper' ? '' : p.e + ' m')); } });
+    if (T.q && T.done && T.q.type === 'steeper') T.q.pts.forEach(p => { const [px, py] = toPx(p.x, p.z); g.strokeStyle = cssv('--ink'); g.lineWidth = 1.5; g.beginPath(); g.arc(px, py, 22, 0, 7); g.stroke(); });
+    if (hover){ const [px, py] = toPx(hover.x, hover.z); g.strokeStyle = cssv('--ink'); g.lineWidth = 1; g.beginPath(); g.moveTo(px - 8, py); g.lineTo(px + 8, py); g.moveTo(px, py - 8); g.lineTo(px, py + 8); g.stroke(); }
+  }
+  function profile(){
+    const w = pc.getBoundingClientRect().width, h = pc.getBoundingClientRect().height; if (!w) return;
+    pg.clearRect(0, 0, w, h);
+    const N = 160, pad = 34, top = 10, bot = 18, eMax = 1800, eMin = -400, Y = e => top + (eMax - e) / (eMax - eMin) * (h - top - bot), Xp = k => pad + k / (N - 1) * (w - pad - 8);
+    const es = []; for (let k = 0; k < N; k++){ const u = k / (N - 1); es.push(LF.H(line.a[0] + (line.b[0] - line.a[0]) * u, line.a[1] + (line.b[1] - line.a[1]) * u) * KM); }
+    pg.font = '700 11px Nunito, sans-serif'; pg.fillStyle = cssv('--ink-2'); pg.textAlign = 'right'; pg.textBaseline = 'middle';
+    pg.strokeStyle = cssv('--line'); pg.lineWidth = 1;
+    for (const e of [0, 500, 1000, 1500]){ pg.beginPath(); pg.moveTo(pad, Y(e)); pg.lineTo(w - 8, Y(e)); pg.stroke(); pg.fillText(e + (e === 0 ? '' : ''), pad - 4, Y(e)); }
+    pg.fillText('m', pad - 4, top + 2);
+    /* water */
+    pg.fillStyle = 'rgba(63,143,208,.55)'; pg.beginPath(); pg.moveTo(Xp(0), Y(0)); for (let k = 0; k < N; k++) pg.lineTo(Xp(k), Y(Math.min(0, es[k]))); pg.lineTo(Xp(N - 1), Y(0)); pg.closePath(); pg.fill();
+    /* land */
+    const grd = pg.createLinearGradient(0, Y(1600), 0, Y(-400)); grd.addColorStop(0, '#b88a6a'); grd.addColorStop(.45, '#c9b26a'); grd.addColorStop(.75, '#7cbf5a'); grd.addColorStop(1, '#6b5a45');
+    pg.fillStyle = grd; pg.beginPath(); pg.moveTo(Xp(0), h - bot); for (let k = 0; k < N; k++) pg.lineTo(Xp(k), Y(es[k])); pg.lineTo(Xp(N - 1), h - bot); pg.closePath(); pg.fill();
+    pg.strokeStyle = cssv('--ink'); pg.lineWidth = 1.5; pg.beginPath(); for (let k = 0; k < N; k++) k ? pg.lineTo(Xp(k), Y(es[k])) : pg.moveTo(Xp(k), Y(es[k])); pg.stroke();
+    const km = Math.hypot(line.b[0] - line.a[0], line.b[1] - line.a[1]) * 2;
+    pg.fillStyle = cssv('--ink-2'); pg.textAlign = 'center'; pg.textBaseline = 'alphabetic';
+    pg.fillText(Lab.lang === 'zh' ? `剖面长约 ${km.toFixed(0)} 千米 · 最高 ${Math.round(Math.max(...es))} 米 · 垂直方向已夸大` : `${km.toFixed(0)} km long · highest ${Math.round(Math.max(...es))} m · height exaggerated`, (pad + w) / 2, h - 4);
+  }
+  /* pointer: hover readout + drag to draw a cross-section */
+  const evPt = e => { const r = cv.getBoundingClientRect(); return toW(e.clientX - r.left, e.clientY - r.top); };
+  function readout(){
+    const r = Lab.$('#topoRead'); if (!hover){ r.textContent = Lab.L({en:'Move over the map to read the elevation',zh:'把鼠标移到地图上读取海拔'}); return; }
+    const k = LF.classify(hover.x, hover.z), e = elev(LF.H(hover.x, hover.z));
+    r.textContent = `📍 ${Lab.L({en:'Elevation',zh:'海拔'})}: ${e < 0 ? Lab.L({en:'under water',zh:'水下'}) : e + ' m'} · ${Lab.L(PARTS[k].name)}`;
+  }
+  cv.addEventListener('pointerdown', e => { const p = evPt(e); drag = { a:p, moved:false }; cv.setPointerCapture(e.pointerId); });
+  cv.addEventListener('pointermove', e => { const p = evPt(e); hover = { x:p[0], z:p[1] }; readout();
+    if (drag && Math.hypot(p[0] - drag.a[0], p[1] - drag.a[1]) > .4){ drag.moved = true; line = { a:drag.a, b:p }; profile(); } draw(); });
+  cv.addEventListener('pointerup', () => { drag = null; });
+  cv.addEventListener('pointerleave', () => { hover = null; readout(); draw(); });
+  /* ---- challenge ---- */
+  const LANDK = ['mountain','plateau','plain','valley','canyon','peninsula','island','delta'];
+  const CLUE = {
+    mountain:{en:'Many tightly packed contour lines, with small closed loops at the peaks.',zh:'等高线又多又密，山峰处有闭合的小圈。'},
+    plateau:{en:'Lines crowd together at the edges, but there is a wide, flat, high area on top with almost no lines.',zh:'边缘等高线密集，顶部却是一大片几乎没有等高线的高而平坦的地方。'},
+    plain:{en:'Very few, widely spaced lines at low elevation: flat, low land.',zh:'等高线很少、间隔很宽，海拔低：又平又低的土地。'},
+    valley:{en:'Contour lines bend into a “V” that points uphill, with a river at the bottom.',zh:'等高线弯成指向高处的“V”字，谷底有河流。'},
+    canyon:{en:'A narrow slot where many lines squeeze together on both sides of a stream.',zh:'一条狭窄的通道，小河两侧挤满了等高线。'},
+    peninsula:{en:'Land with water on three sides, joined to the mainland on one side.',zh:'三面环水、一面与大陆相连的陆地。'},
+    island:{en:'Land with water all the way around it.',zh:'四周都被水包围的陆地。'},
+    delta:{en:'Low, flat land fanning out where the river meets the sea.',zh:'河流入海处呈扇形展开的低平陆地。'}
+  };
+  function randLand(test){ for (let n = 0; n < 600; n++){ const x = -10.4 + Math.random() * 20.8, z = -7 + Math.random() * 14, h = LF.H(x, z);
+      if (h > .04 && !(Math.hypot(x - LF.LAKE.x, z - LF.LAKE.z) < 1.4) && (!test || test(x, z, h))) return { x, z, h, e:elev(h) }; } return null; }
+  function makeQ(type){
+    if (type === 'higher'){ for (let n = 0; n < 200; n++){ const A = randLand(), B = randLand(); if (A && B && Math.abs(A.e - B.e) > 300 && Math.hypot(A.x - B.x, A.z - B.z) > 3) return { type, pts:[A, B], options:['A','B'], answer:A.e > B.e ? 0 : 1 }; } }
+    if (type === 'steeper'){ for (let n = 0; n < 300; n++){ const A = randLand((x, z, h) => h > .12), B = randLand((x, z, h) => h > .12); if (!A || !B || Math.hypot(A.x - B.x, A.z - B.z) < 3) continue;
+        const sa = slope(A.x, A.z), sb = slope(B.x, B.z); if (Math.max(sa, sb) > .9 && Math.max(sa, sb) / Math.max(.01, Math.min(sa, sb)) > 3.5) return { type, pts:[A, B], options:['A','B'], answer:sa > sb ? 0 : 1 }; } }
+    if (type === 'elev'){ const A = randLand((x, z, h) => { const m = (h * KM) % 200; return m > 50 && m < 150 && h * KM < 1600; });
+      if (A){ const band = Math.floor(A.e / 200), bands = Lab.shuffle([0,1,2,3,4,5,6,7].filter(b => b !== band)).slice(0, 3).concat(band).sort((a, b) => a - b);
+        return { type, pts:[A], options:bands.map(b => `${b * 200}–${b * 200 + 200} m`), answer:bands.indexOf(band), band }; } }
+    if (type === 'feature'){ const target = LANDK[Math.random() * LANDK.length | 0], [cx, cz] = LF.PINS[target];
+      for (let n = 0; n < 500; n++){ const x = cx + (Math.random() - .5) * 2, z = cz + (Math.random() - .5) * 2; if (LF.classify(x, z) === target && LF.H(x, z) > .03){
+        const opts = Lab.shuffle(LANDK.filter(k => k !== target)).slice(0, 3).concat(target); const order = Lab.shuffle(opts);
+        return { type, target, pts:[{ x, z, e:elev(LF.H(x, z)) }], options:order, answer:order.indexOf(target) }; } } }
+    return makeQ('higher');
+  }
+  function newQ(){ if (!T.order.length) T.order = Lab.shuffle(['higher','steeper','elev','feature','higher','feature']); T.q = makeQ(T.order.pop()); T.done = false; T.pick = null; renderQ(); draw(); }
+  const QTXT = { higher:{en:'Which point is HIGHER, A or B? Count the contour lines or read the colors.',zh:'A、B 两点哪个更高？数一数等高线，或看看颜色。'},
+    steeper:{en:'Around which point is the slope STEEPER?',zh:'哪一点附近的坡更陡？'},
+    elev:{en:'About how high above sea level is point A?',zh:'A 点的海拔大约是多少？'},
+    feature:{en:'What landform is at point A?',zh:'A 点是什么地形？'} };
+  function explain(q){
+    const zh = Lab.lang === 'zh';
+    if (q.type === 'higher') return zh ? `A ≈ ${q.pts[0].e} 米,B ≈ ${q.pts[1].e} 米。向高处每跨过一条等高线,海拔就升高 200 米。` : `A ≈ ${q.pts[0].e} m and B ≈ ${q.pts[1].e} m. Each contour line you cross going uphill adds 200 m.`;
+    if (q.type === 'steeper') return zh ? `${'AB'[q.answer]} 点周围的等高线挤得很密,说明地势升得很快:坡陡。` : `Around ${'AB'[q.answer]} the contour lines are packed close together, so the land rises quickly: a steep slope.`;
+    if (q.type === 'elev') return zh ? `A ≈ ${q.pts[0].e} 米,在 ${q.band * 200} 米和 ${q.band * 200 + 200} 米两条等高线之间。` : `A ≈ ${q.pts[0].e} m, between the ${q.band * 200} m and ${q.band * 200 + 200} m contour lines.`;
+    return Lab.L(CLUE[q.target]);
+  }
+  function renderQ(){
+    const q = T.q; if (!q) return;
+    Lab.$('#tq').textContent = Lab.L(QTXT[q.type]);
+    const label = o => q.type === 'feature' ? Lab.L(PARTS[o].name) : (o === 'A' || o === 'B') ? Lab.L({en:'Point ' + o,zh:o + ' 点'}) : o;
+    Lab.$('#tOpts').innerHTML = q.options.map((o, k) => `<button class="btn ghost ${T.done ? (k === q.answer ? 'right' : k === T.pick ? 'wrong' : '') : ''}" data-k="${k}" ${T.done ? 'disabled' : ''}>${label(o)}</button>`).join('');
+    Lab.$$('#tOpts button').forEach(b => b.onclick = () => answer(+b.dataset.k));
+    const m = Lab.$('#tMsg');
+    if (T.done){ const ok = T.pick === q.answer; m.className = 'result ' + (ok ? 'good' : 'bad'); m.textContent = (ok ? Lab.L({en:'✅ Correct! ',zh:'✅ 答对了！'}) : Lab.L({en:'❌ Not quite. ',zh:'❌ 不对。'})) + explain(q); }
+    else { m.className = 'result'; m.textContent = ''; }
+    Lab.$('#tOk').textContent = T.ok; Lab.$('#tAll').textContent = T.all;
+  }
+  function answer(k){ if (T.done) return; T.done = true; T.pick = k; T.all++; if (k === T.q.answer) T.ok++; renderQ(); draw(); }
+  Lab.$('#tNext').onclick = newQ;
+  /* legend */
+  function legend(){ Lab.$('#topoLegend').innerHTML = `<span><i style="background:${WATERC};border-radius:3px"></i>${Lab.L({en:'Water',zh:'水域'})}</span>` + TINTS.map((t, k) => `<span><i style="background:${t[0]};border-radius:3px"></i>${t[1]}${k < TINTS.length - 1 ? '–' + TINTS[k + 1][1] : '+'} m</span>`).join('') +
+    `<span><i style="background:rgb(120,72,30);height:3px;border-radius:0"></i>${Lab.L({en:'Contour line (every 200 m; thick = 1000 m)',zh:'等高线（每 200 米一条，粗线 = 1000 米）'})}</span><span><i style="background:#2f7fd0;height:3px;border-radius:0"></i>${Lab.L({en:'River',zh:'河流'})}</span>`; }
+  new ResizeObserver(resize).observe(box);
+  window.addEventListener('labtheme', () => { draw(); profile(); });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { draw(); profile(); });
+  newQ();
+  Lab.onLang(() => { renderQ(); readout(); legend(); draw(); profile(); });
+})();
+/* ===== Quiz ===== */
+const o = (en, zh) => ({en, zh});
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('Land that is surrounded by water on THREE sides is a…','三面环水的陆地叫做……'), options:[o('Peninsula','半岛'),o('Island','岛屿'),o('Strait','海峡'),o('Plateau','高原')], answer:0, explain:o('A peninsula is “almost an island”: water on three sides, joined to the mainland on the fourth. Florida is one.','半岛“几乎是岛”：三面是水，一面连着大陆。佛罗里达就是半岛。')},
+  {q:o('A large area of HIGH, mostly flat land with steep sides is a…','地势高、大部分平坦、边缘陡峭的大片地区叫做……'), options:[o('Plateau','高原'),o('Plain','平原'),o('Valley','山谷'),o('Delta','三角洲')], answer:0, explain:o('Plateaus and plains are both flat, but a plateau is high and a plain is low.','高原和平原都平坦，但高原地势高，平原地势低。')},
+  {q:o('What builds a delta at the mouth of a river?','河口的三角洲是怎样形成的？'), options:[o('Sediment dropped as the river slows down','河流减速时沉积下来的泥沙'),o('Lava from a volcano','火山喷出的熔岩'),o('Ice from a glacier','冰川带来的冰'),o('Waves digging out the land','海浪把陆地挖走')], answer:0, explain:o('When a river reaches the sea it slows down and drops its sand, silt and mud. Layer by layer, new land forms.','河流入海时流速变慢，沙、粉砂和泥沉积下来，一层层堆成新的陆地。')},
+  {q:o('A narrow body of water that connects two larger bodies of water is a…','连接两片较大水域的狭窄水道叫做……'), options:[o('Strait','海峡'),o('Isthmus','地峡'),o('Gulf','海湾'),o('Lake','湖泊')], answer:0, explain:o('The Strait of Gibraltar connects the Atlantic Ocean and the Mediterranean Sea. An isthmus is the land version.','直布罗陀海峡连接大西洋和地中海。地峡则是“陆地版”的海峡。')},
+  {q:o('On a contour map, contour lines that are very close together show…','在等高线地图上，等高线非常密集表示……'), options:[o('A steep slope','坡很陡'),o('Flat land','地面平坦'),o('A lake','一个湖泊'),o('A road','一条道路')], answer:0, explain:o('Close lines mean the elevation changes a lot over a short distance: steep. Far-apart lines mean a gentle slope.','等高线密集表示在很短的距离内海拔变化很大，坡陡；等高线稀疏表示坡缓。')},
+  {q:o('A part of the ocean that reaches into the land, like the Gulf of Mexico, is a…','伸入陆地的一部分海洋（如墨西哥湾）叫做……'), options:[o('Gulf','海湾'),o('Peninsula','半岛'),o('Delta','三角洲'),o('Canyon','峡谷')], answer:0},
+  {q:o('The Grand Canyon was mainly formed by…','美国大峡谷主要是由什么形成的？'), options:[o('The Colorado River eroding rock for millions of years','科罗拉多河数百万年的侵蚀'),o('One huge earthquake','一次大地震'),o('A meteorite crash','陨石撞击'),o('People digging a mine','人类开矿')], answer:0, explain:o('Running water slowly wore the rock away, cutting down about 1.8 km.','流水慢慢磨蚀岩石，向下切出约 1.8 千米深的峡谷。')},
+  {q:o('Which of these is a BODY OF WATER, not a landform?','下面哪一个是水体，而不是地形？'), options:[o('Lake','湖泊'),o('Plateau','高原'),o('Island','岛屿'),o('Valley','山谷')], answer:0},
+  {q:o('Why do so many people live on plains and deltas?','为什么很多人住在平原和三角洲上？'), options:[o('Flat land and fertile soil are good for farming and building','地面平坦、土壤肥沃，适合耕种和建设'),o('They are always cold','那里总是很冷'),o('There is no water there','那里没有水'),o('They are the highest places on Earth','那里是地球上最高的地方')], answer:0},
+  {q:o('Florida, Italy and Korea are all examples of…','佛罗里达、意大利和朝鲜半岛都是……的例子。'), options:[o('Peninsulas','半岛'),o('Islands','岛屿'),o('Plateaus','高原'),o('Straits','海峡')], answer:0},
+  {q:o('A contour map has a 200 m interval. Starting at sea level, you walk uphill and cross 4 contour lines. About how high are you?','一张地图的等高距是 200 米。从海平面出发向上走，跨过了 4 条等高线，你现在大约在多高？'), options:[o('800 m','800 米'),o('200 m','200 米'),o('400 m','400 米'),o('4 m','4 米')], answer:0, explain:o('4 lines × 200 m = 800 m.','4 条 × 200 米 = 800 米。')},
+  {q:o('Which way does a river flow?','河流朝哪个方向流？'), options:[o('Downhill, from its source to its mouth','从源头向河口，由高处流向低处'),o('Always from north to south','总是从北向南'),o('Uphill toward the mountains','向上流向山区'),o('In a circle','绕圈流动')], answer:0, explain:o('Gravity pulls water downhill in any compass direction. The Nile flows north into the Mediterranean.','重力让水向低处流，可以是任何方向。尼罗河就是向北流入地中海的。')}
+], { count:10 });
+
+/* ===== Sort game ===== */
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'land',en:'Landform (land)',zh:'地形（陆地）'},{id:'water',en:'Body of water',zh:'水体'}],
+  items:[
+    {en:'Plateau',zh:'高原',bin:'land',color:PARTS.plateau.color},{en:'Canyon',zh:'峡谷',bin:'land',color:PARTS.canyon.color},
+    {en:'Peninsula',zh:'半岛',bin:'land',color:PARTS.peninsula.color},{en:'Delta',zh:'三角洲',bin:'land',color:PARTS.delta.color},
+    {en:'Island',zh:'岛屿',bin:'land',color:PARTS.island.color},{en:'Valley',zh:'山谷',bin:'land',color:PARTS.valley.color},
+    {en:'Gulf',zh:'海湾',bin:'water',color:PARTS.gulf.color},{en:'Strait',zh:'海峡',bin:'water',color:PARTS.strait.color},
+    {en:'Lake',zh:'湖泊',bin:'water',color:PARTS.lake.color},{en:'River',zh:'河流',bin:'water',color:PARTS.river.color},
+    {en:'Bay',zh:'湾',bin:'water',color:'#3a7fc4'},{en:'Ocean',zh:'海洋',bin:'water',color:PARTS.ocean.color}
+  ]
+});
+</script>
+<script>
+/* ===== Added: time scrubber + "See the real thing" gallery ===== */
+(() => {
+const o = (en, zh) => ({ en, zh }), $ = s => document.querySelector(s);
+/* shared .timebar: ▶ plays through once, dragging pauses */
+function timebar(sel, render, ms){ const bar = $(sel); if (!bar) return; const b = bar.querySelector('button'), s = bar.querySelector('input'); let t = null;
+  const stop = () => { clearInterval(t); t = null; b.textContent = '▶'; };
+  b.onclick = () => { if (t) return stop(); if (+s.value >= +s.max) s.value = s.min; b.textContent = '⏸'; render();
+    t = setInterval(() => { if (+s.value >= +s.max) return stop(); s.value = +s.value + (+s.step || 1); render(); }, ms || 900); };
+  s.oninput = () => { stop(); render(); }; Lab.onLang(render); }
+const MONTHS = [o('January','1 月'),o('February','2 月'),o('March','3 月'),o('April','4 月'),o('May','5 月'),o('June','6 月'),o('July','7 月'),o('August','8 月'),o('September','9 月'),o('October','10 月'),o('November','11 月'),o('December','12 月')];
+/* live progress for the sort game (the shared game only gives a total at the end) */
+(() => { const host = $('#sort'); if (!host) return; const out = document.createElement('div'); out.className = 'muted'; out.style.cssText = 'font-weight:800;font-size:14px;margin-top:6px'; host.after(out);
+  const upd = () => { const done = host.querySelectorAll('.bin .chip').length, all = done + host.querySelectorAll('.pool .chip').length; out.textContent = Lab.lang === 'zh' ? `已分好 ${done} / ${all}` : `Sorted ${done} / ${all}`; };
+  new MutationObserver(upd).observe(host, { childList:true, subtree:true }); Lab.onLang(upd); })();
+/* Canyon carving: simplified, steady down-cutting of ~1,600 m in ~6 million years (approximate, Grand Canyon as the model) */
+function drawCanyon(){ const v = +$('#cynBar input').value, k = v / 60, zh = Lab.lang === 'zh', ago = (60 - v) / 10, depth = Math.round(1600 * k / 10) * 10;
+  $('#cynBar output').textContent = v === 60 ? (zh ? '今天' : 'Today') : zh ? `${ago.toFixed(1)} 百万年前` : `${ago.toFixed(1)} million years ago`;
+  const by = 60 + k * 172, half = 14 + k * 150;                               // canyon floor (px) and half-width at the rim
+  $('#cynCut').setAttribute('points', `${300 - half},60 ${300 + half},60 314,${by} 286,${by}`);
+  $('#cynRiver').setAttribute('y', by - 2);
+  $('#cynDepth').textContent = zh ? `${depth} 米` : `${Math.round(depth * 3.281 / 10) * 10} ft (${depth} m)`;
+  $('#cynEsb').textContent = '× ' + (depth / 443).toFixed(1); }
+timebar('#cynBar', drawCanyon, 120);
+/* Real media from Wikimedia Commons: URLs, credit and licence copied from the Commons API helper */
+LabPhotos.render($('#gallery'), [
+  { kind:o('Canyon','峡谷'), src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f9/USA_09847_Grand_Canyon_Luca_Galuzzi_2007.jpg/960px-USA_09847_Grand_Canyon_Luca_Galuzzi_2007.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The Grand Canyon in Arizona. The Colorado River carved it over about 6 million years. Look for the rock layers in the walls.', zh:'美国亚利桑那州的科罗拉多大峡谷。科罗拉多河用了大约 600 万年才把它切出来。找一找峡谷壁上一层层的岩石。', credit:'Luca Galuzzi (Lucag)', license:'CC BY-SA 2.5', page:'https://commons.wikimedia.org/wiki/File:USA_09847_Grand_Canyon_Luca_Galuzzi_2007.jpg' },
+  { kind:o('River bend','河湾'), src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ae/Grand_Canyon_Horse_Shoe_Bend_MC.jpg/960px-Grand_Canyon_Horse_Shoe_Bend_MC.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Horseshoe Bend, a loop of the Colorado River near Page, Arizona. Rivers in deep canyons can still wind back and forth.', zh:'亚利桑那州佩奇附近的马蹄湾，是科罗拉多河绕出的一个大弯。深谷中的河流同样会弯弯曲曲。', credit:'Christian Mehlführer, User:Chmehl', license:'CC BY 2.5', page:'https://commons.wikimedia.org/wiki/File:Grand_Canyon_Horse_Shoe_Bend_MC.jpg' },
+  { kind:o('Fjord','峡湾'), src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/77/Fiordo_de_Geiranger_desde_Flydalsjuvet%2C_Noruega%2C_2019-09-07%2C_DD_59.jpg/960px-Fiordo_de_Geiranger_desde_Flydalsjuvet%2C_Noruega%2C_2019-09-07%2C_DD_59.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Geirangerfjord in Norway: a long, narrow arm of the sea between steep cliffs, carved by glaciers.', zh:'挪威的盖朗厄尔峡湾：两侧是陡峭的悬崖，是冰川刻出来的一条又长又窄的海湾。', credit:'Diego Delso', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Fiordo_de_Geiranger_desde_Flydalsjuvet,_Noruega,_2019-09-07,_DD_59.jpg' },
+  { kind:o('Delta','三角洲'), src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fb/Lena_River_Delta_-_Landsat_2000.jpg/960px-Lena_River_Delta_-_Landsat_2000.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The delta of the Lena River in Siberia, Russia, seen by the Landsat satellite (false colors). The river splits into many channels before it reaches the Arctic Ocean.', zh:'陆地卫星拍摄的俄罗斯西伯利亚勒拿河三角洲（假彩色）。河流在流入北冰洋之前分成许多条岔道。', credit:'Landsat', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Lena_River_Delta_-_Landsat_2000.jpg' },
+  { kind:o('Strait','海峡'), src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/99/Strait_of_Gibraltar_perspective.jpg/960px-Strait_of_Gibraltar_perspective.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A 3D view of the Strait of Gibraltar made from satellite data: a narrow strip of water between Spain and Morocco that connects the Atlantic to the Mediterranean.', zh:'用卫星数据制作的直布罗陀海峡立体图：西班牙和摩洛哥之间一条狭窄的水道，连接大西洋和地中海。', credit:'NASA / JPL / NIMA', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Strait_of_Gibraltar_perspective.jpg' },
+  { kind:o('Peninsula','半岛'), src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/60/ISS-52_Italian_Peninsula.jpg/960px-ISS-52_Italian_Peninsula.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Italy photographed from the International Space Station. The boot-shaped peninsula has water on three sides.', zh:'从国际空间站拍摄的意大利。这个“靴子”形状的半岛三面环海。', credit:'Randolph Bresnik', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:ISS-52_Italian_Peninsula.jpg' },
+  { kind:o('Islands','岛屿'), src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a8/Baa_atoll_islands.JPG/960px-Baa_atoll_islands.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Veyofushi, a small island in Baa Atoll in the Maldives, from the air: land surrounded on all sides by water.', zh:'从空中看马尔代夫芭环礁中的小岛维约富希：四面都被水包围的陆地。', credit:'Frédéric Ducarme', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Baa_atoll_islands.JPG' },
+  { kind:o('Topographic map','地形图'), src:'https://upload.wikimedia.org/wikipedia/commons/7/79/Topographic_map_example.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Part of a real USGS topographic map of Stowe, Vermont. Each contour line is 20 feet (about 6 m) higher than the one below it.', zh:'美国佛蒙特州斯托的一张真实的美国地质调查局地形图的局部。每条等高线比下面那条高 20 英尺（约 6 米）。', credit:'USGS', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Topographic_map_example.png' },
+  { type:'video', kind:o('Video','视频'), media:'https://upload.wikimedia.org/wikipedia/commons/4/42/Niagara_Falls_from_Journey_Behind_The_Falls_viewpoint.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/42/Niagara_Falls_from_Journey_Behind_The_Falls_viewpoint.webm/960px--Niagara_Falls_from_Journey_Behind_The_Falls_viewpoint.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/42/Niagara_Falls_from_Journey_Behind_The_Falls_viewpoint.webm/960px--Niagara_Falls_from_Journey_Behind_The_Falls_viewpoint.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Watch and listen: Niagara Falls, on the border between the USA and Canada, from the Journey Behind the Falls viewpoint.', zh:'看一看，听一听：美国和加拿大边界上的尼亚加拉瀑布，从“瀑布后之旅”观景点拍摄。', credit:'Gogerr', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Niagara_Falls_from_Journey_Behind_The_Falls_viewpoint.webm' }
+]);
+})();
+</script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const App = window.LANDF, V = THREE.Vector3, C = s => new THREE.Color(s);
+const ctx = Lab3D.stage('#stage', { THREE, OrbitControls, camera:[0, 16.5, 20.5], target:[0, -.6, .9], minDistance:4, maxDistance:42, autoRotateSpeed:.45 });
+const { scene } = ctx;
+ctx.controls.maxPolarAngle = Math.PI * .46;
+
+/* ---------- terrain mesh ---------- */
+const [X0, X1] = LF.X, [Z0, Z1] = LF.Z, NX = 220, NZ = 150, NV = (NX + 1) * (NZ + 1);
+const geo = new THREE.PlaneGeometry(X1 - X0, Z1 - Z0, NX, NZ); geo.rotateX(-Math.PI / 2);
+const pos = geo.attributes.position, HS = new Float32Array(NV), REG = new Array(NV), SAMP = new Array(NV);
+for (let v = 0; v < NV; v++){ const x = pos.getX(v), z = pos.getZ(v), s = LF.S(x, z); HS[v] = s.h; SAMP[v] = s; pos.setY(v, s.h); REG[v] = LF.classify(x, z); }
+geo.computeVertexNormals();
+const BASE = new Float32Array(NV * 3), col = new Float32Array(NV * 3);
+(function paint(){
+  const tmp = new THREE.Color(), cA = new THREE.Color(), FIELDS = ['#84c25b','#97c75c','#76b752','#a8c862','#8cc45d'].map(C);
+  const P = { sea0:C('#cbbd8e'), sea1:C('#5f8597'), delta:C('#b4c466'), beach:C('#e4d39c'), rock0:C('#b5643c'), rock1:C('#e2a565'), top:C('#c9a35e'), snow:C('#f3f6fa'), mtn0:C('#7d6b55'), mtn1:C('#a29178'), forest:C('#4a8c3e'), hill:C('#6f9a48') };
+  for (let iz = 0; iz <= NZ; iz++) for (let ix = 0; ix <= NX; ix++){
+    const v = iz * (NX + 1) + ix, h = HS[v], s = SAMP[v], x = pos.getX(v), z = pos.getZ(v);
+    const hx = HS[iz * (NX + 1) + Math.min(NX, ix + 1)] - HS[iz * (NX + 1) + Math.max(0, ix - 1)], hz = HS[Math.min(NZ, iz + 1) * (NX + 1) + ix] - HS[Math.max(0, iz - 1) * (NX + 1) + ix];
+    const sl = Math.hypot(hx, hz) / .2, n = LF.fbm(x * 1.7, z * 1.7);
+    if (h < -.02) tmp.copy(P.sea0).lerp(P.sea1, Math.min(1, -h / .7));
+    else if (s.fan > .3 && h < .22) tmp.copy(P.delta).lerp(P.beach, n * .5);
+    else if (h < .1 && s.L < .97) tmp.copy(P.beach);
+    else if (s.cn.d < .6 && s.p > .12 && sl > .6) tmp.copy(P.rock0).lerp(P.rock1, .5 + .5 * Math.sin(h * 24));
+    else if (s.p > .5 && sl < .6) tmp.copy(P.top).lerp(P.rock1, n * .5);
+    else if (h > 2.15 + n * .35) tmp.copy(P.snow);
+    else if (h > 1.25 || sl > 1.5) tmp.copy(P.mtn0).lerp(P.mtn1, n);
+    else if (h > .62) tmp.copy(P.forest).lerp(P.hill, n);
+    else { const f = FIELDS[Math.floor(LF.fbm(Math.floor(x * 2) * 3.1, Math.floor(z * 2) * 2.7) * 9) % FIELDS.length]; tmp.copy(f).lerp(P.hill, Math.min(1, Math.max(0, (h - .35) * 3))); }
+    BASE[v * 3] = tmp.r; BASE[v * 3 + 1] = tmp.g; BASE[v * 3 + 2] = tmp.b;
+  }
+  col.set(BASE);
+})();
+geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+const CU = { uContour:{ value:0 }, uInt:{ value:200 / KM } };
+const terrMat = new THREE.MeshStandardMaterial({ vertexColors:true, roughness:.92, metalness:0 });
+terrMat.onBeforeCompile = sh => {
+  Object.assign(sh.uniforms, CU);
+  sh.vertexShader = 'varying float vH;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vH = position.y;');
+  sh.fragmentShader = 'varying float vH;\nuniform float uContour;\nuniform float uInt;\n' + sh.fragmentShader.replace('#include <dithering_fragment>', `#include <dithering_fragment>
+  if (uContour > .5 && vH > .005){ float c = vH / uInt; float f = abs(fract(c - .5) - .5) / max(fwidth(c), 1e-4); float ln = 1. - min(f / 1.1, 1.);
+    float idx = step(abs(mod(c + .5, 5.) - .5), .5); gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(.32, .17, .06), ln * (.75 + .25 * idx)); }`);
+};
+const terrain = new THREE.Mesh(geo, terrMat); scene.add(terrain); ctx.pickable(terrain, 'terrain');
+
+/* ---------- diorama walls (rock layers) + base ---------- */
+const BOT = -1.6;
+function wall(pts){
+  const R = 14, N = pts.length, P = [], Cc = [], I = [], c = new THREE.Color();
+  const bands = ['#a8774a','#c49a66','#8e6646','#b88a58'].map(C), top = C('#5b3d24');
+  pts.forEach(([x, z]) => { const h = LF.H(x, z); for (let r = 0; r <= R; r++){ const y = BOT + (h - BOT) * r / R; P.push(x, y, z);
+    c.copy(y > h - .14 ? top : bands[Math.floor((y - BOT) * 3.3) % 4]); if (h < 0 && r === R) c.copy(C('#8a7a5c')); Cc.push(c.r, c.g, c.b); } });
+  for (let i = 0; i < N - 1; i++) for (let r = 0; r < R; r++){ const a = i * (R + 1) + r, b = a + R + 1; I.push(a, b, a + 1, b, b + 1, a + 1); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(Cc, 3)); g.setIndex(I); g.computeVertexNormals();
+  scene.add(new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors:true, roughness:1, side:THREE.DoubleSide })));
+}
+const edge = (n, f) => Array.from({ length:n + 1 }, (_, i) => f(i / n));
+wall(edge(NX, u => [X0 + (X1 - X0) * u, Z0])); wall(edge(NX, u => [X0 + (X1 - X0) * u, Z1]));
+wall(edge(NZ, u => [X0, Z0 + (Z1 - Z0) * u])); wall(edge(NZ, u => [X1, Z0 + (Z1 - Z0) * u]));
+const base = new THREE.Mesh(new THREE.BoxGeometry(X1 - X0 + .9, .45, Z1 - Z0 + .9), ctx.mat('#4a3a2c', 1, { roughness:.7, clearcoat:.2 })); base.position.y = BOT - .22; scene.add(base);
+
+/* ---------- water: sea box + lake ---------- */
+const seaMat = new THREE.MeshPhysicalMaterial({ color:'#2f86d6', transparent:true, opacity:.74, roughness:.1, clearcoat:1, clearcoatRoughness:.15 });
+const sea = new THREE.Mesh(new THREE.BoxGeometry(X1 - X0 - .04, 1, Z1 - Z0 - .04), seaMat); scene.add(sea); ctx.pickable(sea, 'sea');
+let seaY = 0, seaT = 0;
+function placeSea(){ sea.scale.y = seaY - BOT + .02; sea.position.y = (seaY + BOT) / 2; }
+placeSea();
+const lakeMat = new THREE.MeshPhysicalMaterial({ color:'#4fb0e8', transparent:true, opacity:.85, roughness:.1, clearcoat:1 });
+const lake = new THREE.Mesh(new THREE.CircleGeometry(1.34, 64).rotateX(-Math.PI / 2), lakeMat); lake.position.set(LF.LAKE.x, LF.LAKE.level, LF.LAKE.z); scene.add(lake); ctx.pickable(lake, 'lake');
+
+/* ---------- rivers as flowing ribbons ---------- */
+const flowTex = (() => { const c = document.createElement('canvas'); c.width = 64; c.height = 128; const g = c.getContext('2d'); g.fillStyle = '#cfe6ff'; g.fillRect(0, 0, 64, 128);
+  g.strokeStyle = '#ffffff'; g.lineWidth = 3; for (let k = 0; k < 9; k++){ const x = Math.random() * 64, y = Math.random() * 128; g.globalAlpha = .5 + Math.random() * .5; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (Math.random() - .5) * 6, y + 18 + Math.random() * 20); g.stroke(); }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; return t; })();
+function ribbon(path, w0, w1, fixedY){
+  const S = []; for (const s of path.seg){ const n = Math.max(2, Math.ceil(s.len / .05)); for (let k = 0; k < n; k++){ const u = k / n; S.push([s.ax + (s.bx - s.ax) * u, s.az + (s.bz - s.az) * u, (s.L0 + s.len * u) / path.L]); } }
+  const last = path.seg[path.seg.length - 1]; S.push([last.bx, last.bz, 1]);
+  const P = [], U = [], I = []; let y0 = 99, len = 0;
+  S.forEach(([x, z, t], i) => {
+    const [ax, az] = S[Math.max(0, i - 1)], [bx, bz] = S[Math.min(S.length - 1, i + 1)], tl = Math.hypot(bx - ax, bz - az) || 1, nx = -(bz - az) / tl, nz = (bx - ax) / tl, w = (w0 + (w1 - w0) * t) / 2;
+    let y = fixedY != null ? fixedY : Math.max(.005, LF.H(x, z)) + .03; y = Math.min(y, y0); y0 = y;
+    if (i) len += Math.hypot(x - S[i - 1][0], z - S[i - 1][1]);
+    P.push(x + nx * w, y, z + nz * w, x - nx * w, y, z - nz * w); U.push(0, len / .7, 1, len / .7);
+    if (i) { const a = (i - 1) * 2; I.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+  });
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); g.setIndex(I); g.computeVertexNormals();
+  return g;
+}
+const riverMat = new THREE.MeshStandardMaterial({ color:'#3d98e6', map:flowTex, roughness:.25, side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:-2 });
+const river = new THREE.Mesh(ribbon(LF.RIVER, .08, .24), riverMat); scene.add(river); ctx.pickable(river, 'river');
+const stream = new THREE.Mesh(ribbon(LF.CANYON, .07, .11), riverMat); scene.add(stream); ctx.pickable(stream, 'canyon');
+const dists = LF.DIST.map(d => { const m = new THREE.Mesh(ribbon(d, .1, .07, .02), riverMat); scene.add(m); ctx.pickable(m, 'delta'); return m; });
+
+/* ---------- pins + labels ---------- */
+const WATERK = ['gulf','strait','ocean'], pins = {}, labels = [];
+const stickG = new THREE.CylinderGeometry(.028, .028, 1, 8), headG = new THREE.SphereGeometry(.17, 20, 14);
+function pinY(k){ const [x, z] = LF.PINS[k]; if (WATERK.includes(k)) return seaY; if (k === 'lake') return LF.LAKE.level; return Math.max(LF.H(x, z), seaY) + (k === 'river' ? .03 : 0); }
+for (const k of ORDER){
+  const [x, z] = LF.PINS[k], g = new THREE.Group(), m = ctx.mat(PARTS[k].color, 1, { emissive:C(PARTS[k].color), emissiveIntensity:.25 });
+  const stick = new THREE.Mesh(stickG, ctx.mat('#ffffff', .9)); stick.position.y = .45; stick.scale.y = .9; g.add(stick);
+  const head = new THREE.Mesh(headG, m); head.position.y = .95; g.add(head);
+  g.position.set(x, pinY(k), z); scene.add(g); ctx.pickable(g, k);
+  pins[k] = { g, head, m };
+  labels.push(ctx.label(PARTS[k].name, head, { offset:[0, .38, 0] }));
+}
+let labelsOn = true;
+Lab.$('#labelBtn').onclick = () => { labelsOn = !labelsOn; labels.forEach(L => L.visible = labelsOn); Lab.$('#labelBtn').classList.toggle('on', labelsOn); };
+Lab.$('#contourBtn').onclick = () => { CU.uContour.value = CU.uContour.value ? 0 : 1; Lab.$('#contourBtn').classList.toggle('on', !!CU.uContour.value);
+  ctx.caption(CU.uContour.value ? {en:'Contour lines join points of equal elevation, every 200 m. Compare them with the topographic map below!',zh:'等高线把海拔相同的点连起来，每 200 米一条。和下面的地形图对比一下！'} : null); };
+
+/* ---------- clouds + boat ---------- */
+const cloudMats = [];
+const clouds = [[-7, 5.4, -4.5], [-1, 5.9, -1.5], [5, 5.2, 3.5]].map(([x, y, z], k) => { const g = new THREE.Group(), cloudMat = new THREE.MeshStandardMaterial({ color:"#ffffff", transparent:true, opacity:.9, roughness:1, depthWrite:false }); cloudMats.push(cloudMat);
+  for (let i = 0; i < 5; i++){ const s = new THREE.Mesh(new THREE.SphereGeometry(.42 + Math.random() * .3, 14, 10), cloudMat); s.position.set(i * .45 - .9, Math.random() * .2, (Math.random() - .5) * .5); s.scale.y = .7; g.add(s); }
+  g.position.set(x, y, z); scene.add(g); return g; });
+const boat = new THREE.Group();
+const hull = new THREE.Mesh(new THREE.BoxGeometry(.44, .1, .17), ctx.mat('#d9534f')); boat.add(hull);
+const cabin = new THREE.Mesh(new THREE.BoxGeometry(.16, .1, .12), ctx.mat('#ffffff')); cabin.position.set(-.06, .1, 0); boat.add(cabin);
+const sail = new THREE.Mesh(new THREE.ConeGeometry(.09, .34, 3), ctx.mat('#ffe9a8')); sail.position.set(.08, .24, 0); boat.add(sail);
+scene.add(boat); ctx.pickable(boat, 'strait');
+const route = new THREE.CatmullRomCurve3([[4.4,-2.7],[6.2,-2.9],[7.5,-2.1],[7.98,-.9],[8.0,.4],[8.1,1.6],[7.4,3.0],[8.4,5.4]].map(([x, z]) => new V(x, 0, z)));
+
+/* ---------- selection highlight ---------- */
+ctx.hoverText((k, hit) => { if (k === 'terrain' || k === 'sea') k = LF.classify(hit.point.x, hit.point.z, seaY); return Lab.L(PARTS[k].name); });
+ctx.onPick((k, hit) => { if (k == null) return; if (k === 'terrain' || k === 'sea') k = LF.classify(hit.point.x, hit.point.z, seaY); if (story.active) story.stop(); App.select(k, true); });
+function highlight(k, fly){
+  const tint = k ? C(PARTS[k].color) : null, gray = C('#9a9a9a');
+  for (let v = 0; v < NV; v++){
+    let r = BASE[v * 3], g = BASE[v * 3 + 1], b = BASE[v * 3 + 2];
+    if (k && REG[v] === k){ r = r * .45 + tint.r * .55 + .04; g = g * .45 + tint.g * .55 + .04; b = b * .45 + tint.b * .55 + .04; }
+    else if (k){ r = r * .8 + gray.r * .2; g = g * .8 + gray.g * .2; b = b * .8 + gray.b * .2; }
+    col[v * 3] = r; col[v * 3 + 1] = g; col[v * 3 + 2] = b;
+  }
+  geo.attributes.color.needsUpdate = true;
+  riverMat.emissive.set(k === 'river' || k === 'canyon' || k === 'delta' ? '#1d5fa8' : '#000000');
+  lakeMat.emissive.set(k === 'lake' ? '#1d5fa8' : '#000000');
+  seaMat.emissive.set(WATERK.includes(k) ? '#0d3466' : '#000000');
+  if (fly && k){ const [x, z] = LF.PINS[k], y = Math.max(0, LF.H(x, z)); ctx.flyToPose([x, y + 6.5, z + 7.5], [x, y, z]); }
+  if (!k && fly) ctx.home();
+}
+App.three = { highlight };
+
+/* ---------- controls ---------- */
+function setSpin(on){ ctx.controls.autoRotate = on; Lab.$('#rotBtn').classList.toggle('on', on); }
+Lab.$('#rotBtn').onclick = () => setSpin(!ctx.controls.autoRotate);
+const seaIn = Lab.$('#sea');
+function seaInfo(){
+  const m = seaIn.value * 5; Lab.$('#seaOut').textContent = (m > 0 ? '+' : '') + m + ' m';
+  const y = m / KM; let land = 0, flood = 0, gain = 0;
+  for (let v = 0; v < NV; v++){ const h = HS[v]; if (h >= 0){ land++; if (h < y) flood++; } else if (h >= y) gain++; }
+  Lab.$('#seaInfo').textContent = m > 0 ? Lab.L({en:`${Math.round(flood / land * 100)}% of land flooded`,zh:`${Math.round(flood / land * 100)}% 的陆地被淹`}) : m < 0 ? Lab.L({en:`+${Math.round(gain / land * 100)}% new land`,zh:`新增 ${Math.round(gain / land * 100)}% 陆地`}) : '';
+  seaT = y;
+}
+seaIn.oninput = () => { seaInfo(); const m = seaIn.value * 5;
+  ctx.caption(m >= 100 ? {en:'Rising seas flood the low delta and coastal plain first. The strait gets wider and the island shrinks.',zh:'海平面上升时，最先被淹没的是低洼的三角洲和沿海平原。海峡变宽，岛屿变小。'} : m <= -100 ? {en:'Lower seas (like during Ice Ages) expose new land. The strait becomes shallow and the island may join the peninsula.',zh:'海平面下降时（如冰期）会露出新的陆地。海峡变浅，岛屿可能和半岛连在一起。'} : null); };
+Lab.onLang(seaInfo);
+Lab.$('#resetBtn').onclick = () => { story.stop(); setSpin(false); seaIn.value = 0; seaInfo(); ctx.caption(null); App.select(null); ctx.home(); };
+
+/* ---------- story: river journey ---------- */
+const story = Lab3D.story('#stage', STORY, (i, st) => {
+  setSpin(false); App.select(st.key, true);
+  const [x, z] = st.at, y = Math.max(0, LF.H(x, z)); ctx.flyToPose([x + st.d * .15, y + st.d * .62, z + st.d * .78], [x, y, z]);
+}, () => ctx.home());
+Lab.$('#storyBtn').onclick = () => story.start();
+
+/* ---------- per-frame ---------- */
+ctx.onFrame((dt, t) => {
+  flowTex.offset.y -= dt * .9;
+  if (Math.abs(seaT - seaY) > .0005){ seaY += (seaT - seaY) * Math.min(1, dt * 4); placeSea(); for (const k of ORDER) pins[k].g.position.y = pinY(k); }
+  clouds.forEach((c, k) => { c.position.x += dt * (.18 + k * .05); if (c.position.x > 12) c.position.x = -12; const d = ctx.camera.position.distanceTo(c.position); cloudMats[k].opacity = Math.max(0, Math.min(.9, (d - 3) / 5)); c.visible = cloudMats[k].opacity > .02; });
+  const u = .5 - .5 * Math.cos(t * .11), p = route.getPointAt(u), q = route.getPointAt(Math.min(1, u + .002)), dir = Math.sin(t * .11) >= 0 ? 1 : -1;
+  boat.position.set(p.x, seaY + .05 + Math.sin(t * 3) * .015, p.z); boat.rotation.y = Math.atan2(-(q.z - p.z) * dir, (q.x - p.x) * dir); boat.rotation.z = Math.sin(t * 2.3) * .05;
+  for (const k of ORDER){ const on = App.sel === k; pins[k].head.scale.setScalar(on ? 1.25 + .2 * Math.sin(t * 5) : 1); pins[k].m.emissiveIntensity = on ? .7 : .25; }
+});
+seaInfo(); renderInfo(); renderChips();
+</script>
+</body>
+</html>

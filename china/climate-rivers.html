@@ -1,0 +1,621 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>China’s Climate &amp; Rivers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/photos.js"></script>
+<script src="../shared/chinamap.js"></script>
+<style>
+/* page-specific only: 2D map stage, readout strip, river profile */
+#stage canvas,.simbox canvas{touch-action:auto;cursor:pointer}
+.mapmsg{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;font-weight:800;color:var(--ink-2);z-index:2;pointer-events:none}
+.layerseg{flex-wrap:wrap;border-radius:18px;flex:0 1 auto;max-width:100%}
+.stage .toolbar{padding-right:50px}
+.pill output{min-width:38px;font-weight:800;color:var(--brand)}
+.pill .mini{border:0;background:var(--surface-2);color:var(--ink);border-radius:999px;padding:3px 10px;font-weight:800;font-size:13px}
+.strip{margin-top:12px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.strip .cap{font-weight:800}
+.strip .here{color:var(--ink-2);font-size:15px;min-height:24px}
+.strip .legend i{border-radius:3px}
+.rprof{min-height:330px}
+.gamebox{min-height:440px}
+.fact{font-family:Fredoka,Nunito,"PingFang SC","Microsoft YaHei",sans-serif;font-size:22px;font-weight:600;min-height:86px;display:flex;align-items:center}
+.stopcard{background:var(--surface-2);border-radius:14px;padding:12px 14px}
+.stopcard b{display:block;font-size:18px}
+.stopcard small{color:var(--ink-2);font-weight:700}
+@media (max-width:560px){.gamebox{min-height:330px}.rprof{min-height:260px}.fact{font-size:19px;min-height:70px}.pill input[type=range]{width:96px}}
+</style>
+</head>
+<body data-subject="china" data-topic="climate-rivers">
+<div id="lab-nav"></div>
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="地理 · 八年级上册 · 第二章 气候与河流">Geography · Grade 8 · Climate &amp; Rivers of China</span>
+  <h1 data-zh-html="中国的<em>气候与河流</em>">China’s <em>Climate &amp; Rivers</em></h1>
+  <p class="lead" data-zh="同一个 1 月的早晨，黑龙江的孩子在零下 30℃ 的冰面上滑冰，海南的孩子却在海里游泳——为什么？拖动“月份”滑块，看气温、季风和雨带怎样在一年里移动；再顺着长江、黄河从源头漂到大海。">On the same January morning, kids in far-north Heilongjiang skate on rivers frozen at −30 °C (−22 °F), while kids on Hainan island go swimming in the sea. Same country — why? Drag the month slider to watch temperature, winds and the rain belt move through the year, then ride China’s two great rivers from source to sea.</p>
+</header>
+
+<section class="wrap" id="explore" data-nav="Climate Map" data-nav-zh="气候地图">
+  <div class="explorer">
+    <div>
+      <div class="stage card" id="stage">
+        <canvas id="mapcv"></canvas>
+        <div class="toolbar">
+          <div class="seg layerseg" id="layerSeg">
+            <button data-l="temp" class="on" data-zh="🌡 气温">🌡 Temperature</button>
+            <button data-l="rain" data-zh="🌧 降水与季风">🌧 Rain &amp; winds</button>
+            <button data-l="zones" data-zh="🧭 温度带">🧭 Zones</button>
+            <button data-l="rivers" data-zh="🏞 河流">🏞 Rivers</button>
+          </div>
+          <button class="tbtn on" id="qhBtn" data-zh="秦岭—淮河线">Qinling–Huaihe Line</button>
+        </div>
+        <div class="mapmsg" id="mapMsg"></div>
+        <div class="bottombar">
+          <div class="pill" id="monthPill"><span data-zh="月份">Month</span><input id="mIn" type="range" min="1" max="12" step="1" value="1" aria-label="Month"><output id="mOut"></output><button class="mini" id="playBtn">▶</button></div>
+          <div class="tip" data-zh="点击地图任意位置，看看那里的气候">Click anywhere on the map to read its climate</div>
+        </div>
+      </div>
+      <div class="card strip">
+        <div class="cap" id="cap"></div>
+        <div class="legend" id="legend"></div>
+        <div class="here" id="here"></div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="chips" id="chips"></div>
+  <p class="muted" style="font-size:14px;margin:10px 0 0" data-zh="示意图：气温、降水分区和雨带位置是按教材等温线图、等降水量线图简化的示意模型，不是实测数据。地图含台湾省和南海诸岛。">Schematic map: temperature bands, rainfall regions and the rain belt are simplified models based on textbook maps, not measured data. The map includes Taiwan Province and the South China Sea Islands.</p>
+</section>
+
+<section class="wrap" id="rivers" data-nav="Ride the Rivers" data-nav-zh="长江与黄河">
+  <div class="sec-head">
+    <h2 data-zh="从源头到大海：顺流而下">Source to sea: ride the river</h2>
+    <p data-zh="选一条河，拖动滑块让小船顺流而下。注意河床在哪里“陡”、在哪里“平”——陡的地方水能丰富，平的地方适合航运，也容易泛滥。">Pick a river and drag the slider to float downstream. Watch where the riverbed is steep and where it is flat: steep stretches are good for hydropower; flat stretches are good for shipping — and for floods.</p>
+  </div>
+  <div class="sim">
+    <div class="card simbox rprof" id="pbox"><canvas id="pcv"></canvas></div>
+    <div class="card simside">
+      <div class="seg" id="rivSeg" style="align-self:flex-start"><button data-r="cj" class="on" data-zh="长江">Yangtze (长江)</button><button data-r="hh" data-zh="黄河">Yellow River (黄河)</button></div>
+      <label class="ctl"><span data-zh="小船位置（离源头的距离）">Boat position (distance from the source)</span><input id="dIn" type="range" min="0" max="1000" value="0"></label>
+      <div class="counters">
+        <div class="counter"><b id="dOut">0</b><span data-zh="已漂流">travelled</span></div>
+        <div class="counter"><b id="eOut">0</b><span data-zh="海拔">elevation</span></div>
+      </div>
+      <div class="stopcard"><small id="reach"></small><b id="stopName"></b><span id="stopNote"></span></div>
+      <div class="btnrow"><button class="btn" id="sailBtn" data-zh="▶ 自动漂流">▶ Sail</button><button class="btn ghost" id="backBtn" data-zh="↺ 回到源头">↺ Back to source</button></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="line" data-nav="North or South?" data-nav-zh="南北分界线">
+  <div class="sec-head">
+    <h2 data-zh="游戏：秦岭—淮河线的南边还是北边？">Game: north or south of the line?</h2>
+    <p data-zh="秦岭—淮河一线是我国最重要的地理分界线：1 月 0℃ 等温线、800 毫米年等降水量线大致都从这里通过。读卡片，然后在地图上点击它所属的一侧。">The Qinling–Huaihe Line (秦岭—淮河 Qínlǐng–Huáihé: a mountain range plus a river) is China’s most important natural boundary. The 0 °C (32 °F) January line and the 800 mm (31 in) yearly rainfall line both run roughly along it. Read each card, then click the side of the map where it belongs.</p>
+  </div>
+  <div class="sim">
+    <div class="card simbox gamebox" id="gbox"><canvas id="gcv"></canvas></div>
+    <div class="card simside">
+      <div class="qprog"><div id="gBar"></div></div>
+      <small class="muted" id="gCount" style="font-weight:800"></small>
+      <div class="fact" id="gFact"></div>
+      <div class="btnrow"><button class="btn ghost" id="gN" data-zh="⬆ 北方">⬆ North</button><button class="btn ghost" id="gS" data-zh="⬇ 南方">⬇ South</button><button class="btn" id="gNext" data-zh="下一张 ▶">Next ▶</button></div>
+      <div class="result" id="gMsg"></div>
+      <div class="counters">
+        <div class="counter"><b id="gOk">0</b><span data-zh="答对">correct</span></div>
+        <div class="counter"><b id="gStreak">0</b><span data-zh="连对">in a row</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real Photos" data-nav-zh="真实照片">
+  <div class="sec-head">
+    <h2 data-zh="看看真实的样子">See the real thing</h2>
+    <p data-zh="点击照片放大。影片和录音不会自动播放。">Click a photo to enlarge it. Videos and sound never start by themselves.</p>
+  </div>
+  <div id="gallery"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 中考模拟题">🧠 Exam-style quiz</h3><p class="sub" data-zh="选出正确答案，看看解析。">Pick the best answer and read the explanation.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 长江还是黄河？">🗂️ Yangtze or Yellow River?</h3><p class="sub" data-zh="把每条信息拖到（或先点再点方框）正确的河流里。">Drag each fact (or tap it, then tap a box) to the right river.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="对应《义务教育地理课程标准（2022年版）》“认识中国”主题：运用地图和资料，描述我国气候的主要特征及其对生产生活的影响；描述长江、黄河的主要水文特征及其对社会经济发展的影响。教材：八年级上册 第二章《中国的自然环境》第二节《气候》、第三节《河流》。">Supports the 2022 Compulsory-Education Geography Curriculum Standard (“Understanding China”): use maps and data to describe the main features of China’s climate and how they affect life and work; describe the main features of the Yangtze and the Yellow River and their influence on society and the economy. Textbook: Grade 8 Vol. 1, Ch. 2 The Natural Environment of China, §2 Climate and §3 Rivers.</p>
+    <p data-zh="建议：①把月份从 1 月拖到 7 月，让学生说出“冬季南北温差大、夏季普遍高温”；②在“降水与季风”图层按播放，观察雨带 5 月在华南、6 月到长江（梅雨）、7—8 月到华北和东北、9 月南撤；③让学生点击自己感兴趣的城市所在位置，读出温度带、干湿地区和是否属于季风区；④对比长江和黄河的纵剖面：上游落差大（水能），长江中下游平缓（航运），黄河下游成为“地上河”。面向美国学生时，可与密西西比河、美国西经 100° 干湿分界线作比较。">Ideas: ① drag the month from January to July and have students state the pattern (big north–south gap in winter, hot nearly everywhere in summer); ② on the Rain &amp; winds layer press play and follow the rain belt: South China in May, the Yangtze in June (plum rains), North and Northeast China in July–August, retreat in September; ③ let students click a place and read off its temperature zone, wet/dry region and whether it is in the monsoon region; ④ compare the two river profiles: big drops upstream (hydropower), a gentle lower Yangtze (shipping), and the “above-ground” lower Yellow River. For US students, compare with the Mississippi and with the 100th-meridian dry line.</p>
+  </details>
+</section>
+<div id="lab-footer"></div>
+
+<script>
+/* ============ DATA ============ */
+const o = (en, zh) => ({en, zh});
+Lab.ready(() => { const s = document.querySelector('.lab-footer p span[data-zh]'); if (s){ s.dataset.zh = '课标 / 教材章节'; s.dataset.en = 'Curriculum / textbook chapter'; } });
+const F = c => Math.round(c * 9 / 5 + 32);
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const monthName = m => Lab.lang === 'zh' ? m + ' 月' : MONTHS[m - 1];
+
+/* ---- schematic boundary lines (lon, lat) ---- */
+const QH = [[104.6,33.7],[106,33.9],[108,33.9],[110,33.7],[112,33.2],[114,32.6],[116,32.6],[118,33],[119.2,33.6],[120.4,34.1]];
+const L800 = [[125,34.1], ...QH.slice().reverse(), [103.5,32.6],[102.6,31],[101.6,29.5],[99.5,28.4],[97,28.5],[95,29.2],[93,28.4],[91,27.3]];
+const L400 = [[120.5,54],[120.5,50],[119.5,47],[118,44.5],[115,41],[112,39.5],[109.5,38],[106.5,36.8],[103.8,36.05],[101,35],[98,33.2],[94.5,31.5],[91.1,29.65],[88,28.5],[86,27.6]];
+const L200 = [[111.5,45.5],[110,42],[107,40.5],[105.8,38.8],[103,38],[100.5,38.2],[98.5,37.2],[97.5,35.8],[94,34.5],[90,33],[85,31.3],[81,30.3],[78.5,31]];
+const MON = [[122.5,54],[121,50.5],[119.5,47.5],[117,44.5],[114.5,42.2],[111,41.2],[108,40.8],[106,38.8],[104,36.8],[101,35.3],[98,34],[95,33],[90,30.8],[85,30],[81,30.6],[78.5,31.6]];
+const TROP = [[96,22.9],[99,22.7],[102,22.5],[105,21.9],[108,21.5],[111,21.7],[114,21.9],[117,22.2],[119.6,22.4],[120.2,23.3],[121.6,23.6],[125,23.6]];
+const se = line => [...line, [line[line.length - 1][0], 0], [140, 0], [140, line[0][1]]];       // polygon south-east of a line
+const S800 = se(L800), S400 = se(L400), S200 = se(L200), SMON = se(MON), STROP = [...TROP, [125,0], [96,0]];
+const PLAT = [[73.5,37.5],[77,36.6],[81,36.2],[85,36.8],[88.5,38],[92,39],[95.5,39.6],[98.5,39],[101.5,37.8],[103,36],[103.4,33.5],[103.6,32],[102.8,30],[102.2,28.2],[100.4,27.2],[98.6,27.4],[97,28.2],[94,28.6],[91,27.4],[88,27.4],[85,28],[82,30],[79.5,30.8],[78.5,32.5],[76,35.5],[73.5,36.8]];
+const TARIM = [[74,39.8],[77,41],[81,41.6],[86,42.2],[89,43.2],[91.5,43],[94,41.8],[94,39.6],[91,38.6],[87,37.6],[82,36.4],[78,36.8],[75.5,38.2]];
+const COLD = [[118,54.5],[119,51.3],[123,50.4],[127.5,51.4],[128,54.5]];
+const WARM = [[125,40.3],[122.5,41.3],[120,41.2],[117.5,40.6],[115,40.2],[112.5,39.2],[110,37.8],[107.5,36.4],[105,35.2], ...QH, [125,34.1]];
+const inPoly = (x, y, r) => { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++){ const a = r[i], b = r[j]; if (((a[1] > y) !== (b[1] > y)) && x < (b[0] - a[0]) * (y - a[1]) / (b[1] - a[1]) + a[0]) c = !c; } return c; };
+
+/* ---- classification of any point ---- */
+const ZONES = {
+  cold:{c:'#7a8fd0', n:o('Cold-temperate zone','寒温带')}, mid:{c:'#a9c4e6', n:o('Mid-temperate zone','中温带')}, warm:{c:'#f2e3a4', n:o('Warm-temperate zone','暖温带')},
+  sub:{c:'#f3b877', n:o('Subtropical zone','亚热带')}, trop:{c:'#e2775a', n:o('Tropical zone','热带')}, plat:{c:'#c9b8dc', n:o('Qinghai–Tibet Plateau zone','青藏高原区')}
+};
+const WET = [
+  {c:'#5fa8c9', n:o('Humid region (over 800 mm)','湿润地区（800 毫米以上）')}, {c:'#9ed0b0', n:o('Semi-humid (400–800 mm)','半湿润地区（400—800 毫米）')},
+  {c:'#dfe3a2', n:o('Semi-arid (200–400 mm)','半干旱地区（200—400 毫米）')}, {c:'#f0dcae', n:o('Arid (under 200 mm)','干旱地区（200 毫米以下）')}
+];
+const zoneOf = (x, y) => inPoly(x, y, PLAT) ? 'plat' : inPoly(x, y, STROP) ? 'trop' : inPoly(x, y, S800) ? 'sub' : (inPoly(x, y, WARM) || inPoly(x, y, TARIM)) ? 'warm' : inPoly(x, y, COLD) ? 'cold' : 'mid';
+const wetOf = (x, y) => inPoly(x, y, S800) ? 0 : inPoly(x, y, S400) ? 1 : inPoly(x, y, S200) ? 2 : 3;
+
+/* ---- schematic monthly temperature model (°C) ---- */
+const TB = [-24,-16,-8,0,8,16,24,28], TCOL = ['#4257b8','#6b8ad6','#9bb8e6','#cfdff2','#f5edc0','#f6d08c','#efa562','#dc6f50','#b83a31'];
+function temp(x, y, m, plat, tarim){
+  let jan = y >= 33.5 ? -1.6 * (y - 33.5) : 1.35 * (33.5 - y), jul = 28.5 - .45 * Math.max(0, y - 32);
+  if (x < 106.5 && y < 28 && y > 22.5) jul = 21.5;                     // Yunnan–Guizhou Plateau: mild summers
+  if (tarim) jul += 3;
+  if (plat){ jan = y < 31 ? -6 : -13; jul = y < 31 ? 14 : 9; }
+  return (jan + jul) / 2 - (jul - jan) / 2 * Math.cos((m - 1) * Math.PI / 6);
+}
+const band = t => { let i = 0; while (i < TB.length && t >= TB[i]) i++; return i; };
+const bandText = i => { const lo = TB[i - 1], hi = TB[i];
+  return i === 0 ? o(`below ${hi} °C (${F(hi)} °F)`, `低于 ${hi}℃`) : i === TB.length ? o(`above ${lo} °C (${F(lo)} °F)`, `高于 ${lo}℃`) : o(`${lo} to ${hi} °C (${F(lo)}–${F(hi)} °F)`, `${lo}℃ 到 ${hi}℃`); };
+
+/* ---- rain belt & winds by month ---- */
+const BELT = {5:[21,26.5], 6:[27,33], 7:[33.5,41], 8:[37,47], 9:[23,30]};
+const SUMMER = [0,0,0,.3,.7,1,1,1,.6,.15,0,0], WINTER = [1,1,.7,.3,0,0,0,0,.15,.5,.8,1];
+const RAINCAP = m => m <= 3 || m >= 11 ? o('Winter monsoon: cold, dry wind blows out of Mongolia and Siberia toward the sea. Most of China gets little rain or snow.','冬季风：寒冷干燥的偏北风从蒙古、西伯利亚吹向海洋，全国大部分地区降水很少。')
+  : m === 4 ? o('April: the winter wind weakens. Warm, wet air from the ocean starts to reach the south coast.','4 月：冬季风减弱，来自海洋的暖湿气流开始到达南部沿海。')
+  : m === 5 ? o('May: the summer monsoon arrives. The rain belt sits over South China.','5 月：夏季风登陆，雨带停留在华南地区。')
+  : m === 6 ? o('June: the rain belt jumps north to the Yangtze valley — weeks of drizzle called the plum rains (梅雨 méiyǔ).','6 月：雨带北移到长江中下游地区，阴雨连绵，称为“梅雨”。')
+  : m === 7 ? o('July: the rain belt reaches North China. The Yangtze valley turns hot and dry; typhoons can hit the southeast coast.','7 月：雨带推移到华北地区；长江中下游进入炎热少雨的“伏旱”；东南沿海常受台风影响。')
+  : m === 8 ? o('August: the rain belt is at its farthest north, over North and Northeast China.','8 月：雨带到达最北位置，华北、东北地区进入雨季。')
+  : m === 9 ? o('September: the summer monsoon retreats fast and the rain belt slides back south.','9 月：夏季风迅速南撤，雨带随之退回南方。')
+  : o('October: the summer monsoon leaves the mainland. The rainy season is over.','10 月：夏季风退出我国大陆，雨季结束。');
+const TEMPCAP = m => m === 1 ? o('January: the farther north, the colder. Mohe (漠河) in the far north averages about −30 °C (−22 °F); Hainan stays near 20 °C (68 °F). The 0 °C line follows the Qinling–Huaihe Line.','1 月：越往北越冷。最北的漠河约 −30℃，海南岛仍有约 20℃，南北相差约 50℃。0℃ 等温线大致沿秦岭—淮河一线。')
+  : m === 7 ? o('July: hot almost everywhere — most places are above 20 °C (68 °F). Only the high Qinghai–Tibet Plateau stays cool.','7 月：除青藏高原等地外，全国普遍高温，大多数地方在 20℃ 以上。')
+  : m < 7 ? o('Spring: the freezing line (blue meets yellow) marches north as the sun climbs.','春季：随着太阳高度升高，0℃ 线（蓝色与黄色的交界）一路北移。')
+  : o('Autumn: the north cools much faster than the south, and the freezing line returns.','秋季：北方降温比南方快得多，0℃ 线重新南移。');
+
+/* ---- rivers (schematic courses) ---- */
+const RIV = {
+  cj:{c:'#2f7fd0', n:o('Yangtze (长江 Cháng Jiāng)','长江'), pts:[[91.1,33.5],[92.4,34.2],[94.5,34.4],[96,33.6],[97.2,33],[98.6,31.5],[99,29.8],[99.4,28.2],[100.1,26.9],[100.4,27.6],[100.7,26.4],[101.8,26.5],[102.9,26.3],[103,27.3],[103.6,28.2],[104.6,28.77],[105.4,28.9],[106.55,29.56],[107.4,29.7],[108.4,30.8],[109.5,31],[110.3,31.05],[111,30.83],[111.3,30.7],[112.2,30.3],[112.9,29.75],[113.1,29.4],[113.9,30],[114.3,30.6],[114.9,30.4],[115.6,29.85],[116.22,29.75],[117.05,30.5],[117.8,30.95],[118.4,31.35],[118.78,32.06],[119.45,32.2],[120.3,31.95],[121,31.75],[121.9,31.4]]},
+  hh:{c:'#c98a22', n:o('Yellow River (黄河 Huáng Hé)','黄河'), pts:[[96,35],[97.5,34.9],[98.5,34.7],[100.2,33.9],[101.5,33.6],[102.3,33.5],[101.6,34.4],[100.5,35.2],[100.9,36.1],[102,36],[103.83,36.06],[104.6,37],[105.2,37.5],[106.2,38.5],[106.8,39.6],[107.4,40.7],[108.7,40.9],[109.9,40.5],[111.2,40.25],[111.1,39.4],[110.9,38],[110.5,36.9],[110.45,36.14],[110.3,35],[110.3,34.6],[111.2,34.8],[112.4,34.9],[113.5,34.95],[114.5,34.9],[115.3,35.3],[116,35.9],[116.9,36.7],[117.9,37.3],[118.6,37.6],[119.2,37.75]]}
+};
+const TRIBS = [[[106.1,33.5],[105.9,32.3],[106.1,30.8],[106.55,29.56]], [[106.9,33.1],[109,32.7],[111.5,32.5],[112.1,32],[112.6,30.9],[114.3,30.58]], [[104.5,35],[107.1,34.4],[109,34.4],[110.25,34.6]], [[112,38.6],[112.5,37.8],[111.7,36.3],[110.7,35.5]], [[103.6,32],[103.9,30.6],[104.6,28.77]], [[112.9,26],[112.9,28.2],[112.9,29.2]], [[115,26],[115.9,28.6],[116.2,29.3]]];
+const RPTS = [
+  {r:'cj', p:[91.1,33.5], n:o('Source: Tanggula Mountains','源头：唐古拉山'), t:o('The Yangtze starts as glacier melt-water high on the Qinghai–Tibet Plateau, over 5,000 m (16,000 ft) up.','长江发源于青藏高原上的唐古拉山，源头海拔 5000 米以上。')},
+  {r:'cj', p:[106.55,29.56], n:o('Chongqing','重庆'), t:o('A giant river port in the upper reaches, where the Jialing River joins.','上游的重要港口城市，嘉陵江在这里汇入长江。')},
+  {r:'cj', p:[111,30.83], n:o('Three Gorges Dam','三峡大坝'), t:o('The world’s largest hydropower station. It also holds back floods and lets big ships pass through locks.','世界上最大的水利枢纽工程，具有防洪、发电、航运等综合效益。')},
+  {r:'cj', p:[111.3,30.7], n:o('Yichang: upper | middle','宜昌：上游 | 中游'), key:1, t:o('Yichang (宜昌) in Hubei marks the end of the upper reaches. Below here the river leaves the mountains.','湖北宜昌是长江上游和中游的分界点，长江从这里流出山区。')},
+  {r:'cj', p:[114.3,30.6], n:o('Wuhan','武汉'), t:o('The largest city on the middle Yangtze, where the Han River (the longest tributary) joins.','长江中游最大的城市，最长的支流汉江在这里汇入。')},
+  {r:'cj', p:[116.22,29.75], n:o('Hukou: middle | lower','湖口：中游 | 下游'), key:1, t:o('Hukou (湖口) in Jiangxi, at the mouth of Poyang Lake, divides the middle and lower reaches.','江西湖口位于鄱阳湖口，是长江中游和下游的分界点。')},
+  {r:'cj', p:[121.9,31.4], n:o('Shanghai: into the East China Sea','上海：注入东海'), t:o('After 6,300 km (3,900 mi) the Yangtze reaches the East China Sea at Shanghai.','长江全长约 6300 千米，在上海注入东海。')},
+  {r:'hh', p:[96,35], n:o('Source: Bayan Har Mountains','源头：巴颜喀拉山'), t:o('The Yellow River rises in the Bayan Har Mountains of Qinghai. Up here the water is clear!','黄河发源于青海省的巴颜喀拉山，源头的河水是清澈的。')},
+  {r:'hh', p:[103.83,36.06], n:o('Lanzhou','兰州'), t:o('The upper reaches drop steeply through gorges — a chain of hydropower dams such as Longyangxia and Liujiaxia.','上游峡谷多、落差大，水能丰富，建有龙羊峡、刘家峡等水电站。')},
+  {r:'hh', p:[111.2,40.25], n:o('Hekou: upper | middle','河口：上游 | 中游'), key:1, t:o('Hekou (河口) in Inner Mongolia ends the upper reaches. Next the river turns south through the Loess Plateau.','内蒙古河口是黄河上游和中游的分界点，之后黄河向南穿过黄土高原。')},
+  {r:'hh', p:[110.45,36.14], n:o('Hukou Waterfall','壶口瀑布'), t:o('In the middle reaches the river cuts through the Loess Plateau and picks up huge amounts of yellow silt.','中游流经黄土高原，水土流失严重，大量泥沙进入黄河。')},
+  {r:'hh', p:[113.5,34.95], n:o('Taohuayu: middle | lower','桃花峪：中游 | 下游'), key:1, t:o('Taohuayu (桃花峪) near Zhengzhou in Henan divides the middle and lower reaches.','河南郑州附近的桃花峪是黄河中游和下游的分界点。')},
+  {r:'hh', p:[119.2,37.75], n:o('Shandong: into the Bohai Sea','山东：注入渤海'), t:o('After 5,464 km (3,395 mi) the Yellow River enters the Bohai Sea, building new delta land every year.','黄河全长约 5464 千米，在山东省注入渤海，入海口的三角洲不断向海里生长。')}
+];
+
+/* ---- key ideas for the info panel ---- */
+const TOPICS = {
+  winter:{layer:'temp', m:1, color:'#6b8ad6', tag:o('Temperature','气温'), name:o('Winter: a huge north–south gap','冬季：南北温差大'), job:o('The farther north, the colder','越往北，气温越低'),
+    facts:{en:['In January, Mohe (漠河) at China’s northern tip averages about −30 °C (−22 °F) — colder than Fairbanks, Alaska. Hainan island is about 20 °C (68 °F), like Miami.','The 0 °C (32 °F) January line runs along the Qinling–Huaihe Line. North of it rivers freeze; south of it they do not.','Why? In winter the sun is low and days are short in the north, and icy winds blow down from Siberia.'],
+           zh:['1 月，我国最北端的漠河平均气温约 −30℃，海南岛约 20℃，南北相差约 50℃。','1 月 0℃ 等温线大致沿秦岭—淮河一线：以北河流结冰，以南不结冰。','原因：冬季北方太阳高度低、白昼短，又受来自西伯利亚的冬季风影响。']},
+    hint:o('Winter: north freezes, south is green — 0 °C sits on Qinling–Huaihe.','冬季南北温差大，零度秦岭—淮河线。'),
+    mix:o('China’s coldest place in winter is Mohe (far north), not the Tibetan Plateau.','我国冬季最冷的地方是黑龙江省的漠河，不是青藏高原。')},
+  summer:{layer:'temp', m:7, color:'#dc6f50', tag:o('Temperature','气温'), name:o('Summer: hot almost everywhere','夏季：普遍高温'), job:o('Only the Tibetan Plateau stays cool','只有青藏高原等地气温较低'),
+    facts:{en:['In July most of China is above 20 °C (68 °F) — even Harbin in the far northeast.','The hottest place is the Turpan Basin (吐鲁番) in Xinjiang, nicknamed the “Furnace”; think Death Valley.','The coolest place in summer is the Qinghai–Tibet Plateau, because it is so high: about 4,000 m (13,000 ft).'],
+           zh:['7 月，全国大多数地方在 20℃ 以上，连东北的哈尔滨也是如此。','夏季最热的地方是新疆的吐鲁番盆地，有“火炉”之称。','夏季气温最低的地方是青藏高原，因为海拔高（平均 4000 米以上）。']},
+    hint:o('Summer: hot all over, except the “roof of the world”.','夏季全国普遍热，青藏高原是例外。'),
+    mix:o('The summer north–south difference is small. The big difference is in winter.','夏季南北温差不大，温差大的是冬季。')},
+  zones:{layer:'zones', color:'#f3b877', tag:o('Temperature','气温'), name:o('Five temperature zones + a plateau zone','五个温度带和青藏高原区'), job:o('From cold-temperate to tropical','从寒温带到热带'),
+    facts:{en:['South to north: tropical, subtropical, warm-temperate, mid-temperate, cold-temperate — plus the special high-altitude Qinghai–Tibet Plateau zone.','The zones decide what grows: rice and tea in the subtropics, wheat and apples in the warm-temperate zone, one crop a year in the northeast.','It is like travelling from Florida (subtropical) to Minnesota (cold winters) inside one country.'],
+           zh:['从南到北：热带、亚热带、暖温带、中温带、寒温带，另有一个特殊的青藏高原区。','温度带影响作物和熟制：亚热带种水稻、茶叶，一年两熟到三熟；暖温带种小麦、苹果；东北一年一熟。','秦岭—淮河一线是亚热带和暖温带的分界线。']},
+    hint:o('Hot, sub-hot, warm, mid, cold — and the plateau stands alone.','热带亚热暖中寒，青藏高原单独算。'),
+    mix:o('The plateau zone is cold because of height, not latitude: Lhasa is as far south as Florida.','青藏高原区气温低是因为海拔高，而不是纬度高。')},
+  rain:{layer:'rain', m:7, color:'#5fa8c9', tag:o('Rainfall','降水'), name:o('Rain fades from southeast to northwest','降水：东南多，西北少'), job:o('From wet coast to dry interior','由东南沿海向西北内陆递减'),
+    facts:{en:['Yearly rainfall drops from over 1,600 mm (63 in) on the southeast coast to under 50 mm (2 in) in the Tarim Basin deserts.','Three key lines: 800 mm (humid | semi-humid), 400 mm (semi-humid | semi-arid) and 200 mm (semi-arid | arid).','The US has the same pattern flipped: wet East, dry West, with the 20-inch line near the 100th meridian.'],
+           zh:['年降水量从东南沿海的 1600 毫米以上，减少到西北塔里木盆地的不足 50 毫米。','三条重要的等降水量线：800 毫米（湿润与半湿润）、400 毫米（半湿润与半干旱）、200 毫米（半干旱与干旱）。','原因：东南部离海近，夏季风带来丰沛降水；西北深居内陆，夏季风难以到达。']},
+    hint:o('800 – 400 – 200: humid, semi-humid, semi-arid, arid.','八百四百二百线，湿润半湿半干旱。'),
+    mix:o('Most rain falls in summer and autumn; winters are dry almost everywhere.','我国降水集中在夏秋季节，冬春降水少；时间分配很不均匀。')},
+  monsoon:{layer:'rain', m:7, color:'#3d8c6f', tag:o('Winds','季风'), name:o('Monsoon and non-monsoon regions','季风区与非季风区'), job:o('Winds that reverse with the seasons','随季节改变方向的风'),
+    facts:{en:['A monsoon (季风 jìfēng) is a wind that switches direction between summer and winter — like a sea breeze that lasts for months.','Summer: warm, wet winds blow in from the Pacific (southeast) and the Indian Ocean (southwest), bringing rain. Winter: cold, dry winds blow out from the northwest.','The boundary runs along five mountain ranges: Greater Khingan – Yinshan – Helan – Bayan Har – Gangdise.'],
+           zh:['季风是随季节明显改变风向的风。','夏季：来自太平洋的东南季风和来自印度洋的西南季风带来暖湿气流和降水；冬季：偏北风寒冷干燥。','季风区与非季风区的界线：大兴安岭—阴山—贺兰山—巴颜喀拉山—冈底斯山。']},
+    hint:o('Khingan, Yin, Helan, Bayan Har, Gangdise — five ranges fence the monsoon.','大阴贺巴冈，季风到此挡。'),
+    mix:o('Heat and rain come together in summer — great for crops, but late or early monsoons cause droughts and floods.','雨热同期有利于农业，但夏季风不稳定，容易造成旱涝灾害。')},
+  belt:{layer:'rain', m:6, color:'#4f86c6', tag:o('Rainfall','降水'), name:o('The marching rain belt','雨带的推移'), job:o('South in May, Yangtze in June, north in July–August','五月华南，六月江淮，七八月华北东北'),
+    facts:{en:['Where warm ocean air meets cooler air, a long belt of rain forms. It moves north as the summer monsoon gets stronger.','In June it stalls over the Yangtze valley: the plum rains (梅雨 méiyǔ), named for the plums that ripen then.','If the belt stays too long in the south, the south floods and the north has drought — and the other way around.'],
+           zh:['夏季风与北方冷空气相遇形成雨带，雨带随夏季风的进退而移动。','6 月雨带停留在长江中下游地区，形成“梅雨”。','雨带在南方停留过久，会造成“南涝北旱”；推进过快，则“北涝南旱”。']},
+    hint:o('May south, June Yangtze, July–August north, September home.','五月华南六江淮，七八北上九月回。'),
+    mix:o('The north’s rainy season is short (July–August); the south’s is long (May–September).','北方雨季短（7、8 月），南方雨季长（5—9 月）。')},
+  qh:{layer:'temp', m:1, color:'#b3532c', tag:o('Boundary','地理分界线'), name:o('The Qinling–Huaihe Line','秦岭—淮河线'), job:o('China’s north–south divide','我国南方与北方的分界线'),
+    facts:{en:['Qinling (秦岭) is a mountain range; the Huaihe (淮河) is a river. Together they cross eastern China near 33–34°N — about the latitude of Atlanta.','It is the January 0 °C line, the 800 mm rainfall line, the humid | semi-humid line and the subtropical | warm-temperate line.','South: rice paddies, evergreen forests, rivers that never freeze. North: wheat fields, leaf-dropping forests, frozen rivers.'],
+           zh:['秦岭是山脉，淮河是河流，二者连成一线，大致在北纬 33°—34°。','它是 1 月 0℃ 等温线、800 毫米年等降水量线、湿润与半湿润地区、亚热带与暖温带的分界线。','以南：水田、亚热带常绿阔叶林、河流不结冰；以北：旱地、温带落叶阔叶林、河流冬季结冰。']},
+    hint:o('One line, four jobs: 0 °C, 800 mm, humid edge, subtropical edge.','一线四界：零度、八百、湿润、亚热带。'),
+    mix:o('The north–south divide is the Qinling–Huaihe Line — not the Yangtze River and not the Great Wall.','南北方的分界线是秦岭—淮河一线，不是长江，也不是长城。')},
+  cj:{layer:'rivers', color:'#2f7fd0', tag:o('Rivers','河流'), name:o('The Yangtze: the “golden waterway”','长江：“黄金水道”'), job:o('6,300 km · Tanggula Mountains → East China Sea','约 6300 千米 · 唐古拉山 → 东海'),
+    facts:{en:['China’s longest river and the world’s third longest: about 6,300 km (3,900 mi) — longer than the Mississippi–Missouri.','Upper reaches (to Yichang): steep gorges, a “treasure house” of hydropower, home of the Three Gorges Dam.','Middle and lower reaches: wide, deep and ice-free, carrying more freight than any other river on Earth — hence “golden waterway”.'],
+           zh:['我国第一长河、世界第三长河，全长约 6300 千米，水量和流域面积都居全国第一。','上游（宜昌以上）：落差大、多峡谷，水能资源丰富，被称为“水能宝库”，建有三峡工程。','中下游：江阔水深、终年不冻，航运发达，被称为“黄金水道”。分界点：宜昌、湖口。']},
+    hint:o('Upper – Yichang – middle – Hukou – lower.','上中游分宜昌，中下游分湖口。'),
+    mix:o('Hydropower is concentrated in the upper reaches; shipping in the middle and lower reaches. Don’t swap them.','水能主要集中在上游，航运主要在中下游，不要弄反。')},
+  hh:{layer:'rivers', color:'#c98a22', tag:o('Rivers','河流'), name:o('The Yellow River: the “mother river”','黄河：“母亲河”'), job:o('5,464 km · Bayan Har Mountains → Bohai Sea','约 5464 千米 · 巴颜喀拉山 → 渤海'),
+    facts:{en:['China’s second longest river, shaped like the character 几. Chinese civilization grew up along it, so it is called the mother river.','Middle reaches: it crosses the crumbly Loess Plateau (黄土高原) and becomes the muddiest big river in the world.','Lower reaches: the mud settles and raises the riverbed above the land outside the levees — an “above-ground river” (地上河). Fix: plant trees and grass upstream, flush silt at Xiaolangdi Dam, strengthen the levees.'],
+           zh:['我国第二长河，干流像一个巨大的“几”字。黄河流域是中华文明的发祥地，被称为“母亲河”。','中游流经黄土高原，水土流失严重，成为世界上含沙量最大的河流。','下游泥沙沉积，河床高出两岸地面，成为“地上河”。治理：中游植树种草、保持水土；小浪底调水调沙；下游加固大堤。分界点：河口、桃花峪（部分教材作“旧孟津”）。']},
+    hint:o('Upper: power. Middle: mud. Lower: a river in the sky.','上游水能中游沙，下游成了地上河。'),
+    mix:o('The silt comes from the MIDDLE reaches (Loess Plateau); the above-ground river is in the LOWER reaches.','泥沙主要来自中游的黄土高原；“地上河”出现在下游。')}
+};
+const ORDER = ['winter','summer','zones','rain','monsoon','belt','qh','cj','hh'];
+</script>
+
+<script>
+/* ============ MAP ENGINE (2D canvas on shared/chinamap.js) ============ */
+function MapView(box, opt){
+  const cv = box.querySelector('canvas'), g = cv.getContext('2d'), base = document.createElement('canvas'), bg = base.getContext('2d');
+  const P = ChinaMap.projector({ center:[104.5, 36] }), B = opt.bounds || [73, 17.3, 135.5, 54], INS = !opt.bounds;
+  const V = { geo:null, W:0, H:0, dpr:1, dirty:true, land:null, dark:false, pal:{} };
+  let k = 1, ox = 0, oy = 0, raf = 0, running = false;
+  V.toS = pt => { const q = P(pt); return [ox + q[0] * k, oy - q[1] * k]; };
+  V.toLL = (x, y) => P.inv([(x - ox) / k, (oy - y) / k]);
+  V.path = (c, pts, close) => { c.beginPath(); pts.forEach((p, i) => { const s = V.toS(p); i ? c.lineTo(s[0], s[1]) : c.moveTo(s[0], s[1]); }); if (close) c.closePath(); };
+  V.text = (c, str, pt, s = {}) => { const q = V.toS(pt); c.font = `${s.w || 800} ${s.size || 12}px Nunito,"PingFang SC","Microsoft YaHei",sans-serif`; c.textAlign = s.align || 'center'; c.textBaseline = 'middle';
+    c.lineJoin = 'round'; c.lineWidth = 3; c.strokeStyle = V.pal.halo; c.strokeText(str, q[0] + (s.dx || 0), q[1] + (s.dy || 0)); c.fillStyle = s.color || V.pal.ink; c.fillText(str, q[0] + (s.dx || 0), q[1] + (s.dy || 0)); };
+  V.fit = () => { const r = box.getBoundingClientRect(); if (r.width < 10) return; V.dpr = Math.min(2, window.devicePixelRatio || 1); V.W = r.width; V.H = r.height;
+    [cv, base].forEach(c => { c.width = Math.round(V.W * V.dpr); c.height = Math.round(V.H * V.dpr); });
+    const pd = opt.pad ? opt.pad(V.W, V.H) : [8, 8, 8, 8], a = P([B[0], B[1]]), b = P([B[2], B[3]]), w = V.W - pd[1] - pd[3], h = V.H - pd[0] - pd[2];
+    k = Math.min(w / (b[0] - a[0]), h / (b[1] - a[1])); ox = pd[3] + (w - (b[0] - a[0]) * k) / 2 - a[0] * k; oy = pd[0] + (h - (b[1] - a[1]) * k) / 2 + b[1] * k;
+    V.land = null;
+    if (V.geo){ V.land = new Path2D(); V.geo.features.forEach(f => { if (f.geometry.type === 'MultiLineString') return;
+      ChinaMap.rings(f).forEach(poly => { const ring = poly[0]; ring.forEach((pt, i) => { const s = V.toS(pt); i ? V.land.lineTo(s[0], s[1]) : V.land.moveTo(s[0], s[1]); }); V.land.closePath(); }); }); }
+    V.redraw(); };
+  V.redraw = () => { V.dirty = true; if (!running) V.draw(0); };
+  V.draw = t => { if (!V.W) return; const d = V.dpr;
+    if (V.dirty){ V.dirty = false; const r = document.documentElement; V.dark = r.dataset.theme ? r.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+      V.pal = V.dark ? { land:'#2a3856', border:'rgba(200,215,240,.35)', ink:'#eaf0fb', halo:'rgba(13,20,36,.85)', line:'#eaf0fb' } : { land:'#f1ead6', border:'rgba(70,60,45,.4)', ink:'#14213d', halo:'rgba(255,255,255,.9)', line:'#14213d' };
+      bg.setTransform(d, 0, 0, d, 0, 0); bg.clearRect(0, 0, V.W, V.H);
+      if (V.geo){ bg.save(); if (INS){ bg.beginPath(); bg.rect(0, 0, V.W, V.toS([100, 17.2])[1]); bg.clip(); }
+        bg.save(); bg.clip(V.land); bg.fillStyle = V.pal.land; bg.fillRect(0, 0, V.W, V.H); if (opt.under) opt.under(bg, V); bg.restore();
+        ChinaMap.draw2D(bg, V.geo, V.toS, { stroke:V.pal.border, lineWidth:.7 }); bg.restore(); if (INS) inset(); if (opt.over) opt.over(bg, V); } }
+    g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cv.width, cv.height); g.drawImage(base, 0, 0); g.setTransform(d, 0, 0, d, 0, 0); if (opt.live && V.geo) opt.live(g, V, t); };
+  function inset(){            // South China Sea Islands inset, as on standard maps of China
+    const w = Math.max(62, Math.min(118, V.W * .15)), kk = w / 16.6, h = 22.5 * kk, x0 = V.W - 10 - w, y0 = V.H - 70 - h, cl = Math.cos(13 * Math.PI / 180), t2 = pt => [x0 + (pt[0] - 106.5) * cl * kk, y0 + (25 - pt[1]) * kk];
+    bg.save(); bg.beginPath(); bg.rect(x0, y0, w, h); bg.fillStyle = V.dark ? '#16223a' : '#eaf2f8'; bg.fill(); bg.clip(); ChinaMap.draw2D(bg, V.geo, t2, { fill:V.pal.land, stroke:V.pal.border, lineWidth:.6 }); bg.restore();
+    bg.lineWidth = 1; bg.strokeStyle = V.pal.ink; bg.strokeRect(x0, y0, w, h); bg.font = '700 9.5px Nunito,"PingFang SC","Microsoft YaHei",sans-serif'; bg.textAlign = 'right'; bg.textBaseline = 'bottom'; bg.fillStyle = V.pal.ink;
+    bg.fillText(Lab.lang === 'zh' ? '南海诸岛' : (w < 90 ? '南海诸岛' : 'South China Sea Is.'), x0 + w - 4, y0 + h - 3); }
+  V.run = on => { if (on === running) return; running = on; cancelAnimationFrame(raf); let last = 0;
+    const loop = ms => { if (!running) return; const t = ms / 1000; V.dt = Math.min(.05, last ? t - last : 0); last = t; V.draw(t); raf = requestAnimationFrame(loop); }; if (on) raf = requestAnimationFrame(loop); };
+  cv.addEventListener('click', e => { if (!V.geo || !opt.click) return; const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, ll = V.toLL(x, y); opt.click(ll[0], ll[1], x, y); });
+  new ResizeObserver(V.fit).observe(box);
+  window.addEventListener('labtheme', V.redraw); matchMedia('(prefers-color-scheme: dark)').addEventListener('change', V.redraw);
+  Lab.onLang(V.redraw);
+  V.setGeo = geo => { V.geo = geo; V.fit(); };
+  return V;
+}
+const GEO = ChinaMap.load();
+
+/* ============ CLIMATE MAP ============ */
+const App = { layer:'temp', m:1, qh:true, sel:null, pin:null, playing:false };
+const dash = (c, V, pts, color, w, pattern) => { c.save(); if (V.land) c.clip(V.land); V.path(c, pts); c.setLineDash(pattern || []); c.lineWidth = w; c.strokeStyle = color; c.lineJoin = 'round'; c.stroke(); c.setLineDash([]); c.restore(); };
+const fillPoly = (c, V, pts, color) => { V.path(c, pts, true); c.fillStyle = color; c.fill(); };
+
+/* temperature raster: 0.25° cells, plateau/basin masks precomputed */
+const GR = { x0:73, y0:3, nx:252, ny:204, s:.25, cv:document.createElement('canvas') };
+GR.cv.width = GR.nx; GR.cv.height = GR.ny; GR.mask = new Uint8Array(GR.nx * GR.ny);
+for (let j = 0; j < GR.ny; j++) for (let i = 0; i < GR.nx; i++){ const x = GR.x0 + (i + .5) * GR.s, y = GR.y0 + (GR.ny - j - .5) * GR.s; GR.mask[j * GR.nx + i] = inPoly(x, y, PLAT) ? 1 : inPoly(x, y, TARIM) ? 2 : 0; }
+const RGB = TCOL.map(h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)));
+function paintTemp(m){ const c = GR.cv.getContext('2d'), img = c.createImageData(GR.nx, GR.ny), d = img.data;
+  for (let j = 0; j < GR.ny; j++){ const y = GR.y0 + (GR.ny - j - .5) * GR.s; for (let i = 0; i < GR.nx; i++){ const q = j * GR.nx + i, mk = GR.mask[q], col = RGB[band(temp(GR.x0 + (i + .5) * GR.s, y, m, mk === 1, mk === 2))];
+    d[q * 4] = col[0]; d[q * 4 + 1] = col[1]; d[q * 4 + 2] = col[2]; d[q * 4 + 3] = 255; } }
+  c.putImageData(img, 0, 0); }
+
+const parts = []; for (let i = 0; i < 70; i++) parts.push({ x:0, y:0, life:0 });
+function windAt(x, y, m){ const s = SUMMER[m - 1], w = WINTER[m - 1];
+  if (s >= w){ const a = Math.max(0, Math.min(1, (x - 102) / 8)); return [(.7 * (1 - a) - .6 * a) * s, (.7 * (1 - a) + .8 * a) * s, s, 1]; }
+  const a = Math.max(0, Math.min(1, (y - 24) / 9)); return [(-.5 * (1 - a) + .8 * a) * w, (-.85 * (1 - a) - .6 * a) * w, w, 0]; }
+
+const map = MapView(Lab.$('#stage'), {
+  pad:(W) => [W < 520 ? 104 : 62, 8, 62, 8],
+  under(c, V){
+    if (App.layer === 'temp'){ paintTemp(App.m); const a = V.toS([GR.x0, GR.y0 + GR.ny * GR.s]), b = V.toS([GR.x0 + GR.nx * GR.s, GR.y0]); c.imageSmoothingEnabled = false; c.globalAlpha = V.dark ? .82 : .95; c.drawImage(GR.cv, a[0], a[1], b[0] - a[0], b[1] - a[1]); c.globalAlpha = 1; }
+    else if (App.layer === 'rain'){ c.globalAlpha = V.dark ? .75 : 1; fillPoly(c, V, [[60,0],[140,0],[140,60],[60,60]], WET[3].c); fillPoly(c, V, S200, WET[2].c); fillPoly(c, V, S400, WET[1].c); fillPoly(c, V, S800, WET[0].c); c.globalAlpha = 1;
+      const bt = BELT[App.m]; if (bt){ c.save(); V.path(c, SMON, true); c.clip(); fillPoly(c, V, [[100, bt[0] - 1.5],[127, bt[0] + 1.5],[136, bt[1] + 1.5],[100, bt[1] - 1.5]], 'rgba(28,62,150,.5)'); c.restore(); } }
+    else if (App.layer === 'zones'){ c.globalAlpha = V.dark ? .78 : 1; fillPoly(c, V, [[60,0],[140,0],[140,60],[60,60]], ZONES.mid.c); fillPoly(c, V, COLD, ZONES.cold.c); fillPoly(c, V, WARM, ZONES.warm.c); fillPoly(c, V, TARIM, ZONES.warm.c); fillPoly(c, V, S800, ZONES.sub.c); fillPoly(c, V, STROP, ZONES.trop.c); fillPoly(c, V, PLAT, ZONES.plat.c); c.globalAlpha = 1; }
+  },
+  over(c, V){
+    const small = V.W < 520, fs = small ? 10.5 : 12;
+    if (App.layer === 'rain'){
+      [[L800, '800 mm', [112.5, 31.9]], [L400, '400 mm', [113.5, 39.2]], [L200, '200 mm', [101.5, 39.3]]].forEach(([l, s, p]) => { dash(c, V, l, V.dark ? '#cfe0ff' : '#1d4f91', 1.6); V.text(c, s, p, { size:fs, color:V.dark ? '#cfe0ff' : '#1d4f91' }); });
+      dash(c, V, MON, V.dark ? '#ffd27d' : '#7a4a00', 2, [7, 5]);
+      V.text(c, Lab.L(o('Monsoon region','季风区')), [113, 28], { size:fs + 1 }); V.text(c, Lab.L(o('Non-monsoon region','非季风区')), [88, 39.5], { size:fs + 1 });
+      const bt = BELT[App.m]; if (bt) V.text(c, Lab.L(o('☔ rain belt','☔ 雨带')), [124.5, (bt[0] + bt[1]) / 2 + 1.2], { size:fs + 1, color:V.dark ? '#bcd3ff' : '#1c3e96' });
+    }
+    if (App.layer === 'zones') [['cold',[123,52.2]],['mid',[118,45]],['mid',[87,45.5]],['warm',[114.5,37]],['warm',[83,39.3]],['sub',[112,27.5]],['trop',[110,19]],['plat',[89,33]]].forEach(([k, p]) => V.text(c, Lab.L(ZONES[k].n).replace(' zone', ''), p, { size:fs }));
+    if (App.layer === 'temp'){ const lab = (t, p) => V.text(c, t, p, { size:fs });
+      if (App.m === 1){ lab(Lab.L(o('Mohe −30 °C','漠河 −30℃')), [123, 52.4]); lab(Lab.L(o('Hainan 20 °C','海南 20℃')), [110, 18.2], ); }
+      if (App.m === 7){ lab(Lab.L(o('Turpan: hottest','吐鲁番：最热')), [89.5, 43.6]); lab(Lab.L(o('Plateau: coolest','青藏高原：最凉')), [89, 33]); } }
+    if (App.layer === 'rivers'){
+      c.lineCap = 'round'; TRIBS.forEach(l => dash(c, V, l, V.dark ? '#6f9bd0' : '#8fb6de', 1.2));
+      [[112.9, 29.1], [116.3, 29.1]].forEach(p => { const s = V.toS(p); c.beginPath(); c.ellipse(s[0], s[1], 4, 3, 0, 0, 7); c.fillStyle = '#8fb6de'; c.fill(); });
+      Object.values(RIV).forEach(r => dash(c, V, r.pts, r.c, 3));
+      RPTS.forEach((p, i) => { const s = V.toS(p.p); c.beginPath(); c.arc(s[0], s[1], p.key ? 5.5 : 4, 0, 7); c.fillStyle = p.key ? '#e0475b' : V.pal.halo; c.fill(); c.lineWidth = 2; c.strokeStyle = RIV[p.r].c; c.stroke();
+        if (p.key || (!small && /Source|into/.test(p.n.en))) V.text(c, Lab.L(p.n).split(/[::]/)[0], p.p, { size:fs, dy:p.r === 'cj' ? 13 : -12 }); });
+      V.text(c, Lab.L(o('Yangtze','长江')), [103.2, 31.4], { size:fs + 2, color:RIV.cj.c }); V.text(c, Lab.L(o('Yellow River','黄河')), [104.3, 39.4], { size:fs + 2, color:RIV.hh.c });
+    }
+    if (App.qh && App.layer !== 'rivers'){ dash(c, V, QH, V.dark ? '#ffb199' : '#a3341a', 3); V.text(c, Lab.L(o('Qinling','秦岭')), [107.5, 35.1], { size:fs, color:V.dark ? '#ffb199' : '#a3341a' }); V.text(c, Lab.L(o('Huaihe','淮河')), [118.5, 34.3], { size:fs, color:V.dark ? '#ffb199' : '#a3341a' }); }
+    if (App.pin){ const s = V.toS(App.pin); c.beginPath(); c.arc(s[0], s[1], 6, 0, 7); c.fillStyle = '#e0475b'; c.fill(); c.lineWidth = 2.5; c.strokeStyle = '#fff'; c.stroke(); }
+    V.text(c, Lab.L(o('Schematic map','示意图')), V.toLL(12, V.H - 72), { size:11, align:'left', w:700 });
+  },
+  live(c, V){
+    if (App.layer !== 'rain') return; const dt = V.dt || 0;
+    parts.forEach(p => { const sm = SUMMER[App.m - 1] >= WINTER[App.m - 1];
+      if (p.life <= 0){ p.life = 1.5 + Math.random() * 2.5; if (sm){ p.x = 96 + Math.random() * 34; p.y = 16 + Math.random() * 27; } else { p.x = 98 + Math.random() * 30; p.y = 18 + Math.random() * 34; } }
+      const w = windAt(p.x, p.y, App.m); p.x += w[0] * 3.2 * dt; p.y += w[1] * 3.2 * dt; p.life -= dt;
+      if (w[2] < .1 || (sm && !inPoly(p.x, p.y, SMON))){ p.life = 0; return; }
+      const a = V.toS([p.x, p.y]), b = V.toS([p.x - w[0] * 1.6, p.y - w[1] * 1.6]); c.beginPath(); c.moveTo(b[0], b[1]); c.lineTo(a[0], a[1]);
+      c.strokeStyle = sm ? `rgba(214,72,60,${.25 + .5 * w[2]})` : `rgba(40,90,190,${.25 + .5 * w[2]})`; c.lineWidth = 1.8; c.lineCap = 'round'; c.stroke();
+      c.beginPath(); c.arc(a[0], a[1], 1.8, 0, 7); c.fillStyle = c.strokeStyle; c.fill(); });
+    const sm = SUMMER[App.m - 1], wn = WINTER[App.m - 1], fs = V.W < 520 ? 10.5 : 12;
+    if (sm > .25){ V.text(c, Lab.L(o('Southeast monsoon (Pacific)','东南季风（来自太平洋）')), [126, 23], { size:fs, color:'#c0392b' }); V.text(c, Lab.L(o('Southwest monsoon (Indian Ocean)','西南季风（来自印度洋）')), [97, 21], { size:fs, color:'#c0392b' }); }
+    if (wn > .25) V.text(c, Lab.L(o('Winter monsoon: cold & dry','冬季风：寒冷干燥')), [116, 47.8], { size:fs, color:V.dark ? '#9ec0ff' : '#1d4f91' });
+  },
+  click(lon, lat, x, y){
+    if (App.layer === 'rivers'){ let best = null, bd = 22; RPTS.forEach(p => { const s = map.toS(p.p), d = Math.hypot(s[0] - x, s[1] - y); if (d < bd){ bd = d; best = p; } });
+      if (best){ App.pin = best.p; App.here = { en:`📍 ${best.n.en} — ${best.t.en}`, zh:`📍 ${best.n.zh}——${best.t.zh}` }; App.select(best.r, true); } else { App.pin = null; App.here = null; }
+      renderStrip(); map.redraw(); return; }
+    const f = ChinaMap.hit(map.geo, lon, lat);
+    if (!f || !ChinaMap.NAMES[f.properties.adcode]){ App.pin = null; App.here = o('That is outside China’s land area — click on the land.','这里不在我国陆地范围内，请点击陆地。'); }
+    else { const n = ChinaMap.NAMES[f.properties.adcode], z = ZONES[zoneOf(lon, lat)].n, w = WET[wetOf(lon, lat)].n, mo = inPoly(lon, lat, SMON), mk = inPoly(lon, lat, PLAT), b = bandText(band(temp(lon, lat, App.m, mk, !mk && inPoly(lon, lat, TARIM))));
+      App.pin = [lon, lat];
+      App.here = { en:`📍 ${n.en} (${n.zh}) · ${z.en} · ${w.en} · ${mo ? 'monsoon region' : 'non-monsoon region'} · ${MONTHS[App.m - 1]}: about ${b.en}`,
+                   zh:`📍 ${n.zh} · ${z.zh} · ${w.zh} · ${mo ? '季风区' : '非季风区'} · ${App.m} 月气温约 ${b.zh}` }; }
+    renderStrip(); map.redraw();
+  }
+});
+
+/* ---- strip under the map: caption, legend, clicked place ---- */
+function renderStrip(){
+  const L = App.layer, sw = (c, t) => `<span><i style="background:${c}"></i>${t}</span>`;
+  Lab.$('#cap').textContent = Lab.L(L === 'temp' ? TEMPCAP(App.m) : L === 'rain' ? RAINCAP(App.m) : L === 'zones' ? o('Temperature zones are set by how much warmth plants get in a year. They do not change with the month.','温度带按一年中作物能得到的热量多少来划分，不随月份变化。') : o('Click a dot on either river. Red dots divide the upper, middle and lower reaches.','点击河上的圆点。红点是上、中、下游的分界点。'));
+  Lab.$('#legend').innerHTML = L === 'temp' ? TCOL.map((c, i) => sw(c, i === 0 ? '<' + TB[0] : i === TB.length ? '>' + TB[i - 1] : TB[i - 1] + '~' + TB[i])).join('') + `<span>${Lab.L(o('°C (0 °C = 32 °F)','℃'))}</span>`
+    : L === 'rain' ? WET.map(w => sw(w.c, Lab.L(w.n))).join('') + sw('rgba(28,62,150,.6)', Lab.L(o('rain belt this month','本月雨带'))) + `<span>${Lab.L(o('┅ monsoon boundary · 800 mm ≈ 31 in','┅ 季风区界线'))}</span>`
+    : L === 'zones' ? Object.values(ZONES).map(z => sw(z.c, Lab.L(z.n))).join('')
+    : sw(RIV.cj.c, Lab.L(RIV.cj.n)) + sw(RIV.hh.c, Lab.L(RIV.hh.n)) + sw('#e0475b', Lab.L(o('dividing point between reaches','上中下游分界点')));
+  Lab.$('#here').textContent = App.here ? Lab.L(App.here) : Lab.L(o('Tip: click any place on the map.','提示：点击地图上任意位置。'));
+  Lab.$('#mOut').textContent = monthName(App.m);
+  Lab.$('#monthPill').style.visibility = (L === 'temp' || L === 'rain') ? 'visible' : 'hidden';
+  Lab.$$('#layerSeg button').forEach(b => b.classList.toggle('on', b.dataset.l === L));
+  Lab.$('#qhBtn').classList.toggle('on', App.qh); Lab.$('#qhBtn').hidden = L === 'rivers';
+}
+function setLayer(l, m){ App.layer = l; if (m){ App.m = m; Lab.$('#mIn').value = m; } if (l !== 'rivers' && App.pin && App.here && /^📍 (Source|Chong|Three|Yichang|Wuhan|Hukou|Shanghai|Lanzhou|Hekou|Taohuayu|Shandong)/.test(App.here.en)){ App.pin = null; App.here = null; }
+  if (l === 'rivers' || l === 'zones') stopPlay(); map.run(l === 'rain'); renderStrip(); map.redraw(); }
+function stopPlay(){ App.playing = false; clearInterval(App.timer); Lab.$('#playBtn').textContent = '▶'; }
+Lab.$$('#layerSeg button').forEach(b => b.onclick = () => setLayer(b.dataset.l));
+Lab.$('#qhBtn').onclick = () => { App.qh = !App.qh; renderStrip(); map.redraw(); };
+Lab.$('#mIn').oninput = e => { App.m = +e.target.value; if (App.pin && App.layer !== 'rivers'){ App.here = null; App.pin = null; } renderStrip(); map.redraw(); };
+Lab.$('#playBtn').onclick = () => { if (App.playing) return stopPlay(); App.playing = true; Lab.$('#playBtn').textContent = '⏸';
+  App.timer = setInterval(() => { App.m = App.m % 12 + 1; Lab.$('#mIn').value = App.m; renderStrip(); map.redraw(); }, 1300); };
+
+/* ---- info panel + chips ---- */
+App.select = (k, keepMap) => { App.sel = k; const t = TOPICS[k]; if (t && !keepMap){ App.pin = null; App.here = null; setLayer(t.layer, t.m); } renderInfo(); renderChips(); };
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel;
+  if (!k){ box.innerHTML = `<span class="tag">${Lab.L(o('Climate map','气候地图'))}</span>
+      <h3>${Lab.L(o('One country, many climates','一个国家，多种气候'))}</h3>
+      <p class="muted" style="margin:0">${Lab.L(o('China is about the size of the USA and spans nearly 50° of latitude, about twice as many as Maine to Florida. Switch layers, drag the month slider, and click the map to investigate.','我国疆域辽阔，南北跨纬度近 50 度。切换图层、拖动月份滑块、点击地图，自己来探究。'))}</p>
+      <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(o('Monsoon climate rules the east: hot, rainy summers and cold, dry winters.','季风气候显著：夏季高温多雨，冬季寒冷干燥，雨热同期。'))}</div>
+      <div class="nav"><button id="startBtn">${Lab.L(o('Start ▶','开始学习 ▶'))}</button></div>`;
+    Lab.$('#startBtn').onclick = () => App.select(ORDER[0]); return; }
+  const p = TOPICS[k], i = ORDER.indexOf(k);
+  box.innerHTML = `<span class="tag">${Lab.L(p.tag)}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L(o('💡 Memory hook','💡 记忆口诀'))}</b>${Lab.L(p.hint)}</div>
+    <div class="mix"><b>${Lab.L(o('⚠️ Common mistake:','⚠️ 易错点：'))}</b><span>${Lab.L(p.mix)}</span></div>
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts), Lab.L(p.hint)].join(Lab.lang === 'zh' ? '。' : '. '));
+  Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
+  Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
+}
+function renderChips(){
+  Lab.$('#chips').innerHTML = ORDER.map(k => `<button class="chip ${App.sel === k ? 'on' : ''}" data-k="${k}"><i style="background:${TOPICS[k].color}"></i>${Lab.L(TOPICS[k].name)}</button>`).join('');
+  Lab.$$('#chips .chip').forEach(c => c.onclick = () => App.select(c.dataset.k));
+}
+Lab.onLang(() => { renderInfo(); renderChips(); renderStrip(); });
+
+/* ---- map loading / offline message ---- */
+let mapState = 'loading';
+const MSG = { loading:o('Loading the map of China…','正在加载中国地图…'), error:o('⚠️ The map of China needs an internet connection to load. The rest of this page still works.','⚠️ 中国地图需要联网才能加载。本页其他内容仍可正常使用。') };
+const showMsg = () => Lab.$$('.mapmsg').forEach(el => { el.hidden = mapState === 'ok'; el.textContent = mapState === 'ok' ? '' : Lab.L(MSG[mapState]); });
+Lab.onLang(showMsg);
+
+/* ============ RIVER PROFILE ============ */
+(function(){
+  const R = {
+    cj:{len:6300, max:5600, color:'#2f7fd0', cuts:[4504, 5459], sea:o('East China Sea','东海'),
+      prof:[[0,5400],[350,4500],[1200,3500],[2200,1800],[2900,1000],[3500,260],[3870,160],[4504,40],[5130,20],[5459,10],[6300,0]],
+      stops:[[0, o('Tanggula Mountains (source)','唐古拉山（源头）'), o('Glacier melt-water at about 5,400 m (17,700 ft) — higher than any peak in the lower 48 US states.','源头是海拔约 5400 米的冰川融水。')],
+        [1200, o('Jinsha River','金沙江'), o('The river plunges off the plateau through deep canyons. All this falling water is energy.','江水冲下高原，穿行在深深的峡谷里。落差越大，水能越丰富。')],
+        [3500, o('Yibin, Sichuan Basin','宜宾 · 四川盆地'), o('From here the river is officially called the Chang Jiang and big boats can sail.','从宜宾开始称“长江”，江面变宽，可以通航。')],
+        [3870, o('Chongqing','重庆'), o('A mountain megacity and the biggest port of the upper reaches.','山城重庆，是长江上游最大的港口城市。')],
+        [4300, o('Three Gorges','长江三峡'), o('The river squeezes through three gorges. The Three Gorges Dam here is the world’s largest hydropower station.','长江穿过瞿塘峡、巫峡、西陵峡。三峡工程是世界上最大的水利枢纽工程。')],
+        [4504, o('Yichang — upper reaches end','宜昌——上游结束'), o('The mountains stop. The river slows down and starts to wander: the Jing River bends are called “nine twists of the intestine”.','长江流出山区，流速变慢。荆江河段弯弯曲曲，被称为“九曲回肠”，容易发生洪涝。')],
+        [5130, o('Wuhan','武汉'), o('Lakes on both sides soak up floods. Ocean-going ships can reach Wuhan in summer.','两岸湖泊众多，可以调蓄洪水。“黄金水道”上船只往来不断。')],
+        [5459, o('Hukou — middle reaches end','湖口——中游结束'), o('Poyang Lake, China’s largest freshwater lake, joins here.','我国最大的淡水湖鄱阳湖在这里与长江相通。')],
+        [6000, o('Nanjing','南京'), o('The river is wide, deep and never freezes: 10,000-ton ships sail up to Nanjing.','江阔水深、终年不冻，万吨海轮可以直达南京。')],
+        [6300, o('Shanghai — the sea','上海——入海口'), o('The Yangtze Delta is China’s richest region. Journey: 6,300 km (3,900 mi).','长江三角洲是我国经济最发达的地区之一。全程约 6300 千米。')]]},
+    hh:{len:5464, max:5000, color:'#c98a22', cuts:[3472, 4678], sea:o('Bohai Sea','渤海'),
+      prof:[[0,4500],[300,4200],[1680,2600],[2100,1500],[2600,1100],[3472,1000],[4000,450],[4678,100],[5464,0]],
+      stops:[[0, o('Bayan Har Mountains (source)','巴颜喀拉山（源头）'), o('Clear streams and lakes on the plateau, about 4,500 m (14,800 ft) up.','源头海拔约 4500 米，溪流和湖泊都是清澈的。')],
+        [1680, o('Longyangxia Gorge','龙羊峡'), o('The river drops fast through gorges: a staircase of hydropower dams.','黄河在峡谷中飞流直下，这里建起了一连串的梯级水电站。')],
+        [2100, o('Lanzhou','兰州'), o('The only provincial capital the Yellow River runs right through.','黄河穿城而过的省会城市。')],
+        [2600, o('Ningxia & Hetao Plains','宁夏平原、河套平原'), o('Flat land watered by canals for 2,000 years — “the south of China beyond the Great Wall”. In early spring, ice jams here cause floods.','引黄灌溉已有两千多年，被称为“塞上江南”。初春容易发生凌汛。')],
+        [3472, o('Hekou — upper reaches end','河口——上游结束'), o('The river turns sharply south into the Loess Plateau.','黄河在这里折向南流，进入黄土高原。')],
+        [4000, o('Hukou Waterfall, Loess Plateau','壶口瀑布 · 黄土高原'), o('Soft yellow soil washes into the river with every summer storm: about 90% of the river’s silt comes from here.','黄土疏松，夏季多暴雨，水土流失严重。黄河约九成的泥沙来自中游。')],
+        [4550, o('Xiaolangdi Dam','小浪底水利枢纽'), o('Controls floods and flushes silt out to sea with man-made flood pulses.','防洪、减淤，并通过“调水调沙”把泥沙冲入大海。')],
+        [4678, o('Taohuayu — middle reaches end','桃花峪——中游结束'), o('The river enters the flat North China Plain, slows down and drops its mud.','黄河进入华北平原，流速减慢，泥沙大量沉积。')],
+        [5000, o('The “above-ground river”','“地上河”'), o('The riverbed is now several metres higher than the towns outside the levees. See the small drawing!','河床比堤外的地面高出好几米，成为“地上河”。看看剖面图上方的小图！')],
+        [5464, o('Shandong — the sea','山东——入海口'), o('The delta grows seaward every year. Journey: 5,464 km (3,395 mi).','三角洲每年向海里生长。全程约 5464 千米。')]]}
+  };
+  let cur = 'cj', d = 0, timer = 0;
+  const box = Lab.$('#pbox'), cv = Lab.$('#pcv'), g = cv.getContext('2d');
+  const elAt = x => { const p = R[cur].prof; for (let i = 1; i < p.length; i++) if (x <= p[i][0]){ const f = (x - p[i - 1][0]) / (p[i][0] - p[i - 1][0]); return p[i - 1][1] + f * (p[i][1] - p[i - 1][1]); } return 0; };
+  function draw(){
+    const r = box.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1), W = r.width, H = r.height, rv = R[cur]; if (W < 10) return;
+    cv.width = W * dpr; cv.height = H * dpr; g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const cs = getComputedStyle(document.documentElement), ink = cs.getPropertyValue('--ink').trim(), ink2 = cs.getPropertyValue('--ink-2').trim(), line = cs.getPropertyValue('--line').trim(), surf = cs.getPropertyValue('--surface').trim();
+    const l = 46, rt = 14, t = 30, b = 44, X = x => l + x / rv.len * (W - l - rt), Y = e => H - b - e / rv.max * (H - t - b);
+    g.font = '700 11px Nunito,"Microsoft YaHei",sans-serif'; g.textBaseline = 'middle';
+    for (let e = 0; e <= rv.max; e += 1000){ g.strokeStyle = line; g.lineWidth = 1; g.beginPath(); g.moveTo(l, Y(e)); g.lineTo(W - rt, Y(e)); g.stroke(); g.fillStyle = ink2; g.textAlign = 'right'; g.fillText(e + ' m', l - 5, Y(e)); }
+    const seg = [[0, rv.cuts[0], o('Upper reaches','上游'), .30], [rv.cuts[0], rv.cuts[1], o('Middle','中游'), .18], [rv.cuts[1], rv.len, o('Lower','下游'), .08]];
+    seg.forEach(([a, z, n, al]) => { g.beginPath(); g.moveTo(X(a), Y(0)); for (let x = a; x <= z; x += 20) g.lineTo(X(x), Y(elAt(x))); g.lineTo(X(z), Y(elAt(z))); g.lineTo(X(z), Y(0)); g.closePath(); g.globalAlpha = al + .25; g.fillStyle = rv.color; g.fill(); g.globalAlpha = 1;
+      g.fillStyle = ink; g.textAlign = 'center'; g.font = '800 12px Nunito,"Microsoft YaHei",sans-serif'; g.fillText(Lab.L(n), (X(a) + X(z)) / 2, H - b + 14); });
+    g.beginPath(); rv.prof.forEach((p, i) => i ? g.lineTo(X(p[0]), Y(p[1])) : g.moveTo(X(p[0]), Y(p[1]))); g.strokeStyle = rv.color; g.lineWidth = 3; g.lineJoin = 'round'; g.stroke();
+    rv.cuts.forEach(c => { g.setLineDash([4, 4]); g.strokeStyle = '#e0475b'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(X(c), t); g.lineTo(X(c), H - b + 4); g.stroke(); g.setLineDash([]); });
+    rv.stops.forEach(s => { g.beginPath(); g.arc(X(s[0]), Y(elAt(s[0])), 3.5, 0, 7); g.fillStyle = s[0] <= d ? rv.color : surf; g.fill(); g.strokeStyle = rv.color; g.lineWidth = 1.5; g.stroke(); });
+    g.fillStyle = ink2; g.font = '700 11px Nunito,"Microsoft YaHei",sans-serif'; g.textAlign = 'left'; g.fillText('0 km', l, H - 10); g.textAlign = 'right'; g.fillText(rv.len + ' km · ' + Lab.L(rv.sea), W - rt, H - 10);
+    g.textAlign = 'left'; g.fillText(Lab.L(o('Schematic profile (heights exaggerated)','纵剖面示意图（垂直方向已夸大）')), l, 14);
+    const bx = X(d), by = Y(elAt(d)); g.font = '22px sans-serif'; g.textAlign = 'center'; g.fillText('⛵', bx, by - 14);
+    g.beginPath(); g.arc(bx, by, 5, 0, 7); g.fillStyle = '#e0475b'; g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 2; g.stroke();
+    if (cur === 'hh' && d >= 4678){          // inset: cross-section of the above-ground river
+      const iw = Math.min(190, W * .42), ih = 84, ix = X(1750), iy = t + 2; g.fillStyle = surf; g.strokeStyle = line; g.lineWidth = 1; g.beginPath(); g.rect(ix, iy, iw, ih); g.fill(); g.stroke();
+      const gy = iy + ih - 18, m = ix + iw / 2; g.fillStyle = '#b9a27a'; g.beginPath(); g.moveTo(ix, gy); g.lineTo(m - 52, gy); g.lineTo(m - 38, gy - 34); g.lineTo(m - 30, gy - 34); g.lineTo(m - 22, gy - 20); g.lineTo(m + 22, gy - 20); g.lineTo(m + 30, gy - 34); g.lineTo(m + 38, gy - 34); g.lineTo(m + 52, gy); g.lineTo(ix + iw, gy); g.lineTo(ix + iw, iy + ih); g.lineTo(ix, iy + ih); g.closePath(); g.fill();
+      g.fillStyle = '#d9a441'; g.fillRect(m - 26, gy - 29, 52, 9);
+      g.font = '14px sans-serif'; g.fillText('🏠', ix + 16, gy - 8); g.fillText('🏠', ix + iw - 16, gy - 8);
+      g.fillStyle = ink; g.font = '800 11px Nunito,"Microsoft YaHei",sans-serif'; g.fillText(Lab.L(o('River above the rooftops','河床高于两岸地面')), m, iy + 11); g.fillStyle = ink2; g.fillText(Lab.L(o('levee','大堤')), m - 62, gy - 30); }
+  }
+  function update(){
+    const rv = R[cur], e = elAt(d), km = Math.round(d), st = rv.stops.filter(s => s[0] <= d).pop(), zh = Lab.lang === 'zh';
+    Lab.$('#dOut').textContent = zh ? km + ' 千米' : km.toLocaleString('en') + ' km'; Lab.$('#eOut').textContent = zh ? Math.round(e) + ' 米' : Math.round(e).toLocaleString('en') + ' m';
+    Lab.$('#dOut').title = Math.round(km * .621) + ' mi'; Lab.$('#eOut').title = Math.round(e * 3.281) + ' ft';
+    Lab.$('#reach').textContent = Lab.L(d < rv.cuts[0] ? o('UPPER REACHES · steep · hydropower','上游 · 落差大 · 水能丰富') : d < rv.cuts[1] ? (cur === 'cj' ? o('MIDDLE REACHES · winding · floods','中游 · 河道弯曲 · 易洪涝') : o('MIDDLE REACHES · Loess Plateau · silt','中游 · 黄土高原 · 泥沙多')) : (cur === 'cj' ? o('LOWER REACHES · wide and deep · shipping','下游 · 江阔水深 · 航运发达') : o('LOWER REACHES · above-ground river','下游 · “地上河”')));
+    Lab.$('#stopName').textContent = Lab.L(st[1]); Lab.$('#stopNote').textContent = Lab.L(st[2]);
+    Lab.$$('#rivSeg button').forEach(b2 => b2.classList.toggle('on', b2.dataset.r === cur)); draw();
+  }
+  const stop = () => { clearInterval(timer); timer = 0; Lab.$('#sailBtn').textContent = Lab.L(o('▶ Sail','▶ 自动漂流')); };
+  const setD = v => { d = Math.max(0, Math.min(R[cur].len, v)); Lab.$('#dIn').value = Math.round(d / R[cur].len * 1000); update(); };
+  Lab.$('#dIn').oninput = e => { stop(); d = e.target.value / 1000 * R[cur].len; update(); };
+  Lab.$$('#rivSeg button').forEach(b2 => b2.onclick = () => { stop(); cur = b2.dataset.r; setD(0); });
+  Lab.$('#backBtn').onclick = () => { stop(); setD(0); };
+  Lab.$('#sailBtn').onclick = () => { if (timer) return stop(); if (d >= R[cur].len) setD(0); Lab.$('#sailBtn').textContent = Lab.L(o('⏸ Pause','⏸ 暂停'));
+    timer = setInterval(() => { setD(d + R[cur].len / 260); if (d >= R[cur].len) stop(); }, 60); };
+  new ResizeObserver(draw).observe(box); window.addEventListener('labtheme', draw);
+  Lab.onLang(() => { if (!timer) Lab.$('#sailBtn').textContent = Lab.L(o('▶ Sail','▶ 自动漂流')); update(); });
+})();
+
+/* ============ GAME: north or south of the Qinling–Huaihe Line ============ */
+(function(){
+  const CARDS = [
+    ['S', o('January averages above 0 °C (32 °F)','1 月平均气温高于 0℃'), o('South of the line winters stay above freezing.','秦岭—淮河以南，1 月平均气温在 0℃ 以上。')],
+    ['N', o('Rivers and lakes freeze over in winter','河流、湖泊冬季结冰'), o('North of the 0 °C line, rivers have an ice season.','0℃ 等温线以北，河流有结冰期。')],
+    ['S', o('More than 800 mm (31 in) of rain a year','年降水量在 800 毫米以上'), o('The 800 mm line follows the Qinling–Huaihe Line; the south is the humid region.','800 毫米年等降水量线沿秦岭—淮河一线，以南是湿润地区。')],
+    ['N', o('Semi-humid: 400–800 mm of rain a year','半湿润地区，年降水量 400—800 毫米'), o('The North China Plain is semi-humid.','华北平原属于半湿润地区。')],
+    ['S', o('Flooded rice paddies are the main fields','耕地以水田为主，主要种水稻'), o('Rice needs heat and lots of water: “rice in the south, wheat in the north”.','水稻喜温喜湿，“南稻北麦”。')],
+    ['N', o('Dry fields of wheat and corn','耕地以旱地为主，主要种小麦、玉米'), o('Less rain means dry-field crops such as wheat.','降水较少，以旱地作物小麦为主。')],
+    ['S', o('Subtropical zone','亚热带'), o('The line divides the subtropical zone (south) from the warm-temperate zone (north).','这条线是亚热带与暖温带的分界线。')],
+    ['N', o('Warm-temperate zone','暖温带'), o('Beijing and the North China Plain are warm-temperate.','北京和华北平原属于暖温带。')],
+    ['S', o('Evergreen broadleaf forest: green all winter','亚热带常绿阔叶林，冬天树叶不落'), o('Mild, wet winters let trees keep their leaves.','冬季温暖湿润，树木四季常绿。')],
+    ['N', o('Trees drop their leaves in autumn','温带落叶阔叶林，秋天落叶'), o('Cold, dry winters: broadleaf trees shed their leaves, as in New England.','冬季寒冷干燥，阔叶树秋冬落叶。')],
+    ['S', o('Two or three harvests a year','农作物一年两熟到三熟'), o('More heat means a longer growing season.','热量充足，生长期长。')],
+    ['N', o('Homes have winter heating; people ate wheat noodles and steamed buns','冬季集中供暖，传统主食是面食'), o('Cold winters and wheat fields shaped northern life.','寒冷的冬天和小麦种植塑造了北方的生活方式。')]
+  ];
+  let deck = [], i = 0, ok = 0, streak = 0, done = false, flash = null;
+  const gm = MapView(Lab.$('#gbox'), { bounds:[99, 18, 127, 46], pad:() => [10, 10, 10, 10],
+    under(c, V){ if (flash){ const poly = flash.side === 'S' ? [...QH, [140,34.1],[140,0],[60,0],[60,33.7]] : [...QH, [140,34.1],[140,60],[60,60],[60,33.7]]; V.path(c, poly, true); c.fillStyle = "rgba(26,163,107,.4)"; c.fill(); } },
+    over(c, V){ const col = V.dark ? '#ffb199' : '#a3341a'; V.path(c, QH); c.lineWidth = 4; c.strokeStyle = col; c.lineJoin = 'round'; c.stroke();
+      V.text(c, Lab.L(o('Qinling Mountains','秦岭')), [105.8, 35.2], { color:col, size:12 }); V.text(c, Lab.L(o('Huaihe River','淮河')), [117.5, 34], { color:col, size:12 });
+      V.text(c, Lab.L(o('NORTH','北方')), [111.5, 37.6], { size:17, w:800 }); V.text(c, Lab.L(o('SOUTH','南方')), [113, 27], { size:17, w:800 });
+      [[116.4,39.9,o('Beijing','北京')],[121.47,31.23,o('Shanghai','上海')],[113.26,23.13,o('Guangzhou','广州')],[114.3,30.6,o('Wuhan','武汉')]].forEach(([x, y, n]) => { const s = V.toS([x, y]); c.beginPath(); c.arc(s[0], s[1], 3, 0, 7); c.fillStyle = V.pal.ink; c.fill(); V.text(c, Lab.L(n), [x, y], { size:11, dy:-10, w:700 }); });
+      V.text(c, Lab.L(o('Schematic map','示意图')), V.toLL(V.W - 10, V.H - 12), { size:11, align:'right', w:700 }); },
+    click(lon, lat){ let yl = 33.7; for (let j = 1; j < QH.length; j++) if (lon >= QH[j - 1][0] && lon <= QH[j][0]) yl = QH[j - 1][1] + (lon - QH[j - 1][0]) / (QH[j][0] - QH[j - 1][0]) * (QH[j][1] - QH[j - 1][1]); if (lon > 120.4) yl = 34.1; answer(lat > yl ? 'N' : 'S'); }
+  });
+  window.GM = gm;
+  function start(){ deck = Lab.shuffle(CARDS).slice(0, 10); i = 0; ok = 0; streak = 0; done = false; flash = null; render(); gm.redraw(); }
+  function render(msg, good){
+    const c = deck[i], fin = i >= deck.length;
+    Lab.$('#gBar').style.width = (fin ? 100 : (i + (done ? 1 : 0)) / deck.length * 100) + '%';
+    Lab.$('#gCount').textContent = fin ? '' : Lab.L(o(`Card ${i + 1} of ${deck.length}`, `第 ${i + 1} / ${deck.length} 张`));
+    Lab.$('#gFact').textContent = fin ? Lab.L(o(`Finished: ${ok} of ${deck.length} correct!`, `完成：${deck.length} 张答对 ${ok} 张！`)) : Lab.L(c[1]);
+    Lab.$('#gOk').textContent = ok; Lab.$('#gStreak').textContent = streak;
+    Lab.$('#gN').disabled = Lab.$('#gS').disabled = done || fin; Lab.$('#gNext').hidden = !(done || fin);
+    Lab.$('#gNext').textContent = Lab.L(fin ? o('Play again ↺','再玩一次 ↺') : o('Next ▶','下一张 ▶'));
+    const m = Lab.$('#gMsg'); if (msg !== undefined){ m.textContent = msg; m.className = 'result ' + (good ? 'good' : 'bad'); } else if (!done){ m.textContent = fin ? '' : Lab.L(o('Click the map north or south of the red line.','在地图上点击红线的北边或南边。')); m.className = 'result'; }
+  }
+  function answer(side){ if (done || i >= deck.length) return; const c = deck[i], good = side === c[0]; done = true; if (good){ ok++; streak++; } else streak = 0; flash = { side:c[0], good }; gm.redraw();
+    render((good ? '✅ ' : '❌ ') + Lab.L(c[0] === 'S' ? o('South. ','南方。') : o('North. ','北方。')) + Lab.L(c[2]), good); }
+  Lab.$('#gN').onclick = () => answer('N'); Lab.$('#gS').onclick = () => answer('S');
+  Lab.$('#gNext').onclick = () => { if (i >= deck.length) return start(); i++; done = false; flash = null; gm.redraw(); render(); };
+  Lab.onLang(() => { if (deck.length) render(done ? Lab.$('#gMsg').textContent : undefined, Lab.$('#gMsg').classList.contains('good')); });
+  start();
+})();
+
+GEO.then(geo => { mapState = 'ok'; showMsg(); map.setGeo(geo); window.GM.setGeo(geo); }).catch(() => { mapState = 'error'; showMsg(); });
+showMsg(); renderStrip();
+
+/* ============ REAL MEDIA ============ */
+/* Wikimedia Commons files, licences checked with the Commons API helper; URLs exactly as returned by the API */
+const Q = '?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', TH = 'https://thumb.wikimedia.org/wikipedia/commons/thumb/', CP = 'https://commons.wikimedia.org/wiki/File:';
+const ph = (kind, zhKind) => ({ kind:o(kind, zhKind) });
+LabPhotos.render(Lab.$('#gallery'), [
+  { ...ph('Winter in the north','北方的冬天'), src:TH + '8/8b/Frozen_Songhua_River.jpg/960px-Frozen_Songhua_River.jpg' + Q, en:'The Songhua River at Harbin, frozen solid in winter. North of the Qinling–Huaihe Line, rivers have an ice season.', zh:'冬季封冻的松花江（哈尔滨）。秦岭—淮河一线以北，河流冬季结冰。', credit:'ChiralJon', license:'CC BY 2.0', page:CP + 'Frozen_Songhua_River.jpg' },
+  { ...ph('Hottest place in summer','夏季最热的地方'), src:TH + '9/9c/Turpan-flaming-mountains-d02.jpg/960px-Turpan-flaming-mountains-d02.jpg' + Q, en:'The Flaming Mountains near Turpan, Xinjiang: a desert basin far from the sea, China’s summer “furnace”.', zh:'新疆吐鲁番附近的火焰山。吐鲁番盆地深居内陆，是我国夏季最热的地方。', credit:'Colegota', license:'CC BY-SA 2.5 es', page:CP + 'Turpan-flaming-mountains-d02.jpg' },
+  { ...ph('Upper Yangtze','长江上游'), src:TH + '0/08/Qutang_Gorge_2016.jpg/960px-Qutang_Gorge_2016.jpg' + Q, en:'Entering Qutang Gorge, the first of the Three Gorges. Steep walls and a big drop mean lots of hydropower.', zh:'驶入瞿塘峡——长江三峡的第一峡。峡谷多、落差大，水能丰富。', credit:'Fredlyfish4', license:'CC BY-SA 4.0', page:CP + 'Qutang_Gorge_2016.jpg' },
+  { ...ph('Hydropower','水能利用'), src:TH + '9/99/Three_Gorges_Dam_2014.jpg/960px-Three_Gorges_Dam_2014.jpg' + Q, en:'The Three Gorges Dam on the Yangtze, the world’s largest hydropower station.', zh:'长江三峡大坝，世界上最大的水利枢纽工程。', credit:'Ekrem Canli', license:'CC BY-SA 3.0', page:CP + 'Three_Gorges_Dam_2014.jpg' },
+  { ...ph('Upper Yellow River','黄河上游'), src:TH + 'd/d8/People_playing_by_the_Yellow_River_in_Lanzhou%2C_May_2024.jpg/960px-People_playing_by_the_Yellow_River_in_Lanzhou%2C_May_2024.jpg' + Q, en:'An evening by the Yellow River in Lanzhou, the provincial capital the river runs straight through.', zh:'傍晚的兰州黄河岸边。黄河穿兰州城而过。', credit:'Extua', license:'CC BY 4.0', page:CP + 'People_playing_by_the_Yellow_River_in_Lanzhou,_May_2024.jpg' },
+  { ...ph('Soil erosion','水土流失'), src:TH + '5/5b/Loess_gully_-_Mapillary_%28YiI7arAT9F5534lEJSjRda%29.jpg/960px-Loess_gully_-_Mapillary_%28YiI7arAT9F5534lEJSjRda%29.jpg' + Q, en:'A gully cut into loess, the soft yellow soil of the Loess Plateau. Summer storms wash it into the Yellow River.', zh:'黄土沟壑。黄土疏松，夏季暴雨把泥沙冲进黄河。', credit:'ff5722 @ Mapillary.com', license:'CC BY-SA 4.0', page:CP + 'Loess_gully_-_Mapillary_(YiI7arAT9F5534lEJSjRda).jpg' },
+  { ...ph('Middle Yellow River','黄河中游'), src:TH + '8/80/Hukou_Waterfalls%2C_Shaanxi_34.jpg/960px-Hukou_Waterfalls%2C_Shaanxi_34.jpg' + Q, en:'Hukou Waterfall: the muddy Yellow River squeezes through a narrow slot between Shaanxi and Shanxi.', zh:'壶口瀑布：浑黄的河水在陕西、山西之间的窄槽中奔腾而下。', credit:'H2v5o68z', license:'CC0', page:CP + 'Hukou_Waterfalls,_Shaanxi_34.jpg' },
+  { ...ph('Satellite image','卫星影像'), src:TH + '2/28/Building_Up_the_Yellow_River_Delta.jpeg/960px-Building_Up_the_Yellow_River_Delta.jpeg' + Q, en:'The Yellow River delta from space. Silt carried from the Loess Plateau builds new land in the Bohai Sea.', zh:'从太空看黄河三角洲。来自黄土高原的泥沙在渤海边堆出新的陆地。', credit:'NASA Earth Observatory (Lauren Dauphin), Landsat data from the U.S. Geological Survey', license:'Public domain', page:CP + 'Building_Up_the_Yellow_River_Delta.jpeg' },
+  { type:'video', ...ph('Video','影片'), media:'https://upload.wikimedia.org/wikipedia/commons/e/e7/Hukou_Waterfall%2C_Oct_6_2023.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:TH + 'e/e7/Hukou_Waterfall%2C_Oct_6_2023.webm/960px--Hukou_Waterfall%2C_Oct_6_2023.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:TH + 'e/e7/Hukou_Waterfall%2C_Oct_6_2023.webm/960px--Hukou_Waterfall%2C_Oct_6_2023.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Watch and listen: Hukou Waterfall in October 2023. Notice the colour of the water. (Large video file.)', zh:'看一看、听一听：2023 年 10 月的壶口瀑布。注意河水的颜色。（影片文件较大。）', credit:'A Chinese ID', license:'CC BY-SA 4.0', page:CP + 'Hukou_Waterfall,_Oct_6_2023.webm' }
+], { title:o('Climate and rivers in real life','真实的气候与河流'), sub:o('Photos and video from Wikimedia Commons','照片和影片来自维基共享资源') });
+
+/* ============ QUIZ (中考 style) ============ */
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('Which sentence best describes China’s winter temperatures?','我国冬季气温的分布特点是'), options:[o('Very cold in the north, mild in the south: a huge gap','南北温差大，越往北气温越低'),o('Warm everywhere','全国普遍高温'),o('The north is warmer than the south','北方比南方暖和'),o('About the same everywhere','各地气温相差不大')], answer:0, explain:o('In January Mohe is about −30 °C while Hainan is about 20 °C.','1 月漠河约 −30℃，海南约 20℃，南北相差约 50℃。')},
+  {q:o('The 0 °C January line runs roughly along','我国 1 月 0℃ 等温线大致通过'), options:[o('The Qinling Mountains and the Huaihe River','秦岭—淮河一线'),o('The Yangtze River','长江'),o('The Great Wall','长城'),o('The Tropic of Cancer','北回归线')], answer:0, explain:o('North of this line rivers freeze in winter; south of it they do not.','这条线以北河流冬季结冰，以南不结冰。')},
+  {q:o('In summer, the coolest part of China is','我国夏季气温最低的地区是'), options:[o('The Qinghai–Tibet Plateau','青藏高原'),o('Mohe in Heilongjiang','黑龙江省漠河'),o('The Turpan Basin','吐鲁番盆地'),o('Hainan island','海南岛')], answer:0, explain:o('The plateau is so high that it stays cool. Turpan is the hottest place in summer.','青藏高原海拔高，夏季气温最低；吐鲁番是夏季最热的地方。')},
+  {q:o('How does yearly rainfall change across China?','我国年降水量的空间分布规律是'), options:[o('It decreases from the southeast coast to the northwest interior','由东南沿海向西北内陆递减'),o('It decreases from north to south','由北向南递减'),o('It increases from east to west','由东向西递增'),o('It is even everywhere','各地分布均匀')], answer:0, explain:o('The southeast is close to the sea and gets the wet summer monsoon; the northwest is far inland.','东南部离海近，受夏季风影响大；西北深居内陆。')},
+  {q:o('The 800 mm rainfall line separates which two regions?','800 毫米年等降水量线是哪两类地区的分界线？'), options:[o('Humid and semi-humid','湿润地区和半湿润地区'),o('Semi-humid and semi-arid','半湿润地区和半干旱地区'),o('Semi-arid and arid','半干旱地区和干旱地区'),o('Monsoon and non-monsoon','季风区和非季风区')], answer:0, explain:o('800 mm: humid | semi-humid. 400 mm: semi-humid | semi-arid. 200 mm: semi-arid | arid.','800 毫米：湿润与半湿润；400 毫米：半湿润与半干旱；200 毫米：半干旱与干旱。')},
+  {q:o('Which mountain range is NOT on the monsoon / non-monsoon boundary?','下列山脉中，不在季风区与非季风区分界线上的是'), options:[o('Qinling','秦岭'),o('Greater Khingan','大兴安岭'),o('Helan','贺兰山'),o('Gangdise','冈底斯山')], answer:0, explain:o('The boundary is Greater Khingan – Yinshan – Helan – Bayan Har – Gangdise. Qinling is on the north–south divide.','界线是大兴安岭—阴山—贺兰山—巴颜喀拉山—冈底斯山；秦岭在南北分界线上。')},
+  {q:o('In June the rain belt usually stays over the Yangtze valley. This rainy spell is called','6 月，雨带停留在长江中下游地区，这种阴雨连绵的天气称为'), options:[o('The plum rains (梅雨)','梅雨'),o('A typhoon','台风'),o('A cold wave','寒潮'),o('A sandstorm','沙尘暴')], answer:0, explain:o('The plum rains come when the monsoon rain belt pauses over the Yangtze in June.','6 月雨带在江淮地区停留，形成梅雨。')},
+  {q:o('The most striking feature of China’s climate is','我国气候的显著特征是'), options:[o('A strong monsoon climate, with heat and rain in the same season','季风气候显著，雨热同期'),o('Rain all year round','全年多雨'),o('Dry everywhere','全国干旱'),o('The same climate everywhere','气候类型单一')], answer:0, explain:o('China also has many climate types — but the monsoon, with hot rainy summers, stands out.','我国气候复杂多样，季风气候显著；夏季高温多雨，雨热同期。')},
+  {q:o('The dividing points of the Yangtze’s upper, middle and lower reaches are','长江上、中、下游的分界点分别是'), options:[o('Yichang and Hukou','宜昌、湖口'),o('Hekou and Taohuayu','河口、桃花峪'),o('Chongqing and Wuhan','重庆、武汉'),o('Wuhan and Nanjing','武汉、南京')], answer:0, explain:o('Yichang (Hubei) and Hukou (Jiangxi). Hekou and Taohuayu (some textbooks: Jiu Mengjin) divide the Yellow River.','长江：宜昌（湖北）、湖口（江西）；河口、桃花峪（部分教材作“旧孟津”）是黄河的分界点。')},
+  {q:o('Why is the Yangtze called the “golden waterway”?','长江被称为“黄金水道”，主要是因为'), options:[o('It carries a huge amount of shipping','航运价值高，货运量大'),o('Its water is yellow','河水是黄色的'),o('Gold is mined along it','沿岸盛产黄金'),o('It has the most dams','水电站最多')], answer:0, explain:o('Wide, deep and ice-free, it links rich regions from Sichuan to Shanghai.','长江江阔水深、终年不冻，沟通东中西部，航运发达。')},
+  {q:o('Most of the Yellow River’s silt comes from','黄河的泥沙主要来自'), options:[o('The Loess Plateau in the middle reaches','中游的黄土高原'),o('The plateau at its source','源头的青藏高原'),o('The North China Plain','下游的华北平原'),o('The Bohai Sea','渤海')], answer:0, explain:o('Loose loess soil plus summer storms and thin plant cover cause serious erosion.','黄土疏松、夏季多暴雨、植被稀少，水土流失严重。')},
+  {q:o('The lower Yellow River is an “above-ground river” because','黄河下游成为“地上河”的原因是'), options:[o('Silt settles and raises the riverbed','泥沙沉积，河床不断抬高'),o('It flows across a plateau','河流流经高原'),o('Dams lift the water','大坝抬高了水位'),o('The sea pushes water back','海水倒灌')], answer:0, explain:o('On the flat plain the river slows and drops its mud; levees are raised, and so is the bed.','进入平原后流速减慢，泥沙沉积，河床高出两岸地面。')}
+], { count:10 });
+
+/* ============ SORT ============ */
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'cj',en:'Yangtze 长江',zh:'长江'},{id:'hh',en:'Yellow River 黄河',zh:'黄河'}],
+  items:[
+    {en:'Flows into the East China Sea',zh:'注入东海',bin:'cj'},{en:'“Golden waterway”',zh:'“黄金水道”',bin:'cj'},{en:'Three Gorges Dam',zh:'三峡工程',bin:'cj'},{en:'Divided at Yichang and Hukou',zh:'分界点：宜昌、湖口',bin:'cj'},{en:'China’s longest river',zh:'我国第一长河',bin:'cj'},{en:'Starts in the Tanggula Mountains',zh:'发源于唐古拉山',bin:'cj'},
+    {en:'Flows into the Bohai Sea',zh:'注入渤海',bin:'hh'},{en:'“Above-ground river”',zh:'“地上河”',bin:'hh'},{en:'Crosses the Loess Plateau',zh:'流经黄土高原',bin:'hh'},{en:'Divided at Hekou and Taohuayu',zh:'分界点：河口、桃花峪',bin:'hh'},{en:'Shaped like the character 几',zh:'干流呈“几”字形',bin:'hh'},{en:'Xiaolangdi Dam flushes silt',zh:'小浪底调水调沙',bin:'hh'}
+  ]
+});
+</script>
+</body>
+</html>

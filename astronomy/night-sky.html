@@ -1,0 +1,911 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Constellations &amp; the Night Sky</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/lab3d.js"></script>
+<script src="../shared/photos.js"></script>
+<style>
+/* page-specific styles */
+.pill select{border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:999px;padding:3px 8px;font:inherit;font-size:13px;font-weight:700;max-width:210px}
+.pill .tval{font-family:Fredoka;font-weight:600;min-width:46px;text-align:right}
+.compass{position:absolute;right:12px;top:50%;transform:translateY(-50%);z-index:3;display:flex;flex-direction:column;gap:6px}
+.compass button{width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,.2);background:rgba(12,18,40,.75);color:#eaf0fb;font-weight:800;font-size:13px}
+.compass button:hover{border-color:var(--brand)}
+.stage.space .lab-label3d.star{font-size:11px;font-weight:700;color:#ffe9b0;background:transparent;border:0;padding:0;transform:translate(8px,-50%)}
+.stage.space .lab-label3d.cmp{font-size:15px;color:#9fe2a0;background:rgba(5,20,10,.6)}
+.stage.space .lab-label3d.con{color:#bcd0ff}
+.readout{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px}
+.readout .counter b{font-size:22px}
+.vislist{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;align-items:center;font-size:14px;color:var(--ink-2);font-weight:700}
+.vislist .chip{padding:3px 10px;font-size:13px}
+#dotBox{min-height:460px;background:radial-gradient(circle at 50% 40%,#16204a,#05070f)}
+#dotBox canvas{cursor:crosshair}
+#briBox{min-height:360px;background:radial-gradient(circle at 50% 40%,#121a3d,#04060d)}
+.starpick{display:flex;flex-wrap:wrap;gap:6px}
+.starpick .chip.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.bigfact{font-family:Fredoka;font-size:20px;font-weight:600;color:var(--ink)}
+@media (max-width:980px){.readout{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.pill input[type=range]{width:90px}.compass{top:52%;gap:4px}.compass button{width:32px;height:32px;font-size:12px}}
+#zoBox{min-height:560px;background:#05070f}
+.zobar{display:flex;align-items:center;gap:8px}
+.zobar div{height:12px;border-radius:999px;flex:none}
+.zobar span{font-weight:800;font-size:14px;font-variant-numeric:tabular-nums}
+#zoTbl td,#zoTbl th{padding:7px 12px;font-size:15px}
+.grid3>details.peek.peek{margin-top:0}
+@media (max-width:560px){ #zoBox{min-height:460px} }
+</style>
+</head>
+<body data-subject="astronomy" data-topic="night-sky">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="天文 · 星空">Astronomy · The Night Sky</span>
+  <h1 data-zh-html="星座与<em>夜空</em>">Constellations &amp; <em>the Night Sky</em></h1>
+  <p class="lead" data-zh="为什么星星整夜都好像在天上移动？站在佐治亚州的夜空下抬头看：星星排成熟悉的图案，整夜都在绕着北极星慢慢转动。拖动时间滑块，看看星空怎样旋转；换个月份，看看季节星座怎样变化。">Why do the stars seem to move across the sky all night long? Stand under a Georgia night sky and look up: stars form familiar patterns, and all night long they wheel slowly around the North Star. Drag the time slider to turn the sky, and change the month to see the seasonal constellations change.</p>
+</header>
+
+<section class="wrap" id="explore" data-nav="3D Sky" data-nav-zh="3D 星空">
+  <div class="explorer">
+    <div class="stage card space" id="stage" data-3d>
+      <div class="toolbar">
+        <button class="tbtn on" id="viewIn" data-zh="👁 站在地面">👁 On the ground</button>
+        <button class="tbtn" id="viewOut" data-zh="🌐 天球外">🌐 Outside view</button>
+        <button class="tbtn" id="playBtn" data-zh="▶ 播放夜晚">▶ Play night</button>
+        <button class="tbtn on" id="lineBtn" data-zh="✦ 连线">✦ Lines</button>
+        <button class="tbtn on" id="labelBtn" data-zh="🏷 标签">🏷 Labels</button>
+        <button class="tbtn" id="trailBtn" data-zh="〰 星轨">〰 Star trails</button>
+        <button class="tbtn" id="storyBtn" data-zh="🌀 星星为什么会动？（故事）">🌀 Why do stars move? (story)</button>
+        <button class="tbtn" id="resetBtn" data-zh="⌂ 重置">⌂ Reset</button>
+      </div>
+      <div class="compass" id="compass">
+        <button data-dir="N" data-zh="北">N</button><button data-dir="E" data-zh="东">E</button><button data-dir="S" data-zh="南">S</button><button data-dir="W" data-zh="西">W</button><button data-dir="U">⬆</button>
+      </div>
+      <div class="bottombar">
+        <div class="pill"><span data-zh="🕘 时间">🕘 Time</span><input id="timeSl" type="range" min="0" max="720" step="5" value="180"><span class="tval" id="timeVal">21:00</span></div>
+        <div class="pill"><span data-zh="📅">📅</span><select id="monthSel"></select></div>
+        <div class="pill"><span data-zh="📍">📍</span><select id="locSel"></select></div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="chips" id="chips"></div>
+  <div class="readout">
+    <div class="counter"><b id="rTime">–</b><span data-zh="当地时间">local time</span></div>
+    <div class="counter"><b id="rTurn">–</b><span data-zh="傍晚 6 点以来星空转过的角度">sky has turned since 6 PM</span></div>
+    <div class="counter"><b id="rPol">–</b><span data-zh="北极星的高度（地平线以上）">Polaris height above horizon</span></div>
+    <div class="counter"><b id="rVis">–</b><span data-zh="地平线以上的星座">constellations above the horizon</span></div>
+  </div>
+  <div class="vislist" id="visList"></div>
+</section>
+
+<section class="wrap" id="connect" data-nav="Connect the stars" data-nav-zh="连星成座">
+  <div class="sec-head">
+    <h2 data-zh="游戏：连星成座">Game: connect the stars</h2>
+    <p data-zh="这些是真实恒星的位置（亮星画得更大）。先点一颗星，再点另一颗，把它们连起来，拼出星座的图案。小心：周围还有一些无关的暗星！">These are real star positions (brighter stars are drawn bigger). Click one star, then another, to join them and rebuild the constellation’s pattern. Careful: some faint stars nearby are not part of it!</p>
+  </div>
+  <div class="sim">
+    <div class="card simbox" id="dotBox"><canvas id="dotCv"></canvas></div>
+    <div class="card simside">
+      <h3 id="dotName">–</h3>
+      <p id="dotClue">–</p>
+      <div class="counters">
+        <div class="counter"><b id="dFound">0/0</b><span data-zh="连对的线">lines found</span></div>
+        <div class="counter"><b id="dWrong">0</b><span data-zh="连错的次数">wrong tries</span></div>
+        <div class="counter"><b id="dDone">0</b><span data-zh="完成的星座">constellations done</span></div>
+        <div class="counter"><b id="dStreak">0</b><span data-zh="连续答对">correct in a row</span></div>
+      </div>
+      <div class="result" id="dMsg"></div>
+      <div class="btnrow"><button class="btn" id="dNext" data-zh="下一个星座 ▶">Next constellation ▶</button><button class="btn ghost" id="dHint" data-zh="提示">Hint</button><button class="btn ghost" id="dUndo" data-zh="取消选择">Deselect</button></div>
+      <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="星座只是从地球上看过去的图案。图案里的星星可能一颗近、一颗远，彼此相隔几百光年！">A constellation is only a pattern as seen from Earth. Its stars can be hundreds of light-years apart, one near and one far!</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="bright" data-nav="Brightness" data-nav-zh="亮度与光年">
+  <div class="sec-head">
+    <h2 data-zh="模拟：亮度、距离与光年">Simulation: brightness, distance &amp; light-years</h2>
+    <p data-zh="一颗星看起来有多亮，取决于它本身发出多少光，也取决于它离我们多远。选一颗星，再把它“搬”到别的距离，看看它会变亮还是变暗。">How bright a star looks depends on how much light it really gives off AND how far away it is. Pick a star, then “move” it to a different distance and see whether it looks brighter or dimmer.</p>
+  </div>
+  <div class="sim">
+    <div class="card simbox" id="briBox"><canvas id="briCv"></canvas></div>
+    <div class="card simside">
+      <div class="starpick" id="starPick"></div>
+      <label class="ctl"><span data-zh="把它移到这个距离：">Move it to this distance:</span><b id="bDistTxt">–</b><input id="bDist" type="range" min="-5" max="4" step="0.01" value="0.93"></label>
+      <div class="btnrow"><button class="btn ghost" id="bReal" data-zh="放回真实距离">Back to real distance</button></div>
+      <div class="counters">
+        <div class="counter"><b id="bMag">–</b><span data-zh="视星等（越小越亮）">apparent magnitude (smaller = brighter)</span></div>
+        <div class="counter"><b id="bVsSirius">–</b><span data-zh="和天狼星相比">compared with Sirius</span></div>
+        <div class="counter"><b id="bEye">–</b><span data-zh="肉眼能看见吗？">visible to the naked eye?</span></div>
+        <div class="counter"><b id="bYear">–</b><span data-zh="你看到的光出发于">the light you see left in</span></div>
+      </div>
+      <p class="bigfact" id="bFact">–</p>
+      <div class="mix"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="光年是距离单位，不是时间单位！1 光年就是光在一年里走过的距离，约 9.46 万亿千米。">A light-year is a unit of DISTANCE, not time! It is how far light travels in one year: about 9.46 trillion km.</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="zodiac">
+  <div class="sec-head">
+    <h2 data-zh="黄道带：为什么星座会随季节变化？">The zodiac: why do the constellations change with the seasons?</h2>
+    <p data-zh="地球绕太阳公转一圈要一年。从地球上看，太阳好像在一圈星座前面慢慢移动，这条路径叫黄道，沿途的星座叫黄道星座。太阳“挡住”的星座白天才在天上，被阳光淹没；正对着太阳的那一侧，就是半夜高挂在南方天空的星座。拖动时间条，让地球绕太阳转一年。">Earth takes a year to go around the Sun. Seen from Earth, the Sun seems to creep in front of a ring of constellations; its path is called the ecliptic, and the constellations along it are the zodiac. The constellation behind the Sun is up only in the daytime, lost in the glare; the one on the opposite side is high in the south at midnight. Drag the time bar to carry Earth around its year.</p>
+  </div>
+  <div class="sim">
+    <div class="card simbox" id="zoBox"><canvas id="zoCv"></canvas></div>
+    <div class="card simside">
+      <div class="bigfact" id="zoDate">–</div>
+      <div class="counters">
+        <div class="counter"><b id="zoSun">–</b><span data-zh="太阳真正位于（看不见，在阳光里）">the Sun is really in front of (hidden in the glare)</span></div>
+        <div class="counter"><b id="zoMid">–</b><span data-zh="半夜高挂南方天空">high in the south at midnight</span></div>
+        <div class="counter"><b id="zoSign">–</b><span data-zh="星座占卜里这天的“星座”">horoscope “sign” for this date</span></div>
+        <div class="counter"><b id="zoDays">–</b><span data-zh="太阳在这个星座前停留">days the Sun spends in front of it</span></div>
+      </div>
+      <div class="result" id="zoMsg"></div>
+      <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="半夜看到的星座，正好在太阳的“对面”。所以过半年，夜空里的星座就会整个换一批。">The constellation you see at midnight is on the opposite side of Earth from the Sun. So in six months, the night sky shows a whole new set of constellations.</span></div>
+    </div>
+  </div>
+  <div class="timebar" style="margin-top:14px"><button id="zoPlay" aria-label="Play">▶</button><input id="zoDay" type="range" min="1" max="365" step="1" value="80"><output id="zoOut">–</output></div>
+
+  <h3 style="margin:26px 0 10px" data-zh="📊 太阳实际经过每个星座的日期">📊 When the Sun is really in front of each constellation</h3>
+  <div class="table-wrap"><table class="lab" id="zoTbl"></table></div>
+  <p class="muted" style="font-size:13px;margin:6px 0 0" data-zh="数据：国际天文学联合会（IAU）1930 年划定的星座边界；日期是近似值，每年可能相差一天。星座占卜的日期来自约 2,000 年前的划分，不是科学。">Data: constellation boundaries set by the International Astronomical Union (IAU) in 1930; dates are approximate and can shift by a day from year to year. Horoscope dates come from a system set up about 2,000 years ago and are not science.</p>
+  <div class="grid3" style="margin-top:14px">
+    <details class="peek"><summary data-zh="为什么日期对不上？">Why don’t the dates match the horoscope?</summary><p data-zh="地球的自转轴像陀螺一样慢慢地“画圈”，大约 26,000 年转一圈，这叫岁差。约 2,000 年前定下星座日期时，太阳的位置和今天差了将近一个月，所以现在大多数人的“星座”其实和太阳当天真正所在的星座不一样。">Earth’s axis slowly wobbles like a spinning top, making one circle about every 26,000 years (precession). Since the sign dates were fixed about 2,000 years ago, the Sun’s position has slipped by almost a month, so for most people the Sun was really in a different constellation on their birthday.</p></details>
+    <details class="peek"><summary data-zh="第 13 个黄道星座？">A 13th zodiac constellation?</summary><p data-zh="黄道其实还穿过蛇夫座（拿着蛇的人）。太阳每年 11 月底到 12 月中旬都在蛇夫座前面，比在天蝎座前面的时间（约一周）长得多。古人为了凑成 12 个等份，没有把它算进去。">The ecliptic also crosses Ophiuchus, the Serpent Bearer. The Sun is in front of Ophiuchus from late November to mid-December, much longer than its week in Scorpius. Ancient astrologers left it out to keep 12 equal signs.</p></details>
+    <details class="peek"><summary data-zh="为什么星座大小不一样？">Why are the constellations different sizes?</summary><p data-zh="星座只是天空中划分出来的区域，就像美国的各个州一样大小不一。室女座很大，太阳要走 40 多天；天蝎座在黄道上只占一小段，太阳不到一周就走过去了。">Constellations are just areas of sky with agreed borders, like US states of different sizes. Virgo is huge (the Sun takes over 40 days to cross it), while the ecliptic clips only a corner of Scorpius, crossed in under a week.</p></details>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real photos" data-nav-zh="真实影像">
+  <div id="gallery"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 星空测验">🧠 Night-sky quiz</h3><p class="sub" data-zh="选出正确答案。">Pick the best answer.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 哪个季节的星座？">🗂️ Which season’s sky?</h3><p class="sub" data-zh="从佐治亚州（北纬约 34°）看，每个星座在哪个季节的晚上最容易看到？">Seen from Georgia (about 34° N), in which season’s evening sky is each constellation easiest to see?</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="对应佐治亚州标准 S6E1（获取、评估和交流关于宇宙的科学观点及其演变的信息）。3D 天球使用约 110 颗亮星的真实赤经、赤纬（J2000），背景暗星只是装饰。可以提问：为什么北极星几乎不动？（它几乎就在地轴所指的方向上。）为什么冬天看得到猎户座，夏天却看不到？（地球绕太阳公转，夏季夜晚背对太阳的方向正好对着天蝎座一侧，猎户座这时和太阳在同一侧，被阳光淹没。）">Supports GSE S6E1 (current scientific views of the universe and how those views evolved). The 3D celestial sphere uses real right ascension and declination (J2000) for about 110 bright stars; the faint background stars are decoration only. Good questions: Why does Polaris barely move? (It lies almost exactly where Earth’s axis points.) Why can we see Orion in winter but not in summer? (As Earth orbits the Sun, on summer nights our night side faces toward Scorpius, while Orion is on the same side as the Sun and is lost in daylight.)</p>
+    <p data-zh="活动建议：让学生把地点切换到北极、赤道和悉尼，测量北极星的高度，发现“北极星高度 ≈ 当地纬度”。再打开“星轨”并播放夜晚，把结果与真实的长时间曝光星轨照片对比。">Activity: switch the location to the North Pole, the Equator and Sydney and record Polaris’s height to discover that “Polaris’s altitude ≈ your latitude”. Then turn on Star trails, play the night, and compare with real long-exposure star-trail photos.</p>
+  </details>
+</section>
+
+<section class="wrap" id="further" data-nav="Go further" data-nav-zh="延伸探索">
+  <div class="sec-head"><h2 data-zh="走得更远：真实的天文工具">Go further: real astronomy tools</h2><p data-zh="下面是航天机构和科学家公开分享的真实网站，每个都会在新标签页中打开。">Real tools shared by space agencies and scientists. Each opens in a new tab.</p></div>
+  <div class="linkgrid">
+    <a class="linkcard" href="https://stellarium-web.org/" target="_blank" rel="noopener"><b data-zh="Stellarium 网页版星图">Stellarium Web planetarium</b><span data-zh="输入你所在的城市和时间，看今晚天上有哪些星座和行星，还能快进到任何日期。">Set your town and time to see tonight’s constellations and planets, or fast-forward to any date.</span><small>stellarium-web.org ↗</small></a>
+    <a class="linkcard" href="https://www.heavens-above.com/" target="_blank" rel="noopener"><b data-zh="Heavens-Above 过境预报">Heavens-Above</b><span data-zh="查出国际空间站和其他人造卫星什么时候从你家上空飞过，以及该往哪个方向看。">Find out when the Space Station and other satellites will pass over your home, and where to look.</span><small>heavens-above.com ↗</small></a>
+    <a class="linkcard" href="https://www.timeanddate.com/astronomy/night/" target="_blank" rel="noopener"><b data-zh="timeanddate 今晚夜空">timeanddate: Night sky tonight</b><span data-zh="查看你所在地今晚哪些行星可见、几点升起和落下。">See which planets are up tonight where you live, and when they rise and set.</span><small>timeanddate.com ↗</small></a>
+    <a class="linkcard" href="https://in-the-sky.org/" target="_blank" rel="noopener"><b data-zh="In-The-Sky.org 天象日历">In-The-Sky.org sky calendar</b><span data-zh="浏览本月的天象：流星雨、行星相合、月亮经过亮星等，并查看星图。">Browse this month’s sky events (meteor showers, planet meet-ups, the Moon passing bright stars) with charts.</span><small>in-the-sky.org ↗</small></a>
+    <a class="linkcard" href="https://globeatnight.org/" target="_blank" rel="noopener"><b data-zh="Globe at Night 夜空亮度调查">Globe at Night</b><span data-zh="参加公民科学：数一数你能看到星座里的几颗星，提交结果，帮助科学家测量光污染。">Citizen science: count the stars you can see in a constellation and report it to help measure light pollution.</span><small>globeatnight.org ↗</small></a>
+    <a class="linkcard" href="https://www.lightpollutionmap.info/" target="_blank" rel="noopener"><b data-zh="光污染地图">Light pollution map</b><span data-zh="在地图上找到离你家最近的暗夜地点，计划一次观星旅行。">Find the darkest places near your home on a world map and plan a stargazing trip.</span><small>lightpollutionmap.info ↗</small></a>
+  </div>
+  <h3 style="margin:26px 0 12px" data-zh="🔭 在本实验室继续深入">🔭 Go deeper in this lab</h3>
+  <div class="linkgrid" id="deeper" data-deeper="sky-tonight,measuring-distance,star-life,telescopes-light"></div>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+const o = (en, zh) => ({en, zh});
+/* ===== Real photos (Wikimedia Commons, free licences; rendered by shared/photos.js) ===== */
+const RP_KIND = { earth:o('Photo from Earth','从地球上拍的照片'), tele:o('Space telescope photo','空间望远镜照片'), vid:o('Time-lapse video','延时视频') };
+const RP = {
+  orion:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/47/Orion_Head_to_Toe.jpg/960px-Orion_Head_to_Toe.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Orion_Head_to_Toe.jpg', credit:'Rogelio Bernal Andreo', kind:RP_KIND.earth,
+    en:'The constellation Orion in a long-exposure photo (October 2010). The camera also catches glowing clouds of gas around it that our eyes cannot see.', zh:'长时间曝光拍下的猎户座（2010 年 10 月）。相机还拍到了周围肉眼看不到的发光气体云。' },
+  dippers:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b9/Big_dipper.triddle.jpg/960px-Big_dipper.triddle.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Big_dipper.triddle.jpg', credit:'Triddle (English Wikipedia)', kind:RP_KIND.earth,
+    en:'The Big Dipper (part of Ursa Major) in a real night photo. Can you find its seven stars before you look at the 3D sky?', zh:'真实夜空照片中的北斗七星（大熊座的一部分）。先在照片里找出这七颗星，再去 3D 星空里对照！' },
+  trails:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f8/Star_trails_over_the_ESO_3.6-metre_telescope.jpg/960px-Star_trails_over_the_ESO_3.6-metre_telescope.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Star_trails_over_the_ESO_3.6-metre_telescope.jpg', credit:'ESO/A.Santerne', kind:RP_KIND.earth,
+    en:'Star trails over a telescope in Chile. The camera stayed open for a long time, so each star drew an arc as Earth turned.', zh:'智利一座望远镜上空的星轨。相机长时间曝光，地球转动时，每颗星都画出了一段弧线。' },
+  polaris:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5f/Polaris_alpha_ursae_minoris.jpg/960px-Polaris_alpha_ursae_minoris.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Polaris_alpha_ursae_minoris.jpg', credit:'NASA/HST', kind:RP_KIND.tele,
+    en:'Polaris, the North Star, seen by the Hubble Space Telescope.', zh:'哈勃空间望远镜拍到的北极星。',
+    scale:o('About 430 light-years away','距离约 430 光年') },
+  pleiades:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4e/Pleiades_large.jpg/960px-Pleiades_large.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Pleiades_large.jpg', credit:'NASA, ESA, AURA/Caltech, Palomar Observatory', kind:RP_KIND.earth,
+    en:'The Pleiades (the “Seven Sisters”), a cluster of about 3,000 stars in the constellation Taurus.', zh:'昴星团（“七姐妹”），金牛座里一个大约有 3000 颗恒星的星团。',
+    scale:o('About 440 light-years away','距离约 440 光年') },
+  milky:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c6/Milky_Way_Night_Sky_Black_Rock_Desert_Nevada.jpg/960px-Milky_Way_Night_Sky_Black_Rock_Desert_Nevada.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Milky_Way_Night_Sky_Black_Rock_Desert_Nevada.jpg', credit:'Steve Jurvetson', kind:RP_KIND.earth,
+    en:'The Milky Way over the Black Rock Desert, Nevada, in a 54-second exposure. Far from city lights, the sky looks like this.', zh:'美国内华达州黑岩沙漠上空的银河，曝光 54 秒。远离城市灯光时，夜空就是这样的。' },
+  pollution:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2c/Light_pollution_It%27s_not_pretty.jpg/960px-Light_pollution_It%27s_not_pretty.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Light_pollution_It%27s_not_pretty.jpg', credit:'Jeremy Stanley', kind:RP_KIND.earth,
+    en:'Orion from a dark sky (left) and from the city of Orem, Utah (right). City lights wash out the fainter stars.', zh:'左边是在黑暗的地方拍的猎户座，右边是在美国犹他州奥勒姆市拍的。城市灯光把较暗的星星都“淹没”了。' },
+  video:{ type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/a/a1/Starry_sky_with_North_Star_circled.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a1/Starry_sky_with_North_Star_circled.webm/960px--Starry_sky_with_North_Star_circled.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', license:'CC BY 3.0', page:'https://commons.wikimedia.org/wiki/File:Starry_sky_with_North_Star_circled.webm', credit:'Thomas Bresson', kind:RP_KIND.vid,
+    en:'Time-lapse of the night sky in France. All the stars turn around the North Star (circled), just like in the 3D sky.', zh:'在法国拍的夜空延时视频。所有星星都绕着北极星（圆圈处）转，和 3D 星空里一样。' }
+};
+const RP_PANEL = { polaris:'polaris', uma:'dippers', ori:'orion', tau:'pleiades' };
+const realFig = k => RP[RP_PANEL[k]] ? LabPhotos.figure(RP[RP_PANEL[k]]) : '';
+LabPhotos.render('#gallery', ['orion','dippers','trails','pleiades','milky','pollution','video'].map(k => RP[k]), { title:o('See the real thing','看看真实的样子'),
+  sub:o('Real photos of the night sky and a time-lapse of the stars turning around Polaris. Click a picture to enlarge it; the video plays only when you press play.','真实的夜空照片，还有一段星星绕北极星转动的延时视频。点击图片可以放大；视频要你按下播放键才会播放。') });
+/* ===== Real bright stars: id: [RA hours, Dec degrees, magnitude, spectral colour] (J2000) ===== */
+const STARS = {
+  polaris:[2.530,89.26,1.98,'F'], kochab:[14.845,74.16,2.08,'K'], pherkad:[15.346,71.83,3.05,'A'], yildun:[17.537,86.59,4.35,'A'], epsUMi:[16.766,82.04,4.2,'G'], zetUMi:[15.734,77.79,4.3,'A'], etaUMi:[16.292,75.75,4.95,'F'],
+  dubhe:[11.062,61.75,1.79,'K'], merak:[11.031,56.38,2.37,'A'], phecda:[11.897,53.69,2.44,'A'], megrez:[12.257,57.03,3.31,'A'], alioth:[12.900,55.96,1.77,'A'], mizar:[13.399,54.93,2.27,'A'], alkaid:[13.792,49.31,1.86,'B'],
+  caph:[0.153,59.15,2.27,'F'], schedar:[0.675,56.54,2.24,'K'], navi:[0.945,60.72,2.15,'B'], ruchbah:[1.430,60.24,2.68,'A'], segin:[1.907,63.67,3.37,'B'],
+  betelgeuse:[5.919,7.41,0.5,'M'], rigel:[5.242,-8.20,0.13,'B'], bellatrix:[5.419,6.35,1.64,'B'], mintaka:[5.533,-0.30,2.23,'B'], alnilam:[5.604,-1.20,1.69,'B'], alnitak:[5.679,-1.94,1.77,'B'], saiph:[5.796,-9.67,2.07,'B'], meissa:[5.586,9.93,3.39,'B'],
+  sirius:[6.752,-16.72,-1.46,'A'], mirzam:[6.378,-17.96,1.98,'B'], wezen:[7.140,-26.39,1.83,'F'], adhara:[6.977,-28.97,1.50,'B'], aludra:[7.402,-29.30,2.45,'B'],
+  procyon:[7.655,5.22,0.34,'F'], gomeisa:[7.453,8.29,2.9,'B'],
+  aldebaran:[4.599,16.51,0.85,'K'], elnath:[5.438,28.61,1.65,'B'], zetTau:[5.628,21.14,3.0,'B'], gamTau:[4.330,15.63,3.65,'K'], epsTau:[4.477,19.18,3.5,'K'], pleiades:[3.791,24.11,1.6,'B'],
+  capella:[5.278,46.00,0.08,'G'], menkalinan:[5.992,44.95,1.9,'A'], thetaAur:[5.995,37.21,2.6,'A'], hassaleh:[4.950,33.17,2.7,'K'], epsAur:[5.033,43.82,3.0,'F'],
+  castor:[7.577,31.89,1.58,'A'], pollux:[7.755,28.03,1.14,'K'], alhena:[6.629,16.40,1.93,'A'], mebsuta:[6.732,25.13,3.0,'G'], wasat:[7.335,21.98,3.53,'F'], tejat:[6.383,22.51,2.87,'M'],
+  regulus:[10.140,11.97,1.35,'B'], denebola:[11.818,14.57,2.11,'A'], algieba:[10.333,19.84,2.0,'K'], zosma:[11.235,20.52,2.56,'A'], etaLeo:[10.122,16.76,3.5,'A'], epsLeo:[9.764,23.77,2.98,'G'], muLeo:[9.879,26.01,3.88,'K'], adhafera:[10.278,23.42,3.44,'F'], chertan:[11.237,15.43,3.33,'A'],
+  arcturus:[14.261,19.18,-0.05,'K'], izar:[14.750,27.07,2.37,'K'], seginus:[14.535,38.31,3.03,'A'], nekkar:[15.032,40.39,3.5,'G'], delBoo:[15.258,33.31,3.47,'G'], muphrid:[13.911,18.40,2.68,'G'],
+  spica:[13.420,-11.16,0.97,'B'],
+  antares:[16.490,-26.43,1.06,'M'], graffias:[16.091,-19.81,2.62,'B'], dschubba:[16.006,-22.62,2.29,'B'], piSco:[15.981,-26.11,2.89,'B'], sigSco:[16.353,-25.59,2.9,'B'], tauSco:[16.598,-28.22,2.82,'B'], epsSco:[16.836,-34.29,2.29,'K'], muSco:[16.864,-38.05,3.0,'B'], zetSco:[16.910,-42.36,3.6,'K'], etaSco:[17.203,-43.24,3.3,'F'], sargas:[17.622,-43.00,1.86,'F'], iotSco:[17.793,-40.13,3.0,'F'], kapSco:[17.708,-39.03,2.4,'B'], shaula:[17.560,-37.10,1.62,'B'],
+  vega:[18.616,38.78,0.03,'A'], sheliak:[18.835,33.36,3.5,'B'], sulafat:[18.982,32.69,3.25,'B'], zetLyr:[18.746,37.61,4.3,'A'], delLyr:[18.908,36.90,4.3,'M'],
+  deneb:[20.691,45.28,1.25,'A'], sadr:[20.370,40.26,2.23,'F'], albireo:[19.512,27.96,3.05,'K'], gienah:[20.770,33.97,2.48,'K'], delCyg:[19.750,45.13,2.87,'B'],
+  altair:[19.846,8.87,0.77,'A'], tarazed:[19.771,10.61,2.72,'K'], alshain:[19.922,6.41,3.7,'G'], zetAql:[19.090,13.86,2.99,'A'], delAql:[19.425,3.11,3.36,'F'], lamAql:[19.104,-4.88,3.4,'B'], thetaAql:[20.188,-0.82,3.2,'B'],
+  markab:[23.079,15.21,2.48,'B'], scheat:[23.063,28.08,2.42,'M'], algenib:[0.221,15.18,2.83,'B'], alpheratz:[0.140,29.09,2.06,'B'], enif:[21.737,9.88,2.38,'K'], zetPeg:[22.691,10.83,3.4,'B'], thePeg:[22.170,6.20,3.5,'A']
+};
+const SPEC = { B:'#b9cdff', A:'#eef2ff', F:'#fff6e6', G:'#ffeab5', K:'#ffc98f', M:'#ff9f72' };
+/* names shown on the 3D sky for the best-known stars */
+const STAR_NAMES = {
+  polaris:o('Polaris','北极星'), sirius:o('Sirius','天狼星'), betelgeuse:o('Betelgeuse','参宿四'), rigel:o('Rigel','参宿七'), aldebaran:o('Aldebaran','毕宿五'),
+  pleiades:o('Pleiades','昴星团'), capella:o('Capella','五车二'), procyon:o('Procyon','南河三'), castor:o('Castor','北河二'), pollux:o('Pollux','北河三'),
+  regulus:o('Regulus','轩辕十四'), arcturus:o('Arcturus','大角星'), spica:o('Spica','角宿一'), antares:o('Antares','心宿二'), vega:o('Vega','织女星'),
+  deneb:o('Deneb','天津四'), altair:o('Altair','牛郎星'), dubhe:o('Dubhe','天枢'), merak:o('Merak','天璇')
+};
+const SEASON = { all:{c:'#facc15', n:o('All year','全年可见')}, winter:{c:'#60a5fa', n:o('Winter','冬季')}, spring:{c:'#4ade80', n:o('Spring','春季')}, summer:{c:'#f472b6', n:o('Summer','夏季')}, autumn:{c:'#fb923c', n:o('Autumn','秋季')} };
+
+/* ===== Constellations (lines join star ids) ===== */
+const L = s => s.split(' ').map(p => p.split('-'));
+const CONS = {
+  polaris:{season:'all', name:o('Polaris (North Star)','北极星'), job:o('Almost still, above Earth’s North Pole','几乎不动，位于地球北极的正上方'), stars:['polaris'], lines:[],
+    facts:{en:['Polaris sits less than 1° from the north celestial pole, the point in the sky that Earth’s axis points to.','All night the other stars circle around it, while Polaris barely moves.','Its height above the northern horizon equals your latitude: about 34° in Georgia, 40° in Beijing.','It is about 430 light-years away.'],
+           zh:['北极星离北天极（地轴在天空中指向的点）不到 1°。','整夜其他星星都绕着它转，而北极星几乎不动。','它在北方地平线以上的高度约等于当地的纬度：佐治亚州约 34°，北京约 40°。','它离我们大约 430 光年。']},
+    hint:o('Follow the two “pointer stars” at the end of the Big Dipper’s bowl (Dubhe and Merak) about five times their distance to reach Polaris.','把北斗七星斗口的两颗“指极星”（天璇→天枢）连线延长约 5 倍，就能找到北极星。'),
+    mix:o('Polaris is NOT the brightest star in the sky (it is only about 48th). Sirius is the brightest. Polaris is famous because it does not move.','北极星并不是全天最亮的星（大约排第 48 名），最亮的是天狼星。北极星出名是因为它几乎不动。')},
+  uma:{season:'all', name:o('Ursa Major (Big Dipper)','大熊座（北斗七星）'), job:o('The Great Bear, home of the Big Dipper','大熊，北斗七星就在其中'), stars:['dubhe','merak','phecda','megrez','alioth','mizar','alkaid'], lines:L('dubhe-merak merak-phecda phecda-megrez megrez-dubhe megrez-alioth alioth-mizar mizar-alkaid'),
+    facts:{en:['The seven bright stars of the Big Dipper are only part of the Great Bear constellation.','The Big Dipper is an asterism: a famous star pattern that is not a whole constellation.','From Georgia, the Dipper is high on spring evenings and low near the northern horizon on autumn evenings.'],
+           zh:['北斗七星只是大熊座的一部分。','北斗七星属于“星群”：一个有名的星星图案，但不是一个完整的星座。','从佐治亚州看，春天傍晚北斗高挂，秋天傍晚它低低地贴近北方地平线。']},
+    hint:o('Spring up, fall down: the Dipper is high in spring and low in autumn.','“春高秋低”：春天北斗高，秋天北斗低。'),
+    mix:o('The Dipper’s stars are not all the same distance from us. Most are about 80 light-years away, but Dubhe is about 120.','北斗七星离我们的距离并不相同：多数约 80 光年，而天枢约 120 光年。')},
+  umi:{season:'all', name:o('Ursa Minor (Little Dipper)','小熊座（小北斗）'), job:o('Polaris is at the end of its handle','北极星就在它的“勺柄”末端'), stars:['polaris','yildun','epsUMi','zetUMi','kochab','pherkad','etaUMi'], lines:L('polaris-yildun yildun-epsUMi epsUMi-zetUMi zetUMi-kochab kochab-pherkad pherkad-etaUMi etaUMi-zetUMi'),
+    facts:{en:['Polaris is the last star in the handle of the Little Dipper.','From Georgia the whole Little Dipper is circumpolar: it never sets.','Most of its stars are faint. The brightest after Polaris is Kochab, an orange giant.'],
+           zh:['北极星是小北斗勺柄末端的那颗星。','从佐治亚州看，整个小熊座都是“拱极星座”，永远不会落到地平线以下。','它的大多数星星都比较暗，除北极星外最亮的是橙色巨星“帝星”。']},
+    hint:o('The Little Dipper’s handle ends at the North Star.','小北斗的勺柄末端就是北极星。')},
+  cas:{season:'all', name:o('Cassiopeia','仙后座'), job:o('The “W” near the North Star','北极星旁边的“W”'), stars:['caph','schedar','navi','ruchbah','segin'], lines:L('caph-schedar schedar-navi navi-ruchbah ruchbah-segin'),
+    facts:{en:['Five bright stars make a “W” (or an “M”, depending on the time).','It is on the opposite side of Polaris from the Big Dipper, so when one is low, the other is high.','From Georgia, Cassiopeia is circumpolar: it never sets.'],
+           zh:['五颗亮星组成一个“W”（换个时间看就变成“M”）。','它和北斗七星分别在北极星的两侧，一个低时另一个就高。','从佐治亚州看，仙后座是拱极星座，永远不会落下。']},
+    hint:o('W and the Dipper play see-saw around Polaris.','“W”和北斗绕着北极星玩跷跷板。')},
+  ori:{season:'winter', name:o('Orion','猎户座'), job:o('The Hunter of the winter sky','冬季星空的猎人'), stars:['betelgeuse','rigel','bellatrix','mintaka','alnilam','alnitak','saiph','meissa'], lines:L('betelgeuse-meissa meissa-bellatrix betelgeuse-alnitak bellatrix-mintaka mintaka-alnilam alnilam-alnitak alnitak-saiph mintaka-rigel'),
+    facts:{en:['The best-known winter constellation, seen in the south on winter evenings.','Three stars in a row make Orion’s Belt.','Red Betelgeuse marks a shoulder and blue-white Rigel a foot. Star colour shows temperature: red stars are cooler, blue stars are hotter.','Orion sits on the celestial equator, so people almost everywhere on Earth can see it.'],
+           zh:['最有名的冬季星座，冬天晚上出现在南方天空。','三颗排成一排的星是“猎户腰带”（参宿一、二、三）。','红色的参宿四是猎人的肩膀，蓝白色的参宿七是猎人的脚。恒星的颜色表示温度：红色较冷，蓝色较热。','猎户座位于天赤道上，地球上几乎所有地方都能看到它。']},
+    hint:o('Follow the Belt down-left to Sirius and up-right to Aldebaran.','沿着腰带向左下找到天狼星，向右上找到毕宿五。'),
+    mix:o('Orion’s stars are not close together in space. Bellatrix is about 250 light-years away and Rigel about 860. They only look close from Earth.','猎户座的星星在太空中并不靠在一起：参宿五约 250 光年，参宿七约 860 光年，只是从地球看起来靠得近。')},
+  cma:{season:'winter', name:o('Canis Major (Sirius)','大犬座（天狼星）'), job:o('Home of the brightest star at night','夜空中最亮的恒星所在地'), stars:['sirius','mirzam','wezen','adhara','aludra'], lines:L('mirzam-sirius sirius-wezen wezen-adhara wezen-aludra'),
+    facts:{en:['Contains Sirius, the brightest star in the night sky.','Sirius looks so bright mainly because it is close: only 8.6 light-years away.','Canis Major is Orion’s big hunting dog, following him across the winter sky.'],
+           zh:['大犬座里有天狼星，它是夜空中最亮的恒星。','天狼星看起来那么亮，主要是因为它离我们很近，只有 8.6 光年。','大犬座是猎人的大猎犬，在冬季星空中跟着猎户座移动。']},
+    hint:o('Orion’s Belt points down to Sirius.','猎户腰带向下指向天狼星。')},
+  cmi:{season:'winter', name:o('Canis Minor (Procyon)','小犬座（南河三）'), job:o('The Little Dog','小猎犬'), stars:['procyon','gomeisa'], lines:L('procyon-gomeisa'),
+    facts:{en:['Canis Minor is basically just two stars.','Procyon is only 11.5 light-years away.','Procyon, Sirius and Betelgeuse form the Winter Triangle.'],
+           zh:['小犬座基本上只有两颗星。','南河三离我们只有 11.5 光年。','南河三、天狼星和参宿四组成“冬季大三角”。']},
+    hint:o('Winter Triangle = Betelgeuse + Sirius + Procyon.','冬季大三角 = 参宿四 + 天狼星 + 南河三。')},
+  tau:{season:'winter', name:o('Taurus','金牛座'), job:o('The Bull with a red eye','长着红眼睛的公牛'), stars:['aldebaran','elnath','zetTau','gamTau','epsTau','pleiades'], lines:L('gamTau-aldebaran aldebaran-zetTau gamTau-epsTau epsTau-elnath'),
+    facts:{en:['The Bull, with the orange giant star Aldebaran as its eye.','The V-shaped Hyades star cluster forms the bull’s face.','The Pleiades (Seven Sisters) star cluster rides on the bull’s shoulder.'],
+           zh:['公牛的眼睛是橙色巨星毕宿五。','V 字形的毕星团组成公牛的脸。','昴星团（七姐妹星团）在公牛的肩膀上。']},
+    hint:o('Orion’s Belt points up to Aldebaran, the bull’s eye.','猎户腰带向上指向毕宿五——公牛的眼睛。')},
+  aur:{season:'winter', name:o('Auriga (Capella)','御夫座（五车二）'), job:o('The Charioteer','驾车的人'), stars:['capella','menkalinan','thetaAur','hassaleh','epsAur'], lines:L('capella-menkalinan menkalinan-thetaAur thetaAur-elnath elnath-hassaleh hassaleh-epsAur epsAur-capella'),
+    facts:{en:['A five-sided shape of stars high in the winter sky.','Capella is really a pair of yellow giant stars. It is the sixth-brightest star at night.','Auriga shares the star Elnath with Taurus in its outline.'],
+           zh:['冬季高空中一个由星星组成的五边形。','五车二其实是两颗黄色巨星组成的双星，是夜空中第六亮的恒星。','御夫座的轮廓借用了金牛座的五车五。']},
+    hint:o('Look for a pentagon above Orion.','在猎户座上方找一个五边形。')},
+  gem:{season:'winter', name:o('Gemini','双子座'), job:o('The Twins','双胞胎'), stars:['castor','pollux','alhena','mebsuta','wasat','tejat'], lines:L('castor-pollux castor-mebsuta mebsuta-tejat pollux-wasat wasat-alhena'),
+    facts:{en:['Two bright stars, Castor and Pollux, mark the twins’ heads.','Pollux is a little brighter and orange; Castor is white.','Gemini is high in the sky on winter and early-spring evenings.'],
+           zh:['北河二和北河三两颗亮星是双胞胎的头。','北河三稍亮一些，呈橙色；北河二是白色的。','冬季和早春的晚上，双子座高挂天空。']},
+    hint:o('Castor = Cool white; Pollux = Pumpkin orange (and a bit brighter).','北河二白，北河三橙，而且北河三稍亮一些。')},
+  leo:{season:'spring', name:o('Leo','狮子座'), job:o('The Lion of spring evenings','春季夜晚的狮子'), stars:['regulus','denebola','algieba','zosma','etaLeo','epsLeo','muLeo','adhafera','chertan'], lines:L('regulus-etaLeo etaLeo-algieba algieba-adhafera adhafera-muLeo muLeo-epsLeo algieba-zosma zosma-denebola denebola-chertan chertan-regulus zosma-chertan'),
+    facts:{en:['Leo is a sign of spring: it rises in the east on winter nights and is high on spring evenings.','A backward question mark (the Sickle) makes the lion’s head and mane, with Regulus at the bottom.','A triangle of stars ending at Denebola forms the lion’s tail.'],
+           zh:['狮子座是春天的标志：冬天夜里从东方升起，春天晚上高挂天空。','一个反写的问号（“镰刀”）组成狮子的头和鬃毛，最下面是轩辕十四。','以五帝座一为顶点的三角形是狮子的尾巴。']},
+    hint:o('Look for a backward question mark.','找一个反写的问号。')},
+  boo:{season:'spring', name:o('Boötes (Arcturus)','牧夫座（大角星）'), job:o('The Herdsman, shaped like a kite','形状像风筝的牧夫'), stars:['arcturus','izar','seginus','nekkar','delBoo','muphrid'], lines:L('arcturus-izar izar-delBoo delBoo-nekkar nekkar-seginus seginus-arcturus arcturus-muphrid'),
+    facts:{en:['Shaped like a kite or an ice-cream cone.','Arcturus, an orange giant 37 light-years away, is the brightest star in the northern half of the sky.','Best seen on late-spring and summer evenings.'],
+           zh:['形状像一只风筝或一个冰淇淋蛋筒。','大角星是一颗橙色巨星，离我们 37 光年，是北半天球最亮的恒星。','晚春和夏天的晚上最容易看到。']},
+    hint:o('“Arc to Arcturus, then speed on to Spica”: follow the curve of the Big Dipper’s handle.','顺着北斗勺柄的弧线延伸，先到大角星，再到角宿一（春季大弧线）。')},
+  sco:{season:'summer', name:o('Scorpius','天蝎座'), job:o('The Scorpion of summer','夏季的蝎子'), stars:['antares','graffias','dschubba','piSco','sigSco','tauSco','epsSco','muSco','zetSco','etaSco','sargas','iotSco','kapSco','shaula'], lines:L('graffias-dschubba dschubba-piSco dschubba-sigSco sigSco-antares antares-tauSco tauSco-epsSco epsSco-muSco muSco-zetSco zetSco-etaSco etaSco-sargas sargas-iotSco iotSco-kapSco kapSco-shaula'),
+    facts:{en:['The Scorpion is low in the south on summer evenings from Georgia.','Its heart is Antares, a huge red supergiant. Its name means “rival of Mars” because of its red colour.','Its long curving tail ends in a stinger.'],
+           zh:['从佐治亚州看，夏天晚上天蝎座低低地挂在南方。','蝎子的心脏是心宿二，一颗巨大的红超巨星，名字的意思是“火星的对手”，因为它也是红色的。','长长弯曲的尾巴末端是毒刺。']},
+    hint:o('Orion and Scorpius are on opposite sides of the sky, so you never see them high at the same time.','猎户座和天蝎座在天空的两侧，不会同时高挂（“参商不相见”）。')},
+  lyr:{season:'summer', name:o('Lyra (Vega)','天琴座（织女星）'), job:o('The Harp','竖琴'), stars:['vega','sheliak','sulafat','zetLyr','delLyr'], lines:L('vega-zetLyr zetLyr-sheliak sheliak-sulafat sulafat-delLyr delLyr-zetLyr'),
+    facts:{en:['A small constellation shaped like a harp (lyre).','Vega is one of the brightest stars of summer and only 25 light-years away.','In the Chinese Qixi story, Vega is the Weaver Girl.'],
+           zh:['一个形状像竖琴的小星座。','织女星是夏夜最亮的星之一，离我们只有 25 光年。','在中国七夕的故事里，它就是织女。']},
+    hint:o('Vega: the bright blue-white star almost overhead on summer evenings.','织女星：夏天晚上几乎在头顶的蓝白色亮星。')},
+  cyg:{season:'summer', name:o('Cygnus (Northern Cross)','天鹅座（北十字）'), job:o('The Swan flying along the Milky Way','沿着银河飞翔的天鹅'), stars:['deneb','sadr','albireo','gienah','delCyg'], lines:L('deneb-sadr sadr-albireo delCyg-sadr sadr-gienah'),
+    facts:{en:['The Swan flies along the Milky Way.','Its brightest stars form the Northern Cross.','Deneb, its tail, is extremely powerful and very far away: around 2,600 light-years.'],
+           zh:['天鹅沿着银河展翅飞翔。','它最亮的几颗星组成“北十字”。','天鹅的尾巴天津四发光能力极强，而且非常遥远，约 2,600 光年。']},
+    hint:o('Deneb + Vega + Altair = the Summer Triangle.','天津四 + 织女星 + 牛郎星 = 夏季大三角。')},
+  aql:{season:'summer', name:o('Aquila (Altair)','天鹰座（牛郎星）'), job:o('The Eagle','雄鹰'), stars:['altair','tarazed','alshain','zetAql','delAql','lamAql','thetaAql'], lines:L('tarazed-altair altair-alshain altair-delAql delAql-lamAql delAql-zetAql alshain-thetaAql'),
+    facts:{en:['The Eagle also flies along the Milky Way.','Altair is the Cowherd in the Chinese Qixi story; the Milky Way separates him from Vega.','Altair is only about 17 light-years away and spins very fast.'],
+           zh:['天鹰座也在银河边飞翔。','牛郎星（河鼓二）就是七夕故事里的牛郎，银河把他和织女隔开。','牛郎星离我们只有约 17 光年，而且自转得非常快。']},
+    hint:o('Altair has a fainter star on each side, like an eagle’s head between its wings.','牛郎星两边各有一颗较暗的星（“扁担星”）。')},
+  peg:{season:'autumn', name:o('Pegasus','飞马座'), job:o('The Winged Horse of autumn','秋季的飞马'), stars:['markab','scheat','algenib','alpheratz','enif','zetPeg','thePeg'], lines:L('markab-scheat scheat-alpheratz alpheratz-algenib algenib-markab markab-zetPeg zetPeg-thePeg thePeg-enif'),
+    facts:{en:['Pegasus is a sign of autumn evenings.','Four stars make the Great Square of Pegasus (one corner, Alpheratz, officially belongs to Andromeda).','The Square helps you find the Andromeda Galaxy, about 2.5 million light-years away: the most distant thing you can see with your eyes alone.'],
+           zh:['飞马座是秋季夜晚的标志。','四颗星组成“飞马座大四边形”（其中一角壁宿二其实属于仙女座）。','顺着大四边形可以找到仙女座星系，它离我们约 250 万光年，是肉眼能看到的最遥远的天体。']},
+    hint:o('Autumn sky: look for the big square.','秋季星空：找那个大大的四边形。')}
+};
+const ORDER = ['polaris','uma','umi','cas','ori','cma','cmi','tau','aur','gem','leo','boo','sco','lyr','cyg','aql','peg'];
+const MONTHS = [o('January','1 月'),o('February','2 月'),o('March','3 月'),o('April','4 月'),o('May','5 月'),o('June','6 月'),o('July','7 月'),o('August','8 月'),o('September','9 月'),o('October','10 月'),o('November','11 月'),o('December','12 月')];
+const DOY = [15,46,74,105,135,166,196,227,258,288,319,349];
+const LOCS = [ {lat:33.7, n:o('Atlanta, Georgia (34° N)','亚特兰大（北纬 34°）')}, {lat:39.9, n:o('Beijing (40° N)','北京（北纬 40°）')}, {lat:90, n:o('North Pole (90° N)','北极（北纬 90°）')}, {lat:0, n:o('Equator (0°)','赤道（0°）')}, {lat:-33.9, n:o('Sydney (34° S)','悉尼（南纬 34°）')} ];
+/* sky state shared by UI and 3D */
+const SKY = window.SKY = { min:180, month:new Date().getMonth(), loc:0, sel:null, three:null };
+SKY.solarHour = () => 18 + SKY.min / 60;
+SKY.lst = () => { const raSun = ((DOY[SKY.month] - 80) / 365.25 * 24 + 48) % 24; return ((raSun + SKY.solarHour() - 12) % 24 + 24) % 24; };
+SKY.sunDec = () => 23.44 * Math.sin(2 * Math.PI * (DOY[SKY.month] - 80) / 365.25);
+SKY.sunRA = () => ((DOY[SKY.month] - 80) / 365.25 * 24 + 48) % 24;
+SKY.clock = () => { const h = Math.floor(SKY.solarHour()) % 24, m = SKY.min % 60; return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0'); };
+/* ===== Story: why do the stars move? ===== */
+const STORY = [
+  o('1 · Earth spins from west to east once a day, so the whole sky seems to turn the other way: stars rise in the east and set in the west, about 15° every hour.','1 · 地球每天自西向东自转一周，所以整个天空看起来向相反方向转动：星星东升西落，每小时约转 15°。'),
+  o('2 · Look north. Polaris lies almost exactly where Earth’s axis points, so it barely moves while the other stars circle it. (Star trails on.)','2 · 看向北方。北极星几乎就在地轴所指的方向上，所以它几乎不动，其他星星都绕着它转。（已打开星轨）'),
+  o('3 · Stars close to Polaris never set. From Georgia, Cassiopeia and the Little Dipper are “circumpolar”: they circle all night and all year.','3 · 靠近北极星的星星永远不会落下。从佐治亚州看，仙后座和小北斗是“拱极星座”，整夜、全年都在绕圈。'),
+  o('4 · Go to the North Pole: Polaris is straight overhead and the stars circle the sky without ever rising or setting. Polaris’s height = your latitude.','4 · 来到北极：北极星就在头顶正上方，星星绕着天空转圈，既不升起也不落下。北极星的高度 = 当地纬度。'),
+  o('5 · Back in Georgia on a January evening, Orion stands high in the south: a winter constellation.','5 · 回到佐治亚州的一月夜晚，猎户座高挂在南方天空，它是冬季星座。'),
+  o('6 · In July at the same time, Scorpius is in the south instead. Earth has moved halfway around the Sun, so our night side faces the other way. Orion is now in the daytime sky.','6 · 七月的同一时刻，南方换成了天蝎座。地球绕太阳走了半圈，夜晚朝向的方向相反了，猎户座现在在白天的天空里。'),
+  o('7 · Outside view: astronomers imagine a giant “celestial sphere” around Earth, turning about the line through Polaris. The ground hides the half of the sphere below the horizon.','7 · 天球外视角：天文学家把星星想象在一个围绕地球的巨大“天球”上，天球绕着通过北极星的轴转动，地面挡住了地平线以下的那一半。')
+];
+
+/* ===== Info panel / selection ===== */
+SKY.select = (k, from3D) => { SKY.sel = k; renderInfo(); renderChips(); if (!from3D && SKY.three) SKY.three.focus(k); };
+function brightestOf(c){ return c.stars.slice().sort((a, b) => STARS[a][2] - STARS[b][2])[0]; }
+function renderInfo(){
+  const box = Lab.$('#info'), k = SKY.sel;
+  if (!k){
+    box.innerHTML = `<span class="tag">${Lab.L(o('Night sky','夜空'))}</span>
+      <h3>${Lab.L(o('Patterns that turn','会旋转的图案'))}</h3>
+      <p class="muted" style="margin:0">${Lab.L(o('A constellation is a pattern of stars as seen from Earth (and the area of sky around it). Astronomers divide the whole sky into 88 constellations.','星座是从地球上看到的星星图案（以及它周围的一片天区）。天文学家把整个天空划分为 88 个星座。'))}</p>
+      <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(o('The stars are not really moving across the sky in one night. Earth is spinning! Over a year, Earth’s orbit changes which constellations we see at night.','一夜之间星星并不是真的在天上移动，而是地球在自转！一年中，地球公转使我们晚上看到的星座发生变化。'))}</div>
+      <p class="muted" style="margin:0;font-size:14px">${Lab.L(o('Drag to look around, use the N E S W buttons, and click any star pattern.','拖动来环顾四周，用“北 东 南 西”按钮转向，点击任何星座图案。'))}</p>
+      <div class="nav"><button id="startBtn">${Lab.L(o('Find the North Star ▶','寻找北极星 ▶'))}</button></div>`;
+    Lab.$('#startBtn').onclick = () => SKY.select('polaris');
+    return;
+  }
+  const c = CONS[k], i = ORDER.indexOf(k), se = SEASON[c.season], b = brightestOf(c);
+  const tag = c.season === 'all' ? Lab.L(o('Circumpolar (from Georgia)','拱极（从佐治亚州看）')) : Lab.L(se.n) + Lab.L(o(' evenings',' 夜晚'));
+  box.innerHTML = `<span class="tag">${tag}</span>
+    <h3><span class="dot" style="background:${se.c}"></span>${Lab.L(c.name)}</h3>
+    <div class="job">${Lab.L(c.job)}${STAR_NAMES[b] && k !== 'polaris' ? ' · ' + Lab.L(o('brightest: ','最亮星：')) + Lab.L(STAR_NAMES[b]) : ''}</div>
+    <ul>${Lab.L(c.facts).map(f => `<li>${f}</li>`).join('')}</ul>${realFig(k)}
+    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(c.hint)}</div>
+    ${c.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(c.mix)}</span></div>` : ''}
+    <div class="btnrow"><button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button><span class="muted" id="altTxt" style="font-size:13px;font-weight:700;align-self:center"></span></div>
+    <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(c.name), Lab.L(c.job), ...Lab.L(c.facts)].join('. '));
+  Lab.$('#pPrev').onclick = () => SKY.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
+  Lab.$('#pNext').onclick = () => SKY.select(ORDER[(i + 1) % ORDER.length]);
+  updateAltTxt();
+}
+function updateAltTxt(){
+  const el = Lab.$('#altTxt'); if (!el || !SKY.sel || !SKY.altOf) return;
+  const a = SKY.altOf(SKY.sel);
+  el.textContent = a > 0 ? (Lab.lang === 'zh' ? `此刻在地平线以上 ${a.toFixed(0)}°` : `Now ${a.toFixed(0)}° above the horizon`) : (Lab.lang === 'zh' ? '此刻在地平线以下（看不见）' : 'Now below the horizon (not visible)');
+  el.style.color = a > 0 ? 'var(--good)' : 'var(--bad)';
+}
+function renderChips(){
+  Lab.$('#chips').innerHTML = ORDER.map(k => `<button class="chip ${SKY.sel===k?'on':''}" data-k="${k}"><i style="background:${SEASON[CONS[k].season].c}"></i>${Lab.L(CONS[k].name)}</button>`).join('')
+    + `<span class="legend" style="margin-left:6px">${Object.values(SEASON).map(s => `<span><i style="background:${s.c}"></i>${Lab.L(s.n)}</span>`).join('')}</span>`;
+  Lab.$$('#chips .chip').forEach(c => c.onclick = () => SKY.select(c.dataset.k));
+}
+function fillSelects(){
+  Lab.$('#monthSel').innerHTML = MONTHS.map((m, i) => `<option value="${i}" ${i === SKY.month ? 'selected' : ''}>${Lab.L(m)}</option>`).join('');
+  Lab.$('#locSel').innerHTML = LOCS.map((l, i) => `<option value="${i}" ${i === SKY.loc ? 'selected' : ''}>${Lab.L(l.n)}</option>`).join('');
+}
+/* readouts (called by the 3D scene whenever time/place changes) */
+SKY.renderReadout = (vis, polAlt) => {
+  Lab.$('#timeVal').textContent = SKY.clock(); Lab.$('#rTime').textContent = SKY.clock();
+  Lab.$('#rTurn').textContent = (SKY.min / 60 * 15.04).toFixed(0) + '°';
+  Lab.$('#rPol').textContent = polAlt > 0 ? polAlt.toFixed(0) + '°' : Lab.L(o('below horizon','地平线以下'));
+  Lab.$('#rVis').textContent = vis.length + ' / ' + ORDER.length;
+  const sig = Lab.lang + vis.join(); if (sig === SKY._visSig) return updateAltTxt(); SKY._visSig = sig;
+  Lab.$('#visList').innerHTML = `<span>${Lab.L(o('Above the horizon now:','此刻地平线以上：'))}</span>` + vis.map(k => `<button class="chip" data-k="${k}"><i style="background:${SEASON[CONS[k].season].c}"></i>${Lab.L(CONS[k].name)}</button>`).join('');
+  Lab.$$('#visList .chip').forEach(c => c.onclick = () => SKY.select(c.dataset.k));
+  updateAltTxt();
+};
+Lab.onLang(() => { renderInfo(); renderChips(); fillSelects(); if (SKY.three) SKY.three.refresh(); });
+/* ===== Connect-the-stars game ===== */
+(function(){
+  const cv = Lab.$('#dotCv'), box = Lab.$('#dotBox'), g = cv.getContext('2d');
+  const PUZ = Lab.shuffle(['uma','cas','ori','cyg','leo','sco','lyr','boo','peg','gem']);
+  const SHAPE = { uma:o('a ladle or dipper','一把勺子'), cas:o('a letter W','字母 W'), ori:o('a hunter with a belt of 3 stars','系着三星腰带的猎人'), cyg:o('a cross (a flying swan)','一个十字（飞翔的天鹅）'),
+    leo:o('a backward question mark and a triangle','一个反写的问号加一个三角形'), sco:o('a long curling tail','一条长长弯曲的尾巴'), lyr:o('a small triangle plus a parallelogram','一个小三角形加一个平行四边形'),
+    boo:o('a kite','一只风筝'), peg:o('a big square with a neck','一个大四边形加脖子'), gem:o('two stick figures side by side','并排的两个小人') };
+  const S = { i:0, pts:[], target:new Set(), found:new Set(), sel:null, wrong:0, done:0, streak:0, flash:null, hint:null, complete:false };
+  let W = 0, H = 0;
+  function resize(){ const b = box.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); W = b.width; H = b.height; cv.width = W * d; cv.height = H * d; g.setTransform(d, 0, 0, d, 0, 0); layout(); }
+  let seed = 1; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  const key = (a, b) => [a, b].sort().join('|');
+  function load(i){
+    S.i = i % PUZ.length; const c = CONS[PUZ[S.i]];
+    S.target = new Set(c.lines.map(([a, b]) => key(a, b))); S.found = new Set(); S.sel = null; S.complete = false; S.flash = S.hint = null;
+    const ids = [...new Set(c.lines.flat())], ra0 = STARS[ids[0]][0];
+    const raw = ids.map(id => { let ra = STARS[id][0]; if (ra - ra0 > 12) ra -= 24; if (ra0 - ra > 12) ra += 24; return { id, ra, dec:STARS[id][1], mag:STARS[id][2], col:SPEC[STARS[id][3]] }; });
+    const dec0 = raw.reduce((s, p) => s + p.dec, 0) / raw.length, raM = raw.reduce((s, p) => s + p.ra, 0) / raw.length, k = Math.cos(dec0 * Math.PI / 180);
+    raw.forEach(p => { p.x = -(p.ra - raM) * 15 * k; p.y = p.dec - dec0; });
+    const xs = raw.map(p => p.x), ys = raw.map(p => p.y), bx = [Math.min(...xs), Math.max(...xs)], by = [Math.min(...ys), Math.max(...ys)];
+    seed = 7 + S.i * 131;
+    for (let n = 0; n < 9; n++) raw.push({ id:'x' + n, x:bx[0] - 3 + rnd() * (bx[1] - bx[0] + 6), y:by[0] - 3 + rnd() * (by[1] - by[0] + 6), mag:3.6 + rnd() * 1.2, col:'#dfe6ff', fake:true });
+    S.raw = raw; S.bx = bx; S.by = by; layout(); render();
+  }
+  function layout(){
+    if (!S.raw || !W) return;
+    const pad = 50, sx = (W - 2 * pad) / Math.max(1, S.bx[1] - S.bx[0] + 6), sy = (H - 2 * pad) / Math.max(1, S.by[1] - S.by[0] + 6), sc = Math.min(sx, sy);
+    const cx = (S.bx[0] + S.bx[1]) / 2, cy = (S.by[0] + S.by[1]) / 2;
+    S.pts = S.raw.map(p => ({ ...p, px:W / 2 + (p.x - cx) * sc, py:H / 2 - (p.y - cy) * sc }));
+  }
+  const P = id => S.pts.find(p => p.id === id);
+  function draw(t){
+    if (!W) return;
+    g.clearRect(0, 0, W, H);
+    const good = getComputedStyle(document.documentElement).getPropertyValue('--good').trim() || '#3ed596';
+    g.lineCap = 'round';
+    if (S.complete){ g.strokeStyle = 'rgba(125,211,252,.25)'; g.lineWidth = 9; S.found.forEach(k => { const [a, b] = k.split('|').map(P); g.beginPath(); g.moveTo(a.px, a.py); g.lineTo(b.px, b.py); g.stroke(); }); }
+    g.strokeStyle = '#7dd3fc'; g.lineWidth = 2.5;
+    S.found.forEach(k => { const [a, b] = k.split('|').map(P); g.beginPath(); g.moveTo(a.px, a.py); g.lineTo(b.px, b.py); g.stroke(); });
+    if (S.hint && t < S.hint.until){ const [a, b] = S.hint.k.split('|').map(P); g.setLineDash([6, 6]); g.strokeStyle = 'rgba(250,204,21,.8)'; g.beginPath(); g.moveTo(a.px, a.py); g.lineTo(b.px, b.py); g.stroke(); g.setLineDash([]); }
+    if (S.flash && t < S.flash.until){ g.strokeStyle = '#ff6b7f'; g.lineWidth = 3; g.beginPath(); g.moveTo(S.flash.a.px, S.flash.a.py); g.lineTo(S.flash.b.px, S.flash.b.py); g.stroke(); }
+    for (const p of S.pts){
+      const r = Math.max(2.2, 7.5 - 1.5 * p.mag), gr = g.createRadialGradient(p.px, p.py, 0, p.px, p.py, r * 3);
+      gr.addColorStop(0, p.col); gr.addColorStop(.3, p.col); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = gr; g.beginPath(); g.arc(p.px, p.py, r * 3, 0, 7); g.fill();
+      if (STAR_NAMES[p.id]){ g.fillStyle = 'rgba(255,233,176,.85)'; g.font = '700 12px Nunito, sans-serif'; g.textAlign = 'left'; g.fillText(Lab.L(STAR_NAMES[p.id]), p.px + 10, p.py - 8); }
+    }
+    if (S.sel){ const p = P(S.sel); g.strokeStyle = '#facc15'; g.lineWidth = 2; g.beginPath(); g.arc(p.px, p.py, 13 + 2 * Math.sin(t / 150), 0, 7); g.stroke(); }
+    if (S.complete){ g.fillStyle = good; g.font = '700 22px Fredoka, sans-serif'; g.textAlign = 'center'; g.fillText('✨ ' + Lab.L(CONS[PUZ[S.i]].name) + ' ✨', W / 2, 30); }
+  }
+  function msg(t, ok){ const m = Lab.$('#dMsg'); m.textContent = t; m.className = 'result ' + (ok === true ? 'good' : ok === false ? 'bad' : ''); }
+  function render(){
+    const c = CONS[PUZ[S.i]];
+    Lab.$('#dotName').textContent = Lab.L(c.name);
+    Lab.$('#dotClue').textContent = Lab.lang === 'zh' ? `把星星连成${Lab.L(SHAPE[PUZ[S.i]])}。一共需要 ${S.target.size} 条线。` : `Join the stars to make ${Lab.L(SHAPE[PUZ[S.i]])}. You need ${S.target.size} lines.`;
+    Lab.$('#dFound').textContent = S.found.size + '/' + S.target.size;
+    Lab.$('#dWrong').textContent = S.wrong; Lab.$('#dDone').textContent = S.done; Lab.$('#dStreak').textContent = S.streak;
+  }
+  cv.addEventListener('pointerdown', e => {
+    if (S.complete) return;
+    const b = cv.getBoundingClientRect(), x = e.clientX - b.left, y = e.clientY - b.top;
+    let best = null, bd = 22; for (const p of S.pts){ const d = Math.hypot(p.px - x, p.py - y); if (d < bd){ bd = d; best = p; } }
+    if (!best){ S.sel = null; return; }
+    if (!S.sel || S.sel === best.id){ S.sel = S.sel === best.id ? null : best.id; return; }
+    const k = key(S.sel, best.id), now = performance.now();
+    if (S.target.has(k) && !S.found.has(k)){ S.found.add(k); S.streak++; msg(Lab.L(o('✅ Nice! That line is part of the pattern.','✅ 很好！这条线是图案的一部分。')), true); }
+    else if (S.found.has(k)) msg(Lab.L(o('You already joined those two stars.','这两颗星已经连过了。')));
+    else { S.wrong++; S.streak = 0; S.flash = { a:P(S.sel), b:best, until:now + 600 }; msg(best.fake || P(S.sel).fake ? Lab.L(o('❌ That faint star is not part of this constellation.','❌ 那颗暗星不属于这个星座。')) : Lab.L(o('❌ Those two stars are not joined in this pattern.','❌ 在这个图案里，这两颗星不直接相连。')), false); }
+    S.sel = best.id;
+    if (S.found.size === S.target.size){ S.complete = true; S.done++; S.sel = null; msg(Lab.lang === 'zh' ? `🎉 完成了!这就是${Lab.L(CONS[PUZ[S.i]].name)}。点“下一个星座”继续。` : `🎉 Complete! That’s ${Lab.L(CONS[PUZ[S.i]].name)}. Press “Next constellation” to keep going.`, true); }
+    render();
+  });
+  Lab.$('#dNext').onclick = () => { load(S.i + 1); msg(''); };
+  Lab.$('#dUndo').onclick = () => { S.sel = null; };
+  Lab.$('#dHint').onclick = () => { const miss = [...S.target].filter(k => !S.found.has(k)); if (miss.length){ S.hint = { k:miss[0], until:performance.now() + 1500 }; S.streak = 0; render(); } };
+  new ResizeObserver(resize).observe(box);
+  load(0); resize();
+  (function loop(t){ draw(t); requestAnimationFrame(loop); })(0);
+  Lab.onLang(render);
+})();
+/* ===== Brightness, distance & light-years ===== */
+(function(){
+  const BS = [
+    {id:'sun', n:o('Sun','太阳'), m:-26.74, d:1.581e-5, col:'#fff1c4'},
+    {id:'proxima', n:o('Proxima Centauri','比邻星'), m:11.13, d:4.24, col:'#ff9f72'},
+    {id:'sirius', n:o('Sirius','天狼星'), m:-1.46, d:8.6, col:'#eef2ff'},
+    {id:'vega', n:o('Vega','织女星'), m:0.03, d:25, col:'#eef2ff'},
+    {id:'arcturus', n:o('Arcturus','大角星'), m:-0.05, d:36.7, col:'#ffc98f'},
+    {id:'polaris', n:o('Polaris','北极星'), m:1.98, d:433, col:'#fff6e6'},
+    {id:'betelgeuse', n:o('Betelgeuse','参宿四'), m:0.5, d:550, col:'#ff9f72'},
+    {id:'rigel', n:o('Rigel','参宿七'), m:0.13, d:860, col:'#b9cdff'},
+    {id:'deneb', n:o('Deneb','天津四'), m:1.25, d:2600, col:'#eef2ff'}
+  ];
+  const absMag = s => s.m - 5 * Math.log10(s.d / 3.2616) + 5;
+  const appMag = (s, D) => absMag(s) + 5 * Math.log10(D / 3.2616) - 5;
+  const S = { s:BS[2], D:8.6 };
+  const cv = Lab.$('#briCv'), box = Lab.$('#briBox'), g = cv.getContext('2d'); let W = 0, H = 0;
+  function resize(){ const b = box.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); W = b.width; H = b.height; cv.width = W * d; cv.height = H * d; g.setTransform(d, 0, 0, d, 0, 0); draw(); }
+  const fmtN = (x, dp = 0) => x.toLocaleString(Lab.lang === 'zh' ? 'zh-CN' : 'en-US', { maximumFractionDigits:dp });
+  function distTxt(D){
+    if (D < 0.01) return fmtN(D * 525960, 1) + Lab.L(o(' light-minutes',' 光分'));
+    return fmtN(D, D < 10 ? 2 : D < 100 ? 1 : 0) + Lab.L(o(' light-years',' 光年'));
+  }
+  function glow(x, y, m, col){
+    const r = Math.max(2, Math.min(130, 5 + 4.2 * (6 - m)));
+    const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, '#ffffff'); gr.addColorStop(.18, col); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.globalAlpha = m > 6 ? .35 : 1; g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); g.globalAlpha = 1;
+  }
+  function draw(){
+    if (!W) return;
+    g.clearRect(0, 0, W, H);
+    const m = appMag(S.s, S.D), sir = BS[2];
+    g.font = '700 14px Nunito, sans-serif'; g.textAlign = 'center'; g.fillStyle = '#cfd8ff';
+    glow(W * .3, H * .38, m, S.s.col); glow(W * .72, H * .38, sir.m, sir.col); g.fillStyle = '#cfd8ff';
+    g.fillText(Lab.L(S.s.n) + ' @ ' + distTxt(S.D), W * .3, H * .38 + 95);
+    g.fillText(Lab.L(o('Sirius as we see it','我们看到的天狼星')), W * .72, H * .38 + 95);
+    // log distance axis
+    const x0 = 30, x1 = W - 30, y = H - 46, X = D => x0 + (x1 - x0) * (Math.log10(D) + 5) / 9;
+    g.strokeStyle = 'rgba(207,216,255,.5)'; g.lineWidth = 2; g.beginPath(); g.moveTo(x0, y); g.lineTo(x1, y); g.stroke();
+    g.font = '700 11px Nunito, sans-serif'; g.fillStyle = 'rgba(207,216,255,.75)';
+    [[1e-4, '0.0001'], [0.01, '0.01'], [1, '1'], [100, '100'], [1e4, '10,000']].forEach(([D, t]) => { g.fillRect(X(D) - 1, y - 5, 2, 10); g.fillText(t, X(D), y + 18); });
+    g.fillText(Lab.L(o('distance in light-years (each step ×100)','距离（光年，每一格 ×100）')), (x0 + x1) / 2, y + 34);
+    BS.forEach(s => { g.fillStyle = s === S.s ? '#facc15' : 'rgba(207,216,255,.55)'; g.beginPath(); g.arc(X(s.d), y, 3.5, 0, 7); g.fill(); });
+    g.fillStyle = '#facc15'; g.beginPath(); g.moveTo(X(S.D), y - 8); g.lineTo(X(S.D) - 7, y - 20); g.lineTo(X(S.D) + 7, y - 20); g.fill();
+  }
+  function update(){
+    const m = appMag(S.s, S.D), ratio = Math.pow(10, -0.4 * (m - BS[2].m));
+    Lab.$('#bDistTxt').textContent = distTxt(S.D) + (Math.abs(Math.log10(S.D / S.s.d)) < .01 ? Lab.L(o(' (real distance)',' （真实距离）')) : '');
+    Lab.$('#bMag').textContent = (m >= 0 ? '+' : '') + m.toFixed(1);
+    Lab.$('#bVsSirius').textContent = ratio >= 1 ? (Lab.lang === 'zh' ? `亮 ${fmtN(ratio, ratio < 10 ? 1 : 0)} 倍` : `${fmtN(ratio, ratio < 10 ? 1 : 0)}× brighter`) : (Lab.lang === 'zh' ? `暗 ${fmtN(1 / ratio, 1 / ratio < 10 ? 1 : 0)} 倍` : `${fmtN(1 / ratio, 1 / ratio < 10 ? 1 : 0)}× dimmer`);
+    const eye = Lab.$('#bEye'); eye.textContent = m < 2 ? Lab.L(o('Yes, even in a city','能，城市里也行')) : m < 6 ? Lab.L(o('Yes, in a dark sky','能，但要在暗处')) : Lab.L(o('No: telescope needed','不能，要用望远镜'));
+    eye.style.color = m < 6 ? 'var(--good)' : 'var(--bad)';
+    const yr = Lab.$('#bYear');
+    if (S.D < 0.01) yr.textContent = Lab.lang === 'zh' ? `${fmtN(S.D * 525960, 1)} 分钟前` : `${fmtN(S.D * 525960, 1)} minutes ago`;
+    else if (S.D < 1) yr.textContent = Lab.lang === 'zh' ? `${fmtN(S.D * 365.25, 0)} 天前` : `${fmtN(S.D * 365.25, 0)} days ago`;
+    else { const y = Math.round(2026 - S.D); yr.textContent = y > 0 ? (Lab.lang === 'zh' ? `公元 ${y} 年` : `the year ${y}`) : (Lab.lang === 'zh' ? `公元前 ${1 - y} 年` : `${1 - y} BC`); }
+    const L = Math.pow(10, -0.4 * (absMag(S.s) - 4.83));
+    Lab.$('#bFact').textContent = S.s.id === 'sun' ? Lab.L(o('The Sun is an ordinary star. It looks so bright only because it is so close. Move it to 8.6 light-years: it would look dimmer than Sirius!','太阳只是一颗普通的恒星，它看起来那么亮只是因为离我们太近。把它移到 8.6 光年远，它会比天狼星还暗！'))
+      : L < 1 ? (Lab.lang === 'zh' ? `${Lab.L(S.s.n)}实际发出的光只有太阳的约 ${fmtN(1 / L, 0)} 分之一,虽然它是离太阳最近的恒星,肉眼却看不见。` : `${Lab.L(S.s.n)} gives off only about 1/${fmtN(1 / L, 0)} of the Sun’s light. It is the nearest star to the Sun, yet too faint to see with your eyes.`)
+      : Lab.lang === 'zh' ? `${Lab.L(S.s.n)}实际发出的光大约是太阳的 ${fmtN(L, L < 10 ? 1 : 0)} 倍。` : `${Lab.L(S.s.n)} really gives off about ${fmtN(L, L < 10 ? 1 : 0)} times as much light as the Sun.`;
+    Lab.$('#bDist').value = Math.log10(S.D);
+    Lab.$$('#starPick .chip').forEach(c => c.classList.toggle('on', c.dataset.id === S.s.id));
+    draw();
+  }
+  function renderPick(){
+    Lab.$('#starPick').innerHTML = BS.map(s => `<button class="chip" data-id="${s.id}"><i style="background:${s.col}"></i>${Lab.L(s.n)}</button>`).join('');
+    Lab.$$('#starPick .chip').forEach(c => c.onclick = () => { S.s = BS.find(s => s.id === c.dataset.id); S.D = S.s.d; update(); });
+    update();
+  }
+  Lab.$('#bDist').oninput = e => { S.D = Math.pow(10, +e.target.value); update(); };
+  Lab.$('#bReal').onclick = () => { S.D = S.s.d; update(); };
+  new ResizeObserver(resize).observe(box);
+  Lab.onLang(renderPick);
+})();
+/* ===== Quiz ===== */
+Lab.quiz(Lab.$('#quiz'), [
+  {q:o('Why do the stars seem to move across the sky during the night?','为什么夜里星星看起来在天空中移动？'), options:[o('Earth rotates on its axis','地球绕地轴自转'),o('The stars orbit Earth every night','星星每晚绕地球转一圈'),o('The Moon pulls the stars','月球拉动了星星'),o('Earth orbits the Sun once a night','地球每晚绕太阳公转一圈')], answer:0, explain:o('Earth spins west to east once a day, so the sky appears to turn east to west.','地球每天自西向东自转一周，所以天空看起来自东向西转动。')},
+  {q:o('Which star stays almost still while the others circle around it?','哪颗星几乎不动，其他星星都绕着它转？'), options:[o('Polaris','北极星'),o('Sirius','天狼星'),o('The Sun','太阳'),o('Betelgeuse','参宿四')], answer:0, explain:o('Polaris lies almost exactly in line with Earth’s axis.','北极星几乎正好位于地轴的延长线上。')},
+  {q:o('Stars (like the Sun) appear to rise in the ___ and set in the ___.','星星（和太阳一样）看起来从___升起，从___落下。'), options:[o('east … west','东方……西方'),o('west … east','西方……东方'),o('north … south','北方……南方'),o('south … north','南方……北方')], answer:0},
+  {q:o('What is a constellation?','什么是星座？'), options:[o('A pattern of stars as seen from Earth','从地球上看到的星星图案'),o('A group of stars that are all close together in space','在太空中彼此靠得很近的一群星'),o('A kind of planet','一种行星'),o('A cloud of gas around the Moon','月球周围的一团气体')], answer:0, explain:o('Stars in a constellation can be very different distances from us; they only line up from our point of view.','同一星座的星星离我们的距离可能相差很远，只是从我们的角度看排在一起。')},
+  {q:o('Why do we see different constellations in different seasons?','为什么不同季节看到的星座不同？'), options:[o('As Earth orbits the Sun, our night side faces different directions in space','地球绕太阳公转，夜晚那一面朝向太空中不同的方向'),o('The constellations move around the galaxy each month','星座每个月都在银河系里移动'),o('Earth’s tilt flips every season','地轴每个季节翻转一次'),o('Clouds block different stars','云挡住了不同的星星')], answer:0},
+  {q:o('A light-year is a unit of…','光年是什么的单位？'), options:[o('Distance','距离'),o('Time','时间'),o('Brightness','亮度'),o('Speed','速度')], answer:0, explain:o('It is the distance light travels in one year: about 9.46 trillion km.','它是光在一年中走过的距离，约 9.46 万亿千米。')},
+  {q:o('The Big Dipper is part of which constellation?','北斗七星属于哪个星座？'), options:[o('Ursa Major (the Great Bear)','大熊座'),o('Orion','猎户座'),o('Cassiopeia','仙后座'),o('Scorpius','天蝎座')], answer:0},
+  {q:o('In Georgia (about 34° N), how high above the northern horizon is Polaris?','在佐治亚州（北纬约 34°），北极星在北方地平线以上多高？'), options:[o('About 34°','约 34°'),o('Straight overhead (90°)','正头顶（90°）'),o('On the horizon (0°)','在地平线上（0°）'),o('Below the horizon','在地平线以下')], answer:0, explain:o('Polaris’s altitude is about equal to your latitude.','北极星的高度约等于当地纬度。')},
+  {q:o('Which constellation is best seen on winter evenings?','哪个星座最适合在冬天晚上观看？'), options:[o('Orion','猎户座'),o('Scorpius','天蝎座'),o('Cygnus','天鹅座'),o('Lyra','天琴座')], answer:0},
+  {q:o('Rigel gives off far more light than Sirius, yet Sirius looks brighter. Why?','参宿七发出的光比天狼星多得多，可天狼星看起来更亮，为什么？'), options:[o('Sirius is much closer to us','天狼星离我们近得多'),o('Sirius is bigger than every star','天狼星比所有恒星都大'),o('Rigel is behind clouds','参宿七被云挡住了'),o('Sirius is a planet','天狼星是一颗行星')], answer:0, explain:o('Sirius is 8.6 light-years away; Rigel is about 860. Distance makes a huge difference to apparent brightness.','天狼星离我们 8.6 光年，参宿七约 860 光年。距离对看起来的亮度影响巨大。')},
+  {q:o('About how many degrees does the sky appear to turn each hour?','天空每小时看起来大约转过多少度？'), options:[o('15°','15°'),o('1°','1°'),o('90°','90°'),o('360°','360°')], answer:0, explain:o('360° ÷ 24 hours = 15° per hour.','360° ÷ 24 小时 = 每小时 15°。')},
+  {q:o('A “circumpolar” constellation is one that…','“拱极星座”是指……'), options:[o('Never sets, circling Polaris all night','永不落下，整夜绕着北极星转'),o('Is only visible at the South Pole','只能在南极看到'),o('Rises at noon','中午升起'),o('Moves around a planet','绕着行星转')], answer:0},
+  {q:o('The two “pointer stars” of the Big Dipper point to…','北斗七星的两颗“指极星”指向……'), options:[o('Polaris','北极星'),o('Sirius','天狼星'),o('The Moon','月球'),o('Orion’s Belt','猎户腰带')], answer:0}
+], { count:10 });
+
+/* ===== Sort game ===== */
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'winter',en:'Winter evenings',zh:'冬季夜晚'},{id:'spring',en:'Spring evenings',zh:'春季夜晚'},{id:'summer',en:'Summer evenings',zh:'夏季夜晚'},{id:'all',en:'All year (circumpolar)',zh:'全年（拱极星座）'}],
+  items:[
+    {en:'Orion',zh:'猎户座',bin:'winter'},{en:'Taurus',zh:'金牛座',bin:'winter'},{en:'Canis Major (Sirius)',zh:'大犬座（天狼星）',bin:'winter'},
+    {en:'Leo',zh:'狮子座',bin:'spring'},{en:'Boötes (Arcturus)',zh:'牧夫座（大角星）',bin:'spring'},{en:'Virgo (Spica)',zh:'室女座（角宿一）',bin:'spring'},
+    {en:'Scorpius',zh:'天蝎座',bin:'summer'},{en:'Cygnus',zh:'天鹅座',bin:'summer'},{en:'Lyra (Vega)',zh:'天琴座（织女星）',bin:'summer'},
+    {en:'Little Dipper',zh:'小北斗',bin:'all'},{en:'Cassiopeia',zh:'仙后座',bin:'all'},{en:'Polaris',zh:'北极星',bin:'all'}
+  ]
+});
+</script>
+<script>
+/* ===== Deep-dive additions: the zodiac / ecliptic through the year + IAU dates table + Go further ===== */
+(function(){
+const o = (en, zh) => ({en, zh});
+const zh = () => Lab.lang === 'zh';
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const fit = (cv, box) => { const dpr = Math.min(devicePixelRatio || 1, 2), W = box.clientWidth, H = box.clientHeight; cv.width = W * dpr; cv.height = H * dpr; const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); return [g, W, H]; };
+// The 13 constellations on the ecliptic, with the (approximate) day of the year the Sun enters each one (IAU boundaries)
+const ZO = [
+  { en:'Capricornus', zh:'摩羯座', d:20,  sign:o('Capricorn: Dec 22 – Jan 19','摩羯座：12月22日–1月19日'), col:'#8fb3ff' },
+  { en:'Aquarius', zh:'宝瓶座', d:47,  sign:o('Aquarius: Jan 20 – Feb 18','水瓶座：1月20日–2月18日'), col:'#7fd6ff' },
+  { en:'Pisces', zh:'双鱼座', d:70,  sign:o('Pisces: Feb 19 – Mar 20','双鱼座：2月19日–3月20日'), col:'#88e0c8' },
+  { en:'Aries', zh:'白羊座', d:108, sign:o('Aries: Mar 21 – Apr 19','白羊座：3月21日–4月19日'), col:'#ff9f8a' },
+  { en:'Taurus', zh:'金牛座', d:133, sign:o('Taurus: Apr 20 – May 20','金牛座：4月20日–5月20日'), col:'#ffc27a' },
+  { en:'Gemini', zh:'双子座', d:172, sign:o('Gemini: May 21 – Jun 20','双子座：5月21日–6月20日'), col:'#ffe07a' },
+  { en:'Cancer', zh:'巨蟹座', d:201, sign:o('Cancer: Jun 21 – Jul 22','巨蟹座：6月21日–7月22日'), col:'#c9e27a' },
+  { en:'Leo', zh:'狮子座', d:222, sign:o('Leo: Jul 23 – Aug 22','狮子座：7月23日–8月22日'), col:'#ffb36b' },
+  { en:'Virgo', zh:'室女座', d:259, sign:o('Virgo: Aug 23 – Sep 22','处女座：8月23日–9月22日'), col:'#b5a8ff' },
+  { en:'Libra', zh:'天秤座', d:303, sign:o('Libra: Sep 23 – Oct 22','天秤座：9月23日–10月22日'), col:'#e8a8ff' },
+  { en:'Scorpius', zh:'天蝎座', d:327, sign:o('Scorpio: Oct 23 – Nov 21','天蝎座：10月23日–11月21日'), col:'#ff8aa8' },
+  { en:'Ophiuchus', zh:'蛇夫座', d:333, sign:o('(no sign: left out by astrology)','（没有：星座占卜把它漏掉了）'), col:'#9fe2a0', extra:true },
+  { en:'Sagittarius', zh:'人马座', d:351, sign:o('Sagittarius: Nov 22 – Dec 21','射手座：11月22日–12月21日'), col:'#ffd27a' }
+];
+const MD = [31,28,31,30,31,30,31,31,30,31,30,31], MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const dateOf = doy => { let m = 0, d = doy; while (d > MD[m]){ d -= MD[m]; m++; } return [m, d]; };
+const fmtDate = doy => { const [m, d] = dateOf(doy); return zh() ? `${m + 1}月${d}日` : `${MON[m]} ${d}`; };
+const lenOf = i => ((ZO[(i + 1) % 13].d - ZO[i].d) + 365) % 365;
+const idxAtDoy = doy => { let k = 12; for (let i = 0; i < 13; i++) if (doy >= ZO[i].d) k = i; return doy < ZO[0].d ? 12 : k; };
+const lamOf = doy => ((doy - 80) * 360 / 365.25 + 360) % 360;          // Sun's ecliptic longitude (degrees), 0 at the March equinox
+const doyOfLam = lam => ((Math.round(80 + ((lam % 360) + 360) % 360 * 365.25 / 360) - 1) % 365) + 1;
+const nm = z => zh() ? z.zh : z.en;
+const Z = { day:80, playing:false, f:80 };
+const box = Lab.$('#zoBox'), cv = Lab.$('#zoCv');
+function draw(){
+  const [g, W, H] = fit(cv, box), stripH = Math.max(70, H * .2), oh = H - stripH - 10, cx = W / 2, cy = oh / 2 + 6;
+  const Rc = Math.min(W * .46, oh * .47), Ro = Rc * .48, P = (r, lamDeg) => [cx + r * Math.cos(lamDeg * Math.PI / 180), cy - r * Math.sin(lamDeg * Math.PI / 180)];
+  g.fillStyle = '#05070f'; g.fillRect(0, 0, W, H);
+  const lamS = lamOf(Z.day), lamE = (lamS + 180) % 360, iS = idxAtDoy(Z.day), iM = idxAtDoy(doyOfLam(lamS + 180));
+  // constellation ring: each segment spans the Sun's dates in that constellation
+  for (let i = 0; i < 13; i++){
+    const a0 = lamOf(ZO[i].d), a1 = a0 + lenOf(i) * 360 / 365.25, sun = i === iS, mid = i === iM;
+    g.strokeStyle = sun ? 'rgba(255,200,80,.55)' : mid ? 'rgba(120,170,255,.6)' : 'rgba(150,165,210,.16)'; g.lineWidth = Rc * .16;
+    g.beginPath(); g.arc(cx, cy, Rc, -a1 * Math.PI / 180, -a0 * Math.PI / 180); g.stroke();
+    g.strokeStyle = 'rgba(5,7,15,1)'; g.lineWidth = 2; const [bx0, by0] = P(Rc - Rc * .08, a0), [bx1, by1] = P(Rc + Rc * .08, a0); g.beginPath(); g.moveTo(bx0, by0); g.lineTo(bx1, by1); g.stroke();
+    const am = (a0 + a1) / 2, [lx, ly] = P(lenOf(i) < 10 ? Rc * .84 : Rc, am);
+    g.fillStyle = sun ? '#ffe3a8' : mid ? '#d6e4ff' : ZO[i].extra ? '#9fe2a0' : '#cfd8ee'; g.font = `${sun || mid ? 800 : 700} ${W < 480 ? 10 : 12}px Nunito`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(nm(ZO[i]), lx, ly);
+  }
+  g.textBaseline = 'alphabetic';
+  // Earth's orbit, Sun, Earth
+  g.strokeStyle = 'rgba(160,190,255,.35)'; g.lineWidth = 1; g.setLineDash([4, 5]); g.beginPath(); g.arc(cx, cy, Ro, 0, 7); g.stroke(); g.setLineDash([]);
+  // month ticks on the orbit (where Earth is on the 1st of each month)
+  g.fillStyle = 'rgba(200,210,240,.7)'; g.font = '700 10px Nunito'; g.textAlign = 'center';
+  let acc = 1; MD.forEach((n, m) => { const [tx, ty] = P(Ro + 12, (lamOf(acc) + 180) % 360); if (W > 380) g.fillText(zh() ? `${m + 1}月` : MON[m], tx, ty + 3); acc += n; });
+  const [ex, ey] = P(Ro, lamE);
+  // line of sight: Earth → Sun → constellation behind the Sun; and Earth → midnight direction
+  const [sx2, sy2] = P(Rc * .9, lamS), [mx2, my2] = P(Rc * .9, lamE);
+  g.strokeStyle = 'rgba(255,200,80,.6)'; g.lineWidth = 1.5; g.setLineDash([5, 4]); g.beginPath(); g.moveTo(ex, ey); g.lineTo(sx2, sy2); g.stroke();
+  g.strokeStyle = 'rgba(120,170,255,.8)'; g.beginPath(); g.moveTo(ex, ey); g.lineTo(mx2, my2); g.stroke(); g.setLineDash([]);
+  const sg = g.createRadialGradient(cx, cy, 0, cx, cy, Ro * .32); sg.addColorStop(0, '#fff3c4'); sg.addColorStop(.6, '#ffc040'); sg.addColorStop(1, 'rgba(255,150,40,0)');
+  g.fillStyle = sg; g.beginPath(); g.arc(cx, cy, Ro * .32, 0, 7); g.fill();
+  const er = Math.max(6, Ro * .1);
+  g.fillStyle = '#3f86e8'; g.beginPath(); g.arc(ex, ey, er, 0, 7); g.fill();
+  // night half of Earth (facing away from the Sun)
+  g.fillStyle = 'rgba(0,0,0,.6)'; g.beginPath(); g.arc(ex, ey, er, (-lamE - 90) * Math.PI / 180, (-lamE + 90) * Math.PI / 180); g.closePath(); g.fill();
+  g.fillStyle = '#cfe6ff'; g.font = '800 11px Nunito'; g.textAlign = 'center'; g.fillText(Lab.L(o('Earth','地球')), ex, ey - er - 5);
+  g.fillStyle = '#ffe3a8'; g.fillText(Lab.L(o('Sun','太阳')), cx, cy + Ro * .32 + 12);
+  // strip: the ecliptic unrolled as seen from Earth tonight (sky half opposite the Sun is night)
+  const y0 = H - stripH, sx = 12, sw = W - 24, X = lam => sx + sw - (((lam - lamE + 180) % 360) + 360) % 360 / 360 * sw;   // looking south: east (increasing longitude) is on the left
+  g.fillStyle = '#0b1020'; g.fillRect(sx, y0, sw, stripH - 8);
+  const day = g.createLinearGradient(sx, 0, sx + sw, 0);
+  day.addColorStop(0, 'rgba(120,170,255,.38)'); day.addColorStop(.22, 'rgba(120,170,255,.18)'); day.addColorStop(.25, 'rgba(0,0,0,0)'); day.addColorStop(.75, 'rgba(0,0,0,0)'); day.addColorStop(.78, 'rgba(120,170,255,.18)'); day.addColorStop(1, 'rgba(120,170,255,.38)');
+  g.fillStyle = day; g.fillRect(sx, y0, sw, stripH - 8);
+  for (let i = 0; i < 13; i++){ const a0 = lamOf(ZO[i].d), xa = X(a0); g.strokeStyle = 'rgba(200,210,240,.25)'; g.lineWidth = 1; g.beginPath(); g.moveTo(xa, y0 + 4); g.lineTo(xa, y0 + stripH - 12); g.stroke();
+    const xm = X(a0 + lenOf(i) * 360 / 365.25 / 2); g.fillStyle = i === iM ? '#d6e4ff' : '#9aa8c8'; g.font = `${i === iM ? 800 : 700} ${W < 480 ? 9 : 11}px Nunito`; g.textAlign = 'center';
+    if (g.measureText(nm(ZO[i])).width < lenOf(i) / 365 * sw - 2 && xm > sx + sw * .1 && xm < sx + sw * .9) g.fillText(nm(ZO[i]), xm, y0 + stripH * .62); }
+  const xs = X(lamS), xm = X(lamE);
+  const sunG = g.createRadialGradient(xs, y0 + stripH * .45, 0, xs, y0 + stripH * .45, stripH * .5); sunG.addColorStop(0, 'rgba(255,240,190,1)'); sunG.addColorStop(.3, 'rgba(255,200,80,.8)'); sunG.addColorStop(1, 'rgba(255,200,80,0)');
+  g.fillStyle = sunG; g.save(); g.beginPath(); g.rect(sx, y0, sw, stripH - 8); g.clip(); g.fillRect(xs - stripH * .5, y0, stripH, stripH - 8); g.translate(sx - xs + (xs > sx + sw / 2 ? 0 : sw), 0); g.fillRect(xs - stripH * .5, y0, stripH, stripH - 8); g.restore();
+  g.strokeStyle = '#78aaff'; g.lineWidth = 2; g.beginPath(); g.moveTo(xm, y0 + 2); g.lineTo(xm, y0 + stripH - 10); g.stroke();
+  g.font = '800 11px Nunito'; g.fillStyle = '#d6e4ff'; g.textAlign = 'center'; g.fillText(Lab.L(o('▼ midnight, due south','▼ 半夜正南方')), xm, y0 + 13);
+  g.fillStyle = '#cfd8ee'; g.textAlign = 'left'; g.font = '700 10px Nunito';
+  g.fillText(Lab.L(o('daytime sky (Sun’s glare)','白天的天空（阳光太亮）')), sx + 4, y0 + 13); g.textAlign = 'right'; g.fillText(Lab.L(o('daytime sky','白天的天空')), sx + sw - 4, y0 + 13);
+  g.textAlign = 'left'; g.fillStyle = '#9aa8c8'; g.fillText(Lab.L(o('The zodiac as seen from Earth on this date: the middle half is the night sky','这一天从地球上看到的黄道带：中间一半是夜空')), sx + 4, y0 + stripH - 13);
+}
+function render(){
+  const day = Z.day, iS = idxAtDoy(day), iM = idxAtDoy(doyOfLam(lamOf(day) + 180)), z = ZO[iS];
+  // horoscope sign for this date
+  const signs = [[1,19,0],[2,18,1],[3,20,2],[4,19,3],[5,20,4],[6,20,5],[7,22,6],[8,22,7],[9,22,8],[10,22,9],[11,21,10],[12,21,12],[12,31,0]];
+  const [m, d] = dateOf(day), sg = signs.find(([mm, dd]) => m + 1 < mm || (m + 1 === mm && d <= dd)), signIdx = sg[2];
+  const signName = zh() ? ({8:'处女座',12:'射手座',1:'水瓶座'}[signIdx] || ZO[signIdx].zh) : ({0:'Capricorn',10:'Scorpio'}[signIdx] || ZO[signIdx].en);
+  Lab.$('#zoOut').textContent = fmtDate(day);
+  Lab.$('#zoDate').textContent = (zh() ? '📅 ' : '📅 ') + fmtDate(day);
+  Lab.$('#zoSun').textContent = nm(z);
+  Lab.$('#zoMid').textContent = nm(ZO[iM]);
+  Lab.$('#zoSign').textContent = signName;
+  Lab.$('#zoDays').textContent = zh() ? `${lenOf(iS)} 天` : `${lenOf(iS)} days`;
+  const same = signIdx === iS, msg = Lab.$('#zoMsg');
+  msg.textContent = same ? Lab.L(o('✅ Today the horoscope sign and the real constellation behind the Sun match.','✅ 今天，占卜里的“星座”和太阳背后真正的星座刚好一致。'))
+    : (zh() ? `🔭 占卜说是“${signName}”，但太阳其实在${nm(z)}前面。` : `🔭 The horoscope says “${signName}”, but the Sun is really in front of ${nm(z)}.`);
+  msg.className = 'result ' + (same ? 'good' : '');
+  draw();
+}
+function renderTable(){
+  const max = 44;
+  Lab.$('#zoTbl').innerHTML = `<tr><th>${Lab.L(o('Constellation','星座'))}</th><th>${Lab.L(o('Sun really in front of it (IAU)','太阳真正经过的日期（IAU）'))}</th><th style="min-width:130px">${Lab.L(o('Days','天数'))}</th><th>${Lab.L(o('Horoscope sign dates','星座占卜的日期'))}</th></tr>` +
+    ZO.map((z, i) => { const end = ZO[(i + 1) % 13].d; return `<tr${z.extra ? ' style="background:color-mix(in srgb,var(--good) 10%,transparent)"' : ''}><td><b>${nm(z)}</b></td><td>${fmtDate(z.d)} – ${fmtDate(end)}</td><td><div class="zobar"><div style="width:${lenOf(i) / max * 78}%;background:${z.col}"></div><span>${lenOf(i)}</span></div></td><td class="muted">${Lab.L(z.sign)}</td></tr>`; }).join('');
+}
+const dIn = Lab.$('#zoDay'), pBtn = Lab.$('#zoPlay');
+dIn.oninput = () => { Z.day = +dIn.value; Z.f = Z.day; render(); };
+let last = 0;
+function tick(now){ if (!Z.playing) return; if (last){ Z.f += (now - last) / 1000 * 24; if (Z.f > 365) Z.f -= 365; Z.day = Math.max(1, Math.round(Z.f)); dIn.value = Z.day; render(); } last = now; requestAnimationFrame(tick); }
+pBtn.onclick = () => { Z.playing = !Z.playing; pBtn.textContent = Z.playing ? '⏸' : '▶'; if (Z.playing){ last = 0; Z.f = Z.day; requestAnimationFrame(tick); } };
+new ResizeObserver(() => requestAnimationFrame(draw)).observe(box);
+window.ZodiacDeep = { day:d => { Z.day = d; dIn.value = d; render(); return [Lab.$('#zoOut').textContent, Lab.$('#zoSun').textContent, Lab.$('#zoMid').textContent, Lab.$('#zoSign').textContent, Lab.$('#zoDays').textContent].join(' | '); } };
+
+/* ---------- Go deeper links (filled from the catalog) ---------- */
+const dp = document.getElementById('deeper'), AST = (window.LAB_CATALOG || []).find(s => s.id === 'astronomy');
+if (dp && AST) dp.innerHTML = dp.dataset.deeper.split(',').map(id => { const t = AST.topics.find(x => x.id === id); return t ? `<a class="linkcard" href="${id}.html" data-lab-link><b data-zh="${t.zh}">${t.en}</b><span data-zh="${t.d.zh}">${t.d.en}</span><small data-zh="深入专题 →">Deep dive →</small></a>` : ''; }).join('');
+
+Lab.onLang(() => { render(); renderTable(); });
+})();
+</script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const V = THREE.Vector3, D2R = Math.PI / 180, R = 100;
+const dirFor = (az, alt) => { az *= D2R; alt *= D2R; return new V(Math.sin(az) * Math.cos(alt), Math.sin(alt), -Math.cos(az) * Math.cos(alt)); };
+const HD = dirFor(0, 28);
+const ctx = Lab3D.stage('#stage', { THREE, OrbitControls, camera:[-HD.x, -HD.y, -HD.z], target:[0, 0, 0], minDistance:.5, maxDistance:420, fov:70, lights:false, pan:false });
+const { scene, controls, camera } = ctx;
+let mode = 'in';
+function setControls(){
+  if (mode === 'in') Object.assign(controls, { enableZoom:false, minPolarAngle:80 * D2R, maxPolarAngle:179 * D2R, rotateSpeed:.45, minDistance:.5, maxDistance:420 });
+  else Object.assign(controls, { enableZoom:true, minPolarAngle:0, maxPolarAngle:100 * D2R, rotateSpeed:.8, minDistance:.5, maxDistance:420 });
+}
+setControls();
+
+/* ---------- celestial sphere groups: tilt (latitude) > inner (sidereal rotation) ---------- */
+const tilt = new THREE.Group(), inner = new THREE.Group(); scene.add(tilt); tilt.add(inner);
+const skyPos = (ra, dec, r = R) => { const a = ra * 15 * D2R, d = dec * D2R; return new V(Math.sin(a) * Math.cos(d), Math.sin(d), Math.cos(a) * Math.cos(d)).multiplyScalar(r); };
+
+/* ---------- stars (custom point shader: size + colour per star) ---------- */
+const ids = Object.keys(STARS), NB = 2400, NT = ids.length + NB;
+const pos = new Float32Array(NT * 3), col = new Float32Array(NT * 3), siz = new Float32Array(NT), c3 = new THREE.Color();
+ids.forEach((id, i) => { const [ra, dec, mag, sp] = STARS[id], p = skyPos(ra, dec);
+  pos.set([p.x, p.y, p.z], i * 3); c3.set(SPEC[sp]).multiplyScalar(Math.max(.45, Math.min(1, 1.25 - .15 * mag))); col.set([c3.r, c3.g, c3.b], i * 3);
+  siz[i] = Math.max(4, Math.min(22, 14 - 2.7 * mag)); });
+let seed = 42; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+for (let j = 0; j < NB; j++){ const i = ids.length + j, u = rnd() * 2 - 1, a = rnd() * Math.PI * 2, s = Math.sqrt(1 - u * u), mag = 3.9 + 2.3 * Math.sqrt(rnd());
+  pos.set([s * Math.sin(a) * R, u * R, s * Math.cos(a) * R], i * 3); const f = .2 + (6.2 - mag) * .16; c3.setRGB(.85 * f, .9 * f, f); col.set([c3.r, c3.g, c3.b], i * 3); siz[i] = 2.2 + (6.2 - mag) * 1.1; }
+const sGeo = new THREE.BufferGeometry();
+sGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); sGeo.setAttribute('aColor', new THREE.BufferAttribute(col, 3)); sGeo.setAttribute('aSize', new THREE.BufferAttribute(siz, 1));
+const sMat = new THREE.ShaderMaterial({
+  uniforms:{ uScale:{ value:ctx.renderer.getPixelRatio() }, uDim:{ value:1 } },
+  vertexShader:`attribute float aSize; attribute vec3 aColor; varying vec3 vC; uniform float uScale;
+    void main(){ vC = aColor; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_PointSize = aSize * uScale; gl_Position = projectionMatrix * mv; }`,
+  fragmentShader:`varying vec3 vC; uniform float uDim;
+    void main(){ float d = length(gl_PointCoord - .5); float a = smoothstep(.5, .0, d); a = pow(a, 1.4) * 2.0; gl_FragColor = vec4(vC * (1.0 + a), min(1.0, a) * uDim); }`,
+  transparent:true, depthWrite:false, blending:THREE.AdditiveBlending
+});
+inner.add(new THREE.Points(sGeo, sMat));
+
+/* ---------- constellation lines, pickers, labels ---------- */
+const LABS = [], CO = {};
+const pickGeo = new THREE.SphereGeometry(2.6, 8, 6), pickMat = new THREE.MeshBasicMaterial({ visible:false });
+for (const k of ORDER){
+  const c = CONS[k], pts = [];
+  c.lines.forEach(([a, b]) => { pts.push(skyPos(STARS[a][0], STARS[a][1], R * .998), skyPos(STARS[b][0], STARS[b][1], R * .998)); });
+  let mat = null;
+  if (pts.length){ mat = new THREE.LineBasicMaterial({ color:'#7aa2ff', transparent:true, opacity:.5, depthWrite:false }); inner.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), mat)); }
+  const all = [...new Set([...c.stars, ...c.lines.flat()])], cen = new V();
+  all.forEach(id => { const p = skyPos(STARS[id][0], STARS[id][1]); cen.add(p);
+    if (k === 'umi' && id === 'polaris') return;
+    const m = new THREE.Mesh(pickGeo, pickMat); m.position.copy(p); inner.add(m); ctx.pickable(m, k); });
+  const anchor = new THREE.Object3D(); anchor.position.copy(cen.normalize().multiplyScalar(R)); inner.add(anchor);
+  if (k === 'polaris') anchor.position.copy(skyPos(STARS.polaris[0], STARS.polaris[1]));
+  const lab = ctx.label(c.name, anchor, { cls:'con', offset:k === 'polaris' ? [0, -4, 0] : null });
+  CO[k] = { mat, anchor, lab }; LABS.push({ L:lab, a:anchor, kind:'con' });
+}
+for (const id in STAR_NAMES){ if (id === 'polaris') continue; const a = new THREE.Object3D(); a.position.copy(skyPos(STARS[id][0], STARS[id][1])); inner.add(a); LABS.push({ L:ctx.label(STAR_NAMES[id], a, { cls:'star' }), a, kind:'star' }); }
+[['N', o('N','北'), [0, 2, -92]], ['E', o('E','东'), [92, 2, 0]], ['S', o('S','南'), [0, 2, 92]], ['W', o('W','西'), [-92, 2, 0]]].forEach(([, t, p]) => LABS.push({ L:ctx.label(t, new V(...p), { cls:'cmp' }), a:null, kind:'cmp' }));
+
+/* ---------- ground, horizon glow, daytime sky, Sun ---------- */
+const ground = new THREE.Mesh(new THREE.CircleGeometry(R * 1.06, 72), new THREE.MeshBasicMaterial({ color:'#0b1d12', transparent:true, opacity:1 }));
+ground.rotation.x = -Math.PI / 2; ground.position.y = -3; scene.add(ground);
+function gradTex(stops){ const c = document.createElement('canvas'); c.width = 4; c.height = 128; const x = c.getContext('2d'), gr = x.createLinearGradient(0, 0, 0, 128); stops.forEach(([s, v]) => gr.addColorStop(s, v)); x.fillStyle = gr; x.fillRect(0, 0, 4, 128); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; }
+const glow = new THREE.Mesh(new THREE.CylinderGeometry(R * 1.04, R * 1.04, 16, 72, 1, true), new THREE.MeshBasicMaterial({ map:gradTex([[0, 'rgba(40,70,140,0)'], [1, 'rgba(60,110,190,.45)']]), transparent:true, side:THREE.BackSide, depthWrite:false }));
+glow.position.y = 5; scene.add(glow);
+const dome = new THREE.Mesh(new THREE.SphereGeometry(R * 1.2, 32, 16), new THREE.MeshBasicMaterial({ color:'#4b80c8', side:THREE.BackSide, transparent:true, opacity:0, depthWrite:false }));
+dome.renderOrder = -1; scene.add(dome);
+const sunTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'), gr = x.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, '#fffbe6'); gr.addColorStop(.2, '#ffd34d'); gr.addColorStop(1, 'rgba(255,180,40,0)'); x.fillStyle = gr; x.fillRect(0, 0, 128, 128); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+const sun = new THREE.Sprite(new THREE.SpriteMaterial({ map:sunTex, depthWrite:false })); sun.scale.set(16, 16, 1); inner.add(sun);
+const sunLab = ctx.label(o('Sun','太阳'), sun, { offset:[0, -9, 0] });
+
+/* ---------- outside-view helpers: wire sphere, equator, axis, observer ---------- */
+const outside = new THREE.Group(); outside.visible = false; tilt.add(outside);
+outside.add(new THREE.Mesh(new THREE.SphereGeometry(R, 24, 12), new THREE.MeshBasicMaterial({ color:'#6b8cff', wireframe:true, transparent:true, opacity:.08 })));
+{ const pts = []; for (let i = 0; i <= 128; i++){ const a = i / 128 * Math.PI * 2; pts.push(new V(Math.sin(a) * R, 0, Math.cos(a) * R)); }
+  outside.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color:'#4fd1c5', transparent:true, opacity:.6 })));
+  outside.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new V(0, -R * 1.2, 0), new V(0, R * 1.2, 0)]), new THREE.LineBasicMaterial({ color:'#facc15' }))); }
+const eqAnchor = new THREE.Object3D(); eqAnchor.position.set(0, 0, R); outside.add(eqAnchor);
+const npAnchor = new THREE.Object3D(); npAnchor.position.set(0, R * 1.2, 0); outside.add(npAnchor);
+const outLabs = [ctx.label(o('Celestial equator','天赤道'), eqAnchor, { offset:[0, 5, 0] }), ctx.label(o('Earth’s axis → Polaris','地轴 → 北极星'), npAnchor, { offset:[0, 5, 0] })];
+const person = new THREE.Group(); person.visible = false; scene.add(person);
+{ const m = new THREE.MeshBasicMaterial({ color:'#f59e0b' }); const b = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 2.2, 7, 12), m); b.position.y = 0.5; person.add(b);
+  const h = new THREE.Mesh(new THREE.SphereGeometry(1.8, 16, 12), m); h.position.y = 5.6; person.add(h); }
+const youLab = ctx.label(o('You','你'), person, { offset:[0, 12, 0] });
+
+/* ---------- star trails ---------- */
+const trailGeo = new THREE.BufferGeometry(), trails = new THREE.LineSegments(trailGeo, new THREE.LineBasicMaterial({ vertexColors:true, transparent:true, opacity:.8, depthWrite:false, blending:THREE.AdditiveBlending }));
+trails.visible = false; inner.add(trails);
+function buildTrails(){
+  const span = SKY.min / 60 * 1.0027, n = Math.max(1, Math.ceil(span * 7.5)), P = [], C = [];
+  ids.forEach((id, i) => { const [ra, dec] = STARS[id], cr = col[i * 3], cg = col[i * 3 + 1], cb = col[i * 3 + 2];
+    for (let s = 0; s < n; s++){ const a = skyPos(ra + span * s / n, dec, R * .997), b = skyPos(ra + span * (s + 1) / n, dec, R * .997), f = .25 + .75 * (1 - s / n);
+      P.push(a.x, a.y, a.z, b.x, b.y, b.z); C.push(cr * f, cg * f, cb * f, cr * f, cg * f, cb * f); } });
+  trailGeo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); trailGeo.setAttribute('color', new THREE.Float32BufferAttribute(C, 3)); trailGeo.computeBoundingSphere();
+}
+
+/* ---------- apply time / date / place ---------- */
+const tmp = new V();
+const altOfObj = obj => { obj.getWorldPosition(tmp); return Math.asin(Math.max(-1, Math.min(1, tmp.y / tmp.length()))) / D2R; };
+SKY.altOf = k => altOfObj(CO[k].anchor);
+let dirty = true, readT = 0, lastDay = null;
+function applySky(){
+  tilt.rotation.x = -(90 - LOCS[SKY.loc].lat) * D2R;
+  inner.rotation.y = -SKY.lst() * 15 * D2R;
+  sun.position.copy(skyPos(SKY.sunRA(), SKY.sunDec(), R * .97));
+  scene.updateMatrixWorld(true);
+  const sa = altOfObj(sun), day = sa > 0 ? 1 : sa < -12 ? 0 : (sa + 12) / 12;
+  dome.material.opacity = mode === 'in' ? .85 * day : 0;
+  sMat.uniforms.uDim.value = 1 - .8 * day;
+  const isDay = day > .55;
+  if (!story.active && isDay !== lastDay){ lastDay = isDay; ctx.caption(isDay ? o('☀️ The Sun is up (or it is twilight), so in real life you could not see most stars now.','☀️ 太阳还在地平线附近或以上，现实中此刻看不到大部分星星。') : null); }
+  if (trails.visible) buildTrails();
+  Lab.$('#timeSl').value = SKY.min;
+}
+function refreshReadout(){
+  const vis = ORDER.filter(k => SKY.altOf(k) > 5);
+  const pa = altOfObj(CO.polaris.anchor);
+  SKY.renderReadout(vis, pa);
+}
+SKY.three = { focus, refresh(){ dirty = true; lastDay = null; setPlayLabel(); } };
+
+/* ---------- selection / focus ---------- */
+ctx.hoverText(k => Lab.L(CONS[k].name));
+ctx.onPick((k, h) => { if (!k) return; if (h && h.point.y < -2.5) return; SKY.select(k, false); });
+function lookPose(dir){ const d = dir.clone().normalize(); return [[-d.x, -d.y, -d.z], [0, 0, 0]]; }
+function lookAz(az, alt){ if (mode !== 'in') setMode('in'); ctx.flyToPose(...lookPose(dirFor(az, alt))); }
+function focus(k){
+  if (!k) return;
+  const p = new V(); CO[k].anchor.getWorldPosition(p);
+  if (mode === 'in'){
+    const alt = SKY.altOf(k);
+    if (alt < 0){ ctx.caption(o('That constellation is below the horizon right now. Try another time or month!','这个星座此刻在地平线以下，换个时间或月份试试！')); setTimeout(() => { if (!story.active) ctx.caption(null); }, 3000); return; }
+    const az = Math.atan2(p.x, -p.z) / D2R; ctx.flyToPose(...lookPose(dirFor(az, Math.min(alt, 80))));
+  } else { const h = new V(p.x, 0, p.z).normalize(); ctx.flyToPose([h.x * 190, 95, h.z * 190], [0, 10, 0]); }
+}
+function setMode(m){
+  mode = m; setControls();
+  Lab.$('#viewIn').classList.toggle('on', m === 'in'); Lab.$('#viewOut').classList.toggle('on', m === 'out');
+  outside.visible = person.visible = m === 'out'; glow.visible = m === 'in';
+  ground.material.opacity = m === 'in' ? 1 : .88;
+  if (m === 'out') ctx.flyToPose([105, 115, 170], [0, 0, 0], 1400); else ctx.flyToPose(...lookPose(HD), 1400);
+  dirty = true;
+}
+Lab.$('#viewIn').onclick = () => setMode('in');
+Lab.$('#viewOut').onclick = () => setMode('out');
+Lab.$$('#compass button').forEach(b => b.onclick = () => { const d = b.dataset.dir; d === 'U' ? lookAz(180, 88) : lookAz({ N:0, E:90, S:180, W:270 }[d], d === 'N' ? 28 : 25); });
+
+/* ---------- toolbar / sliders ---------- */
+let playing = false, linesOn = true, labelsOn = true;
+function setPlayLabel(){ Lab.$('#playBtn').textContent = playing ? Lab.L(o('⏸ Pause','⏸ 暂停')) : Lab.L(o('▶ Play night','▶ 播放夜晚')); Lab.$('#playBtn').classList.toggle('on', playing); }
+function setPlaying(on){ playing = on; setPlayLabel(); }
+function setTrails(on){ trails.visible = on; Lab.$('#trailBtn').classList.toggle('on', on); dirty = true; }
+Lab.$('#playBtn').onclick = () => { if (!playing && SKY.min >= 720) SKY.min = 0; setPlaying(!playing); };
+Lab.$('#trailBtn').onclick = () => setTrails(!trails.visible);
+Lab.$('#lineBtn').onclick = () => { linesOn = !linesOn; Lab.$('#lineBtn').classList.toggle('on', linesOn); for (const k in CO) if (CO[k].mat) CO[k].mat.visible = linesOn; };
+Lab.$('#labelBtn').onclick = () => { labelsOn = !labelsOn; Lab.$('#labelBtn').classList.toggle('on', labelsOn); };
+Lab.$('#timeSl').oninput = e => { SKY.min = +e.target.value; dirty = true; };
+Lab.$('#monthSel').onchange = e => { SKY.month = +e.target.value; dirty = true; };
+Lab.$('#locSel').onchange = e => { SKY.loc = +e.target.value; dirty = true; };
+function setState(s){ if ('min' in s) SKY.min = s.min; if ('month' in s){ SKY.month = s.month; Lab.$('#monthSel').value = s.month; } if ('loc' in s){ SKY.loc = s.loc; Lab.$('#locSel').value = s.loc; } dirty = true; }
+function resetAll(){ story.stop(); setPlaying(false); setTrails(false); setState({ min:180, month:new Date().getMonth(), loc:0 }); SKY.select(null); if (mode !== 'in') setMode('in'); else ctx.home(); }
+Lab.$('#resetBtn').onclick = resetAll;
+
+/* ---------- story ---------- */
+const story = Lab3D.story('#stage', STORY, i => {
+  setPlaying(false);
+  if (i === 0){ setTrails(false); setState({ min:0, month:0, loc:0 }); lookAz(180, 30); SKY.select(null, true); setPlaying(true); }
+  if (i === 1){ setState({ min:0, month:0, loc:0 }); setTrails(true); lookAz(0, 34); SKY.select('polaris', true); setPlaying(true); }
+  if (i === 2){ setState({ min:0, month:9, loc:0 }); setTrails(true); lookAz(0, 40); SKY.select('cas', true); setPlaying(true); }
+  if (i === 3){ setTrails(false); setState({ min:180, month:0, loc:2 }); lookAz(180, 88); SKY.select('polaris', true); setPlaying(true); }
+  if (i === 4){ setTrails(false); setState({ min:180, month:0, loc:0 }); applySky(); SKY.select('ori', true); focus('ori'); }
+  if (i === 5){ setTrails(false); setState({ min:180, month:6, loc:0 }); applySky(); SKY.select('sco', true); focus('sco'); }
+  if (i === 6){ setTrails(false); setState({ min:180, month:0, loc:0 }); SKY.select(null, true); setMode('out'); }
+}, () => { lastDay = null; setPlaying(false); setTrails(false); setState({ min:180, month:new Date().getMonth(), loc:0 }); if (mode !== 'in') setMode('in'); else ctx.home(); });
+Lab.$('#storyBtn').onclick = () => story.start();
+
+/* ---------- per-frame ---------- */
+ctx.onFrame((dt, t) => {
+  if (playing){ SKY.min += dt * 60; if (SKY.min >= 720){ SKY.min = 720; if (story.active) SKY.min = 0; else setPlaying(false); } dirty = true; }
+  if (dirty){ applySky(); dirty = false; readT += 1; }
+  readT += dt; if (readT > .2){ readT = 0; refreshReadout(); }
+  const sel = SKY.sel;
+  for (const k in CO){ const m = CO[k].mat; if (!m) continue; const on = sel === k; m.color.set(on ? '#ffd166' : '#7aa2ff'); m.opacity = on ? .75 + .25 * Math.sin(t * 4) : sel ? .3 : .5; CO[k].lab.el.style.color = on ? '#ffd166' : ''; }
+  for (const it of LABS){
+    let v = labelsOn;
+    if (it.a){ it.a.getWorldPosition(tmp); if (tmp.y < -1) v = false; }
+    if ((it.kind === 'star' || it.kind === 'con') && mode !== 'in') v = false;
+    it.L.visible = v || (it.kind === 'con' && sel && CO[sel] && CO[sel].lab === it.L && tmp.y > -1);
+  }
+  sun.getWorldPosition(tmp); sunLab.visible = tmp.y > 0;
+  outLabs.forEach(L => L.visible = mode === 'out'); youLab.visible = mode === 'out';
+});
+fillSelects();
+applySky(); refreshReadout();
+</script>
+</body>
+</html>
