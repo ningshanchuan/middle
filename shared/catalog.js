@@ -278,13 +278,13 @@ window.LAB_CATALOG = [
  { id:'cs', icon:'💻', color:'#0e7490', en:'Computer Science', zh:'计算机科学',
    blurb:{en:'How computers, code, the internet and AI work (Georgia Computer Science, grades 6–8).',zh:'计算机、编程、互联网和人工智能是如何工作的（佐治亚州计算机科学，6–8 年级）。'},
    topics:[
-   {id:'cs-computers', soon:1, std:'CS 6–8 · Computing Systems', en:'How Computers Work', zh:'计算机是怎样工作的', d:{en:'Binary, bits and bytes, CPU and memory.',zh:'二进制、位与字节、CPU 与内存。'}},
-   {id:'cs-algorithms', soon:1, std:'CS 6–8 · Algorithms', en:'Algorithms: Sorting & Searching', zh:'算法：排序与查找', d:{en:'Race sorting algorithms and find things fast.',zh:'比赛不同的排序算法，快速查找。'}},
-   {id:'cs-coding', soon:1, std:'CS 6–8 · Programming', en:'Coding: Loops & Conditions', zh:'编程：循环与条件', d:{en:'Program a robot through mazes with blocks and code.',zh:'用积木和代码让机器人走出迷宫。'}},
-   {id:'cs-internet', soon:1, std:'CS 6–8 · Networks', en:'How the Internet Works', zh:'互联网是怎样工作的', d:{en:'Packets, IP addresses, routers and DNS.',zh:'数据包、IP 地址、路由器与域名系统。'}},
-   {id:'cs-data-crypto', soon:1, std:'CS 6–8 · Data', en:'Data, Codes & Encryption', zh:'数据、编码与加密', d:{en:'Text and images as numbers, ciphers and keeping secrets.',zh:'文字和图像变成数字、密码与保密。'}},
-   {id:'cs-ai', soon:1, std:'CS 6–8 · Impacts of Computing', en:'Artificial Intelligence & Machine Learning', zh:'人工智能与机器学习', d:{en:'Train a classifier and see how AI learns — and fails.',zh:'训练一个分类器，看 AI 如何学习，又会在哪里出错。'}},
-   {id:'cs-safety', soon:1, std:'CS 6–8 · Cybersecurity', en:'Cybersecurity & Digital Citizenship', zh:'网络安全与数字公民', d:{en:'Strong passwords, phishing and staying safe online.',zh:'强密码、网络钓鱼与网络安全。'}}
+   {id:'cs-computers', std:'CS 6–8 · Computing Systems', en:'How Computers Work', zh:'计算机是怎样工作的', d:{en:'Binary, bits and bytes, CPU and memory.',zh:'二进制、位与字节、CPU 与内存。'}},
+   {id:'cs-algorithms', std:'CS 6–8 · Algorithms', en:'Algorithms: Sorting & Searching', zh:'算法：排序与查找', d:{en:'Race sorting algorithms and find things fast.',zh:'比赛不同的排序算法，快速查找。'}},
+   {id:'cs-coding', std:'CS 6–8 · Programming', en:'Coding: Loops & Conditions', zh:'编程：循环与条件', d:{en:'Program a robot through mazes with blocks and code.',zh:'用积木和代码让机器人走出迷宫。'}},
+   {id:'cs-internet', std:'CS 6–8 · Networks', en:'How the Internet Works', zh:'互联网是怎样工作的', d:{en:'Packets, IP addresses, routers and DNS.',zh:'数据包、IP 地址、路由器与域名系统。'}},
+   {id:'cs-data-crypto', std:'CS 6–8 · Data', en:'Data, Codes & Encryption', zh:'数据、编码与加密', d:{en:'Text and images as numbers, ciphers and keeping secrets.',zh:'文字和图像变成数字、密码与保密。'}},
+   {id:'cs-ai', std:'CS 6–8 · Impacts of Computing', en:'Artificial Intelligence & Machine Learning', zh:'人工智能与机器学习', d:{en:'Train a classifier and see how AI learns — and fails.',zh:'训练一个分类器，看 AI 如何学习，又会在哪里出错。'}},
+   {id:'cs-safety', std:'CS 6–8 · Cybersecurity', en:'Cybersecurity & Digital Citizenship', zh:'网络安全与数字公民', d:{en:'Strong passwords, phishing and staying safe online.',zh:'强密码、网络钓鱼与网络安全。'}}
  ]},
  { id:'music', icon:'🎵', color:'#be185d', en:'Music', zh:'音乐',
    blurb:{en:'Rhythm, pitch, instruments and composing — hear it, play it, make it.',zh:'节奏、音高、乐器与作曲：听一听、弹一弹、编一编。'},

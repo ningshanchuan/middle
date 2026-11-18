@@ -939,12 +939,26 @@ App.setCell = c => {
 };
 document.querySelectorAll('#cellSeg button').forEach(b => b.onclick = () => App.setCell(b.dataset.cell));
 
+/* pre-recorded Chinese read-aloud — same files and keys as shared/lab.js (this page does not load lab.js) */
+const REC = { keys:null, ext:'mp3', a:null };
+if (!window.LabAudioManifest) window.LabAudioManifest = m => { if (m.lang === 'zh'){ REC.keys = new Set(String(m.keys || '').split(/\s+/)); REC.ext = m.ext || 'mp3'; } };
+setTimeout(() => { const s = document.createElement('script'); s.src = '../audio/zh/manifest.js'; s.async = true; document.head.appendChild(s); }, 400);
+const recKey = t => { const s = 'zh|' + String(t).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim(); let h = 0x811c9dc5; for (let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return ('0000000' + h.toString(16)).slice(-8); };
+if (window.speechSynthesis){ const c0 = speechSynthesis.cancel.bind(speechSynthesis); try { speechSynthesis.cancel = () => { if (REC.a) REC.a.pause(); c0(); }; } catch(e){} }
 function speak(text){
   if (!('speechSynthesis' in window)) return;
   speechSynthesis.cancel();
   if (window.Lab && Lab.speak){ Lab.speak(text, { lang: App.lang }); return; }   // best available voice
-  const u = new SpeechSynthesisUtterance(text); u.lang = App.lang==='zh' ? 'zh-CN' : 'en-US'; u.rate = .95;
-  speechSynthesis.speak(u);
+  let rate = 1; try { rate = +(localStorage.getItem('labRate') || 1); } catch(e){}   // reader's speed from the 🔊 panel
+  const tts = () => { const u = new SpeechSynthesisUtterance(text); u.lang = App.lang==='zh' ? 'zh-CN' : 'en-US'; u.rate = .95 * rate; speechSynthesis.speak(u); };
+  const k = App.lang === 'zh' && REC.keys && recKey(text);
+  if (k && REC.keys.has(k)){
+    const a = REC.a || (REC.a = new Audio()); a.onerror = tts; a.src = '../audio/zh/' + k + '.' + REC.ext;
+    a.preservesPitch = a.webkitPreservesPitch = true; a.defaultPlaybackRate = a.playbackRate = Math.max(.3, Math.min(2.5, rate));
+    const p = a.play(); if (p && p.catch) p.catch(e => { if (!e || e.name !== 'AbortError') tts(); });
+    return;
+  }
+  tts();
 }
 function renderInfo(){
   const box = $('#info'), k = App.sel;

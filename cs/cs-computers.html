@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How Computers Work</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/photos.js"></script>
+<style>
+/* binary switches */
+.binbox{padding:20px;display:flex;flex-direction:column;gap:14px}
+.bulbs{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px}
+.bulb{border:2px solid var(--line);background:var(--surface-2);border-radius:14px;padding:10px 0 8px;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--ink-2);font-weight:800}
+.bulb i{display:block;width:34px;height:34px;border-radius:50%;background:var(--line);transition:background .15s,box-shadow .15s}
+.bulb b{font-family:Fredoka;font-size:22px;color:var(--ink)}
+.bulb small{font-size:11.5px}
+.bulb.on{border-color:var(--warn)}
+.bulb.on i{background:var(--warn);box-shadow:0 0 18px color-mix(in srgb,var(--warn) 70%,transparent)}
+.readout{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.readout .counter b{font-size:28px}
+.mono{font-family:ui-monospace,Consolas,"Courier New",monospace}
+.target{display:flex;flex-wrap:wrap;align-items:center;gap:12px;background:var(--surface-2);border-radius:14px;padding:10px 14px}
+.target .tnum{font-family:Fredoka;font-size:30px;color:var(--brand)}
+.binbox .grid2>details.peek{margin-top:0}
+.stars{color:var(--warn);letter-spacing:2px}
+/* gates */
+.gwrap{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:18px}
+.gstage{padding:10px;display:flex;flex-direction:column;gap:8px}
+#gsvg{width:100%;height:auto;display:block;user-select:none;touch-action:manipulation}
+#gsvg .wire{fill:none;stroke:var(--line);stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
+#gsvg .wire.hi{stroke:var(--warn)}
+#gsvg .gate{fill:var(--surface);stroke:var(--ink-2);stroke-width:2.5;cursor:pointer}
+#gsvg .gate.unset{stroke-dasharray:6 5;fill:var(--surface-2)}
+#gsvg .gate:hover{stroke:var(--brand)}
+#gsvg text{fill:var(--ink);font:800 15px Nunito,"Microsoft YaHei",sans-serif;pointer-events:none}
+#gsvg .sw{cursor:pointer}
+#gsvg .lamp{stroke:var(--ink-2);stroke-width:2.5}
+.gside{padding:20px;display:flex;flex-direction:column;gap:12px}
+.ttab{border-collapse:collapse;width:100%;font-weight:800;text-align:center}
+.ttab th,.ttab td{border:1px solid var(--line);padding:5px 4px}
+.ttab th{background:var(--surface-2);font-size:13px}
+.ttab td.ok{color:var(--good)} .ttab td.no{color:var(--bad)}
+.ttab tr.cur td{background:color-mix(in srgb,var(--warn) 18%,transparent)}
+.lvls{display:flex;flex-wrap:wrap;gap:6px}
+.bar{height:10px;border-radius:999px;background:var(--surface-2);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--brand);border-radius:999px;transition:width .3s}
+.ranks{display:flex;flex-wrap:wrap;gap:6px}
+.ranks span{font-size:13px;font-weight:800;padding:4px 10px;border-radius:999px;border:1px solid var(--line);color:var(--ink-2)}
+.ranks span.on{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.ms .counters{grid-template-columns:repeat(3,minmax(0,1fr))}
+/* CPU */
+#cpuStage{min-height:0;padding:16px;display:flex;flex-direction:column;gap:12px}
+.cpu{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:14px}
+.cbox{border:2px solid var(--line);border-radius:14px;padding:10px;background:var(--surface);cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.cbox h4{margin:0 0 6px;font-size:14px;letter-spacing:.04em;color:var(--ink-2)}
+.cbox.hot{border-color:var(--warn);box-shadow:0 0 0 3px color-mix(in srgb,var(--warn) 35%,transparent)}
+.cbox.sel{border-color:var(--brand)}
+.regs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.reg{background:var(--surface-2);border-radius:10px;padding:6px 8px}
+.reg small{display:block;font-size:11px;font-weight:800;color:var(--ink-2)}
+.reg b{font-family:ui-monospace,Consolas,monospace;font-size:19px}
+.ram{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+.cell{border:1px solid var(--line);border-radius:8px;padding:3px 5px;background:var(--surface-2);font-size:12px;min-height:44px}
+.cell small{color:var(--ink-2);font-weight:800;font-size:10.5px}
+.cell b{display:block;font-family:ui-monospace,Consolas,monospace;font-size:13px}
+.cell input{width:100%;font:700 13px ui-monospace,Consolas,monospace;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);padding:1px 3px}
+.cell.pc{outline:3px solid var(--brand)}
+.cell.hot{background:color-mix(in srgb,var(--warn) 30%,var(--surface))}
+.phases{display:flex;gap:6px}
+.phases span{flex:1;text-align:center;font-weight:800;font-size:13.5px;padding:6px 4px;border-radius:10px;border:1px solid var(--line);color:var(--ink-2)}
+.phases span.on{background:var(--warn);border-color:var(--warn);color:#14213d}
+.screen{background:#0b1220;color:#7CFFB2;font-family:ui-monospace,Consolas,monospace;font-size:20px;border-radius:10px;padding:8px 12px;min-height:44px;letter-spacing:.06em}
+.narr{font-weight:700;min-height:48px;background:var(--surface-2);border-radius:12px;padding:8px 12px;font-size:15px}
+/* chips chart */
+#chipChart svg{width:100%;height:auto;display:block}
+.then{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.then .box h3{font-size:18px}
+.then .box .big{font-family:Fredoka;font-size:22px;color:var(--brand);display:block;margin:4px 0}
+@media (max-width:860px){.gwrap,.cpu{grid-template-columns:1fr}.then{grid-template-columns:1fr 1fr}}
+@media (max-width:560px){.bulbs{gap:4px}.bulb i{width:24px;height:24px}.bulb b{font-size:17px}.bulb small{font-size:10px}.readout{grid-template-columns:1fr 1fr}.ms .counters{grid-template-columns:1fr 1fr 1fr}.then{grid-template-columns:1fr}.ram{grid-template-columns:repeat(4,minmax(0,1fr))}.cell b{font-size:11.5px}}
+label.ctl span{white-space:nowrap}
+</style>
+</head>
+<body data-subject="cs" data-topic="cs-computers">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="计算机科学 · CSTA 2-CS-02、2-DA-07 · 信息科技 · 数据与编码">Computer Science · CSTA 2-CS-02, 2-DA-07 · 信息科技 · Computing systems</span>
+  <h1 data-zh-html="计算机是怎样工作的：<em>从开关到CPU</em>">How computers work: <em>from switches to a CPU</em></h1>
+  <p class="lead" data-zh="你手机里的芯片上有大约150亿个小开关（晶体管）。每个开关只会做一件事：开或关。只靠“开”和“关”，怎么能放音乐、打游戏、算数学？答案分三层：二进制、逻辑门和CPU。">The chip in a phone holds about 15 billion tiny switches called transistors. Each one can only be ON or OFF. So how can on-and-off play music, run games and do math? The answer comes in three layers: binary, logic gates and the CPU.</p>
+  <p class="lead" data-zh-html="<b>你的任务：</b>从“开关小工”做起：用8个灯泡从0数到255；用逻辑门搭出一个会算 1+1 的加法器；再一步一步运行一台小CPU，看它怎样“取指—译码—执行”。最高头衔：CPU架构师。"><b>Your mission:</b> start as a Switch Flipper. Count from 0 to 255 with eight light bulbs, wire logic gates into an adder that can do 1 + 1, then run a tiny CPU one step at a time and watch it fetch, decode and execute. Top rank: CPU Architect.</p>
+</header>
+
+<section class="wrap" id="binary" data-nav="Binary" data-nav-zh="二进制">
+  <div class="sec-head">
+    <h2 data-zh="第1关：8个开关能数到几？">Level 1: how high can 8 switches count?</h2>
+    <p data-zh="点亮灯泡（1）或关掉它（0）。每个灯泡有一个“位值”：从右往左是1、2、4、8……每次翻一倍。把亮着的位值加起来，就是这个二进制数的大小。">Tap a bulb to turn it ON (1) or OFF (0). Each bulb has a place value: 1, 2, 4, 8… from the right, doubling each time. Add up the lit values and you have the number.</p>
+  </div>
+  <div class="card binbox">
+    <div class="bulbs" id="bulbs"></div>
+    <div class="readout">
+      <div class="counter"><b id="bDec">0</b><span data-zh="十进制">decimal</span></div>
+      <div class="counter"><b id="bBin" class="mono" style="font-size:20px">00000000</b><span data-zh="二进制（8位 = 1字节）">binary (8 bits = 1 byte)</span></div>
+      <div class="counter"><b id="bHex" class="mono">00</b><span data-zh="十六进制">hexadecimal</span></div>
+      <div class="counter"><b id="bChr">—</b><span data-zh="当作字母（ASCII编码）">as a letter (ASCII code)</span></div>
+    </div>
+    <div class="timebar"><button id="bPlay" aria-label="Count">▶</button><input id="bRange" type="range" min="0" max="255" value="0" aria-label="Number"><output id="bOut">0</output></div>
+    <div class="target">
+      <span data-zh="挑战：用最少的点击亮出">Challenge: light up</span><span class="tnum" id="tNum">37</span>
+      <span class="muted" id="tInfo"></span>
+      <button class="btn ghost" id="tNew" data-zh="换一个数">New number</button>
+      <span style="margin-left:auto;font-weight:800"><span data-zh="连对">Streak</span> <b id="tStreak">0</b> · <span data-zh="解出">Solved</span> <b id="tSolved">0</b></span>
+    </div>
+    <div class="result" id="tMsg"></div>
+    <div class="grid2">
+      <details class="peek"><summary data-zh="为什么最大是255？">Why does it stop at 255?</summary><p data-zh="8个灯全亮：128+64+32+16+8+4+2+1 = 255。算上0，一共256种组合（2⁸）。再多1就要第9个灯泡了——就像十进制的999再加1要用4位数。">All eight on: 128+64+32+16+8+4+2+1 = 255. Counting 0, that’s 256 patterns (2⁸). One more needs a 9th bulb — just like 999 + 1 needs a 4th digit in decimal.</p></details>
+      <details class="peek"><summary data-zh="位、字节、KB、MB、GB 有多大？">How big are bits, bytes, KB, MB, GB?</summary><p data-zh="1个位（bit）= 一个0或1；8位 = 1字节（byte），能存一个英文字母。1 KB ≈ 一千字节（一页短文），1 MB ≈ 一百万字节（一张手机照片约3 MB），1 GB ≈ 十亿字节（约一部标清电影）。">1 bit = one 0 or 1. 8 bits = 1 byte — enough for one English letter. 1 KB ≈ a thousand bytes (a short page of text), 1 MB ≈ a million (a phone photo is about 3 MB), 1 GB ≈ a billion (about an SD movie).</p></details>
+      <details class="peek"><summary data-zh="汉字也是数字吗？">Are Chinese characters numbers too?</summary><p data-zh="是的！英文字母用1个字节就够（A = 65）。汉字有好几万个，所以用Unicode统一编码：例如“中”的编号是20013，在UTF-8里用3个字节存。">Yes! An English letter fits in 1 byte (A = 65). There are tens of thousands of Chinese characters, so Unicode numbers them all: 中 is number 20013, stored as 3 bytes in UTF-8.</p></details>
+      <details class="peek"><summary data-zh="十六进制是干什么的？">What is hexadecimal for?</summary><p data-zh="十六进制用0—9和A—F表示0到15，正好一个十六进制位等于4个二进制位。所以11111111可以短短地写成FF。网页颜色#FF8800就是这么写的。">Hex uses 0–9 and A–F for 0 to 15, so one hex digit = exactly 4 bits. 11111111 becomes just FF. Web colours like #FF8800 are written this way.</p></details>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="gates" data-nav="Logic gates" data-nav-zh="逻辑门">
+  <div class="sec-head">
+    <h2 data-zh="第2关（主任务）：用逻辑门搭一个加法器">Level 2 — main mission: build an adder from logic gates</h2>
+    <p data-zh="逻辑门是用晶体管做成的小电路：与门（AND）、或门（OR）、非门（NOT）。点击虚线框，换一种门；点击左边的开关 A、B 试一试。电路对所有4种开关组合都正确，才能过关。第一次测试就通过得3颗星。">Logic gates are tiny circuits made of transistors: AND, OR and NOT. Click a dashed box to choose a gate; click switches A and B to try it out. The circuit must be right for all 4 switch combinations. Pass on the first test for 3 stars.</p>
+  </div>
+  <div class="card ms" style="padding:16px 20px;display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
+    <div class="counters">
+      <div class="counter"><b id="gScore">0/18</b><span data-zh="星星总数">total stars</span></div>
+      <div class="counter"><b id="gLevel">1/6</b><span data-zh="关卡">level</span></div>
+      <div class="counter"><b id="gRank" style="font-size:18px">—</b><span data-zh="头衔">rank</span></div>
+    </div>
+    <div class="bar"><i id="gBar" style="width:0"></i></div>
+    <div class="ranks" id="gRanks"></div>
+  </div>
+  <div class="gwrap">
+    <div class="card gstage">
+      <div class="lvls" id="gLvls"></div>
+      <svg id="gsvg" viewBox="0 0 620 320" role="img" aria-label="Logic circuit"></svg>
+      <p class="muted" style="margin:0;font-size:13.5px" data-zh="黄色导线 = 1（有电），灰色导线 = 0（没电）。">Yellow wire = 1 (on), grey wire = 0 (off).</p>
+    </div>
+    <div class="card gside">
+      <h3 id="gTitle"></h3>
+      <p id="gGoal" style="margin:0"></p>
+      <table class="ttab" id="gTable"></table>
+      <div class="result" id="gMsg"></div>
+      <div class="btnrow"><button class="btn" id="gTest" data-zh="测试电路 ✔">Test circuit ✔</button><button class="btn ghost" id="gNext" data-zh="下一关 ▶">Next level ▶</button></div>
+      <div class="memory" id="gHint" hidden></div>
+    </div>
+  </div>
+  <div class="mix" style="margin-top:14px"><b data-zh="⚠️ 易错点：">⚠️ Don’t mix up:</b><span data-zh="或门（OR）在两个开关都开时也输出1；只有“恰好一个开”才输出1的是异或门（XOR）。加法器的“和”位要用异或，“进位”要用与门：1 + 1 = 10（二进制），写0进1。">An OR gate is also ON when both switches are on. The gate that is ON for “exactly one” is XOR. An adder’s Sum bit needs XOR and its Carry bit needs AND: 1 + 1 = 10 in binary — write 0, carry 1.</span></div>
+</section>
+
+<section class="wrap" id="cpu" data-nav="CPU" data-nav-zh="CPU">
+  <div class="sec-head">
+    <h2 data-zh="第3关：运行一台小CPU">Level 3: run a tiny CPU</h2>
+    <p data-zh="CPU（中央处理器）一直重复三件事：取指（从内存取出下一条指令）、译码（弄清它要做什么）、执行（做这件事）。按“单步”看每一步；点击任何部件了解它的作用。内存里的数据格可以改，改完再运行。">A CPU (central processing unit) repeats three jobs forever: fetch the next instruction from memory, decode what it means, execute it. Press Step to watch each phase; click any part to learn what it does. You can edit the data cells in memory and run again.</p>
+  </div>
+  <div class="explorer">
+    <div class="stage card" id="cpuStage">
+      <div class="btnrow" id="progBtns"></div>
+      <div class="phases" id="phases"></div>
+      <div class="cpu">
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div class="cbox" data-part="cu"><h4 data-zh="控制器（指挥官）">CONTROL UNIT</h4>
+            <div class="regs"><div class="reg" data-part="pc"><small data-zh="程序计数器 PC">PROGRAM COUNTER (PC)</small><b id="rPC">0</b></div><div class="reg" data-part="ir"><small data-zh="指令寄存器 IR">INSTRUCTION REG. (IR)</small><b id="rIR">—</b></div></div></div>
+          <div class="cbox" data-part="alu"><h4 data-zh="运算器 ALU">ARITHMETIC LOGIC UNIT (ALU)</h4>
+            <div class="regs"><div class="reg" data-part="acc"><small data-zh="累加器 ACC">ACCUMULATOR (ACC)</small><b id="rACC">0</b></div><div class="reg"><small data-zh="刚才的运算">LAST OPERATION</small><b id="rOp" style="font-size:15px">—</b></div></div></div>
+          <div class="cbox" data-part="clock"><h4 data-zh="时钟与计数">CLOCK &amp; COUNTERS</h4>
+            <div class="regs"><div class="reg"><small data-zh="时钟周期">CLOCK TICKS</small><b id="rTick">0</b></div><div class="reg"><small data-zh="完成的指令">INSTRUCTIONS DONE</small><b id="rDone">0</b></div></div></div>
+          <div class="cbox" data-part="out"><h4 data-zh="输出（屏幕）">OUTPUT (SCREEN)</h4><div class="screen" id="screen"></div></div>
+        </div>
+        <div class="cbox" data-part="ram"><h4 data-zh="内存 RAM（16个格子，地址0—15）">MEMORY / RAM (16 cells, addresses 0–15)</h4><div class="ram" id="ram"></div></div>
+      </div>
+      <div class="narr" id="narr" aria-live="polite"></div>
+      <div class="btnrow"><button class="btn" id="cStep" data-zh="单步 ▶|">Step ▶|</button><button class="btn alt" id="cRun" data-zh="自动运行 ▶">Run ▶</button><button class="btn ghost" id="cReset" data-zh="重置">Reset</button>
+        <label class="ctl" style="flex-direction:row;align-items:center;gap:8px;margin-left:auto"><span data-zh="速度">Speed</span><input type="range" id="cSpeed" min="1" max="10" value="4" aria-label="Speed"></label></div>
+      <p class="muted" style="margin:0;font-size:13px" id="cGHz"></p>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+</section>
+
+<section class="wrap" id="chips" data-nav="Chips over time" data-nav-zh="芯片的进步">
+  <div class="sec-head">
+    <h2 data-zh="从装满一屋子到装进口袋">From a whole room to your pocket</h2>
+    <p data-zh="1945年的ENIAC重30吨；今天的手机芯片比指甲盖还小，却快了几百万倍。秘密是：晶体管越做越小，一块芯片上越放越多。拖动滑块读一读每块芯片上的晶体管数量。">ENIAC (1945) weighed 30 tons. A phone chip today is smaller than a fingernail and millions of times faster. The secret: transistors keep shrinking, so more fit on each chip. Drag the slider to read each chip’s transistor count.</p>
+  </div>
+  <div class="then" style="margin-bottom:16px">
+    <div class="box card"><div class="ico">🏛️</div><h3>ENIAC · 1945</h3><span class="big" data-zh="30吨">30 tons</span><p data-zh="约17,468个真空管，占满一个大房间；每秒约5000次加法。">About 17,468 vacuum tubes filling a big room; about 5,000 additions a second.</p></div>
+    <div class="box card"><div class="ico">🚀</div><h3 data-zh="阿波罗制导计算机 · 1966">Apollo Guidance Computer · 1966</h3><span class="big" data-zh="约32千克">about 32 kg (70 lb)</span><p data-zh="用集成电路帮宇航员飞到月球；可擦写内存只有2048个“字”（约4 KB）。">Used integrated circuits to help fly astronauts to the Moon; only 2,048 words (about 4 KB) of erasable memory.</p></div>
+    <div class="box card"><div class="ico">🖥️</div><h3 data-zh="神威·太湖之光 · 2016">Sunway TaihuLight · 2016</h3><span class="big" data-zh="每秒约9.3亿亿次">≈93 quadrillion ops/s</span><p data-zh="中国超级计算机，使用国产申威处理器，2016—2018年在全球超算TOP500排名第一。">A Chinese supercomputer built with Chinese-designed Sunway processors; No. 1 on the world TOP500 list 2016–2018.</p></div>
+    <div class="box card"><div class="ico">📱</div><h3 data-zh="今天的手机">A phone today</h3><span class="big" data-zh="约150亿个晶体管">≈15 billion transistors</span><p data-zh="一块指甲大小的芯片，每秒执行数十亿条指令。">One fingernail-sized chip running billions of instructions every second.</p></div>
+  </div>
+  <div class="card" style="padding:20px">
+    <h3 data-zh="📊 数据图：一块芯片上的晶体管数量（对数刻度）">📊 Data: transistors on one chip (log scale)</h3>
+    <p class="muted" style="margin:4px 0 10px" data-zh="纵轴每格是10倍！大约每两年翻一番——这叫“摩尔定律”（是观察到的规律，不是自然定律）。">Each grid line is 10× more! The count doubled about every two years — “Moore’s law” (an observed trend, not a law of nature).</p>
+    <div id="chipChart"></div>
+    <label class="ctl" style="margin-top:8px"><span data-zh="芯片">Chip</span> <b id="chName">—</b><input type="range" id="chSlider" min="0" max="9" value="0" aria-label="Chip"></label>
+    <div class="counters" style="margin-top:8px"><div class="counter"><b id="chCount">—</b><span data-zh="晶体管数量">transistors</span></div><div class="counter"><b id="chX">—</b><span data-zh="是Intel 4004的多少倍">times the Intel 4004</span></div></div>
+    <p class="muted" style="margin:10px 0 0;font-size:13px" data-zh="数据：各芯片厂商公布的晶体管数量（约数，作者整理）。">Data: transistor counts published by the chip makers (approximate, compiled by the author).</p>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real media" data-nav-zh="真实影像">
+  <div id="gallery"></div>
+  <div class="sec-head" style="margin-top:26px"><h2 data-zh="走得更远：去这些地方继续探索">Go further</h2></div>
+  <div class="linkgrid" id="links"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 小测验">🧠 Quiz</h3><p class="sub" data-zh="选出正确答案，看看解析。">Pick the best answer and read the explanation.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分一分：输入、处理、输出还是存储？">🗂️ Sort it: input, processing, output or storage?</h3><p class="sub" data-zh="把每一项拖到（或先点再点方框）它所属的类别。">Drag each item (or tap it, then tap a box) into the right group.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="美国课标：CSTA K-12计算机科学标准（2017）2-CS-02（设计把硬件和软件组合起来的项目）、2-DA-07（用多种编码方式表示数据：二进制、十六进制、ASCII/Unicode）；也涉及2-AP-10（用流程或伪代码表示算法——CPU小程序）。佐治亚州K-12计算机科学标准（6—8年级）：CSS.DC.6-8.8.2（说明输入/输出设备、处理器、内存、存储等主要部件）、8.3（RAM、ROM、GHz、MB、GB等术语）、8.6（计算机怎样处理指令：二进制、十六进制、顺序、条件、循环）；CSS.CT.6-8.33.3（输入—处理—输出—存储模型）、35.1（二进制数与逻辑）、38.2（高级语言→翻译→指令集→逻辑电路的层次）；CSS.KC.6-8.20.3（计算机怎样表示数据）。编号依据CodeHS收录的佐治亚州教育部6—8年级CS标准框架，具体措辞请以佐治亚州教育部文件为准。">US standards: CSTA K-12 CS Standards (2017) 2-CS-02 (design projects that combine hardware and software), 2-DA-07 (represent data using multiple encoding schemes: binary, hex, ASCII/Unicode); also touches 2-AP-10 (algorithms as step lists — the CPU programs). Georgia K-12 Computer Science Standards (grades 6–8): CSS.DC.6-8.8.2 (key components: I/O devices, processor, memory, storage), 8.3 (RAM, ROM, GHz, MB, GB), 8.6 (how computers process commands: binary, hex, sequences, conditionals, loops); CSS.CT.6-8.33.3 (input–process–output–storage model), 35.1 (binary numbers and logic), 38.2 (high-level language → translation → instruction set → logic circuits); CSS.KC.6-8.20.3 (how computers represent data). Codes as listed in GaDOE’s 6–8 CS framework (via CodeHS); check wording against the GaDOE document.</p>
+    <p data-zh="中国课程：《义务教育信息科技课程标准（2022年版）》逻辑主线“数据”“信息处理”。第二学段（3—4年级）“数据与编码”（用二进制等编码表示信息）；第三学段（5—6年级）“过程与控制”（输入—计算—输出、开关与逻辑运算）；第四学段（7—9年级）进一步认识计算机系统的组成与工作过程。教材版本、课次以所用教材为准。">China’s curriculum: Compulsory Education Information Technology Curriculum Standard (2022), core strands “data” (数据) and “information processing” (信息处理). Stage 2 (grades 3–4) module “Data and encoding” (数据与编码: representing information with binary codes); Stage 3 (grades 5–6) “Process and control” (过程与控制: input–compute–output, switches and logic); Stage 4 (grades 7–9) builds on how computer systems are made and work. Textbook editions and lesson numbers vary.</p>
+    <p data-zh="说明：小CPU是简化的教学模型（类似“小人计算机”LMC，用十进制指令码；真实CPU用二进制，并有流水线和多核）。ENIAC、阿波罗制导计算机、神威·太湖之光等数字，以及图中的晶体管数量，是作者依据公开资料凭记忆整理的约数，建议教师核对。">Notes: the tiny CPU is a simplified teaching model (like the Little Man Computer, with decimal codes; real CPUs use binary, pipelines and several cores). Figures for ENIAC, the Apollo Guidance Computer and Sunway TaihuLight, and the chart’s transistor counts, are approximate values written from the author’s knowledge of published sources — teachers may wish to check them.</p>
+    <p data-zh="教学建议：先让学生用手指数二进制（一只手可以数到31）；搭完半加器后讨论“8个半加器够不够做8位加法？”（需要全加器来处理进位输入）；在CPU里把倒计数程序的“减1”改成“减2”，让学生预测并解释为什么会出现死循环。">Suggested use: have students count in binary on their fingers first (one hand reaches 31). After the half adder, ask “are 8 half adders enough for 8-bit addition?” (no — full adders handle the carry coming in). In the CPU, change the countdown’s step from 1 to 2 and ask students to predict and explain the endless loop.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+const o = (en, zh) => ({en, zh});
+/* ================= Binary switches ================= */
+(function(){
+  const B = { v:0, timer:null, target:37, flips:0, streak:0, solved:0, done:false };
+  const pop = n => n.toString(2).split('').filter(c => c === '1').length;
+  const box = Lab.$('#bulbs');
+  box.innerHTML = [7,6,5,4,3,2,1,0].map(i => `<button class="bulb" data-bit="${i}" aria-label="bit ${i}"><i></i><b>0</b><small>${1 << i}</small></button>`).join('');
+  Lab.$$('#bulbs .bulb').forEach(b => b.onclick = () => { stop(); B.v ^= (1 << +b.dataset.bit); B.flips++; render(); check(); });
+  function render(){
+    Lab.$$('#bulbs .bulb').forEach(b => { const on = (B.v >> +b.dataset.bit) & 1; b.classList.toggle('on', !!on); b.querySelector('b').textContent = on; });
+    Lab.$('#bDec').textContent = B.v; Lab.$('#bBin').textContent = B.v.toString(2).padStart(8, '0');
+    Lab.$('#bHex').textContent = B.v.toString(16).toUpperCase().padStart(2, '0');
+    Lab.$('#bChr').textContent = B.v >= 33 && B.v <= 126 ? '“' + String.fromCharCode(B.v) + '”' : B.v === 32 ? Lab.L(o('space', '空格')) : '—';
+    Lab.$('#bRange').value = B.v; Lab.$('#bOut').textContent = B.v; Lab.$('#bPlay').textContent = B.timer ? '⏸' : '▶';
+    Lab.$('#tNum').textContent = B.target;
+    Lab.$('#tInfo').textContent = Lab.L(o(`clicks so far: ${B.flips} · fewest possible: ${pop(B.start ^ B.target)}`, `已点击：${B.flips}次 · 最少需要：${pop(B.start ^ B.target)}次`));
+    Lab.$('#tStreak').textContent = B.streak; Lab.$('#tSolved').textContent = B.solved;
+  }
+  function newTarget(){ B.start = B.v; do { B.target = 1 + Math.floor(Math.random() * 255); } while (B.target === B.v); B.flips = 0; B.done = false; Lab.$('#tMsg').textContent = ''; render(); }
+  function check(){
+    if (B.done || B.v !== B.target) return;
+    B.done = true; B.solved++; const best = pop(B.start ^ B.target), perfect = B.flips === best;
+    B.streak = perfect ? B.streak + 1 : 0;
+    const m = Lab.$('#tMsg'); m.className = 'result good';
+    m.textContent = Lab.L(perfect ? o(`✅ ${B.target} = ${B.target.toString(2)} — perfect, only ${best} clicks! Next number coming…`, `✅ ${B.target} = ${B.target.toString(2)}——完美，只点了${best}次！下一个数马上来……`)
+                                  : o(`✅ ${B.target} = ${B.target.toString(2)}. You used ${B.flips} clicks; ${best} was possible. Tip: start with the biggest place value that fits.`, `✅ ${B.target} = ${B.target.toString(2)}。你点了${B.flips}次，最少只要${best}次。窍门：先点亮放得下的最大位值。`));
+    render(); setTimeout(newTarget, 2200);
+  }
+  function stop(){ if (B.timer){ clearInterval(B.timer); B.timer = null; } }
+  Lab.$('#bRange').oninput = e => { stop(); B.v = +e.target.value; render(); check(); };
+  Lab.$('#bPlay').onclick = () => { if (B.timer){ stop(); render(); return; } if (B.v >= 255) B.v = 0;
+    B.timer = setInterval(() => { if (B.v >= 255){ stop(); } else B.v++; render(); }, 180); render(); };
+  Lab.$('#tNew').onclick = () => { B.streak = 0; newTarget(); };
+  B.start = 0; Lab.onLang(render);
+})();
+
+/* ================= Logic-gate builder (main mission) ================= */
+const G2 = ['AND', 'OR'], G1 = ['NOT', 'WIRE'];
+const GN = { AND:o('AND','与门'), OR:o('OR','或门'), NOT:o('NOT','非门'), WIRE:o('wire','直连') };
+const EV = { AND:(a, b) => a & b, OR:(a, b) => a | b, NOT:a => 1 - a, WIRE:a => a };
+const LEVELS = [
+ { t:o('1 · The safe door','1 · 保险门'), goal:o('The door opens (lamp on) only when key A AND key B are both turned.','只有钥匙A和钥匙B同时转动，门才打开（灯亮）。'),
+   slots:[{ id:'g1', ins:['A','B'], x:300, y:160 }], outs:[{ from:'g1', n:o('Door','门') }], f:(a, b) => [a & b],
+   hint:o('AND: output 1 only if every input is 1. Think of two switches in a row (in series).','与门：所有输入都是1，输出才是1。想象两个开关“串联”。') },
+ { t:o('2 · The hallway light','2 · 走廊灯'), goal:o('The light turns on if button A OR button B (or both) is pressed.','按下按钮A或按钮B（或两个都按），灯就亮。'),
+   slots:[{ id:'g1', ins:['A','B'], x:300, y:160 }], outs:[{ from:'g1', n:o('Light','灯') }], f:(a, b) => [a | b],
+   hint:o('OR: output 1 if at least one input is 1. Two switches side by side (in parallel).','或门：至少一个输入是1，输出就是1。想象两个开关“并联”。') },
+ { t:o('3 · The night light','3 · 小夜灯'), goal:o('A is a light sensor (1 = daytime). The night light must be ON when it is NOT daytime. Switch B is not connected.','A是光线传感器（1 = 白天）。不是白天的时候，小夜灯要亮。开关B没有接线。'),
+   slots:[{ id:'g1', ins:['A'], x:300, y:110 }], outs:[{ from:'g1', n:o('Night light','小夜灯') }], f:a => [1 - a],
+   hint:o('NOT flips its single input: 1 becomes 0, 0 becomes 1.','非门把唯一的输入反过来：1变0，0变1。') },
+ { t:o('4 · The seat-belt alarm','4 · 安全带报警器'), goal:o('A = someone is sitting in the seat, B = belt buckled. Beep when someone sits AND the belt is NOT buckled.','A = 座位上有人，B = 安全带已扣好。有人坐着并且没扣安全带时，报警器响。'),
+   slots:[{ id:'g1', ins:['B'], x:200, y:220 }, { id:'g2', ins:['A','g1'], x:400, y:160 }], outs:[{ from:'g2', n:o('Alarm','报警') }], f:(a, b) => [a & (1 - b)],
+   hint:o('Flip B first with NOT, then combine it with A using AND.','先用非门把B反过来，再用与门和A组合。') },
+ { t:o('5 · Exactly one (XOR)','5 · 恰好一个（异或）'), goal:o('Turn the lamp on when exactly ONE switch is on — not zero, not both. You only have AND, OR and NOT!','恰好有一个开关打开时灯亮——不能是0个，也不能是2个。你只有与门、或门和非门！'),
+   slots:[{ id:'g1', ins:['A','B'], x:220, y:90 }, { id:'g2', ins:['A','B'], x:220, y:230 }, { id:'g3', ins:['g2'], x:360, y:230 }, { id:'g4', ins:['g1','g3'], x:490, y:160 }], outs:[{ from:'g4', n:o('Lamp','灯') }], f:(a, b) => [a ^ b],
+   hint:o('“At least one” AND “NOT both”. Which gate means “both”?','“至少一个”并且“不是两个都开”。哪个门表示“两个都开”？') },
+ { t:o('6 · The half adder','6 · 半加器'), goal:o('Add two 1-bit numbers: A + B. SUM shows the ones digit, CARRY shows the twos digit. 1 + 1 = 10 in binary!','把两个1位二进制数相加：A + B。“和”显示个位，“进位”显示二位。二进制里 1 + 1 = 10！'),
+   slots:[{ id:'g1', ins:['A','B'], x:220, y:90 }, { id:'g2', ins:['A','B'], x:220, y:230 }, { id:'g3', ins:['g2'], x:360, y:200 }, { id:'g4', ins:['g1','g3'], x:490, y:110 }], outs:[{ from:'g4', n:o('SUM','和') }, { from:'g2', n:o('CARRY','进位'), y:280 }], f:(a, b) => [a ^ b, a & b],
+   hint:o('SUM is your level-5 circuit (XOR). CARRY is 1 only when both are 1.','“和”就是第5关的电路（异或）；只有两个都是1时，“进位”才是1。') }
+];
+const GRANKS = [ { min:0, n:o('Switch Flipper','开关小工') }, { min:6, n:o('Gate Builder','门电路工程师') }, { min:12, n:o('Chip Designer','芯片设计师') }, { min:16, n:o('CPU Architect','CPU架构师') } ];
+(function(){
+  const S = { lv:0, A:0, B:0, pick:{}, tests:0, stars:LEVELS.map(() => 0), passed:false };
+  const svg = Lab.$('#gsvg'), IN = { A:{ x:60, y:110 }, B:{ x:60, y:230 } };
+  const arity = s => s.ins.length;
+  function val(id, a, b, pk){
+    if (id === 'A') return a; if (id === 'B') return b;
+    const s = LEVELS[S.lv].slots.find(x => x.id === id), g = pk[id]; if (!g) return null;
+    const v = s.ins.map(i => val(i, a, b, pk)); if (v.some(x => x === null)) return null;
+    return EV[g](...v);
+  }
+  const outs = (a, b) => LEVELS[S.lv].outs.map(q => val(q.from, a, b, S.pick));
+  const W = 70, H = 52;
+  function pos(id){ if (IN[id]) return { x:IN[id].x + 22, y:IN[id].y }; const s = LEVELS[S.lv].slots.find(x => x.id === id); return { x:s.x + W / 2 + (arity(s) === 1 ? 12 : 0), y:s.y }; }
+  function gateShape(s, g){
+    const x = s.x - W / 2, y = s.y - H / 2;
+    if (!g) return `<rect class="gate unset" data-slot="${s.id}" x="${x}" y="${y}" width="${W}" height="${H}" rx="10"/><text x="${s.x}" y="${s.y + 6}" text-anchor="middle">?</text>`;
+    let p;
+    if (g === 'AND') p = `<path class="gate" data-slot="${s.id}" d="M${x},${y} h${W / 2} a${H / 2},${H / 2} 0 0 1 0,${H} h-${W / 2} z"/>`;
+    else if (g === 'OR') p = `<path class="gate" data-slot="${s.id}" d="M${x - 4},${y} q${W * .65},0 ${W + 4},${H / 2} q-${W * .35},${H / 2} -${W + 4},${H / 2} q${W * .22},-${H / 2} 0,-${H} z"/>`;
+    else if (g === 'NOT') p = `<path class="gate" data-slot="${s.id}" d="M${x + 6},${y} L${x + W - 6},${s.y} L${x + 6},${y + H} z"/><circle class="gate" data-slot="${s.id}" cx="${x + W + 1}" cy="${s.y}" r="7"/>`;
+    else p = `<rect class="gate" data-slot="${s.id}" x="${x}" y="${y}" width="${W}" height="${H}" rx="10"/>`;
+    return p + `<text x="${s.x - (g === 'NOT' ? 8 : 4)}" y="${s.y + 5}" text-anchor="middle" style="font-size:13px">${Lab.L(GN[g]).replace('wire', '—')}</text>`;
+  }
+  function wire(from, to, hi, k = 0){ const a = pos(from), mx = a.x + (to.x - a.x) * (k ? .65 : .35);
+    return `<path class="wire ${hi ? 'hi' : ''}" d="M${a.x},${a.y} H${mx} V${to.y} H${to.x}"/>`; }
+  function draw(){
+    const L = LEVELS[S.lv], o1 = outs(S.A, S.B); let h = '';
+    L.slots.forEach(s => { const n = arity(s); s.ins.forEach((i, k) => { const ty = n === 1 ? s.y : s.y + (k ? 1 : -1) * H / 4; h += wire(i, { x:s.x - W / 2, y:ty }, val(i, S.A, S.B, S.pick) === 1, k); }); });
+    L.outs.forEach((q, k) => { const ly = q.y || (L.outs.length > 1 ? 110 : 160); h += wire(q.from, { x:570, y:ly }, o1[k] === 1); });
+    L.slots.forEach(s => h += gateShape(s, S.pick[s.id]));
+    const used = new Set(L.slots.flatMap(s => s.ins));
+    ['A','B'].forEach(k => { const p = IN[k], on = S[k], dim = !used.has(k);
+      h += `<g class="sw" data-sw="${k}" style="opacity:${dim ? .4 : 1}"><rect x="${p.x - 34}" y="${p.y - 22}" width="56" height="44" rx="12" style="fill:${on ? 'var(--warn)' : 'var(--surface-2)'};stroke:var(--ink-2);stroke-width:2"/><text x="${p.x - 6}" y="${p.y + 6}" text-anchor="middle">${k}=${on}</text></g>`; });
+    L.outs.forEach((q, k) => { const ly = q.y || (L.outs.length > 1 ? 110 : 160), on = o1[k] === 1;
+      h += `<circle class="lamp" cx="586" cy="${ly}" r="17" style="fill:${on ? 'var(--warn)' : 'var(--surface-2)'}"/><text x="586" y="${ly - 26}" text-anchor="middle" style="font-size:13px">${Lab.L(q.n)}</text>`; });
+    svg.innerHTML = h;
+    svg.querySelectorAll('[data-slot]').forEach(el => el.onclick = () => cycle(el.dataset.slot));
+    svg.querySelectorAll('[data-sw]').forEach(el => el.onclick = () => { S[el.dataset.sw] ^= 1; draw(); table(); });
+  }
+  function cycle(id){ if (S.passed) return; const s = LEVELS[S.lv].slots.find(x => x.id === id), list = arity(s) === 1 ? G1 : G2, cur = S.pick[id];
+    S.pick[id] = list[(list.indexOf(cur) + 1) % list.length]; Lab.$('#gMsg').textContent = ''; draw(); table(); }
+  function table(){
+    const L = LEVELS[S.lv], two = L.slots.some(s => s.ins.includes('B'));
+    const rows = two ? [[0,0],[0,1],[1,0],[1,1]] : [[0,0],[1,0]];
+    let h = `<tr><th>A</th>${two ? '<th>B</th>' : ''}${L.outs.map(q => `<th>${Lab.L(o('want','目标'))} ${Lab.L(q.n)}</th><th>${Lab.L(o('yours','你的'))}</th>`).join('')}</tr>`;
+    rows.forEach(([a, b]) => { const want = L.f(a, b), got = LEVELS[S.lv].outs.map(q => val(q.from, a, b, S.pick)), cur = a === S.A && (!two || b === S.B);
+      h += `<tr class="${cur ? 'cur' : ''}"><td>${a}</td>${two ? `<td>${b}</td>` : ''}${want.map((w, k) => `<td>${w}</td><td class="${got[k] === null ? '' : got[k] === w ? 'ok' : 'no'}">${got[k] === null ? '?' : got[k]}</td>`).join('')}</tr>`; });
+    Lab.$('#gTable').innerHTML = h;
+  }
+  const rankOf = s => GRANKS.filter(x => s >= x.min).pop();
+  function hud(){
+    const tot = S.stars.reduce((a, b) => a + b, 0);
+    Lab.$('#gScore').textContent = tot + '/18'; Lab.$('#gLevel').textContent = (S.lv + 1) + '/6'; Lab.$('#gRank').textContent = Lab.L(rankOf(tot).n);
+    Lab.$('#gBar').style.width = (S.stars.filter(Boolean).length / 6 * 100) + '%';
+    Lab.$('#gRanks').innerHTML = GRANKS.map(x => `<span class="${rankOf(tot) === x ? 'on' : ''}">${Lab.L(x.n)} · ${x.min}★</span>`).join('');
+    Lab.$('#gLvls').innerHTML = LEVELS.map((x, i) => `<button class="tbtn ${i === S.lv ? 'on' : ''}" data-lv="${i}">${i + 1} <span class="stars">${'★'.repeat(S.stars[i])}</span></button>`).join('');
+    Lab.$$('#gLvls button').forEach(b => b.onclick = () => go(+b.dataset.lv));
+    Lab.$('#gTitle').textContent = Lab.L(LEVELS[S.lv].t); Lab.$('#gGoal').textContent = Lab.L(LEVELS[S.lv].goal);
+    const hint = Lab.$('#gHint'); hint.hidden = S.tests < 1 || S.passed; hint.innerHTML = `<b>${Lab.L(o('💡 Hint', '💡 提示'))}</b>${Lab.L(LEVELS[S.lv].hint)}`;
+  }
+  function go(i){ S.lv = i; S.pick = {}; S.tests = 0; S.passed = false; S.A = 0; S.B = 0; Lab.$('#gMsg').textContent = ''; hud(); draw(); table(); }
+  Lab.$('#gTest').onclick = () => {
+    const L = LEVELS[S.lv], m = Lab.$('#gMsg');
+    if (S.passed) return;
+    if (L.slots.some(s => !S.pick[s.id])){ m.className = 'result bad'; m.textContent = Lab.L(o('Every “?” box needs a gate first.', '每个“？”框都要先放一个门。')); return; }
+    S.tests++;
+    const ok = [[0,0],[0,1],[1,0],[1,1]].every(([a, b]) => L.f(a, b).every((w, k) => val(L.outs[k].from, a, b, S.pick) === w));
+    if (ok){ S.passed = true; const st = S.tests === 1 ? 3 : S.tests === 2 ? 2 : 1; S.stars[S.lv] = Math.max(S.stars[S.lv], st); m.className = 'result good';
+      m.textContent = Lab.L(S.lv === 5 ? o(`🎉 ${'★'.repeat(st)} You built a half adder — the first piece of every calculator! Chain 8 adders and a CPU can add numbers up to 255.`, `🎉 ${'★'.repeat(st)} 你造出了半加器——每台计算器的第一块“积木”！把8个加法器连起来，CPU就能加到255。`)
+                                       : o(`✅ ${'★'.repeat(st)} Correct for every combination! Press “Next level”.`, `✅ ${'★'.repeat(st)} 所有组合都正确！点击“下一关”。`)); }
+    else { m.className = 'result bad'; m.textContent = Lab.L(o('❌ Not yet — look for the ✗ rows in the table (red). Try the switches to see why.', '❌ 还不对——看看表格里标红的行，拨动开关找找原因。')); }
+    hud(); };
+  Lab.$('#gNext').onclick = () => go((S.lv + 1) % LEVELS.length);
+  Lab.onLang(() => { hud(); draw(); table(); });
+})();
+</script>
+<script>
+/* ================= Tiny CPU: fetch – decode – execute ================= */
+const PARTS = {
+  intro:{ n:o('Inside the CPU','CPU里面有什么'), c:'#0e7490', job:o('A CPU follows a list of instructions stored in memory — one tiny step at a time, billions of times a second.','CPU按照存放在内存里的指令清单工作——每次只走很小的一步，但每秒能走几十亿步。'),
+    facts:{ en:['Instructions and data are both just numbers in memory. 105 means “ADD the number in cell 05”.','The three-step loop — fetch, decode, execute — is called the instruction cycle.','Click a part (PC, IR, ALU, ACC, memory, screen) to learn its job, then press Step.'],
+            zh:['指令和数据在内存里都只是数字。105的意思是“把05号格子里的数加进来”。','取指—译码—执行这个三步循环叫作“指令周期”。','点击一个部件（PC、IR、运算器、累加器、内存、屏幕）了解它的作用，然后按“单步”。'] },
+    mem:o('Fetch it, decode it, execute it — repeat!','取指、译码、执行——再来一遍！'), mix:o('The CPU does not “understand” a program like a person. It only follows each instruction exactly — that is why bugs happen.','CPU并不像人一样“理解”程序，它只是一丝不苟地执行每一条指令——所以程序会出bug。') },
+  cu:{ n:o('Control unit','控制器'), c:'#7c3aed', job:o('The boss of the CPU: it fetches each instruction, decodes it and tells the other parts what to do.','CPU的“指挥官”：取出每条指令、进行译码，再命令其他部件去做。'),
+    facts:{ en:['It holds two special registers: the program counter (PC) and the instruction register (IR).','It sends control signals along wires called buses to memory and the ALU.'], zh:['它有两个特殊的寄存器：程序计数器（PC）和指令寄存器（IR）。','它通过叫作“总线”的导线向内存和运算器发出控制信号。'] },
+    mem:o('Control = conductor of the orchestra.','控制器 = 乐队指挥。'), mix:o('The control unit does no math itself — the ALU does the math.','控制器自己不做计算——计算由运算器完成。') },
+  pc:{ n:o('Program counter (PC)','程序计数器（PC）'), c:'#7c3aed', job:o('Holds the address of the NEXT instruction. After every fetch it adds 1 — unless a JUMP changes it.','存放“下一条”指令的地址。每次取指后自动加1——除非遇到跳转指令改变它。'),
+    facts:{ en:['A JUMP instruction simply writes a new address into the PC. That is how loops work!','Starting a program = setting the PC to its first address.'], zh:['跳转指令就是把一个新地址写进PC。循环就是这样实现的！','启动程序 = 把PC设为程序的第一个地址。'] },
+    mem:o('PC = “page number” of the recipe step you’re on.','PC = 菜谱上“正在做第几步”。'), mix:o('PC here means program counter, not personal computer.','这里的PC指程序计数器，不是个人电脑。') },
+  ir:{ n:o('Instruction register (IR)','指令寄存器（IR）'), c:'#7c3aed', job:o('Holds the instruction being worked on right now, so the control unit can decode it.','存放当前正在执行的指令，供控制器译码。'),
+    facts:{ en:['In this CPU the first digit is the operation (1 = ADD, 2 = SUB, 3 = STORE, 5 = LOAD, 6 = JUMP, 7 = JUMP IF ZERO, 900 = OUT, 000 = HALT).','The last two digits are an address in memory.'], zh:['在这台CPU里，第一位数字表示操作（1 = 加，2 = 减，3 = 存，5 = 取数，6 = 跳转，7 = 为零则跳转，900 = 输出，000 = 停机）。','后两位数字是内存地址。'] },
+    mem:o('IR = the instruction in your hand.','IR = 拿在手上的那条指令。'), mix:o('Real CPUs use binary codes (like 10110000), not decimal — we use decimal so you can read them.','真实的CPU用二进制编码（例如10110000），这里用十进制是为了方便阅读。') },
+  alu:{ n:o('Arithmetic logic unit (ALU)','运算器（ALU）'), c:'#d97706', job:o('The calculator of the CPU: adds, subtracts and compares, using circuits built from logic gates like your adder.','CPU里的“计算器”：做加法、减法和比较，它的电路就是由你搭过的那种逻辑门组成的。'),
+    facts:{ en:['An 8-bit adder is just 8 adder circuits chained together, passing carries along.','The ALU also checks things like “is the result zero?” — that powers JUMP IF ZERO.'], zh:['8位加法器就是把8个加法电路串起来，把进位一位一位传过去。','运算器还会检查“结果是不是0”——“为零则跳转”就靠它。'] },
+    mem:o('ALU = Arithmetic + Logic.','运算器 = 算术 + 逻辑。'), mix:o('Multiplication here is done by adding again and again — early CPUs had no multiply circuit at all.','这里的乘法是靠一遍遍做加法完成的——早期的CPU根本没有乘法电路。') },
+  acc:{ n:o('Accumulator (ACC)','累加器（ACC）'), c:'#d97706', job:o('A register that holds the number the ALU is working on. LOAD puts a number in, ADD changes it, STORE copies it out.','存放运算器正在处理的数。“取数”把数放进来，“加”改变它，“存”把它复制出去。'),
+    facts:{ en:['Registers are the fastest memory of all — right inside the CPU.','A modern CPU has dozens of registers, each 64 bits wide.'], zh:['寄存器是速度最快的存储器——就在CPU内部。','现代CPU有几十个寄存器，每个64位宽。'] },
+    mem:o('ACC = the CPU’s scratch paper.','累加器 = CPU的草稿纸。'), mix:o('A register is not RAM: it is a tiny storage spot inside the CPU itself.','寄存器不是内存：它是CPU内部的极小存储单元。') },
+  clock:{ n:o('Clock','时钟'), c:'#0e7490', job:o('A crystal that ticks billions of times per second. Every tick moves the CPU one step forward.','一块每秒“滴答”几十亿次的晶体，每一下都让CPU前进一步。'),
+    facts:{ en:['3 GHz = 3 billion ticks every second.','Our CPU uses 3 ticks per instruction (fetch, decode, execute). Real CPUs overlap the steps (pipelining) and run several cores at once.'], zh:['3 GHz = 每秒30亿次滴答。','我们这台CPU每条指令用3个时钟周期（取指、译码、执行）。真实的CPU会让各步重叠（流水线），并且多个核心同时工作。'] },
+    mem:o('Hertz = ticks per second; giga = billion.','赫兹 = 每秒的次数；吉（G）= 十亿。'), mix:o('A higher GHz is not the only thing that makes a computer fast — the number of cores and the memory matter too.','主频（GHz）高并不是速度快的唯一原因——核心数和内存也很重要。') },
+  ram:{ n:o('Memory (RAM)','内存（RAM）'), c:'#15803d', job:o('Numbered cells (addresses) holding both the program and its data. The CPU reads and writes them very fast.','带编号（地址）的格子，既存程序也存数据。CPU可以非常快地读写它们。'),
+    facts:{ en:['RAM forgets everything when the power goes off.','Files are kept on storage (SSD or hard drive), which keeps data without power but is slower.','Try it: change a green data cell and run the program again.'], zh:['断电后，内存里的内容全部消失。','文件保存在外存（固态硬盘或机械硬盘）里，断电不丢失，但速度较慢。','试一试：改一个绿色的数据格，再运行一遍程序。'] },
+    mem:o('RAM = desk (fast, cleared at night); storage = bookshelf (keeps things).','内存 = 书桌（快，晚上要清空）；外存 = 书架（东西一直在）。'), mix:o('“My phone has 8 GB of RAM and 256 GB of storage” — two different things!','“手机8 GB运行内存、256 GB存储空间”——这是两样不同的东西！') },
+  out:{ n:o('Output','输出'), c:'#be185d', job:o('Shows results to the outside world — here a little screen, in real life a display, speaker or printer.','把结果送到外部世界——这里是小屏幕，现实中是显示器、扬声器或打印机。'),
+    facts:{ en:['Input → processing → output, with storage on the side: the IPO model of every computer.','A keyboard, camera or sensor is input; a screen or motor is output.'], zh:['输入→处理→输出，再加上存储：这就是每台计算机的“输入—处理—输出”模型。','键盘、摄像头、传感器是输入设备；屏幕、电动机是输出设备。'] },
+    mem:o('In → think → out.','进来 → 想一想 → 出去。'), mix:o('A touchscreen is both input (touch) and output (picture).','触摸屏既是输入设备（触摸）又是输出设备（显示画面）。') }
+};
+const PROGS = [
+  { n:o('➕ Add 2 + 3','➕ 计算 2 + 3'), mem:[510, 111, 900, 0, 0, 0, 0, 0, 0, 0, 2, 3, 0, 0, 0, 0], data:[10, 11] },
+  { n:o('⏬ Count down','⏬ 倒计数'), mem:[512, 900, 213, 705, 601, 900, 0, 0, 0, 0, 0, 0, 3, 1, 0, 0], data:[12, 13] },
+  { n:o('✖️ 3 × 4 by adding','✖️ 用加法算 3 × 4'), mem:[514, 112, 314, 513, 215, 313, 708, 600, 514, 900, 0, 0, 3, 4, 0, 1], data:[12, 13, 14, 15] }
+];
+const OPN = { 1:o('ADD','加'), 2:o('SUB','减'), 3:o('STORE','存'), 5:o('LOAD','取数'), 6:o('JUMP','跳转'), 7:o('JZ','为零跳') };
+(function(){
+  const C = { p:0, base:null, mem:null, pc:0, ir:null, acc:0, ph:0, tick:0, done:0, out:[], halt:false, timer:null, sel:'intro', op:'—', hot:[] };
+  const mn = c => c === 0 ? 'HALT' : c === 900 ? 'OUT' : (OPN[Math.floor(c / 100)] ? Lab.L(OPN[Math.floor(c / 100)]) + ' ' + String(c % 100).padStart(2, '0') : '?');
+  function load(i, keep){ C.p = i; if (!keep) C.base = PROGS[i].mem.slice(); C.mem = C.base.slice(); C.pc = 0; C.ir = null; C.acc = 0; C.ph = 0; C.tick = 0; C.done = 0; C.out = []; C.halt = false; C.op = '—'; C.hot = []; stop(); narr(o('Press Step to fetch the first instruction.', '按“单步”取出第一条指令。')); render(); }
+  let N = o('', '');
+  function narr(m){ N = m; Lab.$('#narr').textContent = Lab.L(m); }
+  function step(){
+    if (C.halt) return;
+    const d = PROGS[C.p].data, a2 = n => String(n).padStart(2, '0');
+    C.tick++;
+    if (C.ph === 0){ C.ir = C.mem[C.pc]; C.hot = ['pc', 'ir', 'cell' + C.pc];
+      narr(o(`FETCH: copy the instruction in cell ${a2(C.pc)} (${C.ir}) into the IR. The PC moves on to ${C.pc + 1}.`, `取指：把${a2(C.pc)}号格子里的指令（${C.ir}）复制到IR，PC加1变成${C.pc + 1}。`)); C.pc++; C.ph = 1; }
+    else if (C.ph === 1){ const c = C.ir, op = Math.floor(c / 100), a = c % 100; C.hot = ['cu', 'ir'];
+      const M = { 1:o(`ADD the number in cell ${a2(a)} to the ACC`, `把${a2(a)}号格子里的数加到累加器上`), 2:o(`SUBTRACT the number in cell ${a2(a)} from the ACC`, `从累加器里减去${a2(a)}号格子里的数`), 3:o(`STORE the ACC into cell ${a2(a)}`, `把累加器的值存进${a2(a)}号格子`), 5:o(`LOAD cell ${a2(a)} into the ACC`, `把${a2(a)}号格子的数取到累加器`), 6:o(`JUMP to address ${a2(a)}`, `跳转到地址${a2(a)}`), 7:o(`JUMP to ${a2(a)} only if the ACC is zero`, `如果累加器为0，就跳转到${a2(a)}`) };
+      const what = c === 0 ? o('HALT — stop the program', '停机——结束程序') : c === 900 ? o('OUTPUT the ACC to the screen', '把累加器的值输出到屏幕') : (M[op] || o('unknown instruction!', '未知指令！'));
+      narr(o(`DECODE: ${c} means “${what.en}”.`, `译码：${c}的意思是“${what.zh}”。`)); C.ph = 2; }
+    else { const c = C.ir, op = Math.floor(c / 100), a = c % 100; C.ph = 0; C.done++;
+      if (c === 0){ C.halt = true; C.hot = ['cu']; stop(); narr(o(`EXECUTE: HALT. Program finished after ${C.done} instructions and ${C.tick} clock ticks.`, `执行：停机。程序完成，共执行${C.done}条指令、${C.tick}个时钟周期。`)); }
+      else if (c === 900){ C.out.push(C.acc); C.hot = ['out', 'acc']; narr(o(`EXECUTE: the screen shows ${C.acc}.`, `执行：屏幕显示${C.acc}。`)); }
+      else if (op === 1 || op === 2){ const b = C.mem[a], r = op === 1 ? C.acc + b : C.acc - b; C.op = `${C.acc} ${op === 1 ? '+' : '−'} ${b}`; C.hot = ['alu', 'acc', 'cell' + a];
+        narr(o(`EXECUTE: the ALU works out ${C.op} = ${r}.`, `执行：运算器算出 ${C.op} = ${r}。`)); C.acc = r; }
+      else if (op === 3){ C.mem[a] = C.acc; C.hot = ['acc', 'cell' + a]; narr(o(`EXECUTE: ${C.acc} is written into cell ${a2(a)}.`, `执行：把${C.acc}写进${a2(a)}号格子。`)); }
+      else if (op === 5){ C.acc = C.mem[a]; C.hot = ['acc', 'cell' + a]; narr(o(`EXECUTE: the ACC now holds ${C.acc}.`, `执行：累加器现在是${C.acc}。`)); }
+      else if (op === 6){ C.pc = a; C.hot = ['pc']; narr(o(`EXECUTE: the PC is set to ${a2(a)} — this is how a loop goes back.`, `执行：PC被设为${a2(a)}——循环就是这样“绕回去”的。`)); }
+      else if (op === 7){ C.hot = ['pc', 'alu']; if (C.acc === 0){ C.pc = a; narr(o(`EXECUTE: the ACC is 0, so jump to ${a2(a)}.`, `执行：累加器是0，跳转到${a2(a)}。`)); } else narr(o(`EXECUTE: the ACC is ${C.acc}, not 0 — no jump.`, `执行：累加器是${C.acc}，不是0——不跳转。`)); }
+      else { C.halt = true; stop(); narr(o('EXECUTE: unknown instruction — the CPU crashed! Did a data cell get run as code?', '执行：未知指令——CPU崩溃了！是不是把数据当成指令执行了？')); }
+      if (C.done >= 300 && !C.halt){ C.halt = true; stop(); narr(o('Stopped after 300 instructions — it looks like an endless loop! (Countdowns must hit exactly 0.)', '执行了300条指令后强制停止——看起来是死循环！（倒计数必须正好减到0。）')); }
+    }
+    render();
+  }
+  function stop(){ if (C.timer){ clearInterval(C.timer); C.timer = null; } }
+  function render(){
+    const d = PROGS[C.p].data;
+    Lab.$('#progBtns').innerHTML = PROGS.map((p, i) => `<button class="tbtn ${i === C.p ? 'on' : ''}" data-p="${i}">${Lab.L(p.n)}</button>`).join('');
+    Lab.$$('#progBtns button').forEach(b => b.onclick = () => load(+b.dataset.p));
+    Lab.$('#phases').innerHTML = [o('① Fetch','① 取指'), o('② Decode','② 译码'), o('③ Execute','③ 执行')].map((x, i) => `<span class="${C.tick && !C.halt && ((C.ph + 2) % 3) === i ? 'on' : ''}">${Lab.L(x)}</span>`).join('');
+    Lab.$('#ram').innerHTML = C.mem.map((v, i) => { const isD = d.includes(i), cls = (i === C.pc && !C.halt ? 'pc ' : '') + (C.hot.includes('cell' + i) ? 'hot' : '');
+      return `<div class="cell ${cls}" style="${isD ? 'border-color:var(--good)' : ''}"><small>${String(i).padStart(2, '0')}</small>${isD ? `<input type="number" min="0" max="99" value="${v}" data-a="${i}" aria-label="cell ${i}" ${C.timer ? 'disabled' : ''}>` : `<b>${v ? v : '000'}</b><small>${mn(v)}</small>`}</div>`; }).join('');
+    Lab.$$('#ram input').forEach(inp => inp.onchange = () => { const v = Math.max(0, Math.min(99, Math.round(+inp.value || 0))); C.base[+inp.dataset.a] = v; load(C.p, true); });
+    Lab.$('#rPC').textContent = C.pc; Lab.$('#rIR').textContent = C.ir == null ? '—' : C.ir + ' ' + mn(C.ir);
+    Lab.$('#rACC').textContent = C.acc; Lab.$('#rOp').textContent = C.op; Lab.$('#rTick').textContent = C.tick; Lab.$('#rDone').textContent = C.done;
+    Lab.$('#screen').textContent = C.out.join('  ') || ' ';
+    Lab.$$('#cpuStage [data-part]').forEach(el => { el.classList.toggle('hot', C.hot.includes(el.dataset.part)); el.classList.toggle('sel', C.sel === el.dataset.part); });
+    Lab.$('#cRun').textContent = C.timer ? Lab.L(o('Pause ⏸', '暂停 ⏸')) : Lab.L(o('Run ▶', '自动运行 ▶'));
+    Lab.$('#cGHz').textContent = Lab.L(o(`Your CPU: ${C.tick} ticks so far. A real 3 GHz chip makes 3,000,000,000 ticks per second — it would finish these ${C.tick} ticks in about ${(C.tick / 3).toFixed(1)} billionths of a second.`,
+      `你的CPU已经走了${C.tick}个时钟周期。一块3 GHz的真实芯片每秒有30亿个周期——这${C.tick}个周期它只要大约${(C.tick / 3).toFixed(1)}纳秒（十亿分之一秒）。`));
+    Lab.$('#narr').textContent = Lab.L(N);
+  }
+  function info(){
+    const p = PARTS[C.sel], box = Lab.$('#info');
+    box.innerHTML = `<span class="tag" style="color:${p.c};background:color-mix(in srgb,${p.c} 15%,transparent)">${Lab.L(o('CPU part', 'CPU部件'))}</span>
+      <h3><span class="dot" style="background:${p.c}"></span>${Lab.L(p.n)}</h3><p class="job">${Lab.L(p.job)}</p>
+      <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+      <div class="memory"><b>${Lab.L(o('🎵 Memory hook', '🎵 记忆口诀'))}</b>${Lab.L(p.mem)}</div>
+      <div class="mix"><b>${Lab.L(o('⚠️ Don’t mix up:', '⚠️ 易错点：'))}</b><span>${Lab.L(p.mix)}</span></div>
+      <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+      <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous', '◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶', '下一个 ▶'))}</button></div>`;
+    const keys = Object.keys(PARTS), i = keys.indexOf(C.sel);
+    Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.n), Lab.L(p.job), ...Lab.L(p.facts)].join(Lab.lang === 'zh' ? '。' : '. '));
+    Lab.$('#pPrev').onclick = () => { C.sel = keys[(i - 1 + keys.length) % keys.length]; info(); render(); };
+    Lab.$('#pNext').onclick = () => { C.sel = keys[(i + 1) % keys.length]; info(); render(); };
+  }
+  Lab.$('#cpuStage').addEventListener('click', e => { if (e.target.closest('input,button')) return; const el = e.target.closest('[data-part]'); if (!el) return; C.sel = el.dataset.part; info(); render(); });
+  Lab.$('#cStep').onclick = () => { stop(); if (C.halt) load(C.p, true); step(); };
+  const run = () => { stop(); C.timer = setInterval(() => { step(); if (C.halt) { stop(); render(); } }, 1100 / +Lab.$('#cSpeed').value); };
+  Lab.$('#cRun').onclick = () => { if (C.timer){ stop(); render(); return; } if (C.halt) load(C.p, true); run(); render(); };
+  Lab.$('#cSpeed').oninput = () => { if (C.timer) run(); };
+  Lab.$('#cReset').onclick = () => load(C.p, true);
+  window.__cpu = { step, load, C };
+  load(0); Lab.onLang(() => { info(); render(); });
+})();
+
+/* ================= Transistor chart ================= */
+const CHIPS = [ { n:'Intel 4004', y:1971, t:2300 }, { n:'Intel 8086', y:1978, t:29000 }, { n:'Intel 80386', y:1985, t:275000 }, { n:'Intel 486', y:1989, t:1.2e6 }, { n:'Intel Pentium', y:1993, t:3.1e6 },
+  { n:'Intel Pentium 4', y:2000, t:4.2e7 }, { n:'Intel Core 2 Duo', y:2006, t:2.91e8 }, { n:'Apple A12', y:2018, t:6.9e9 }, { n:'Apple M1', y:2020, t:1.6e10 }, { n:'NVIDIA H100', y:2022, t:8.0e10 } ];
+(function(){
+  const W = 660, H = 290, L = 64, R = 16, T = 14, B = 34, x = y => L + (y - 1970) / (2024 - 1970) * (W - L - R), yy = v => T + (11 - Math.log10(v)) / (11 - 3) * (H - T - B);
+  const big = n => n >= 1e9 ? (n / 1e9).toLocaleString('en-US', { maximumFractionDigits:1 }) + ' billion' : n >= 1e6 ? (n / 1e6).toLocaleString('en-US', { maximumFractionDigits:1 }) + ' million' : n.toLocaleString('en-US');
+  const fmt = n => Lab.lang === 'zh' ? (n >= 1e8 ? (n / 1e8).toLocaleString('zh-CN', { maximumFractionDigits:1 }) + '亿' : n >= 1e4 ? (n / 1e4).toLocaleString('zh-CN', { maximumFractionDigits:1 }) + '万' : String(n)) : big(n);
+  function render(){
+    const i = +Lab.$('#chSlider').value, c = getComputedStyle(document.documentElement).getPropertyValue('--brand').trim() || '#0e7490';
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${Lab.L(o('Transistor counts on a log scale', '晶体管数量（对数刻度）'))}">`;
+    for (let e = 3; e <= 11; e++){ const v = Math.pow(10, e); s += `<line x1="${L}" x2="${W - R}" y1="${yy(v)}" y2="${yy(v)}" style="stroke:var(--line)"/><text x="${L - 6}" y="${yy(v) + 4}" text-anchor="end" font-size="11" style="fill:var(--ink-2)">10${String(e).split('').map(d => '⁰¹²³⁴⁵⁶⁷⁸⁹'[d]).join('')}</text>`; }
+    [1970, 1980, 1990, 2000, 2010, 2020].forEach(y => s += `<text x="${x(y)}" y="${H - 12}" text-anchor="middle" font-size="11" style="fill:var(--ink-2)">${y}</text>`);
+    s += `<line x1="${x(1971)}" y1="${yy(2300)}" x2="${x(2022)}" y2="${yy(2300 * Math.pow(2, 25.5))}" style="stroke:var(--ink-2)" stroke-dasharray="6 5"/><text x="${x(1996)}" y="${yy(2300 * Math.pow(2, 12.5)) - 12}" font-size="11.5" font-weight="800" style="fill:var(--ink-2)" transform="rotate(-24 ${x(1996)} ${yy(2300 * Math.pow(2, 12.5)) - 12})">${Lab.L(o('doubling every 2 years', '每两年翻一番'))}</text>`;
+    s += `<polyline fill="none" stroke="${c}" stroke-width="3" points="${CHIPS.map(d => x(d.y) + ',' + yy(d.t)).join(' ')}"/>`;
+    CHIPS.forEach((d, j) => s += `<circle cx="${x(d.y)}" cy="${yy(d.t)}" r="${j === i ? 8 : 4.5}" fill="${c}" style="stroke:var(--surface);stroke-width:2"/>`);
+    const d = CHIPS[i]; s += `<text x="${Math.min(x(d.y) + 12, W - 150)}" y="${yy(d.t) + (i > 6 ? 22 : -12)}" font-size="13" font-weight="800" style="fill:var(--ink)">${d.n} (${d.y})</text></svg>`;
+    Lab.$('#chipChart').innerHTML = s; Lab.$('#chName').textContent = `${d.n} · ${d.y}`; Lab.$('#chCount').textContent = fmt(d.t);
+    Lab.$('#chX').textContent = '×' + Math.round(d.t / 2300).toLocaleString('en-US');
+  }
+  Lab.$('#chSlider').oninput = render; Lab.onLang(render);
+})();
+</script>
+<script>
+const QUIZ = [
+ {q:o('What is the decimal value of the binary number 00001101?','二进制数00001101等于十进制的多少？'), options:[o('13','13'),o('1,101','1101'),o('11','11'),o('7','7')], answer:0, explain:o('8 + 4 + 1 = 13.','8 + 4 + 1 = 13。')},
+ {q:o('How many different values can one byte (8 bits) store?','一个字节（8位）可以表示多少种不同的值？'), options:[o('256 (0 to 255)','256种（0到255）'),o('8','8种'),o('100','100种'),o('1,024','1024种')], answer:0, explain:o('2⁸ = 256 patterns.','2⁸ = 256种组合。')},
+ {q:o('Which logic gate outputs 1 only when ALL its inputs are 1?','哪种逻辑门只有在所有输入都是1时才输出1？'), options:[o('AND','与门（AND）'),o('OR','或门（OR）'),o('NOT','非门（NOT）'),o('XOR','异或门（XOR）')], answer:0},
+ {q:o('An OR gate has inputs A = 1 and B = 1. What does it output?','或门的输入A = 1，B = 1，输出是多少？'), options:[o('1','1'),o('0','0'),o('2','2'),o('It breaks','电路损坏')], answer:0, explain:o('OR is 1 when at least one input is 1 — including both.','只要至少一个输入是1，或门就输出1——两个都是1也一样。')},
+ {q:o('In a half adder, what are SUM and CARRY for 1 + 1?','半加器计算1 + 1时，“和”与“进位”分别是多少？'), options:[o('SUM 0, CARRY 1 (binary 10)','和为0，进位为1（二进制10）'),o('SUM 1, CARRY 1','和为1，进位为1'),o('SUM 2, CARRY 0','和为2，进位为0'),o('SUM 1, CARRY 0','和为1，进位为0')], answer:0},
+ {q:o('What are the three steps of the CPU’s instruction cycle, in order?','CPU指令周期的三个步骤，按顺序是'), options:[o('Fetch → decode → execute','取指 → 译码 → 执行'),o('Decode → fetch → print','译码 → 取指 → 打印'),o('Input → save → delete','输入 → 保存 → 删除'),o('Execute → fetch → decode','执行 → 取指 → 译码')], answer:0},
+ {q:o('What does the program counter (PC) hold?','程序计数器（PC）里存放的是'), options:[o('The address of the next instruction','下一条指令的地址'),o('The answer of the last sum','上一次计算的结果'),o('The number of programs installed','安装的程序数量'),o('The clock speed','时钟频率')], answer:0},
+ {q:o('Which part of the CPU does the actual adding and comparing?','CPU里真正做加法和比较的部件是'), options:[o('The ALU (arithmetic logic unit)','运算器（ALU）'),o('The screen','屏幕'),o('The hard drive','硬盘'),o('The power supply','电源')], answer:0},
+ {q:o('What happens to the data in RAM when you switch off the power?','关掉电源后，内存（RAM）里的数据会怎样？'), options:[o('It is lost','全部丢失'),o('It moves to the screen','移到屏幕上'),o('It doubles','变成两倍'),o('Nothing — RAM keeps it for years','没有变化——内存能保存好几年')], answer:0, explain:o('RAM is volatile. Files you want to keep are saved to storage (SSD or hard drive).','内存是易失性的。要长期保存的文件存在外存（固态硬盘或机械硬盘）里。')},
+ {q:o('A 3 GHz processor’s clock ticks about how many times per second?','3 GHz处理器的时钟每秒大约滴答多少次？'), options:[o('3 billion','30亿次'),o('3 thousand','3000次'),o('3 million','300万次'),o('3','3次')], answer:0},
+ {q:o('Chart reading: about how many times more transistors does the NVIDIA H100 (2022) have than the Intel 4004 (1971)?','读图：NVIDIA H100（2022年）的晶体管数大约是Intel 4004（1971年）的多少倍？'), options:[o('About 35 million times','约3500万倍'),o('About 100 times','约100倍'),o('About 1,000 times','约1000倍'),o('About the same','差不多')], answer:0, explain:o('80 billion ÷ 2,300 ≈ 35 million. On the log chart that is more than 7 grid lines up.','800亿 ÷ 2300 ≈ 3500万。在对数图上升高了7格多。')},
+ {q:o('Which machine filled a room, used about 17,468 vacuum tubes and was finished in 1945?','哪台机器占满一个房间、使用了约17,468个真空管，于1945年建成？'), options:[o('ENIAC','ENIAC'),o('The iPhone','iPhone'),o('Sunway TaihuLight','神威·太湖之光'),o('The Apollo Guidance Computer','阿波罗制导计算机')], answer:0}
+];
+const SORT = {
+  bins:[{id:'i',en:'Input',zh:'输入'},{id:'p',en:'Processing',zh:'处理'},{id:'o',en:'Output',zh:'输出'},{id:'s',en:'Storage',zh:'存储'}],
+  items:[
+    {en:'Keyboard',zh:'键盘',bin:'i'},{en:'Microphone',zh:'麦克风',bin:'i'},{en:'Temperature sensor',zh:'温度传感器',bin:'i'},
+    {en:'CPU',zh:'CPU（中央处理器）',bin:'p'},{en:'Graphics chip (GPU)',zh:'图形处理器（GPU）',bin:'p'},{en:'ALU',zh:'运算器',bin:'p'},
+    {en:'Monitor',zh:'显示器',bin:'o'},{en:'Speaker',zh:'扬声器',bin:'o'},{en:'Printer',zh:'打印机',bin:'o'},
+    {en:'SSD',zh:'固态硬盘',bin:'s'},{en:'USB flash drive',zh:'U盘',bin:'s'},{en:'Hard disk drive',zh:'机械硬盘',bin:'s'}
+  ]
+};
+const LINKS = [
+  { u:'https://www.csunplugged.org/en/topics/binary-numbers/', s:'CS Unplugged', t:o('Binary numbers, unplugged','不插电学二进制'), d:o('Print the dot cards and count in binary with your hands — no computer needed.','打印点数卡片，用手就能数二进制——不需要电脑。') },
+  { u:'https://academo.org/demos/logic-gate-simulator/', s:'Academo', t:o('Logic gate simulator','逻辑门模拟器'), d:o('Drag AND, OR, NOT and XOR gates onto a board and wire your own circuits.','把与门、或门、非门、异或门拖到面板上，自己连电路。') },
+  { u:'https://www.computerhistory.org/timeline/computers/', s:'Computer History Museum', t:o('Timeline of computer history','计算机历史时间线'), d:o('Scroll year by year from early calculators to today’s chips, with museum photos.','从早期计算器到今天的芯片，一年一年地浏览，配有博物馆照片。') },
+  { u:'https://www.computerhistory.org/revolution/', s:'Computer History Museum', t:o('Revolution: the first 2000 years of computing','“革命：计算机的头2000年”'), d:o('An online exhibit — find ENIAC, the first transistor and the Apollo computer.','线上展览——找一找ENIAC、第一个晶体管和阿波罗计算机。') },
+  { u:'https://www.khanacademy.org/computing/computer-science', s:'Khan Academy', t:o('Khan Academy: Computer science theory','可汗学院：计算机科学理论'), d:o('Free lessons on how information is stored and processed, with practice questions.','免费课程，讲信息怎样被存储和处理，并配有练习题。') },
+  { u:'https://www.top500.org/lists/top500/', s:'TOP500', t:o('TOP500 supercomputer list','全球超级计算机TOP500'), d:o('See which supercomputers are the fastest in the world right now — and where Chinese machines rank.','看看现在世界上最快的超级计算机是哪些——中国的超算排在第几。') }
+];
+const PHOTOS = [
+  { src:'https://upload.wikimedia.org/wikipedia/commons/3/3b/Two_women_operating_ENIAC.gif', en:'Two women operating ENIAC’s main control panel while the machine was at the Moore School, University of Pennsylvania.', zh:'两位女性在操作ENIAC的主控制面板，当时这台机器还在宾夕法尼亚大学摩尔电气工程学院。', kind:o('Historic photo','历史照片'), credit:'U.S. Army', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Two_women_operating_ENIAC.gif' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5d/Sunway_TaihuLight.jpg/960px-Sunway_TaihuLight.jpg', en:'Sunway TaihuLight (神威·太湖之光), the Chinese supercomputer at the National Supercomputing Center in Wuxi.', zh:'国家超级计算无锡中心的中国超级计算机“神威·太湖之光”。', kind:o('Supercomputer','超级计算机'), credit:'懒懒的天', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Sunway_TaihuLight.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/b/bf/Replica-of-first-transistor.jpg', en:'A replica of the first transistor, the point-contact transistor invented at Bell Labs in December 1947 (replica made in 1997 for its 50th anniversary).', zh:'第一个晶体管的复制品：1947年12月在贝尔实验室发明的点接触晶体管（1997年为纪念发明50周年而制作）。', kind:o('Replica','复制品'), credit:'Lucent Technologies / U.S. federal employee', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Replica-of-first-transistor.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6d/Intel_4004_on_Busicom_calculator_circuit_board.jpg/960px-Intel_4004_on_Busicom_calculator_circuit_board.jpg', en:'The Intel 4004 (1971), the first commercial microprocessor, with its memory chips on a circuit board from a Busicom calculator.', zh:'Intel 4004（1971年）——第一款商用微处理器，和它的存储芯片一起装在Busicom计算器的电路板上。', kind:o('Microchip','芯片'), scale:o('about 2,300 transistors','约2300个晶体管'), credit:'MaltaGC', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Intel_4004_on_Busicom_calculator_circuit_board.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1f/Apollo_Guidance_Computer_%28AGC%29.jpg/960px-Apollo_Guidance_Computer_%28AGC%29.jpg', en:'An Apollo Guidance Computer and navigation system from Lunar Module LM-2, with the cooling system and wiring.', zh:'来自登月舱LM-2的阿波罗制导计算机和导航系统，以及冷却系统和连接线路。', kind:o('Museum object','博物馆藏品'), credit:'Steve Jurvetson', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Apollo_Guidance_Computer_(AGC).jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/13/Apollo_Guidance_Computer_%28NASM%29.JPG/960px-Apollo_Guidance_Computer_%28NASM%29.JPG', en:'The DSKY — the display and keyboard astronauts used to type commands into the Apollo Guidance Computer (National Air and Space Museum).', zh:'DSKY——宇航员向阿波罗制导计算机输入指令用的显示器和键盘（美国国家航空航天博物馆）。', kind:o('Input & output','输入与输出'), credit:'Tamorlan', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Apollo_Guidance_Computer_(NASM).JPG' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f1/Apollo_1024_bit_core_memory_module.jpg/960px-Apollo_1024_bit_core_memory_module.jpg', en:'Memory you can see: a 1024-bit core memory module from the Apollo Guidance Computer. Each tiny ring magnet stores one bit.', zh:'看得见的内存：阿波罗制导计算机的1024位磁芯存储模块。每个小磁环存储1个位。', kind:o('Memory','存储器'), scale:o('1,024 bits = 128 bytes','1024位 = 128字节'), credit:'Jonathan H. Ward', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Apollo_1024_bit_core_memory_module.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/68/Tianhe-2_in_National_Supercomputer_Center_in_Guangzhou.jpg/960px-Tianhe-2_in_National_Supercomputer_Center_in_Guangzhou.jpg', en:'Tianhe-2 (天河二号) at the National Supercomputer Center in Guangzhou — the world’s fastest computer on the TOP500 list from 2013 to 2015.', zh:'国家超级计算广州中心的“天河二号”——2013—2015年全球超算TOP500排名第一。', kind:o('Supercomputer','超级计算机'), credit:'O01326 (zh.wikipedia)', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Tianhe-2_in_National_Supercomputer_Center_in_Guangzhou.jpg' },
+  { type:'youtube', yt:'USCBCmwMCDA', en:'Video: “How Computers Work: Binary & Data” — from Code.org’s How Computers Work series.', zh:'视频：《计算机怎样工作：二进制与数据》——Code.org“计算机怎样工作”系列（英文）。', kind:{en:'Video',zh:'视频'}, credit:'Code.org — CodeAI channel (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'gI-qXk7XojA', en:'Video: “Boolean Logic & Logic Gates” — Crash Course Computer Science #3.', zh:'视频：《布尔逻辑与逻辑门》——Crash Course计算机科学第3集（英文）。', kind:{en:'Video',zh:'视频'}, credit:'CrashCourse (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'FZGugFqdr60', en:'Video: “The Central Processing Unit (CPU)” — Crash Course Computer Science #7.', zh:'视频：《中央处理器（CPU）》——Crash Course计算机科学第7集（英文）。', kind:{en:'Video',zh:'视频'}, credit:'CrashCourse (YouTube)', license:'YouTube' }
+];
+LabPhotos.render('#gallery', PHOTOS, { title:o('See the real thing', '看一看真实的计算机'), sub:o('Real machines from computer history — from room-sized ENIAC to the chips inside today’s supercomputers — plus short videos. Click a picture to enlarge it.', '计算机历史上的真实机器——从占满房间的ENIAC到今天超级计算机里的芯片——还有短视频。点击图片可放大。') });
+function renderLinks(){ Lab.$('#links').innerHTML = LINKS.map(l => `<a class="linkcard" href="${l.u}" target="_blank" rel="noopener"><b>${Lab.L(l.t)}</b><span>${Lab.L(l.d)}</span><small>${l.s} ↗</small></a>`).join(''); }
+Lab.onLang(renderLinks);
+Lab.quiz(Lab.$('#quiz'), QUIZ, { count:12 });
+Lab.sort(Lab.$('#sort'), SORT);
+</script>
+</body>
+</html>

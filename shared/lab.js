@@ -68,7 +68,7 @@
       <button class="icon-btn lab-theme" title="${UI.theme.en}" aria-label="${UI.theme.en}">🌓</button>
     </div></nav>`;
     $$('.lab-lang button').forEach(b => b.onclick = () => setLang(b.dataset.lang));
-    const vb = $('.lab-voice'); if (vb){ vb.onclick = () => Lab.voicePanel(); if (!window.speechSynthesis) vb.hidden = true; }
+    const vb = $('.lab-voice'); if (vb){ vb.onclick = () => Lab.voicePanel(); if (!window.speechSynthesis && !REC_LANGS.includes(Lab.lang)) vb.hidden = true; }
     $('.lab-theme').onclick = () => {
       const r = document.documentElement, dark = r.dataset.theme ? r.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
       r.dataset.theme = dark ? 'light' : 'dark'; store.set('labTheme', r.dataset.theme);
@@ -85,7 +85,7 @@
     }
     const cn = Lab.topic && /[一-鿿]/.test(Lab.topic.std);   // China modules cite the mainland curriculum, not Georgia's
     const std = Lab.topic ? (cn ? `<span data-zh="对应教材：">Textbook unit: </span>` : `<span data-zh="${UI.std.zh}：">${UI.std.en}: </span>`) + `${Lab.topic.std} · ` : '';
-    host.outerHTML = `<footer class="lab-footer wrap">${pn}<p>${std}<span data-zh="${UI.note.zh}">${UI.note.en}</span></p></footer>`;
+    host.outerHTML = `<footer class="lab-footer wrap">${pn}<p>${std}${document.querySelector('script[src*="lab3d"],script[src*="three"]') ? `<span data-zh="${UI.note.zh}">${UI.note.en}</span>` : ''}</p></footer>`;   // 3D note only on pages that load a 3D engine
   }
 
   /* ---------- language ---------- */
@@ -103,7 +103,7 @@
     langFns.forEach(fn => { try { fn(Lab.lang); } catch(e){ console.error(e); } });
   };
   Lab.translate = applyStatic;  // call on dynamically inserted markup that uses data-zh
-  function setLang(l){ Lab.lang = l; store.set('labLang', l); if (window.speechSynthesis) speechSynthesis.cancel(); Lab.applyLang(); }
+  function setLang(l){ Lab.lang = l; store.set('labLang', l); Lab.stopSpeech(); loadRec(l); Lab.applyLang(); }
   Lab.setLang = setLang;
 
   /* ---------- speech ---------- */
@@ -125,15 +125,92 @@
   Lab.voices = lang => allVoices().filter(v => vScore(v, lang) > -1e8).sort((a, b) => vScore(b, lang) - vScore(a, lang));
   Lab.voiceFor = lang => { const saved = store.get('labVoice_' + lang), vs = Lab.voices(lang); return (saved && vs.find(v => v.name === saved)) || vs[0] || null; };
   Lab.speakRate = () => +(store.get('labRate') || 1);
-  Lab.speak = (text, o = {}) => {
-    if (!window.speechSynthesis || !text) return null;
-    speechSynthesis.cancel();
-    const lang = o.lang || Lab.lang, u = new SpeechSynthesisUtterance(String(text).replace(/<[^>]+>/g, ''));
+  /* Pre-recorded read-aloud (OpenAI gpt-4o-mini-tts): science-lab/audio/<lang>/<key>.<ext>, listed in
+     audio/<lang>/manifest.js (a script, not JSON, so it also loads from file://; manifest.json holds the same list).
+     key = FNV-1a 32-bit hex of  lang + '|' + Lab.speechNorm(text). A text without a recording is read by the browser
+     voice. Only 'zh' is recorded for now — to add English, generate audio/en/ and add 'en' to REC_LANGS.
+     Recordings play at  (o.rate||.95)/.95 × the reader's speed (🔊 panel), pitch preserved.
+     Pages that drive speechSynthesis directly (zh utterances) get the recording too, with 'end' fired on the utterance.
+     Regenerate with science-lab/tools/tts (see README.txt there) whenever lesson texts change. */
+  const REC_LANGS = ['zh'];
+  const audioBase = (() => { try { return new URL('../audio/', (document.currentScript && document.currentScript.src) || location.href).href; } catch(e){ return ''; } })();
+  Lab.speechNorm = t => String(t == null ? '' : t).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+  Lab.speechKey = (text, lang) => {
+    const s = lang + '|' + Lab.speechNorm(text); let h = 0x811c9dc5;
+    for (let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+    return ('0000000' + h.toString(16)).slice(-8);
+  };
+  const rec = {};   // lang -> {state:'loading'|'ready'|'none', ext, keys:Set, waits:[]}
+  window.LabAudioManifest = m => { const r = rec[m.lang] || (rec[m.lang] = { waits:[] }); r.ext = m.ext || 'mp3'; r.keys = new Set(String(m.keys || '').split(/\s+/).filter(Boolean)); r.state = 'ready'; r.waits.splice(0).forEach(f => f()); };
+  function loadRec(lang){   // loads the manifest once per language
+    if (!REC_LANGS.includes(lang) || !audioBase) return null;
+    let r = rec[lang]; if (r && r.state) return r;
+    r = rec[lang] = r || { waits:[] }; r.state = 'loading';
+    const s = document.createElement('script'); s.src = audioBase + lang + '/manifest.js'; s.async = true;
+    s.onerror = () => { r.state = 'none'; r.waits.splice(0).forEach(f => f()); };
+    (document.head || document.documentElement).appendChild(s); return r;
+  }
+  Lab.recordings = loadRec;
+  const ss = window.speechSynthesis || null;
+  const nativeSpeak = ss ? ss.speak.bind(ss) : () => {}, nativeCancel = ss ? ss.cancel.bind(ss) : () => {};
+  let player = null, cur = null, gen = 0;   // one shared <audio> (stays unlocked on iOS after the first tap)
+  const audioRate = rate => Math.max(.3, Math.min(2.5, (rate || .95) / .95 * Lab.speakRate()));
+  Lab.stopSpeech = () => { gen++; const c = cur; cur = null; if (c){ try { player.pause(); } catch(e){} if (c.done) c.done(false); } nativeCancel(); };
+  function withRec(lang, fn){   // fn(manifest or null); waits at most 1.5 s for a manifest that is still loading
+    const r = loadRec(lang);
+    if (!r || r.state !== 'loading') return fn(r && r.state === 'ready' ? r : null);
+    const g = gen; let fired = false;
+    const go = () => { if (fired) return; fired = true; if (g === gen) fn(r.state === 'ready' ? r : null); };
+    r.waits.push(go); setTimeout(go, 1500);
+  }
+  function speakTTS(clean, lang, rate, done){
+    if (!ss) return null;
+    const u = new SpeechSynthesisUtterance(clean);
     u.lang = lang === 'zh' ? 'zh-CN' : 'en-US';
     const v = Lab.voiceFor(lang); if (v){ u.voice = v; u.lang = v.lang; }
-    u.rate = Math.max(.5, Math.min(1.6, (o.rate || .95) * Lab.speakRate()));
-    speechSynthesis.speak(u); return u;
+    u.rate = Math.max(.5, Math.min(1.6, (rate || .95) * Lab.speakRate()));
+    if (done){ u.onend = () => done(true); u.onerror = () => done(false); }
+    nativeSpeak(u); return u;
+  }
+  function playRec(r, key, lang, rate, fallback, done){
+    const a = player || (player = new Audio()), c = cur = { rate, done, key };
+    const fail = () => { if (cur !== c) return; cur = null; fallback(); };
+    a.onended = () => { if (cur !== c) return; cur = null; if (done) done(true); };
+    a.onerror = fail;
+    a.src = audioBase + lang + '/' + key + '.' + r.ext;
+    a.preservesPitch = a.mozPreservesPitch = a.webkitPreservesPitch = true;
+    a.defaultPlaybackRate = a.playbackRate = audioRate(rate);
+    const p = a.play(); if (p && p.catch) p.catch(e => { if (!e || e.name !== 'AbortError') fail(); });
+    return a;
+  }
+  // o: {lang, rate (browser-voice rate, default .95), onend(ok)}. Returns the <audio> (recording) or the utterance.
+  Lab.speak = (text, o = {}) => {
+    if (!text) return null;
+    const lang = o.lang || Lab.lang, clean = String(text).replace(/<[^>]+>/g, '');
+    Lab.stopSpeech();
+    let out = { pending:true };
+    withRec(lang, r => {
+      const k = r && Lab.speechKey(clean, lang);
+      out = r && r.keys.has(k) ? playRec(r, k, lang, o.rate, () => speakTTS(clean, lang, o.rate, o.onend), o.onend) : speakTTS(clean, lang, o.rate, o.onend);
+    });
+    return out;
   };
+  if (ss){
+    try {
+      // pages call speechSynthesis.cancel() to stop reading (topic change, voice off …): stop recordings too
+      ss.cancel = () => Lab.stopSpeech();
+      // pages that speak Chinese utterances themselves (e.g. line-by-line poem readers) also get the recording
+      ss.speak = u => {
+        if (!u || !/^zh/i.test(u.lang || '') || !REC_LANGS.includes('zh')) return nativeSpeak(u);
+        const ev = ok => { try { u.dispatchEvent(new Event(ok ? 'end' : 'error')); } catch(e){} };
+        withRec('zh', r => {
+          const k = r && Lab.speechKey(u.text, 'zh');
+          if (r && r.keys.has(k)){ Lab.stopSpeech(); playRec(r, k, 'zh', u.rate || 1, () => nativeSpeak(u), ev); }
+          else nativeSpeak(u);
+        });
+      };
+    } catch(e){}
+  }
   if (window.speechSynthesis){ allVoices(); speechSynthesis.addEventListener && speechSynthesis.addEventListener('voiceschanged', () => {}); }
   // voice settings popover (opened from the 🔊 nav button)
   Lab.voicePanel = () => {
@@ -142,14 +219,15 @@
     const T = { h:{en:'Read-aloud voice',zh:'朗读声音'}, rate:{en:'Speed',zh:'语速'}, test:{en:'▶ Test',zh:'▶ 试听'}, none:{en:'This browser has no voice for this language.',zh:'这个浏览器没有该语言的声音。'},
       tip:{en:'Tip: Microsoft Edge has the most natural voices (names with “Natural”). Chrome’s “Google” voices are good too.',zh:'提示：Microsoft Edge 浏览器的声音最自然（名字带 “Natural” 的）；Chrome 的 “Google” 声音也不错。'},
       sample:{en:'Hello! This is how I will read the lessons to you.',zh:'你好！我会用这个声音为你朗读课文。'} };
+    const r = rec[lang], recNote = r && r.state === 'ready' && r.keys.size ? `<small>${Lab.L({ en:'Lessons are read with a pre-recorded voice; the voice list above is used only for text that has no recording.', zh:'课文使用预先录好的声音朗读；上面的声音选择只用于没有录音的内容。' })}</small>` : '';
     p = document.createElement('div'); p.className = 'lab-vpanel card';
     p.innerHTML = `<b>${Lab.L(T.h)}</b>${vs.length ? `<select class="lab-vsel">${vs.map(v => `<option value="${v.name.replace(/"/g, '&quot;')}" ${cur && v.name === cur.name ? 'selected' : ''}>${v.name}</option>`).join('')}</select>` : `<p>${Lab.L(T.none)}</p>`}
-      <label>${Lab.L(T.rate)} <input type="range" class="lab-vrate" min=".6" max="1.4" step=".05" value="${Lab.speakRate()}"><output>${Lab.speakRate().toFixed(2)}×</output></label>
-      <button type="button" class="btn lab-vtest">${Lab.L(T.test)}</button><small>${Lab.L(T.tip)}</small>`;
+      <label>${Lab.L(T.rate)} <input type="range" class="lab-vrate" min=".5" max="1.5" step=".05" value="${Lab.speakRate()}"><output>${Lab.speakRate().toFixed(2)}×</output></label>
+      <button type="button" class="btn lab-vtest">${Lab.L(T.test)}</button>${recNote}<small>${Lab.L(T.tip)}</small>`;
     document.body.appendChild(p);
     const sel = $('.lab-vsel', p), rate = $('.lab-vrate', p);
     if (sel) sel.onchange = () => { store.set('labVoice_' + lang, sel.value); Lab.speak(Lab.L(T.sample)); };
-    rate.oninput = () => { store.set('labRate', rate.value); $('output', p).textContent = (+rate.value).toFixed(2) + '×'; };
+    rate.oninput = () => { store.set('labRate', rate.value); $('output', p).textContent = (+rate.value).toFixed(2) + '×'; if (cur && player) player.playbackRate = audioRate(cur.rate); };
     $('.lab-vtest', p).onclick = () => Lab.speak(Lab.L(T.sample));
     setTimeout(() => document.addEventListener('click', function off(e){ if (!e.target.closest('.lab-vpanel,.lab-voice')){ p.remove(); document.removeEventListener('click', off); } }), 0);
   };
@@ -219,7 +297,7 @@
 
   /* ---------- boot ---------- */
   function boot(){
-    findTopic(); buildNav(); buildFooter();
+    findTopic(); buildNav(); buildFooter(); setTimeout(() => loadRec(Lab.lang), 400);   // fetch the recordings list soon after start-up, so 🔊 plays at once
     isReady = true;
     readyFns.forEach(fn => { try { fn(); } catch(e){ console.error(e); } });
     Lab.applyLang();
