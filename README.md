@@ -1,7 +1,7 @@
 # 🔬 Science Lab — Interactive 3D Middle-School Science (EN · 中文)
 
-**Live site:** https://nshanchuan.github.io/happymom/Biology_study/science-lab/  
-**Source:** https://github.com/nshanchuan/happymom (folder `Biology_study/science-lab`)
+**Live site:** https://nshanchuan.github.io/middle/  
+**Source:** https://github.com/nshanchuan/middle
 
 Or open **`index.html`** in a modern browser (Chrome / Edge / Safari / Firefox) with an internet connection.
 The 3D engine (three.js), fonts and map data load from public CDNs; everything else is local.
