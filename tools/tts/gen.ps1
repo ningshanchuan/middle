@@ -2,7 +2,7 @@
 #   input : <Work>\texts_<lang>.jsonl (from collect_all.ps1 / merge.ps1) + extras_<lang>.txt next to this script (one text per line)
 #   output: <Root>\audio\<lang>\<key>.mp3  +  manifest.js / manifest.json  (published with the site)
 #           The API returns raw 24 kHz PCM; it is kept as <Work>\pcm_<lang>\<key>.wav (master, not published) and encoded
-#           here with the Windows Media Foundation MP3 encoder: MPEG-1 Layer III, 32 kHz mono, 48 kbps (plays everywhere).
+#           here with the Windows Media Foundation MP3 encoder: MPEG-2 Layer III, 24 kHz mono, 32 kbps (plays everywhere).
 #   log   : <Work>\gen_<lang>.tsv  (key, chars, bytes, seconds, text sent to TTS)
 # Usage:  powershell -ExecutionPolicy Bypass -File gen.ps1 -Estimate          (only count characters / minutes / cost)
 #         powershell -ExecutionPolicy Bypass -File gen.ps1 [-Workers 6] [-Limit 20] [-MaxUSD 25]
@@ -10,10 +10,12 @@
 #         powershell -ExecutionPolicy Bypass -File gen.ps1 -Prune            (delete clips whose text is no longer in any lesson)
 # The API key is read from <Root>\OpenAI_key.txt (gitignored) inside the worker that calls the API; it is never printed or written.
 param([string]$Lang = "zh", [switch]$Estimate, [switch]$ManifestOnly, [switch]$Prune, [int]$Workers = 6, [int]$Limit = 0, [double]$MaxUSD = 25,
-      [string]$Voice = "marin", [double]$Speed = 0.9, [string]$Model = "gpt-4o-mini-tts", [string]$Format = "mp3", [int]$Kbps = 48,
-      [double]$CharsPerSec = 3.0, [double]$UsdPerMin = 0.015,
+      [string]$Voice = "marin", [double]$Speed = 0, [string]$Model = "gpt-4o-mini-tts", [string]$Format = "mp3", [int]$Kbps = 32,
+      [double]$CharsPerSec = 0, [double]$UsdPerMin = 0.015,
       [int]$WorkerIndex = -1, [string]$Jobs = "", [string]$Root = "", [string]$Work = "")
 $ErrorActionPreference = 'Stop'
+if (-not $Speed) { $Speed = if ($Lang -eq 'zh') { 0.9 } else { 1.0 } }            # zh slower for a heritage learner; en natural pace
+if (-not $CharsPerSec) { $CharsPerSec = if ($Lang -eq 'zh') { 3.0 } else { 14.0 } } # for the cost estimate only
 $ProgressPreference = 'SilentlyContinue'   # Windows PowerShell's progress bar makes Invoke-WebRequest very slow
 . (Join-Path $PSScriptRoot "paths.ps1")
 $utf8 = New-Object Text.UTF8Encoding($false)
@@ -51,7 +53,7 @@ if ($WorkerIndex -ge 0) {
     $dir = Await ([Windows.Storage.StorageFolder]::GetFolderFromPathAsync((Split-Path $mp3))) ([Windows.Storage.StorageFolder])
     $dst = Await ($dir.CreateFileAsync((Split-Path $mp3 -Leaf), [Windows.Storage.CreationCollisionOption]::ReplaceExisting)) ([Windows.Storage.StorageFile])
     $p = [Windows.Media.MediaProperties.MediaEncodingProfile]::CreateMp3([Windows.Media.MediaProperties.AudioEncodingQuality]::Low)
-    $p.Audio.Bitrate = [uint32]($Kbps * 1000); $p.Audio.ChannelCount = 1; $p.Audio.SampleRate = [uint32]32000
+    $p.Audio.Bitrate = [uint32]($Kbps * 1000); $p.Audio.ChannelCount = 1; $p.Audio.SampleRate = [uint32]24000
     $prep = Await ((New-Object Windows.Media.Transcoding.MediaTranscoder).PrepareFileTranscodeAsync($src, $dst, $p)) ([Windows.Media.Transcoding.PrepareTranscodeResult])
     if (-not $prep.CanTranscode) { throw "cannot transcode: $($prep.FailureReason)" }
     $t = $asProg.MakeGenericMethod([double]).Invoke($null, @($prep.TranscodeAsync())); if (-not $t.Wait(120000)) { throw "transcode timeout" }
@@ -195,10 +197,18 @@ function Prep([string]$t, [string]$raw = "") {
   $zpun = (& $c 0x3002) + (& $c 0xFF01) + (& $c 0xFF1F) + (& $c 0xFF1B) + (& $c 0xFF1A) + (& $c 0xFF0C) + (& $c 0x3001)
   $zend = $cjk + (& $c 0x3000) + '-' + (& $c 0x303F) + (& $c 0xFF00) + '-' + (& $c 0xFFEF) + (& $c 0x201D) + (& $c 0x2019) + '\)'
   $t = $t -replace ($emo + '|[' + $sym + ']'), ' '
-  $t = $t -replace ('\s*[' + $arr + ']\s*'), $comma                          # arrows between steps -> pause
-  $t = $t -replace ('([' + $zpun + '])\s*\.(\s+|$)'), '$1'                   # full stop + ". " left by .join('. ')
-  $t = $t -replace ('(?<=[' + $zend + '])\s*\.(\s+|$)'), $dot
-  $t = $t -replace ('\.\s+(?=[' + $cjk + '])'), $dot
+  if ($Lang -eq 'zh') {
+    $t = $t -replace ('\s*[' + $arr + ']\s*'), $comma                        # arrows between steps -> pause
+    $t = $t -replace ('([' + $zpun + '])\s*\.(\s+|$)'), '$1'                 # full stop + ". " left by .join('. ')
+    $t = $t -replace ('(?<=[' + $zend + '])\s*\.(\s+|$)'), $dot
+    $t = $t -replace ('\.\s+(?=[' + $cjk + '])'), $dot
+  } else {
+    $t = $t -replace ('\s*[' + $arr + ']\s*'), ', '
+    $t = $t -replace ('\s*[' + (& $c 0x3002) + ']\s*'), '. ' -replace ('\s*[' + (& $c 0xFF0C) + (& $c 0x3001) + ']\s*'), ', ' -replace ('\s*[' + (& $c 0xFF1B) + ']\s*'), '; ' -replace ('\s*[' + (& $c 0xFF1A) + ']\s*'), ': '
+    $t = $t -replace ('\s+[' + (& $c 0x00B7) + (& $c 0x2022) + ']\s+'), ', '   # "June 21 . longest day" separators
+    $t = $t -replace '([.!?])\s*\.(?=\s|$)', '$1'
+    $t = $t -replace '([.!?;:])\s*\.(\s+|$)', '$1$2'                       # "!. " left by .join('. ')
+  }
   $t = ($t -replace '\s+', ' ').Trim()
   if ($Lang -eq 'zh') { $t = Fix-Poly $t }
   return $t

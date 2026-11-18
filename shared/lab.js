@@ -128,11 +128,11 @@
   /* Pre-recorded read-aloud (OpenAI gpt-4o-mini-tts): science-lab/audio/<lang>/<key>.<ext>, listed in
      audio/<lang>/manifest.js (a script, not JSON, so it also loads from file://; manifest.json holds the same list).
      key = FNV-1a 32-bit hex of  lang + '|' + Lab.speechNorm(text). A text without a recording is read by the browser
-     voice. Only 'zh' is recorded for now — to add English, generate audio/en/ and add 'en' to REC_LANGS.
+     voice. Recorded languages are listed in REC_LANGS (each needs audio/<lang>/manifest.js).
      Recordings play at  (o.rate||.95)/.95 × the reader's speed (🔊 panel), pitch preserved.
      Pages that drive speechSynthesis directly (zh utterances) get the recording too, with 'end' fired on the utterance.
      Regenerate with science-lab/tools/tts (see README.txt there) whenever lesson texts change. */
-  const REC_LANGS = ['zh'];
+  const REC_LANGS = ['zh', 'en'];
   const audioBase = (() => { try { return new URL('../audio/', (document.currentScript && document.currentScript.src) || location.href).href; } catch(e){ return ''; } })();
   Lab.speechNorm = t => String(t == null ? '' : t).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
   Lab.speechKey = (text, lang) => {
@@ -201,11 +201,12 @@
       ss.cancel = () => Lab.stopSpeech();
       // pages that speak Chinese utterances themselves (e.g. line-by-line poem readers) also get the recording
       ss.speak = u => {
-        if (!u || !/^zh/i.test(u.lang || '') || !REC_LANGS.includes('zh')) return nativeSpeak(u);
+        const ul = u && (/^zh/i.test(u.lang || '') ? 'zh' : /^en/i.test(u.lang || '') ? 'en' : (!u.lang ? Lab.lang : ''));
+        if (!ul || !REC_LANGS.includes(ul)) return nativeSpeak(u);
         const ev = ok => { try { u.dispatchEvent(new Event(ok ? 'end' : 'error')); } catch(e){} };
-        withRec('zh', r => {
-          const k = r && Lab.speechKey(u.text, 'zh');
-          if (r && r.keys.has(k)){ Lab.stopSpeech(); playRec(r, k, 'zh', u.rate || 1, () => nativeSpeak(u), ev); }
+        withRec(ul, r => {
+          const k = r && Lab.speechKey(u.text, ul);
+          if (r && r.keys.has(k)){ Lab.stopSpeech(); playRec(r, k, ul, u.rate || 1, () => nativeSpeak(u), ev); }
           else nativeSpeak(u);
         });
       };

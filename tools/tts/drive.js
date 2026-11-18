@@ -75,6 +75,33 @@
       for (const v of vals){ if (inputsUp()) break; inp.value = v; inp.dispatchEvent(new Event('input', { bubbles: true })); inp.dispatchEvent(new Event('change', { bubbles: true })); await sleep(15); speakAll('input'); }
       inp.value = orig; inp.dispatchEvent(new Event('input', { bubbles: true })); inp.dispatchEvent(new Event('change', { bubbles: true }));
     }
+    // 2b. canvas maps / diagrams pick items by hit-testing a click position: click a grid of points on each canvas
+    const seenCtx = new Set();
+    const canvasSweep = async (share) => {
+      const stop = () => timeUp() || Date.now() - T0 > MAXMS * share;
+      for (const cv of [...document.querySelectorAll('canvas')].filter(el => vis(el) && !el.closest(BAD))){
+        const r = cv.getBoundingClientRect(); if (r.width < 140 || r.height < 90) continue;
+        // fine grid (map sites are small dots); 🔊 is pressed only when a click changed the page (MutationObserver)
+        const step = Math.max(12, Math.sqrt(r.width * r.height / 2500)), nx = Math.floor(r.width / step), ny = Math.floor(r.height / step);
+        let muts = 0; const mo = new MutationObserver(l => { muts += l.length; }); mo.observe(document.body, { childList: true, subtree: true, characterData: true });
+        for (let j = 0; j < ny && !stop(); j++) for (let i = 0; i < nx && !stop(); i++){
+          const x = r.left + (i + .5) * step, y = r.top + (j + .5) * step, o = { bubbles: true, cancelable: true, view: window, clientX: x, clientY: y, button: 0 };
+          const m0 = muts;
+          try {
+            for (const t of ['pointerdown', 'mousedown', 'pointerup', 'mouseup']) cv.dispatchEvent(t.startsWith('pointer') && window.PointerEvent ? new PointerEvent(t, { ...o, pointerId: 1, isPrimary: true }) : new MouseEvent(t, o));
+            cv.dispatchEvent(new MouseEvent('click', o));
+          } catch(e){ if (C.err.length < 20) C.err.push('canvas: ' + e.message); }
+          await null; await null;   // let MutationObserver records arrive
+          if (muts !== m0){
+            const ctx = [...document.querySelectorAll('button,[role=button],.speak,.say,[data-say],[data-speak]')].filter(el => isSpeaker(el) && vis(el)).map(el => txt(el.parentElement || el).slice(0, 300)).join('|');
+            if (!seenCtx.has(ctx)){ seenCtx.add(ctx); C.clicks++; await settle(); speakAll('canvas'); }
+          }
+          else if ((i + j * nx) % 200 === 199) await sleep(0);   // keep the page responsive
+        }
+        mo.disconnect();
+      }
+    };
+    C.phase = 'canvas'; if (!window.__colLite) await canvasSweep(0.6);
     // 3. click everything clickable, round after round (new things appear after tabs / steps open)
     C.phase = 'explore'; if (window.__colLite) C.err.push('lite mode: explore phase skipped (page hung on the first try)');
     for (let round = 0; round < (window.__colLite ? 0 : 14) && !timeUp(); round++){
@@ -98,6 +125,8 @@
         }
       }
     }
+    // canvases shown only after a tab opened: sweep again with the time that is left
+    C.phase = 'canvas2'; if (!window.__colLite) await canvasSweep(1);
   } catch(e){ C.err.push('driver: ' + e.message); }
   C.phase = 'done'; C.done = true; C.ms = Date.now() - T0;
 })();

@@ -7,7 +7,7 @@
   window.__vlog = [];
   const log = s => { box.textContent += s + '\n'; window.__vlog.push(s); };
   if (!window.Lab || !Lab.speak) { log('no Lab'); return 'no Lab'; }
-  const r = Lab.recordings('zh');
+  const r = Lab.recordings(Lab.lang);
   if (!r || r.state !== 'ready') { log('manifest not ready: ' + (r && r.state)); return 'manifest ' + (r && r.state); }
   const orig = Lab.speak; let last = null;
   Lab.speak = (t, o) => { const out = orig(t, o); last = { t, out, key: Lab.speechKey(String(t).replace(/<[^>]+>/g, ''), (o && o.lang) || Lab.lang) }; return out; };

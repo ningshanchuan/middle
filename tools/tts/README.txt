@@ -75,5 +75,6 @@ or from science-lab\tools\tts - both work; ports 9921-9929 are this project's)
 Editing polyfix.tsv after clips exist: the key does not depend on the TTS input, so to re-record a clip delete its
 MP3 (and its pcm_zh\<key>.wav master, otherwise the old audio is re-encoded) and run step 4.
 
-Adding English later: generate audio/en/ the same way (gen.ps1 -Lang en with instructions_en.txt, collect with
--Lang en), then add 'en' to REC_LANGS in shared/lab.js.
+English (audio/en/, added 2026-11-18): same steps with  -Lang en  on collect_all.ps1 and gen.ps1 (texts_en.jsonl,
+instructions_en.txt, mathspeak_en.tsv, extras_en.txt). Voice marin, speed 1.0 (gen.ps1 picks 0.9 for zh, 1.0 for en),
+no polyphone step. Both 'zh' and 'en' are in REC_LANGS in shared/lab.js.
