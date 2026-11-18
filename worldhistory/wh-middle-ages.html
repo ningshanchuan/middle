@@ -1,0 +1,817 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Middle Ages &amp; the Islamic Golden Age</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/photos.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-array@3.2.4/dist/d3-array.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-geo@3.1.0/dist/d3-geo.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<style>
+#map .explorer{align-items:start}
+.mapstage{position:relative;min-height:560px;padding:0;overflow:hidden}
+.mapstage canvas{position:absolute;inset:0;width:100%;height:100%;cursor:pointer;touch-action:pan-y}
+#plStage{min-height:500px}
+@media (max-width:560px){.mapstage{min-height:470px}#plStage{min-height:430px}}
+.info .date{font-family:Fredoka;font-weight:700;font-size:19px;color:var(--brand);margin-top:-8px}
+.legend2{display:flex;flex-wrap:wrap;gap:10px;font-size:14px;font-weight:700;margin-top:10px}
+.legend2 i{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:5px;border:1px solid var(--line)}
+.yc{padding:18px 20px;margin-top:14px;display:flex;flex-direction:column;gap:12px}
+.yc-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.yc-head b.big{font-family:Fredoka;font-size:36px;line-height:1;color:var(--brand)}
+.yc-ev{border-left:5px solid var(--brand);padding:2px 0 2px 12px}
+.yc-ev h4{margin:0 0 2px;font-size:19px}
+.yc-ev p{margin:0;font-size:15.5px}
+.cn{border-left:5px solid #c0392b;padding:2px 0 2px 12px;font-size:15px}
+.cn small{display:block;font-weight:800;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:#c0392b}
+.readout{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.readout .counter b{font-size:21px}
+.og{padding:20px;display:flex;flex-direction:column;gap:14px}
+.og .counters{grid-template-columns:repeat(4,minmax(0,1fr))}
+.og-bar{height:10px;border-radius:999px;background:var(--surface-2);overflow:hidden}
+.og-bar i{display:block;height:100%;background:var(--brand);border-radius:999px;transition:width .3s}
+.stars{font-size:28px;letter-spacing:4px;color:var(--warn)}
+.ranks{display:inline-flex;flex-wrap:wrap;gap:6px}
+.ranks span{border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:13px;font-weight:800;color:var(--ink-2)}
+.ranks span.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.cards{display:flex;flex-wrap:wrap;gap:8px}
+.cards button{border:2px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:12px;padding:8px 12px;font-weight:700;text-align:left;font-size:14.5px}
+.cards button.sel{border-color:var(--brand);box-shadow:0 0 0 2px var(--brand) inset}
+.cards button.bad{border-color:var(--bad);animation:labshake .35s}
+.slot{border:2px dashed var(--line);border-radius:16px;padding:10px 12px;min-height:70px;display:flex;flex-direction:column;gap:6px;cursor:pointer;background:var(--surface)}
+.slot.ready{border-color:var(--brand);background:color-mix(in srgb,var(--brand) 7%,var(--surface))}
+.slot h4{margin:0;font-size:17px}
+.slot small{color:var(--ink-2);font-weight:700}
+.slot .got{font-size:13.5px;background:color-mix(in srgb,var(--good) 13%,var(--surface));border:1px solid var(--good);border-radius:10px;padding:5px 8px}
+.pyr{display:grid;grid-template-columns:minmax(0,1fr) 230px;gap:14px;align-items:start}
+.pyr-tiers{display:flex;flex-direction:column;gap:8px;align-items:center}
+.pyr-tiers .slot{width:100%}
+.pyr-tiers .slot[data-t="king"]{width:46%}.pyr-tiers .slot[data-t="lord"]{width:64%}.pyr-tiers .slot[data-t="knight"]{width:82%}
+.wis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.siege{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+#castleCv{width:100%;height:270px;display:block;border-radius:14px;background:var(--surface-2)}
+.bopts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.bopt{border:2px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:12px;padding:8px 10px;font-weight:700;text-align:left;font-size:14px}
+.bopt.on{border-color:var(--good);background:color-mix(in srgb,var(--good) 12%,var(--surface))}
+.bopt small{display:block;font-weight:600;color:var(--ink-2);font-size:12.5px}
+.bopt:disabled{opacity:.45}
+.atk{border-left:5px solid var(--bad);padding:4px 0 4px 12px}
+.atk h4{margin:0 0 4px;font-size:19px}
+.atk p{margin:0;font-size:15px}
+.resp{display:flex;flex-direction:column;gap:8px}
+.resp button{border:2px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:12px;padding:9px 12px;font-weight:700;text-align:left}
+.resp button:hover{border-color:var(--brand)}
+.meter{height:14px;border-radius:999px;background:var(--surface-2);overflow:hidden;border:1px solid var(--line)}
+.meter i{display:block;height:100%;border-radius:999px;transition:width .4s}
+.bars{display:flex;flex-direction:column;gap:8px}
+.bars .row{display:grid;grid-template-columns:62px minmax(0,1fr) 92px;gap:10px;align-items:center;font-weight:800;font-size:14px}
+.bars .t{height:22px;border-radius:8px;background:var(--surface-2);overflow:hidden}
+.bars .t i{display:block;height:100%;border-radius:8px;background:var(--brand)}
+.bars .row.hit .t i{background:#8e5a5a}
+.pred{display:flex;flex-wrap:wrap;gap:8px}
+.pred button{border:2px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:999px;padding:7px 14px;font-weight:800}
+.pred button.right{border-color:var(--good)}.pred button.wrong{border-color:var(--bad)}
+@media (max-width:860px){.siege{grid-template-columns:1fr}.pyr{grid-template-columns:1fr}.wis{grid-template-columns:1fr 1fr}}
+@media (max-width:760px){.readout{grid-template-columns:1fr 1fr}.og .counters{grid-template-columns:1fr 1fr}.yc-head b.big{font-size:30px}.bopts{grid-template-columns:1fr}.pyr-tiers .slot[data-t]{width:100%}}
+@media (max-width:480px){.wis{grid-template-columns:1fr}}
+</style>
+</head>
+<body data-subject="worldhistory" data-topic="wh-middle-ages">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="世界历史 · 统编版九年级上册第三单元《封建时代的欧洲》、第四单元《阿拉伯帝国》 · 佐治亚州 SSWH4/5/7">World History · Georgia GSE SSWH4, SSWH5, SSWH7 · China: 统编版 Grade 9 Vol. 1, Units 3–4</span>
+  <h1 data-zh-html="中世纪与<em>伊斯兰黄金时代</em>">The Middle Ages &amp; <em>the Islamic Golden Age</em></h1>
+  <p class="lead" data-zh-html="公元476年，西罗马帝国灭亡。接下来的一千年里，欧洲人建起城堡和大教堂，君士坦丁堡守住了罗马的传统，巴格达的学者把全世界的书译成阿拉伯文——而一场瘟疫在短短几年里夺走了欧洲大约三分之一的人口。这一千年真的是“黑暗时代”吗？<br><b>你的任务：</b>拖动千年时间轴看帝国兴衰；把国王、领主、骑士和农奴放进封建金字塔；设计并守住一座城堡；追踪黑死病的传播路线；最后走进巴格达的智慧馆。">In 476 the Western Roman Empire fell. Over the next thousand years Europeans built castles and cathedrals, Constantinople kept Rome’s traditions alive, scholars in Baghdad translated the world’s books into Arabic — and a plague killed about a third of Europe in just a few years. Were these really the “Dark Ages”?<br><b>Your mission:</b> scrub a thousand years of empires on the map, build the feudal pyramid, design and defend a castle, track the Black Death, then step into Baghdad’s House of Wisdom.</p>
+</header>
+
+<section class="wrap" id="map" data-nav="Map & centuries" data-nav-zh="地图与千年">
+  <div class="sec-head">
+    <h2 data-zh="互动地图：一千年里的帝国兴衰（476—1500年）">Interactive map: a thousand years of empires, 476–1500</h2>
+    <p data-zh="拖动时间滑块或按 ▶：看法兰克王国变成查理曼帝国又一分为三，拜占庭帝国一点点缩小，阿拉伯帝国横跨三大洲。点击地图上的色块或城市看详情。">Drag the slider or press ▶: watch the Franks grow into Charlemagne’s empire and split in three, the Byzantine Empire shrink, and the Arab empire stretch across three continents. Click a coloured area or a city for details.</p>
+  </div>
+  <div class="explorer">
+    <div class="stage card mapstage" id="mapStage">
+      <canvas id="mapCv"></canvas>
+      <div class="toolbar">
+        <button class="tbtn on" id="btnCities" data-zh="🏙️ 城市">🏙️ Cities</button>
+        <button class="tbtn on" id="btnCru" data-zh="⚔️ 十字军路线">⚔️ Crusade routes</button>
+        <button class="tbtn on" id="btnLab" data-zh="🏷️ 名称">🏷️ Names</button>
+      </div>
+      <div class="bottombar"><div class="tip" id="mapTip"></div></div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="timebar" style="margin-top:12px"><button id="playBtn" aria-label="Play">▶</button><input id="tm" type="range" min="476" max="1500" step="1" value="476" aria-label="Year"><output id="tmOut">476</output></div>
+  <div class="legend2" id="legend"></div>
+  <div class="card yc" aria-live="polite">
+    <div class="readout">
+      <div class="counter"><b id="roCent">–</b><span data-zh="世纪">century</span></div>
+      <div class="counter"><b id="roJer">–</b><span data-zh="耶路撒冷由谁控制">who holds Jerusalem</span></div>
+      <div class="counter"><b id="roCon">–</b><span data-zh="君士坦丁堡">Constantinople</span></div>
+      <div class="counter"><b id="roEmp">–</b><span data-zh="地图上的大国">powers on the map</span></div>
+    </div>
+    <div class="yc-head"><b class="big" id="ycDate">–</b><div class="btnrow" style="margin-left:auto"><button class="btn ghost" id="evPrev" data-zh="◀ 上一件大事">◀ Previous event</button><button class="btn" id="evNext" data-zh="下一件大事 ▶">Next event ▶</button></div></div>
+    <div id="ycList" style="display:flex;flex-direction:column;gap:10px"></div>
+    <div class="cn" id="cnBox"></div>
+  </div>
+  <div class="mix" style="margin-top:14px"><b data-zh="⚠️ 易错点：">⚠️ Don’t mix up:</b><span data-zh="罗马帝国并没有在476年全部灭亡——灭亡的只是西罗马帝国。东罗马帝国（后人称“拜占庭帝国”）以君士坦丁堡为都城，又延续了将近一千年，直到1453年才被奥斯曼帝国灭亡。">The Roman Empire did not completely end in 476 — only the western half did. The Eastern Roman Empire (later called the Byzantine Empire), ruled from Constantinople, lasted almost another thousand years, until the Ottomans took the city in 1453.</span></div>
+</section>
+
+<section class="wrap" id="lords" data-nav="Lords & castles" data-nav-zh="领主与城堡">
+  <div class="sec-head">
+    <h2 data-zh="任务1：搭建封建金字塔">Mission 1: build the feudal pyramid</h2>
+    <p data-zh="西欧的封建制度（封君封臣制度）是一张“土地换忠诚”的网：上一级把土地（采邑）封给下一级，下一级宣誓效忠、服兵役。先点一张卡片，再点它属于的那一层。">Feudalism was a web of “land for loyalty”: a lord granted land (a fief) to a vassal, who swore loyalty and owed military service. Tap a card, then tap the level it belongs to.</p>
+  </div>
+  <div class="card og">
+    <div class="counters">
+      <div class="counter"><b id="pyScore">0</b><span data-zh="得分">score</span></div>
+      <div class="counter"><b id="pyDone">0/12</b><span data-zh="已放对">placed</span></div>
+      <div class="counter"><b id="pyMiss">0</b><span data-zh="失误">mistakes</span></div>
+      <div class="counter"><b id="pyStars">☆☆☆</b><span data-zh="星级">stars</span></div>
+    </div>
+    <div class="pyr">
+      <div class="pyr-tiers" id="pyTiers"></div>
+      <div class="slot" data-t="clergy" id="pyClergy"></div>
+    </div>
+    <div class="cards" id="pyCards"></div>
+    <div class="result" id="pyMsg"></div>
+    <div class="card" style="padding:14px 16px;display:none" id="pyPuzzle">
+      <b data-zh="🧩 加分题：国王命令骑士休跟他出征，但休的领主不同意。休该听谁的？">🧩 Bonus puzzle: the king orders the knight Hugh to join his army, but Hugh’s lord says no. Whom does Hugh obey?</b>
+      <div class="pred" style="margin-top:10px" id="pyPz"></div>
+      <div class="result" id="pyPzMsg"></div>
+    </div>
+  </div>
+
+  <div class="sec-head" style="margin-top:28px">
+    <h2 data-zh="主任务：设计并守住你的城堡">Main mission: design and defend your castle</h2>
+    <p data-zh="你是一位领主。先选城址、用有限的金币修建防御工事；然后敌军会用五种办法攻城。每一回合选择你的对策——城堡强度和存粮都要撑到最后。">You are a lord. Pick a site and spend your gold on defences. Then the enemy tries five ways to take your castle. Choose your response each turn — keep the walls standing and the food from running out.</p>
+  </div>
+  <div class="card og">
+    <div class="counters">
+      <div class="counter"><b id="sgScore">0</b><span data-zh="总分">total score</span></div>
+      <div class="counter"><b id="sgStr">100</b><span data-zh="城堡强度">castle strength</span></div>
+      <div class="counter"><b id="sgFood">–</b><span data-zh="存粮（月）">food (months)</span></div>
+      <div class="counter"><b id="sgStars">☆☆☆</b><span data-zh="本次星级">this siege</span></div>
+    </div>
+    <div><b data-zh="头衔：">Title:</b> <span class="ranks" id="sgRanks"></span></div>
+    <div class="siege">
+      <div><canvas id="castleCv" aria-label="Castle"></canvas><div class="meter" style="margin-top:8px"><i id="sgMeter" style="width:100%;background:var(--good)"></i></div></div>
+      <div id="sgPanel" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+    <div class="result" id="sgMsg"></div>
+  </div>
+</section>
+
+<section class="wrap" id="plague" data-nav="Black Death" data-nav-zh="黑死病">
+  <div class="sec-head">
+    <h2 data-zh="任务2：追踪黑死病（1346—1353年）">Mission 2: track the Black Death, 1346–1353</h2>
+    <p data-zh="黑死病是一场鼠疫大流行，病菌由跳蚤传播，也能在人与人之间传播。它沿着商船和商路前进。拖动时间看它如何扩散；按“预测下一站”，猜猜它接下来会到哪座城市。">The Black Death was a plague pandemic spread by fleas on rats — and from person to person. It travelled with merchant ships and trade routes. Drag the time to watch it spread; press “Predict the next stop” to forecast where it goes next.</p>
+  </div>
+  <div class="stage card mapstage" id="plStage"><canvas id="plCv"></canvas><div class="bottombar"><div class="tip" id="plTip"></div></div></div>
+  <div class="timebar" style="margin-top:12px"><button id="plPlay" aria-label="Play">▶</button><input id="plT" type="range" min="1346.5" max="1353.5" step="0.25" value="1346.5" aria-label="Date"><output id="plOut">1346</output></div>
+  <div class="card og" style="margin-top:14px">
+    <div class="counters">
+      <div class="counter"><b id="plN">0</b><span data-zh="已到达的城市">cities reached</span></div>
+      <div class="counter"><b id="plLast">–</b><span data-zh="最新到达">newest</span></div>
+      <div class="counter"><b id="plScore">0</b><span data-zh="预测得分">forecast score</span></div>
+      <div class="counter"><b id="plStars">☆☆☆</b><span data-zh="预测星级">forecast stars</span></div>
+    </div>
+    <div class="btnrow"><button class="btn" id="plAsk" data-zh="🔮 预测下一站">🔮 Predict the next stop</button></div>
+    <div class="pred" id="plPred"></div>
+    <div class="result" id="plMsg"></div>
+  </div>
+  <div class="grid2" style="margin-top:14px;align-items:start">
+    <div class="card" style="padding:18px 20px;display:flex;flex-direction:column;gap:12px">
+      <h3 style="margin:0" data-zh="📊 数据图：欧洲人口（约1300—1500年）">📊 Data figure: Europe’s population, c. 1300–1500</h3>
+      <div class="bars" id="popBars"></div>
+      <p class="muted" style="font-size:12.5px;margin:0" data-zh="单位：百万人，均为历史学家的估计近似值（如麦克伊韦迪与琼斯《世界人口历史地图集》等），不同研究差别很大。黑死病（1347—1351年）在几年内夺走了欧洲大约三分之一到一半的人口，常见估计为2500万至5000万人；此后瘟疫还多次复发。">Millions of people; rough historians’ estimates (e.g. McEvedy &amp; Jones, Atlas of World Population History) — studies differ a lot. The Black Death (1347–1351) killed about one-third to one-half of Europe’s people in a few years, often estimated at 25–50 million; the plague returned many times afterwards.</p>
+    </div>
+    <div class="card" style="padding:18px 20px;display:flex;flex-direction:column;gap:10px">
+      <h3 style="margin:0" data-zh="🔗 瘟疫之后：欧洲发生了什么变化？">🔗 After the plague: what changed?</h3>
+      <details class="peek"><summary data-zh="劳动力短缺，农奴地位提高">Workers became scarce — and valuable</summary><p data-zh="活下来的农民少了，领主不得不提高工钱、减轻劳役，许多农奴获得了自由。庄园制度从此逐渐瓦解。">With far fewer peasants left, lords had to offer higher wages and lighter labour duties. Many serfs won their freedom, and the manor system slowly broke down.</p></details>
+      <details class="peek"><summary data-zh="农民起义">Peasant revolts</summary><p data-zh="一些统治者想用法律压低工钱，引发了起义，例如1358年法国的扎克雷起义和1381年英国的瓦特·泰勒起义。">When rulers tried to freeze wages by law, peasants rebelled — the Jacquerie in France (1358) and Wat Tyler’s Revolt in England (1381).</p></details>
+      <details class="peek"><summary data-zh="人们开始重新思考">People questioned old ideas</summary><p data-zh="当时没有人知道病因。有人归罪于犹太人，许多犹太社区遭到迫害——这是一段必须正视的悲剧。也有人开始怀疑传统权威，这为后来的文艺复兴埋下了伏笔。">Nobody then knew the cause. Some people blamed Jewish communities, and many were attacked — a tragedy historians remember. Others began to question old authorities, which helped prepare the way for the Renaissance.</p></details>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="wisdom" data-nav="House of Wisdom" data-nav-zh="智慧馆">
+  <div class="sec-head">
+    <h2 data-zh="任务3：走进巴格达的智慧馆">Mission 3: inside Baghdad’s House of Wisdom</h2>
+    <p data-zh="公元9世纪，阿拔斯王朝的哈里发在巴格达支持学者把古希腊、波斯和印度的书籍译成阿拉伯文，学者们还在此基础上做出了新发现。把每张发现卡片配给正确的学者或来源。">In the 800s, Abbasid caliphs in Baghdad paid scholars to translate Greek, Persian and Indian books into Arabic — and the scholars made new discoveries of their own. Match each discovery card to the right scholar or source.</p>
+  </div>
+  <div class="card og">
+    <div class="wis" id="wisSlots"></div>
+    <div class="cards" id="wisCards"></div>
+    <div class="result" id="wisMsg"></div>
+  </div>
+  <div class="mix" style="margin-top:14px"><b data-zh="⚠️ 易错点：">⚠️ Don’t mix up:</b><span data-zh="“阿拉伯数字”其实是古印度人发明的，阿拉伯人把它传到了欧洲，所以欧洲人叫它“阿拉伯数字”。造纸术则来自中国，8世纪传到撒马尔罕和巴格达，再传到欧洲。">“Arabic numerals” were invented in India; Arab scholars carried them to Europe, so Europeans called them Arabic. Paper came from China, reaching Samarkand and Baghdad in the 700s and Europe later.</span></div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real media" data-nav-zh="真实影像">
+  <div id="gallery"></div>
+  <div class="sec-head" style="margin-top:22px"><h2 data-zh="走得更远">Go further</h2></div>
+  <div class="linkgrid">
+    <a class="linkcard" href="https://www.worldhistory.org/Feudalism/" target="_blank" rel="noopener"><b data-zh="世界历史百科：封建制度">World History Encyclopedia: Feudalism</b><span data-zh="封建制度怎样运转、为什么衰落，配有地图和插图（英文）。">How feudalism worked and why it declined, with maps and pictures.</span><small>worldhistory.org ↗</small></a>
+    <a class="linkcard" href="https://www.worldhistory.org/Black_Death/" target="_blank" rel="noopener"><b data-zh="世界历史百科：黑死病">World History Encyclopedia: Black Death</b><span data-zh="1347—1352年的瘟疫：传播、当时的人怎样应对、带来的影响（英文）。">The 1347–1352 pandemic: how it spread, how people reacted, what it changed.</span><small>worldhistory.org ↗</small></a>
+    <a class="linkcard" href="https://www.worldhistory.org/Abbasid_Dynasty/" target="_blank" rel="noopener"><b data-zh="世界历史百科：阿拔斯王朝">World History Encyclopedia: Abbasid Dynasty</b><span data-zh="巴格达、哈里发哈伦·拉希德和智慧馆的故事（英文）。">Baghdad, Caliph Harun al-Rashid and the House of Wisdom.</span><small>worldhistory.org ↗</small></a>
+    <a class="linkcard" href="https://www.metmuseum.org/essays/the-crusades-1095-1291" target="_blank" rel="noopener"><b data-zh="大都会艺术博物馆：十字军东征（1095—1291年）">The Met: The Crusades (1095–1291)</b><span data-zh="海尔布伦艺术史年表的文章，配有当时的艺术品（英文）。">A Heilbrunn Timeline essay with real objects from the period.</span><small>metmuseum.org ↗</small></a>
+    <a class="linkcard" href="https://www.metmuseum.org/essays/hagia-sophia-532-37" target="_blank" rel="noopener"><b data-zh="大都会艺术博物馆：圣索菲亚大教堂（532—537年）">The Met: Hagia Sophia, 532–37</b><span data-zh="查士丁尼怎样在5年内建成这座巨大的穹顶建筑（英文）。">How Justinian built this giant domed church in about five years.</span><small>metmuseum.org ↗</small></a>
+    <a class="linkcard" href="https://www.khanacademy.org/humanities/world-history/medieval-times" target="_blank" rel="noopener"><b data-zh="可汗学院：中世纪">Khan Academy: Medieval times</b><span data-zh="免费视频和文章：拜占庭、伊斯兰世界、十字军和中世纪欧洲（英文）。">Free videos and articles: Byzantium, the Islamic world, the Crusades and medieval Europe.</span><small>khanacademy.org ↗</small></a>
+  </div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 小测验（12题）">🧠 Quiz (12 questions)</h3><p class="sub" data-zh="选出正确答案，看看解析。">Pick the best answer and read the explanation.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分一分：西欧、拜占庭还是阿拉伯帝国？">🗂️ Sort it: Western Europe, Byzantium or the Arab empire?</h3><p class="sub" data-zh="把每个人物、地点或事物拖到（或先点再点方框）正确的一方。">Drag each person, place or thing (or tap it, then tap a box) to the right group.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="课程标准（凭记忆列出，请对照现行佐治亚州GSE及2024年修订版核对）：高中世界史 SSWH4（拜占庭帝国：查士丁尼、《查士丁尼法典》、圣索菲亚大教堂、东西教会大分裂、1453年君士坦丁堡陷落）、SSWH5（伊斯兰世界：伊斯兰教的兴起、倭马亚与阿拔斯王朝、巴格达的学术成就、知识的保存与传播）、SSWH7（中世纪欧洲：封建制度与庄园制度、天主教会的作用、十字军东征、黑死病及其影响、城市与大学的兴起）；六年级 SS6G（欧洲地理）可配合地图使用。">Standards (from memory — check against the current Georgia GSE and its 2024 revision): high-school World History SSWH4 (Byzantine Empire: Justinian, the Code of Justinian, Hagia Sophia, the 1054 schism, the fall of Constantinople in 1453), SSWH5 (the Islamic world: rise of Islam, Umayyad and Abbasid caliphates, scholarship in Baghdad, preserving and spreading knowledge), SSWH7 (medieval Europe: feudalism and manorialism, the role of the Church, the Crusades, the Black Death and its effects, the growth of towns and universities); grade-6 SS6G (Europe’s geography) supports the map work.</p>
+    <p data-zh="中国课程：统编版《世界历史》九年级上册第三单元“封建时代的欧洲”——第7课《基督教的兴起和法兰克王国》、第8课《西欧庄园》、第9课《中世纪城市和大学的兴起》、第10课《拜占庭帝国和〈查士丁尼法典〉》；第四单元“封建时代的亚洲国家”——第12课《阿拉伯帝国》（课次以所用版次为准）。教材要点：封君封臣制度的特点“我的附庸的附庸，不是我的附庸”；庄园是西欧基本的经济单位，农奴依附于领主；城市与大学兴起；《查士丁尼法典》对后世法律影响深远；阿拉伯人在东西方文化交流中起了桥梁作用（阿拉伯数字、造纸术西传）。“同一时期的中国”对应《中国历史》七年级下册（隋唐、宋元、明）。">China: 统编版 World History Grade 9 Vol. 1, Unit 3 “Europe in the feudal age” — L7 Christianity and the Frankish kingdom, L8 the West European manor, L9 the rise of medieval towns and universities, L10 the Byzantine Empire and the Code of Justinian; Unit 4 — L12 the Arab Empire (lesson numbers vary by printing). Key ideas in the Chinese textbook: “the vassal of my vassal is not my vassal”; the manor as the basic economic unit with serfs bound to the lord; towns and universities; the lasting influence of Justinian’s Code; the Arabs as a bridge between East and West (Arabic numerals, the westward spread of paper). “Meanwhile in China” matches Chinese History Grade 7 Vol. 2 (Sui–Tang, Song–Yuan, Ming).</p>
+    <p data-zh="说明：两张地图都是示意图，疆域为大致范围，按年份分段显示；只画海陆轮廓，不画现代国界。帝国面积、人口和死亡人数都是常用的近似估计，不同资料差别较大。黑死病城市的到达时间为常见资料中的大致季节。“751年怛罗斯之战后造纸术西传”是传统说法，现代学者认为纸张可能更早已传入中亚。城堡游戏是简化模型，用来理解护城河、城墙、塔楼、水井、粮仓等的作用，不描写战斗细节。宗教内容以客观、尊重的方式介绍。">Notes: both maps are schematic, with approximate borders shown in stages and no modern borders. Empire sizes, population figures and death tolls are commonly cited approximations that vary between sources. Plague arrival dates are the approximate seasons given in common references. “Paper spread west after the Battle of Talas (751)” is the traditional story; modern scholars think paper may have reached Central Asia earlier. The castle game is a simplified model of what moats, walls, towers, wells and granaries did; it avoids combat detail. Religions are described factually and respectfully.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+/* ===== WMap: small canvas world/region map (world-atlas@2.0.2 countries-110m merged to land + d3-geo), inlined in each worldhistory lesson =====
+   const M = WMap.create('#stageId', '#canvasId', { extent:[[lon0,lat0],[lon1,lat1]], top:56, bottom:60, topS:96, bottomS:90,
+     overlay: (g, M) => {...},            // draw after land: M.poly(pts, fill, stroke, lw, dash, alpha) M.line(pts, stroke, lw, dash) M.dot(ll, r, fill, stroke) M.text(t, x, y, {s,c,a,w,halo}) M.label(t, ll, {dx,dy,...}) M.xy(ll) M.clipLand()
+     click: (h, e) => {...},              // h = { x, y, ll:[lon,lat]|null, land:true|false }
+     hover: h => text|null, note:{en,zh} });
+   M.draw() after any state change. Ancient empires are drawn as rough polygons clipped to land (示意图 · schematic). No modern borders are drawn. */
+const WMap = (() => {
+  let P = null;
+  const load = () => P || (P = fetch('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json').then(r => r.json()).then(t => topojson.merge(t, t.objects.countries.geometries)));
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  function create(stageSel, cvSel, opt = {}){
+    const stage = document.querySelector(stageSel), cv = document.querySelector(cvSel), g = cv.getContext('2d');
+    const M = { g, opt, land:null, failed:false, W:0, H:0, small:false };
+    let proj = null, path = null;
+    const T = () => M.small ? (opt.topS ?? 96) : (opt.top ?? 56), B = () => M.small ? (opt.bottomS ?? 90) : (opt.bottom ?? 60);
+    function layout(){
+      const r = stage.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!r.width) return false;
+      cv.width = r.width * d; cv.height = r.height * d; M.W = r.width; M.H = r.height; M.d = d; M.small = r.width < 560;
+      const [[a, b], [c, e]] = opt.extent || [[-20, 0], [140, 60]];
+      proj = d3.geoMercator().fitExtent([[8, T()], [r.width - 8, r.height - B()]], { type:'MultiPoint', coordinates:[[a, b], [c, e], [a, e], [c, b], [(a + c) / 2, b], [(a + c) / 2, e]] });
+      path = d3.geoPath(proj, g); M.proj = proj; M.path = path; return true;
+    }
+    M.xy = ll => proj ? proj(ll) : null;
+    M.inv = (x, y) => proj ? proj.invert([x, y]) : null;
+    M.clipLand = () => { if (!M.land) return; g.beginPath(); path(M.land); g.clip(); };
+    M.poly = (pts, fill, stroke, lw = 1.5, dash, alpha = 1) => { const p = pts.map(M.xy); if (p.some(q => !q)) return; g.beginPath(); g.moveTo(...p[0]); p.slice(1).forEach(q => g.lineTo(...q)); g.closePath();
+      if (fill){ g.globalAlpha = alpha; g.fillStyle = fill; g.fill(); g.globalAlpha = 1; } if (stroke){ g.setLineDash(dash || []); g.strokeStyle = stroke; g.lineWidth = lw; g.lineJoin = 'round'; g.stroke(); g.setLineDash([]); } };
+    M.line = (pts, stroke, lw = 2, dash) => { const p = pts.map(M.xy).filter(Boolean); if (p.length < 2) return; g.beginPath(); g.moveTo(...p[0]); p.slice(1).forEach(q => g.lineTo(...q)); g.setLineDash(dash || []); g.strokeStyle = stroke; g.lineWidth = lw; g.lineJoin = g.lineCap = 'round'; g.stroke(); g.setLineDash([]); };
+    M.dot = (ll, r, fill, stroke) => { const p = M.xy(ll); if (!p) return null; g.beginPath(); g.arc(p[0], p[1], r, 0, 7); g.fillStyle = fill; g.fill(); if (stroke){ g.lineWidth = 2; g.strokeStyle = stroke; g.stroke(); } return p; };
+    M.text = (t, x, y, o = {}) => { g.font = `${o.w || 800} ${o.s || 12}px Nunito, "PingFang SC", "Microsoft YaHei", sans-serif`; g.textAlign = o.a || 'center'; g.textBaseline = 'middle';
+      g.lineWidth = 3.2; g.strokeStyle = o.halo || css('--surface') || '#fff'; g.lineJoin = 'round'; g.strokeText(t, x, y); g.fillStyle = o.c || css('--ink'); g.fillText(t, x, y); };
+    M.label = (t, ll, o = {}) => { const p = M.xy(ll); if (p) M.text(t, p[0] + (o.dx || 0), p[1] + (o.dy || 0), o); return p; };
+    M.draw = () => {
+      const r = stage.getBoundingClientRect();
+      if (!M.land){ const d = Math.min(devicePixelRatio || 1, 2); cv.width = r.width * d; cv.height = r.height * d; g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, r.width, r.height);
+        M.W = r.width; M.H = r.height; M.text(Lab.L(M.failed ? {en:'The map needs an internet connection.', zh:'地图需要联网才能加载。'} : {en:'Loading map…', zh:'地图加载中…'}), r.width / 2, r.height / 2, { s:15, c:css('--ink-2') }); return; }
+      if (!proj && !layout()) return;
+      g.setTransform(M.d, 0, 0, M.d, 0, 0); g.clearRect(0, 0, M.W, M.H);
+      const sea = css('--surface-2') || '#eef3f9', land = css('--surface') || '#fff', ink2 = css('--ink-2') || '#4a5878';
+      g.fillStyle = sea; g.fillRect(0, 0, M.W, M.H);
+      g.beginPath(); path(M.land); g.fillStyle = land; g.fill(); g.strokeStyle = ink2; g.lineWidth = .7; g.globalAlpha = .7; g.stroke(); g.globalAlpha = 1;
+      if (opt.overlay){ g.save(); opt.overlay(g, M); g.restore(); }
+      M.text(Lab.L(opt.note || {en:'Schematic map · approximate borders', zh:'示意图 · 疆域为大致范围'}), 12, M.H - B() + 6, { s:10, a:'left', c:ink2, w:700 });
+    };
+    M.hit = e => { const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, ll = M.inv(x, y);
+      return { x, y, ll, land: !!(ll && M.land && d3.geoContains(M.land, ll)) }; };
+    cv.addEventListener('click', e => { if (!M.land || !opt.click) return; opt.click(M.hit(e), e); });
+    cv.addEventListener('pointermove', e => { if (e.pointerType === 'touch' || !M.land || !opt.hover) return; const t = opt.hover(M.hit(e)); cv.title = t || ''; });
+    new ResizeObserver(() => requestAnimationFrame(() => { proj = null; M.draw(); })).observe(stage);
+    const redraw = () => setTimeout(M.draw, 60);
+    new MutationObserver(redraw).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme', 'lang'] });
+    if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redraw);
+    load().then(l => { M.land = l; proj = null; M.draw(); if (opt.ready) opt.ready(M); }).catch(err => { console.warn(err); M.failed = true; M.draw(); });
+    M.draw();
+    return M;
+  }
+  return { create, load, css };
+})();
+</script>
+<script>
+const o = (en, zh) => ({en, zh});
+/* ---------- empires (rough lon/lat rings, clipped to land; schematic) ---------- */
+const R = {
+  franks:[[[-1.8,43.4],[-1.4,46.0],[-2.2,47.2],[-1.6,48.6],[0,49.4],[1.6,50.2],[2.5,51.1],[4.3,51.4],[6.2,51.9],[8.6,50.5],[9.5,49.0],[8.0,47.6],[6.5,47.4],[4.8,46.6],[4.3,45.5],[3.0,44.5],[1.2,43.2]]],
+  carol:[[[-1.8,43.3],[0.5,42.7],[3.2,41.9],[3.4,43.2],[6.0,43.1],[7.6,43.8],[9.8,44.1],[10.5,43.3],[12.4,41.9],[13.9,41.2],[14.6,42.0],[13.4,43.7],[12.3,45.3],[13.8,45.6],[16.0,46.0],[16.9,48.0],[14.7,48.7],[12.6,50.3],[12.3,51.8],[11.4,53.6],[10.0,54.8],[8.6,54.9],[7.0,53.4],[4.5,52.8],[2.5,51.1],[1.5,50.2],[-1.5,49.7],[-4.8,48.4],[-2.3,47.2],[-1.2,46.2]]],
+  wfr:[[[-1.8,43.3],[0.5,42.7],[3.2,41.9],[3.4,43.2],[4.6,43.5],[4.8,45.7],[5.0,47.2],[5.2,48.6],[4.6,50.0],[3.6,51.3],[2.5,51.1],[1.5,50.2],[-1.5,49.7],[-4.8,48.4],[-2.3,47.2],[-1.2,46.2]]],
+  mfr:[[[3.6,51.3],[4.6,50.0],[5.2,48.6],[5.0,47.2],[4.8,45.7],[4.6,43.5],[6.0,43.1],[7.6,43.8],[9.8,44.1],[10.5,43.3],[12.4,41.9],[13.9,41.2],[14.6,42.0],[13.4,43.7],[12.3,45.3],[13.8,45.6],[12.0,46.6],[9.5,46.6],[8.0,47.6],[8.3,49.0],[7.8,50.6],[6.4,51.9],[7.0,53.4],[4.5,52.8]]],
+  efr:[[[7.0,53.4],[6.4,51.9],[7.8,50.6],[8.3,49.0],[8.0,47.6],[9.5,46.6],[12.0,46.6],[13.8,45.6],[16.0,46.0],[16.9,48.0],[14.7,48.7],[12.6,50.3],[12.3,51.8],[11.4,53.6],[10.0,54.8],[8.6,54.9]]],
+  hre:[[[3.6,51.3],[4.6,50.0],[5.2,48.6],[5.6,46.6],[4.9,45.0],[5.5,43.3],[7.6,43.8],[9.8,44.1],[10.5,43.3],[12.4,42.6],[13.4,43.7],[12.3,45.3],[13.8,45.6],[16.0,46.0],[16.9,48.0],[18.8,49.5],[16.3,50.7],[14.8,51.0],[15.0,53.0],[14.2,54.0],[11.4,54.1],[10.0,54.8],[8.6,54.9],[7.0,53.4],[4.5,52.8]]],
+  byz476:[[[19.3,40.0],[19.4,44.8],[22.5,44.6],[28.0,44.3],[29.7,45.2],[31,43.5],[35,42.2],[41.5,41.5],[43.5,40.0],[42.0,37.2],[40.5,36.8],[38.7,35.5],[38.5,33.5],[36.7,31.0],[35.0,29.5],[34.6,28.0],[35.5,24.0],[32.8,22.0],[30.0,22.0],[29.0,29.0],[25.0,29.5],[20.0,30.0],[19.0,32.5],[22,35]]],
+  byz555:[[[19.3,40.0],[19.4,44.8],[22.5,44.6],[28.0,44.3],[29.7,45.2],[31,43.5],[35,42.2],[41.5,41.5],[43.5,40.0],[42.0,37.2],[40.5,36.8],[38.7,35.5],[38.5,33.5],[36.7,31.0],[35.0,29.5],[34.6,28.0],[35.5,24.0],[32.8,22.0],[30.0,22.0],[29.0,29.0],[25.0,29.5],[20.0,30.0],[19.0,32.5],[22,35]],
+    [[7.0,44.0],[7.5,46.0],[10.5,46.8],[13.8,46.5],[13.8,45.6],[19.3,40.0],[18.5,37.0],[15,36],[12,36.5],[8,38.5],[8,41.5],[9.8,43.8]],
+    [[2.5,36.4],[2.5,37.2],[11.6,37.6],[19.5,32.8],[19.5,30.0],[11.0,32.5],[8.0,34.8]], [[-5.5,36.0],[-0.5,36.5],[0.5,38.8],[-1.5,38.5],[-4.0,37.5],[-6.0,37.0]]],
+  byz700:[[[26,36.5],[26,40.8],[28.0,42.0],[29,41.3],[31,41.2],[35,42.2],[41.5,41.5],[40.5,39.5],[38.5,38.0],[36.5,37.0],[33,36],[29,36.2]], [[19.3,40.0],[20.5,41.8],[24.5,41.2],[26.0,41.8],[28.0,42.0],[26,40.8],[26,36.5],[23,36.2],[21.0,36.8]], [[15.0,41.2],[16.5,41.3],[18.5,40.5],[18.5,37.0],[15,36.4],[12,37.5],[15.5,40.0]]],
+  byz1025:[[[19.3,40.0],[19.4,44.8],[22.5,44.6],[28.0,44.3],[29.7,45.2],[29,41.3],[26,40.8],[26,36.5],[21.0,36.8]], [[26,36.5],[26,40.8],[29,41.3],[31,41.2],[35,42.2],[41.5,41.5],[44.5,41.0],[44.5,39.0],[42.0,37.2],[40.5,36.8],[37,36.2],[36,36.5],[33,36],[29,36.2]], [[15.0,41.2],[16.5,41.3],[18.5,40.5],[17.0,38.5],[15.6,37.9],[15.5,40.0]]],
+  byz1100:[[[19.3,40.0],[19.4,44.8],[22.5,44.6],[28.0,44.3],[29.7,45.2],[29,41.3],[26,40.8],[26,36.5],[21.0,36.8]], [[26,36.5],[26,40.8],[29,41.3],[31,41.2],[35,42.2],[37.5,41.3],[33,40.5],[31,39],[30,37.5],[29,36.2]]],
+  byz1204:[[[26,37.5],[26,40.8],[29,41.3],[31,41.2],[31.5,40.2],[30.5,38.2],[28,37.0]], [[19.3,40.0],[20.5,41.0],[21.8,39.5],[21.0,38.3],[20,39]]],
+  byz1261:[[[21.5,40.0],[22.0,41.2],[24.5,41.4],[26.0,42.0],[28.0,42.0],[29.3,41.2],[30.5,41.1],[30.5,40.0],[28,40.2],[26,40.2],[24,40.2],[23,39.8]], [[21.5,37.0],[22.5,38.0],[23.2,37.5],[22.8,36.4]]],
+  byz1350:[[[27.6,40.9],[27.8,41.5],[29.2,41.3],[29.1,40.9]], [[21.5,37.0],[22.5,38.1],[23.2,37.5],[22.8,36.4]]],
+  isl632:[[[34.8,29.5],[36.0,29.8],[38.5,30.0],[42,30],[47.5,29.5],[48.5,28.0],[51.5,24.5],[56.4,26.4],[59.8,22.5],[52.0,16.5],[43.5,12.6],[42.5,15.5],[39.0,21.5]]],
+  isl661:[[[19.0,30.0],[20.0,32.8],[25,32],[29,31],[32,31.2],[34.2,31.3],[35,33.5],[36.0,36.5],[38.7,37.0],[42.0,37.2],[44.5,39.5],[48,41],[49.5,40],[52,37],[56,38],[61,36.5],[62.5,32],[61,29],[61.5,25.2],[56.4,26.4],[59.8,22.5],[52.0,16.5],[43.5,12.6],[42.5,15.5],[39.0,21.5],[35.5,24.0],[32.8,22.0],[30.0,22.0],[29.0,29.0],[25.0,29.5]]],
+  isl750:[[[-10,28.5],[-10,30],[-9.8,36],[-9.0,39.0],[-8.8,42.0],[-6.0,42.6],[-3.0,42.8],[0.0,42.7],[3.2,42.5],[5,40],[11.5,37.5],[11,33.5],[19.0,30.0],[19,29],[10,29]],
+    [[19.0,29.0],[20.0,32.8],[25,32],[29,31],[32,31.2],[34.2,31.3],[35,33.5],[36.0,36.5],[38.7,37.5],[40,38.5],[42,40],[44.5,41.8],[48,42],[49.5,40],[52,40],[54,42],[58,43],[62,43.5],[66,43],[70,42.5],[71.5,41],[70,38.5],[69,37],[71,35],[70,31.5],[70,28],[71,24],[67.5,24.0],[61.5,25.2],[56.4,26.4],[59.8,22.5],[52.0,16.5],[43.5,12.6],[42.5,15.5],[39.0,21.5],[35.5,24.0],[32.8,22.0],[30.0,22.0],[29.0,29.0]]],
+  abb:[[[19.0,29.0],[20.0,32.8],[25,32],[29,31],[32,31.2],[34.2,31.3],[35,33.5],[36.0,36.5],[38.7,37.5],[40,38.5],[42,40],[44.5,41.8],[48,42],[49.5,40],[52,40],[54,42],[58,43],[62,43.5],[66,43],[70,42.5],[71.5,41],[70,38.5],[69,37],[71,35],[70,31.5],[70,28],[71,24],[67.5,24.0],[61.5,25.2],[56.4,26.4],[59.8,22.5],[52.0,16.5],[43.5,12.6],[42.5,15.5],[39.0,21.5],[35.5,24.0],[32.8,22.0],[30.0,22.0],[29.0,29.0]], [[19,29],[19,32.8],[11.5,37.5],[8,37],[8,33],[11,32]]],
+  and756:[[[-9.8,36],[-9.0,39.0],[-8.6,41.0],[-5.5,41.2],[-2.5,41.5],[0.0,42.2],[3.2,42.0],[0.5,38.8],[-0.5,36.5],[-5.5,36.0]]],
+  and1031:[[[-9.8,36],[-9.3,38.8],[-6.5,39.0],[-4,40],[-1.0,40.5],[0.5,40.5],[0.5,38.8],[-0.5,36.5],[-5.5,36.0]]],
+  and1250:[[[-5.6,36.0],[-5.5,37.2],[-3.5,37.6],[-2.0,37.5],[-1.6,37.0],[-2.5,36.6]]],
+  cru1:[[[34.2,31.3],[34.9,31.0],[35.6,31.3],[36,33.5],[36.6,35.5],[37.5,36.6],[39.5,37.5],[39.0,36.8],[37.5,36.2],[36.9,35.0],[36.3,33.3],[35.7,31.6],[35.2,29.6],[34.5,29.6]]],
+  cru2:[[[34.8,32.5],[35.2,33.0],[35.6,34.2],[35.9,35.2],[36.1,36.2],[36.4,36.0],[36.0,34.6],[35.6,33.5],[35.2,32.6]]],
+  ilk:[[[38,37],[44,41.5],[48,42],[52,40],[55,38],[60,37.5],[62.5,35],[61,29],[61.5,25.2],[56.4,26.4],[52,27.5],[48.5,30],[47.5,29.8],[44,31.5],[40.5,34],[38.5,36]]],
+  mam:[[[19,29],[20,32.8],[25,32],[29,31],[32,31.2],[34.2,31.3],[35,33.5],[36.0,36.5],[38,37],[40.5,34],[39,31],[36.5,29],[39.5,21.5],[37.5,21],[35.5,24.0],[32.8,22.0],[30.0,22.0],[29.0,29.0],[25.0,29.5]]],
+  ott1:[[[29,40.0],[29.2,41.0],[31,41.2],[31.0,39.8],[30,39.5]]],
+  ott2:[[[26,36.8],[26.2,40.2],[29,41.0],[31,41.2],[34,41.8],[35,40.5],[33,39],[31,37],[28,36.6]], [[22.0,41.2],[21,43.5],[23,44.0],[28.0,44.3],[28.6,43.4],[28.0,42.0],[26.0,42.0],[24.5,41.4]]],
+  ott3:[[[26,36.5],[26,40.8],[29,41.3],[31,41.2],[35,42.2],[37.5,41.3],[38.5,40],[38,37.5],[36,36.8],[33,36],[29,36.2]], [[19.3,40.0],[19.0,42.5],[19.5,44.8],[22.5,44.6],[28.0,44.3],[29.7,45.2],[28.6,43.5],[29.2,41.2],[26,40.8],[26,36.5],[21.0,36.8]]]
+};
+const C = { fr:'#4f7fc6', byz:'#8e6bbf', isl:'#3f9a6b', and:'#6fbf8f', cru:'#c0392b', mon:'#a0703c', ott:'#d08a2e', mam:'#2f8a7a' };
+const GRP = {
+  fr:o('Franks → France & the Holy Roman Empire','法兰克 → 法兰西与神圣罗马帝国'), byz:o('Byzantine (Eastern Roman) Empire','拜占庭帝国（东罗马帝国）'), isl:o('Arab empire / caliphates','阿拉伯帝国（哈里发国家）'), and:o('Al-Andalus (Muslim Spain)','安达卢斯（穆斯林统治的西班牙）'),
+  cru:o('Crusader states','十字军国家'), mon:o('Mongols (Ilkhanate)','蒙古（伊儿汗国）'), mam:o('Mamluk Sultanate','马穆鲁克王朝'), ott:o('Ottoman Empire','奥斯曼帝国') };
+const LAYERS = [
+  { g:'fr', r:'franks', a:486, b:767, lab:[2.5,47.5], n:o('Frankish kingdom','法兰克王国'), f:o(['Clovis united the Franks and founded the kingdom (486); he became a Christian, winning the support of the Church.','Most of today’s France and western Germany.'],['克洛维统一法兰克人，建立法兰克王国（486年）；他皈依基督教，得到教会支持。','大致包括今天法国和德国西部。']) },
+  { g:'fr', r:'carol', a:768, b:842, lab:[6.5,48.5], n:o('Charlemagne’s empire','查理曼帝国'), f:o(['Charlemagne (r. 768–814) doubled the kingdom by war. On Christmas Day 800 the pope crowned him emperor in Rome.','He set up schools in monasteries; his capital was Aachen.'],['查理曼（768—814年在位）通过战争使国土扩大了一倍。800年圣诞节，教皇在罗马为他加冕称帝。','他在修道院兴办学校，都城在亚琛。']) },
+  { g:'fr', r:'wfr', a:843, b:986, lab:[1.5,46.5], n:o('West Francia','西法兰克王国'), f:o(['Treaty of Verdun, 843: Charlemagne’s three grandsons split the empire.','West Francia grew into France.'],['843年《凡尔登条约》：查理曼的三个孙子瓜分了帝国。','西法兰克王国后来发展成法国。']) },
+  { g:'fr', r:'mfr', a:843, b:961, lab:[9.8,45.2], n:o('Middle Francia','中法兰克王国'), f:o(['The middle strip, from the North Sea to Italy.','It later became Italy and the lands between France and Germany.'],['从北海一直延伸到意大利的中间地带。','后来演变为意大利以及法德之间的地区。']) },
+  { g:'fr', r:'efr', a:843, b:961, lab:[11.5,51.8], n:o('East Francia','东法兰克王国'), f:o(['East Francia grew into Germany.','In 962 its king Otto I was crowned emperor.'],['东法兰克王国后来发展成德国。','962年，国王奥托一世加冕称帝。']) },
+  { g:'fr', r:'hre', a:962, b:1500, lab:[12.0,52.2], n:o('Holy Roman Empire','神圣罗马帝国'), f:o(['From 962: an empire of hundreds of German and Italian princes, cities and bishops.','The emperor was elected and often weak.'],['从962年起：由数百个德意志与意大利的诸侯、城市和主教领地组成的帝国。','皇帝由选举产生，权力常常有限。']) },
+  { g:'fr', r:'wfr', a:987, b:1500, lab:[1.5,46.5], n:o('Kingdom of France','法兰西王国'), f:o(['From 987 the Capetian kings slowly gained power over their great lords.','The Hundred Years’ War with England lasted 1337–1453.'],['从987年起，卡佩王朝的国王逐渐压过大领主。','英法百年战争从1337年持续到1453年。']) },
+  { g:'byz', r:'byz476', a:476, b:532, lab:[33,39], n:o('Eastern Roman Empire','东罗马帝国'), f:o(['When the West fell in 476, the East — rich, with strong walls around Constantinople — survived.','Greek-speaking, Christian, and still calling itself “Roman”.'],['476年西部灭亡时，富庶、拥有坚固城墙的东部（都城君士坦丁堡）幸存了下来。','讲希腊语、信仰基督教，仍然自称“罗马人”。']) },
+  { g:'byz', r:'byz555', a:533, b:600, lab:[33,39], n:o('Byzantine Empire under Justinian','查士丁尼时期的拜占庭帝国'), f:o(['Justinian (r. 527–565) won back Italy, North Africa and part of Spain.','He ordered the Code of Justinian and rebuilt Hagia Sophia (537).'],['查士丁尼（527—565年在位）夺回了意大利、北非和西班牙的一部分。','他下令编纂《查士丁尼法典》，并重建圣索菲亚大教堂（537年）。']) },
+  { g:'byz', r:'byz476', a:601, b:640, lab:[33,39], n:o('Byzantine Empire','拜占庭帝国'), f:o(['Wars with Persia exhausted the empire; most of Italy was lost to the Lombards.'],['与波斯的长期战争耗尽了国力；意大利大部分被伦巴第人夺走。']) },
+  { g:'byz', r:'byz700', a:641, b:975, lab:[33,39], n:o('Byzantine Empire','拜占庭帝国'), f:o(['Arab armies took Syria, Egypt and North Africa. The empire shrank to Anatolia, Greece and southern Italy.','Constantinople’s walls (and “Greek fire”) held off two great Arab sieges.'],['阿拉伯军队夺走了叙利亚、埃及和北非，帝国缩小到小亚细亚、希腊和意大利南部。','君士坦丁堡的城墙（还有“希腊火”）挡住了阿拉伯人的两次大围攻。']) },
+  { g:'byz', r:'byz1025', a:976, b:1071, lab:[33,39], n:o('Byzantine Empire (revival)','拜占庭帝国（复兴）'), f:o(['Under Basil II (r. 976–1025) the empire won back the Balkans.','In 1054 the Eastern (Orthodox) and Western (Catholic) churches split.'],['巴西尔二世（976—1025年在位）时，帝国夺回了巴尔干。','1054年，东方（东正教）与西方（天主教）教会正式分裂。']) },
+  { g:'byz', r:'byz1100', a:1072, b:1203, lab:[31,39.5], n:o('Byzantine Empire','拜占庭帝国'), f:o(['After losing to the Seljuk Turks at Manzikert (1071), the emperor asked the pope for help — one spark for the Crusades.'],['1071年在曼齐刻尔特败给塞尔柱突厥人后，皇帝向教皇求援——这成了十字军东征的导火索之一。']) },
+  { g:'byz', r:'byz1204', a:1204, b:1260, lab:[29,38.6], n:o('Byzantine successor states','拜占庭的残余国家'), f:o(['In 1204 the Fourth Crusade attacked and looted Constantinople. Byzantine rulers fled to Nicaea.'],['1204年，第四次十字军攻陷并洗劫了君士坦丁堡，拜占庭统治者逃往尼西亚。']) },
+  { g:'byz', r:'byz1261', a:1261, b:1349, lab:[25,41.2], n:o('Byzantine Empire (late)','拜占庭帝国（晚期）'), f:o(['Constantinople was retaken in 1261, but the empire was small and poor.'],['1261年夺回君士坦丁堡，但帝国已经又小又穷。']) },
+  { g:'byz', r:'byz1350', a:1350, b:1453, lab:[28.6,41.6], n:o('Byzantine Empire (last years)','拜占庭帝国（最后岁月）'), f:o(['Little more than the city itself, surrounded by Ottoman lands.','It fell on 29 May 1453.'],['几乎只剩下都城本身，四面都是奥斯曼领土。','1453年5月29日陷落。']) },
+  { g:'isl', r:'isl632', a:630, b:633, lab:[45,23], n:o('Arabia united','统一的阿拉伯半岛'), f:o(['Muhammad founded Islam in Arabia in the early 600s. By his death in 632 most of Arabia was united.'],['7世纪初，穆罕默德在阿拉伯半岛创立伊斯兰教。到632年他去世时，阿拉伯半岛基本统一。']) },
+  { g:'isl', r:'isl661', a:634, b:710, lab:[45,30], n:o('Arab caliphate','阿拉伯哈里发国家'), f:o(['The caliphs (“successors”) quickly conquered Syria, Egypt, Iraq and Persia.','From 661 the Umayyad caliphs ruled from Damascus.'],['哈里发（“继承人”）很快征服了叙利亚、埃及、伊拉克和波斯。','从661年起，倭马亚王朝的哈里发以大马士革为都城。']) },
+  { g:'isl', r:'isl750', a:711, b:749, lab:[45,30], n:o('Umayyad Caliphate (largest extent)','倭马亚王朝（版图最大时）'), f:o(['From Spain to the Indus River: about 11 million km² — bigger than the United States today (≈ 9.8 million km²).','An empire across Asia, Africa and Europe.'],['从西班牙到印度河：约1100万平方千米——比今天的美国（约980万平方千米）还大。','一个横跨亚、非、欧三洲的大帝国。']) },
+  { g:'isl', r:'abb', a:750, b:1258, lab:[45,30], n:o('Abbasid Caliphate','阿拔斯王朝'), f:o(['From 750 the Abbasids ruled from Baghdad, founded in 762 — one of the largest cities in the world.','After about 900 local rulers held the real power; the caliph remained a religious leader.'],['从750年起，阿拔斯王朝以762年新建的巴格达为都城——它是当时世界上最大的城市之一。','约900年以后，地方统治者掌握实权，哈里发主要是宗教领袖。']) },
+  { g:'and', r:'and756', a:756, b:1030, lab:[-4.5,39.5], n:o('Umayyads of Córdoba','后倭马亚王朝（科尔多瓦）'), f:o(['A surviving Umayyad prince founded a state in Spain in 756. Córdoba became a great centre of learning.'],['756年，一位幸存的倭马亚王子在西班牙建国。科尔多瓦成为重要的学术中心。']) },
+  { g:'and', r:'and1031', a:1031, b:1211, lab:[-4.5,38.2], n:o('Al-Andalus','安达卢斯'), f:o(['Split into small kingdoms; Christian kingdoms in the north pushed south (the “Reconquista”).'],['分裂成许多小王国；北方的基督教王国不断向南推进（“收复失地运动”）。']) },
+  { g:'and', r:'and1250', a:1212, b:1491, lab:[-3.5,37.0], n:o('Emirate of Granada','格拉纳达埃米尔国'), f:o(['The last Muslim state in Spain; it built the Alhambra palace. It fell in 1492.'],['西班牙最后一个穆斯林国家，修建了阿尔罕布拉宫，1492年灭亡。']) },
+  { g:'cru', r:'cru1', a:1099, b:1187, lab:[31.5,34.3], n:o('Crusader states','十字军国家'), f:o(['After taking Jerusalem in 1099, Crusaders set up four states along the coast.'],['1099年攻占耶路撒冷后，十字军在沿海建立了四个国家。']) },
+  { g:'cru', r:'cru2', a:1188, b:1291, lab:[31.5,34.3], n:o('Crusader states (remnant)','十字军国家（残余）'), f:o(['Saladin retook Jerusalem in 1187. The last stronghold, Acre, fell in 1291.'],['1187年萨拉丁收复耶路撒冷。1291年，最后的据点阿卡陷落。']) },
+  { g:'mon', r:'ilk', a:1258, b:1335, lab:[52,33], n:o('Mongol Ilkhanate','蒙古伊儿汗国'), f:o(['In 1258 Mongol armies under Hülegü took Baghdad and ended the Abbasid Caliphate there.'],['1258年，旭烈兀率领的蒙古军队攻占巴格达，阿拔斯王朝灭亡。']) },
+  { g:'mam', r:'mam', a:1250, b:1500, lab:[31,27], n:o('Mamluk Sultanate','马穆鲁克王朝'), f:o(['Ruled Egypt and Syria from Cairo; stopped the Mongols at Ain Jalut (1260).'],['以开罗为中心统治埃及和叙利亚；1260年在艾因贾鲁特挡住了蒙古军。']) },
+  { g:'ott', r:'ott1', a:1299, b:1359, lab:[30,39.2], n:o('Ottoman state','奥斯曼国家'), f:o(['Osman, a Turkish leader in Anatolia, founded the Ottoman state around 1299.'],['约1299年，小亚细亚的突厥首领奥斯曼建立奥斯曼国家。']) },
+  { g:'ott', r:'ott2', a:1360, b:1452, lab:[31,38.5], n:o('Ottoman Empire','奥斯曼帝国'), f:o(['The Ottomans crossed into Europe and surrounded Constantinople.'],['奥斯曼人进入欧洲，把君士坦丁堡团团围住。']) },
+  { g:'ott', r:'ott3', a:1453, b:1500, lab:[32,38.5], n:o('Ottoman Empire','奥斯曼帝国'), f:o(['Sultan Mehmed II took Constantinople in 1453 with giant cannons; it became Istanbul, the Ottoman capital.'],['1453年，苏丹穆罕默德二世用巨炮攻下君士坦丁堡，改名伊斯坦布尔，作为奥斯曼帝国的首都。']) }
+];
+const CITIES = [
+  { k:'con', ll:[28.98,41.01], a:476, n:o('Constantinople (Istanbul)','君士坦丁堡（今伊斯坦布尔）'), d:o('Byzantine capital, guarded by huge triple land walls; on the trade route between Europe and Asia.','拜占庭都城，有巨大的三重陆墙守护，扼守欧亚之间的商路。') },
+  { k:'rom', ll:[12.5,41.9], a:476, n:o('Rome','罗马'), d:o('Home of the pope, head of the Catholic Church in western Europe.','罗马教皇所在地，教皇是西欧天主教会的首领。') },
+  { k:'aac', ll:[6.08,50.78], a:768, b:900, n:o('Aachen','亚琛'), d:o('Charlemagne’s favourite capital, in today’s western Germany.','查理曼最喜欢的都城，在今天德国西部。') },
+  { k:'par', ll:[2.35,48.85], a:476, n:o('Paris','巴黎'), d:o('Capital of the French kings; its university grew around 1200; Notre-Dame was begun in 1163.','法国国王的都城；巴黎大学约1200年形成；巴黎圣母院1163年开工。') },
+  { k:'bol', ll:[11.34,44.49], a:1088, n:o('Bologna','博洛尼亚'), d:o('Its university (1088) is often called the oldest in Europe — famous for studying Roman law (Justinian’s Code).','这里的大学（1088年）常被称为欧洲最古老的大学，以研究罗马法（《查士丁尼法典》）闻名。') },
+  { k:'ven', ll:[12.33,45.44], a:600, n:o('Venice','威尼斯'), d:o('A trading republic whose ships carried spices and silk from the East.','一个靠贸易致富的共和国，它的商船运来东方的香料和丝绸。') },
+  { k:'cor', ll:[-4.78,37.88], a:711, n:o('Córdoba','科尔多瓦'), d:o('Capital of Muslim Spain, with a great mosque and large libraries.','穆斯林统治的西班牙的都城，有大清真寺和大型图书馆。') },
+  { k:'mec', ll:[39.83,21.42], a:610, n:o('Mecca','麦加'), d:o('Birthplace of Muhammad and the holiest city of Islam.','穆罕默德的出生地，伊斯兰教第一圣地。') },
+  { k:'dam', ll:[36.3,33.51], a:476, n:o('Damascus','大马士革'), d:o('Capital of the Umayyad caliphs (661–750).','倭马亚王朝（661—750年）的都城。') },
+  { k:'bag', ll:[44.37,33.31], a:762, n:o('Baghdad','巴格达'), d:o('Founded 762 as the round city of the Abbasids; home of the House of Wisdom. Taken by the Mongols in 1258.','762年作为阿拔斯王朝的“圆城”建立，智慧馆所在地。1258年被蒙古军攻占。') },
+  { k:'jer', ll:[35.21,31.77], a:476, n:o('Jerusalem','耶路撒冷'), d:o('A holy city for Jews, Christians and Muslims — the goal of the Crusades.','犹太教、基督教和伊斯兰教共同的圣城，也是十字军东征的目标。') },
+  { k:'cai', ll:[31.24,30.04], a:969, n:o('Cairo','开罗'), d:o('Founded 969; later the Mamluk capital and a giant trading city.','969年建城，后来是马穆鲁克王朝的都城和巨大的商业城市。') },
+  { k:'sam', ll:[66.96,39.65], a:476, n:o('Samarkand','撒马尔罕'), d:o('A Silk Road city; paper-making was known here by the 700s.','丝绸之路上的城市，8世纪时这里已会造纸。') },
+  { k:'tal', ll:[71.4,42.5], a:745, b:780, n:o('Talas (battle, 751)','怛罗斯（751年之战）'), d:o('Abbasid and Tang armies met here in 751 — the only big battle between them. Traditional story: captured Chinese papermakers brought the craft west.','751年阿拔斯王朝与唐朝军队在此交战——双方唯一的一次大战。传统说法认为，被俘的唐朝工匠把造纸术传到了西方。') }
+];
+const ROUTES = [
+  { a:1095, b:1110, c:'#c0392b', n:o('First Crusade, 1096–1099','第一次十字军东征（1096—1099年）'), pts:[[3.08,45.78],[8.5,48.8],[16.37,48.2],[20.5,44.8],[24.5,42.7],[28.98,41.01],[29.7,40.4],[32.5,38.0],[36.16,36.2],[35.5,33.9],[35.21,31.77]] },
+  { a:1202, b:1215, c:'#7a2a20', n:o('Fourth Crusade, 1202–1204','第四次十字军东征（1202—1204年）'), pts:[[12.33,45.44],[15.23,44.12],[19.0,40.0],[22.0,36.3],[25.5,38.5],[28.98,41.01]] }
+];
+</script>
+<script>
+const EV = [
+  { y:476, t:o('The Western Roman Empire falls','西罗马帝国灭亡'), b:o('A Germanic general removes the last western emperor. Europe’s “Middle Ages” are usually counted from here to about 1500.','一位日耳曼将领废黜了最后一位西罗马皇帝。人们通常把这一年到1500年前后称为欧洲的“中世纪”。') },
+  { y:486, t:o('Clovis founds the Frankish kingdom','克洛维建立法兰克王国'), b:o('Clovis later becomes a Christian. The alliance between Frankish kings and the Church shapes Europe for centuries.','克洛维后来皈依基督教。法兰克国王与教会的联盟影响了欧洲几百年。') },
+  { y:529, t:o('The Code of Justinian','《查士丁尼法典》'), b:o('Justinian’s experts collect centuries of Roman law into one code (529–534). Much of Europe’s law today grows from it.','查士丁尼组织法学家把几百年来的罗马法汇编成法典（529—534年）。今天欧洲许多国家的法律都源于它。') },
+  { y:537, t:o('Hagia Sophia is finished','圣索菲亚大教堂建成'), b:o('Its dome is about 31 m (102 ft) across — for nearly a thousand years the largest church in the world.','它的穹顶直径约31米（102英尺）——此后近一千年里，它都是世界上最大的教堂。') },
+  { y:555, t:o('Byzantium at its largest','拜占庭帝国版图最大'), b:o('Justinian’s generals have won back Italy, North Africa and southern Spain — but the wars drain the treasury.','查士丁尼的将军们夺回了意大利、北非和西班牙南部——但战争耗空了国库。') },
+  { y:622, t:o('The Hijra','“希吉拉”（迁徙）'), b:o('Muhammad and his followers move from Mecca to Medina. The Islamic calendar starts in this year.','穆罕默德和追随者从麦加迁往麦地那。伊斯兰教历就从这一年开始。') },
+  { y:632, t:o('Arabia united','阿拉伯半岛统一'), b:o('By Muhammad’s death most of Arabia is united under Islam. The caliphs then expand fast.','到穆罕默德去世时，阿拉伯半岛基本在伊斯兰教旗帜下统一，此后哈里发迅速对外扩张。') },
+  { y:661, t:o('The Umayyad Caliphate','倭马亚王朝建立'), b:o('The caliphs rule from Damascus.','哈里发以大马士革为都城。') },
+  { y:711, t:o('Into Spain','进入西班牙'), b:o('Arab and Berber armies cross into Spain. By the 730s the empire runs from Spain to Central Asia.','阿拉伯人和柏柏尔人的军队进入西班牙。到8世纪30年代，帝国从西班牙一直延伸到中亚。') },
+  { y:732, t:o('Battle of Tours','普瓦提埃战役（图尔战役）'), b:o('The Frankish leader Charles Martel stops an Umayyad army in France.','法兰克首领查理·马特在法国阻挡住倭马亚军队的北进。') },
+  { y:750, t:o('The Abbasids take over','阿拔斯王朝建立'), b:o('A new dynasty overthrows the Umayyads and moves the capital east.','新王朝推翻倭马亚王朝，把都城东移。') },
+  { y:751, t:o('Battle of Talas','怛罗斯之战'), b:o('Abbasid and Tang Chinese armies clash in Central Asia. Paper-making soon spreads west (traditional story).','阿拔斯王朝与唐朝军队在中亚交战。此后造纸术西传（传统说法）。') },
+  { y:762, t:o('Baghdad is founded','巴格达建城'), b:o('The round city on the Tigris grows to perhaps several hundred thousand people.','底格里斯河畔的“圆城”人口可能达到数十万。') },
+  { y:800, t:o('Charlemagne crowned emperor','查理曼加冕称帝'), b:o('On Christmas Day the pope crowns Charlemagne “Emperor of the Romans” in Rome.','圣诞节那天，教皇在罗马为查理曼加冕，称他为“罗马人的皇帝”。') },
+  { y:830, t:o('The House of Wisdom flourishes','智慧馆兴盛'), b:o('Under Caliph al-Ma’mun scholars translate Greek, Persian and Indian books and make new discoveries.','在哈里发马蒙时期，学者们翻译希腊、波斯和印度的书籍，并做出新的发现。') },
+  { y:843, t:o('Treaty of Verdun','《凡尔登条约》'), b:o('Charlemagne’s grandsons split the empire in three — the seeds of France, Germany and Italy.','查理曼的孙子们把帝国一分为三——这就是法国、德国、意大利的雏形。') },
+  { y:962, t:o('The Holy Roman Empire','神圣罗马帝国'), b:o('The German king Otto I is crowned emperor by the pope.','德意志国王奥托一世由教皇加冕称帝。') },
+  { y:1054, t:o('The Great Schism','东西教会大分裂'), b:o('The Catholic Church (Rome) and the Orthodox Church (Constantinople) split.','以罗马为中心的天主教会和以君士坦丁堡为中心的东正教会正式分裂。') },
+  { y:1066, t:o('The Norman Conquest','诺曼征服'), b:o('William of Normandy wins the Battle of Hastings and becomes king of England.','诺曼底公爵威廉赢得黑斯廷斯战役，成为英格兰国王。') },
+  { y:1071, t:o('Battle of Manzikert','曼齐刻尔特战役'), b:o('Seljuk Turks defeat the Byzantines and move into Anatolia.','塞尔柱突厥人击败拜占庭军队，进入小亚细亚。') },
+  { y:1088, t:o('University of Bologna','博洛尼亚大学'), b:o('Students organise to study law — often called Europe’s first university. Paris and Oxford follow.','学生们组织起来学习法律——它常被称为欧洲第一所大学，随后出现了巴黎大学、牛津大学。') },
+  { y:1096, t:o('The First Crusade','第一次十字军东征'), b:o('Answering the pope’s call (1095), armies march east; they take Jerusalem in 1099.','响应教皇的号召（1095年），军队向东进发，1099年攻占耶路撒冷。') },
+  { y:1187, t:o('Saladin retakes Jerusalem','萨拉丁收复耶路撒冷'), b:o('The sultan Saladin wins back the city; the Third Crusade fails to retake it.','苏丹萨拉丁收复耶路撒冷；第三次十字军未能夺回。') },
+  { y:1204, t:o('Constantinople sacked','君士坦丁堡遭洗劫'), b:o('The Fourth Crusade turns on fellow Christians and loots the Byzantine capital.','第四次十字军转而攻打同为基督徒的拜占庭，洗劫了它的都城。') },
+  { y:1215, t:o('Magna Carta','《大宪章》'), b:o('English barons force King John to accept that even the king must obey the law.','英格兰贵族迫使约翰王承认：国王也必须守法。') },
+  { y:1258, t:o('Mongols take Baghdad','蒙古攻占巴格达'), b:o('The Abbasid Caliphate in Baghdad ends; libraries are destroyed.','巴格达的阿拔斯王朝灭亡，图书馆遭到毁坏。') },
+  { y:1291, t:o('Acre falls','阿卡陷落'), b:o('The last Crusader stronghold in the Holy Land falls to the Mamluks.','十字军在圣地的最后据点被马穆鲁克王朝攻克。') },
+  { y:1299, t:o('The Ottomans begin','奥斯曼国家兴起'), b:o('Osman’s small state in Anatolia will grow into a vast empire.','奥斯曼在小亚细亚建立的小国，将发展成庞大的帝国。') },
+  { y:1347, t:o('The Black Death','黑死病'), b:o('Plague reaches Europe by ship; in four years it kills about a third of Europeans.','瘟疫随商船传入欧洲，四年里夺走了大约三分之一欧洲人的生命。') },
+  { y:1429, t:o('Joan of Arc','贞德'), b:o('A teenage farm girl leads French troops to lift the siege of Orléans in the Hundred Years’ War.','百年战争中，一位农家少女率领法军解了奥尔良之围。') },
+  { y:1453, t:o('Constantinople falls','君士坦丁堡陷落'), b:o('Ottoman cannons break the walls on 29 May. The Byzantine Empire ends after about 1,000 years.','5月29日，奥斯曼大炮轰开城墙。拜占庭帝国在延续约一千年后灭亡。') },
+  { y:1492, t:o('Granada falls','格拉纳达陷落'), b:o('Spain’s Catholic monarchs take the last Muslim kingdom — and send Columbus west the same year.','西班牙的天主教君主攻占最后一个穆斯林王国——同一年派哥伦布向西航行。') }
+];
+const EYS = [...new Set(EV.map(e => e.y))];
+const CN = [
+  { y:476, t:o('China is split into the Northern and Southern Dynasties (南北朝, 420–589).','中国处于南北朝时期（420—589年），南北分裂。') },
+  { y:589, t:o('The Sui dynasty (隋) reunites China; from 605 it digs the Grand Canal (大运河).','隋朝统一全国；605年起开凿大运河。') },
+  { y:618, t:o('The Tang dynasty (唐, 618–907) begins — Chang’an (Xi’an) becomes the world’s biggest city.','唐朝（618—907年）建立，长安成为当时世界上最大的城市。') },
+  { y:627, t:o('Emperor Taizong’s “Reign of Zhenguan” (贞观之治); the monk Xuanzang (玄奘) travels to India (629–645).','唐太宗“贞观之治”；玄奘西行印度取经（629—645年）。') },
+  { y:751, t:o('Tang and Abbasid armies fight at Talas (怛罗斯之战). Traditional story: captured papermakers take the craft to Samarkand.','唐朝与阿拔斯王朝的军队在怛罗斯交战。传统说法：被俘的造纸工匠把技术带到了撒马尔罕。') },
+  { y:755, t:o('The An Lushan Rebellion (安史之乱) weakens the Tang.','安史之乱，唐朝由盛转衰。') },
+  { y:868, t:o('The Diamond Sutra (《金刚经》) is printed with woodblocks — the oldest dated printed book.','用雕版印刷的《金刚经》问世——现存最早的有明确日期的印刷品。') },
+  { y:907, t:o('The Tang ends; the Five Dynasties and Ten Kingdoms (五代十国) follow.','唐朝灭亡，进入五代十国时期。') },
+  { y:960, t:o('The Song dynasty (宋) begins: a rich age of cities, trade and inventions.','宋朝建立：城市、商业和科技十分繁荣。') },
+  { y:1040, t:o('Bi Sheng (毕昇) invents movable-type printing — 400 years before Gutenberg. Gunpowder weapons and the compass come into use.','毕昇发明活字印刷术——比古腾堡早约400年。火药武器和指南针开始得到应用。') },
+  { y:1127, t:o('The Southern Song (南宋) moves south; ships use the compass for navigation at sea.','南宋建立；海船已经用指南针导航。') },
+  { y:1206, t:o('Genghis Khan (成吉思汗) unites the Mongols.','成吉思汗统一蒙古。') },
+  { y:1271, t:o('Kublai Khan founds the Yuan dynasty (元); Marco Polo’s book describes China to Europe.','忽必烈建立元朝；《马可·波罗行纪》向欧洲介绍中国。') },
+  { y:1368, t:o('The Ming dynasty (明) is founded by Zhu Yuanzhang (朱元璋).','朱元璋建立明朝。') },
+  { y:1405, t:o('Zheng He (郑和) sails to the Indian Ocean and East Africa (1405–1433).','郑和下西洋（1405—1433年），远达东非。') },
+  { y:1421, t:o('The Ming capital moves to Beijing and the Forbidden City (紫禁城).','明朝迁都北京，紫禁城成为皇宫。') }
+];
+const jerusalem = y => y < 614 ? o('Byzantines','拜占庭') : y < 629 ? o('Persians','波斯') : y < 637 ? o('Byzantines','拜占庭') : y < 1099 ? o('Muslim rulers','穆斯林政权') : y < 1187 ? o('Crusaders','十字军') : y < 1229 ? o('Ayyubids (Saladin’s dynasty)','阿尤布王朝') : y < 1244 ? o('Crusaders (by treaty)','十字军（按条约）') : y < 1260 ? o('Ayyubids','阿尤布王朝') : o('Mamluks','马穆鲁克王朝');
+const constantinople = y => y >= 1453 ? o('Ottoman: Istanbul','奥斯曼：伊斯坦布尔') : (y >= 1204 && y < 1261) ? o('Held by Crusaders','被十字军占领') : o(`Byzantine — falls in ${1453 - y} yrs`, `拜占庭——${1453 - y}年后陷落`);
+const century = y => { const c = Math.floor((y - 1) / 100) + 1; return o(c + (c === 11 || c === 12 || c === 13 ? 'th' : ['th','st','nd','rd'][c % 10] || 'th') + ' century', c + '世纪'); };
+</script>
+<script>
+/* ================= Map + year slider ================= */
+const App = { y:476, sel:null, city:null, timer:null, cities:true, cru:true, names:true };
+const inRing = (p, r) => { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++){ const [xi, yi] = r[i], [xj, yj] = r[j]; if ((yi > p[1]) !== (yj > p[1]) && p[0] < (xj - xi) * (p[1] - yi) / (yj - yi) + xi) c = !c; } return c; };
+const visL = () => LAYERS.filter(l => App.y >= l.a && App.y <= l.b);
+const visC = () => CITIES.filter(c => App.y >= c.a && App.y <= (c.b || 9999));
+const M = WMap.create('#mapStage', '#mapCv', { extent:[[-12,14],[72,58]],
+  overlay: (g, M) => {
+    g.save(); M.clipLand(); g.fillStyle = "rgba(176,138,60,.10)"; g.fillRect(0, 0, M.W, M.H); g.restore();
+    const ink = WMap.css('--ink'), surf = WMap.css('--surface'), y = App.y, L = visL();
+    g.save(); M.clipLand();
+    L.forEach(l => R[l.r].forEach(ring => M.poly(ring, C[l.g], C[l.g], 1.2, null, App.sel === l ? .62 : .36)));
+    g.restore();
+    if (App.cru) ROUTES.forEach(rt => { if (y < rt.a || y > rt.b) return; M.line(rt.pts, rt.c, 3.2, [9, 6]); const e = M.xy(rt.pts[rt.pts.length - 1]); if (e){ g.beginPath(); g.arc(e[0], e[1], 5, 0, 7); g.fillStyle = rt.c; g.fill(); }
+      const m = M.xy(rt.pts[3]); if (m && !M.small) M.text(Lab.L(rt.n), m[0], m[1] - 14, { s:11, c:rt.c }); });
+    if (App.names) L.forEach(l => { const p = M.xy(l.lab); if (!p) return; const t = Lab.L(l.n); M.text(M.small ? t.replace(/ \(.*\)|（.*）/, '') : t, p[0], p[1], { s:M.small ? 10 : 12, c:ink }); });
+    if (App.cities) visC().forEach(c => { const sel = App.city === c, p = M.dot(c.ll, sel ? 7 : 4.5, ink, surf); if (!p) return;
+      if (sel || (!M.small && ['con','bag','rom','par','jer','cor','sam'].includes(c.k))) M.text(Lab.L(c.n).replace(/ \(.*\)|（.*）/, ''), p[0] + 8, p[1] - 9, { s:11, a:'left', c:ink, w:700 }); });
+  },
+  click: h => {
+    if (App.cities) for (const c of visC()){ const p = M.xy(c.ll); if (p && Math.hypot(p[0] - h.x, p[1] - h.y) < 13){ App.city = c; App.sel = null; renderInfo(); M.draw(); return; } }
+    const hit = h.ll && h.land ? visL().filter(l => R[l.r].some(r => inRing(h.ll, r))).pop() : null;
+    App.sel = hit || null; App.city = null; renderInfo(); M.draw();
+  },
+  hover: h => { if (!h.ll || !h.land) return ''; const l = visL().filter(l => R[l.r].some(r => inRing(h.ll, r))).pop(); return l ? Lab.L(l.n) : ''; }
+});
+Lab.$('#mapTip').textContent = '';
+function renderInfo(){
+  const box = Lab.$('#info'), back = `<div class="nav"><button id="backBtn">${Lab.L(o('◀ Map guide','◀ 地图说明'))}</button></div>`;
+  if (App.city){ const c = App.city;
+    box.innerHTML = `<span class="tag">${Lab.L(o('City','城市'))} · ${App.y}</span><h3><span class="dot" style="background:var(--ink)"></span>${Lab.L(c.n)}</h3><p style="margin:0">${Lab.L(c.d)}</p>
+      <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>${back}`;
+    Lab.$('#speakBtn').onclick = () => Lab.speak(Lab.L(c.n) + (Lab.lang === 'zh' ? '。' : '. ') + Lab.L(c.d));
+  } else if (App.sel){ const l = App.sel;
+    box.innerHTML = `<span class="tag">${Lab.L(GRP[l.g])}</span><h3><span class="dot" style="background:${C[l.g]}"></span>${Lab.L(l.n)}</h3><div class="date">${l.a}–${l.b}${Lab.lang === 'zh' ? '年（地图分段）' : ' (map stage)'}</div>
+      <ul>${Lab.L(l.f).map(x => `<li>${x}</li>`).join('')}</ul><button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>${back}`;
+    Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(l.n), ...Lab.L(l.f)].join(Lab.lang === 'zh' ? '。' : '. '));
+  } else {
+    box.innerHTML = `<span class="tag">${Lab.L(o('How to read the map','怎样看这张地图'))}</span><h3>${Lab.L(o('A thousand years in one slider','一个滑块，一千年'))}</h3>
+      <p class="muted" style="margin:0">${Lab.L(o('Historians call 476–1500 in Europe the Middle Ages (中世纪) — the “middle” between ancient Rome and the modern world.','历史学家把欧洲476—1500年前后称为“中世纪”——介于古罗马和近代之间的“中间”时期。'))}</p>
+      <ul><li>${Lab.L(o('<b>Blue</b> = the Franks and their heirs · <b>purple</b> = Byzantium · <b>green</b> = the Arab empire and Muslim states · <b>orange</b> = Ottomans.','<b>蓝色</b>＝法兰克人及其后继国家 · <b>紫色</b>＝拜占庭 · <b>绿色</b>＝阿拉伯帝国及其他穆斯林国家 · <b>橙色</b>＝奥斯曼。'))}</li>
+      <li>${Lab.L(o('Dashed red lines = Crusade routes. Dots = cities (click them).','红色虚线＝十字军路线；圆点＝城市（可以点击）。'))}</li></ul>
+      <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(o('“476 the West falls, 800 Charlemagne crowned, 843 split in three, 1453 the East falls.”','“476西罗马亡，800查理曼加冕，843一分为三，1453东罗马亡。”'))}</div>
+      <div class="mix"><b>${Lab.L(o('⚠️ Myth:','⚠️ 误区：'))}</b>${Lab.L(o('“The Dark Ages” — historians avoid the term today: the period gave us universities, cathedrals, Magna Carta and the House of Wisdom.','“黑暗时代”——今天的历史学家已很少这样说：这一时期诞生了大学、大教堂、《大宪章》，还有巴格达的智慧馆。'))}</div>
+      <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+      <div class="nav"><button id="startBtn">${Lab.L(o('Play from 476 ▶','从476年开始播放 ▶'))}</button></div>`;
+    Lab.$('#speakBtn').onclick = () => Lab.speak(box.querySelector('p').textContent + ' ' + box.querySelector('.memory').textContent);
+    Lab.$('#startBtn').onclick = () => { setY(476); play(); }; return;
+  }
+  Lab.$('#backBtn').onclick = () => { App.sel = null; App.city = null; renderInfo(); M.draw(); };
+}
+const curE = () => { let c = EYS[0]; EYS.forEach(y => { if (y <= App.y) c = y; }); return c; };
+function renderY(){
+  const y = App.y, c = curE(), L = visL();
+  Lab.$('#tm').value = y; Lab.$('#tmOut').textContent = Lab.lang === 'zh' ? y + '年' : 'AD ' + y; Lab.$('#ycDate').textContent = Lab.lang === 'zh' ? c + '年' : c;
+  Lab.$('#ycList').innerHTML = EV.filter(e => e.y === c).map(e => `<div class="yc-ev"><h4>${Lab.L(e.t)}</h4><p>${Lab.L(e.b)}</p></div>`).join('');
+  const cn = CN.filter(x => x.y <= y).pop(); Lab.$('#cnBox').innerHTML = `<small>${Lab.L(o('🇨🇳 Meanwhile in China','🇨🇳 同一时期的中国'))}</small>${Lab.L(cn.t)}`;
+  Lab.$('#roCent').textContent = Lab.L(century(y)); Lab.$('#roJer').textContent = Lab.L(jerusalem(y)); Lab.$('#roCon').textContent = Lab.L(constantinople(y)); Lab.$('#roEmp').textContent = L.length;
+  Lab.$('#legend').innerHTML = [...new Set(L.map(l => l.g))].map(g => `<span><i style="background:${C[g]}"></i>${Lab.L(GRP[g])}</span>`).join('');
+  Lab.$('#playBtn').textContent = App.timer ? '⏸' : '▶';
+  if (App.sel && !L.includes(App.sel)){ App.sel = L.find(l => l.r === App.sel.r || l.g === App.sel.g) || null; renderInfo(); }
+  M.draw();
+}
+function setY(y){ App.y = Math.max(476, Math.min(1500, Math.round(y))); renderY(); }
+function stop(){ if (App.timer){ clearInterval(App.timer); App.timer = null; } }
+const stepE = d => { const c = curE(), i = EYS.indexOf(c); return d > 0 ? (EYS[i + 1] ?? 1500) : (App.y > c ? c : EYS[Math.max(0, i - 1)]); };
+function play(){ stop(); if (App.y >= 1500) setY(476); App.timer = setInterval(() => { if (App.y >= 1500){ stop(); renderY(); } else setY(stepE(1)); }, 1700); renderY(); }
+Lab.$('#tm').oninput = e => { stop(); setY(+e.target.value); };
+Lab.$('#evPrev').onclick = () => { stop(); setY(stepE(-1)); }; Lab.$('#evNext').onclick = () => { stop(); setY(stepE(1)); };
+Lab.$('#playBtn').onclick = () => { if (App.timer){ stop(); renderY(); } else play(); };
+[['btnCities','cities'],['btnCru','cru'],['btnLab','names']].forEach(([id, k]) => Lab.$('#' + id).onclick = () => { App[k] = !App[k]; Lab.$('#' + id).classList.toggle('on', App[k]); M.draw(); });
+Lab.onLang(() => { Lab.$('#mapTip').textContent = Lab.L(o('Click a coloured area or a city · drag the years','点击色块或城市 · 拖动年份')); renderInfo(); renderY(); });
+
+/* ================= Feudal pyramid ================= */
+const TIERS = [ { k:'king', n:o('👑 King','👑 国王'), s:o('top of the pyramid','金字塔顶端') }, { k:'lord', n:o('🏰 Lords (nobles)','🏰 领主（贵族）'), s:o('vassals of the king','国王的封臣') },
+  { k:'knight', n:o('🐎 Knights','🐎 骑士'), s:o('vassals of the lords','领主的封臣') }, { k:'serf', n:o('🌾 Peasants & serfs','🌾 农民与农奴'), s:o('about 9 out of 10 people','约占人口的十分之九') }, { k:'clergy', n:o('⛪ Clergy (the Church)','⛪ 教士（教会）'), s:o('a separate, powerful group','独立而强大的群体') } ];
+const PYC = [
+  { t:'king', c:o('In theory owns all the land of the kingdom','名义上拥有全国的土地'), w:o('The king grants big fiefs to the great lords.','国王把大块采邑封给大领主。') },
+  { t:'king', c:o('Needs the lords’ soldiers to fight a war','打仗时需要领主提供军队'), w:o('Kings had no big standing army — they relied on their vassals.','国王没有庞大的常备军，要依靠封臣。') },
+  { t:'lord', c:o('Swears loyalty (homage) to the king for a fief','向国王宣誓效忠，换取采邑'), w:o('Land for loyalty: the heart of feudalism.','土地换忠诚：封建制度的核心。') },
+  { t:'lord', c:o('Grants smaller pieces of land to knights','把小块土地分封给骑士'), w:o('A lord was a vassal upward and a lord downward.','领主对上是封臣，对下是封君。') },
+  { t:'lord', c:o('Runs a manor and its court of justice','管理庄园，并主持庄园法庭'), w:o('The manor was the basic economic unit of western Europe.','庄园是西欧的基本经济单位。') },
+  { t:'knight', c:o('Fights on horseback for his lord, often about 40 days a year','为领主骑马作战，通常每年约40天'), w:o('Military service paid for his land.','服兵役就是他使用土地的代价。') },
+  { t:'knight', c:o('Trains from about age 7 as a page, then a squire','约7岁起先当侍童，再当侍从'), w:o('Page → squire → knight, dubbed around age 21.','侍童→侍从→骑士，大约21岁受封。') },
+  { t:'serf', c:o('Works the lord’s fields two or three days a week','每周有两三天要为领主耕种'), w:o('Serfs paid with labour, crops and fees.','农奴以劳役、实物和各种捐税来交纳。') },
+  { t:'serf', c:o('May not leave the manor without the lord’s permission','未经领主允许不能离开庄园'), w:o('Serfs were bound to the land — not slaves, but not free.','农奴依附于土地——不是奴隶，但也没有人身自由。') },
+  { t:'serf', c:o('Gets a strip of land to farm and the lord’s protection','得到一小块份地耕种，并受领主保护'), w:o('Protection in a dangerous age was the serf’s side of the deal.','在动荡年代得到保护，是农奴在这桩交换中的所得。') },
+  { t:'clergy', c:o('Collects the tithe — one-tenth of what people produce','征收什一税——人们收成的十分之一'), w:o('The Church was the richest landowner in Europe.','教会是欧洲最大的地主。') },
+  { t:'clergy', c:o('Monks copy books by hand and run schools','修士手抄书籍、开办学校'), w:o('Monasteries kept ancient learning alive.','修道院保存了古代的学问。') }
+];
+(function(){
+  const S = { sel:null, done:{}, bad:null, miss:0, cards:Lab.shuffle(PYC.map((c, i) => ({ ...c, i }))), last:null, pz:null };
+  const slot = t => `<h4>${Lab.L(t.n)}</h4><small>${Lab.L(t.s)}</small>${S.cards.filter(c => S.done[c.i] && c.t === t.k).map(c => `<div class="got">✓ ${Lab.L(c.c)}</div>`).join('')}`;
+  function render(){
+    Lab.$('#pyTiers').innerHTML = TIERS.slice(0, 4).map(t => `<div class="slot ${S.sel != null ? 'ready' : ''}" data-t="${t.k}">${slot(t)}</div>`).join('');
+    const cl = Lab.$('#pyClergy'); cl.className = 'slot' + (S.sel != null ? ' ready' : ''); cl.innerHTML = slot(TIERS[4]);
+    Lab.$('#pyCards').innerHTML = S.cards.filter(c => !S.done[c.i]).map(c => `<button data-i="${c.i}" class="${S.sel === c.i ? 'sel' : ''} ${S.bad === c.i ? 'bad' : ''}">${Lab.L(c.c)}</button>`).join('');
+    Lab.$$('#pyCards button').forEach(b => b.onclick = () => { S.sel = +b.dataset.i; S.bad = null; render(); });
+    Lab.$$('#lords .slot[data-t]').forEach(s => s.onclick = () => { if (S.sel == null) return; const c = PYC[S.sel];
+      if (c.t === s.dataset.t){ S.done[S.sel] = 1; S.last = c; S.sel = null; S.bad = null; } else { S.bad = S.sel; S.miss++; S.last = null; } render(); });
+    const n = Object.keys(S.done).length, score = Math.max(0, n * 10 - S.miss * 3), st = n < PYC.length ? 0 : S.miss === 0 ? 3 : S.miss <= 3 ? 2 : 1, m = Lab.$('#pyMsg');
+    Lab.$('#pyScore').textContent = score + (S.pz === true ? 10 : 0); Lab.$('#pyDone').textContent = n + '/' + PYC.length; Lab.$('#pyMiss').textContent = S.miss; Lab.$('#pyStars').textContent = '★'.repeat(st) + '☆'.repeat(3 - st);
+    m.className = 'result ' + (S.bad != null ? 'bad' : 'good');
+    m.textContent = n === PYC.length ? Lab.L(o('🎉 Pyramid complete! Land flows down, loyalty and service flow up — and everyone pays the Church.','🎉 金字塔搭好了！土地自上而下分封，效忠和服役自下而上——而人人都要向教会交纳。'))
+      : S.bad != null ? Lab.L(o('Not that level — who gives, and who owes?','不是这一层——想一想：谁给予，谁负有义务？')) : S.last ? '✅ ' + Lab.L(S.last.w) : '';
+    Lab.$('#pyPuzzle').style.display = n === PYC.length ? '' : 'none';
+    const pz = [ ['lord', o('His own lord','他自己的领主')], ['king', o('The king','国王')], ['church', o('The pope','教皇')] ];
+    Lab.$('#pyPz').innerHTML = pz.map(([k, t]) => `<button data-k="${k}" class="${S.pz != null ? (k === 'lord' ? 'right' : '') : ''}">${Lab.L(t)}</button>`).join('');
+    Lab.$$('#pyPz button').forEach(b => b.onclick = () => { if (S.pz == null){ S.pz = b.dataset.k === 'lord'; render(); } });
+    const pm = Lab.$('#pyPzMsg'); pm.className = 'result ' + (S.pz === false ? 'bad' : 'good');
+    pm.textContent = S.pz == null ? '' : Lab.L(o((S.pz ? '✅ +10! ' : '❌ ') + 'His own lord. In much of feudal Europe, “the vassal of my vassal is not my vassal”: Hugh swore loyalty to his lord, not directly to the king.', (S.pz ? '✅ 加10分！' : '❌ ') + '应该听他自己的领主。在西欧许多地方，“我的附庸的附庸，不是我的附庸”：休只向他的领主宣誓效忠，而不是直接效忠国王。'));
+  }
+  Lab.onLang(render);
+})();
+</script>
+<script>
+/* ================= Castle siege game ================= */
+const SITES = { hill:{ n:o('⛰️ Rocky hilltop','⛰️ 岩石山顶'), d:o('Hard to tunnel into or roll towers up. 100 gold.','难以挖地道，攻城塔也推不上来。100金币。'), gold:100 },
+  island:{ n:o('🏝️ River island','🏝️ 河心岛'), d:o('Water all round = a free wet moat. 90 gold.','四面环水＝免费的护城河。90金币。'), gold:90 },
+  plain:{ n:o('🌾 Open plain','🌾 开阔平原'), d:o('Cheap to build on, easy to attack. 125 gold.','建造便宜，也容易被攻打。125金币。'), gold:125 } };
+const BUILD = [
+  { k:'moat', g:20, n:o('Moat (water-filled ditch)','护城河（注水的壕沟）'), d:o('Stops siege towers and tunnels','挡住攻城塔和地道') },
+  { k:'wall', g:25, n:o('Thick stone curtain wall','厚实的石砌城墙'), d:o('Resists stone-throwers','能抵御抛石机') },
+  { k:'towers', g:15, n:o('Round towers','圆形塔楼'), d:o('No blind corners; archers see the base','没有死角；弓箭手能看到墙脚') },
+  { k:'gate', g:15, n:o('Gatehouse, drawbridge, portcullis','城门楼、吊桥和铁闸门'), d:o('Protects the weakest spot','保护最薄弱的地方') },
+  { k:'keep', g:15, n:o('Keep (great tower)','主堡（城堡主塔）'), d:o('A last refuge','最后的避难所') },
+  { k:'well', g:10, n:o('Well inside the walls','城墙内的水井'), d:o('Water during a blockade','被围困时也有水喝') },
+  { k:'granary', g:15, n:o('Granary (food store)','粮仓'), d:o('+6 months of food','多储存6个月的粮食') },
+  { k:'archers', g:15, n:o('Garrison of archers','弓箭手守军'), d:o('Shoot from the walls','在城墙上射击') } ];
+const ATK = {
+  treb:{ n:o('🪨 Trebuchet bombardment','🪨 抛石机轰击'), d:o('A giant counterweight trebuchet hurls 100-kg stones at your wall, day after day.','巨大的配重式抛石机日复一日地把100千克的石块砸向你的城墙。'), base:30, mit:B => [B.wall && [15, o('thick stone wall','厚石墙')]],
+    r:[ [10, -10, o('Repair the wall every night with timber and stone (uses a month of food)','每晚用木料和石块修补城墙（多消耗一个月粮食）'), o('Night repairs kept the breach closed — defenders really did this.','夜间修补让缺口无法扩大——当时的守军真的这样做。'), 1],
+        [5, -6, o('Hang wooden hoardings and wool sacks over the wall','在城墙外挂上木板和羊毛袋'), o('Padding softens the blows a little.','这些缓冲物能减轻一点冲击。')],
+        [0, 0, o('Everyone hides in the keep and waits','所有人躲进主堡等待'), o('The wall keeps cracking while nobody repairs it.','没人修补，城墙越裂越大。')] ] },
+  tower:{ n:o('🗼 Siege tower','🗼 攻城塔'), d:o('A wooden tower taller than your wall rolls toward you on wheels, full of soldiers.','一座比城墙还高的木塔装着士兵，靠轮子朝你推过来。'), base:30, mit:B => [B.moat && [22, o('moat — it cannot cross the water','护城河——塔过不了水')], B.hill && [18, o('steep hill — it cannot climb','陡坡——塔推不上来')], B.archers && [8, o('archers','弓箭手')]],
+    r:[ [10, -12, o('Dig pits in its path and shoot at the crew pushing it','在它的必经之路挖坑，并射击推塔的士兵'), o('A tower stuck in a pit is just a big wooden box.','陷进坑里的攻城塔只是个大木箱。')],
+        [5, -6, o('Throw fire at it','向它投掷火种'), o('Partly works — attackers covered towers with wet animal hides to stop fire.','有一定效果——但进攻方常给塔蒙上湿兽皮防火。')],
+        [0, 6, o('Open the gate and charge out','打开城门冲出去'), o('Risky! Opening the gate is exactly what the enemy wants.','太冒险！打开城门正中敌人下怀。')] ] },
+  mine:{ n:o('⛏️ Mining (tunnelling)','⛏️ 挖地道'), d:o('Sappers dig a tunnel under a corner of your wall, prop it with timber, then burn the props to make the wall collapse.','工兵在城墙一角下挖地道，用木柱撑住，然后烧掉木柱让城墙塌下来。'), base:35, mit:B => [B.moat && [28, o('water — tunnels flood','有水——地道会被淹')], B.hill && [25, o('solid rock — too hard to dig','坚硬的岩石——挖不动')], B.towers && [5, o('round towers have no weak corners','圆塔没有薄弱的墙角')]],
+    r:[ [10, -15, o('Dig a counter-tunnel; put bowls of water on the floor to “hear” the digging','挖反地道；在地上放几碗水，“听”出挖掘的位置'), o('Ripples in the water gave the diggers away — a real medieval trick.','水面的波纹暴露了挖掘的位置——这是中世纪真实的妙招。')],
+        [5, -8, o('Build a second wall behind the threatened section','在受威胁的城墙后面再筑一道墙'), o('If the wall falls, they still face another one.','即使外墙塌了，敌人面前还有一道墙。')],
+        [0, 0, o('Ignore it — tunnels are too slow','不管它——挖地道太慢了'), o('Slow, but it works: a whole corner collapses.','慢是慢，但有效：整个墙角塌了下来。')] ] },
+  ram:{ n:o('🪵 Battering ram','🪵 攻城槌'), d:o('A huge log with an iron head swings at your gate under a protective wooden roof.','一根装着铁头的巨木在木棚掩护下撞击你的城门。'), base:25, mit:B => [B.gate && [15, o('gatehouse & portcullis','城门楼和铁闸门')], B.moat && [8, o('drawbridge up over the moat','吊桥拉起，护城河挡路')]],
+    r:[ [10, -12, o('Drop the portcullis and fill the gate passage with rubble','放下铁闸门，用碎石把门道堵死'), o('Even if the gate breaks, the passage is blocked.','就算城门撞破，门道也被堵死了。')],
+        [5, -6, o('Lower padded mats to cushion the blows','垂下厚垫子缓冲撞击'), o('Soft padding really did absorb some of the force.','柔软的垫子确实能吸收一部分冲击力。')],
+        [0, 6, o('Send your knights out to fight','派骑士出城迎战'), o('Your best soldiers are now outside the walls.','你最好的士兵现在都在城外了。')] ] },
+  starve:{ n:o('⏳ Blockade: starve them out','⏳ 围困：断粮'), d:o('The enemy simply camps around you for 4 months. Nothing gets in or out.','敌人干脆在城外扎营4个月，什么都运不进来。'), base:0, mit:B => [B.granary && [0, o('granary','粮仓')], B.well && [0, o('well','水井')]], starve:true,
+    r:[ [10, 3, o('Ration food: half portions for everyone','定量配给：每人只吃半份'), o('Rationing stretched supplies — most sieges were won or lost on food.','定量配给让粮食撑得更久——大多数围城战的胜负取决于粮食。')],
+        [5, 4, o('Send a messenger to your own lord for a relief army','派信使向你的领主求援'), o('Help may come — as your vassal duty promises.','援军也许会来——这正是封臣关系的承诺。')],
+        [0, 6, o('Hold a feast to keep spirits up','举行宴会鼓舞士气'), o('Happy for one night, hungry for a month.','开心一晚，饿上一个月。')] ] },
+  ladder:{ n:o('🪜 Night attack with ladders','🪜 夜间架梯攻城'), d:o('In the dark, attackers rush the walls with scaling ladders.','趁着夜色，敌人扛着云梯冲向城墙。'), base:25, mit:B => [B.towers && [8, o('towers cover the walls','塔楼掩护城墙')], B.archers && [10, o('archers','弓箭手')], B.wall && [5, o('tall stone wall','高大的石墙')]],
+    r:[ [10, -12, o('Post watchmen all night; push ladders away with forked poles','整夜派人巡逻，用叉竿推倒云梯'), o('Alert sentries were a castle’s best defence.','警惕的哨兵是城堡最好的防线。')],
+        [5, -6, o('Light torches along the walls','沿城墙点起火把'), o('Now you can see them coming.','现在你能看见他们来了。')],
+        [0, 6, o('Everyone sleeps — the walls are high enough','大家都睡觉——城墙够高了'), o('Walls don’t defend themselves.','城墙可不会自己守卫。')] ] } };
+const SRANK = [ { s:0, n:o('Page','侍童') }, { s:40, n:o('Squire','侍从') }, { s:90, n:o('Knight','骑士') }, { s:150, n:o('Lord','领主') }, { s:220, n:o('King','国王') } ];
+const SG = { phase:'build', site:'hill', B:{}, str:100, food:0, order:[], turn:0, total:0, pend:null, stars:0, atk:null, shuffled:null };
+const goldLeft = () => SITES[SG.site].gold - BUILD.filter(b => SG.B[b.k] && !(b.k === 'moat' && SG.site === 'island')).reduce((s, b) => s + b.g, 0);
+const flags = () => ({ ...SG.B, moat:SG.B.moat || SG.site === 'island', hill:SG.site === 'hill' });
+function drawCastle(){
+  const cv = Lab.$('#castleCv'), r = cv.getBoundingClientRect(); if (!r.width) return; const d = Math.min(devicePixelRatio || 1, 2), W = r.width, H = r.height;
+  cv.width = W * d; cv.height = H * d; const g = cv.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, W, H);
+  const F = flags(), cx = W * .62, gy = H * .82, base = F.hill ? H * .62 : gy, ink = WMap.css('--ink'), brand = WMap.css('--brand') || '#a16207', water = '#4f86c6', stone = '#9aa3ad', dark = '#6f7882';
+  g.fillStyle = '#7d9a5a'; g.fillRect(0, gy, W, H - gy);
+  if (F.hill){ g.beginPath(); g.moveTo(cx - 190, gy); g.quadraticCurveTo(cx - 140, base - 6, cx - 115, base); g.lineTo(cx + 115, base); g.quadraticCurveTo(cx + 140, base - 6, cx + 190, gy); g.fillStyle = '#8a8f72'; g.fill(); }
+  if (SG.site === 'island'){ g.fillStyle = water; g.fillRect(0, gy + 2, W, 14); g.fillRect(cx - 175, gy - 2, 350, 8); }
+  if (F.moat && SG.site !== 'island'){ g.fillStyle = water; const my = F.hill ? base : gy; g.fillRect(cx - 150, my - 4, 30, 12); g.fillRect(cx + 120, my - 4, 30, 12); }
+  const wh = SG.B.wall ? 78 : 46, wy = base - wh;
+  g.fillStyle = SG.B.wall ? stone : '#9b7a52'; g.fillRect(cx - 115, wy, 230, wh);
+  for (let x = cx - 115; x < cx + 115; x += 16){ g.fillRect(x, wy - 8, 9, 8); }
+  if (SG.B.keep){ g.fillStyle = dark; g.fillRect(cx - 28, base - 135, 56, 135 - wh + 4); for (let x = cx - 28; x < cx + 28; x += 14) g.fillRect(x, base - 143, 8, 8);
+    g.strokeStyle = ink; g.lineWidth = 2; g.beginPath(); g.moveTo(cx, base - 143); g.lineTo(cx, base - 170); g.stroke(); g.fillStyle = SG.str > 0 ? brand : '#888'; g.fillRect(cx, base - 170, 22, 13); }
+  if (SG.B.towers) [-115, 115].forEach(o2 => { g.fillStyle = stone; g.fillRect(cx + o2 - 16, base - wh - 34, 32, wh + 34); for (let x = cx + o2 - 16; x < cx + o2 + 16; x += 11) g.fillRect(x, base - wh - 41, 7, 7); });
+  if (SG.B.gate){ g.fillStyle = dark; g.fillRect(cx - 75, wy - 14, 40, wh + 14); g.fillStyle = '#2b2b2b'; g.fillRect(cx - 66, base - 34, 22, 34); g.strokeStyle = '#bbb'; g.lineWidth = 1; for (let x = cx - 64; x < cx - 44; x += 5){ g.beginPath(); g.moveTo(x, base - 34); g.lineTo(x, base); g.stroke(); } }
+  if (SG.B.archers){ g.fillStyle = ink; for (let x = cx - 100; x <= cx + 100; x += 40){ g.beginPath(); g.arc(x, wy - 13, 4, 0, 7); g.fill(); } }
+  if (SG.B.well){ g.fillStyle = water; g.beginPath(); g.arc(cx + 55, base - 12, 7, 0, 7); g.fill(); }
+  if (SG.B.granary){ g.fillStyle = '#c9a25a'; g.fillRect(cx + 70, base - 24, 26, 24); g.beginPath(); g.moveTo(cx + 66, base - 24); g.lineTo(cx + 83, base - 36); g.lineTo(cx + 100, base - 24); g.fill(); }
+  const cracks = Math.max(0, Math.floor((100 - SG.str) / 12)); g.strokeStyle = '#3a2f2f'; g.lineWidth = 2;
+  for (let i = 0; i < cracks; i++){ const x = cx - 100 + ((i * 53) % 200), y = wy + 10 + ((i * 29) % (wh - 20)); g.beginPath(); g.moveTo(x, y); g.lineTo(x + 6, y + 9); g.lineTo(x + 1, y + 16); g.lineTo(x + 8, y + 24); g.stroke(); }
+  const a = SG.atk, ax = W * .16; g.strokeStyle = '#7a3b2e'; g.fillStyle = '#7a3b2e'; g.lineWidth = 3;
+  if (a === 'treb'){ g.beginPath(); g.moveTo(ax - 22, gy); g.lineTo(ax, gy - 46); g.lineTo(ax + 22, gy); g.stroke(); g.beginPath(); g.moveTo(ax - 34, gy - 66); g.lineTo(ax + 24, gy - 30); g.stroke(); g.fillRect(ax + 18, gy - 34, 14, 14); }
+  if (a === 'tower'){ g.fillRect(ax + 30, gy - 105, 34, 105); g.strokeStyle = '#d9c3a0'; g.lineWidth = 1; for (let y = gy - 95; y < gy; y += 14){ g.beginPath(); g.moveTo(ax + 32, y); g.lineTo(ax + 62, y); g.stroke(); } }
+  if (a === 'ram'){ const rx = SG.B.gate ? cx - 120 : cx - 150; g.beginPath(); g.moveTo(rx - 40, gy); g.lineTo(rx - 20, gy - 26); g.lineTo(rx + 20, gy - 26); g.lineTo(rx + 34, gy); g.fill(); g.fillStyle = '#5a3a22'; g.fillRect(rx - 30, gy - 14, 72, 8); }
+  if (a === 'ladder'){ g.strokeStyle = '#7a5a2e'; for (const lx of [cx - 140, cx - 128]){ g.beginPath(); g.moveTo(lx - 20, gy); g.lineTo(cx - 112, wy); g.stroke(); } }
+  if (a === 'mine'){ g.setLineDash([6, 5]); g.strokeStyle = '#5a3a22'; g.beginPath(); g.moveTo(ax, gy + 4); g.lineTo(ax + 40, gy + 26); g.lineTo(cx - 118, gy + 26); g.lineTo(cx - 110, base); g.stroke(); g.setLineDash([]); }
+  if (a === 'starve') for (let i = 0; i < 4; i++){ const tx = ax - 30 + i * 30; g.beginPath(); g.moveTo(tx, gy); g.lineTo(tx + 12, gy - 20); g.lineTo(tx + 24, gy); g.fill(); }
+  if (SG.str <= 0){ g.font = '800 20px Nunito, sans-serif'; g.fillStyle = '#c0392b'; g.textAlign = 'center'; g.fillText(Lab.L(o('The castle has fallen','城堡失守了')), W / 2, 30); }
+}
+function renderSiege(){
+  const P = Lab.$('#sgPanel'), F = flags();
+  Lab.$('#sgScore').textContent = SG.total; Lab.$('#sgStr').textContent = Math.max(0, SG.str); Lab.$('#sgFood').textContent = SG.phase === 'build' ? 2 + (SG.B.granary ? 6 : 0) : Math.max(0, SG.food);
+  Lab.$('#sgStars').textContent = '★'.repeat(SG.stars) + '☆'.repeat(3 - SG.stars);
+  const mt = Lab.$('#sgMeter'); mt.style.width = Math.max(0, SG.str) + '%'; mt.style.background = SG.str >= 60 ? 'var(--good)' : SG.str >= 30 ? 'var(--warn)' : 'var(--bad)';
+  Lab.$('#sgRanks').innerHTML = SRANK.map(x => `<span class="${SG.total >= x.s ? 'on' : ''}">${Lab.L(x.n)}</span>`).join('');
+  if (SG.phase === 'build'){
+    const gl = goldLeft();
+    P.innerHTML = `<b>${Lab.L(o('Step 1 · Choose a site','第1步 · 选择城址'))}</b><div class="seg">${Object.keys(SITES).map(k => `<button data-s="${k}" class="${SG.site === k ? 'on' : ''}">${Lab.L(SITES[k].n)}</button>`).join('')}</div>
+      <small class="muted">${Lab.L(SITES[SG.site].d)}</small>
+      <b>${Lab.L(o(`Step 2 · Build (💰 ${gl} gold left)`, `第2步 · 修建（💰 剩余${gl}金币）`))}</b>
+      <div class="bopts">${BUILD.map(b => { const free = b.k === 'moat' && SG.site === 'island', on = SG.B[b.k] || free;
+        return `<button class="bopt ${on ? 'on' : ''}" data-b="${b.k}" ${free || (!on && b.g > gl) ? 'disabled' : ''}>${on ? '✅' : '⬜'} ${Lab.L(b.n)} · ${free ? Lab.L(o('free','免费')) : b.g + '💰'}<small>${Lab.L(b.d)}</small></button>`; }).join('')}</div>
+      <div class="btnrow"><button class="btn" id="sgGo">${Lab.L(o('Start the siege ▶','开始守城 ▶'))}</button></div>`;
+    Lab.$$('#sgPanel .seg button').forEach(b => b.onclick = () => { SG.site = b.dataset.s; SG.B = {}; renderSiege(); });
+    Lab.$$('#sgPanel .bopt').forEach(b => b.onclick = () => { const k = b.dataset.b; SG.B[k] = !SG.B[k]; renderSiege(); });
+    Lab.$('#sgGo').onclick = () => { SG.phase = 'siege'; SG.str = 100; SG.food = 2 + (SG.B.granary ? 6 : 0); SG.order = Lab.shuffle(Object.keys(ATK)).slice(0, 5); SG.turn = 0; SG.pend = null; SG.stars = 0; SG.sc = 0; nextAtk(); };
+  } else if (SG.phase === 'siege'){
+    const A = ATK[SG.atk], mit = A.mit(F).filter(Boolean);
+    P.innerHTML = `<b>${Lab.L(o(`Attack ${SG.turn} of 5`, `第${SG.turn}波进攻（共5波）`))}</b><div class="atk"><h4>${Lab.L(A.n)}</h4><p>${Lab.L(A.d)}</p></div>
+      <small class="muted">🛡️ ${Lab.L(o('Your defences that help:','起作用的防御：'))} ${mit.length ? mit.map(m => Lab.L(m[1]) + (m[0] ? ` (−${m[0]})` : '')).join(Lab.lang === 'zh' ? '、' : ', ') : Lab.L(o('none!','没有！'))}${A.starve && !F.well ? ' · ' + Lab.L(o('⚠️ no well: +2 months used','⚠️ 没有水井：多消耗2个月')) : ''}</small>
+      ${SG.pend ? `<div class="result ${SG.pend.q >= 10 ? 'good' : SG.pend.q ? '' : 'bad'}">${Lab.L(SG.pend.t)}</div><div class="btnrow"><button class="btn" id="sgNext">${Lab.L(SG.turn >= 5 || SG.str <= 0 ? o('See the result ▶','查看结果 ▶') : o('Next attack ▶','下一波进攻 ▶'))}</button></div>`
+        : `<div class="resp">${SG.shuffled.map(i => `<button data-i="${i}">${Lab.L(A.r[i][2])}</button>`).join('')}</div>`}`;
+    Lab.$$('#sgPanel .resp button').forEach(b => b.onclick = () => respond(+b.dataset.i));
+    if (SG.pend) Lab.$('#sgNext').onclick = () => { SG.pend = null; if (SG.turn >= 5 || SG.str <= 0) endSiege(); else nextAtk(); };
+  } else {
+    const held = SG.str > 0;
+    P.innerHTML = `<div class="atk" style="border-color:${held ? 'var(--good)' : 'var(--bad)'}"><h4>${Lab.L(held ? o('🏰 Your castle held!','🏰 城堡守住了！') : o('🏳️ Your castle fell','🏳️ 城堡失守'))}</h4>
+      <p>${Lab.L(o(`Strength ${Math.max(0, SG.str)}/100 · food left ${Math.max(0, SG.food)} months · ${SG.sc} points this siege.`, `城堡强度 ${Math.max(0, SG.str)}/100 · 剩余存粮 ${Math.max(0, SG.food)} 个月 · 本次得分 ${SG.sc}。`))}</p></div>
+      <p style="margin:0">${Lab.L(o('Engineers’ lesson: water stops towers and tunnels, stone stops trebuchets, and food and water decide long sieges. That is why castles like Bodiam sit in a moat and Carcassonne on a hill.','工程经验：水能挡住攻城塔和地道，石墙能扛住抛石机，而长期围困的胜负取决于粮食和水。所以博迪亚姆城堡建在护城河中，卡尔卡松建在山丘上。'))}</p>
+      <div class="btnrow"><button class="btn" id="sgAgain">${Lab.L(o('Build a new castle ▶','再建一座城堡 ▶'))}</button></div>`;
+    Lab.$('#sgAgain').onclick = () => { SG.phase = 'build'; SG.atk = null; SG.str = 100; SG.stars = 0; renderSiege(); };
+  }
+  drawCastle();
+}
+function nextAtk(){ SG.atk = SG.order[SG.turn]; SG.turn++; SG.shuffled = Lab.shuffle([0, 1, 2]); Lab.$('#sgMsg').textContent = ''; renderSiege(); }
+function respond(i){
+  const A = ATK[SG.atk], F = flags(), r = A.r[i]; let dmg = 0, note;
+  if (A.starve){ const use = r[1] + (F.well ? 0 : 2); SG.food -= use; if (SG.food < 0){ dmg = Math.min(60, -SG.food * 15); note = o(` Food ran out — ${dmg} strength lost as defenders weaken.`, `粮食耗尽——守军虚弱，城堡强度下降${dmg}。`); } else note = o(` Used ${use} months of food.`, `消耗了${use}个月的粮食。`); if (i === 1) SG.str = Math.min(100, SG.str + 5); }
+  else { const m = A.mit(F).filter(Boolean).reduce((s, x) => s + x[0], 0); dmg = Math.max(0, A.base - m + r[1]); if (r[4]) SG.food -= r[4]; note = o(` Damage: ${dmg}.`, `损失强度：${dmg}。`); }
+  SG.str -= dmg; const pts = r[0] + (dmg === 0 ? 5 : 0); SG.sc += pts; SG.total += pts;
+  SG.pend = { q:r[0], t:o(`${r[0] >= 10 ? '✅ Great call! ' : r[0] ? '🙂 Not bad. ' : '❌ Poor choice. '}${r[3].en}${note.en} +${pts} points.`, `${r[0] >= 10 ? '✅ 好决策！' : r[0] ? '🙂 还可以。' : '❌ 不太明智。'}${r[3].zh}${note.zh}加${pts}分。`) };
+  renderSiege();
+}
+function endSiege(){ SG.phase = 'end'; SG.atk = null; SG.stars = SG.str >= 70 ? 3 : SG.str >= 40 ? 2 : SG.str > 0 ? 1 : 0; SG.total += SG.stars * 5; SG.sc += SG.stars * 5;
+  const rk = SRANK.filter(x => SG.total >= x.s).pop(), m = Lab.$('#sgMsg'); m.className = 'result good'; m.textContent = Lab.L(o(`${SG.stars} star${SG.stars === 1 ? '' : 's'} (+${SG.stars * 5}). Total ${SG.total} — title: ${rk.n.en}.`, `${SG.stars}颗星（加${SG.stars * 5}分）。总分${SG.total}——头衔：${rk.n.zh}。`)); renderSiege(); }
+new ResizeObserver(() => requestAnimationFrame(drawCastle)).observe(Lab.$('#castleCv'));
+Lab.onLang(renderSiege);
+</script>
+<script>
+/* ================= Black Death spread map ================= */
+const PL = [
+  { k:'caf', ll:[35.38,45.03], t:1346.75, p:null, n:o('Caffa (Feodosia)','卡法（今费奥多西亚）'), w:o('A Genoese trading port in Crimea, besieged by a Mongol army struck by plague. Fleeing ships carried it west.','克里米亚的热那亚商港，围城的蒙古军中暴发瘟疫，逃离的商船把它带向西方。') },
+  { k:'con', ll:[28.98,41.01], t:1347.4, p:'caf', n:o('Constantinople','君士坦丁堡'), w:o('The first big port on the sea route from the Black Sea.','从黑海出发的海路上第一个大港口。') },
+  { k:'ale', ll:[29.92,31.2], t:1347.75, p:'con', n:o('Alexandria','亚历山大'), w:o('Ships from Constantinople carried it to Egypt’s great port.','从君士坦丁堡出发的船把它带到埃及的大港。') },
+  { k:'mes', ll:[15.55,38.19], t:1347.8, p:'con', n:o('Messina (Sicily)','墨西拿（西西里岛）'), w:o('Twelve Genoese galleys docked here in October 1347 — the plague’s doorway into western Europe.','1347年10月，12艘热那亚船在这里靠岸——瘟疫由此进入西欧。') },
+  { k:'mar', ll:[5.37,43.3], t:1347.9, p:'mes', n:o('Marseille','马赛'), w:o('By sea from Sicily: France’s great Mediterranean port.','从西西里经海路到达法国最大的地中海港口。') },
+  { k:'gen', ll:[8.93,44.41], t:1348.0, p:'mes', n:o('Genoa','热那亚'), w:o('Its own trading ships brought it home.','热那亚自己的商船把它带回了家乡。') },
+  { k:'ven', ll:[12.33,45.44], t:1348.0, p:'mes', n:o('Venice','威尼斯'), w:o('Later, ports such as Ragusa and Venice made ships wait 30, then 40 days — the origin of the word “quarantine” (Italian quaranta = 40).','后来，拉古萨、威尼斯等港口让来船隔离30天、再改为40天——英语“检疫隔离”（quarantine）一词就来自意大利语的“40”。') },
+  { k:'flo', ll:[11.25,43.77], t:1348.25, p:'gen', n:o('Florence','佛罗伦萨'), w:o('Inland by road from the ports; the writer Boccaccio described it in the Decameron.','经陆路从港口传入；作家薄伽丘在《十日谈》中记述了这场瘟疫。') },
+  { k:'bar', ll:[2.17,41.38], t:1348.35, p:'mar', n:o('Barcelona','巴塞罗那'), w:o('Along the coast from southern France.','沿海岸从法国南部传来。') },
+  { k:'par', ll:[2.35,48.85], t:1348.45, p:'mar', n:o('Paris','巴黎'), w:o('Up the Rhône valley trade route from Marseille.','沿罗讷河谷的商路从马赛北上。') },
+  { k:'cai', ll:[31.24,30.04], t:1348.6, p:'ale', n:o('Cairo','开罗'), w:o('Up the Nile from Alexandria; Egypt and Syria suffered as badly as Europe.','沿尼罗河从亚历山大传入；埃及和叙利亚同样损失惨重。') },
+  { k:'lon', ll:[-0.13,51.5], t:1348.7, p:'par', n:o('London','伦敦'), w:o('It reached an English port in June 1348 by ship from France, then London by autumn.','1348年6月由法国来的船传到英格兰港口，秋天到达伦敦。') },
+  { k:'dub', ll:[-6.26,53.35], t:1348.75, p:'lon', n:o('Dublin','都柏林'), w:o('Across the Irish Sea by ship.','乘船越过爱尔兰海。') },
+  { k:'vie', ll:[16.37,48.21], t:1349.3, p:'ven', n:o('Vienna','维也纳'), w:o('Over the Alps on the trade roads from Venice.','沿着从威尼斯翻越阿尔卑斯山的商路。') },
+  { k:'col', ll:[6.96,50.94], t:1349.5, p:'par', n:o('Cologne','科隆'), w:o('Along the Rhine, Europe’s busiest river road.','沿莱茵河——欧洲最繁忙的水路。') },
+  { k:'ber', ll:[5.32,60.39], t:1349.6, p:'lon', n:o('Bergen (Norway)','卑尔根（挪威）'), w:o('A ship from England arrived carrying it in 1349.','1349年，一艘从英格兰来的船把它带到这里。') },
+  { k:'lub', ll:[10.69,53.87], t:1350.3, p:'col', n:o('Lübeck','吕贝克'), w:o('The great port of the Hanseatic trading league.','汉萨同盟的大商港。') },
+  { k:'sto', ll:[18.07,59.33], t:1350.5, p:'lub', n:o('Stockholm','斯德哥尔摩'), w:o('Across the Baltic on Hanseatic ships.','乘汉萨同盟的商船越过波罗的海。') },
+  { k:'nov', ll:[31.27,58.52], t:1352.25, p:'lub', n:o('Novgorod','诺夫哥罗德'), w:o('A Russian trading city linked to the Hanseatic League.','与汉萨同盟有贸易往来的俄罗斯商业城市。') },
+  { k:'mos', ll:[37.62,55.75], t:1353.25, p:'nov', n:o('Moscow','莫斯科'), w:o('Overland from the north-west.','从西北方经陆路传入。') }
+];
+const PLC = '#a33a3a';
+const PS = { t:1346.5, timer:null, q:null, right:0, tries:0 };
+const season = (t, lg) => { const y = Math.floor(t), q = Math.round((t - y) * 4) % 4; return (lg || Lab.lang) === 'zh' ? `${y}年${['冬','春','夏','秋'][q]}` : `${['Winter','Spring','Summer','Autumn'][q]} ${y}`; };
+const PM = WMap.create('#plStage', '#plCv', { extent:[[-11,29],[42,62]], note:o('Schematic map · approximate arrival seasons','示意图 · 到达时间为大致季节'),
+  overlay: (g, M) => {
+    g.save(); M.clipLand(); g.fillStyle = "rgba(176,138,60,.10)"; g.fillRect(0, 0, M.W, M.H); g.restore();
+    const ink = WMap.css('--ink'), ink2 = WMap.css('--ink-2'), surf = WMap.css('--surface'), t = PS.t, got = PL.filter(c => c.t <= t);
+    g.save(); M.clipLand(); got.forEach(c => { const p = M.xy(c.ll), rd = Math.min(4.2, .8 + (t - c.t) * 2.6), q = M.xy([c.ll[0] + rd, c.ll[1]]); if (!p || !q) return;
+      g.beginPath(); g.arc(p[0], p[1], Math.abs(q[0] - p[0]), 0, 7); g.globalAlpha = .2; g.fillStyle = PLC; g.fill(); g.globalAlpha = 1; }); g.restore();
+    got.forEach(c => { if (!c.p) return; const pa = PL.find(x => x.k === c.p); M.line([pa.ll, c.ll], PLC, 1.8, [5, 4]); });
+    PL.forEach(c => { const on = c.t <= t, p = M.dot(c.ll, on ? 5.5 : 4, on ? PLC : surf, on ? surf : ink2); if (!p) return;
+      if (on || !M.small) M.text(Lab.L(c.n).replace(/ \(.*\)|（.*）/, ''), p[0] + 7, p[1] - 8, { s:10.5, a:'left', c:on ? ink : ink2, w:on ? 800 : 600 }); });
+  } });
+function renderPl(){
+  const t = PS.t, got = PL.filter(c => c.t <= t), last = got[got.length - 1];
+  Lab.$('#plT').value = t; Lab.$('#plOut').textContent = season(t); Lab.$('#plN').textContent = got.length + '/' + PL.length; Lab.$('#plLast').textContent = last ? Lab.L(last.n).replace(/ \(.*\)|（.*）/, '') : '–';
+  Lab.$('#plPlay').textContent = PS.timer ? '⏸' : '▶'; Lab.$('#plScore').textContent = PS.right * 10;
+  const st = PS.tries < 3 ? 0 : PS.right / PS.tries >= .8 ? 3 : PS.right / PS.tries >= .5 ? 2 : 1; Lab.$('#plStars').textContent = '★'.repeat(st) + '☆'.repeat(3 - st);
+  Lab.$('#plTip').textContent = last ? Lab.L(last.n) + ' — ' + Lab.L(last.w) : Lab.L(o('Press ▶ or drag the time.','按 ▶ 或拖动时间。'));
+  const q = PS.q; Lab.$('#plPred').innerHTML = q ? q.opts.map(c => `<button data-k="${c.k}" class="${q.ans ? (c === q.next ? 'right' : c.k === q.ans ? 'wrong' : '') : ''}">${Lab.L(c.n)}</button>`).join('') : '';
+  Lab.$$('#plPred button').forEach(b => b.onclick = () => { if (q.ans) return; q.ans = b.dataset.k; PS.tries++; const ok = q.ans === q.next.k; if (ok) PS.right++; plStop(); PS.t = q.next.t; const pa = PL.find(x => x.k === q.next.p);
+    const m = Lab.$('#plMsg'); m.className = 'result ' + (ok ? 'good' : 'bad'); m.textContent = Lab.L(o(`${ok ? '✅ Correct! ' : '❌ It was ' + q.next.n.en + '. '}${season(q.next.t, 'en')}: ${q.next.w.en}${pa ? ' (from ' + pa.n.en + ')' : ''}`, `${ok ? '✅ 预测正确！' : '❌ 答案是' + q.next.n.zh + '。'}${season(q.next.t, 'zh')}：${q.next.w.zh}${pa ? '（来自' + pa.n.zh + '）' : ''}`)); renderPl(); });
+  PM.draw();
+}
+function plStop(){ if (PS.timer){ clearInterval(PS.timer); PS.timer = null; } }
+Lab.$('#plT').oninput = e => { plStop(); PS.t = +e.target.value; PS.q = null; renderPl(); };
+Lab.$('#plPlay').onclick = () => { if (PS.timer){ plStop(); renderPl(); return; } if (PS.t >= 1353.5) PS.t = 1346.5; PS.timer = setInterval(() => { if (PS.t >= 1353.5){ plStop(); } else PS.t = Math.round((PS.t + .25) * 4) / 4; renderPl(); }, 700); renderPl(); };
+Lab.$('#plAsk').onclick = () => { const left = PL.filter(c => c.t > PS.t).sort((a, b) => a.t - b.t), m = Lab.$('#plMsg');
+  if (!left.length){ PS.q = null; m.className = 'result good'; m.textContent = Lab.L(o('The plague has reached every city on the map. Drag the time back to forecast again.','瘟疫已经到达地图上所有城市。把时间往回拖，可以再预测一次。')); renderPl(); return; }
+  const next = left[0], others = Lab.shuffle(left.filter(c => c !== next && c.t - next.t >= .5)).slice(0, 2);
+  if (others.length < 2) others.push(...Lab.shuffle(PL.filter(c => c.t < PS.t && c !== next)).slice(0, 2 - others.length));
+  PS.q = { next, opts:Lab.shuffle([next, ...others]), ans:null }; m.className = 'result'; m.textContent = Lab.L(o(`Which city does the plague reach next after ${season(PS.t, 'en')}? Think: ships and trade routes.`, `${season(PS.t, 'zh')}之后，瘟疫下一站会到哪里？提示：想想商船和商路。`)); renderPl(); };
+const POP = [ [1300, 75], [1347, 75], [1353, 50], [1400, 50], [1450, 55], [1500, 70] ];
+function renderPop(){ Lab.$('#popBars').innerHTML = POP.map(([y, v]) => `<div class="row ${y === 1353 ? 'hit' : ''}"><span>${y}</span><span class="t"><i style="width:${v / 80 * 100}%"></i></span><span>≈ ${Lab.lang === 'zh' ? v * 100 + '万' : v + ' million'}</span></div>`).join(''); }
+Lab.onLang(() => { renderPl(); renderPop(); });
+
+/* ================= House of Wisdom matcher ================= */
+const WS = [ { k:'kh', n:o('al-Khwarizmi','花剌子米'), s:o('mathematician, c. 780–850','数学家，约780—850年') }, { k:'is', n:o('Ibn Sina (Avicenna)','伊本·西拿（阿维森纳）'), s:o('doctor & philosopher, 980–1037','医学家、哲学家，980—1037年') },
+  { k:'ja', n:o('al-Jazari','加扎利'), s:o('engineer, c. 1136–1206','工程师，约1136—1206年') }, { k:'ih', n:o('Ibn al-Haytham','伊本·海赛姆'), s:o('scientist, c. 965–1040','科学家，约965—1040年') },
+  { k:'in', n:o('Idea from India','来自印度的知识'), s:o('carried west by Arab scholars','由阿拉伯学者向西传播') }, { k:'cn', n:o('Craft from China','来自中国的技术'), s:o('arrived via Central Asia','经中亚传入') } ];
+const WC = [ { a:'kh', t:o('Wrote the book whose title gave us the word “algebra” (al-jabr)','他的书名给了我们“代数”（al-jabr）这个词') }, { a:'kh', t:o('His name, written in Latin, became the word “algorithm”','他的名字拉丁化后变成了“算法”（algorithm）一词') },
+  { a:'is', t:o('The Canon of Medicine, used in European universities for centuries','《医典》，在欧洲大学里被用作教材长达几百年') }, { a:'is', t:o('Taught that some diseases spread through contact and that new medicines should be tested','提出有些疾病会通过接触传播，新药应当经过试验') },
+  { a:'ja', t:o('The elephant clock, powered by water','以水为动力的“大象钟”') }, { a:'ja', t:o('A 1206 book of ingenious machines with gears and water pumps','1206年写成的机械巧技之书，介绍齿轮和水泵') },
+  { a:'ih', t:o('Showed that we see because light travels into our eyes','证明我们能看见东西，是因为光进入了眼睛') }, { a:'ih', t:o('The Book of Optics — tested ideas with careful experiments','《光学书》——用细致的实验检验观点') },
+  { a:'in', t:o('Ten digits, 0–9, with a symbol for zero','十个数字0—9，包括表示“零”的符号') }, { a:'in', t:o('Europeans called them “Arabic numerals”','欧洲人称它们为“阿拉伯数字”') },
+  { a:'cn', t:o('Paper-making, known in Samarkand by the 700s','造纸术，8世纪时撒马尔罕已经掌握') }, { a:'cn', t:o('Baghdad’s paper mills made books cheaper than parchment','巴格达的造纸作坊让书比羊皮纸书便宜得多') } ];
+(function(){
+  const S = { sel:null, done:{}, bad:null, miss:0, cards:Lab.shuffle(WC.map((c, i) => ({ ...c, i }))) };
+  function render(){
+    Lab.$('#wisSlots').innerHTML = WS.map(w => `<div class="slot ${S.sel != null ? 'ready' : ''}" data-w="${w.k}"><h4>${Lab.L(w.n)}</h4><small>${Lab.L(w.s)}</small>${S.cards.filter(c => S.done[c.i] && c.a === w.k).map(c => `<div class="got">✓ ${Lab.L(c.t)}</div>`).join('')}</div>`).join('');
+    Lab.$('#wisCards').innerHTML = S.cards.filter(c => !S.done[c.i]).map(c => `<button data-i="${c.i}" class="${S.sel === c.i ? 'sel' : ''} ${S.bad === c.i ? 'bad' : ''}">${Lab.L(c.t)}</button>`).join('');
+    Lab.$$('#wisCards button').forEach(b => b.onclick = () => { S.sel = +b.dataset.i; S.bad = null; render(); });
+    Lab.$$('#wisSlots .slot').forEach(s => s.onclick = () => { if (S.sel == null) return; if (WC[S.sel].a === s.dataset.w){ S.done[S.sel] = 1; S.sel = null; S.bad = null; } else { S.bad = S.sel; S.miss++; } render(); });
+    const n = Object.keys(S.done).length, m = Lab.$('#wisMsg'); m.className = 'result ' + (S.bad != null ? 'bad' : 'good');
+    m.textContent = n === WC.length ? Lab.L(o(`🎉 All 12 matched with ${S.miss} mistake${S.miss === 1 ? '' : 's'}! Translated into Latin in Spain and Sicily, these books later helped spark Europe’s Renaissance.`, `🎉 12张卡片全部配对，失误${S.miss}次！这些书后来在西班牙和西西里被译成拉丁文，推动了欧洲的文艺复兴。`))
+      : S.bad != null ? Lab.L(o('Not quite — try another scholar.','不对哦——换一位学者试试。')) : Lab.L(o(`${n} of 12 matched.`, `已配对${n}／12张。`));
+  }
+  Lab.onLang(render);
+})();
+</script>
+<script>
+/* ================= Quiz, sort, gallery ================= */
+const QUIZ = [
+  {q:o('Which event in 476 is usually taken as the start of Europe’s Middle Ages?','通常把哪一事件（476年）作为欧洲中世纪的开端？'), options:[o('The fall of the Western Roman Empire','西罗马帝国灭亡'),o('The fall of Constantinople','君士坦丁堡陷落'),o('Charlemagne’s coronation','查理曼加冕'),o('The First Crusade','第一次十字军东征')], answer:0},
+  {q:o('The Treaty of Verdun (843) split Charlemagne’s empire into…','《凡尔登条约》（843年）把查理曼帝国分成了'), options:[o('Three kingdoms — the seeds of France, Germany and Italy','三个王国——法国、德国、意大利的雏形'),o('Two empires, East and West','东、西两个帝国'),o('Hundreds of city-states','数百个城邦'),o('Crusader states','十字军国家')], answer:0},
+  {q:o('“The vassal of my vassal is not my vassal” means that a knight…','“我的附庸的附庸，不是我的附庸”意思是，一名骑士'), options:[o('Owes loyalty to his own lord, not directly to the king','只效忠于自己的领主，而不直接效忠国王'),o('Owes loyalty only to the pope','只效忠于教皇'),o('Owes nothing to anyone','不对任何人负有义务'),o('Must serve every lord in the kingdom','必须为全国每一位领主服务')], answer:0},
+  {q:o('What was the basic economic unit of medieval western Europe, worked by serfs?','中世纪西欧由农奴耕作的基本经济单位是'), options:[o('The manor','庄园'),o('The factory','工厂'),o('The city-state','城邦'),o('The guild','行会')], answer:0},
+  {q:o('Which Byzantine emperor ordered the great collection of Roman law that still shapes European law?','哪位拜占庭皇帝下令编纂了至今仍影响欧洲法律的罗马法汇编？'), options:[o('Justinian','查士丁尼'),o('Charlemagne','查理曼'),o('Constantine','君士坦丁'),o('Mehmed II','穆罕默德二世')], answer:0},
+  {q:o('The Byzantine Empire ended in 1453 when…','1453年拜占庭帝国灭亡，是因为'), options:[o('The Ottomans captured Constantinople','奥斯曼帝国攻占了君士坦丁堡'),o('The Black Death reached Rome','黑死病传到了罗马'),o('Charlemagne conquered it','查理曼征服了它'),o('The Mongols took Baghdad','蒙古攻占了巴格达')], answer:0},
+  {q:o('Map reading: set the map to the year 740. Which state stretches from Spain to Central Asia?','读图：把地图调到740年。哪个国家从西班牙一直延伸到中亚？'), options:[o('The Umayyad Caliphate','倭马亚王朝'),o('The Byzantine Empire','拜占庭帝国'),o('Charlemagne’s empire','查理曼帝国'),o('The Ottoman Empire','奥斯曼帝国')], answer:0, explain:o('At its height it covered about 11 million km² across Asia, Africa and Europe.','它鼎盛时约1100万平方千米，横跨亚、非、欧三洲。')},
+  {q:o('The House of Wisdom, where scholars translated Greek, Persian and Indian books, was in…','学者们翻译希腊、波斯和印度书籍的“智慧馆”位于'), options:[o('Baghdad','巴格达'),o('Paris','巴黎'),o('Rome','罗马'),o('Aachen','亚琛')], answer:0},
+  {q:o('The “Arabic numerals” 0–9 were first developed in…','“阿拉伯数字”0—9最早起源于'), options:[o('India','印度'),o('Arabia','阿拉伯半岛'),o('Greece','希腊'),o('Rome','罗马')], answer:0, explain:o('Arab scholars spread them to Europe, so Europeans named them after the Arabs.','阿拉伯学者把它们传到欧洲，所以欧洲人称之为“阿拉伯数字”。')},
+  {q:o('What was the main goal of the First Crusade (1096–1099)?','第一次十字军东征（1096—1099年）的主要目标是'), options:[o('To take Jerusalem','夺取耶路撒冷'),o('To conquer Baghdad','征服巴格达'),o('To defend Paris','保卫巴黎'),o('To reach China','到达中国')], answer:0},
+  {q:o('Figure reading: Europe’s population fell from about 75 million to about 50 million. That is a loss of roughly…','读图：欧洲人口从约7500万降到约5000万，大约减少了'), options:[o('One third','三分之一'),o('One tenth','十分之一'),o('Three quarters','四分之三'),o('Almost nothing','几乎没有减少')], answer:0, explain:o('25 out of 75 = 1/3. Some regions lost half their people.','75中减少25＝三分之一。有些地区甚至失去了一半人口。')},
+  {q:o('One important result of the Black Death was that…','黑死病的一个重要后果是'), options:[o('Workers were scarce, so wages rose and many serfs gained freedom','劳动力短缺，工钱上涨，许多农奴获得自由'),o('Feudalism became stronger than ever','封建制度比以往更牢固'),o('Europe’s population doubled','欧洲人口翻了一番'),o('Trade with Asia stopped forever','与亚洲的贸易永远中断')], answer:0}
+];
+const SORT = { bins:[{id:'we',en:'Western Europe',zh:'西欧'},{id:'by',en:'Byzantine Empire',zh:'拜占庭帝国'},{id:'ar',en:'Arab empire',zh:'阿拉伯帝国'}],
+  items:[ {en:'Charlemagne',zh:'查理曼',bin:'we'},{en:'Manors and serfs',zh:'庄园和农奴',bin:'we'},{en:'University of Bologna',zh:'博洛尼亚大学',bin:'we'},{en:'Magna Carta',zh:'《大宪章》',bin:'we'},
+    {en:'Justinian',zh:'查士丁尼',bin:'by'},{en:'Hagia Sophia',zh:'圣索菲亚大教堂',bin:'by'},{en:'Code of Justinian',zh:'《查士丁尼法典》',bin:'by'},{en:'Capital: Constantinople',zh:'都城：君士坦丁堡',bin:'by'},
+    {en:'House of Wisdom',zh:'智慧馆',bin:'ar'},{en:'Caliph Harun al-Rashid',zh:'哈里发哈伦·拉希德',bin:'ar'},{en:'al-Khwarizmi’s algebra',zh:'花剌子米的代数',bin:'ar'},{en:'Capital: Baghdad (from 762)',zh:'都城：巴格达（762年起）',bin:'ar'} ] };
+Lab.quiz(Lab.$('#quiz'), QUIZ, { count:12 });
+Lab.sort(Lab.$('#sort'), SORT);
+const CQ = '?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', CT = 'https://thumb.wikimedia.org/wikipedia/commons/thumb/', CP = 'https://commons.wikimedia.org/wiki/File:';
+const PH = o('Photo','照片'), MS = o('Manuscript','手稿'), VID = o('Video','视频');
+const PHOTOS = [
+  { src:CT + 'a/af/Notre-Dame_de_Paris_2013-07-24.jpg/960px-Notre-Dame_de_Paris_2013-07-24.jpg' + CQ, en:'Notre-Dame de Paris, west front (2013). This Gothic cathedral was begun in 1163.', zh:'巴黎圣母院西立面（2013年摄）。这座哥特式大教堂始建于1163年。', kind:PH, credit:'P e z i', license:'CC BY-SA 3.0', page:CP + 'Notre-Dame_de_Paris_2013-07-24.jpg' },
+  { src:CT + '2/22/Hagia_Sophia_Mars_2013.jpg/960px-Hagia_Sophia_Mars_2013.jpg' + CQ, en:'Hagia Sophia in Istanbul (once Constantinople), built 532–537 for Emperor Justinian. The minarets were added later, after 1453.', zh:'伊斯坦布尔（昔日的君士坦丁堡）的圣索菲亚大教堂，532—537年为查士丁尼皇帝修建。宣礼塔是1453年以后加建的。', kind:PH, credit:'Arild Vågen', license:'CC BY-SA 3.0', page:CP + 'Hagia_Sophia_Mars_2013.jpg' },
+  { src:CT + '6/60/Bodiam_Castle_from_the_north_2019-05-28.jpg/960px-Bodiam_Castle_from_the_north_2019-05-28.jpg' + CQ, en:'Bodiam Castle, a 14th-century moated castle in East Sussex, England, seen from the north over its drawbridge.', zh:'英格兰东萨塞克斯郡的博迪亚姆城堡，一座14世纪的护城河城堡，从北面隔着吊桥拍摄。', kind:PH, credit:'August Schwerdfeger', license:'CC BY 4.0', page:CP + 'Bodiam_Castle_from_the_north_2019-05-28.jpg' },
+  { src:CT + '2/25/1_carcassonne_aerial_2016.jpg/960px-1_carcassonne_aerial_2016.jpg' + CQ, en:'Aerial view of the walled Cité de Carcassonne in southern France, with its double ring of walls and towers.', zh:'法国南部卡尔卡松城堡（卡尔卡松古城）航拍，可以看到两道城墙和许多塔楼。', kind:PH, credit:'Chensiyuan', license:'CC BY-SA 4.0', page:CP + '1_carcassonne_aerial_2016.jpg' },
+  { src:CT + 'e/ee/Magna_Carta_%28British_Library_Cotton_MS_Augustus_II.106%29.jpg/960px-Magna_Carta_%28British_Library_Cotton_MS_Augustus_II.106%29.jpg' + CQ, en:'Magna Carta of 1215, written in medieval Latin on parchment (British Library copy).', zh:'1215年的《大宪章》，用中世纪拉丁文写在羊皮纸上（英国国家图书馆藏本）。', kind:o('Document','原始文件'), credit:'Barons and King John of England (uploaded by Earthsound)', license:'Public domain', page:CP + 'Magna_Carta_(British_Library_Cotton_MS_Augustus_II.106).jpg' },
+  { src:CT + '7/7a/Bayeux_Tapestry_scene23_Harold_sacramentum_fecit_Willelmo_duci.jpg/960px-Bayeux_Tapestry_scene23_Harold_sacramentum_fecit_Willelmo_duci.jpg' + CQ, en:'Bayeux Tapestry, scene 23: Harold swears an oath on holy relics to William, Duke of Normandy — a promise at the heart of the 1066 Norman Conquest.', zh:'贝叶挂毯第23幕：哈罗德手按圣物向诺曼底公爵威廉宣誓——这个誓言是1066年诺曼征服的起因之一。', kind:o('Embroidery','刺绣'), credit:'Myrabella', license:'Public domain', page:CP + 'Bayeux_Tapestry_scene23_Harold_sacramentum_fecit_Willelmo_duci.jpg' },
+  { src:CT + 'b/b3/Albrecht_D%C3%BCrer_-_Emperor_Charlemagne.jpg/960px-Albrecht_D%C3%BCrer_-_Emperor_Charlemagne.jpg' + CQ, en:'Emperor Charlemagne, an idealised portrait by Albrecht Dürer, painted about 700 years after Charlemagne lived.', zh:'丢勒画的《查理曼大帝》理想化肖像，画于查理曼去世约700年之后。', kind:o('Painting','绘画'), credit:'Albrecht Dürer', license:'Public domain', page:CP + 'Albrecht_D%C3%BCrer_-_Emperor_Charlemagne.jpg' },
+  { src:CT + '7/76/Al-jazari_elephant_clock.png/960px-Al-jazari_elephant_clock.png' + CQ, en:'The elephant clock from al-Jazari’s book of ingenious mechanical devices (1206). Water inside the elephant drove the clock.', zh:'加扎利《精巧机械装置知识之书》（1206年）中的“大象钟”。大象体内的水驱动着时钟。', kind:MS, credit:'Al-Jazari', license:'Public domain', page:CP + 'Al-jazari_elephant_clock.png' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/7/7d/Burying_Plague_Victims_of_Tournai.jpg', en:'People of Tournai (in today’s Belgium) burying victims of the plague — a detail from a 14th-century illuminated manuscript.', zh:'图尔奈（今比利时境内）的人们安葬瘟疫死难者——14世纪彩绘手抄本的局部。', kind:MS, credit:'Unknown author', license:'Public domain', page:CP + 'Burying_Plague_Victims_of_Tournai.jpg' },
+  { type:'youtube', yt:'eR5blcjll8o', en:'Video: How to attack (and defend) a medieval castle.', zh:'视频：怎样进攻（和防守）一座中世纪城堡（英文）。', kind:VID, credit:'TED-Ed (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'rQ0EKiCt6H8', en:'Video: The rise and fall of the medieval Islamic Empire.', zh:'视频：中世纪伊斯兰帝国的兴衰（英文）。', kind:VID, credit:'TED-Ed (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'ySClB6-OH-Q', en:'Video: The past, present, and future of the bubonic plague.', zh:'视频：鼠疫的过去、现在和未来（英文）。', kind:VID, credit:'TED-Ed (YouTube)', license:'YouTube' }
+];
+LabPhotos.render('#gallery', PHOTOS, { title:o('See the real thing','看看真实的历史'), sub:o('Real castles, cathedrals, documents and manuscripts from the Middle Ages, plus short videos. Click to enlarge; videos open on YouTube.','中世纪真实的城堡、教堂、文件和手抄本，还有几段短视频。点击可放大；视频在 YouTube 打开。') });
+</script>
+</body>
+</html>

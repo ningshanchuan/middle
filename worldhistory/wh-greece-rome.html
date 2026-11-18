@@ -1,0 +1,818 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ancient Greece & Rome: City-States to Empire</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/photos.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-array@3.2.4/dist/d3-array.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-geo@3.1.0/dist/d3-geo.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<style>
+#mapStage{min-height:580px}#mapStage canvas,#roadStage canvas{touch-action:pan-y;cursor:pointer}
+#map .explorer{align-items:start}
+@media (max-width:560px){#mapStage{min-height:500px}}
+.info .date{font-family:Fredoka;font-weight:700;font-size:19px;color:var(--brand);margin-top:-8px}
+.legend2{display:flex;flex-wrap:wrap;gap:10px;font-size:14px;font-weight:700;margin-top:10px}
+.legend2 i{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:5px;border:1px solid var(--line)}
+.yc{padding:18px 20px;margin-top:14px;display:flex;flex-direction:column;gap:12px}
+.yc-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.yc-head b.big{font-family:Fredoka;font-size:34px;line-height:1;color:var(--brand)}
+.yc-ev{border-left:5px solid var(--brand);padding:2px 0 2px 12px}
+.yc-ev h4{margin:0 0 2px;font-size:19px}.yc-ev p{margin:0;font-size:15.5px}
+.cn{border-left:5px solid #c0392b;padding:2px 0 2px 12px;font-size:15px}
+.cn small{display:block;font-weight:800;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:#c0392b}
+.readout{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.camp{padding:18px 20px;display:flex;flex-direction:column;gap:12px;margin-bottom:18px}
+.camp .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.camp .ms{border:1px solid var(--line);border-radius:12px;padding:5px 10px;font-weight:800;font-size:14px;background:var(--surface-2)}
+.camp .ms b{color:var(--warn);letter-spacing:2px}
+.og-bar{height:10px;border-radius:999px;background:var(--surface-2);overflow:hidden}
+.og-bar i{display:block;height:100%;background:var(--brand);border-radius:999px;transition:width .3s}
+.ranks{display:inline-flex;flex-wrap:wrap;gap:6px}
+.ranks span{border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:13px;font-weight:800;color:var(--ink-2)}
+.ranks span.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.city2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.city2 button.pick{border:2px solid var(--line);background:var(--surface-2);border-radius:18px;padding:16px;text-align:left;font-weight:700;color:var(--ink)}
+.city2 button.pick:hover,.city2 button.pick.on{border-color:var(--brand)}
+.city2 button.pick b{font-family:Fredoka;font-size:24px;display:block}
+.stagebox{padding:18px 20px;display:flex;flex-direction:column;gap:12px}
+.stagebox .age{font-family:Fredoka;font-size:20px;color:var(--brand)}
+.choices{display:flex;flex-direction:column;gap:8px}
+.choices button{border:2px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:14px;padding:11px 14px;font-weight:700;text-align:left}
+.choices button:hover{border-color:var(--brand)}.choices button.right{border-color:var(--good)}.choices button.wrong{border-color:var(--bad)}
+.cmp{width:100%;border-collapse:collapse;font-size:15px}
+.cmp th,.cmp td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+.cmp th{font-size:13px;color:var(--ink-2);text-transform:uppercase;letter-spacing:.04em}
+.dots{display:grid;grid-template-columns:repeat(25,1fr);gap:3px;max-width:420px}
+.dots i{aspect-ratio:1;border-radius:50%;background:var(--surface-2);border:1px solid var(--line)}
+.dots i.v{background:var(--brand);border-color:var(--brand)}
+.ctl{display:flex;flex-direction:column;gap:6px}
+.ctl label{font-weight:800;font-size:14px}
+.ctl input[type=range]{width:100%}
+.ro{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.leg{display:flex;flex-wrap:wrap;gap:6px}
+.res{padding:20px;display:flex;flex-direction:column;gap:12px}
+.rrow{display:grid;grid-template-columns:170px minmax(0,1fr) auto;gap:12px;align-items:center;border-bottom:1px solid var(--line);padding-bottom:10px}
+.rrow .rb{display:flex;flex-direction:column;gap:5px}
+.rrow .rb div{display:grid;grid-template-columns:28px minmax(0,1fr) 120px;gap:6px;align-items:center;font-size:13.5px;font-weight:700}
+.rrow .rb .t{height:16px;border-radius:999px;background:var(--surface-2);overflow:hidden}.rrow .rb .t i{display:block;height:100%;border-radius:999px;transition:width .6s}
+.rrow .guess{display:flex;gap:6px}
+.rrow .guess button{border:2px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:999px;padding:5px 10px;font-weight:800;font-size:13.5px}
+.rrow .guess button.right{border-color:var(--good)}.rrow .guess button.wrong{border-color:var(--bad)}
+.stars{color:var(--warn);letter-spacing:3px;font-size:20px}
+@media (max-width:760px){.readout{grid-template-columns:1fr 1fr}.city2{grid-template-columns:1fr}.rrow{grid-template-columns:1fr}.dots{grid-template-columns:repeat(20,1fr)}}
+</style>
+</head>
+<body data-subject="worldhistory" data-topic="wh-greece-rome">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="世界历史 · 统编版九年级上册第二单元《古代欧洲文明》第4—6课 · 佐治亚州 SSWH3">World History · Georgia GSE SSWH3 · Chinese textbook Grade 9 Vol. 1, Unit 2 “Ancient European Civilizations”, Lessons 4–6</span>
+  <h1 data-zh-html="古希腊与古罗马：<em>从城邦到帝国</em>">Ancient Greece &amp; Rome: <em>from city-states to empire</em></h1>
+  <p class="lead" data-zh-html="一座只有几十万人口的小城邦，怎么发明了“民主”？台伯河边的一个小村庄，又怎么变成了从英国一直延伸到埃及的大帝国，修出的引水渠今天还立在原地？<br><b>你的任务：</b>拖动时间看帝国扩张和收缩；选择做一个雅典人还是斯巴达人；像罗马工程师一样设计引水渠的坡度、修建道路网、组建军团——集齐星星，从“新兵”晋升为“执政官”。">How did one small city-state invent democracy? And how did a village on the Tiber River grow into an empire from Britain to Egypt — one whose aqueducts are still standing today?<br><b>Your mission:</b> scrub through time to watch empires grow and shrink, choose to grow up in Athens or Sparta, then work as a Roman engineer: set an aqueduct’s slope, build a road network and form a legion. Collect stars to rise from Recruit to Consul.</p>
+</header>
+
+<section class="wrap" id="map" data-nav="Empire map" data-nav-zh="帝国地图">
+  <div class="sec-head">
+    <h2 data-zh="互动地图：希腊、波斯、亚历山大与罗马（公元前800年—公元476年）">Interactive map: Greece, Persia, Alexander and Rome (800 BCE – 476 CE)</h2>
+    <p data-zh="拖动时间滑块或按 ▶ 播放，看各个帝国怎样扩张、分裂和消失。点击地图上的城市看详情。">Drag the time slider or press ▶ to watch empires grow, split and vanish. Click a city on the map for details.</p>
+  </div>
+  <div class="explorer">
+    <div class="stage card" id="mapStage">
+      <canvas id="mapCv"></canvas>
+      <div class="toolbar">
+        <button class="tbtn on" id="btnCities" data-zh="🏛️ 城市">🏛️ Cities</button>
+        <button class="tbtn on" id="btnLabels" data-zh="🏷️ 帝国名称">🏷️ Empire names</button>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="timebar" style="margin-top:12px"><button id="playBtn" aria-label="Play">▶</button><input id="tm" type="range" min="-800" max="476" step="1" value="-800" aria-label="Year"><output id="tmOut">800 BCE</output></div>
+  <div class="legend2" id="legend"></div>
+  <div class="card yc" aria-live="polite">
+    <div class="readout">
+      <div class="counter"><b id="roRome">–</b><span data-zh="罗马的政体">Rome is a…</span></div>
+      <div class="counter"><b id="roArea">–</b><span data-zh="罗马统治面积（约，百万平方千米）">Roman land (approx., million km²)</span></div>
+      <div class="counter"><b id="roBig">–</b><span data-zh="这时最大的帝国（地图范围内）">biggest empire on the map</span></div>
+      <div class="counter"><b id="roUS">–</b><span data-zh="相当于美国本土48州面积的百分比">as % of the US lower 48</span></div>
+    </div>
+    <div class="yc-head"><b class="big" id="ycDate">–</b><div class="btnrow" style="margin-left:auto"><button class="btn ghost" id="evPrev" data-zh="◀ 上一件大事">◀ Previous event</button><button class="btn" id="evNext" data-zh="下一件大事 ▶">Next event ▶</button></div></div>
+    <div id="ycList" style="display:flex;flex-direction:column;gap:10px"></div>
+    <div class="cn" id="cnBox"></div>
+  </div>
+  <div class="mix" style="margin-top:14px"><b data-zh="⚠️ 易错点：">⚠️ Don’t mix up:</b><span data-zh="罗马共和国（前509—前27年）不等于罗马帝国（前27—公元476年）。共和国由选举产生的执政官和元老院治理；屋大维建立“元首制”后，罗马才进入帝国时代。另外，“西罗马帝国灭亡”（476年）后，东罗马帝国（拜占庭帝国）又延续了近一千年，直到1453年。">The Roman Republic (509–27 BCE) is not the Roman Empire (27 BCE – 476 CE). The Republic was run by elected consuls and the Senate; only when Octavian (Augustus) became first emperor did the Empire begin. And when the Western Empire fell in 476, the Eastern Roman (Byzantine) Empire lasted almost 1,000 more years, until 1453.</span></div>
+</section>
+
+<section class="wrap" id="polis" data-nav="Athens vs Sparta" data-nav-zh="雅典与斯巴达">
+  <div class="sec-head">
+    <h2 data-zh="任务1：雅典还是斯巴达？选一座城邦长大">Mission 1: Athens or Sparta? Pick a city to grow up in</h2>
+    <p data-zh="希腊不是一个国家，而是几百个独立的“城邦”。选一座城邦，以一个公民家庭男孩的身份长大：每个年龄段猜一猜，在那座城邦里真实的生活是什么样的。猜对越多，星星越多。">Greece was not one country but hundreds of independent city-states (polis). Pick one and grow up as a boy from a citizen family: at each age, guess what really happened there. More right guesses = more stars.</p>
+  </div>
+  <div class="city2" id="cityPick">
+    <button class="pick" data-c="ath"><b data-zh="🦉 雅典">🦉 Athens</b><span data-zh="海上贸易强国，民主政治的诞生地，哲学家和剧场之城。">Sea-trading power, birthplace of democracy, city of philosophers and theatres.</span></button>
+    <button class="pick" data-c="spa"><b data-zh="🛡️ 斯巴达">🛡️ Sparta</b><span data-zh="陆上军事强国，公民从小接受严格的军事训练。">Land military power where citizens trained as soldiers from childhood.</span></button>
+  </div>
+  <div class="card stagebox" id="lifeBox" style="margin-top:14px"></div>
+  <div class="grid2" style="margin-top:14px;gap:14px">
+    <div class="card res">
+      <h3 data-zh="🗳️ 雅典：谁能投票？">🗳️ Athens: who could vote?</h3>
+      <p class="muted" style="margin:0" data-zh="公元前5世纪的阿提卡约有25万—30万人，但只有年满18岁、父母都是雅典人的成年男性公民（约3万—4万人）可以参加公民大会。女性、外邦人和奴隶都不能投票。下面每个圆点代表约1%的人口。">Around 430 BCE, Attica had roughly 250,000–300,000 people, but only adult male citizens with Athenian parents — about 30,000–40,000 — could vote in the Assembly. Women, foreigners and enslaved people could not. Each dot ≈ 1% of the people.</p>
+      <div class="dots" id="dots"></div>
+      <p class="cap muted" style="font-size:12.5px;margin:0" data-zh="数据为历史学家常用的估计值，各家估计差别较大。">Estimates commonly used by historians; they vary widely.</p>
+    </div>
+    <div class="card res">
+      <h3 data-zh="⚖️ 两种城邦，两种政治">⚖️ Two cities, two governments</h3>
+      <div class="table-wrap"><table class="cmp" id="cmpTable"></table></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="engineer" data-nav="Roman engineering" data-nav-zh="罗马工程">
+  <div class="card camp" id="camp">
+    <div class="row"><b data-zh="🏅 你的战役：">🏅 Your campaign:</b><span id="campMs" class="row"></span><span style="margin-left:auto"><b data-zh="总分：">Score:</b> <b id="campScore">0</b></span></div>
+    <div class="og-bar"><i id="campBar" style="width:0"></i></div>
+    <div><b data-zh="军衔：">Rank:</b> <span class="ranks" id="ranks"></span></div>
+  </div>
+  <div class="sec-head">
+    <h2 data-zh="任务2：设计一条引水渠">Mission 2: design an aqueduct</h2>
+    <p data-zh="罗马引水渠完全靠重力让水往下流。水源比城市只高12.6米，却要走大约50千米！坡度太陡，水会冲坏渠道，还会在半路就掉到城市高度以下；太平，水就会停滞。调整坡度，打开水闸。">Roman aqueducts used only gravity. Here the spring is just 12.6 m (41 ft) higher than the city — and 50 km (31 miles) away! Too steep and the water rushes, wears out the channel and ends up below the city; too flat and it stops moving. Set the slope and open the sluice.</p>
+  </div>
+  <div class="sim">
+    <div class="stage card simbox" id="aqStage"><canvas id="aqCv"></canvas></div>
+    <div class="card simside">
+      <div class="ctl"><label for="aqG"><span data-zh="坡度（每千米下降多少厘米）：">Slope (cm drop per km):</span> <b id="aqGv">60</b></label><input type="range" id="aqG" min="2" max="80" step="1" value="60"></div>
+      <div class="ctl"><b data-zh="遇到山丘怎么办？">What about the hill?</b><div class="seg" id="aqRoute"><button class="on" data-r="t" data-zh="⛏️ 挖隧道">⛏️ Tunnel</button><button data-r="a" data-zh="↪️ 绕过去（多走8千米）">↪️ Go around (+8 km)</button></div></div>
+      <div class="ro">
+        <div class="counter"><b id="aqArr">–</b><span data-zh="到达城市时的高度">height at the city</span></div>
+        <div class="counter"><b id="aqBr">–</b><span data-zh="山谷上的渠桥高度">bridge height over the valley</span></div>
+        <div class="counter"><b id="aqV">–</b><span data-zh="水流速度（约）">water speed (approx.)</span></div>
+        <div class="counter"><b id="aqT">–</b><span data-zh="水走完全程要多久">time for water to arrive</span></div>
+      </div>
+      <div class="btnrow"><button class="btn" id="aqGo" data-zh="💧 打开水闸">💧 Open the sluice</button></div>
+      <div class="result" id="aqMsg"></div>
+      <details class="peek"><summary data-zh="真实的例子：加尔桥">Real example: the Pont du Gard</summary><p data-zh="尼姆（今法国南部）的引水渠长约50千米，全程只下降约12.6米，平均每千米约25厘米（约1:4000）。它跨越加尔东河山谷的那一段就是加尔桥，高约49米，相当于16层楼。水大约要流一天多才能到城里，每天可供水约3.5万—4万立方米（估计值）。">The aqueduct to Nîmes (southern France) is about 50 km long and drops only about 12.6 m — about 25 cm per km (roughly 1 in 4,000). Where it crosses the Gardon valley it rides on the Pont du Gard, about 49 m (160 ft) high — a 16-storey building. Water took over a day to arrive and the city got perhaps 35,000–40,000 m³ a day (estimates).</p></details>
+    </div>
+  </div>
+
+  <div class="sec-head" style="margin-top:28px">
+    <h2 data-zh="任务3：条条大路通罗马">Mission 3: all roads lead to Rome</h2>
+    <p data-zh="点击灰色虚线修路（再点一次拆掉）。你有4600千米的预算，要把西班牙的塔拉科、高卢的卢格杜努姆、北方的阿奎莱亚、南方的布隆迪西乌姆和东方的拜占庭都连到罗马。">Click a grey dashed line to build that road (click again to remove). With a budget of 4,600 km, connect Tarraco (Spain), Lugdunum (Gaul), Aquileia (north), Brundisium (south) and Byzantium (east) to Rome.</p>
+  </div>
+  <div class="sim">
+    <div class="stage card simbox" id="roadStage" style="min-height:390px"><canvas id="roadCv"></canvas></div>
+    <div class="card simside">
+      <div class="ro">
+        <div class="counter"><b id="rdKm">0</b><span data-zh="已用千米 / 4600">km used / 4,600</span></div>
+        <div class="counter"><b id="rdCon">0/5</b><span data-zh="连到罗马的目标城市">targets linked to Rome</span></div>
+        <div class="counter"><b id="rdMarch">–</b><span data-zh="军团行军到最远目标（天）">legion march to farthest target (days)</span></div>
+        <div class="counter"><b id="rdPost">–</b><span data-zh="驿使送信到最远目标（天）">courier to farthest target (days)</span></div>
+      </div>
+      <div id="rdList" class="muted" style="font-size:14px"></div>
+      <div class="btnrow"><button class="btn ghost" id="rdReset" data-zh="全部拆掉">Clear roads</button></div>
+      <div class="result" id="rdMsg"></div>
+      <p class="muted" style="font-size:13.5px;margin:0" data-zh="军团每天行军约30千米；帝国驿站的信使换马疾驰，每天约80千米。罗马人修了约8万千米的主干道（估计值），很多路段用石板铺成。">A legion marched about 30 km (19 miles) a day; imperial couriers changing horses covered about 80 km (50 miles). Rome built roughly 80,000 km of main roads (estimate), many paved with stone slabs.</p>
+    </div>
+  </div>
+
+  <div class="sec-head" style="margin-top:28px">
+    <h2 data-zh="任务4：组建一个军团">Mission 4: build a legion</h2>
+    <p data-zh="罗马军团像套娃一样一层套一层。回答每一步的问题，把8个人的小队一直扩大成约5000人的军团；然后试试“龟甲阵”能挡住多少箭。">A Roman legion was built like nesting boxes. Answer each step to grow an 8-man tent group into a legion of about 5,000 — then test how many arrows the “tortoise” (testudo) formation can block.</p>
+  </div>
+  <div class="sim">
+    <div class="stage card simbox" id="lgStage" style="min-height:400px"><canvas id="lgCv"></canvas></div>
+    <div class="card simside">
+      <div id="lgStep"></div>
+      <div class="ro">
+        <div class="counter"><b id="lgMen">8</b><span data-zh="士兵人数">soldiers</span></div>
+        <div class="counter"><b id="lgUnit">–</b><span data-zh="单位">unit</span></div>
+      </div>
+      <div class="ctl" id="lgTest" hidden><b data-zh="箭雨测试（只用一个百人队）">Arrow test (one century)</b><div class="seg" id="lgForm"><button class="on" data-f="line" data-zh="横队">Open line</button><button data-f="testudo" data-zh="🐢 龟甲阵">🐢 Testudo</button></div><button class="btn" id="lgFire" data-zh="🏹 放箭（20支）">🏹 Loose 20 arrows</button></div>
+      <div class="result" id="lgMsg"></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="data" data-nav="Rome & Han" data-nav-zh="罗马与汉朝">
+  <div class="sec-head">
+    <h2 data-zh="数据任务：罗马帝国与汉朝，谁更大？">Data mission: the Roman Empire vs Han China — who was bigger?</h2>
+    <p data-zh="同一时期，欧亚大陆两端各有一个超级大国。先猜每一项哪一方领先，再看数据。它们通过丝绸之路间接相连：罗马贵族穿中国丝绸，中国史书称罗马为“大秦”。">At the same time, two superpowers stood at either end of Eurasia. Guess which led in each category, then see the numbers. They were linked indirectly by the Silk Road: rich Romans wore Chinese silk, and Chinese histories called Rome “Daqin” (大秦).</p>
+  </div>
+  <div class="card res">
+    <div id="resRows" style="display:flex;flex-direction:column;gap:10px"></div>
+    <div class="result" id="resMsg"></div>
+    <p class="cap muted" style="font-size:12.5px;margin:0" data-zh="来源：汉朝人口为《汉书·地理志》所载公元2年户口统计（约5767万人）；罗马人口和两国面积为历史学家的常用估计（如塔格佩拉对古代帝国面积的估算），均为近似值。">Sources: Han population = the census of 2 CE recorded in the Han shu (Book of Han), about 57.7 million; Roman population and both areas are historians’ common estimates (e.g. Taagepera’s estimates of ancient empire sizes). All values approximate.</p>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real media" data-nav-zh="真实影像">
+  <div id="gallery"></div>
+  <div class="sec-head" style="margin-top:22px"><h2 data-zh="走得更远">Go further</h2></div>
+  <div class="linkgrid">
+    <a class="linkcard" href="https://orbis.stanford.edu/" target="_blank" rel="noopener"><b data-zh="ORBIS：斯坦福罗马世界交通模型">ORBIS: Stanford’s Roman travel planner</b><span data-zh="像查地图导航一样，算一算公元200年从罗马到伦敦要走几天、花多少钱。">Plan a trip across the Roman Empire in 200 CE: how many days, and how much it costs, by road, river or sea.</span><small>orbis.stanford.edu ↗</small></a>
+    <a class="linkcard" href="https://www.worldhistory.org/Athens/" target="_blank" rel="noopener"><b data-zh="世界历史百科：雅典">World History Encyclopedia: Athens</b><span data-zh="从神话到民主政治的雅典历史，附大量图片和地图。">The story of Athens from myth to democracy, with photos and maps.</span><small>worldhistory.org ↗</small></a>
+    <a class="linkcard" href="https://www.worldhistory.org/sparta/" target="_blank" rel="noopener"><b data-zh="世界历史百科：斯巴达">World History Encyclopedia: Sparta</b><span data-zh="斯巴达的国王、长老会议、黑劳士和著名战役。">Sparta’s kings, elders, helots and famous battles.</span><small>worldhistory.org ↗</small></a>
+    <a class="linkcard" href="https://www.worldhistory.org/Roman_Empire/" target="_blank" rel="noopener"><b data-zh="世界历史百科：罗马帝国">World History Encyclopedia: the Roman Empire</b><span data-zh="从屋大维到西罗马帝国灭亡，帝国是怎样兴起和衰落的。">From Augustus to the fall of the West: how the Empire rose and declined.</span><small>worldhistory.org ↗</small></a>
+    <a class="linkcard" href="https://www.worldhistory.org/aqueduct/" target="_blank" rel="noopener"><b data-zh="世界历史百科：罗马引水渠">World History Encyclopedia: aqueducts</b><span data-zh="罗马人怎样测量坡度、修建渠桥和隧道。">How Romans surveyed slopes and built bridges and tunnels for water.</span><small>worldhistory.org ↗</small></a>
+    <a class="linkcard" href="https://www.metmuseum.org/essays/the-art-of-classical-greece-ca-480-323-b-c" target="_blank" rel="noopener"><b data-zh="大都会艺术博物馆：古典时期的希腊艺术">The Met: Art of Classical Greece</b><span data-zh="海尔布伦艺术史年表中的文章，配有博物馆收藏的希腊雕塑和陶瓶。">A Heilbrunn Timeline essay with Greek sculpture and painted vases from the museum.</span><small>metmuseum.org ↗</small></a>
+    <a class="linkcard" href="https://www.khanacademy.org/humanities/world-history/ancient-medieval" target="_blank" rel="noopener"><b data-zh="可汗学院：古代与中世纪世界史">Khan Academy: ancient &amp; medieval history</b><span data-zh="关于古希腊、罗马共和国和罗马帝国的免费视频与文章（英文）。">Free videos and articles on Greece, the Roman Republic and the Empire.</span><small>khanacademy.org ↗</small></a>
+  </div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 小测验（12题）">🧠 Quiz (12 questions)</h3><p class="sub" data-zh="选出正确答案，看看解析。">Pick the best answer and read the explanation.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分一分：雅典、斯巴达还是罗马？">🗂️ Sort it: Athens, Sparta or Rome?</h3><p class="sub" data-zh="把每张卡片拖到（或先点再点方框）正确的城市。">Drag each card (or tap it, then tap a box) to the right city.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="课程标准（凭记忆列出，请对照现行佐治亚州GSE及2024年修订版核实）：高中世界历史 SSWH3——考察公元前700年至公元400年古典地中海社会（希腊、罗马）的政治、哲学和文化互动：雅典与斯巴达的政治制度、希波战争与伯罗奔尼撒战争、亚历山大帝国与希腊化文化的传播、罗马由共和国到帝国的转变、罗马的工程成就、罗马帝国衰落的原因。六年级 SS6G（欧洲地理：在地图上找出地中海、意大利、希腊等）。">Standards (from memory — check against the current Georgia GSE / 2024 revision): high-school World History SSWH3 — the political, philosophical and cultural interaction of Classical Mediterranean societies, 700 BCE – 400 CE: Athenian and Spartan government, the Persian and Peloponnesian Wars, Alexander and the spread of Hellenistic culture, Rome’s change from republic to empire, Roman engineering, and reasons for the decline of the Western Empire. Grade 6 SS6G (Europe geography: locate the Mediterranean Sea, Italy, Greece etc.).</p>
+    <p data-zh="中国课程：统编版《世界历史》九年级上册第二单元“古代欧洲文明”：第4课《希腊城邦和亚历山大帝国》（城邦、雅典民主政治、伯里克利时代、亚历山大东征）、第5课《罗马城邦和罗马帝国》（罗马共和国、《十二铜表法》、布匿战争、屋大维建立元首制、395年帝国分裂、476年西罗马帝国灭亡、基督教的兴起）、第6课《希腊罗马古典文化》（建筑、哲学、罗马法）。课次以所用版次为准。“同一时期的中国”对应《中国历史》七年级上册（春秋战国、秦统一、两汉、张骞通西域与丝绸之路、甘英出使大秦）。">China link: Chinese textbook World History, Grade 9 Vol. 1, Unit 2 “Ancient European Civilizations”: Lesson 4 “Greek city-states and Alexander’s empire” (polis, Athenian democracy, the age of Pericles, Alexander’s campaign east), Lesson 5 “The Roman city-state and Roman Empire” (Republic, Twelve Tables, Punic Wars, Augustus and the principate, the split of 395, the fall of the West in 476, rise of Christianity), Lesson 6 “Classical culture of Greece and Rome” (architecture, philosophy, Roman law). Lesson numbers vary by printing. “Meanwhile in China” matches Chinese History Grade 7 Vol. 1 (Spring and Autumn / Warring States, Qin unification, Han, Zhang Qian and the Silk Road, Gan Ying’s mission to Daqin).</p>
+    <p data-zh="说明：地图为示意图，各国疆域是按年代粗略绘制的多边形，仅显示陆地部分，不画现代国界；“罗马面积”采用塔格佩拉等人的常用估计并作了插值，仅供比较。雅典选民人数、罗马人口、汉长城长度、引水渠流量等均为常见近似值。引水渠模拟按加尔桥所在的尼姆引水渠（全长约50千米、总落差约12.6米）简化设计，地形与成本为虚构；流速按经验公式粗算（每千米25厘米时约0.6米/秒）。军团编制采用帝国前期（约公元1世纪）的常见说法。教材之外补充的内容：斯巴达公民大会喊声表决、雅典抽签制、罗马道路网、龟甲阵、汉朝与罗马的数据比较。讨论建议：雅典民主与今天美国的代议制民主有何异同？罗马为什么能长期统治这么大的地方？">Notes: the map is schematic — empire areas are rough polygons by period, drawn on land only, with no modern borders; “Roman land” uses common estimates (e.g. Taagepera) with interpolation, for comparison only. Athenian voter numbers, Roman population, Han wall length and aqueduct flow are common approximations. The aqueduct sim is simplified from the Nîmes aqueduct (≈50 km long, ≈12.6 m total fall); its terrain and costs are invented, and water speed is a rough estimate (≈0.6 m/s at 25 cm per km). The legion structure is the common early-Empire (1st century CE) model. Beyond the Chinese textbook: Spartan voting by shouting, Athenian selection by lot, the Roman road network, the testudo, and the Rome–Han comparison. Discussion: how is Athenian direct democracy different from the US representative democracy? Why could Rome hold such a huge area for so long?</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+/* ===== WMap: small canvas world/region map (world-atlas@2.0.2 countries-110m merged to land + d3-geo), inlined in each worldhistory lesson =====
+   const M = WMap.create('#stageId', '#canvasId', { extent:[[lon0,lat0],[lon1,lat1]], top:56, bottom:60, topS:96, bottomS:90,
+     overlay: (g, M) => {...},            // draw after land: M.poly(pts, fill, stroke, lw, dash, alpha) M.line(pts, stroke, lw, dash) M.dot(ll, r, fill, stroke) M.text(t, x, y, {s,c,a,w,halo}) M.label(t, ll, {dx,dy,...}) M.xy(ll) M.clipLand()
+     click: (h, e) => {...},              // h = { x, y, ll:[lon,lat]|null, land:true|false }
+     hover: h => text|null, note:{en,zh} });
+   M.draw() after any state change. Ancient empires are drawn as rough polygons clipped to land (示意图 · schematic). No modern borders are drawn. */
+const WMap = (() => {
+  let P = null;
+  const load = () => P || (P = fetch('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json').then(r => r.json()).then(t => topojson.merge(t, t.objects.countries.geometries)));
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  function create(stageSel, cvSel, opt = {}){
+    const stage = document.querySelector(stageSel), cv = document.querySelector(cvSel), g = cv.getContext('2d');
+    const M = { g, opt, land:null, failed:false, W:0, H:0, small:false };
+    let proj = null, path = null;
+    const T = () => M.small ? (opt.topS ?? 96) : (opt.top ?? 56), B = () => M.small ? (opt.bottomS ?? 90) : (opt.bottom ?? 60);
+    function layout(){
+      const r = stage.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!r.width) return false;
+      cv.width = r.width * d; cv.height = r.height * d; M.W = r.width; M.H = r.height; M.d = d; M.small = r.width < 560;
+      const [[a, b], [c, e]] = opt.extent || [[-20, 0], [140, 60]];
+      proj = d3.geoMercator().fitExtent([[8, T()], [r.width - 8, r.height - B()]], { type:'MultiPoint', coordinates:[[a, b], [c, e], [a, e], [c, b], [(a + c) / 2, b], [(a + c) / 2, e]] });
+      path = d3.geoPath(proj, g); M.proj = proj; M.path = path; return true;
+    }
+    M.xy = ll => proj ? proj(ll) : null;
+    M.inv = (x, y) => proj ? proj.invert([x, y]) : null;
+    M.clipLand = () => { if (!M.land) return; g.beginPath(); path(M.land); g.clip(); };
+    M.poly = (pts, fill, stroke, lw = 1.5, dash, alpha = 1) => { const p = pts.map(M.xy); if (p.some(q => !q)) return; g.beginPath(); g.moveTo(...p[0]); p.slice(1).forEach(q => g.lineTo(...q)); g.closePath();
+      if (fill){ g.globalAlpha = alpha; g.fillStyle = fill; g.fill(); g.globalAlpha = 1; } if (stroke){ g.setLineDash(dash || []); g.strokeStyle = stroke; g.lineWidth = lw; g.lineJoin = 'round'; g.stroke(); g.setLineDash([]); } };
+    M.line = (pts, stroke, lw = 2, dash) => { const p = pts.map(M.xy).filter(Boolean); if (p.length < 2) return; g.beginPath(); g.moveTo(...p[0]); p.slice(1).forEach(q => g.lineTo(...q)); g.setLineDash(dash || []); g.strokeStyle = stroke; g.lineWidth = lw; g.lineJoin = g.lineCap = 'round'; g.stroke(); g.setLineDash([]); };
+    M.dot = (ll, r, fill, stroke) => { const p = M.xy(ll); if (!p) return null; g.beginPath(); g.arc(p[0], p[1], r, 0, 7); g.fillStyle = fill; g.fill(); if (stroke){ g.lineWidth = 2; g.strokeStyle = stroke; g.stroke(); } return p; };
+    M.text = (t, x, y, o = {}) => { g.font = `${o.w || 800} ${o.s || 12}px Nunito, "PingFang SC", "Microsoft YaHei", sans-serif`; g.textAlign = o.a || 'center'; g.textBaseline = 'middle';
+      g.lineWidth = 3.2; g.strokeStyle = o.halo || css('--surface') || '#fff'; g.lineJoin = 'round'; g.strokeText(t, x, y); g.fillStyle = o.c || css('--ink'); g.fillText(t, x, y); };
+    M.label = (t, ll, o = {}) => { const p = M.xy(ll); if (p) M.text(t, p[0] + (o.dx || 0), p[1] + (o.dy || 0), o); return p; };
+    M.draw = () => {
+      const r = stage.getBoundingClientRect();
+      if (!M.land){ const d = Math.min(devicePixelRatio || 1, 2); cv.width = r.width * d; cv.height = r.height * d; g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, r.width, r.height);
+        M.W = r.width; M.H = r.height; M.text(Lab.L(M.failed ? {en:'The map needs an internet connection.', zh:'地图需要联网才能加载。'} : {en:'Loading map…', zh:'地图加载中…'}), r.width / 2, r.height / 2, { s:15, c:css('--ink-2') }); return; }
+      if (!proj && !layout()) return;
+      g.setTransform(M.d, 0, 0, M.d, 0, 0); g.clearRect(0, 0, M.W, M.H);
+      const sea = css('--surface-2') || '#eef3f9', land = css('--surface') || '#fff', ink2 = css('--ink-2') || '#4a5878';
+      g.fillStyle = sea; g.fillRect(0, 0, M.W, M.H);
+      g.beginPath(); path(M.land); g.fillStyle = land; g.fill(); g.strokeStyle = ink2; g.lineWidth = .7; g.globalAlpha = .7; g.stroke(); g.globalAlpha = 1;
+      if (opt.overlay){ g.save(); opt.overlay(g, M); g.restore(); }
+      M.text(Lab.L(opt.note || {en:'Schematic map · approximate borders', zh:'示意图 · 疆域为大致范围'}), 12, M.H - B() + 6, { s:10, a:'left', c:ink2, w:700 });
+    };
+    M.hit = e => { const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, ll = M.inv(x, y);
+      return { x, y, ll, land: !!(ll && M.land && d3.geoContains(M.land, ll)) }; };
+    cv.addEventListener('click', e => { if (!M.land || !opt.click) return; opt.click(M.hit(e), e); });
+    cv.addEventListener('pointermove', e => { if (e.pointerType === 'touch' || !M.land || !opt.hover) return; const t = opt.hover(M.hit(e)); cv.title = t || ''; });
+    new ResizeObserver(() => requestAnimationFrame(() => { proj = null; M.draw(); })).observe(stage);
+    const redraw = () => setTimeout(M.draw, 60);
+    new MutationObserver(redraw).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme', 'lang'] });
+    if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redraw);
+    load().then(l => { M.land = l; proj = null; M.draw(); if (opt.ready) opt.ready(M); }).catch(err => { console.warn(err); M.failed = true; M.draw(); });
+    M.draw();
+    return M;
+  }
+  return { create, load, css };
+})();
+</script>
+<script>
+const o = (en, zh) => ({en, zh});
+const yl = (y, lg) => { lg = lg || Lab.lang; if (y === 0) y = 1; return y < 0 ? (lg === 'zh' ? `公元前${-y}年` : `${-y} BCE`) : (lg === 'zh' ? `公元${y}年` : `${y} CE`); };
+/* ---- map regions (rough [lon,lat] polygons; drawn clipped to land = schematic) ---- */
+const R = {
+  ROME0:[[12.3,42.0],[12.8,42.0],[12.8,41.7],[12.3,41.7]], LATIUM:[[11.9,42.3],[13.2,42.3],[13.4,41.4],[12.5,41.5]],
+  CENTRAL:[[10.5,43.8],[12.5,43.9],[14.3,42.3],[15.2,41.3],[14.3,40.6],[12.2,41.4],[11,42.4]],
+  SOUTH_IT:[[10,44],[12.4,44.1],[14,42.5],[16.2,41.9],[18.6,40.2],[17,39],[16.5,38],[15.6,38],[15.7,40.1],[12,41.3],[11,42.5]],
+  ITALY:[[7,44],[7.5,45.9],[10.5,46.6],[13.7,46.5],[13.8,45.6],[12.4,44.1],[14,42.5],[16.2,41.9],[18.6,40.2],[17,39],[16.5,38],[15.6,38],[15.7,40.1],[12,41.3],[10.5,42.9],[8.5,44.4]],
+  SICILY:[[12.2,38.3],[15.7,38.35],[15.2,36.5],[12.3,37.5]], SARD_COR:[[8.1,43.1],[9.7,43.1],[9.9,39],[8.3,38.8],[8.1,40.8]], SARD:[[8.1,41.3],[9.9,41.3],[9.9,39],[8.3,38.8]], W_SICILY:[[12.2,38.3],[13.6,38.3],[13.3,37.2],[12.3,37.5]],
+  HISP_PART:[[3.4,42.4],[0.9,40.9],[-0.3,39.5],[0.2,38.8],[-2,36.6],[-5.6,36.05],[-6.4,36.6],[-6,38],[-3.5,39],[-2,40.5],[-0.5,41.8],[1,42.6]],
+  HISP44:[[-9.8,37],[-9.6,40.5],[-6,41],[-4,42],[-1.8,42.8],[3.4,42.4],[0.9,40.9],[-0.3,39.5],[0.2,38.8],[-2,36.6],[-5.6,36.05]],
+  HISPANIA:[[-9.8,37],[-9.8,43.9],[-1.8,43.6],[3.4,42.4],[0.9,40.9],[-0.3,39.5],[0.2,38.8],[-2,36.6],[-5.6,36.05]],
+  S_SPAIN:[[-6.4,36.6],[-2,36.6],[0.2,38.8],[-1,38.9],[-4,38],[-6.2,37.5]],
+  AFR146:[[8.4,37.3],[11.4,37.3],[11.3,35],[10,34.5],[8.4,35.2]], CAR_AFR:[[8.4,37.3],[11.4,37.3],[11.1,33.3],[15,32.4],[18.5,30.4],[13,31],[10,32.3],[8.2,34]],
+  AFRBIG:[[8.4,37.3],[11.4,37.3],[11.1,33.3],[15,32.4],[19.9,31],[19.9,30.3],[13,31],[10,32.3],[8.2,34]],
+  MAUR:[[-6.4,35.9],[-1.6,35.3],[3,36.9],[8.4,37.3],[8.2,34],[2,34.3],[-5.4,33.7],[-6.9,34]],
+  GRMAC:[[19.3,41.9],[23,42.2],[24.6,41.2],[24.5,39],[25,37.5],[23.5,35.8],[21.5,36.4],[20.2,39.3]],
+  NARB:[[3.2,42.4],[7.5,43.8],[6.9,46],[4.8,46],[2.5,43.5]], ASIA_P:[[26,40.5],[29.5,40.8],[31,39],[29.5,36.6],[27.2,36.9]],
+  GAUL:[[-5,48.5],[-1.5,49.8],[1.6,51.2],[4.3,51.8],[6.2,51.9],[8.3,49.3],[7.6,47.6],[6.9,46],[7.5,43.8],[3.2,42.4],[-1.8,43.4],[-1.4,46.2],[-2.6,47.3]],
+  GAUL_PART:[[-1.5,49.8],[1.6,51.2],[4.5,50.5],[7.6,47.6],[6.9,46],[7.5,43.8],[4.5,43.5],[1,45],[-1.4,46.2],[-2.6,47.3]],
+  ASIAMIN44:[[26,40.5],[29.5,41.2],[33,42],[36,41.6],[37,41],[34,39],[33.5,37],[36.2,36.6],[33,36.1],[30,36.2],[27.2,36.9]],
+  SYRIA:[[36.2,36.9],[37.6,36.6],[38.5,35.5],[37.5,33.5],[36.4,32.5],[34.9,31.6],[34.4,32.4],[35.7,34.6]],
+  CYRENE:[[19.8,32.6],[19.9,30.6],[25,31.4],[25,32.8],[22,33.1]], CRETE:[[23.4,35.7],[26.4,35.4],[26.3,34.9],[23.5,35.1]],
+  EGYPT:[[25,31.7],[32,31.5],[34.3,31.4],[34.5,29.2],[33.4,26.5],[33,24],[32.6,22.3],[31.3,22.3],[30.6,25.5],[29.7,29.3],[25,29.4]],
+  ALPS:[[7,45.9],[7.6,47.6],[10,47.7],[13,48.5],[16.5,48.1],[16.5,46.6],[13.7,46.5],[10.5,46.6]],
+  BALK_W:[[13.7,46.5],[16.5,46.6],[16.5,48.1],[19,47.7],[19.4,45],[19.3,41.9],[15.5,44],[13.8,45.6]],
+  BALK_E:[[19.4,45],[22.5,44.6],[25,43.7],[28.7,44.3],[29.7,45.3],[29.2,41.2],[26.2,40.6],[24.6,41.2],[23,42.2],[19.3,41.9]],
+  ANAT:[[26,40.5],[29.5,41.2],[33,42],[36,41.6],[41.5,41.4],[40.5,39.5],[38.6,38.2],[37.6,36.6],[36.2,36.9],[33,36.1],[30,36.2],[27.2,36.9]],
+  LEVANT:[[36.2,36.9],[37.8,36.5],[38.5,35.5],[37.5,33.5],[36,30.5],[35,29.5],[34.3,31.3],[34.9,31.6],[34.4,32.4],[35.7,34.6]],
+  ARABP:[[34.4,29.5],[34.9,28],[36.7,28.4],[38,31],[37.5,33.5],[36,30.5]],
+  BRIT:[[-5.8,50],[1.5,51.1],[1.8,52.8],[0.2,53.6],[-0.6,54.6],[-1.5,55.1],[-3,55.1],[-3.7,54.6],[-3.3,53.4],[-4.8,52.9],[-5.3,51.7]],
+  DACIA:[[22.5,44.6],[21.2,45.6],[22.5,47.6],[25,47.8],[26.4,46.4],[25.4,44.4]], ARMEN:[[40.5,39.5],[41.5,41.4],[45,41.3],[46.6,39.4],[44.2,39],[42,38.6]],
+  MESO:[[38.6,37.1],[42,37.6],[44.5,36.6],[48.2,30.1],[47.6,29.4],[46.5,29.6],[44,32],[40.5,34.4],[38.6,35.5]],
+  GREEK:[[19.3,40.5],[21,41.6],[24,41.2],[26.5,40.9],[28.2,40.4],[27.4,38.5],[28.2,36.6],[26.5,35.3],[23.4,35.1],[21.6,36.4],[20.2,38.6]],
+  DELIAN:[[23.4,38.5],[24.9,38.6],[26.2,40.9],[28.2,40.5],[27.4,38.5],[28.4,36.4],[26.5,35.8],[24.6,36.4],[23.6,37.6]],
+  PELOP:[[21.1,37.95],[23,38.25],[23.4,37.5],[23.2,36.3],[22.4,36.3],[21.6,36.7]],
+  PERSIA_A:[[26,41],[30,41.4],[36,41.8],[42,41.8],[48,42.2],[54,40.5],[60,42.5],[66,42],[71,38.5],[72,34],[70,28],[66,25],[61,25.3],[57,26.6],[52,28],[48,30],[45,31],[39,29.5],[35,29.6],[34.3,31.3],[34.6,32.6],[36,36.5],[30,36.2],[27.2,36.9]],
+  PERSIA_B:[[26,41],[30,41.4],[36,41.8],[42,41.8],[48,42.2],[54,40.5],[60,42.5],[66,42],[71,38.5],[72,34],[70,28],[66,25],[61,25.3],[57,26.6],[52,28],[48,30],[45,31],[39,29.5],[35,29.6],[33.4,26.5],[33,24],[32.6,22.3],[31.3,22.3],[30.6,25.5],[29.7,29.3],[25,29.4],[25,31.7],[32,31.5],[34.3,31.4],[34.6,32.6],[36,36.5],[30,36.2],[27.2,36.9]],
+  MACGR:[[19.3,42],[24,42.2],[26.3,41],[24.5,39],[25,37.5],[23.5,35.8],[21.5,36.4],[20.2,39.3]], INDUS:[[68,24],[71,34],[74.5,34],[75.5,31.5],[71,27],[68.5,23.5]],
+  SEL1:[[27.2,36.9],[30,36.2],[36,36.5],[34.6,32.6],[36.4,32.5],[39,29.5],[45,31],[48,30],[52,28],[57,26.6],[61,25.3],[66,25],[70,28],[71,34],[68,38],[60,40],[54,38.5],[48,39],[42,39.5],[37,39],[30,38.5]],
+  SEL2:[[35.8,37],[40,37],[44,37.5],[48,37.5],[54,36.5],[56,33],[52,28],[48,30],[45,31],[39,29.5],[36.4,32.5],[34.6,32.6],[35.7,34.6]],
+  SEL3:[[35.7,37],[38,37],[38.8,35.6],[37.5,33.5],[35.5,33],[35.7,34.6]],
+  PARTH0:[[52,37],[54,38.5],[60,38],[62,36],[60,32],[55,33]],
+  PARTH:[[44,37.5],[48,39.5],[54,38.5],[60,38],[66,37.5],[66,30],[61,25.5],[57,26.5],[52,28],[48,30],[46.5,29.5],[44,32],[40.5,34.5],[42,37]]
+};
+const K = (from, to, ...ks) => ({ from, to, ks });
+const ROMAN_14 = ['ITALY','SICILY','SARD_COR','HISPANIA','AFRBIG','GRMAC','GAUL','ALPS','BALK_W','BALK_E','ANAT','LEVANT','CYRENE','CRETE','EGYPT'];
+const WEST = ['ITALY','SICILY','SARD_COR','HISPANIA','GAUL','ALPS','BALK_W','BRIT','AFRBIG','MAUR'], EAST = ['GRMAC','BALK_E','ANAT','LEVANT','ARABP','EGYPT','CYRENE','CRETE'];
+const EMP = [
+  { k:"persia", lab:[60,35.5], col:"#b07a2a", n:o('Persian Empire','波斯帝国'), keys:[K(-550,-525,'PERSIA_A'), K(-525,-330,'PERSIA_B')] },
+  { k:"parth", lab:[58,35.5], col:"#a0703a", n:o('Parthian Empire','安息帝国（帕提亚）'), n2:o('Sasanian Persia','萨珊波斯'), y2:224, keys:[K(-247,-141,'PARTH0'), K(-141,477,'PARTH')] },
+  { k:'carth', col:'#2f9e8f', n:o('Carthage','迦太基'), keys:[K(-650,-241,'CAR_AFR','MAUR','W_SICILY','SARD','S_SPAIN'), K(-241,-237,'CAR_AFR','MAUR','SARD'), K(-237,-206,'CAR_AFR','MAUR','HISP_PART'), K(-206,-146,'AFR146')] },
+  { k:'greek', lab:[21.6,40.6], col:'#3b82c4', n:o('Greek city-states','希腊城邦'), keys:[K(-800,-478,'GREEK'), K(-404,-338,'GREEK')] },
+  { k:"pelop", lab:[21,36.1], col:"#4d9a4d", n:o('Sparta & allies','斯巴达及其盟邦'), keys:[K(-478,-404,'PELOP')] },
+  { k:"delian", lab:[26.6,38.9], col:"#3b82c4", n:o('Athens & the Delian League','雅典与提洛同盟'), keys:[K(-478,-404,'DELIAN')] },
+  { k:"alex", lab:[60,36.5], col:"#8e5bb5", n:o('Macedon / Alexander’s empire','马其顿／亚历山大帝国'), keys:[K(-338,-334,'MACGR'), K(-334,-332,'MACGR','ANAT'), K(-332,-330,'MACGR','ANAT','LEVANT','EGYPT'), K(-330,-326,'MACGR','PERSIA_B'), K(-326,-322,'MACGR','PERSIA_B','INDUS')] },
+  { k:'antig', col:'#9d74c2', n:o('Macedon (Antigonids)','马其顿王国'), keys:[K(-306,-168,'MACGR')] },
+  { k:"ptol", lab:[28.5,27], col:"#b48fd0", n:o('Ptolemaic Egypt','托勒密埃及'), keys:[K(-322,-30,'EGYPT','CYRENE')] },
+  { k:'seleu', col:'#c4a3dc', n:o('Seleucid kingdom','塞琉古王国'), keys:[K(-312,-190,'SEL1'), K(-190,-129,'SEL2'), K(-129,-63,'SEL3')] },
+  { k:'rome', col:'#c0392b', n:o('Rome','罗马'), keys:[K(-753,-500,'ROME0'), K(-500,-340,'LATIUM'), K(-340,-290,'CENTRAL'), K(-290,-241,'SOUTH_IT'), K(-241,-201,'SOUTH_IT','SICILY','SARD_COR'), K(-201,-146,'ITALY','SICILY','SARD_COR','HISP_PART'),
+      K(-146,-121,'ITALY','SICILY','SARD_COR','HISP_PART','AFR146','GRMAC'), K(-121,-63,'ITALY','SICILY','SARD_COR','HISP_PART','AFR146','GRMAC','NARB','ASIA_P'), K(-63,-50,'ITALY','SICILY','SARD_COR','HISP_PART','AFR146','GRMAC','NARB','ASIAMIN44','SYRIA','CYRENE','CRETE'),
+      K(-50,-30,'ITALY','SICILY','SARD_COR','HISP44','AFR146','GRMAC','NARB','GAUL','ASIAMIN44','SYRIA','CYRENE','CRETE'), K(-30,9,'ITALY','SICILY','SARD_COR','HISPANIA','AFRBIG','GRMAC','GAUL','ALPS','BALK_W','ASIAMIN44','LEVANT','CYRENE','CRETE','EGYPT'),
+      K(9,43,...ROMAN_14), K(43,106,...ROMAN_14,'BRIT','MAUR'), K(106,118,...ROMAN_14,'BRIT','MAUR','DACIA','ARABP','ARMEN','MESO'), K(118,271,...ROMAN_14,'BRIT','MAUR','DACIA','ARABP'), K(271,395,...ROMAN_14,'BRIT','MAUR','ARABP')] },
+  { k:"romeW", lab:[2.5,46.5], col:"#c0392b", n:o('Western Roman Empire','西罗马帝国'), keys:[K(395,410,...WEST), K(410,439,'ITALY','SICILY','SARD_COR','HISP_PART','GAUL','ALPS','BALK_W','AFRBIG','MAUR'), K(439,476,'ITALY','SICILY','ALPS','BALK_W','GAUL_PART')] },
+  { k:"romeE", lab:[35.5,39.6], col:"#d9822b", n:o('Eastern Roman Empire','东罗马帝国'), keys:[K(395,477,...EAST)] }
+];
+/* Roman land area, million km² (rough; Taagepera-style estimates) */
+const AREA = [[-753,0.001],[-500,0.005],[-340,0.03],[-290,0.08],[-264,0.13],[-241,0.16],[-201,0.36],[-146,0.8],[-100,1.0],[-63,1.4],[-50,1.95],[-30,2.75],[9,3.5],[43,4.0],[106,4.6],[117,5.0],[118,4.6],[271,4.4],[395,4.4],[410,4.0],[439,3.0],[476,1.5]];
+const BIG = [[-800,o('none yet','尚无')],[-550,o('Persia','波斯')],[-330,o('Alexander','亚历山大')],[-322,o('Seleucids','塞琉古')],[-141,o('Parthia','安息')],[-30,o('Rome','罗马')],[439,o('Sasanian Persia','萨珊波斯')]];
+const CITIES = {
+  athens:{ ll:[23.73,37.98], from:-800, n:o('Athens','雅典'), f:{en:['The leading sea power of Greece and birthplace of democracy (reforms of Solon 594 BCE and Cleisthenes 508 BCE).','Under Pericles (about 461–429 BCE) it built the Parthenon and led the Delian League.'], zh:['希腊的海上强国，民主政治的诞生地（梭伦改革前594年，克里斯提尼改革前508年）。','伯里克利时代（约前461—前429年）修建了帕特农神庙，并领导提洛同盟。']} },
+  sparta:{ ll:[22.43,37.07], from:-800, n:o('Sparta','斯巴达'), f:{en:['A land power in the Peloponnese whose citizens trained as soldiers from age 7.','Led the Peloponnesian League and defeated Athens in 404 BCE.'], zh:['伯罗奔尼撒半岛上的陆上强国，公民从7岁起接受军事训练。','领导伯罗奔尼撒同盟，前404年打败雅典。']} },
+  olympia:{ ll:[21.63,37.64], from:-776, minor:1, n:o('Olympia','奥林匹亚'), f:{en:['Site of the ancient Olympic Games, held every four years for Zeus from 776 BCE.','During the games a truce let athletes travel safely.'], zh:['古代奥运会的举办地，从前776年起每四年为宙斯举行一次。','运动会期间实行“神圣休战”，让运动员安全往来。']} },
+  syracuse:{ ll:[15.29,37.08], from:-733, minor:1, n:o('Syracuse','叙拉古'), f:{en:['A rich Greek colony on Sicily, founded by Corinth about 733 BCE.','Home of the mathematician Archimedes (died 212 BCE).'], zh:['西西里岛上富庶的希腊殖民城邦，约前733年由科林斯人建立。','数学家阿基米德的家乡（前212年去世）。']} },
+  massalia:{ ll:[5.37,43.3], from:-600, n:o('Massalia (Marseille)','马西利亚（今马赛）'), f:{en:['Greek colony founded about 600 BCE — today Marseille, France.','Greeks spread colonies all around the Mediterranean and Black Sea “like frogs around a pond” (Plato).'], zh:['约前600年建立的希腊殖民城邦，就是今天法国的马赛。','希腊人在地中海和黑海沿岸到处建立殖民城邦，柏拉图说他们“像池塘边的青蛙”。']} },
+  byz:{ ll:[28.98,41.01], from:-667, n:o('Byzantion / Constantinople (Istanbul)','拜占庭／君士坦丁堡（今伊斯坦布尔）'), f:{en:['A Greek colony on the Bosporus, about 667 BCE.','Emperor Constantine rebuilt it as Constantinople in 330 CE; it was the capital of the Eastern Roman Empire until 1453.'], zh:['约前667年建立在博斯普鲁斯海峡边的希腊殖民城邦。','330年君士坦丁大帝在此建新都君士坦丁堡，它是东罗马帝国的首都，直到1453年。']} },
+  rome:{ ll:[12.5,41.9], from:-753, n:o('Rome','罗马'), f:{en:['Legend says Rome was founded in 753 BCE on seven hills by the Tiber River.','Republic from 509 BCE, Empire from 27 BCE; about a million people lived here around 1 CE (estimate).'], zh:['传说罗马城于前753年建在台伯河畔的七座山丘上。','前509年建立共和国，前27年进入帝国时代；公元初年城中约有100万人（估计）。']} },
+  carthage:{ ll:[10.32,36.85], from:-800, n:o('Carthage (near Tunis)','迦太基（今突尼斯附近）'), f:{en:['A Phoenician trading city in North Africa and Rome’s great rival.','Rome fought it in three Punic Wars (264–146 BCE) and destroyed it in 146 BCE; Romans later rebuilt it as a Roman city.'], zh:['北非的腓尼基人商业城市，罗马的强劲对手。','罗马与它进行了三次布匿战争（前264—前146年），前146年将其摧毁；后来罗马人又在原址重建城市。']} },
+  pella:{ ll:[22.52,40.76], from:-400, n:o('Pella','佩拉'), f:{en:['Capital of Macedon, where Alexander was born in 356 BCE.','His tutor was the philosopher Aristotle.'], zh:['马其顿王国的都城，亚历山大前356年出生于此。','他的老师是哲学家亚里士多德。']} },
+  alex:{ ll:[29.92,31.2], from:-331, n:o('Alexandria (Egypt)','亚历山大里亚（今埃及亚历山大港）'), f:{en:['Founded by Alexander in 331 BCE; its Library and Lighthouse were wonders of the world.','A great centre of Greek science: Euclid worked here.'], zh:['前331年亚历山大建立；城中的图书馆和灯塔举世闻名。','希腊科学的中心：欧几里得曾在这里工作。']} },
+  persepolis:{ ll:[52.89,29.93], from:-518, to:-330, n:o('Persepolis (near Shiraz)','波斯波利斯（今设拉子附近）'), f:{en:['Ceremonial capital of the Persian kings, begun by Darius I about 518 BCE.','Alexander burned it in 330 BCE.'], zh:['波斯国王的礼仪都城，约前518年大流士一世开始修建。','前330年被亚历山大焚毁。']} },
+  babylon:{ ll:[44.42,32.54], from:-800, n:o('Babylon (near Baghdad)','巴比伦（今巴格达附近）'), f:{en:['Conquered by Cyrus of Persia in 539 BCE.','Alexander died here in 323 BCE, aged 32.'], zh:['前539年被波斯国王居鲁士攻占。','前323年亚历山大在这里去世，年仅32岁。']} }
+};
+const EV = [
+  { y:-800, c:'athens', t:o('Hundreds of Greek city-states','数百个希腊城邦'), b:o('Mountains and the sea split Greece into small, independent city-states (polis). Each had its own government, army and gods’ temples on a high citadel (acropolis).','山地和海洋把希腊分成许多独立的小城邦。每个城邦都有自己的政府、军队，高处的卫城上建有神庙。') },
+  { y:-776, c:'olympia', t:o('The first Olympic Games','第一届古代奥运会'), b:o('Held at Olympia in honour of Zeus. At first there was one event: a sprint of about 192 m, one length of the stadium.','在奥林匹亚为祭祀宙斯而举行。最初只有一个项目：约192米的短跑，即跑道全长一趟。') },
+  { y:-753, c:'rome', t:o('Rome is founded (legend)','罗马建城（传说）'), b:o('Legend says twins Romulus and Remus founded Rome; at first it was ruled by kings.','传说罗马由孪生兄弟罗慕路斯和雷穆斯建立，最初由国王统治。') },
+  { y:-733, c:'syracuse', t:o('Greek colonies spread','希腊人四处建立殖民城邦'), b:o('From about 750 to 550 BCE, Greeks founded colonies around the Mediterranean and Black Sea — Syracuse, Massalia (Marseille), Byzantion and more.','约前750—前550年，希腊人在地中海和黑海沿岸建立了许多殖民城邦，如叙拉古、马西利亚（今马赛）、拜占庭等。') },
+  { y:-594, c:'athens', t:o('Solon’s reforms in Athens','雅典梭伦改革'), b:o('Solon cancelled debts, ended slavery for debt and let citizens join the Assembly according to their wealth — a first step toward democracy.','梭伦废除债务奴隶制，按财产多少把公民分等级参加公民大会——这是走向民主的第一步。') },
+  { y:-550, c:'persepolis', t:o('Cyrus builds the Persian Empire','居鲁士建立波斯帝国'), b:o('Within 30 years Persia became the largest empire the world had yet seen, from Egypt (taken in 525 BCE) to the Indus.','30年间，波斯成为当时世界上最大的帝国，从埃及（前525年征服）一直延伸到印度河。') },
+  { y:-509, c:'rome', t:o('The Roman Republic','罗马共和国建立'), b:o('Romans drove out their last king. Two consuls elected every year led the state, advised by the Senate.','罗马人赶走了最后一个国王。每年选出两名执政官领导国家，元老院是最重要的权力机构。') },
+  { y:-508, c:'athens', t:o('Cleisthenes: democracy in Athens','克里斯提尼改革：雅典民主政治确立'), b:o('All male citizens could now vote in the Assembly. A Council of 500 chosen by lot prepared its business, and ostracism let citizens vote to exile a dangerous leader.','所有男性公民都能在公民大会上投票。抽签产生的五百人议事会负责准备议案；“陶片放逐法”让公民投票放逐危险的政治人物。') },
+  { y:-490, c:'athens', t:o('Marathon: the Greco-Persian Wars','马拉松战役：希波战争'), b:o('Athens beat a Persian landing force at Marathon. In 480 BCE Sparta’s 300 held the pass at Thermopylae and the Athenian fleet won at Salamis; the Greeks stayed free.','雅典在马拉松打败了登陆的波斯军队。前480年，斯巴达三百勇士扼守温泉关，雅典舰队在萨拉米斯海战中获胜，希腊保住了独立。') },
+  { y:-478, c:'athens', t:o('The Delian League','提洛同盟'), b:o('Athens led an alliance of about 150 Greek states against Persia — and slowly turned it into its own empire. Sparta led the rival Peloponnesian League.','雅典领导约150个希腊城邦结成反波斯同盟，并逐渐把它变成自己的“帝国”。斯巴达则领导伯罗奔尼撒同盟。') },
+  { y:-450, c:'rome', t:o('The Twelve Tables','《十二铜表法》'), b:o('Rome’s first written laws were put up in the Forum so everyone could see them — plebeians (ordinary citizens) had demanded it.','罗马第一部成文法被公布在广场上，人人都能看到——这是平民斗争的结果。') },
+  { y:-447, c:'athens', t:o('Pericles builds the Parthenon','伯里克利时代：修建帕特农神庙'), b:o('Under Pericles, Athens paid poor citizens for public service, so they could take part. The Parthenon was built 447–432 BCE for Athena.','伯里克利执政时，雅典给担任公职的公民发津贴，穷人也能参政。帕特农神庙于前447—前432年为雅典娜而建。') },
+  { y:-431, c:'sparta', t:o('The Peloponnesian War','伯罗奔尼撒战争'), b:o('Athens (sea power) against Sparta (land power) for 27 years. A plague hit crowded Athens in 430 BCE; Sparta, with Persian money for a fleet, won in 404 BCE.','雅典（海上强国）与斯巴达（陆上强国）打了27年。前430年拥挤的雅典暴发瘟疫；斯巴达借波斯的钱建立舰队，于前404年获胜。') },
+  { y:-338, c:'pella', t:o('Macedon takes over Greece','马其顿控制希腊'), b:o('King Philip II of Macedon defeated Athens and Thebes at Chaeronea. The weakened city-states lost their independence.','马其顿国王腓力二世在喀罗尼亚打败雅典和底比斯，元气大伤的希腊城邦失去了独立。') },
+  { y:-334, c:'pella', t:o('Alexander marches east','亚历山大东征'), b:o('Alexander, aged 22, crossed into Asia. In 11 years he conquered Persia, Egypt and lands to the Indus River — about 18,000 km of marching (estimate).','22岁的亚历山大率军进入亚洲。11年间他征服了波斯、埃及，一直打到印度河流域，行军约1.8万千米（估计）。') },
+  { y:-331, c:'alex', t:o('Alexandria founded','建立亚历山大里亚'), b:o('One of about 20 cities Alexander named after himself. Greek language and culture spread across the East: the Hellenistic age.','亚历山大以自己名字命名的城市约有20座，这是其中之一。希腊语言和文化传遍东方，进入“希腊化时代”。') },
+  { y:-323, c:'babylon', t:o('Alexander dies; his empire splits','亚历山大去世，帝国分裂'), b:o('He died in Babylon at 32 without a clear heir. His generals carved the empire into kingdoms: Ptolemaic Egypt, the Seleucids and Macedon.','他32岁死于巴比伦，没有指定继承人。部将们把帝国瓜分成几个王国：托勒密埃及、塞琉古王国和马其顿王国。') },
+  { y:-264, c:'carthage', t:o('The Punic Wars begin','布匿战争爆发'), b:o('Rome, now master of Italy, fought Carthage for control of the western Mediterranean. In 218 BCE Hannibal crossed the Alps with elephants — but Rome won in the end.','已经统一意大利半岛的罗马，与迦太基争夺西地中海霸权。前218年汉尼拔带着战象翻越阿尔卑斯山，但最后罗马获胜。') },
+  { y:-146, c:'carthage', t:o('Carthage and Corinth destroyed','迦太基和科林斯被毁'), b:o('In one year Rome destroyed Carthage and the Greek city of Corinth. Rome now ruled most of the Mediterranean coast.','这一年罗马摧毁了迦太基和希腊城市科林斯，地中海沿岸大部分地区落入罗马之手。') },
+  { y:-44, c:'rome', t:o('Julius Caesar is killed','恺撒遇刺'), b:o('Caesar conquered Gaul and made himself dictator for life. Senators who wanted to save the Republic killed him on 15 March 44 BCE — and started another civil war.','恺撒征服了高卢，自任终身独裁官。前44年3月15日，想要维护共和制的元老们刺杀了他，罗马又陷入内战。') },
+  { y:-27, c:'rome', t:o('Augustus: the Empire begins','屋大维建立元首制，罗马帝国开始'), b:o('Octavian, Caesar’s adopted son, won the civil war and took the title Augustus. He kept the Senate but held real power as “first citizen” (princeps) — the Republic became an empire.','恺撒的养子屋大维赢得内战，获得“奥古斯都”称号。他保留元老院，自称“第一公民”（元首），却掌握实权——共和国变成了帝国。') },
+  { y:80, c:'rome', t:o('The Colosseum opens','罗马大斗兽场落成'), b:o('It held about 50,000 spectators for shows and games — about the size of a modern baseball stadium.','可容纳约5万名观众观看表演和竞技，大小与今天的一座棒球场差不多。') },
+  { y:117, c:'rome', t:o('The Empire at its largest','帝国疆域达到最大'), b:o('Under Trajan the Empire covered about 5 million km² — from Britain to Mesopotamia — with perhaps 50–70 million people.','图拉真在位时，帝国面积约500万平方千米，从不列颠延伸到两河流域，人口约5000万—7000万。') },
+  { y:122, c:'rome', t:o('Hadrian’s Wall','哈德良长城'), b:o('Hadrian pulled back from Mesopotamia and built a 117 km (73-mile) wall across northern Britain.','哈德良放弃了两河流域，在不列颠北部修建了一道117千米（73英里）长的城墙。') },
+  { y:313, c:'rome', t:o('Christianity allowed','基督教取得合法地位'), b:o('Christianity began in the Roman province of Judaea in the 1st century. Constantine allowed it in 313; it became the state religion in 392.','基督教1世纪产生于罗马帝国的巴勒斯坦地区。313年君士坦丁承认其合法，392年成为国教。') },
+  { y:330, c:'byz', t:o('Constantinople, the new capital','新都君士坦丁堡'), b:o('Constantine moved the capital east to Byzantion and renamed it Constantinople (today Istanbul).','君士坦丁把首都东迁到拜占庭，改名君士坦丁堡（今伊斯坦布尔）。') },
+  { y:395, c:'byz', t:o('The Empire splits in two','罗马帝国分裂为东西两部分'), b:o('After Theodosius died, the Empire was divided for good: the Western Empire (capital Rome, later Ravenna) and the Eastern Empire (capital Constantinople).','狄奥多西死后，帝国正式分为西罗马帝国（首都罗马，后迁拉文纳）和东罗马帝国（首都君士坦丁堡）。') },
+  { y:410, c:'rome', t:o('Rome is sacked','罗马城被洗劫'), b:o('The Visigoths, a Germanic people, captured the city of Rome — a huge shock. Britain was abandoned around the same time.','西哥特人（日耳曼人的一支）攻陷了罗马城，举世震惊。大约同时，罗马放弃了不列颠。') },
+  { y:476, c:'rome', t:o('The Western Empire falls','西罗马帝国灭亡'), b:o('The Germanic general Odoacer removed the last Western emperor, the boy Romulus Augustulus. The Eastern Empire lived on until 1453.','日耳曼将领奥多亚克废黜了最后一位西罗马皇帝——少年罗慕路斯·奥古斯都路斯。东罗马帝国一直延续到1453年。') }
+];
+const CN = [
+  { y:-800, t:o('China: the Western Zhou dynasty (西周) rules from near today’s Xi’an.','中国：西周王朝，都城镐京（今陕西西安附近）。') },
+  { y:-770, t:o('770 BCE: the Zhou move east to Luoyang — the Spring and Autumn period (春秋, 770–476 BCE) begins; rival states compete.','前770年：周平王东迁洛邑（今河南洛阳），春秋时期（前770—前476年）开始，诸侯争霸。') },
+  { y:-551, t:o('551 BCE: Confucius (孔子) is born — about 80 years before Socrates.','前551年：孔子出生，比苏格拉底早约80年。') },
+  { y:-475, t:o('475 BCE: the Warring States period (战国) — seven big states fight, much like the Greek city-states.','前475年：战国时期开始，七雄并立，有点像互相争斗的希腊城邦。') },
+  { y:-356, t:o('356 BCE: Shang Yang’s reforms (商鞅变法) make the state of Qin strong — around the time Philip II builds up Macedon.','前356年：商鞅变法使秦国强大——几乎同时，腓力二世在壮大马其顿。') },
+  { y:-221, t:o('221 BCE: Qin Shi Huang unites China (秦统一) — the Punic Wars are raging in the Mediterranean.','前221年：秦始皇统一中国——这时地中海正打着布匿战争。') },
+  { y:-202, t:o('202 BCE: the Han dynasty (汉朝, 202 BCE – 220 CE) begins — the same year Rome beats Hannibal at Zama.','前202年：汉朝建立（前202—公元220年）——同一年，罗马在扎马战役中打败汉尼拔。') },
+  { y:-138, t:o('138 BCE: Zhang Qian (张骞) travels to the Western Regions (西域); his journeys open the Silk Road.','前138年起：张骞出使西域，开辟了丝绸之路。') },
+  { y:-60, t:o('60 BCE: the Han set up the Protectorate of the Western Regions (西域都护) — Chinese silk reaches Rome, where it is worth a fortune.','前60年：西汉设立西域都护。中国丝绸经丝绸之路运到罗马，价格昂贵。') },
+  { y:25, t:o('25 CE: the Eastern Han (东汉) is founded, with its capital at Luoyang.','25年：东汉建立，定都洛阳。') },
+  { y:97, t:o('97 CE: envoy Gan Ying (甘英) sets out for Daqin (大秦, Rome) but turns back at the Persian Gulf.','97年：甘英出使大秦（罗马），到达波斯湾一带后折返。') },
+  { y:105, t:o('105 CE: Cai Lun (蔡伦) improves papermaking.','105年：蔡伦改进造纸术。') },
+  { y:166, t:o('166 CE: the Book of the Later Han (《后汉书》) records envoys from “Andun (安敦), king of Daqin” — probably Emperor Marcus Aurelius Antoninus.','166年：《后汉书》记载“大秦王安敦”遣使来汉，一般认为指罗马皇帝马可·奥勒留·安敦尼。') },
+  { y:220, t:o('220 CE: the Han dynasty ends; the Three Kingdoms (三国) follow.','220年：东汉灭亡，进入三国时期。') },
+  { y:280, t:o('280 CE: the Western Jin (西晋) briefly reunites China.','280年：西晋短暂统一全国。') },
+  { y:317, t:o('317 CE: the Eastern Jin (东晋) rules the south while many states rise in the north.','317年：东晋在南方建立，北方政权林立。') },
+  { y:420, t:o('420 CE: the Northern and Southern dynasties (南北朝, 420–589) — China, like Rome, is divided.','420年：南北朝时期（420—589年）开始——和罗马一样，中国也处于分裂之中。') }
+];
+const PEOPLE = [
+  { n:o('Pericles','伯里克利'), t:o('Leader of Athens in its golden age; paid citizens for public service and built the Parthenon.','雅典黄金时代的领导人，给担任公职的公民发津贴，主持修建帕特农神庙。') },
+  { n:o('Socrates, Plato, Aristotle','苏格拉底、柏拉图、亚里士多德'), t:o('Three Athenian philosophers: teacher → student → student. Aristotle then taught Alexander.','三位雅典哲学家，一代传一代；亚里士多德后来又当了亚历山大的老师。') },
+  { n:o('Alexander the Great','亚历山大大帝'), t:o('King of Macedon (336–323 BCE); conquered from Greece to the Indus River and spread Greek culture.','马其顿国王（前336—前323年在位），征服了从希腊到印度河的广大地区，传播了希腊文化。') },
+  { n:o('Hannibal','汉尼拔'), t:o('Carthaginian general who crossed the Alps with elephants in 218 BCE.','迦太基名将，前218年带着战象翻越阿尔卑斯山。') },
+  { n:o('Julius Caesar','恺撒'), t:o('Conquered Gaul, became dictator, was killed in 44 BCE.','征服高卢，成为独裁官，前44年遇刺身亡。') },
+  { n:o('Augustus (Octavian)','屋大维（奥古斯都）'), t:o('First Roman emperor (27 BCE – 14 CE); began two centuries of “Roman Peace” (Pax Romana).','罗马第一位皇帝（前27—公元14年在位），开启了约两百年的“罗马和平”。') }
+];
+/* ---- Athens vs Sparta ---- */
+const LIFE = {
+  ath:{ n:o('Athens','雅典'), stages:[
+    { age:o('Age 7','7岁'), q:o('Your family can pay for lessons. Where do you go every day?','你家有钱请老师。你每天去哪里？'), opts:[
+      { ok:1, t:o('To private teachers for reading, writing, the lyre, poetry — and wrestling at the gym','跟私人教师学读写、弹里拉琴、背诗歌，还去体育场练摔跤'), w:o('Right. There were no state schools: families paid teachers. Poorer boys learned a trade instead.','对。雅典没有公立学校，学费由家庭支付；穷人家的孩子则去学手艺。') },
+      { t:o('To a state army school where you live in barracks','去国家办的军事学校，住在军营里'), w:o('That is Sparta’s agoge. Athens had no state school for children.','那是斯巴达的“阿高革”训练。雅典没有国家办的儿童学校。') },
+      { t:o('Nowhere — in Athens only girls go to school','哪儿也不去——在雅典只有女孩上学'), w:o('The opposite: most Athenian girls stayed at home and learned to run a household.','正好相反：大多数雅典女孩待在家里学习料理家务。') } ] },
+    { age:o('Age 18','18岁'), q:o('You are registered as a citizen. What happens next?','你登记成为公民。接下来会怎样？'), opts:[
+      { ok:1, t:o('Two years of military training as an ephebe (young recruit), guarding the borders','当两年“埃菲比”（青年新兵），接受军事训练、守卫边境'), w:o('Right (by the 300s BCE). Athens also needed thousands of rowers: each trireme warship had about 170.','对（公元前4世纪时如此）。雅典还需要成千上万的桨手：每艘三列桨战舰约有170名桨手。') },
+      { t:o('You are chosen as king','你被选为国王'), w:o('Democratic Athens had no king.','民主的雅典没有国王。') },
+      { t:o('You may not speak in public until you are 40','你要到40岁才能公开发言'), w:o('No — at the Assembly, any citizen could stand up and speak.','不对——在公民大会上，任何公民都可以起身发言。') } ] },
+    { age:o('Age 30','30岁'), q:o('A machine full of name tokens is about to pick officials. What can you do now?','一台装满名牌的抽签机要选官员了。你现在能做什么？'), opts:[
+      { ok:1, t:o('Be picked by lot for the Council of 500 for a year — and keep voting in the Assembly on war and peace','通过抽签进入五百人议事会任职一年，并继续在公民大会上就战争与和平投票'), w:o('Right. Most officials were chosen by lottery so ordinary citizens took turns. The Assembly met about 40 times a year on the Pnyx hill.','对。大多数官职用抽签产生，让普通公民轮流担任。公民大会每年在普尼克斯山开会约40次。') },
+      { t:o('Nothing — only nobles may govern','什么也不能做——只有贵族才能执政'), w:o('That was before Solon and Cleisthenes. Under Pericles even poor citizens were paid to serve.','那是梭伦和克里斯提尼改革以前的事。伯里克利时代，连穷公民担任公职都有津贴。') },
+      { t:o('Elect senators who serve for life','选举终身任职的元老'), w:o('That sounds like Rome’s Senate, not Athens.','这更像罗马的元老院，不是雅典。') } ] } ],
+    end:o('Your city: theatres, the Parthenon, philosophers like Socrates and a navy that ruled the Aegean. But women, foreigners and enslaved people had no vote.','你的城邦：剧场、帕特农神庙、苏格拉底这样的哲学家，还有称霸爱琴海的海军。但是女性、外邦人和奴隶没有投票权。') },
+  spa:{ n:o('Sparta','斯巴达'), stages:[
+    { age:o('Age 7','7岁'), q:o('You are a healthy 7-year-old boy. What happens?','你是一个健康的7岁男孩。接下来会怎样？'), opts:[
+      { ok:1, t:o('Leave home for the agoge — the state’s tough training school — and live with your age group','离开家去参加“阿高革”——国家办的严格训练——和同龄人住在一起'), w:o('Right. From 7 to about 20, boys trained together: running, wrestling, weapons and enduring hunger and cold. They learned only a little reading.','对。从7岁到约20岁，男孩们集体训练：跑步、摔跤、使用武器，还要忍受饥饿和寒冷，读写只学一点点。') },
+      { t:o('Stay home with tutors, learning poetry and philosophy','留在家里跟家庭教师学诗歌和哲学'), w:o('That’s closer to a rich Athenian boy’s life.','这更像有钱雅典男孩的生活。') },
+      { t:o('Start work as a merchant’s apprentice','去给商人当学徒'), w:o('Spartan citizens were not allowed to trade. Others did that work.','斯巴达公民不准经商，这类工作由别人来做。') } ] },
+    { age:o('Age 20','20岁'), q:o('Training is over. What is your life now?','训练结束了。你现在过什么样的生活？'), opts:[
+      { ok:1, t:o('Serve as a hoplite (heavy foot soldier) and eat daily in a shared mess hall with your unit','当重装步兵，每天和战友在公共食堂一起吃饭'), w:o('Right. Spartan men stayed soldiers until 60 and paid food into a common mess; if you couldn’t pay, you could lose your citizenship.','对。斯巴达男子到60岁都是军人，每人要向公共食堂交粮食；交不起就可能失去公民身份。') },
+      { t:o('Join the navy as a rower','到海军当桨手'), w:o('Sparta’s pride was its army on land; Athens was the sea power.','斯巴达的骄傲是陆军，雅典才是海上强国。') },
+      { t:o('Retire and farm your land yourself','退役回家自己种地'), w:o('Helots — unfree people owned by the state — farmed the land for Spartans.','土地由黑劳士（属于国家的奴隶）替斯巴达人耕种。') } ] },
+    { age:o('Age 30','30岁'), q:o('You are now a full Spartan citizen. What changes?','你成为了正式的斯巴达公民。有什么变化？'), opts:[
+      { ok:1, t:o('You may live at home with your family and vote — by shouting! — in the Assembly','你可以回家和家人同住，还能在公民大会上投票——靠喊！'), w:o('Right. The louder side won. Real power lay with two kings, a council of 28 elders over 60 and five ephors elected every year.','对。哪边喊声大哪边赢。真正的权力在两位国王、28名60岁以上的长老组成的长老会议，以及每年选出的5名监察官手中。') },
+      { t:o('You may be picked by lot for the Council of 500','你可以通过抽签进入五百人议事会'), w:o('That’s Athens.','那是雅典。') },
+      { t:o('Whoever wins a race becomes king','谁赛跑赢了谁当国王'), w:o('Sparta had two hereditary kings from two royal families.','斯巴达有两位世袭国王，分别来自两个王族。') } ] } ],
+    end:o('Your city: the most feared army in Greece, and women who ran, wrestled and owned land — more freedom than Athenian women. But a small group of citizens ruled over many more helots.','你的城邦：希腊最令人畏惧的军队；女子可以赛跑、摔跤、拥有土地，比雅典女性自由。但人数很少的公民统治着多得多的黑劳士。') }
+};
+const CMP = [
+  [o('Government','政治制度'), o('Direct democracy: citizens vote themselves','直接民主：公民亲自投票'), o('Two kings + 28 elders + 5 ephors (oligarchy)','两位国王＋28名长老＋5名监察官（寡头政治）')],
+  [o('Strength','长处'), o('Navy, trade, money','海军、贸易、财富'), o('Army on land','陆军')],
+  [o('Boys','男孩'), o('Paid teachers: letters, music, sport','私人教师：读写、音乐、体育'), o('Agoge from age 7','7岁起进入“阿高革”训练')],
+  [o('Women','女性'), o('Stayed at home, no vote','居家，无投票权'), o('Trained in sport, could own land, no vote','参加体育锻炼，可拥有土地，无投票权')],
+  [o('Who did the work?','谁来劳动？'), o('Citizens, foreigners, enslaved people','公民、外邦人、奴隶'), o('Helots (state-owned unfree farmers)','黑劳士（属于国家的奴隶）')],
+  [o('Legacy','留给后世'), o('Democracy, philosophy, theatre, the Parthenon','民主、哲学、戏剧、帕特农神庙'), o('The word “spartan” = tough and simple','英语“spartan”一词＝刻苦、简朴')]
+];
+/* ---- roads ---- */
+const NODES = { rome:{ll:[12.5,41.9],n:o('Rome','罗马')}, capua:{ll:[14.25,41.08],n:o('Capua','卡普阿')}, brund:{ll:[17.94,40.64],n:o('Brundisium','布隆迪西乌姆'),goal:1}, arim:{ll:[12.57,44.06],n:o('Ariminum','阿里米努姆')}, plac:{ll:[9.69,45.05],n:o('Placentia','普拉森提亚')},
+  genua:{ll:[8.93,44.41],n:o('Genua','热那亚')}, mass:{ll:[5.37,43.3],n:o('Massilia','马西利亚')}, narbo:{ll:[3.0,43.18],n:o('Narbo','纳博')}, tarr:{ll:[1.25,41.12],n:o('Tarraco','塔拉科'),goal:1}, lugd:{ll:[4.83,45.76],n:o('Lugdunum','卢格杜努姆'),goal:1}, aqui:{ll:[13.37,45.77],n:o('Aquileia','阿奎莱亚'),goal:1},
+  dyrr:{ll:[19.45,41.32],n:o('Dyrrachium','迪拉基乌姆')}, thess:{ll:[22.94,40.64],n:o('Thessalonica','帖撒罗尼迦')}, byz:{ll:[28.98,41.01],n:o('Byzantium','拜占庭'),goal:1}, sirm:{ll:[19.61,44.97],n:o('Sirmium','西尔米乌姆')}, naiss:{ll:[21.9,43.32],n:o('Naissus','奈苏斯')} };
+const MODERN = { rome:o('Rome','罗马'), capua:o('near Naples','那不勒斯附近'), brund:o('Brindisi','布林迪西'), arim:o('Rimini','里米尼'), plac:o('Piacenza','皮亚琴察'), genua:o('Genoa','热那亚'), mass:o('Marseille','马赛'), narbo:o('Narbonne','纳博讷'), tarr:o('Tarragona','塔拉戈纳'), lugd:o('Lyon','里昂'), aqui:o('Aquileia','阿奎莱亚'), dyrr:o('Durrës','都拉斯'), thess:o('Thessaloniki','塞萨洛尼基'), byz:o('Istanbul','伊斯坦布尔'), sirm:o('Sremska Mitrovica','斯雷姆斯卡米特罗维察'), naiss:o('Niš','尼什') };
+const EDGES = [ ['rome','capua',200,o('Via Appia','阿庇亚大道')], ['capua','brund',370,o('Via Appia','阿庇亚大道')], ['rome','arim',330,o('Via Flaminia','弗拉米尼亚大道')], ['arim','plac',260,o('Via Aemilia','艾米利亚大道')], ['rome','genua',500,o('Via Aurelia','奥勒留大道')],
+  ['genua','plac',150,o('Via Postumia','波斯图米亚大道')], ['genua','mass',380,o('coast road','沿海大道')], ['mass','narbo',250,o('Via Domitia','多米提亚大道')], ['narbo','tarr',330,o('Via Augusta','奥古斯塔大道')], ['mass','lugd',320,o('Via Agrippa','阿格里帕大道')], ['plac','lugd',450,o('over the Alps','翻越阿尔卑斯山')],
+  ['plac','aqui',330,o('Via Postumia','波斯图米亚大道')], ['aqui','sirm',450,o('Danube road','多瑙河大道')], ['sirm','naiss',330,o('Via Militaris','军事大道')], ['naiss','byz',800,o('Via Militaris','军事大道')], ['brund','dyrr',150,o('by ship across the Adriatic','乘船横渡亚得里亚海')], ['dyrr','thess',450,o('Via Egnatia','埃格纳提亚大道')], ['thess','byz',550,o('Via Egnatia','埃格纳提亚大道')] ];
+/* ---- data figure ---- */
+const RES = [
+  { n:o('Land at its largest','最大疆域'), r:5.0, h:6.0, lab:v => Lab.lang === 'zh' ? `约${v * 100}万km²` : `≈${v} million km²`, a:'h', why:o('Rome peaked at about 5 million km² (117 CE); Han China at roughly 6 million km², counting the Western Regions. Each is about two-thirds of the US lower 48.','罗马最大约500万平方千米（117年）；汉朝连同西域约600万平方千米。两者都相当于美国本土48州面积的三分之二左右。') },
+  { n:o('People (same decade)','人口（同一时期）'), r:45, h:57.7, lab:v => Lab.lang === "zh" ? `约${Math.round(v * 100)}万` : `≈${v} million`, a:'h', why:o('Han’s census of 2 CE counted about 57.7 million people. Historians estimate the Roman Empire under Augustus (14 CE) at about 45 million, rising to perhaps 60 million later.','汉朝公元2年的户口统计约有5767万人。历史学家估计，奥古斯都时代（14年）的罗马帝国约有4500万人，后来可能增加到6000万左右。') },
+  { n:o('How long it lasted','持续时间'), r:503, h:422, lab:v => Lab.lang === 'zh' ? `${v}年` : `${v} years`, a:'r', why:o('Roman Empire in the West: 27 BCE – 476 CE ≈ 503 years (the East lasted to 1453). Han: 202 BCE – 220 CE ≈ 422 years, with a short break under Wang Mang (9–23 CE).','西罗马帝国：前27—公元476年，约503年（东罗马延续到1453年）。汉朝：前202—公元220年，约422年，中间有王莽新朝（9—23年）的短暂中断。') },
+  { n:o('Longest defensive wall','最长的边防城墙'), r:117, h:10000, lab:v => Lab.lang === 'zh' ? `约${v.toLocaleString('en-US')}千米` : `≈${v.toLocaleString('en-US')} km`, a:'h', why:o('Hadrian’s Wall was 117 km (73 miles). Han walls and watchtowers ran more than 10,000 km (approx.), out to Yumen Pass and beyond.','哈德良长城长117千米（73英里）。汉长城连同烽燧总长超过1万千米（约数），一直修到玉门关以西。') }
+];
+/* ---- quiz & sort ---- */
+const QUIZ = [
+  {q:o('Which Greek city-state developed direct democracy, where citizens voted on laws themselves?','哪个希腊城邦发展出公民亲自投票表决的直接民主？'), options:[o('Athens','雅典'),o('Sparta','斯巴达'),o('Rome','罗马'),o('Carthage','迦太基')], answer:0},
+  {q:o('Who could vote in the Athenian Assembly?','谁能在雅典公民大会上投票？'), options:[o('Adult male citizens','成年男性公民'),o('Every person living in Athens','住在雅典的所有人'),o('Only nobles','只有贵族'),o('Men and women citizens','男女公民')], answer:0, explain:o('Perhaps 30,000–40,000 of 250,000–300,000 people. Women, foreigners and enslaved people were excluded.','约25万—30万人口中只有3万—4万人。女性、外邦人和奴隶都被排除在外。')},
+  {q:o('Under which leader did Athens build the Parthenon and pay citizens for public service?','在哪位领导人执政时，雅典修建了帕特农神庙，并给担任公职的公民发津贴？'), options:[o('Pericles','伯里克利'),o('Solon','梭伦'),o('Alexander','亚历山大'),o('Augustus','屋大维')], answer:0},
+  {q:o('Spartan boys began training in the agoge at age…','斯巴达男孩几岁开始接受“阿高革”训练？'), options:[o('7','7岁'),o('12','12岁'),o('18','18岁'),o('30','30岁')], answer:0},
+  {q:o('Who won the Peloponnesian War (431–404 BCE)?','伯罗奔尼撒战争（前431—前404年）谁获胜？'), options:[o('Sparta','斯巴达'),o('Athens','雅典'),o('Persia','波斯'),o('Rome','罗马')], answer:0},
+  {q:o('Map reading: in 323 BCE Alexander’s empire reached from Greece and Egypt east to…','读图：前323年，亚历山大帝国从希腊和埃及向东一直延伸到'), options:[o('the Indus River','印度河流域'),o('Britain','不列颠'),o('the Yellow River','黄河流域'),o('Spain','西班牙')], answer:0},
+  {q:o('Who led the Roman Republic after 509 BCE?','前509年以后，罗马共和国由谁领导？'), options:[o('Two consuls elected each year, with the Senate','每年选出的两名执政官，以及元老院'),o('One king for life','终身任职的国王'),o('An emperor','皇帝'),o('A council chosen by lot','抽签产生的议事会')], answer:0},
+  {q:o('What were the Twelve Tables (about 450 BCE)?','《十二铜表法》（约前450年）是什么？'), options:[o('Rome’s first written laws','罗马第一部成文法'),o('A list of Olympic winners','奥运会冠军名单'),o('Plans for an aqueduct','引水渠设计图'),o('The Greek alphabet','希腊字母表')], answer:0},
+  {q:o('The Punic Wars were fought between Rome and…','布匿战争是罗马与谁之间的战争？'), options:[o('Carthage','迦太基'),o('Athens','雅典'),o('Persia','波斯'),o('Han China','汉朝')], answer:0},
+  {q:o('In 27 BCE Octavian took the title Augustus. What did this mark?','前27年屋大维获得“奥古斯都”称号，这标志着'), options:[o('The start of the Roman Empire','罗马帝国的开始'),o('The founding of the Republic','罗马共和国的建立'),o('The fall of the Western Empire','西罗马帝国的灭亡'),o('The first Olympic Games','第一届奥运会')], answer:0, explain:o('He kept the Senate but held real power as “first citizen” (元首制).','他保留元老院，却以“第一公民”的身份掌握实权（元首制）。')},
+  {q:o('Figure reading: the Pont du Gard aqueduct drops about 12.6 m over 50 km. That is about…','读图：加尔桥所在的引水渠50千米只下降约12.6米，约等于'), options:[o('25 cm per km','每千米下降25厘米'),o('2.5 m per km','每千米下降2.5米'),o('12.6 m per km','每千米下降12.6米'),o('1 cm per km','每千米下降1厘米')], answer:0, explain:o('12.6 m = 1,260 cm; 1,260 ÷ 50 ≈ 25 cm per km.','12.6米＝1260厘米，1260÷50≈25厘米／千米。')},
+  {q:o('In 476 CE the Western Roman Empire fell. What happened to the Eastern Roman Empire?','476年西罗马帝国灭亡。东罗马帝国怎样了？'), options:[o('It lasted until 1453, ruled from Constantinople','以君士坦丁堡为首都，一直延续到1453年'),o('It fell the same year','同一年灭亡'),o('It became part of Han China','成为汉朝的一部分'),o('It never existed','它根本不存在')], answer:0}
+];
+const SORT = {
+  bins:[{id:'a',en:'Athens',zh:'雅典'},{id:'s',en:'Sparta',zh:'斯巴达'},{id:'r',en:'Rome',zh:'罗马'}],
+  items:[
+    {en:'Pericles',zh:'伯里克利',bin:'a'},{en:'The Parthenon',zh:'帕特农神庙',bin:'a'},{en:'Council of 500 chosen by lot',zh:'抽签产生的五百人议事会',bin:'a'},{en:'Led the Delian League',zh:'领导提洛同盟',bin:'a'},
+    {en:'The agoge from age 7',zh:'7岁起的“阿高革”训练',bin:'s'},{en:'Helots farmed the land',zh:'黑劳士耕种土地',bin:'s'},{en:'Two kings at once',zh:'同时有两位国王',bin:'s'},{en:'Assembly voted by shouting',zh:'公民大会靠喊声表决',bin:'s'},
+    {en:'Consuls and the Senate',zh:'执政官和元老院',bin:'r'},{en:'The Twelve Tables',zh:'《十二铜表法》',bin:'r'},{en:'The Colosseum',zh:'罗马大斗兽场',bin:'r'},{en:'Augustus',zh:'屋大维（奥古斯都）',bin:'r'}
+  ]
+};
+/* ---- gallery ---- */
+const CQ = '?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', CT = 'https://thumb.wikimedia.org/wikipedia/commons/thumb/', CP = 'https://commons.wikimedia.org/wiki/File:';
+const PH = o('Photo','照片'), VID = o('Video','视频');
+const PHOTOS = [
+  { src:CT + 'd/da/The_Parthenon_in_Athens.jpg/960px-The_Parthenon_in_Athens.jpg' + CQ, en:"The Parthenon in Athens (photo taken in 1978).", zh:"雅典的帕特农神庙（1978年拍摄）。", kind:PH, credit:'Steve Swayne', license:'CC BY 2.0', page:CP + 'The_Parthenon_in_Athens.jpg' },
+  { src:CT + '6/67/Pericles_Pio-Clementino_Inv269.jpg/960px-Pericles_Pio-Clementino_Inv269.jpg' + CQ, en:'Bust of Pericles inscribed “Pericles, son of Xanthippus, Athenian” — a Roman marble copy of a Greek original from about 430 BCE.', zh:'伯里克利胸像，刻有“雅典人伯里克利，克桑西普斯之子”——罗马时代仿约前430年希腊原作的大理石复制品。', kind:o('Sculpture','雕塑'), credit:'Copy of Ktesilas', license:'Public domain', page:CP + 'Pericles_Pio-Clementino_Inv269.jpg' },
+  { src:CT + 'e/eb/Statue-Augustus.jpg/960px-Statue-Augustus.jpg' + CQ, en:"Statue of Augustus, the first Roman emperor.", zh:"罗马第一位皇帝屋大维（奥古斯都）的雕像。", kind:o('Sculpture','雕塑'), credit:'Till Niermann', license:'Public domain', page:CP + 'Statue-Augustus.jpg' },
+  { src:CT + 'd/de/Colosseo_2020.jpg/960px-Colosseo_2020.jpg' + CQ, en:"The Colosseum in Rome, 2020.", zh:"罗马大斗兽场，2020年。", kind:PH, credit:'FeaturedPics', license:'CC BY-SA 4.0', page:CP + 'Colosseo_2020.jpg' },
+  { src:CT + '4/42/Pont_du_Gard_BLS.jpg/960px-Pont_du_Gard_BLS.jpg' + CQ, en:'The Pont du Gard in southern France — the most famous part of the Roman aqueduct that carried water from near Uzès to Nîmes.', zh:'法国南部的加尔桥——从于泽斯附近向尼姆输水的罗马引水渠中最著名的一段。', kind:PH, credit:'Benh LIEU SONG (Flickr)', license:'CC BY-SA 3.0', page:CP + 'Pont_du_Gard_BLS.jpg' },
+  { src:CT + 'c/cd/Appian_Way.jpg/960px-Appian_Way.jpg' + CQ, en:'The Appian Way (Via Appia) near Casal Rotondo, outside Rome.', zh:'罗马城外卡萨尔罗通多附近的阿庇亚大道。', kind:PH, credit:'Livioandronico2013', license:'CC BY-SA 4.0', page:CP + 'Appian_Way.jpg' },
+  { src:CT + 'b/b9/Reenact_testudo.jpg/960px-Reenact_testudo.jpg' + CQ, en:'Roman re-enactors demonstrate the testudo (“tortoise”) formation, 2005.', zh:'罗马军队历史重演者演示“龟甲阵”（2005年）。', kind:PH, credit:'Caliga10 at English Wikipedia', license:'Public domain', page:CP + 'Reenact_testudo.jpg' },
+  { src:CT + '6/6a/Woven_silk%2C_Western_Han_Dynasty.jpg/960px-Woven_silk%2C_Western_Han_Dynasty.jpg' + CQ, en:'Meanwhile in China: woven silk from Tomb No. 1 at Mawangdui (Changsha), Western Han dynasty, 2nd century BCE — the kind of cloth that travelled the Silk Road.', zh:'同一时期的中国：长沙马王堆一号汉墓出土的西汉丝织品（公元前2世纪）——正是经丝绸之路西传的那种丝绸。', kind:o('Artifact','文物'), credit:'Chinese artist', license:'Public domain', page:CP + 'Woven_silk,_Western_Han_Dynasty.jpg' },
+  { type:'youtube', yt:'6bDrYTXQLu8', en:'Video: Ancient Greece 101 (National Geographic).', zh:'视频：古希腊101（美国国家地理，英文）。', kind:VID, credit:'National Geographic (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'GXoEpNjgKzg', en:'Video: Ancient Rome 101 (National Geographic).', zh:'视频：古罗马101（美国国家地理，英文）。', kind:VID, credit:'National Geographic (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'M7V1a1I5BL0', en:'Video: This is Sparta — fierce warriors of the ancient world (TED-Ed).', zh:'视频：这就是斯巴达——古代世界的勇士（TED-Ed，英文）。', kind:VID, credit:'TED-Ed (YouTube)', license:'YouTube' }
+];
+</script>
+<script>
+const css = WMap.css;
+const mixHex = (a, b, t) => { const h = s => { s = s.replace('#', ''); if (s.length === 3) s = s.replace(/./g, '$&$&'); return [0, 2, 4].map(i => parseInt(s.substr(i, 2), 16)); }; try { const x = h(a), y = h(b); return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join(''); } catch (e) { return a; } };
+const polyArea = p => Math.abs(p.reduce((s, q, i) => { const r = p[(i + 1) % p.length]; return s + q[0] * r[1] - r[0] * q[1]; }, 0) / 2);
+const centroid = p => [p.reduce((s, q) => s + q[0], 0) / p.length, p.reduce((s, q) => s + q[1], 0) / p.length];
+const surfHex = () => { const s = css('--surface'); return /^#/.test(s) ? s : '#ffffff'; };
+
+/* ================= Campaign (main game) ================= */
+const CAMP = { s:{ polis:0, aq:0, rd:0, lg:0 } };
+const MS = { polis:o('1 Athens or Sparta','1 雅典或斯巴达'), aq:o('2 Aqueduct','2 引水渠'), rd:o('3 Roads','3 道路'), lg:o('4 Legion','4 军团') };
+const RANKS = [ { s:0, n:o('Recruit','新兵') }, { s:3, n:o('Legionary','军团士兵') }, { s:6, n:o('Centurion','百夫长') }, { s:9, n:o('Legate','军团长') }, { s:11, n:o('Consul','执政官') } ];
+const starStr = n => '★'.repeat(n) + '☆'.repeat(3 - n);
+function renderCamp(){
+  const tot = Object.values(CAMP.s).reduce((a, b) => a + b, 0);
+  Lab.$('#campMs').innerHTML = Object.keys(MS).map(k => `<span class="ms">${Lab.L(MS[k])} <b>${starStr(CAMP.s[k])}</b></span>`).join('');
+  Lab.$('#campScore').textContent = tot * 10; Lab.$('#campBar').style.width = (tot / 12 * 100) + '%';
+  Lab.$('#ranks').innerHTML = RANKS.map(x => `<span class="${tot >= x.s ? 'on' : ''}">${Lab.L(x.n)}</span>`).join('');
+}
+function award(k, st){ if (st > CAMP.s[k]){ CAMP.s[k] = st; renderCamp(); } }
+
+/* ================= Map + time slider ================= */
+const App = { t:-800, timer:null, city:null, cities:true, labels:true };
+const keyAt = (E, y) => E.keys.find(k => y >= k.from && y < k.to);
+const cityName = (k, y) => k === 'byz' && y >= 330 ? o('Constantinople (Istanbul)','君士坦丁堡（今伊斯坦布尔）') : k === 'byz' ? o('Byzantion (Istanbul)','拜占庭（今伊斯坦布尔）') : CITIES[k].n;
+const cityOn = (c, y) => y >= c.from && !(c.to && y >= c.to);
+const M = WMap.create('#mapStage', '#mapCv', { extent:[[-11,23],[70,52]], top:58, bottom:26, topS:60, bottomS:26,
+  overlay: (g, M) => {
+    g.save(); M.clipLand(); g.fillStyle = "rgba(176,138,60,.10)"; g.fillRect(0, 0, M.W, M.H); g.restore();
+    const surf = surfHex(), ink = css('--ink'), y = App.t, shown = [];
+    g.save(); M.clipLand();
+    EMP.forEach(E => { const k = keyAt(E, y); if (!k) return; const c = mixHex(E.col, surf, .42); k.ks.forEach(r => M.poly(R[r], c)); shown.push([E, k]); });
+    g.restore();
+    if (App.labels) shown.forEach(([E, k]) => {
+      if (M.small && !["rome","romeW","romeE","persia","alex","parth"].includes(E.k)) return; if (E.k === "rome" && y < -290) return;
+      const ps = k.ks.map(r => R[r]), ll = E.lab || (E.k === "rome" ? (y >= -290 ? [15.4,40.3] : centroid(ps[0])) : centroid(ps.slice().sort((a, b) => polyArea(b) - polyArea(a))[0]));
+      const p = M.xy(ll); if (p) M.text(Lab.L(E.n2 && y >= E.y2 ? E.n2 : E.n), p[0], p[1] + (E.k === "rome" && y < -290 ? 16 : 0), { s:M.small ? 10 : 12.5, c:mixHex(E.col, ink, .45) });
+    });
+    if (App.cities) Object.keys(CITIES).forEach(key => { const c = CITIES[key]; if (!cityOn(c, y)) return; const sel = App.city === key;
+      const p = M.dot(c.ll, sel ? 7 : 4.5, ink, sel ? '#f4b400' : surf); if (!p) return;
+      if ((!M.small && !c.minor) || sel) M.text(Lab.L(cityName(key, y)), p[0] + 8, p[1] - 9, { s:11, a:'left', w:sel ? 800 : 700 }); });
+  },
+  click: h => { let best = null, bd = 18; Object.keys(CITIES).forEach(key => { const c = CITIES[key]; if (!cityOn(c, App.t)) return; const p = M.xy(c.ll); const d = p ? Math.hypot(p[0] - h.x, p[1] - h.y) : 99; if (d < bd){ bd = d; best = key; } });
+    if (best){ App.city = best; renderInfo(); M.draw(); } },
+  hover: h => { let t = null; Object.keys(CITIES).forEach(key => { const c = CITIES[key]; if (!cityOn(c, App.t)) return; const p = M.xy(c.ll); if (p && Math.hypot(p[0] - h.x, p[1] - h.y) < 14) t = Lab.L(cityName(key, App.t)); }); return t; }
+});
+const EVY = [...new Set(EV.map(e => e.y))].sort((a, b) => a - b);
+const curE = () => { let c = EVY[0]; EVY.forEach(y => { if (y <= App.t) c = y; }); return c; };
+const lastLE = (arr, y) => { let r = null; arr.forEach(a => { if (a[0] <= y) r = a[1]; }); return r; };
+function romeState(y){ return y < -753 ? o('not yet founded','尚未建城') : y < -509 ? o('Kingdom','王国') : y < -27 ? o('Republic','共和国') : y < 395 ? o('Empire','帝国') : y < 476 ? o('Empire, split W/E','帝国（分东西）') : o('East only','只剩东罗马'); }
+function renderInfo(){
+  const box = Lab.$('#info');
+  if (App.city){ const k = App.city, c = CITIES[k], keys = Object.keys(CITIES).filter(x => cityOn(CITIES[x], App.t)), i = keys.indexOf(k), n = Lab.L(cityName(k, App.t));
+    box.innerHTML = `<span class="tag">${Lab.L(o('City','城市'))} · ${yl(App.t)}</span><h3><span class="dot" style="background:var(--brand)"></span>${n}</h3>
+      <ul>${Lab.L(c.f).map(x => `<li>${x}</li>`).join('')}</ul>
+      <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(o('Rome: 5-0-9 Republic, 2-7 Empire, 4-7-6 the West falls (509 BCE, 27 BCE, 476 CE).','罗马：前509共和，前27帝国，476西亡。'))}</div>
+      <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+      <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous city','◀ 上一个城市'))}</button><button id="pBack">${Lab.L(o('Map guide','地图说明'))}</button><button id="pNext">${Lab.L(o('Next city ▶','下一个城市 ▶'))}</button></div>`;
+    Lab.$('#speakBtn').onclick = () => Lab.speak([n, ...Lab.L(c.f)].join(Lab.lang === 'zh' ? '。' : '. '));
+    const go = j => { App.city = keys[(j + keys.length) % keys.length]; renderInfo(); M.draw(); };
+    Lab.$('#pPrev').onclick = () => go(i - 1); Lab.$('#pNext').onclick = () => go(i + 1); Lab.$('#pBack').onclick = () => { App.city = null; renderInfo(); M.draw(); }; return; }
+  box.innerHTML = `<span class="tag">${Lab.L(o('How to read the map','怎样看这张地图'))}</span><h3>${Lab.L(o('From city-states to empires','从城邦到帝国'))}</h3>
+    <p class="muted" style="margin:0">${Lab.L(o('Coloured areas show who ruled where in the year on the slider. Borders are rough — ancient empires had no exact lines on the ground.','彩色区域表示滑块所示年份时各国统治的范围。疆界只是大致范围——古代帝国并没有精确的边界线。'))}</p>
+    <ul><li>${Lab.L(o('<b>Blue</b> = Greek city-states · <b>green</b> = Sparta’s league · <b>ochre</b> = Persia · <b>purple</b> = Macedon and the kingdoms after Alexander · <b>teal</b> = Carthage · <b>red</b> = Rome (orange = Eastern Roman Empire).','<b>蓝色</b>＝希腊城邦 · <b>绿色</b>＝斯巴达的同盟 · <b>赭色</b>＝波斯 · <b>紫色</b>＝马其顿及亚历山大死后的各王国 · <b>青绿色</b>＝迦太基 · <b>红色</b>＝罗马（橙色＝东罗马帝国）。'))}</li>
+    <li>${Lab.L(o('Rome grew from one city (753 BCE) to about 5 million km² (117 CE) — about two-thirds of the US lower 48.','罗马从一座城市（前753年）发展到约500万平方千米（117年）——约为美国本土48州面积的三分之二。'))}</li></ul>
+    <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(o('Rome: 5-0-9 Republic, 2-7 Empire, 4-7-6 the West falls (509 BCE, 27 BCE, 476 CE).','罗马：前509共和，前27帝国，476西亡。'))}</div>
+    <div class="grid2" style="gap:8px">${PEOPLE.map(p => `<details class="peek"><summary>${Lab.L(p.n)}</summary><p>${Lab.L(p.t)}</p></details>`).join('')}</div>
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak(box.querySelector('p').textContent + ' ' + PEOPLE.map(p => Lab.L(p.n) + (Lab.lang === 'zh' ? '：' : ': ') + Lab.L(p.t)).join(' '));
+}
+function renderT(){
+  const t = App.t, c = curE();
+  Lab.$('#tm').value = t; Lab.$('#tmOut').textContent = yl(t); Lab.$('#ycDate').textContent = yl(c);
+  Lab.$('#ycList').innerHTML = EV.filter(e => e.y === c).map(e => `<div class="yc-ev"><h4>${Lab.L(e.t)}</h4><p>${Lab.L(e.b)}</p></div>`).join('');
+  const cn = CN.filter(x => x.y <= t).pop() || CN[0]; Lab.$('#cnBox').innerHTML = `<small>${Lab.L(o('🇨🇳 Meanwhile in China','🇨🇳 同一时期的中国'))}</small>${Lab.L(cn.t)}`;
+  const a = t < -753 ? null : lastLE(AREA, t);
+  Lab.$('#roRome').textContent = Lab.L(romeState(t)); Lab.$('#roArea').textContent = a == null ? '–' : a < 0.01 ? '<0.01' : a.toFixed(a < 1 ? 2 : 1);
+  Lab.$('#roBig').textContent = Lab.L(lastLE(BIG, t)); Lab.$('#roUS').textContent = a == null ? '–' : (a / 8.08 * 100 < 1 ? '<1' : Math.round(a / 8.08 * 100)) + '%';
+  Lab.$('#legend').innerHTML = EMP.filter(E => keyAt(E, t)).map(E => `<span><i style="background:${mixHex(E.col, surfHex(), .42)}"></i>${Lab.L(E.n2 && t >= E.y2 ? E.n2 : E.n)}</span>`).join('');
+  Lab.$('#playBtn').textContent = App.timer ? '⏸' : '▶';
+  if (App.city && !cityOn(CITIES[App.city], t)) { App.city = null; renderInfo(); }
+  M.draw();
+}
+function setT(t){ App.t = Math.max(-800, Math.min(476, t)); renderT(); }
+function stop(){ if (App.timer){ clearInterval(App.timer); App.timer = null; } }
+const stepE = d => { const c = curE(), i = EVY.indexOf(c); return d > 0 ? EVY[Math.min(EVY.length - 1, i + 1)] : (App.t > c ? c : EVY[Math.max(0, i - 1)]); };
+const evGo = y => { setT(y); const e = EV.filter(e => e.y === y).pop(); if (e && e.c && cityOn(CITIES[e.c], y)){ App.city = e.c; renderInfo(); M.draw(); } };
+Lab.$('#tm').oninput = e => { stop(); setT(+e.target.value); };
+Lab.$('#evPrev').onclick = () => { stop(); evGo(stepE(-1)); }; Lab.$('#evNext').onclick = () => { stop(); evGo(stepE(1)); };
+Lab.$('#playBtn').onclick = () => { if (App.timer){ stop(); renderT(); return; } if (App.t >= 476) setT(-800);
+  App.timer = setInterval(() => { if (App.t >= 476){ stop(); renderT(); } else evGo(stepE(1)); }, 1800); renderT(); };
+[['btnCities','cities'],['btnLabels','labels']].forEach(([id, k]) => Lab.$('#' + id).onclick = () => { App[k] = !App[k]; Lab.$('#' + id).classList.toggle('on', App[k]); M.draw(); });
+
+/* ================= Mission 1: Athens vs Sparta ================= */
+const P = { city:null, i:0, miss:[0,0,0], order:[], ans:null, best:{ ath:0, spa:0 } };
+function startCity(c){ P.city = c; P.i = 0; P.miss = [0,0,0]; P.ans = null; P.order = LIFE[c].stages.map(s => Lab.shuffle(s.opts.map((x, j) => j))); Lab.$$('#cityPick .pick').forEach(b => b.classList.toggle('on', b.dataset.c === c)); renderLife(); }
+function renderLife(){
+  const box = Lab.$('#lifeBox');
+  if (!P.city){ box.innerHTML = `<p class="muted" style="margin:0">${Lab.L(o('👆 Pick a city above to begin.','👆 先在上面选一座城邦。'))}</p>`; return; }
+  const L = LIFE[P.city];
+  if (P.i >= L.stages.length){ const st = P.miss.filter(m => m === 0).length; P.best[P.city] = Math.max(P.best[P.city], st);
+    box.innerHTML = `<div class="age">${Lab.L(o('Grown up in ','长大成人：')) + Lab.L(L.n)} <span class="stars">${starStr(st)}</span></div><p style="margin:0">${Lab.L(L.end)}</p>
+      <p class="muted" style="margin:0">${Lab.L(o(`Right on the first try: ${st} of 3. Best — Athens ${starStr(P.best.ath)} · Sparta ${starStr(P.best.spa)}.`, `第一次就猜对：${st}／3。最好成绩——雅典 ${starStr(P.best.ath)} · 斯巴达 ${starStr(P.best.spa)}。`))}</p>
+      <div class="btnrow"><button class="btn" id="lifeOther">${Lab.L(P.city === 'ath' ? o('Now try Sparta ▶','再试试斯巴达 ▶') : o('Now try Athens ▶','再试试雅典 ▶'))}</button></div>`;
+    Lab.$('#lifeOther').onclick = () => startCity(P.city === 'ath' ? 'spa' : 'ath');
+    award('polis', Math.min(3, Math.round((P.best.ath + P.best.spa) / 2 + (P.best.ath && P.best.spa ? .5 : 0)))); return; }
+  const s = L.stages[P.i];
+  box.innerHTML = `<div class="age">${Lab.L(L.n)} · ${Lab.L(s.age)} <span class="muted" style="font-size:14px">(${P.i + 1}/3)</span></div><p style="margin:0;font-weight:700">${Lab.L(s.q)}</p>
+    <div class="choices">${P.order[P.i].map(j => { const x = s.opts[j], cls = P.ans == null ? "" : (x.ok && s.opts[P.ans].ok) ? "right" : (P.ans === j && !x.ok ? "wrong" : ""); return `<button data-j="${j}" class="${cls}" ${P.ans != null && s.opts[P.ans].ok ? 'disabled' : ''}>${Lab.L(x.t)}</button>`; }).join('')}</div>
+    <div class="result ${P.ans == null ? '' : s.opts[P.ans].ok ? 'good' : 'bad'}">${P.ans == null ? '' : (s.opts[P.ans].ok ? '✅ ' : '❌ ') + Lab.L(s.opts[P.ans].w)}</div>
+    ${P.ans != null && s.opts[P.ans].ok ? `<div class="btnrow"><button class="btn" id="lifeNext">${Lab.L(o('Grow older ▶','长大 ▶'))}</button></div>` : ''}`;
+  Lab.$$('#lifeBox .choices button').forEach(b => b.onclick = () => { const j = +b.dataset.j; P.ans = j; if (!s.opts[j].ok) P.miss[P.i]++; renderLife(); });
+  const nx = Lab.$('#lifeNext'); if (nx) nx.onclick = () => { P.i++; P.ans = null; renderLife(); };
+}
+Lab.$$('#cityPick .pick').forEach(b => b.onclick = () => startCity(b.dataset.c));
+Lab.$('#dots').innerHTML = Array.from({ length:100 }, (_, i) => `<i class="${i < 12 ? 'v' : ''}"></i>`).join('');
+function renderCmp(){ Lab.$('#cmpTable').innerHTML = `<tr><th></th><th>${Lab.L(o('🦉 Athens','🦉 雅典'))}</th><th>${Lab.L(o('🛡️ Sparta','🛡️ 斯巴达'))}</th></tr>` + CMP.map(r => `<tr><td><b>${Lab.L(r[0])}</b></td><td>${Lab.L(r[1])}</td><td>${Lab.L(r[2])}</td></tr>`).join(''); }
+
+/* ================= Mission 2: aqueduct ================= */
+const AQ = { g:60, route:'t', p:0, run:false, res:null };
+const H0 = 76, HC = 63.4;
+const aqL = () => AQ.route === 't' ? 50 : 58;
+function ground(x){ const L = aqL(); let gr = 80 - 16 * x / L; gr -= (80 - 16 * 20 / L - 22) * Math.exp(-(((x - 20) / 2.2) ** 2));
+  gr += AQ.route === 't' ? 30 * Math.exp(-(((x - 36) / 2.5) ** 2)) : 5 * Math.exp(-(((x - 42) / 3) ** 2)); return gr; }
+const chan = x => H0 - AQ.g / 100 * x;
+function aqStats(){ const L = aqL(); let br = 0, tu = 0; for (let x = 0; x <= L; x += .25){ const d = chan(x) - ground(x); if (x > 12 && x < 28) br = Math.max(br, d); if (x > 28) tu = Math.max(tu, -d); }
+  const v = 36 * Math.sqrt(AQ.g / 100000); return { L, arr:chan(L), maxg:1260 / L, br, tu, v, hrs:L * 1000 / v / 3600 }; }
+const aqCv = Lab.$('#aqCv'), aqG2 = aqCv.getContext('2d');
+function drawAq(){
+  const st = Lab.$('#aqStage').getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!st.width) return;
+  aqCv.width = st.width * d; aqCv.height = st.height * d; const g = aqG2; g.setTransform(d, 0, 0, d, 0, 0);
+  const W = st.width, H = st.height, ink = css('--ink'), ink2 = css('--ink-2'), surf = surfHex(), L = aqL(), S = aqStats();
+  const X = x => 40 + x / L * (W - 80), Y = h => H - 40 - h / 110 * (H - 90);
+  g.clearRect(0, 0, W, H);
+  g.beginPath(); g.moveTo(X(0), Y(0)); for (let x = 0; x <= L; x += .25) g.lineTo(X(x), Y(ground(x))); g.lineTo(X(L), Y(0)); g.closePath(); g.fillStyle = mixHex('#a8844f', surf, .45); g.fill();
+  g.fillStyle = mixHex('#3b82c4', surf, .3); g.fillRect(X(19.2), Y(22) - 3, X(20.8) - X(19.2), 4);
+  for (let x = 0; x <= L; x += 1){ const a = chan(x) - ground(x); if (a > 2){ g.strokeStyle = mixHex(ink2, surf, .2); g.lineWidth = 3; g.beginPath(); g.moveTo(X(x), Y(chan(x))); g.lineTo(X(x), Y(ground(x))); g.stroke(); } }
+  for (let x = 0; x < L; x += .25){ const a = ground(x) - chan(x); g.setLineDash(a > 4 ? [5, 4] : []); g.strokeStyle = ink; g.lineWidth = 3; g.beginPath(); g.moveTo(X(x), Y(chan(x))); g.lineTo(X(x + .25), Y(chan(x + .25))); g.stroke(); }
+  g.setLineDash([]);
+  if (AQ.p > 0){ const end = Math.min(L, AQ.p * L); g.strokeStyle = '#2b7fd6'; g.lineWidth = 6; g.lineCap = 'round'; g.beginPath(); g.moveTo(X(0), Y(chan(0))); g.lineTo(X(end), Y(chan(end))); g.stroke(); }
+  g.fillStyle = ink; g.fillRect(X(L) - 6, Y(HC) - 2, 26, 4); g.fillRect(X(L) + 6, Y(HC), 8, Y(ground(L)) - Y(HC));
+  const T = (t, x, y, opt = {}) => { g.font = `${opt.w || 800} ${opt.s || 12}px Nunito, "Microsoft YaHei", sans-serif`; g.textAlign = opt.a || 'center'; g.fillStyle = opt.c || ink; g.fillText(t, x, y); };
+  T(Lab.L(o('Spring (near Uzès) 76 m','水源（于泽斯附近）76米')), X(0) + 4, Y(H0) - 12, { a:'left' });
+  T(Lab.L(o('Nîmes water tower 63.4 m','尼姆水塔 63.4米')), X(L) + 6, Y(HC) - 12, { a:'right' });
+  T(Lab.L(o('Gardon valley','加尔东河谷')), X(20), Y(22) + 18, { c:ink2 });
+  if (AQ.route === 't') T(Lab.L(o('hill','山丘')), X(36), Y(ground(36)) - 8, { c:ink2 });
+  if (S.br > 2) T(Lab.L(o(`bridge ${S.br.toFixed(0)} m high`, `渠桥高${S.br.toFixed(0)}米`)), X(20), Y(chan(20)) - 10, { c:'#2b7fd6' });
+  if (S.tu > 4) T(Lab.L(o(`tunnel up to ${S.tu.toFixed(0)} m deep`, `隧道最深${S.tu.toFixed(0)}米`)), X(36), Y(chan(36)) + 34, { c:ink2 });
+  T(Lab.L(o(`0 km … ${L} km · heights exaggerated`, `0千米……${L}千米 · 高度已放大`)), 40, H - 14, { a:'left', w:700, s:11, c:ink2 });
+  if (AQ.res === 'low'){ T('✗', X(L) - 16, Y(chan(L)) + 5, { c:css('--bad') || '#e0475b', s:20 }); }
+}
+function renderAq(){
+  const S = aqStats(), diff = S.arr - HC;
+  Lab.$('#aqGv').textContent = AQ.g; Lab.$('#aqArr').textContent = (diff >= 0 ? '+' : '−') + Math.abs(diff).toFixed(1) + (Lab.lang === 'zh' ? '米' : ' m');
+  Lab.$('#aqBr').textContent = S.br > 2 ? S.br.toFixed(0) + (Lab.lang === 'zh' ? '米' : ' m') : '–';
+  Lab.$('#aqV').textContent = S.v.toFixed(2) + (Lab.lang === 'zh' ? '米/秒' : ' m/s'); Lab.$('#aqT').textContent = S.hrs.toFixed(0) + (Lab.lang === 'zh' ? '小时' : ' h');
+  Lab.$$('#aqRoute button').forEach(b => b.classList.toggle('on', b.dataset.r === AQ.route));
+  drawAq();
+}
+function aqFinish(){
+  const S = aqStats(), m = Lab.$('#aqMsg'); let st = 0, msg;
+  if (AQ.g < 7){ AQ.res = 'flat'; msg = o('😴 Too flat: the water barely moves, silt builds up and it goes stale. Steepen the slope.','😴 太平了：水几乎不流动，泥沙淤积，水也变质了。加大坡度。'); }
+  else if (S.arr < HC){ AQ.res = 'low'; msg = o(`💥 The water arrives ${(HC - S.arr).toFixed(1)} m BELOW the city’s water tower — it can’t flow uphill! With this route the slope can be at most ${S.maxg.toFixed(1)} cm per km.`, `💥 水到达时比城里的水塔低${(HC - S.arr).toFixed(1)}米——水不会往高处流！按这条路线，坡度最多只能是每千米${S.maxg.toFixed(1)}厘米。`); }
+  else { AQ.res = 'ok'; st = AQ.g >= S.maxg - 3 ? 3 : AQ.g >= 12 ? 2 : 1;
+    msg = st === 3 ? o(`🏆 Perfect: you used almost all the 12.6 m fall. Steady flow, the lowest possible bridge (${S.br.toFixed(0)} m) — just like the real engineers.`, `🏆 完美：你几乎用尽了12.6米的落差。水流平稳，渠桥也最低（${S.br.toFixed(0)}米）——和真正的罗马工程师一样。`)
+      : o(`✅ Water reaches Nîmes! But it is slow and the bridge must be ${S.br.toFixed(0)} m tall. A slightly steeper slope (still arriving above 63.4 m) would be cheaper and faster.`, `✅ 水流到尼姆了！不过流得慢，渠桥要${S.br.toFixed(0)}米高。坡度再陡一点（只要到达时仍高于63.4米），就更省钱、流得更快。`); }
+  m.className = 'result ' + (st ? 'good' : 'bad'); m.textContent = Lab.L(msg) + (st ? ' ' + starStr(st) : '');
+  AQ.lastMsg = msg; AQ.lastSt = st; if (st) award('aq', st); drawAq();
+}
+Lab.$('#aqG').oninput = e => { AQ.g = +e.target.value; AQ.p = 0; AQ.res = null; Lab.$('#aqMsg').textContent = ''; AQ.lastMsg = null; renderAq(); };
+Lab.$$('#aqRoute button').forEach(b => b.onclick = () => { AQ.route = b.dataset.r; AQ.p = 0; AQ.res = null; Lab.$('#aqMsg').textContent = ''; AQ.lastMsg = null; renderAq(); });
+Lab.$('#aqGo').onclick = () => { if (AQ.run) return; AQ.run = true; AQ.p = 0; AQ.res = null; const stopAt = AQ.g < 7 ? .35 : 1, t0 = performance.now();
+  const step = now => { AQ.p = Math.min(stopAt, (now - t0) / 2600); drawAq(); if (AQ.p < stopAt) requestAnimationFrame(step); else { AQ.run = false; aqFinish(); } }; requestAnimationFrame(step); };
+new ResizeObserver(() => requestAnimationFrame(drawAq)).observe(Lab.$('#aqStage'));
+
+/* ================= Mission 3: roads ================= */
+const RD = { built:new Set(), hov:-1 };
+const BUDGET = 4600, GOALS = Object.keys(NODES).filter(k => NODES[k].goal);
+function rdDist(){ const dist = { rome:0 }, done = new Set(); for (;;){ let u = null; Object.keys(dist).forEach(k => { if (!done.has(k) && (u == null || dist[k] < dist[u])) u = k; }); if (u == null) break; done.add(u);
+    EDGES.forEach((e, i) => { if (!RD.built.has(i)) return; const v = e[0] === u ? e[1] : e[1] === u ? e[0] : null; if (v && (dist[v] == null || dist[u] + e[2] < dist[v])) dist[v] = dist[u] + e[2]; }); } return dist; }
+const RM = WMap.create('#roadStage', '#roadCv', { extent:[[-0.5,37.5],[30,47.5]], top:14, bottom:24, topS:14, bottomS:24, note:o('Schematic map · road lengths approximate','示意图 · 道路长度为约数'),
+  overlay: (g, M) => {
+    g.save(); M.clipLand(); g.fillStyle = "rgba(176,138,60,.10)"; g.fillRect(0, 0, M.W, M.H); g.restore();
+    const ink = css('--ink'), ink2 = css('--ink-2'), brand = css('--brand') || '#a16207', surf = surfHex(), dist = rdDist();
+    EDGES.forEach((e, i) => { const a = NODES[e[0]].ll, b = NODES[e[1]].ll, on = RD.built.has(i), ship = e[0] === 'brund';
+      M.line([a, b], on ? (ship ? '#2b7fd6' : brand) : mixHex(ink2, surf, .35), on ? 4.5 : (RD.hov === i ? 4 : 2.2), on ? (ship ? [6, 5] : []) : [5, 5]);
+      if (!M.small || RD.hov === i){ const p = M.xy([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]); if (p) M.text(e[2] + '', p[0], p[1], { s:10, c:on ? brand : ink2, w:700 }); } });
+    Object.keys(NODES).forEach(k => { const n = NODES[k], r = k === 'rome' ? 8 : n.goal ? 6.5 : 4, linked = dist[k] != null;
+      const p = M.dot(n.ll, r, k === 'rome' ? '#c0392b' : n.goal ? (linked ? css('--good') || '#1aa36b' : '#f4b400') : ink, surf); if (!p) return;
+      if (!M.small || n.goal || k === 'rome') M.text(Lab.L(n.n), p[0], p[1] - r - 8, { s:k === 'rome' || n.goal ? 12 : 10.5, w:n.goal || k === 'rome' ? 800 : 700 }); });
+  },
+  click: h => { const i = rdHit(h); if (i < 0) return; RD.built.has(i) ? RD.built.delete(i) : RD.built.add(i); renderRd(); },
+  hover: h => { const i = rdHit(h); if (i !== RD.hov){ RD.hov = i; RM.draw(); } return i >= 0 ? `${Lab.L(EDGES[i][3])}: ${Lab.L(NODES[EDGES[i][0]].n)}–${Lab.L(NODES[EDGES[i][1]].n)} · ${EDGES[i][2]} km` : null; }
+});
+function rdHit(h){ let best = -1, bd = 11; EDGES.forEach((e, i) => { const a = RM.xy(NODES[e[0]].ll), b = RM.xy(NODES[e[1]].ll); if (!a || !b) return;
+  const dx = b[0] - a[0], dy = b[1] - a[1], t = Math.max(0, Math.min(1, ((h.x - a[0]) * dx + (h.y - a[1]) * dy) / (dx * dx + dy * dy))), d = Math.hypot(a[0] + t * dx - h.x, a[1] + t * dy - h.y); if (d < bd){ bd = d; best = i; } }); return best; }
+function renderRd(){
+  const dist = rdDist(), km = [...RD.built].reduce((s, i) => s + EDGES[i][2], 0), con = GOALS.filter(k => dist[k] != null), far = con.length ? Math.max(...con.map(k => dist[k])) : null;
+  Lab.$('#rdKm').textContent = km.toLocaleString('en-US'); Lab.$('#rdKm').style.color = km > BUDGET ? 'var(--bad)' : '';
+  Lab.$('#rdCon').textContent = con.length + '/5'; Lab.$('#rdMarch').textContent = far == null ? '–' : Math.round(far / 30); Lab.$('#rdPost').textContent = far == null ? '–' : Math.round(far / 80);
+  Lab.$('#rdList').innerHTML = GOALS.map(k => `${dist[k] != null ? '✅' : '⬜'} ${Lab.L(NODES[k].n)} (${Lab.L(o('today','今')) + ' ' + Lab.L(MODERN[k])})${dist[k] != null ? ' · ' + dist[k].toLocaleString('en-US') + ' km' : ''}`).join('<br>');
+  let st = 0; if (km <= BUDGET){ if (con.length === 5) st = km <= 4200 ? 3 : 2; else if (con.length >= 3) st = 1; }
+  const m = Lab.$('#rdMsg');
+  m.className = 'result ' + (km > BUDGET ? 'bad' : st ? 'good' : '');
+  m.textContent = km > BUDGET ? Lab.L(o(`Over budget by ${km - BUDGET} km — remove a road.`, `超出预算${km - BUDGET}千米——拆掉一条路。`))
+    : st === 3 ? Lab.L(o(`🏆 ${starStr(3)} Master road-builder! ${km.toLocaleString('en-US')} km — the shortest possible network is 4,070 km. Shared trunk roads (like Rome → Placentia) serve several provinces at once.`, `🏆 ${starStr(3)} 筑路大师！共${km}千米——最短的路网是4070千米。共用的主干道（如罗马→普拉森提亚）可以同时通往好几个行省。`))
+    : st === 2 ? Lab.L(o(`${starStr(2)} All five linked within budget. Can you get under 4,200 km?`, `${starStr(2)} 五座城市都连通了，没有超预算。你能把总长压到4200千米以下吗？`))
+    : st === 1 ? Lab.L(o(`${starStr(1)} ${con.length} of 5 linked — keep going.`, `${starStr(1)} 已连通${con.length}／5座——继续修。`)) : '';
+  if (st) award('rd', st); RM.draw();
+}
+Lab.$('#rdReset').onclick = () => { RD.built.clear(); renderRd(); };
+
+/* ================= Mission 4: legion ================= */
+const LGS = [
+  { men:8, unit:o('contubernium (tent group)','帐篷小队'), q:o('8 soldiers share a tent and a mule. How many tent groups make a century, led by a centurion?','8名士兵合用一顶帐篷和一头骡子。多少个帐篷小队组成一个由百夫长率领的百人队？'), opts:[[10,1],[100,0],[4,0]], fb:o('Yes: 10 × 8 = 80. A “century” had 80 men, not 100!','对：10×8＝80。“百人队”其实只有80人，不是100人！') },
+  { men:80, unit:o('century','百人队'), q:o('How many centuries make a cohort?','多少个百人队组成一个大队？'), opts:[[6,1],[2,0],[20,0]], fb:o('Yes: 6 × 80 = 480 soldiers in a cohort.','对：6×80＝480人组成一个大队。') },
+  { men:480, unit:o('cohort','大队'), q:o('How many cohorts make a legion?','多少个大队组成一个军团？'), opts:[[10,1],[3,0],[50,0]], fb:o('Yes: 10 cohorts ≈ 4,800 men. With a double-size first cohort and about 120 cavalry, a legion had roughly 5,000–5,500 soldiers.','对：10个大队约4800人。再加上人数加倍的第一大队和约120名骑兵，一个军团约有5000—5500人。') },
+  { men:5000, unit:o('legion','军团') } ];
+const LG = { step:0, miss:0, bad:null, fb:null, form:'line', shots:null };
+const lgCv = Lab.$('#lgCv'), lgG = lgCv.getContext('2d');
+function drawLg(){
+  const st = Lab.$('#lgStage').getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!st.width) return;
+  lgCv.width = st.width * d; lgCv.height = st.height * d; const g = lgG; g.setTransform(d, 0, 0, d, 0, 0);
+  const W = st.width, H = st.height, ink = css('--ink'), ink2 = css('--ink-2'), red = '#c0392b', surf = surfHex(), gold = '#d4a017';
+  g.clearRect(0, 0, W, H);
+  const T = (t, x, y, s = 13, c = ink) => { g.font = `800 ${s}px Nunito, "Microsoft YaHei", sans-serif`; g.textAlign = 'center'; g.fillStyle = c; g.fillText(t, x, y); };
+  const shield = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(x - w / 2, y - h / 2, w, h); g.strokeStyle = gold; g.lineWidth = Math.max(1, w / 10); g.strokeRect(x - w / 2, y - h / 2, w, h); };
+  if (LG.shots){ const tes = LG.form === 'testudo', cols = tes ? 10 : 20, rows = tes ? 8 : 4, gap = tes ? 1.02 : 1.9, s = Math.min((W - 60) / (cols * gap), (H - 90) / (rows * gap));
+    const x0 = (W - cols * s * gap) / 2 + s * gap / 2, y0 = 50 + (H - 90 - rows * s * gap) / 2 + s * gap / 2;
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) shield(x0 + c * s * gap, y0 + r * s * gap, s * (tes ? 1 : .85), s * (tes ? 1 : .45), mixHex(red, surf, tes ? .05 : .15));
+    LG.shots.forEach(a => { const x = x0 - s * gap / 2 + a.x * cols * s * gap, y = y0 - s * gap / 2 + a.y * rows * s * gap; g.lineWidth = 2.5;
+      if (a.b){ g.strokeStyle = ink; g.beginPath(); g.moveTo(x - 5, y - 5); g.lineTo(x + 5, y + 5); g.stroke(); } else { g.strokeStyle = '#f4b400'; g.beginPath(); g.arc(x, y, 5, 0, 7); g.stroke(); } });
+    T(Lab.L(tes ? o('Testudo: shields locked on the front, sides and roof (seen from above)','龟甲阵：盾牌锁住前方、两侧和头顶（俯视图）') : o('Open line: shields cover only part of each soldier (seen from above)','横队：盾牌只挡住每名士兵的一部分（俯视图）')), W / 2, 26, 13, ink2); return; }
+  const men = LGS[LG.step].men;
+  if (men === 8){ const s = Math.min(W / 7, H / 4); for (let i = 0; i < 8; i++) shield(W / 2 + ((i % 4) - 1.5) * s * 1.3, H / 2 + (Math.floor(i / 4) - .5) * s * 1.4, s * .7, s, red); }
+  else if (men === 80){ const s = Math.min((W - 40) / 12, (H - 70) / 11); for (let i = 0; i < 80; i++) shield(W / 2 + ((i % 8) - 3.5) * s * 1.25, 45 + (Math.floor(i / 8) + .5) * s * 1.05, s * .8, s * .8, i === 0 ? gold : red); }
+  else if (men === 480){ const bw = (W - 60) / 3, bh = (H - 70) / 2; for (let b = 0; b < 6; b++){ const bx = 30 + (b % 3) * bw, by = 40 + Math.floor(b / 3) * bh, s = Math.min(bw / 10, bh / 12);
+      for (let i = 0; i < 80; i++) shield(bx + bw / 2 + ((i % 8) - 3.5) * s * 1.15, by + 8 + (Math.floor(i / 8) + .5) * s * 1.05, s * .75, s * .75, i === 0 ? gold : red); } }
+  else { const bw = (W - 40) / 5, bh = (H - 80) / 2; for (let c = 0; c < 10; c++){ const bx = 20 + (c % 5) * bw, by = 40 + Math.floor(c / 5) * bh, n = c === 0 ? 12 : 6;
+      for (let i = 0; i < n; i++){ const cw = (bw - 16) / (c === 0 ? 4 : 3), ch = (bh - 34) / (c === 0 ? 3 : 2); g.fillStyle = mixHex(red, surf, .2); g.fillRect(bx + 8 + (i % (c === 0 ? 4 : 3)) * cw + 1, by + 6 + Math.floor(i / (c === 0 ? 4 : 3)) * ch + 1, cw - 3, ch - 3); }
+      T(Lab.L(o(`Cohort ${c + 1}`, `第${c + 1}大队`)), bx + bw / 2, by + bh - 10, 11, ink2); }
+    for (let i = 0; i < 12; i++){ g.fillStyle = gold; g.beginPath(); g.arc(W / 2 - 66 + i * 12, H - 18, 4, 0, 7); g.fill(); } T(Lab.L(o('≈120 cavalry','约120名骑兵')), W / 2 + 100, H - 14, 11, ink2); }
+  T(Lab.L(LGS[LG.step].unit) + ' · ' + men.toLocaleString('en-US') + (Lab.lang === 'zh' ? '人' : ' soldiers') + (men === 5000 ? (Lab.lang === 'zh' ? '（约）' : ' (approx.)') : ''), W / 2, 24, 14);
+}
+function renderLg(){
+  const s = LGS[LG.step]; Lab.$('#lgMen').textContent = (s.men === 5000 ? '≈' : '') + s.men.toLocaleString('en-US'); Lab.$('#lgUnit').textContent = Lab.L(s.unit);
+  Lab.$('#lgStep').innerHTML = s.q ? `<p style="margin:0;font-weight:700">${Lab.L(s.q)}</p><div class="choices" style="flex-direction:row;flex-wrap:wrap">${s.opts.map(([n]) => `<button data-n="${n}" class="${LG.bad === n ? 'wrong' : ''}">${n}</button>`).join('')}</div>`
+    : `<p style="margin:0;font-weight:700">${Lab.L(o('🦅 Legion complete! Each legion carried an eagle standard and was led by a legate.','🦅 军团组建完成！每个军团都有一面鹰旗，由军团长率领。'))}</p>`;
+  Lab.$$('#lgStep button').forEach(b => b.onclick = () => { const n = +b.dataset.n, ok = s.opts.find(x => x[0] === n)[1];
+    if (ok){ LG.fb = s.fb; LG.bad = null; LG.step++; if (LG.step === 3) award('lg', LG.miss === 0 ? 3 : LG.miss === 1 ? 2 : 1); } else { LG.miss++; LG.bad = n; LG.fb = null; } renderLg(); });
+  Lab.$('#lgTest').hidden = LG.step < 3; Lab.$$('#lgForm button').forEach(b => b.classList.toggle('on', b.dataset.f === LG.form));
+  const m = Lab.$('#lgMsg');
+  if (LG.shots){ const bl = LG.shots.filter(a => a.b).length; m.className = 'result good'; m.textContent = Lab.L(LG.form === 'testudo' ? o(`🐢 ${bl} of 20 arrows bounced off the shields. Slow to move — but almost arrow-proof.`, `🐢 20支箭中有${bl}支被盾牌弹开。行动缓慢，但几乎刀枪不入。`) : o(`Only ${bl} of 20 arrows hit shields; the rest (yellow circles) got past. Try the testudo.`, `20支箭中只有${bl}支射在盾牌上，其余的（黄圈）都漏了过去。试试龟甲阵。`)); }
+  else if (LG.bad != null){ m.className = 'result bad'; m.textContent = Lab.L(o('Not quite — try another number.','不太对——换个数字试试。')); }
+  else { m.className = 'result good'; m.textContent = LG.fb ? '✅ ' + Lab.L(LG.fb) + (LG.step === 3 ? ' ' + starStr(CAMP.s.lg) : '') : ''; }
+  drawLg();
+}
+Lab.$$('#lgForm button').forEach(b => b.onclick = () => { LG.form = b.dataset.f; LG.shots = null; renderLg(); });
+Lab.$('#lgFire').onclick = () => { const p = LG.form === 'testudo' ? .95 : .45; LG.shots = Array.from({ length:20 }, () => ({ x:Math.random(), y:Math.random(), b:Math.random() < p })); renderLg(); };
+new ResizeObserver(() => requestAnimationFrame(drawLg)).observe(Lab.$('#lgStage'));
+
+/* ================= Data figure: Rome vs Han ================= */
+const RG = {};
+function renderRes(){
+  Lab.$('#resRows').innerHTML = RES.map((r, i) => { const g = RG[i], max = Math.max(r.r, r.h);
+    return `<div class="rrow"><b>${Lab.L(r.n)}</b><div class="rb">
+      <div><span>🏛️</span><span class="t"><i style="width:${g ? r.r / max * 100 : 0}%;background:#c0392b"></i></span><span>${g ? r.lab(r.r) : '?'}</span></div>
+      <div><span>🏯</span><span class="t"><i style="width:${g ? r.h / max * 100 : 0}%;background:#d4a017"></i></span><span>${g ? r.lab(r.h) : '?'}</span></div>
+      ${g ? `<small class="muted">${g === r.a ? '✅' : '💡'} ${Lab.L(r.why)}</small>` : ''}</div>
+      <div class="guess">${['r','h'].map(v => `<button data-i="${i}" data-v="${v}" class="${g ? (v === r.a ? 'right' : v === g ? 'wrong' : '') : ''}" ${g ? 'disabled' : ''}>${v === 'r' ? Lab.L(o('🏛️ Rome','🏛️ 罗马')) : Lab.L(o('🏯 Han','🏯 汉朝'))}</button>`).join('')}</div></div>`; }).join('');
+  Lab.$$('#resRows .guess button').forEach(b => b.onclick = () => { RG[b.dataset.i] = b.dataset.v; renderRes(); });
+  const n = Object.keys(RG).length, right = Object.entries(RG).filter(([i, v]) => RES[i].a === v).length, m = Lab.$('#resMsg');
+  m.className = 'result good'; m.textContent = n ? Lab.L(o(`${right} of ${n} guesses right. ${n === RES.length ? 'Two giants of about the same size — and they never met in battle.' : ''}`, `猜对${right}／${n}项。${n === RES.length ? '两个规模相当的巨人——它们从未在战场上相遇。' : ''}`)) : '';
+}
+
+/* ================= start ================= */
+Lab.quiz(Lab.$('#quiz'), QUIZ, { count:12 });
+Lab.sort(Lab.$('#sort'), SORT);
+LabPhotos.render('#gallery', PHOTOS, { title:o('See the real thing','看看真实的遗迹'), sub:o('Real photographs from Wikimedia Commons and videos from National Geographic and TED-Ed. Click to enlarge; videos open on YouTube.','来自维基共享资源的真实照片，以及美国国家地理和TED-Ed的视频。点击可放大；视频在 YouTube 打开。') });
+Lab.onLang(() => { renderInfo(); renderT(); renderCamp(); renderLife(); renderCmp(); renderAq(); if (AQ.lastMsg) Lab.$('#aqMsg').textContent = Lab.L(AQ.lastMsg) + (AQ.lastSt ? ' ' + starStr(AQ.lastSt) : ''); renderRd(); renderLg(); renderRes(); });
+</script>
+</body>
+</html>

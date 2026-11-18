@@ -1,0 +1,773 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Renaissance &amp; Reformation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/photos.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-array@3.2.4/dist/d3-array.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-geo@3.1.0/dist/d3-geo.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<style>
+#map .explorer{align-items:start}
+.mapstage{position:relative;min-height:560px;padding:0;overflow:hidden}
+.mapstage canvas{position:absolute;inset:0;width:100%;height:100%;cursor:pointer;touch-action:pan-y}
+@media (max-width:560px){.mapstage{min-height:470px}}
+.info .date{font-family:Fredoka;font-weight:700;font-size:19px;color:var(--brand);margin-top:-8px}
+.legend2{display:flex;flex-wrap:wrap;gap:10px;font-size:14px;font-weight:700;margin-top:10px}
+.legend2 i{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:5px;border:1px solid var(--line)}
+.yc{padding:18px 20px;margin-top:14px;display:flex;flex-direction:column;gap:12px}
+.yc-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.yc-head b.big{font-family:Fredoka;font-size:36px;line-height:1;color:var(--brand)}
+.yc-ev{border-left:5px solid var(--brand);padding:2px 0 2px 12px}
+.yc-ev h4{margin:0 0 2px;font-size:19px}
+.yc-ev p{margin:0;font-size:15.5px}
+.cn{border-left:5px solid #c0392b;padding:2px 0 2px 12px;font-size:15px}
+.cn small{display:block;font-weight:800;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:#c0392b}
+.readout{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.readout .counter b{font-size:21px}
+.og{padding:20px;display:flex;flex-direction:column;gap:14px}
+.og .counters{grid-template-columns:repeat(4,minmax(0,1fr))}
+.og-bar{height:10px;border-radius:999px;background:var(--surface-2);overflow:hidden}
+.og-bar i{display:block;height:100%;background:var(--brand);border-radius:999px;transition:width .3s}
+.ranks{display:inline-flex;flex-wrap:wrap;gap:6px}
+.ranks span{border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:13px;font-weight:800;color:var(--ink-2)}
+.ranks span.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.race{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:16px;align-items:start}
+.lane{border:1px solid var(--line);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;background:var(--surface)}
+.lane h4{margin:0;font-size:16px}
+.track{height:16px;border-radius:999px;background:var(--surface-2);overflow:hidden;border:1px solid var(--line)}
+.track i{display:block;height:100%;width:0;border-radius:999px;transition:width .15s}
+.stick{display:flex;gap:4px;min-height:52px;align-items:center;padding:6px 10px;border-radius:12px;background:#3b3f47;flex-wrap:wrap}
+.stick span{display:inline-grid;place-items:center;width:34px;height:40px;border-radius:5px;background:#b8bcc4;color:#22252b;font:800 24px/1 Georgia,serif}
+.stick .mir{display:flex;gap:4px;transform:scaleX(-1)}
+.stick em{color:#c7ccd6;font-style:normal;font-weight:700;font-size:14px}
+.case{display:flex;flex-wrap:wrap;gap:6px}
+.case button{width:42px;height:42px;border-radius:8px;border:2px solid var(--line);background:var(--surface-2);color:var(--ink);font:800 20px/1 Georgia,serif}
+.case button.bad,.steps button.bad{border-color:var(--bad);animation:labshake .35s}
+.steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.steps button{border:2px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:12px;padding:10px 6px;font-weight:800;font-size:15px}
+.steps button.next{border-color:var(--brand);box-shadow:0 0 0 2px var(--brand) inset}
+.steps button:disabled{opacity:.4}
+#pressCv{width:100%;height:190px;display:block;border-radius:14px;background:var(--surface-2)}
+.calc{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+.calc label{display:flex;flex-direction:column;gap:4px;font-weight:800;font-size:14px}
+.leo{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.inv{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--surface);display:flex;flex-direction:column}
+.inv .pic{aspect-ratio:4/3;background:#efe6d2;display:grid;place-items:center;font-size:64px;overflow:hidden;cursor:zoom-in}
+.inv .pic img{width:100%;height:100%;object-fit:cover;display:block}
+.inv .body{padding:10px 12px 12px;display:flex;flex-direction:column;gap:6px}
+.inv h4{margin:0;font-size:17px}
+.inv p{margin:0;font-size:14.5px}
+.inv .cr{font-size:11px;color:var(--ink-2)}
+.inv .cr a{color:inherit}
+.vbtn{display:flex;flex-wrap:wrap;gap:6px}
+.vbtn button{border:2px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:999px;padding:5px 10px;font-weight:800;font-size:13px}
+.vbtn button.right{border-color:var(--good);background:color-mix(in srgb,var(--good) 12%,var(--surface))}.vbtn button.wrong{border-color:var(--bad)}
+.verdict{font-size:14px;border-radius:10px;padding:7px 9px;background:var(--surface-2)}
+.persp{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:16px;align-items:start}
+#perCv{width:100%;height:360px;display:block;border-radius:14px;background:var(--surface-2);touch-action:none;cursor:crosshair}
+.bars{display:flex;flex-direction:column;gap:8px}
+.bars .row{display:grid;grid-template-columns:112px minmax(0,1fr) 110px;gap:10px;align-items:center;font-weight:800;font-size:14px}
+.bars .t{height:22px;border-radius:8px;background:var(--surface-2);overflow:hidden}
+.bars .t i{display:block;height:100%;width:0;border-radius:8px;background:var(--brand);transition:width .7s}
+.pred{display:flex;flex-wrap:wrap;gap:8px}
+.pred button{border:2px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:999px;padding:7px 14px;font-weight:800}
+.pred button.right{border-color:var(--good)}.pred button.wrong{border-color:var(--bad)}
+.cards{display:flex;flex-wrap:wrap;gap:8px}
+.cards button{border:2px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:12px;padding:8px 12px;font-weight:700;text-align:left;font-size:14.5px}
+.cards button.sel{border-color:var(--brand);box-shadow:0 0 0 2px var(--brand) inset}
+.cards button.bad{border-color:var(--bad);animation:labshake .35s}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.slot{border:2px dashed var(--line);border-radius:16px;padding:10px 12px;min-height:90px;display:flex;flex-direction:column;gap:6px;cursor:pointer;background:var(--surface)}
+.slot.ready{border-color:var(--brand);background:color-mix(in srgb,var(--brand) 7%,var(--surface))}
+.slot h4{margin:0;font-size:17px}
+.slot small{color:var(--ink-2);font-weight:700}
+.slot .got{font-size:13.5px;background:color-mix(in srgb,var(--good) 13%,var(--surface));border:1px solid var(--good);border-radius:10px;padding:5px 8px}
+@media (max-width:860px){.race,.calc,.persp{grid-template-columns:1fr}.leo{grid-template-columns:1fr 1fr}}
+@media (max-width:760px){.readout{grid-template-columns:1fr 1fr}.og .counters{grid-template-columns:1fr 1fr}.yc-head b.big{font-size:30px}.two{grid-template-columns:1fr}.steps{grid-template-columns:1fr 1fr}.bars .row{grid-template-columns:78px minmax(0,1fr) 92px;font-size:13px}}
+@media (max-width:480px){.leo{grid-template-columns:1fr}}
+</style>
+</head>
+<body data-subject="worldhistory" data-topic="wh-renaissance">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="世界历史 · 统编版九年级上册第五单元《走向近代》第13—14课 · 佐治亚州 SSWH9">World History · Georgia GSE SSWH9 · China: 统编版 Grade 9 Vol. 1, Unit 5 (lessons 13–14)</span>
+  <h1 data-zh-html="文艺复兴与<em>宗教改革</em>">Renaissance &amp; <em>Reformation</em></h1>
+  <p class="lead" data-zh-html="1450年，一本书要靠人一笔一画抄写，抄完一部《圣经》要一年多；到1500年，欧洲已经印出了上千万册书。同一时期，佛罗伦萨的画家、建筑师和学者喊出“以人为中心”，一个德国修士的一张《九十五条论纲》又让整个西欧的教会一分为二。一台机器、几座城市、几个人，是怎样改变欧洲的？<br><b>你的任务：</b>拖动时间轴看文艺复兴和印刷机怎样传遍欧洲；亲手操作谷登堡印刷机，和抄书人比一比谁快；判断达·芬奇的发明能不能用；用透视法找到“消失点”；最后弄清宗教改革为什么会发生。">In 1450 a book had to be copied by hand — a whole Bible took a scribe more than a year. By 1500 Europe had printed well over ten million books. In the same years painters, builders and scholars in Florence put <i>people</i> at the centre of their work, and one German monk’s 95 Theses split the Western Church in two. How did one machine, a few cities and a handful of people change Europe?<br><b>Your mission:</b> watch the Renaissance and the printing press spread across the map, run Gutenberg’s press in a race against a scribe, judge which of Leonardo’s inventions would really work, find the vanishing point like Brunelleschi, and work out why the Reformation happened.</p>
+</header>
+
+<section class="wrap" id="map" data-nav="Map & time" data-nav-zh="地图与时间">
+  <div class="sec-head">
+    <h2 data-zh="互动地图：新思想、新机器怎样传遍欧洲（1300—1650年）">Interactive map: how new ideas and a new machine spread across Europe, 1300–1650</h2>
+    <p data-zh="拖动时间滑块或按 ▶：金色光晕是文艺复兴的中心，蓝点是开设印刷所的城市，1555年以后还能看到天主教和新教各占哪些地区。点击城市看详情。">Drag the slider or press ▶: gold glows mark Renaissance centres, blue dots are towns with a printing press, and after 1555 you can see which regions were Catholic or Protestant. Click a city for details.</p>
+  </div>
+  <div class="explorer">
+    <div class="stage card mapstage" id="mapStage">
+      <canvas id="mapCv"></canvas>
+      <div class="toolbar">
+        <button class="tbtn on" id="btnRen" data-zh="✨ 文艺复兴">✨ Renaissance</button>
+        <button class="tbtn on" id="btnPress" data-zh="🖨️ 印刷所">🖨️ Presses</button>
+        <button class="tbtn on" id="btnRel" data-zh="⛪ 宗教分布">⛪ Religions</button>
+      </div>
+      <div class="bottombar"><div class="tip" id="mapTip"></div></div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="timebar" style="margin-top:12px"><button id="playBtn" aria-label="Play">▶</button><input id="tm" type="range" min="1300" max="1650" step="1" value="1300" aria-label="Year"><output id="tmOut">1300</output></div>
+  <div class="legend2" id="legend"></div>
+  <div class="card yc" aria-live="polite">
+    <div class="readout">
+      <div class="counter"><b id="roPress">–</b><span data-zh="有印刷所的城镇（约）">towns with presses (approx.)</span></div>
+      <div class="counter"><b id="roGut">–</b><span data-zh="谷登堡印刷机">Gutenberg’s press</span></div>
+      <div class="counter"><b id="roRen">–</b><span data-zh="文艺复兴中心">Renaissance centres</span></div>
+      <div class="counter"><b id="roChurch">–</b><span data-zh="西欧的教会">the Western Church</span></div>
+    </div>
+    <div class="yc-head"><b class="big" id="ycDate">–</b><div class="btnrow" style="margin-left:auto"><button class="btn ghost" id="evPrev" data-zh="◀ 上一件大事">◀ Previous event</button><button class="btn" id="evNext" data-zh="下一件大事 ▶">Next event ▶</button></div></div>
+    <div id="ycList" style="display:flex;flex-direction:column;gap:10px"></div>
+    <div class="cn" id="cnBox"></div>
+  </div>
+  <div class="mix" style="margin-top:14px"><b data-zh="⚠️ 易错点：">⚠️ Don’t mix up:</b><span data-zh="文艺复兴不只是“复兴古希腊罗马的艺术”。它的核心是人文主义：以人为中心，而不是以神为中心，肯定人的价值和尊严，追求现世的幸福。另外，活字印刷术并不是谷登堡最早发明的——北宋的毕昇大约在1040年代就发明了泥活字，比谷登堡早约400年；谷登堡的贡献是金属活字加上印刷机，让印书变得又快又便宜。">The Renaissance was not just “copying ancient art”. Its core was humanism: putting people, not only God, at the centre — human dignity, talent and life in this world. And Gutenberg did not invent movable type first: Bi Sheng (毕昇) in Song-dynasty China made movable type in the 1040s, about 400 years earlier. Gutenberg’s breakthrough was metal type plus a press, which made printing fast and cheap.</span></div>
+</section>
+
+<section class="wrap" id="press" data-nav="Printing race" data-nav-zh="印刷大比拼">
+  <div class="sec-head">
+    <h2 data-zh="主任务：印刷机对抄书人，谁先印完？">Main mission: printing press vs scribe — who finishes first?</h2>
+    <p data-zh="先在排字盘里按顺序点字母，把单词排进排字手托（注意：铅字是反的！），再点“锁版”。之后每印一份都要按顺序做三步：上墨 → 压印 → 揭纸。抄书人同时开始，一份一份地手抄。只印一份时谁快？印很多份时呢？">First click the letters in order to set the word in the composing stick (notice: metal type is a mirror image!), then lock the form. After that every copy takes three steps in order: ink → press → peel. The scribe starts at the same moment and copies by hand, one copy at a time. Who wins when you need one copy? What about many?</p>
+  </div>
+  <div class="card og">
+    <div class="counters">
+      <div class="counter"><b id="pgScore">0</b><span data-zh="总分">total score</span></div>
+      <div class="counter"><b id="pgRound">1/4</b><span data-zh="轮次">round</span></div>
+      <div class="counter"><b id="pgTime">0.0</b><span data-zh="用时（秒）">time (s)</span></div>
+      <div class="counter"><b id="pgStars">☆☆☆</b><span data-zh="本轮星级">round stars</span></div>
+    </div>
+    <div><b data-zh="头衔：">Rank:</b> <span class="ranks" id="pgRanks"></span></div>
+    <div class="race">
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="result" id="pgTask"></div>
+        <div class="stick" id="pgStick"></div>
+        <div class="case" id="pgCase"></div>
+        <div class="steps" id="pgSteps"></div>
+        <div class="result" id="pgMsg"></div>
+        <div class="btnrow"><button class="btn" id="pgStart" data-zh="▶ 开始本轮">▶ Start round</button><button class="btn ghost" id="pgNext" data-zh="下一轮 ▶">Next round ▶</button></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <canvas id="pressCv" aria-label="Printing press"></canvas>
+        <div class="lane"><h4 data-zh="🖨️ 你的印刷机">🖨️ Your press</h4><div class="track"><i id="trP" style="background:var(--brand)"></i></div><small class="muted" id="laneP">0</small></div>
+        <div class="lane"><h4 data-zh="✍️ 抄书人">✍️ The scribe</h4><div class="track"><i id="trS" style="background:#a0785a"></i></div><small class="muted" id="laneS">0</small></div>
+      </div>
+    </div>
+    <details class="peek"><summary data-zh="🔍 为什么印一份时抄书人更快，印很多份时印刷机完胜？">🔍 Why does the scribe win for one copy but lose badly for many?</summary><p data-zh="排字很慢：一页《谷登堡圣经》大约有2600个字母，排字工要一个一个地放进去。但版排好以后，每多印一份只要上墨、压印、揭纸几十秒。抄书人每一份都得从头写起。所以份数越多，印刷机越划算——这就是“一次排版，印成百上千份”。">Setting type is slow: one page of the Gutenberg Bible has roughly 2,600 letters, placed one by one. But once the form is locked, each extra copy is just ink–press–peel, well under a minute. A scribe must start from scratch every time. The more copies you need, the bigger the press’s lead: set once, print hundreds.</p></details>
+  </div>
+  <div class="sec-head" style="margin-top:22px">
+    <h2 data-zh="放大计算器：一个印刷所一年能印多少？">Scale-up calculator: how much can a print shop make in a year?</h2>
+    <p data-zh="常被引用的估计：一台印刷机一个工作日约印3600页，雕版印刷约40页，而一个抄书人一天只能抄几页。拖动滑块看看差距。">A commonly quoted estimate: one press printed about 3,600 pages per workday, block printing about 40, while a scribe copied only a few pages a day. Move the sliders and compare.</p>
+  </div>
+  <div class="card og calc">
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <label><span data-zh="印刷机台数">Number of presses</span><input type="range" id="cPress" min="1" max="20" value="1"><output id="cPressO">1</output></label>
+      <label><span data-zh="工作日">Workdays</span><input type="range" id="cDays" min="1" max="300" value="30"><output id="cDaysO">30</output></label>
+      <p class="cap muted" style="font-size:12.5px;margin:0" data-zh="假设：印刷机每天约3600页、抄书人每天约3页（均为近似值，常见资料中的估计）；《谷登堡圣经》约1282页。">Assumptions: about 3,600 pages per press per day and about 3 pages per scribe per day (approximate figures commonly quoted); the Gutenberg Bible has about 1,282 pages.</p>
+    </div>
+    <div class="counters" style="grid-template-columns:1fr 1fr">
+      <div class="counter"><b id="cPages">–</b><span data-zh="印出的页数">pages printed</span></div>
+      <div class="counter"><b id="cBibles">–</b><span data-zh="相当于几部圣经">= this many Bibles</span></div>
+      <div class="counter"><b id="cScribes">–</b><span data-zh="需要多少抄书人才能追上">scribes needed to keep up</span></div>
+      <div class="counter"><b id="cYears">–</b><span data-zh="一个抄书人要抄多少年">years for one scribe</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="leonardo" data-nav="Leonardo" data-nav-zh="达·芬奇工作室">
+  <div class="sec-head">
+    <h2 data-zh="任务2：达·芬奇的发明——能用吗？">Mission 2: Leonardo’s inventions — would they work?</h2>
+    <p data-zh="达·芬奇（1452—1519年）是画家，也是工程师。他的笔记本里画满了机器。先看每张卡片，判断：✅能用、⚠️部分能用或不实用、❌行不通。然后看现代人怎么检验它。">Leonardo da Vinci (1452–1519) was a painter <i>and</i> an engineer; his notebooks are full of machines. For each card decide: ✅ works, ⚠️ partly / not practical, or ❌ would not work — then see what modern tests found.</p>
+  </div>
+  <div class="card og">
+    <div class="counters">
+      <div class="counter"><b id="lvScore">0</b><span data-zh="得分">score</span></div>
+      <div class="counter"><b id="lvDone">0/8</b><span data-zh="已判断">judged</span></div>
+      <div class="counter"><b id="lvRight">0</b><span data-zh="判断正确">correct</span></div>
+      <div class="counter"><b id="lvStars">☆☆☆</b><span data-zh="星级">stars</span></div>
+    </div>
+    <div class="leo" id="leoGrid"></div>
+    <div class="result" id="lvMsg"></div>
+  </div>
+  <div class="sec-head" style="margin-top:22px">
+    <h2 data-zh="任务3：像布鲁内莱斯基一样找到“消失点”">Mission 3: find the vanishing point like Brunelleschi</h2>
+    <p data-zh="大约1415年，佛罗伦萨建筑师布鲁内莱斯基演示了线性透视：现实中平行的线，画在纸上会汇聚到地平线上的同一个点——消失点。拖动圆点，让红色线索线全部汇聚。三个场景都找准就得三颗星。">Around 1415 the Florentine architect Filippo Brunelleschi demonstrated linear perspective: lines that are parallel in real life meet at one point on the horizon — the vanishing point. Drag the dot until all the red clue lines meet. Find it in all three scenes for three stars.</p>
+  </div>
+  <div class="card og persp">
+    <canvas id="perCv" aria-label="Perspective drawing"></canvas>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="seg" id="perScenes"></div>
+      <div class="counters" style="grid-template-columns:1fr 1fr">
+        <div class="counter"><b id="perDist">–</b><span data-zh="离消失点（像素）">pixels from the vanishing point</span></div>
+        <div class="counter"><b id="perStars">☆☆☆</b><span data-zh="找到的场景">scenes solved</span></div>
+      </div>
+      <label style="font-weight:800;font-size:14px;display:flex;flex-direction:column;gap:4px"><span data-zh="地砖行数">Rows of floor tiles</span><input type="range" id="perRows" min="3" max="14" value="7"></label>
+      <div class="result" id="perMsg"></div>
+      <div class="memory"><b data-zh="🎵 记忆口诀">🎵 Memory hook</b><span data-zh="“平行线，奔一点；那一点，在眼前”——消失点总在画家眼睛高度的地平线上。">“Parallel lines all race to one place — at eye level, right in front of your face.” The vanishing point always sits on the horizon, at the painter’s eye level.</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="reform" data-nav="Books & Reformation" data-nav-zh="书籍与宗教改革">
+  <div class="sec-head">
+    <h2 data-zh="数据任务：欧洲印了多少书？">Data mission: how many books did Europe print?</h2>
+    <p data-zh="先猜：1551—1600年欧洲印出的书，大约是1454—1500年的几倍？再看估计数字。">First guess: about how many times more books did Europe print in 1551–1600 than in 1454–1500? Then see the estimates.</p>
+  </div>
+  <div class="card og">
+    <div class="pred" id="bkPred"></div>
+    <div class="bars" id="bkBars"></div>
+    <div class="result" id="bkMsg"></div>
+    <p class="cap muted" style="font-size:12.5px;margin:0" data-zh="数据来源：Buringh 与 van Zanden（2009年）对西欧印刷书籍数量的估计，取整；较早的估计认为1500年以前印出的书约有2000万册。所有数字都是近似值，不同研究差别较大。">Source: estimates for printed books in Western Europe by Buringh &amp; van Zanden (2009), rounded; older estimates put the total printed before 1500 at about 20 million. All values are approximate and studies differ.</p>
+  </div>
+  <div class="sec-head" style="margin-top:22px">
+    <h2 data-zh="1517年：一个修士、一张论纲、一台印刷机">1517: a monk, a list of theses and a printing press</h2>
+    <p data-zh="16世纪初，教会出售“赎罪券”，宣称买了就能减轻罪罚。维登堡大学的神学教授马丁·路德反对这种做法，1517年写出《九十五条论纲》。印刷机让他的文章几周内传遍德意志，宗教改革由此开始。">In the early 1500s Church officials sold “indulgences”, said to reduce punishment for sins. Martin Luther, a monk and professor at the University of Wittenberg, objected and wrote his 95 Theses in 1517. Printing presses carried his words across the German lands within weeks — and the Reformation began.</p>
+  </div>
+  <div class="grid2" style="gap:10px">
+    <details class="peek"><summary data-zh="📜 路德主张什么？">📜 What did Luther argue?</summary><p data-zh="人得救靠的是信仰（“因信称义”），而不是买赎罪券；《圣经》是最高权威，每个人都应该能用自己的语言读《圣经》。1522年他把《新约》译成德语，第一次印的约3000册几个月就卖完了（近似数字）。">People are saved by faith (“justification by faith”), not by buying indulgences; the Bible is the highest authority, and everyone should be able to read it in their own language. In 1522 he translated the New Testament into German — the first printing of roughly 3,000 copies sold out within months (approximate).</p></details>
+    <details class="peek"><summary data-zh="⛪ 结果怎样？">⛪ What happened next?</summary><p data-zh="西欧的基督教会分裂为天主教和新教（路德宗、加尔文宗、英国国教等）。天主教会召开特伦托宗教会议（1545—1563年）进行改革。1555年《奥格斯堡和约》允许德意志各诸侯决定本地的宗教。1999年，天主教会和信义宗（路德宗）世界联合会签署了关于“称义”问题的联合声明。">Western Christianity split into Catholic and Protestant churches (Lutheran, Calvinist/Reformed, Anglican…). The Catholic Church reformed itself at the Council of Trent (1545–1563). The Peace of Augsburg (1555) let each German prince choose his land’s religion. In 1999 the Catholic Church and the Lutheran World Federation signed a joint declaration on justification.</p></details>
+  </div>
+  <div class="sec-head" style="margin-top:18px">
+    <h2 data-zh="分一分：路德的主张，还是当时天主教会的立场？">Match it: Luther’s teaching or the Catholic Church’s position at the time?</h2>
+    <p data-zh="两者都是基督教。先点一张卡片，再点它属于的一方。">Both are Christian traditions. Tap a card, then tap the side it belongs to.</p>
+  </div>
+  <div class="card og">
+    <div class="two" id="rfSlots"></div>
+    <div class="cards" id="rfCards"></div>
+    <div class="result" id="rfMsg"></div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real media" data-nav-zh="真实影像">
+  <div id="gallery"></div>
+  <div class="sec-head" style="margin-top:22px"><h2 data-zh="走得更远">Go further</h2></div>
+  <div class="linkgrid">
+    <a class="linkcard" href="https://www.worldhistory.org/article/1632/the-printing-revolution-in-renaissance-europe/" target="_blank" rel="noopener"><b data-zh="世界历史百科：文艺复兴时期欧洲的印刷革命">World History Encyclopedia: The Printing Revolution in Renaissance Europe</b><span data-zh="谷登堡、早期印刷所，以及书籍怎样改变了人们的思想（英文）。">Gutenberg, the first print shops and how books changed the way people thought.</span><small>worldhistory.org ↗</small></a>
+    <a class="linkcard" href="https://www.worldhistory.org/article/2039/the-printing-press--the-protestant-reformation/" target="_blank" rel="noopener"><b data-zh="世界历史百科：印刷机与新教宗教改革">World History Encyclopedia: The Printing Press &amp; the Protestant Reformation</b><span data-zh="为什么说没有印刷机，路德的思想很难传得那么快（英文）。">Why Luther’s ideas could not have spread so fast without printing.</span><small>worldhistory.org ↗</small></a>
+    <a class="linkcard" href="https://www.metmuseum.org/essays/leonardo-da-vinci-1452-1519" target="_blank" rel="noopener"><b data-zh="大都会艺术博物馆：达·芬奇（1452—1519年）">The Met: Leonardo da Vinci (1452–1519)</b><span data-zh="海尔布伦艺术史年表的文章，看达·芬奇真实的素描（英文）。">A Heilbrunn Timeline essay with Leonardo’s real drawings.</span><small>metmuseum.org ↗</small></a>
+    <a class="linkcard" href="https://www.hrc.utexas.edu/gutenberg-bible/" target="_blank" rel="noopener"><b data-zh="哈里·兰塞姆中心：谷登堡圣经">Harry Ransom Center: the Gutenberg Bible</b><span data-zh="得克萨斯大学收藏的一部完整《谷登堡圣经》，可以在线翻看（英文）。">A complete Gutenberg Bible at the University of Texas — page through it online.</span><small>hrc.utexas.edu ↗</small></a>
+    <a class="linkcard" href="https://www.khanacademy.org/humanities/renaissance-reformation" target="_blank" rel="noopener"><b data-zh="可汗学院：欧洲1300—1800年">Khan Academy: Europe 1300–1800</b><span data-zh="免费视频：佛罗伦萨、达·芬奇、米开朗琪罗、北方文艺复兴和宗教改革时期的艺术（英文）。">Free videos on Florence, Leonardo, Michelangelo, the Northern Renaissance and Reformation art.</span><small>khanacademy.org ↗</small></a>
+    <a class="linkcard" href="https://www.uffizi.it/en" target="_blank" rel="noopener"><b data-zh="乌菲齐美术馆（佛罗伦萨）">Uffizi Galleries, Florence</b><span data-zh="美第奇家族收藏的名画，网站上可以在线欣赏（英文/意大利文）。">The Medici family’s paintings — browse the masterpieces online.</span><small>uffizi.it ↗</small></a>
+    <a class="linkcard" href="https://www.museogalileo.it/en/" target="_blank" rel="noopener"><b data-zh="伽利略博物馆（佛罗伦萨）">Museo Galileo, Florence</b><span data-zh="文艺复兴时期的科学仪器，以及伽利略本人的望远镜（英文/意大利文）。">Renaissance scientific instruments — and Galileo’s own telescopes.</span><small>museogalileo.it ↗</small></a>
+  </div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 小测验（12题）">🧠 Quiz (12 questions)</h3><p class="sub" data-zh="选出正确答案，看看解析。">Pick the best answer and read the explanation.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分一分：艺术与思想、印刷，还是宗教改革？">🗂️ Sort it: art &amp; ideas, printing, or Reformation?</h3><p class="sub" data-zh="把每个人物、作品或事件拖到（或先点再点方框）正确的一组。">Drag each person, work or event (or tap it, then tap a box) to the right group.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="课程标准（凭记忆列出，请对照现行佐治亚州GSE及2024年修订版核对）：高中世界史 SSWH9（文艺复兴与宗教改革中的变化与延续：意大利城邦与美第奇家族的赞助、人文主义、达·芬奇与米开朗琪罗等艺术家、印刷机的作用；路德、加尔文、英国宗教改革与天主教改革）；六年级 SS6G（欧洲地理）可配合地图使用。">Standards (from memory — check against the current Georgia GSE and its 2024 revision): high-school World History SSWH9 (change and continuity in the Renaissance and Reformation: Italian city-states and Medici patronage, humanism, artists such as Leonardo and Michelangelo, the impact of the printing press; Luther, Calvin, the English Reformation and the Catholic Reformation). Grade-6 SS6G (Europe’s geography) can be practised with the map.</p>
+    <p data-zh="中国课程：统编版《世界历史》九年级上册第五单元“走向近代”——第13课《西欧经济和社会的发展》（佛罗伦萨的手工工场、资本主义萌芽、新兴资产阶级）、第14课《文艺复兴运动》（人文主义；但丁《神曲》、达·芬奇《蒙娜丽莎》《最后的晚餐》、莎士比亚《哈姆雷特》）；课次以所用版次为准。现行统编版九上没有单独的“宗教改革”课，较早的人教版设有此课，本课把宗教改革作为补充内容。“同一时期的中国”对应《中国历史》七年级下册（明朝的统治、郑和下西洋、明朝的科技与文化：《本草纲目》《天工开物》）；毕昇活字印刷见七年级下册宋元时期的科技。">China link: 统编版 World History Grade 9 Vol. 1, Unit 5 “Towards the modern era” — lesson 13 “Economic and social development in Western Europe” (workshops in Florence, the sprouts of capitalism, the new bourgeoisie) and lesson 14 “The Renaissance” (humanism; Dante’s Divine Comedy, Leonardo’s Mona Lisa and Last Supper, Shakespeare’s Hamlet); lesson numbers vary by printing. The current 统编版 Grade 9 Vol. 1 has no separate Reformation lesson (the older 人教版 did), so the Reformation here is enrichment. “Meanwhile in China” matches Chinese History Grade 7 Vol. 2 (the Ming dynasty, Zheng He’s voyages, Ming science and culture); Bi Sheng’s movable type is in the Song–Yuan science lesson of the same book.</p>
+    <p data-zh="说明：地图为示意图，只画海陆轮廓，不画现代国界；印刷所出现的年份、城镇数量、1600年前后的宗教分布都是大致情况（法国、波兰、波希米亚等地实际上信仰混杂）。凭记忆写入、建议核对的数字：每台印刷机每天约3600页、抄书人每天约3页、《谷登堡圣经》约1282页、约180部、每页约2600个字母；书籍数量估计（Buringh与van Zanden，2009年）；路德德语《新约》首印约3000册；达·芬奇发明的现代检验（2000年按其设计制作的降落伞试跳成功，2004年佛罗伦萨按其设计复原的自走车）。印刷比赛是简化模型，时间比例经过压缩。宗教内容以客观、尊重的方式介绍。">Notes: the map is schematic (coastlines only, no modern borders); press dates, town counts and the religious map of about 1600 are approximate (France, Poland, Bohemia and others were in fact mixed). Figures written from memory that are worth checking: about 3,600 pages per press per day, about 3 pages per scribe per day, the Gutenberg Bible’s ~1,282 pages, ~180 copies and ~2,600 letters per page; the book-output estimates (Buringh &amp; van Zanden 2009); the ~3,000-copy first printing of Luther’s German New Testament; the modern tests of Leonardo’s designs (a parachute jump with a replica in 2000, a working model of the self-propelled cart in Florence in 2004). The printing race is a simplified model with compressed time. Religious content is presented factually and respectfully.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+/* ===== WMap: small canvas world/region map (world-atlas@2.0.2 countries-110m merged to land + d3-geo), inlined in each worldhistory lesson =====
+   const M = WMap.create('#stageId', '#canvasId', { extent:[[lon0,lat0],[lon1,lat1]], top:56, bottom:60, topS:96, bottomS:90,
+     overlay: (g, M) => {...},            // draw after land: M.poly(pts, fill, stroke, lw, dash, alpha) M.line(pts, stroke, lw, dash) M.dot(ll, r, fill, stroke) M.text(t, x, y, {s,c,a,w,halo}) M.label(t, ll, {dx,dy,...}) M.xy(ll) M.clipLand()
+     click: (h, e) => {...},              // h = { x, y, ll:[lon,lat]|null, land:true|false }
+     hover: h => text|null, note:{en,zh} });
+   M.draw() after any state change. Ancient empires are drawn as rough polygons clipped to land (示意图 · schematic). No modern borders are drawn. */
+const WMap = (() => {
+  let P = null;
+  const load = () => P || (P = fetch('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json').then(r => r.json()).then(t => topojson.merge(t, t.objects.countries.geometries)));
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  function create(stageSel, cvSel, opt = {}){
+    const stage = document.querySelector(stageSel), cv = document.querySelector(cvSel), g = cv.getContext('2d');
+    const M = { g, opt, land:null, failed:false, W:0, H:0, small:false };
+    let proj = null, path = null;
+    const T = () => M.small ? (opt.topS ?? 96) : (opt.top ?? 56), B = () => M.small ? (opt.bottomS ?? 90) : (opt.bottom ?? 60);
+    function layout(){
+      const r = stage.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!r.width) return false;
+      cv.width = r.width * d; cv.height = r.height * d; M.W = r.width; M.H = r.height; M.d = d; M.small = r.width < 560;
+      const [[a, b], [c, e]] = opt.extent || [[-20, 0], [140, 60]];
+      proj = d3.geoMercator().fitExtent([[8, T()], [r.width - 8, r.height - B()]], { type:'MultiPoint', coordinates:[[a, b], [c, e], [a, e], [c, b], [(a + c) / 2, b], [(a + c) / 2, e]] });
+      path = d3.geoPath(proj, g); M.proj = proj; M.path = path; return true;
+    }
+    M.xy = ll => proj ? proj(ll) : null;
+    M.inv = (x, y) => proj ? proj.invert([x, y]) : null;
+    M.clipLand = () => { if (!M.land) return; g.beginPath(); path(M.land); g.clip(); };
+    M.poly = (pts, fill, stroke, lw = 1.5, dash, alpha = 1) => { const p = pts.map(M.xy); if (p.some(q => !q)) return; g.beginPath(); g.moveTo(...p[0]); p.slice(1).forEach(q => g.lineTo(...q)); g.closePath();
+      if (fill){ g.globalAlpha = alpha; g.fillStyle = fill; g.fill(); g.globalAlpha = 1; } if (stroke){ g.setLineDash(dash || []); g.strokeStyle = stroke; g.lineWidth = lw; g.lineJoin = 'round'; g.stroke(); g.setLineDash([]); } };
+    M.line = (pts, stroke, lw = 2, dash) => { const p = pts.map(M.xy).filter(Boolean); if (p.length < 2) return; g.beginPath(); g.moveTo(...p[0]); p.slice(1).forEach(q => g.lineTo(...q)); g.setLineDash(dash || []); g.strokeStyle = stroke; g.lineWidth = lw; g.lineJoin = g.lineCap = 'round'; g.stroke(); g.setLineDash([]); };
+    M.dot = (ll, r, fill, stroke) => { const p = M.xy(ll); if (!p) return null; g.beginPath(); g.arc(p[0], p[1], r, 0, 7); g.fillStyle = fill; g.fill(); if (stroke){ g.lineWidth = 2; g.strokeStyle = stroke; g.stroke(); } return p; };
+    M.text = (t, x, y, o = {}) => { g.font = `${o.w || 800} ${o.s || 12}px Nunito, "PingFang SC", "Microsoft YaHei", sans-serif`; g.textAlign = o.a || 'center'; g.textBaseline = 'middle';
+      g.lineWidth = 3.2; g.strokeStyle = o.halo || css('--surface') || '#fff'; g.lineJoin = 'round'; g.strokeText(t, x, y); g.fillStyle = o.c || css('--ink'); g.fillText(t, x, y); };
+    M.label = (t, ll, o = {}) => { const p = M.xy(ll); if (p) M.text(t, p[0] + (o.dx || 0), p[1] + (o.dy || 0), o); return p; };
+    M.draw = () => {
+      const r = stage.getBoundingClientRect();
+      if (!M.land){ const d = Math.min(devicePixelRatio || 1, 2); cv.width = r.width * d; cv.height = r.height * d; g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, r.width, r.height);
+        M.W = r.width; M.H = r.height; M.text(Lab.L(M.failed ? {en:'The map needs an internet connection.', zh:'地图需要联网才能加载。'} : {en:'Loading map…', zh:'地图加载中…'}), r.width / 2, r.height / 2, { s:15, c:css('--ink-2') }); return; }
+      if (!proj && !layout()) return;
+      g.setTransform(M.d, 0, 0, M.d, 0, 0); g.clearRect(0, 0, M.W, M.H);
+      const sea = css('--surface-2') || '#eef3f9', land = css('--surface') || '#fff', ink2 = css('--ink-2') || '#4a5878';
+      g.fillStyle = sea; g.fillRect(0, 0, M.W, M.H);
+      g.beginPath(); path(M.land); g.fillStyle = land; g.fill(); g.strokeStyle = ink2; g.lineWidth = .7; g.globalAlpha = .7; g.stroke(); g.globalAlpha = 1;
+      if (opt.overlay){ g.save(); opt.overlay(g, M); g.restore(); }
+      M.text(Lab.L(opt.note || {en:'Schematic map · approximate borders', zh:'示意图 · 疆域为大致范围'}), 12, M.H - B() + 6, { s:10, a:'left', c:ink2, w:700 });
+    };
+    M.hit = e => { const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, ll = M.inv(x, y);
+      return { x, y, ll, land: !!(ll && M.land && d3.geoContains(M.land, ll)) }; };
+    cv.addEventListener('click', e => { if (!M.land || !opt.click) return; opt.click(M.hit(e), e); });
+    cv.addEventListener('pointermove', e => { if (e.pointerType === 'touch' || !M.land || !opt.hover) return; const t = opt.hover(M.hit(e)); cv.title = t || ''; });
+    new ResizeObserver(() => requestAnimationFrame(() => { proj = null; M.draw(); })).observe(stage);
+    const redraw = () => setTimeout(M.draw, 60);
+    new MutationObserver(redraw).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme', 'lang'] });
+    if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redraw);
+    load().then(l => { M.land = l; proj = null; M.draw(); if (opt.ready) opt.ready(M); }).catch(err => { console.warn(err); M.failed = true; M.draw(); });
+    M.draw();
+    return M;
+  }
+  return { create, load, css };
+})();
+</script>
+<script>
+const o = (en, zh) => ({en, zh});
+const C = { ren:'#d4a017', press:'#2b5aa0', cat:'#c98b5a', lut:'#4f7fc6', cal:'#5fae8a', ang:'#c0607a', ott:'#8f969f' };
+const GRP = { cat:o('Catholic','天主教'), lut:o('Lutheran','路德宗（新教）'), cal:o('Calvinist / Reformed','加尔文宗（新教）'), ang:o('Anglican (Church of England)','英国国教（新教）'), ott:o('Ottoman Empire (Muslim)','奥斯曼帝国（伊斯兰教）') };
+/* Renaissance centres: start year, max glow radius in degrees (schematic) */
+const REN = [
+  { n:o('Florence','佛罗伦萨'), ll:[11.25,43.77], a:1340, r:5 }, { n:o('Venice','威尼斯'), ll:[12.33,45.44], a:1400, r:3 }, { n:o('Rome','罗马'), ll:[12.5,41.9], a:1420, r:3.5 },
+  { n:o('Flanders (Bruges)','佛兰德（布鲁日）'), ll:[3.4,51.0], a:1420, r:3 }, { n:o('Nuremberg','纽伦堡'), ll:[11.08,49.45], a:1490, r:3.5 }, { n:o('Kraków','克拉科夫'), ll:[19.94,50.06], a:1490, r:3 },
+  { n:o('Paris & the Loire','巴黎与卢瓦尔河'), ll:[1.5,47.8], a:1495, r:4 }, { n:o('London','伦敦'), ll:[-0.13,51.5], a:1500, r:3 }, { n:o('Toledo & Seville','托莱多与塞维利亚'), ll:[-4.5,39.0], a:1500, r:3.5 }
+];
+/* first printing press in a town (approximate years) */
+const PRESS = [ ['Mainz','美因茨',8.27,50.0,1450], ['Bamberg','班贝格',10.89,49.89,1460], ['Strasbourg','斯特拉斯堡',7.75,48.58,1460], ['Cologne','科隆',6.96,50.94,1465], ['Subiaco','苏比亚科',13.1,41.93,1465],
+  ['Rome','罗马',12.5,41.9,1467], ['Basel','巴塞尔',7.59,47.56,1468], ['Augsburg','奥格斯堡',10.9,48.37,1468], ['Venice','威尼斯',12.33,45.44,1469], ['Nuremberg','纽伦堡',11.08,49.45,1470], ['Paris','巴黎',2.35,48.86,1470],
+  ['Milan','米兰',9.19,45.46,1471], ['Florence','佛罗伦萨',11.25,43.77,1471], ['Naples','那不勒斯',14.27,40.85,1471], ['Lyon','里昂',4.84,45.76,1473], ['Valencia','巴伦西亚',-0.38,39.47,1473], ['Kraków','克拉科夫',19.94,50.06,1473],
+  ['Bruges','布鲁日',3.22,51.21,1474], ['Westminster (London)','威斯敏斯特（伦敦）',-0.13,51.5,1476], ['Seville','塞维利亚',-5.98,37.39,1477], ['Geneva','日内瓦',6.14,46.2,1478], ['Leipzig','莱比锡',12.37,51.34,1481],
+  ['Antwerp','安特卫普',4.4,51.22,1481], ['Vienna','维也纳',16.37,48.21,1482], ['Stockholm','斯德哥尔摩',18.07,59.33,1483], ['Lisbon','里斯本',-9.14,38.72,1489], ['Copenhagen','哥本哈根',12.57,55.68,1490],
+  ['Wittenberg','维登堡',12.65,51.87,1502], ['Edinburgh','爱丁堡',-3.19,55.95,1508] ];
+const PCOUNT = [[1449,0],[1450,1],[1460,3],[1465,8],[1470,17],[1480,110],[1490,200],[1500,250]];
+/* religion c. 1520–1650 (schematic; a = year the area is shown) */
+const REL = [
+  { g:'cat', a:1520, r:[[-9.6,36.8],[-9.6,43.9],[-1.6,43.4],[3.3,42.4],[0.5,40.5],[-0.5,38.5],[-2,36.6],[-5.6,35.9]] },
+  { g:'cat', a:1520, r:[[-4.8,48.4],[-1.4,46],[-1.6,43.4],[3.2,42.4],[7.5,43.8],[7,45.5],[6,46.2],[7.1,47.5],[8.2,49],[6.3,49.5],[4.5,50],[2.5,51.1],[1.5,50.5],[-1.6,49.7]] },
+  { g:'cat', a:1520, r:[[2.5,51.1],[3.4,51.45],[5.2,51.5],[6,51.8],[6.2,50.5],[5.8,49.5],[4.5,50]] },
+  { g:'cat', a:1520, r:[[7,44],[6.9,45.8],[7.2,46.2],[8.5,46.6],[9.6,47.4],[12,46.9],[13.8,45.6],[12.4,44.3],[13.6,43.5],[16.1,41.9],[18.6,40.1],[16.5,38],[15.6,38],[15.6,40.1],[12.6,41.6],[10.4,43],[8.2,44]] },
+  { g:'cat', a:1520, r:[[12.4,37.8],[15.6,38.3],[15,36.7]] },
+  { g:'cat', a:1520, r:[[7.1,47.5],[8.6,47.7],[9.6,47.4],[12,46.9],[13.8,45.6],[16.5,46.5],[17,48],[22,49],[24,48],[24,52],[23,54.3],[19.5,54.4],[14.6,52.4],[14.8,51],[12.5,50.3],[10,50.5],[8.6,51.3],[7,52.3],[6.2,50.5],[8.2,49]] },
+  { g:'cat', a:1520, r:[[-10,51.6],[-10.2,54.2],[-8,55.3],[-6,54.2],[-6,52.2]] },
+  { g:'lut', a:1525, r:[[7,52.3],[7,53.6],[8.6,54],[9.8,54.8],[11,54.2],[14.2,53.9],[14.6,52.4],[14.8,51],[12.5,50.3],[10,50.5],[8.6,51.3]] },
+  { g:'lut', a:1525, r:[[19.5,54.4],[21.2,55.5],[21.6,57.5],[24,59.3],[28,59.5],[27.5,57.5],[23,54.3]] },
+  { g:'lut', a:1530, r:[[11.2,58.5],[12.5,56.2],[14.3,55.4],[16.5,56.5],[18.8,59.8],[17.5,62],[12.4,62]] },
+  { g:'lut', a:1530, r:[[21.5,60.5],[22,62],[30,62],[30,61],[27,60.4]] },
+  { g:'lut', a:1536, r:[[8.1,55],[8.2,56.8],[10.5,57.7],[12.6,56],[12.2,55],[10,54.8]] },
+  { g:'lut', a:1536, r:[[5,58],[5,62],[12,62],[11.5,59],[8,58]] },
+  { g:'cal', a:1530, r:[[6,46.2],[6.9,47.4],[8.6,47.7],[9.6,47.4],[8.5,46.6],[7.1,46.1]] },
+  { g:'cal', a:1560, r:[[-6.2,55.3],[-5.8,58.6],[-3,58.7],[-1.9,57.6],[-2.1,55.8],[-3.2,55]] },
+  { g:'cal', a:1581, r:[[3.4,51.45],[4.6,53.1],[6.9,53.3],[7.0,52.2],[6,51.8],[5.2,51.5]] },
+  { g:'ang', a:1534, r:[[-5.8,50],[-5.1,51.7],[-4.7,52.8],[-4.5,53.4],[-3,53.9],[-3.2,55],[-2.1,55.8],[-0.3,54.3],[0.2,53.4],[1.8,52.8],[1.6,51.2],[-0.5,50.7],[-3.5,50.2]] }
+];
+const OTT = [
+  { a:1453, r:[[19.4,41.8],[19,44.8],[20.5,45],[22.5,44.5],[23.5,45],[28,45.3],[29.6,45.2],[29,41.2],[27,40.4],[26.5,40.9],[23.5,40.2],[22.8,37],[21.5,37],[20.3,39.5]] },
+  { a:1453, r:[[26.2,39.5],[27,37],[30,36.2],[36,36.2],[38,38],[38,41],[35,42],[29.2,41.2]] },
+  { a:1526, r:[[16.6,46.4],[17.6,47.8],[21,48.4],[22.6,47.6],[22.4,45],[19,44.8]] }
+];
+/* clickable cities */
+const CITIES = [
+  { k:'flo', n:o('Florence','佛罗伦萨'), ll:[11.25,43.77], d:o('Birthplace of the Renaissance. Rich from wool and silk workshops and banking (the Medici). Brunelleschi’s dome (1436), Leonardo, Michelangelo, Botticelli and Machiavelli all worked here.','文艺复兴的发源地。依靠毛纺织、丝织手工工场和银行业（美第奇家族）致富。布鲁内莱斯基的穹顶（1436年）、达·芬奇、米开朗琪罗、波提切利和马基雅维利都与这里有关。') },
+  { k:'rom', n:o('Rome','罗马'), ll:[12.5,41.9], d:o('Popes paid Renaissance artists: Michelangelo painted the Sistine Chapel ceiling (1508–1512) and Raphael painted The School of Athens. Rebuilding St Peter’s Basilica was paid for partly by selling indulgences — one spark of the Reformation.','教皇出资赞助文艺复兴艺术家：米开朗琪罗绘制西斯廷礼拜堂天顶画（1508—1512年），拉斐尔画了《雅典学院》。重建圣彼得大教堂的部分费用来自出售赎罪券——这成了宗教改革的导火线之一。') },
+  { k:'ven', n:o('Venice','威尼斯'), ll:[12.33,45.44], d:o('A rich trading republic and, by 1500, Europe’s printing capital — the Aldine Press printed small, cheap editions of Greek and Latin classics.','富裕的商业共和国；到1500年已是欧洲的印刷中心——阿尔定出版社印出了小巧便宜的希腊、拉丁经典。') },
+  { k:'mai', n:o('Mainz','美因茨'), ll:[8.27,50.0], d:o('Johannes Gutenberg built his printing press with movable metal type here around 1450. His Bible was finished around 1455.','约1450年，谷登堡在这里制成了使用金属活字的印刷机；他印的《圣经》约在1455年完成。') },
+  { k:'wit', n:o('Wittenberg','维登堡'), ll:[12.65,51.87], d:o('Martin Luther taught at the university here. In 1517 he wrote his 95 Theses against the sale of indulgences; local printers spread his writings everywhere.','马丁·路德在这里的大学任教。1517年，他写出反对出售赎罪券的《九十五条论纲》，当地的印刷所把他的文章印发到各地。') },
+  { k:'wor', n:o('Worms','沃尔姆斯'), ll:[8.36,49.63], d:o('At the Diet (assembly) of Worms in 1521, Emperor Charles V ordered Luther to take back his writings. He refused and was declared an outlaw, but a prince protected him in Wartburg Castle, where he translated the New Testament into German.','1521年沃尔姆斯帝国议会上，皇帝查理五世要求路德收回自己的主张，路德拒绝了，被宣布为“法外之人”；一位诸侯把他保护在瓦特堡，他在那里把《新约》译成德语。') },
+  { k:'gen', n:o('Geneva','日内瓦'), ll:[6.14,46.2], d:o('John Calvin led the Reformation here from 1541. Calvinist (Reformed) churches spread to Switzerland, the Netherlands, Scotland and parts of France.','约翰·加尔文从1541年起在这里领导宗教改革。加尔文宗（归正宗）传到瑞士、尼德兰、苏格兰和法国部分地区。') },
+  { k:'par', n:o('Paris','巴黎'), ll:[2.35,48.86], d:o('France stayed mainly Catholic. Wars of Religion with the Protestant Huguenots ended with the Edict of Nantes (1598), which allowed them to worship.','法国以天主教为主。与新教胡格诺派的宗教战争以1598年《南特敕令》结束，敕令允许胡格诺派礼拜。') },
+  { k:'lon', n:o('London','伦敦'), ll:[-0.13,51.5], d:o('William Caxton set up England’s first press at Westminster in 1476. In 1534 Henry VIII made himself head of the Church of England. Shakespeare’s plays filled London theatres around 1600.','1476年，卡克斯顿在威斯敏斯特开办了英格兰第一家印刷所。1534年，亨利八世使自己成为英国国教会的首脑。1600年前后，莎士比亚的戏剧在伦敦的剧院上演。') },
+  { k:'nur', n:o('Nuremberg','纽伦堡'), ll:[11.08,49.45], d:o('Home of Albrecht Dürer, who brought Italian Renaissance ideas north and sold his prints all over Europe.','丢勒的家乡。他把意大利文艺复兴的思想带到北方，他的版画卖到了全欧洲。') },
+  { k:'kra', n:o('Kraków','克拉科夫'), ll:[19.94,50.06], d:o('Nicolaus Copernicus studied here. In 1543 his printed book argued that the Earth goes around the Sun.','哥白尼曾在这里求学。1543年他出版的书提出地球绕太阳运行。') },
+  { k:'tre', n:o('Trent','特伦托'), ll:[11.12,46.07], d:o('The Council of Trent (1545–1563): Catholic bishops reformed abuses, trained priests better and restated Catholic teaching — the Catholic Reformation.','特伦托宗教会议（1545—1563年）：天主教主教们纠正弊端、加强神父培养、重申天主教教义——这就是天主教改革。') },
+  { k:'con', n:o('Constantinople (Istanbul)','君士坦丁堡（今伊斯坦布尔）'), ll:[28.98,41.01], d:o('The Ottomans captured the city in 1453. Greek scholars, some carrying ancient manuscripts, moved to Italy and boosted the study of Greek classics.','1453年奥斯曼帝国攻占此城。一些希腊学者带着古代手稿来到意大利，推动了对希腊古典的研究。') }
+];
+const EV = [
+  { y:1300, t:o('Around 1300: Florence grows rich','1300年前后：佛罗伦萨富起来'), b:o('Wool and silk workshops (手工工场) hire hundreds of paid workers; Florentine bankers lend money all over Europe. Historians see the first “sprouts of capitalism” here.','毛纺织和丝织手工工场雇用了成百上千的雇佣工人，佛罗伦萨的银行家向全欧洲放贷。史学家认为资本主义萌芽最早出现在这里。') },
+  { y:1320, t:o('Dante’s Divine Comedy','但丁《神曲》'), b:o('Written in Italian, the everyday language, not Latin. Dante is called the forerunner of the Renaissance.','用意大利语这种日常语言而不是拉丁文写成。但丁被称为文艺复兴的先驱。') },
+  { y:1341, t:o('Petrarch, “father of humanism”','彼特拉克——“人文主义之父”'), b:o('Petrarch hunts for lost Latin manuscripts and praises human talent and fame in this life.','彼特拉克四处寻找失传的拉丁文手稿，赞美人的才能和现世的荣誉。') },
+  { y:1348, t:o('The Black Death reaches Florence','黑死病传到佛罗伦萨'), b:o('Perhaps half the city dies. Boccaccio’s Decameron (about 1350) tells stories of people escaping the plague.','城里也许有一半人死去。薄伽丘的《十日谈》（约1350年）讲述了一群躲避瘟疫的人讲的故事。') },
+  { y:1397, t:o('The Medici Bank is founded','美第奇银行成立'), b:o('The Medici family become Florence’s richest bankers — and Europe’s most famous patrons of art.','美第奇家族成为佛罗伦萨最富有的银行家，也成了欧洲最有名的艺术赞助人。') },
+  { y:1436, t:o('Brunelleschi’s dome is finished','布鲁内莱斯基的穹顶落成'), b:o('The dome of Florence Cathedral, built without wooden centring, was the largest of its time. Brunelleschi also demonstrated linear perspective.','佛罗伦萨大教堂的穹顶没有用木头脚手架支撑就建成了，是当时最大的穹顶。布鲁内莱斯基还演示了线性透视法。') },
+  { y:1450, t:o('Gutenberg’s press in Mainz','谷登堡在美因茨制成印刷机'), b:o('Movable metal type + oil-based ink + a screw press adapted from wine presses = fast, cheap printing.','金属活字＋油性墨＋由葡萄压榨机改造的螺旋压印机＝又快又便宜的印刷。') },
+  { y:1453, t:o('Constantinople falls','君士坦丁堡陷落'), b:o('The Ottomans take the Byzantine capital. Greek scholars move to Italy with ancient manuscripts.','奥斯曼帝国攻占拜占庭首都，希腊学者带着古代手稿来到意大利。') },
+  { y:1455, t:o('The Gutenberg Bible','《谷登堡圣经》'), b:o('About 180 copies of a 1,282-page Latin Bible — fewer than 50 survive today (approximate figures).','约180部、每部约1282页的拉丁文《圣经》，今天留存的不到50部（近似数字）。') },
+  { y:1469, t:o('Lorenzo de’ Medici, “the Magnificent”','“伟大的洛伦佐”·德·美第奇'), b:o('He rules Florence until 1492 and supports artists including the young Michelangelo.','他统治佛罗伦萨直到1492年，资助了包括少年米开朗琪罗在内的艺术家。') },
+  { y:1476, t:o('Caxton prints in England','卡克斯顿在英格兰印书'), b:o('William Caxton opens England’s first press at Westminster. By 1480 presses work in over 100 towns (approximate).','卡克斯顿在威斯敏斯特开办英格兰第一家印刷所。到1480年，已有100多个城镇有了印刷所（近似数字）。') },
+  { y:1495, t:o('Leonardo paints The Last Supper','达·芬奇绘制《最后的晚餐》'), b:o('Painted in Milan (1495–1498). All the lines of the room lead to a vanishing point at Jesus’s head.','在米兰绘制（1495—1498年）。画中房间的透视线都汇聚到耶稣头部的消失点。') },
+  { y:1503, t:o('Mona Lisa begun','开始创作《蒙娜丽莎》'), b:o('Leonardo works on it for years; today it hangs in the Louvre in Paris.','达·芬奇为这幅画花了多年时间；今天它收藏在巴黎卢浮宫。') },
+  { y:1504, t:o('Michelangelo’s David','米开朗琪罗的《大卫》'), b:o('A 5-metre (17 ft) marble statue — taller than a giraffe — set up in Florence as a symbol of the city’s freedom.','高约5米（17英尺）的大理石雕像——比长颈鹿还高，立在佛罗伦萨，象征城市的自由。') },
+  { y:1508, t:o('The Sistine Chapel ceiling','西斯廷礼拜堂天顶画'), b:o('Michelangelo paints it from 1508 to 1512, lying and standing on scaffolding high above the floor.','米开朗琪罗在1508—1512年间站在高高的脚手架上完成了这幅天顶画。') },
+  { y:1516, t:o('Erasmus and More','伊拉斯谟和莫尔'), b:o('Erasmus prints the Greek New Testament; Thomas More publishes Utopia. Printing makes northern humanists famous.','伊拉斯谟出版希腊文《新约》，托马斯·莫尔出版《乌托邦》。印刷术让北方的人文主义者声名远扬。') },
+  { y:1517, t:o('Luther’s 95 Theses','路德发表《九十五条论纲》'), b:o('On 31 October 1517 Luther challenges the sale of indulgences. Printed copies spread across the German lands within weeks.','1517年10月31日，路德质疑出售赎罪券的做法。印刷本几周内就传遍德意志各地。') },
+  { y:1521, t:o('The Diet of Worms','沃尔姆斯帝国议会'), b:o('Luther refuses to take back his writings. Protected by a prince, he translates the New Testament into German (printed 1522).','路德拒绝收回自己的主张。在一位诸侯的保护下，他把《新约》译成德语（1522年出版）。') },
+  { y:1534, t:o('The Church of England','英国国教会成立'), b:o('Henry VIII breaks with the pope and becomes head of the Church of England.','亨利八世与教皇决裂，成为英国国教会的首脑。') },
+  { y:1541, t:o('Calvin in Geneva','加尔文在日内瓦'), b:o('John Calvin leads the Reformed church in Geneva; his ideas spread to Scotland and the Netherlands.','约翰·加尔文在日内瓦领导归正宗教会，他的思想传到苏格兰和尼德兰。') },
+  { y:1543, t:o('Copernicus and Vesalius','哥白尼与维萨里'), b:o('Copernicus: the Earth goes around the Sun. Vesalius: a printed atlas of human anatomy. Science is starting to change too.','哥白尼提出地球绕太阳运行；维萨里出版了人体解剖学图集。科学也开始发生变化。') },
+  { y:1545, t:o('The Council of Trent','特伦托宗教会议'), b:o('The Catholic Reformation (1545–1563) fixes abuses and restates Catholic teaching. The Jesuit order (1540) opens schools.','天主教改革（1545—1563年）纠正弊端、重申天主教教义。耶稣会（1540年成立）开办学校。') },
+  { y:1555, t:o('The Peace of Augsburg','《奥格斯堡和约》'), b:o('Each German prince may choose Lutheran or Catholic for his land. Europe is now divided by religion — see the coloured map.','德意志各诸侯可以为自己的领地选择路德宗或天主教。欧洲从此在宗教上分裂——看看地图上的颜色。') },
+  { y:1564, t:o('Shakespeare is born','莎士比亚出生'), b:o('His plays, including Hamlet (about 1600), are among the greatest works of the Renaissance in England.','他的戏剧（包括约1600年的《哈姆雷特》）是英国文艺复兴最伟大的作品之一。') },
+  { y:1598, t:o('The Edict of Nantes','《南特敕令》'), b:o('France allows Protestant Huguenots to worship, ending decades of religious wars.','法国允许新教胡格诺派礼拜，结束了几十年的宗教战争。') },
+  { y:1610, t:o('Galileo’s telescope','伽利略的望远镜'), b:o('Galileo prints what he saw: mountains on the Moon and moons around Jupiter.','伽利略把观测结果印成书：月球上的山、木星的卫星。') },
+  { y:1618, t:o('The Thirty Years’ War begins','三十年战争爆发'), b:o('A long war in the German lands, partly over religion and partly over power.','德意志土地上的一场长期战争，起因既有宗教也有权力之争。') },
+  { y:1648, t:o('The Peace of Westphalia','《威斯特伐利亚和约》'), b:o('The war ends; states accept each other’s borders and religions. Historians often date the modern system of states from here.','战争结束，各国相互承认疆界和宗教。史学家常把近代国家体系的形成追溯到这里。') }
+];
+const EYS = EV.map(e => e.y);
+const CN = [
+  { y:1300, t:o('Yuan dynasty (元朝, 1271–1368): Huang Daopo (黄道婆) spreads better cotton-spinning tools in the Songjiang area.','元朝（1271—1368年）：黄道婆在松江一带推广先进的棉纺织工具。') },
+  { y:1368, t:o('1368: Zhu Yuanzhang (朱元璋) founds the Ming dynasty (明朝) with its capital at Nanjing.','1368年：朱元璋建立明朝，定都南京。') },
+  { y:1405, t:o('1405–1433: Zheng He (郑和) leads seven voyages to the “Western Oceans”, reaching East Africa — his biggest ships were far larger than Columbus’s.','1405—1433年：郑和七下西洋，最远到达非洲东海岸——他最大的宝船比哥伦布的船大得多。') },
+  { y:1408, t:o('1408: the Yongle Encyclopedia (《永乐大典》) is finished — more than 22,000 chapters, all copied by hand, not printed.','1408年：《永乐大典》编成——共两万两千多卷，全部手抄，没有印刷。') },
+  { y:1421, t:o('1421: the Ming capital moves to Beijing, where the Forbidden City (紫禁城) has just been completed.','1421年：明朝迁都北京，紫禁城刚刚建成。') },
+  { y:1450, t:o('As Gutenberg prints in Mainz: movable type was invented in China by Bi Sheng (毕昇) in the 1040s, about 400 years earlier, as recorded by Shen Kuo (沈括) in 《梦溪笔谈》.','谷登堡在美因茨印书时：中国北宋的毕昇早在1040年代就发明了活字印刷术，比谷登堡早约400年，沈括的《梦溪笔谈》记载了此事。') },
+  { y:1567, t:o('1567: the Ming court lifts the ban on private sea trade (隆庆开关); Chinese silk and porcelain flow to Europe and the Americas.','1567年：明朝放开民间海外贸易（隆庆开关），中国的丝绸和瓷器大量销往欧洲和美洲。') },
+  { y:1578, t:o('1578: Li Shizhen (李时珍) finishes the Compendium of Materia Medica (《本草纲目》), describing 1,892 medicines.','1578年：李时珍写成《本草纲目》，记载药物1892种。') },
+  { y:1582, t:o('1582: the Italian Jesuit Matteo Ricci (利玛窦) arrives in Macao; he later reaches Beijing (1601) and brings European maps and maths.','1582年：意大利耶稣会士利玛窦来到澳门，后来到达北京（1601年），带来了欧洲的地图和数学。') },
+  { y:1607, t:o('1607: Xu Guangqi (徐光启) and Ricci translate the first six books of Euclid’s Elements (《几何原本》).','1607年：徐光启与利玛窦合译《几何原本》前六卷。') },
+  { y:1637, t:o('1637: Song Yingxing (宋应星) prints The Exploitation of the Works of Nature (《天工开物》), an illustrated guide to crafts and technology.','1637年：宋应星的《天工开物》刊行，用图文介绍农业和手工业技术。') },
+  { y:1644, t:o('1644: the Ming dynasty falls; the Qing dynasty (清朝) takes Beijing.','1644年：明朝灭亡，清军入关，定都北京。') }
+];
+/* Leonardo's inventions */
+const CT = 'https://thumb.wikimedia.org/wikipedia/commons/thumb/', CU = 'https://upload.wikimedia.org/wikipedia/commons/', CP = 'https://commons.wikimedia.org/wiki/File:', CQ = '?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', CQU = '?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled';
+const INV = [
+  { k:'fly', n:o('Flying machine (ornithopter)','飞行器（扑翼机）'), img:{ src:CU + 'c/c5/Leonardo_Design_for_a_Flying_Machine%2C_c._1488.jpg' + CQU, page:CP + 'Leonardo_Design_for_a_Flying_Machine,_c._1488.jpg', credit:'Leonardo da Vinci', license:'Public domain' },
+    idea:o('A pilot lies on a frame and flaps two huge bat-like wings with arms and legs (drawn around 1488).','飞行员趴在架子上，用手脚扇动两只像蝙蝠翅膀一样的巨大翅膀（约1488年绘制）。'), a:'no',
+    why:o('Human muscles are far too weak to flap wings big enough to lift a person plus a wooden machine. Human-powered flight only succeeded in 1977 (the Gossamer Condor), using ultralight modern materials.','人的肌肉力量太小，扇不动能把人和木头机器一起托起的大翅膀。直到1977年，“轻薄秃鹰号”才用超轻的现代材料实现了人力飞行。') },
+  { k:'scr', n:o('Aerial screw (“helicopter”)','空中螺旋（“直升机”）'), img:{ src:CU + '5/50/Leonardo_da_Vinci_helicopter_and_lifting_wing.jpg' + CQU, page:CP + 'Leonardo_da_Vinci_helicopter_and_lifting_wing.jpg', credit:'Leonardo da Vinci', license:'Public domain' },
+    idea:o('A spiral of linen on a frame; men turning cranks would “screw” it up into the air.','在架子上装一个亚麻布做的螺旋，几个人转动曲柄，让它像螺丝一样“拧”进空中。'), a:'no',
+    why:o('Men cranking could never make enough lift, and the platform would spin the opposite way. But the idea — a spinning screw pushing air down — is how rotors and propellers work.','人力转动永远产生不了足够的升力，而且平台会朝反方向打转。不过“旋转的螺旋把空气往下推”的想法，正是旋翼和螺旋桨的原理。') },
+  { k:'par', n:o('Parachute','降落伞'), img:{ src:CT + '8/8b/Leonardo_da_Vinci_parachute_04659a.jpg/960px-Leonardo_da_Vinci_parachute_04659a.jpg' + CQ, page:CP + 'Leonardo_da_Vinci_parachute_04659a.jpg', credit:'Nevit Dilmen', license:'CC BY-SA 3.0' },
+    idea:o('A pyramid of linen cloth on a wooden frame, sketched in Milan around 1480–1483.','在木架上蒙一层亚麻布，做成金字塔形，约1480—1483年在米兰画出。'), a:'yes',
+    why:o('In 2000 a skydiver jumped with a replica built from Leonardo’s design and landed safely. It was heavy, but it worked.','2000年，一名跳伞运动员背着按照达·芬奇设计制作的复制品跳伞，安全落地。它很重，但确实能用。') },
+  { k:'xbo', n:o('Giant crossbows','巨型弩机'), img:{ src:CU + '0/0d/Leonardo_da_vinci%2C_Crossbow_Machine.jpg' + CQU, page:CP + 'Leonardo_da_vinci,_Crossbow_Machine.jpg', credit:'Leonardo da Vinci', license:'Public domain' },
+    idea:o('Leonardo drew several huge crossbow machines worked by gears and cranks; the most famous design is more than 20 metres wide, on six wheels.','达·芬奇画过好几种用齿轮和曲柄操作的巨型弩机；最有名的一种宽20多米，装在六个轮子上。'), a:'part',
+    why:o('The bow and trigger mechanics make sense, but something that huge would be very hard to build, move and aim — and cannons already did the job better.','弓和扳机的原理说得通，但这么大的东西很难造、很难移动也很难瞄准——而且当时的大炮已经更好用了。') },
+  { k:'tnk', n:o('Armoured vehicle (“tank”)','装甲车（“坦克”）'), emoji:'🛡️',
+    idea:o('A cone-shaped wooden shell with guns all round, moved by eight men turning cranks inside.','一个装满火炮的圆锥形木壳，由里面的八个人转动曲柄推动。'), a:'no',
+    why:o('As drawn, the gears would turn the front and back wheels in opposite directions, so it couldn’t move — some historians think Leonardo added the mistake on purpose. Eight men cranking would also be very slow.','按照图纸，齿轮会让前后轮朝相反方向转，车根本动不了——有些史学家认为这是达·芬奇故意画错的。八个人转曲柄也会非常慢。') },
+  { k:'div', n:o('Diving apparatus','潜水装置'), emoji:'🤿',
+    idea:o('A leather suit with a breathing tube of cane joints leading up to a float on the surface.','一套皮制潜水服，用一节节芦苇管连成呼吸管，通到水面的浮标上。'), a:'part',
+    why:o('Breathing through a long tube only works just below the surface: a metre or so down, water pressure squeezes your chest so hard you can’t suck in air.','用长管呼吸只能在水面下很浅的地方：下潜一米左右，水压就会挤压胸部，让人吸不进空气。') },
+  { k:'crt', n:o('Self-propelled cart','自走车'), emoji:'⚙️',
+    idea:o('A small cart driven by coiled springs, like a wind-up clock, with a steering control that can be set in advance.','一辆由卷紧的弹簧驱动的小车，像上发条的钟表一样，还能预先设定转向。'), a:'yes',
+    why:o('In 2004 a museum team in Florence built a working model from his drawing — some call it the first “robot car”.','2004年，佛罗伦萨一家博物馆的团队按照图纸复原出了能跑的模型——有人称它是最早的“机器人车”。') },
+  { k:'org', n:o('Organ gun (many barrels)','“管风琴”炮（多管炮）'), img:{ src:CT + 'b/b2/Ribauldequins_-_Leonardo_da_Vinci_studies.jpg/960px-Ribauldequins_-_Leonardo_da_Vinci_studies.jpg' + CQ, page:CP + 'Ribauldequins_-_Leonardo_da_Vinci_studies.jpg', credit:'Leonardo da Vinci', license:'Public domain' },
+    idea:o('Rows of small gun barrels side by side, so one row can fire while another is reloaded.','把许多小炮管并排装在一起，一排开火时另一排可以装弹。'), a:'yes',
+    why:o('Guns with many barrels (ribauldequins) were already used in the 1400s; Leonardo drew improved versions. They worked — but were slow to reload.','多管炮在15世纪已经有人使用，达·芬奇画的是改进版。它们能用，只是装弹很慢。') }
+];
+/* printing race rounds */
+const PR = [ { w:'LUX', n:1, crew:1, g:o('“light”','“光”') }, { w:'LIBER', n:5, crew:1, g:o('“book”','“书”') }, { w:'VERITAS', n:10, crew:1, g:o('“truth”','“真理”') }, { w:'HUMANITAS', n:16, crew:2, g:o('“humanity” — the root of “humanism”','“人性”——“人文主义”一词的来源') } ];
+const PRANKS = [ { s:0, n:o('Apprentice','学徒') }, { s:80, n:o('Journeyman','熟练工') }, { s:200, n:o('Master printer','印刷师傅') }, { s:340, n:o('Publisher','出版商') } ];
+const BOOKS = [ { p:'1454–1500', v:13 }, { p:'1501–1550', v:79 }, { p:'1551–1600', v:138 }, { p:'1601–1650', v:201 } ];
+const RFS = [ { k:'p', n:o('✝️ Luther’s teaching (Protestant)','✝️ 路德的主张（新教）') }, { k:'c', n:o('⛪ The Catholic Church’s position (at the time)','⛪ 当时天主教会的立场') } ];
+const RFC = [
+  { s:'p', t:o('People are saved by faith alone (“justification by faith”)','人得救只靠信仰（“因信称义”）') }, { s:'p', t:o('The Bible alone is the highest authority','只有《圣经》是最高权威') },
+  { s:'p', t:o('Church services and the Bible in people’s own language','用本民族语言举行礼拜、阅读《圣经》') }, { s:'p', t:o('The 95 Theses attacked the sale of indulgences','《九十五条论纲》抨击出售赎罪券') },
+  { s:'p', t:o('Pastors (ministers) may marry','牧师可以结婚') }, { s:'p', t:o('Two sacraments: baptism and communion','两件圣礼：洗礼和圣餐') },
+  { s:'c', t:o('The pope is the head of the whole Church','教皇是整个教会的首领') }, { s:'c', t:o('The Bible and Church tradition together guide believers','《圣经》和教会传统共同指导信徒') },
+  { s:'c', t:o('Seven sacraments','七件圣礼') }, { s:'c', t:o('Faith together with good works','信仰与善功并重') },
+  { s:'c', t:o('Priests stay unmarried','神父不结婚') }, { s:'c', t:o('Council of Trent (1545–63): fix abuses, restate teaching','特伦托宗教会议（1545—1563年）：纠正弊端、重申教义') }
+];
+</script>
+<script>
+/* ================= Map + year slider ================= */
+const App = { y:1300, city:null, timer:null, ren:true, press:true, rel:true };
+const pressCount = y => { if (y > 1500) return null; let p = PCOUNT[0]; for (const q of PCOUNT){ if (q[0] <= y) p = q; else return Math.round(p[1] + (q[1] - p[1]) * (y - p[0]) / (q[0] - p[0])); } return p[1]; };
+const visRel = () => App.y >= 1520 ? REL.filter(r => App.y >= r.a) : [];
+const M = WMap.create('#mapStage', '#mapCv', { extent:[[-11,35],[33,61]],
+  overlay: (g, M) => {
+    const ink = WMap.css('--ink'), surf = WMap.css('--surface'), y = App.y;
+    g.save(); M.clipLand(); g.fillStyle = 'rgba(176,138,60,.10)'; g.fillRect(0, 0, M.W, M.H);
+    if (App.rel) visRel().forEach(r => M.poly(r.r, C[r.g], null, 0, null, .42));
+    OTT.filter(r => y >= r.a).forEach(r => M.poly(r.r, C.ott, null, 0, null, .38));
+    if (App.ren) REN.filter(c => y >= c.a).forEach(c => { const p = M.xy(c.ll), q = M.xy([c.ll[0], c.ll[1] + Math.min(c.r, .8 + (y - c.a) * .05)]); if (!p || !q) return;
+      const rad = Math.abs(p[1] - q[1]), gr = g.createRadialGradient(p[0], p[1], 0, p[0], p[1], rad); gr.addColorStop(0, 'rgba(212,160,23,.55)'); gr.addColorStop(1, 'rgba(212,160,23,0)');
+      g.fillStyle = gr; g.beginPath(); g.arc(p[0], p[1], rad, 0, 7); g.fill(); });
+    g.restore();
+    if (App.press) PRESS.filter(t => y >= t[4]).forEach(t => { const p = M.dot([t[2], t[3]], 3.6, C.press, surf); if (p && y - t[4] < 6){ g.beginPath(); g.arc(p[0], p[1], 8, 0, 7); g.strokeStyle = C.press; g.lineWidth = 2; g.stroke(); } });
+    if (y >= 1517 && y <= 1530){ const w = M.xy([12.65, 51.87]); if (w) [1, 2, 3].forEach(i => { g.beginPath(); g.arc(w[0], w[1], 10 + i * 9 * ((y - 1516) / 3), 0, 7); g.strokeStyle = 'rgba(79,127,198,' + (.5 - i * .12) + ')'; g.lineWidth = 2; g.stroke(); }); }
+    CITIES.forEach(c => { if (c.k === 'con' && y < 1400) return; const sel = App.city === c, p = M.dot(c.ll, sel ? 7 : 4.5, ink, surf); if (!p) return;
+      if (sel || (!M.small && !['wor','tre'].includes(c.k)) || ['flo','mai','wit'].includes(c.k)) M.text(Lab.L(c.n).replace(/ \(.*\)|（.*）/, ''), p[0] + 8, p[1] - 9, { s:11, a:'left', c:ink, w:700 }); });
+  },
+  click: h => { for (const c of CITIES){ const p = M.xy(c.ll); if (p && Math.hypot(p[0] - h.x, p[1] - h.y) < 14){ App.city = c; renderInfo(); M.draw(); return; } } App.city = null; renderInfo(); M.draw(); },
+  hover: h => { for (const c of CITIES){ const p = M.xy(c.ll); if (p && Math.hypot(p[0] - h.x, p[1] - h.y) < 14) return Lab.L(c.n); } return ''; }
+});
+function renderInfo(){
+  const box = Lab.$('#info');
+  if (App.city){ const c = App.city;
+    box.innerHTML = `<span class="tag">${Lab.L(o('City','城市'))}</span><h3><span class="dot" style="background:var(--ink)"></span>${Lab.L(c.n)}</h3><p style="margin:0">${Lab.L(c.d)}</p>
+      <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button><div class="nav"><button id="backBtn">${Lab.L(o('◀ Map guide','◀ 地图说明'))}</button></div>`;
+    Lab.$('#speakBtn').onclick = () => Lab.speak(Lab.L(c.n) + (Lab.lang === 'zh' ? '。' : '. ') + Lab.L(c.d));
+    Lab.$('#backBtn').onclick = () => { App.city = null; renderInfo(); M.draw(); }; return; }
+  box.innerHTML = `<span class="tag">${Lab.L(o('How to read the map','怎样看这张地图'))}</span><h3>${Lab.L(o('Rebirth, print and protest','复兴、印刷与抗议'))}</h3>
+    <p class="muted" style="margin:0">${Lab.L(o('“Renaissance” (文艺复兴) means “rebirth”: scholars revived Greek and Roman learning — but used it to celebrate human talent and life in this world. That idea is called humanism (人文主义).','“文艺复兴”的原意是“再生”：学者们复兴古希腊罗马的学问，用它来赞美人的才能和现世生活。这种思想叫作人文主义。'))}</p>
+    <ul><li>${Lab.L(o('<b>Gold glow</b> = Renaissance centres, growing over time · <b>blue dots</b> = towns with a printing press (a ring = new in the last 5 years).','<b>金色光晕</b>＝文艺复兴中心，随时间扩大 · <b>蓝点</b>＝有印刷所的城镇（外圈＝近5年新开的）。'))}</li>
+    <li>${Lab.L(o('From 1520: <b>tan</b> = Catholic, <b>blue</b> = Lutheran, <b>green</b> = Calvinist, <b>rose</b> = Anglican; <b>grey</b> = Ottoman Empire.','1520年起：<b>棕黄色</b>＝天主教，<b>蓝色</b>＝路德宗，<b>绿色</b>＝加尔文宗，<b>玫红色</b>＝英国国教；<b>灰色</b>＝奥斯曼帝国。'))}</li></ul>
+    <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(o('“1450 the press, 1517 the protest, 1555 the split.”','“1450印刷机，1517论纲起，1555欧洲分。”'))}</div>
+    <div class="mix"><b>${Lab.L(o('⚠️ Don’t mix up:','⚠️ 易错点：'))}</b>${Lab.L(o('The Renaissance (art and ideas, from the 1300s) and the Reformation (religion, from 1517) overlap, but they are different movements. Printing helped both.','文艺复兴（艺术与思想，14世纪开始）和宗教改革（宗教，1517年开始）时间上有重叠，但是两场不同的运动。印刷术推动了这两场运动。'))}</div>
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="startBtn">${Lab.L(o('Play from 1300 ▶','从1300年开始播放 ▶'))}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak(box.querySelector('p').textContent + ' ' + box.querySelector('.memory').textContent);
+  Lab.$('#startBtn').onclick = () => { setY(1300); play(); };
+}
+const curE = () => { let c = EYS[0]; EYS.forEach(y => { if (y <= App.y) c = y; }); return c; };
+function renderY(){
+  const y = App.y, c = curE(), zh = Lab.lang === 'zh';
+  Lab.$('#tm').value = y; Lab.$('#tmOut').textContent = zh ? y + '年' : y; Lab.$('#ycDate').textContent = zh ? c + '年' : c;
+  Lab.$('#ycList').innerHTML = EV.filter(e => e.y === c).map(e => `<div class="yc-ev"><h4>${Lab.L(e.t)}</h4><p>${Lab.L(e.b)}</p></div>`).join('');
+  const cn = CN.filter(x => x.y <= y).pop(); Lab.$('#cnBox').innerHTML = `<small>${Lab.L(o('🇨🇳 Meanwhile in China','🇨🇳 同一时期的中国'))}</small>${Lab.L(cn.t)}`;
+  const pc = pressCount(y); Lab.$('#roPress').textContent = pc == null ? '250+' : (pc > 0 && y > 1450 ? '≈' : '') + pc;
+  Lab.$('#roGut').textContent = y < 1450 ? Lab.L(o('not yet','还没有')) : y === 1450 ? Lab.L(o('brand new!','刚刚发明！')) : Lab.L(o(`${y - 1450} years old`, `已有${y - 1450}年`));
+  Lab.$('#roRen').textContent = REN.filter(r => y >= r.a).length;
+  Lab.$('#roChurch').textContent = Lab.L(y < 1517 ? o('one Church','统一') : y < 1555 ? o('splitting','开始分裂') : o('divided','分裂'));
+  const lg = [[C.ren, o('Renaissance centre','文艺复兴中心')], [C.press, o('Town with a press','有印刷所的城镇')]];
+  if (y >= 1453) lg.push([C.ott, GRP.ott]);
+  if (App.rel && y >= 1520) [...new Set(visRel().map(r => r.g))].forEach(g => lg.push([C[g], GRP[g]]));
+  Lab.$('#legend').innerHTML = lg.map(([c, n]) => `<span><i style="background:${c}"></i>${Lab.L(n)}</span>`).join('');
+  Lab.$('#playBtn').textContent = App.timer ? '⏸' : '▶';
+  M.draw();
+}
+function setY(y){ App.y = Math.max(1300, Math.min(1650, Math.round(y))); renderY(); }
+function stop(){ if (App.timer){ clearInterval(App.timer); App.timer = null; } }
+const stepE = d => { const c = curE(), i = EYS.indexOf(c); return d > 0 ? (EYS[i + 1] ?? 1650) : (App.y > c ? c : EYS[Math.max(0, i - 1)]); };
+function play(){ stop(); if (App.y >= 1650) setY(1300); App.timer = setInterval(() => { if (App.y >= 1650){ stop(); renderY(); } else setY(stepE(1)); }, 1700); renderY(); }
+Lab.$('#tm').oninput = e => { stop(); setY(+e.target.value); };
+Lab.$('#evPrev').onclick = () => { stop(); setY(stepE(-1)); }; Lab.$('#evNext').onclick = () => { stop(); setY(stepE(1)); };
+Lab.$('#playBtn').onclick = () => { if (App.timer){ stop(); renderY(); } else play(); };
+[['btnRen','ren'],['btnPress','press'],['btnRel','rel']].forEach(([id, k]) => Lab.$('#' + id).onclick = () => { App[k] = !App[k]; Lab.$('#' + id).classList.toggle('on', App[k]); renderY(); });
+Lab.onLang(() => { Lab.$('#mapTip').textContent = Lab.L(o('Click a city · drag the years','点击城市 · 拖动年份')); renderInfo(); renderY(); });
+</script>
+<script>
+/* ================= Printing race (main game) ================= */
+(function(){
+  const G = { r:0, phase:'ready', set:'', step:0, copies:0, miss:0, t0:0, t:0, score:0, stars:[], cs:[], bad:null, raf:null, msg:null, anim:0 };
+  const STEPS = [ { k:'lock', n:o('🔒 Lock form','🔒 锁版') }, { k:'ink', n:o('🖌️ Ink','🖌️ 上墨') }, { k:'press', n:o('⬇️ Press','⬇️ 压印') }, { k:'peel', n:o('📄 Peel','📄 揭纸') } ];
+  const R = () => PR[G.r], per = () => R().w.length + 1, first = () => R().crew === 2 ? 2 : 1;
+  const scribeCopies = () => Math.min(R().n, Math.floor(G.t / per()));
+  const cv = Lab.$('#pressCv'), g = cv.getContext('2d');
+  function newRound(){ const w = R().w, L = [...new Set(w.split(''))], pool = 'ABCDEFGHILMNOPRSTUVX'.split('').filter(c => !L.includes(c));
+    Object.assign(G, { phase:'ready', set:'', step:1, copies:0, miss:0, t:0, msg:null, bad:null, cs:Lab.shuffle([...L, ...Lab.shuffle(pool).slice(0, 4)]) }); cancelAnimationFrame(G.raf); render(); }
+  function tick(){ G.t = (performance.now() - G.t0) / 1000; live(); if (G.phase === 'set' || G.phase === 'print') G.raf = requestAnimationFrame(tick); }
+  function start(){ if (G.phase !== 'ready') return; G.phase = 'set'; G.t0 = performance.now(); G.msg = null; render(); tick(); }
+  function letter(ch){ if (G.phase === 'ready') start(); if (G.phase !== 'set') return; const w = R().w;
+    if (ch === w[G.set.length]){ G.set += ch; G.bad = null; G.msg = G.set === w ? { c:'good', t:o('✅ Word set (mirror-image type prints the right way round). Now lock the form!','✅ 排好了（反字印出来正好是正字）。现在锁版！') } : null; }
+    else { G.miss++; G.bad = ch; G.msg = { c:'bad', t:o(`❌ Next letter is “${w[G.set.length]}”.`, `❌ 下一个字母应该是“${w[G.set.length]}”。`) }; }
+    render(); }
+  function step(k){ if (G.phase === 'ready') start(); const want = G.phase === 'set' ? (G.set === R().w ? 'lock' : null) : G.phase === 'print' ? STEPS[G.step].k : null;
+    if (!want) { if (G.phase === 'set'){ G.miss++; G.bad = k; G.msg = { c:'bad', t:o('❌ Finish setting the word first.','❌ 先把单词排好。') }; render(); } return; }
+    if (k !== want){ G.miss++; G.bad = k; G.msg = { c:'bad', t:o(`❌ Wrong order — next step: ${STEPS.find(s => s.k === want).n.en}.`, `❌ 顺序不对——下一步应该是：${STEPS.find(s => s.k === want).n.zh}。`) }; render(); return; }
+    G.bad = null; G.msg = null;
+    if (k === 'lock'){ G.phase = 'print'; G.step = first(); }
+    else { if (k === 'press') G.anim = performance.now(); G.step++; if (G.step > 3){ G.copies++; G.step = first(); if (G.copies >= R().n) finish(); } }
+    render(); }
+  function finish(){ G.phase = 'done'; cancelAnimationFrame(G.raf); G.t = (performance.now() - G.t0) / 1000;
+    const sT = R().n * per(), beat = G.t < sT, pts = Math.max(0, R().n * 10 - G.miss * 3 + (beat ? 30 : 0)), st = beat && G.miss <= 1 ? 3 : beat ? 2 : 1;
+    G.score += pts; G.stars[G.r] = st; const rk = PRANKS.filter(x => G.score >= x.s).pop();
+    const lesson = G.r === 0 ? (beat ? o(' Close! For one copy, handwriting is almost as fast.', '真险！只印一份时，手抄几乎一样快。') : o(' For ONE copy the scribe wins — setting type takes time. Printing pays off when you need many copies.', '只要一份时抄书人赢了——排字很费时间。要印很多份时，印刷才划算。'))
+      : beat ? o(` The scribe would need ${sT.toFixed(0)} s — the press wins because each extra copy is fast.`, `抄书人需要${sT.toFixed(0)}秒——印刷机赢了，因为每多印一份都很快。`) : o(' Too many mistakes this time — try again for more stars.', '这次失误太多——再来一次争取更多星。');
+    G.msg = { c:beat ? 'good' : 'bad', t:o(`🏁 ${R().n} cop${R().n > 1 ? 'ies' : 'y'} in ${G.t.toFixed(1)} s, ${G.miss} mistake${G.miss === 1 ? '' : 's'}: +${pts} points, ${'★'.repeat(st)}. Rank: ${rk.n.en}.${lesson.en}`, `🏁 ${G.t.toFixed(1)}秒印完${R().n}份，失误${G.miss}次：得${pts}分，${'★'.repeat(st)}。头衔：${rk.n.zh}。${lesson.zh}`) };
+    live(); }
+  function live(){ const n = R().n, sc = G.phase === 'done' ? Math.min(n, Math.floor(G.t / per())) : scribeCopies();
+    Lab.$('#pgTime').textContent = G.t.toFixed(1); Lab.$('#trP').style.width = G.copies / n * 100 + '%'; Lab.$('#trS').style.width = Math.min(1, G.t / per() / n) * 100 + '%';
+    Lab.$('#laneP').textContent = Lab.L(o(`${G.copies} of ${n} copies`, `已印${G.copies}／${n}份`)); Lab.$('#laneS').textContent = Lab.L(o(`${sc} of ${n} copies (${per()} s per copy)`, `已抄${sc}／${n}份（每份${per()}秒）`)); draw(sc); }
+  function render(){ const w = R().w;
+    Lab.$('#pgTask').className = 'result'; Lab.$('#pgTask').innerHTML = Lab.L(o(`<b>Round ${G.r + 1}:</b> set the Latin word <b>${w}</b> (${R().g.en}) and print <b>${R().n}</b> cop${R().n > 1 ? 'ies' : 'y'}.${R().crew === 2 ? ' 👥 You now have a two-man crew: a helper inks for you!' : ''}`,
+      `<b>第${G.r + 1}轮：</b>排出拉丁语单词 <b>${w}</b>（${R().g.zh}），印<b>${R().n}</b>份。${R().crew === 2 ? '👥 现在你有两人小组：助手替你上墨！' : ''}`));
+    Lab.$('#pgStick').innerHTML = `<div class="mir">${G.set.split('').map(c => `<span>${c}</span>`).join('')}</div>` + (G.set.length < w.length ? `<em>${Lab.L(o(`${w.length - G.set.length} more letter${w.length - G.set.length > 1 ? 's' : ''} · the line reads backwards!`, `还差${w.length - G.set.length}个字母 · 整行是反的！`))}</em>` : '');
+    Lab.$('#pgCase').innerHTML = G.cs.map(c => `<button data-c="${c}" class="${G.bad === c ? 'bad' : ''}" ${G.phase === 'set' || G.phase === 'ready' ? '' : 'disabled'}>${c}</button>`).join('');
+    Lab.$$('#pgCase button').forEach(b => b.onclick = () => letter(b.dataset.c));
+    const want = G.phase === 'set' ? (G.set === w ? 'lock' : '') : G.phase === 'print' ? STEPS[G.step].k : '';
+    Lab.$('#pgSteps').innerHTML = STEPS.map(s => { const helper = s.k === 'ink' && R().crew === 2; return `<button data-k="${s.k}" class="${want === s.k ? 'next' : ''} ${G.bad === s.k ? 'bad' : ''}" ${G.phase === 'done' || helper ? 'disabled' : ''}>${Lab.L(s.n)}${helper ? Lab.L(o(' (helper)', '（助手）')) : ''}</button>`; }).join('');
+    Lab.$$('#pgSteps button').forEach(b => b.onclick = () => step(b.dataset.k));
+    const m = Lab.$('#pgMsg'); m.className = 'result ' + (G.msg ? G.msg.c : ''); m.textContent = G.msg ? Lab.L(G.msg.t) : (G.phase === 'ready' ? Lab.L(o('Press ▶ Start (or just click the first letter). The scribe starts writing at the same moment.', '按“▶ 开始本轮”（或直接点第一个字母），抄书人会同时开始抄写。')) : '');
+    Lab.$('#pgScore').textContent = G.score; Lab.$('#pgRound').textContent = (G.r + 1) + '/' + PR.length;
+    const st = G.stars[G.r] || 0; Lab.$('#pgStars').textContent = '★'.repeat(st) + '☆'.repeat(3 - st);
+    Lab.$('#pgRanks').innerHTML = PRANKS.map(x => `<span class="${G.score >= x.s ? 'on' : ''}">${Lab.L(x.n)}</span>`).join('');
+    Lab.$('#pgStart').disabled = G.phase !== 'ready';
+    Lab.$('#pgNext').textContent = G.r === PR.length - 1 && G.phase === 'done' ? Lab.L(o('↺ Play again', '↺ 再玩一次')) : Lab.L(o('Next round ▶', '下一轮 ▶'));
+    live(); }
+  function draw(sc){ const r = cv.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!r.width) return; cv.width = r.width * d; cv.height = r.height * d; g.setTransform(d, 0, 0, d, 0, 0);
+    const W = r.width, H = r.height, css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim(), ink = css('--ink'), ink2 = css('--ink-2'), wood = '#8a5a34', paper = '#f4ecd8';
+    g.clearRect(0, 0, W, H); const px = W * .06, pw = W * .38, by = H - 40;
+    g.fillStyle = wood; g.fillRect(px, 18, 12, by - 18); g.fillRect(px + pw - 12, 18, 12, by - 18); g.fillRect(px, 18, pw, 14); g.fillRect(px - 8, by, pw + 16, 12);
+    const k = Math.max(0, 1 - (performance.now() - G.anim) / 350), py = 50 + k * 30;
+    g.strokeStyle = ink2; g.lineWidth = 4; g.beginPath(); g.moveTo(px + pw / 2, 32); g.lineTo(px + pw / 2, py); g.stroke();
+    g.beginPath(); g.moveTo(px + pw / 2, 40); g.lineTo(px + pw / 2 + 40, 34 + k * 14); g.stroke();
+    g.fillStyle = '#6b6f78'; g.fillRect(px + 20, py, pw - 40, 12);
+    g.fillStyle = G.phase === 'print' && G.step >= 2 ? '#2a2a2a' : '#9aa0aa'; g.fillRect(px + 24, by - 20 + (k ? 0 : 0), pw - 48, 10);
+    g.fillStyle = paper; g.strokeStyle = ink2; g.lineWidth = 1; for (let i = 0; i < Math.min(G.copies, 18); i++){ g.fillRect(px + pw + 14 + i * 1.2, by - 6 - i * 3, 46, 30); g.strokeRect(px + pw + 14 + i * 1.2, by - 6 - i * 3, 46, 30); }
+    const sx = W * .66, sw = W * .3, s = sc ?? scribeCopies();
+    g.fillStyle = wood; g.beginPath(); g.moveTo(sx, by - 30); g.lineTo(sx + sw, by - 50); g.lineTo(sx + sw, by - 40); g.lineTo(sx, by - 20); g.fill(); g.fillRect(sx + 10, by - 24, 8, 36); g.fillRect(sx + sw - 18, by - 44, 8, 56);
+    g.fillStyle = paper; g.save(); g.translate(sx + sw / 2 - 20, by - 62); g.rotate(-.07); g.fillRect(0, 0, 44, 26); g.restore();
+    const qa = (performance.now() / 160) % 6.28; g.strokeStyle = ink; g.lineWidth = 2; g.beginPath(); const qx = sx + sw / 2 - 6 + Math.sin(qa) * 8; g.moveTo(qx, by - 52); g.lineTo(qx + 14, by - 84); g.stroke();
+    g.fillStyle = paper; g.strokeStyle = ink2; for (let i = 0; i < Math.min(s, 18); i++){ g.fillRect(sx + sw - 50 + i * 1.2, by + 4 - i * 3, 40, 22); g.strokeRect(sx + sw - 50 + i * 1.2, by + 4 - i * 3, 40, 22); }
+    g.font = '800 13px Nunito, "Microsoft YaHei", sans-serif'; g.fillStyle = ink; g.textAlign = 'center';
+    g.fillText(Lab.L(o(`Press: ${G.copies}`, `印刷机：${G.copies}`)), px + pw / 2, H - 10); g.fillText(Lab.L(o(`Scribe: ${s}`, `抄书人：${s}`)), sx + sw / 2, H - 10); }
+  Lab.$('#pgStart').onclick = start;
+  Lab.$('#pgNext').onclick = () => { if (G.r === PR.length - 1 && G.phase === 'done'){ G.r = 0; G.score = 0; G.stars = []; } else G.r = Math.min(PR.length - 1, G.r + 1); newRound(); };
+  new ResizeObserver(() => requestAnimationFrame(() => draw())).observe(cv);
+  Lab.onLang(() => render());
+  window.__pg = G; newRound();
+})();
+
+/* ================= Scale-up calculator ================= */
+(function(){
+  const f = n => Lab.lang === 'zh' ? (n >= 1e8 ? (n / 1e8).toFixed(1) + '亿' : n >= 1e4 ? Math.round(n / 1e4).toLocaleString('zh-CN') + '万' : Math.round(n).toLocaleString('zh-CN')) : Math.round(n).toLocaleString('en-US');
+  function calc(){ const p = +Lab.$('#cPress').value, d = +Lab.$('#cDays').value, pages = 3600 * p * d;
+    Lab.$('#cPressO').textContent = p; Lab.$('#cDaysO').textContent = d;
+    Lab.$('#cPages').textContent = f(pages); Lab.$('#cBibles').textContent = f(pages / 1282); Lab.$('#cScribes').textContent = f(pages / 3 / d);
+    Lab.$('#cYears').textContent = f(pages / 3 / 300); }
+  ['#cPress', '#cDays'].forEach(s => Lab.$(s).oninput = calc); Lab.onLang(calc);
+})();
+</script>
+<script>
+/* ================= Leonardo: would it work? ================= */
+(function(){
+  const S = { g:{} }, V = [ ['yes', o('✅ Works','✅ 能用')], ['part', o('⚠️ Partly / not practical','⚠️ 部分能用或不实用')], ['no', o('❌ Would not work','❌ 行不通')] ];
+  function render(){
+    Lab.$('#leoGrid').innerHTML = INV.map(v => { const g = S.g[v.k];
+      const pic = v.img ? `<div class="pic" data-k="${v.k}"><img src="${v.img.src}" alt="${Lab.L(v.n)}" loading="lazy"></div>` : `<div class="pic" style="cursor:default">${v.emoji}</div>`;
+      const cr = v.img ? `<span class="cr">${v.img.credit} · ${v.img.license} · <a href="${v.img.page}" target="_blank" rel="noopener">${Lab.L(o('source','来源'))}</a></span>` : `<span class="cr">${Lab.L(o('No drawing shown — idea described from his notebooks','未附图——根据他的笔记描述'))}</span>`;
+      return `<div class="inv">${pic}<div class="body"><h4>${Lab.L(v.n)}</h4><p>${Lab.L(v.idea)}</p>${cr}
+        <div class="vbtn">${V.map(([k, t]) => `<button data-k="${v.k}" data-v="${k}" class="${g ? (k === v.a ? 'right' : k === g ? 'wrong' : '') : ''}" ${g ? 'disabled' : ''}>${Lab.L(t)}</button>`).join('')}</div>
+        ${g ? `<div class="verdict">${g === v.a ? '✅' : '💡'} ${Lab.L(v.why)}</div>` : ''}</div></div>`; }).join('');
+    Lab.$$('#leoGrid .vbtn button').forEach(b => b.onclick = () => { S.g[b.dataset.k] = b.dataset.v; render(); });
+    Lab.$$('#leoGrid .pic[data-k]').forEach(p => p.onclick = () => { const v = INV.find(x => x.k === p.dataset.k); LabPhotos.open({ ...v.img, en:v.n.en + ' — ' + v.idea.en, zh:v.n.zh + '——' + v.idea.zh }); });
+    const n = Object.keys(S.g).length, right = INV.filter(v => S.g[v.k] === v.a).length, st = n < INV.length ? 0 : right >= 7 ? 3 : right >= 5 ? 2 : 1;
+    Lab.$('#lvScore').textContent = right * 10; Lab.$('#lvDone').textContent = n + '/' + INV.length; Lab.$('#lvRight').textContent = right; Lab.$('#lvStars').textContent = '★'.repeat(st) + '☆'.repeat(3 - st);
+    const m = Lab.$('#lvMsg'); m.className = 'result good';
+    m.textContent = n === INV.length ? Lab.L(o(`🎉 ${right} of 8 right. Leonardo filled about 7,000 surviving notebook pages, but built few of these machines — what lasted was his way of observing, drawing and testing ideas.`, `🎉 判断对了${right}／8个。达·芬奇留下了大约7000页笔记，但这些机器他真正造出来的很少——真正留下来的，是他观察、画图、检验想法的方法。`)) : '';
+  }
+  Lab.onLang(render);
+})();
+
+/* ================= Perspective: find the vanishing point ================= */
+(function(){
+  const SC = [
+    { n:o('A long room (like The Last Supper)','长长的房间（像《最后的晚餐》）'), t:[.5,.40], c:[[0,.02,.62],[1,.02,.62],[0,.98,.62],[1,.98,.62],[.14,.80,.45],[.86,.80,.45]] },
+    { n:o('An “ideal city” street','“理想城市”的街道'), t:[.63,.47], c:[[0,.06,.55],[1,.14,.6],[0,.95,.5],[1,.93,.62],[.25,1,.55],[.95,1,.6]] },
+    { n:o('A low-horizon square','视平线很低的广场'), t:[.3,.72], c:[[1,.04,.55],[1,.48,.6],[.78,0,.5],[0,.12,.5],[1,.98,.55],[.62,1,.5]] }
+  ];
+  const S = { s:0, p:[.5,.85], solved:[false,false,false], drag:false }, cv = Lab.$('#perCv'), g = cv.getContext('2d');
+  let W = 0, H = 0;
+  const dist = () => Math.hypot((S.p[0] - SC[S.s].t[0]) * W, (S.p[1] - SC[S.s].t[1]) * H);
+  function draw(){ const r = cv.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!r.width) return; W = r.width; H = r.height; cv.width = W * d; cv.height = H * d; g.setTransform(d, 0, 0, d, 0, 0);
+    const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim(), ink2 = css('--ink-2'), brand = css('--brand'), sc = SC[S.s], vx = S.p[0] * W, vy = S.p[1] * H, rows = +Lab.$('#perRows').value;
+    g.clearRect(0, 0, W, H);
+    g.strokeStyle = ink2; g.globalAlpha = .35; g.lineWidth = 1; const xs = []; for (let j = -6; j <= 16; j++) xs.push(j / 10 * W);
+    if (vy < H - 4){ xs.forEach(x => { g.beginPath(); g.moveTo(x, H); g.lineTo(vx, vy); g.stroke(); });
+      for (let i = 1; i <= rows; i++){ const y = vy + (H - vy) / (1 + i * .6), f = (y - vy) / (H - vy), xa = vx + (xs[0] - vx) * f, xb = vx + (xs[xs.length - 1] - vx) * f; g.beginPath(); g.moveTo(xa, y); g.lineTo(xb, y); g.stroke(); } }
+    g.globalAlpha = 1;
+    g.setLineDash([6, 5]); g.strokeStyle = brand; g.lineWidth = 1.5; g.beginPath(); g.moveTo(0, vy); g.lineTo(W, vy); g.stroke();
+    g.strokeStyle = ink2; g.lineWidth = 1.2; sc.c.forEach(([x, y]) => { g.beginPath(); g.moveTo(x * W, y * H); g.lineTo(vx, vy); g.stroke(); }); g.setLineDash([]);
+    g.strokeStyle = '#d0393b'; g.lineWidth = 3.5; g.lineCap = 'round'; const ends = sc.c.map(([x, y, f]) => [x * W + (sc.t[0] - x) * W * f, y * H + (sc.t[1] - y) * H * f]);
+    sc.c.forEach(([x, y], i) => { g.beginPath(); g.moveTo(x * W, y * H); g.lineTo(...ends[i]); g.stroke(); });
+    if (S.s === 0){ g.strokeStyle = '#d0393b'; g.lineWidth = 2; g.beginPath(); g.moveTo(...ends[0]); g.lineTo(...ends[1]); g.lineTo(...ends[3]); g.lineTo(...ends[2]); g.closePath(); g.stroke(); }
+    const ok = dist() <= 12; g.beginPath(); g.arc(vx, vy, 9, 0, 7); g.fillStyle = ok ? '#1aa36b' : brand; g.fill(); g.lineWidth = 2; g.strokeStyle = css('--surface'); g.stroke();
+    g.font = '800 12px Nunito, "Microsoft YaHei", sans-serif'; g.fillStyle = brand; g.textAlign = 'left'; g.fillText(Lab.L(o('horizon = eye level', '地平线＝视平线')), 8, vy - 6);
+  }
+  function upd(){ const dd = dist(), ok = dd <= 12; if (ok && !S.solved[S.s]){ S.solved[S.s] = true; }
+    const n = S.solved.filter(Boolean).length; Lab.$('#perDist').textContent = Math.round(dd); Lab.$('#perStars').textContent = '★'.repeat(n) + '☆'.repeat(3 - n);
+    const m = Lab.$('#perMsg'); m.className = 'result ' + (ok ? 'good' : '');
+    m.textContent = ok ? Lab.L(n === 3 ? o('🎉 All three vanishing points found! Painters from Masaccio to Leonardo used this trick to make flat walls look deep.', '🎉 三个消失点全找到了！从马萨乔到达·芬奇，画家们都用这个方法让平面的墙看起来有深度。') : o('✅ Found it! All the red lines meet here — and the floor tiles now shrink correctly toward the horizon. Try the next scene.', '✅ 找到了！红线都汇聚在这里，地砖也正确地向地平线缩小。试试下一个场景。'))
+      : Lab.L(dd < 50 ? o('Very close — follow the red lines a little further.', '很接近了——顺着红线再找一找。') : o('Drag the dot to where the red lines would meet if you extended them.', '把圆点拖到红线延长后相交的地方。'));
+    Lab.$('#perScenes').innerHTML = SC.map((s, i) => `<button class="${i === S.s ? 'on' : ''}" data-i="${i}">${S.solved[i] ? '✓ ' : ''}${Lab.L(s.n)}</button>`).join('');
+    Lab.$$('#perScenes button').forEach(b => b.onclick = () => { S.s = +b.dataset.i; S.p = [.5, .88]; draw(); upd(); });
+    draw(); }
+  const setP = e => { const r = cv.getBoundingClientRect(); S.p = [Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)), Math.max(0, Math.min(1, (e.clientY - r.top) / r.height))]; upd(); };
+  cv.addEventListener('pointerdown', e => { S.drag = true; cv.setPointerCapture(e.pointerId); setP(e); });
+  cv.addEventListener('pointermove', e => { if (S.drag) setP(e); });
+  cv.addEventListener('pointerup', () => S.drag = false); cv.addEventListener('pointercancel', () => S.drag = false);
+  Lab.$('#perRows').oninput = draw;
+  new ResizeObserver(() => requestAnimationFrame(draw)).observe(cv);
+  window.__per = { S, SC, upd }; Lab.onLang(upd);
+})();
+
+/* ================= Books figure ================= */
+(function(){
+  const S = { g:null }, OPT = [ ['2', o('about 2 times','约2倍')], ['10', o('about 10 times','约10倍')], ['100', o('about 100 times','约100倍')] ];
+  function render(){
+    Lab.$('#bkPred').innerHTML = OPT.map(([k, t]) => `<button data-k="${k}" class="${S.g ? (k === '10' ? 'right' : k === S.g ? 'wrong' : '') : ''}" ${S.g ? 'disabled' : ''}>${Lab.L(t)}</button>`).join('');
+    Lab.$$('#bkPred button').forEach(b => b.onclick = () => { S.g = b.dataset.k; render(); });
+    const max = 201; Lab.$('#bkBars').innerHTML = BOOKS.map(b => `<div class="row"><span>${Lab.lang === "zh" ? b.p.replace("–", "—") + "年" : b.p}</span><span class="t"><i style="width:${S.g ? b.v / max * 100 : 0}%"></i></span><span>${S.g ? Lab.L(o(`≈ ${b.v} million`, b.v >= 100 ? `约${(b.v / 100).toFixed(2)}亿册` : `约${b.v * 100}万册`)) : '?'}</span></div>`).join('');
+    const m = Lab.$('#bkMsg'); m.className = 'result ' + (S.g === '10' ? 'good' : 'bad');
+    m.textContent = !S.g ? '' : Lab.L(o(`${S.g === '10' ? '✅' : '💡'} About 10 times (≈138 vs ≈13 million). Cheap books meant more readers, more schools — and ideas, from humanism to Luther’s, could travel faster than ever.`, `${S.g === '10' ? '✅' : '💡'} 大约10倍（约1.38亿册对约1300万册）。书变便宜了，读书的人和学校都多了——从人文主义到路德的思想，都传播得比以往任何时候都快。`));
+  }
+  Lab.onLang(render);
+})();
+
+/* ================= Luther vs Catholic matcher ================= */
+(function(){
+  const S = { sel:null, done:{}, bad:null, miss:0, cards:Lab.shuffle(RFC.map((c, i) => ({ ...c, i }))) };
+  function render(){
+    Lab.$('#rfSlots').innerHTML = RFS.map(s => `<div class="slot ${S.sel != null ? 'ready' : ''}" data-s="${s.k}"><h4>${Lab.L(s.n)}</h4>${S.cards.filter(c => S.done[c.i] && c.s === s.k).map(c => `<div class="got">✓ ${Lab.L(c.t)}</div>`).join('')}</div>`).join('');
+    Lab.$('#rfCards').innerHTML = S.cards.filter(c => !S.done[c.i]).map(c => `<button data-i="${c.i}" class="${S.sel === c.i ? 'sel' : ''} ${S.bad === c.i ? 'bad' : ''}">${Lab.L(c.t)}</button>`).join('');
+    Lab.$$('#rfCards button').forEach(b => b.onclick = () => { S.sel = +b.dataset.i; S.bad = null; render(); });
+    Lab.$$('#rfSlots .slot').forEach(s => s.onclick = () => { if (S.sel == null) return; if (RFC[S.sel].s === s.dataset.s){ S.done[S.sel] = 1; S.sel = null; S.bad = null; } else { S.bad = S.sel; S.miss++; } render(); });
+    const n = Object.keys(S.done).length, m = Lab.$('#rfMsg'); m.className = 'result ' + (S.bad != null ? 'bad' : 'good');
+    m.textContent = n === RFC.length ? Lab.L(o(`🎉 All 12 placed with ${S.miss} mistake${S.miss === 1 ? '' : 's'}. Both sides were Christian and both read the Bible — they disagreed about authority, how people are saved, and how the Church should work.`, `🎉 12张卡片全部放对，失误${S.miss}次。双方都是基督徒、都读《圣经》——分歧在于权威从哪里来、人怎样得救、教会应该怎样运作。`))
+      : S.bad != null ? Lab.L(o('Not that side — try the other one.', '不是这一方——换另一边试试。')) : Lab.L(o(`${n} of 12 placed.`, `已放对${n}／12张。`));
+  }
+  Lab.onLang(render);
+})();
+</script>
+<script>
+const QUIZ = [
+  {q:o('Where did the Renaissance begin?','文艺复兴最早兴起于哪里？'), options:[o('Italy, especially Florence','意大利，尤其是佛罗伦萨'),o('England','英国'),o('Spain','西班牙'),o('Sweden','瑞典')], answer:0, explain:o('Rich trading cities like Florence and Venice, full of Roman ruins and ancient manuscripts, led the way.','佛罗伦萨、威尼斯等富裕的商业城市，有大量古罗马遗迹和古代手稿，最先兴起文艺复兴。')},
+  {q:o('What is the core idea of Renaissance humanism?','文艺复兴时期人文主义的核心是什么？'), options:[o('Putting people at the centre: human dignity, talent and life in this world','以人为中心，肯定人的价值、才能和现世生活'),o('Obeying feudal lords in everything','事事服从封建领主'),o('Rejecting all ancient learning','抛弃一切古代学问'),o('Caring only about life after death','只关心死后的生活')], answer:0},
+  {q:o('Who wrote the Divine Comedy and is called the forerunner of the Renaissance?','谁写了《神曲》，被称为文艺复兴的先驱？'), options:[o('Dante','但丁'),o('Shakespeare','莎士比亚'),o('Luther','路德'),o('Gutenberg','谷登堡')], answer:0},
+  {q:o('Which work is by Leonardo da Vinci?','下列哪部作品出自达·芬奇之手？'), options:[o('The Mona Lisa','《蒙娜丽莎》'),o('The statue of David','雕塑《大卫》'),o('Hamlet','《哈姆雷特》'),o('Utopia','《乌托邦》')], answer:0, explain:o('David is by Michelangelo, Hamlet by Shakespeare, Utopia by Thomas More.','《大卫》是米开朗琪罗的作品，《哈姆雷特》是莎士比亚的，《乌托邦》是托马斯·莫尔的。')},
+  {q:o('Shakespeare’s most famous tragedy about a Danish prince is…','莎士比亚以丹麦王子为主角的著名悲剧是'), options:[o('Hamlet','《哈姆雷特》'),o('The Divine Comedy','《神曲》'),o('The Decameron','《十日谈》'),o('The Prince','《君主论》')], answer:0},
+  {q:o('Who invented movable-type printing first?','最早发明活字印刷术的是谁？'), options:[o('Bi Sheng, in Song-dynasty China (1040s)','中国北宋的毕昇（11世纪40年代）'),o('Johannes Gutenberg','谷登堡'),o('Leonardo da Vinci','达·芬奇'),o('William Caxton','卡克斯顿')], answer:0, explain:o('About 400 years before Gutenberg. Gutenberg’s metal type and press made printing fast and cheap in Europe.','比谷登堡早约400年。谷登堡的金属活字和印刷机让欧洲的印刷又快又便宜。')},
+  {q:o('Gutenberg built his printing press around 1450 in…','约1450年，谷登堡在哪里制成了印刷机？'), options:[o('Mainz','美因茨'),o('Florence','佛罗伦萨'),o('Paris','巴黎'),o('London','伦敦')], answer:0},
+  {q:o('Map reading: on the map in 1480, where are most of the printing-press dots?','读图：1480年的地图上，印刷所的蓝点主要集中在哪里？'), options:[o('The German lands and northern Italy','德意志地区和意大利北部'),o('Scandinavia','斯堪的纳维亚'),o('Ireland','爱尔兰'),o('The Ottoman Empire','奥斯曼帝国')], answer:0, explain:o('Printing spread first along the Rhine and to the rich trading cities of Italy such as Venice.','印刷术最先沿莱茵河传播，并传到威尼斯等富裕的意大利商业城市。')},
+  {q:o('Figure reading: Europe printed about how many times more books in 1551–1600 than in 1454–1500?','读图：1551—1600年欧洲印出的书大约是1454—1500年的几倍？'), options:[o('About 10 times','约10倍'),o('About the same','差不多'),o('About 2 times','约2倍'),o('About 1,000 times','约1000倍')], answer:0, explain:o('About 138 million vs about 13 million (estimates).','约1.38亿册对约1300万册（估计数字）。')},
+  {q:o('In 1517 Martin Luther’s 95 Theses protested against…','1517年，马丁·路德的《九十五条论纲》反对的是'), options:[o('The sale of indulgences','出售赎罪券'),o('The printing press','印刷机'),o('The Medici family','美第奇家族'),o('Shakespeare’s plays','莎士比亚的戏剧')], answer:0},
+  {q:o('Why did the printing press help the Reformation spread so fast?','为什么印刷机能让宗教改革传播得这么快？'), options:[o('Luther’s writings could be copied quickly and cheaply by the thousands','路德的文章可以又快又便宜地大量印刷'),o('Luther invented the printing press','印刷机是路德发明的'),o('Printing was only allowed in Latin','只允许用拉丁文印刷'),o('The pope paid for the printing','教皇出钱印刷')], answer:0},
+  {q:o('What did the Peace of Augsburg (1555) decide?','1555年《奥格斯堡和约》规定了什么？'), options:[o('Each German prince could choose Lutheran or Catholic for his land','德意志各诸侯可以为自己的领地选择路德宗或天主教'),o('England became Catholic again for ever','英国永远恢复天主教'),o('The printing press was banned','禁止使用印刷机'),o('The Ottomans left Europe','奥斯曼人撤出欧洲')], answer:0},
+  {q:o('Brunelleschi is famous for…','布鲁内莱斯基以什么闻名？'), options:[o('The dome of Florence Cathedral and linear perspective','佛罗伦萨大教堂穹顶和线性透视法'),o('The 95 Theses','《九十五条论纲》'),o('The first printed Bible','第一部印刷版《圣经》'),o('Painting the Mona Lisa','画《蒙娜丽莎》')], answer:0},
+  {q:o('According to the Chinese textbook, the “sprouts of capitalism” first appeared in the 14th–15th centuries in…','按统编版教材，14—15世纪资本主义萌芽最早出现在'), options:[o('Italian cities such as Florence','佛罗伦萨等意大利城市'),o('Moscow','莫斯科'),o('Lisbon','里斯本'),o('Constantinople','君士坦丁堡')], answer:0, explain:o('Workshop owners hired paid workers in wool and silk workshops (手工工场).','手工工场主在毛纺织、丝织手工工场中雇用雇佣工人。')}
+];
+const SORT = {
+  bins:[{id:'art',en:'Renaissance art & ideas',zh:'文艺复兴的艺术与思想'},{id:'prt',en:'Printing',zh:'印刷'},{id:'ref',en:'Reformation',zh:'宗教改革'}],
+  items:[
+    {en:'Mona Lisa',zh:'《蒙娜丽莎》',bin:'art'},{en:'Michelangelo’s David',zh:'米开朗琪罗的《大卫》',bin:'art'},{en:'Humanism',zh:'人文主义',bin:'art'},{en:'Dante’s Divine Comedy',zh:'但丁《神曲》',bin:'art'},
+    {en:'Johannes Gutenberg',zh:'谷登堡',bin:'prt'},{en:'Movable metal type',zh:'金属活字',bin:'prt'},{en:'Mainz, about 1450',zh:'约1450年的美因茨',bin:'prt'},{en:'William Caxton, Westminster 1476',zh:'卡克斯顿，1476年威斯敏斯特',bin:'prt'},
+    {en:'Martin Luther',zh:'马丁·路德',bin:'ref'},{en:'The 95 Theses',zh:'《九十五条论纲》',bin:'ref'},{en:'John Calvin in Geneva',zh:'日内瓦的加尔文',bin:'ref'},{en:'Peace of Augsburg (1555)',zh:'《奥格斯堡和约》（1555年）',bin:'ref'}
+  ]
+};
+Lab.quiz(Lab.$('#quiz'), QUIZ, { count:12 });
+Lab.sort(Lab.$('#sort'), SORT);
+const VID = o('Video','视频'), PT = o('Painting','绘画'), DR = o('Drawing','素描'), PH = o('Photo','照片'), BK = o('Printed book','印刷书籍'), WC = o('Woodcut','木刻版画');
+const PHOTOS = [
+  { src:CT + 'e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg/960px-Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg' + CQ, en:'The Mona Lisa by Leonardo da Vinci, begun around 1503.', zh:'达·芬奇的《蒙娜丽莎》，约1503年开始创作。', kind:PT, credit:'Leonardo da Vinci', license:'Public domain', page:CP + 'Mona_Lisa,_by_Leonardo_da_Vinci,_from_C2RMF_retouched.jpg' },
+  { src:CT + '2/22/Da_Vinci_Vitruve_Luc_Viatour.jpg/960px-Da_Vinci_Vitruve_Luc_Viatour.jpg' + CQ, en:'Vitruvian Man: Leonardo’s drawing of the ideal proportions of the human body.', zh:'《维特鲁威人》：达·芬奇画的人体理想比例图。', kind:DR, credit:'Leonardo da Vinci', license:'Public domain', page:CP + 'Da_Vinci_Vitruve_Luc_Viatour.jpg' },
+  { src:CU + 'd/d4/Design_for_a_Flying_Machine.jpg' + CQU, en:'Leonardo’s design for a flying machine, from his notebooks.', zh:'达·芬奇笔记中的飞行器设计图。', kind:DR, credit:'Leonardo da Vinci', license:'Public domain', page:CP + 'Design_for_a_Flying_Machine.jpg' },
+  { src:CU + '0/0d/Leonardo_da_vinci%2C_Crossbow_Machine.jpg' + CQU, en:'Leonardo’s drawing of a crossbow machine.', zh:'达·芬奇画的一种弩机。', kind:DR, credit:'Leonardo da Vinci', license:'Public domain', page:CP + 'Leonardo_da_vinci,_Crossbow_Machine.jpg' },
+  { src:CT + '7/77/Florence_Duomo_from_Michelangelo_hill.jpg/960px-Florence_Duomo_from_Michelangelo_hill.jpg' + CQ, en:'Florence Cathedral (the Duomo) and Brunelleschi’s dome, seen from the Michelangelo hill.', zh:'从米开朗琪罗山上看佛罗伦萨大教堂和布鲁内莱斯基设计的穹顶。', kind:PH, credit:'Petar Milošević', license:'CC BY-SA 4.0', page:CP + 'Florence_Duomo_from_Michelangelo_hill.jpg' },
+  { src:CT + '8/84/Michelangelo%27s_David_2015.jpg/960px-Michelangelo%27s_David_2015.jpg' + CQ, en:'Michelangelo’s David (photographed in 2015).', zh:'米开朗琪罗的《大卫》（2015年拍摄）。', kind:PH, credit:'Livioandronico2013', license:'CC BY-SA 4.0', page:CP + 'Michelangelo%27s_David_2015.jpg' },
+  { src:CT + 'b/b6/Gutenberg_Bible%2C_Lenox_Copy%2C_New_York_Public_Library%2C_2009._Pic_01.jpg/960px-Gutenberg_Bible%2C_Lenox_Copy%2C_New_York_Public_Library%2C_2009._Pic_01.jpg' + CQ, en:'The Gutenberg Bible (Mainz, about 1455) — the Lenox copy at the New York Public Library.', zh:'《谷登堡圣经》（约1455年，美因茨）——纽约公共图书馆收藏的“雷诺克斯本”。', kind:BK, credit:'NYC Wanderer (Kevin Eng)', license:'CC BY-SA 2.0', page:CP + 'Gutenberg_Bible,_Lenox_Copy,_New_York_Public_Library,_2009._Pic_01.jpg' },
+  { src:CU + 'f/f8/Printer_in_1568-ce.png' + CQU, en:'A printing workshop in 1568, woodcut by Jost Amman.', zh:'1568年的印刷作坊，约斯特·阿曼的木刻版画。', kind:WC, credit:'Jost Amman', license:'Public domain', page:CP + 'Printer_in_1568-ce.png' },
+  { src:CT + '9/90/Lucas_Cranach_d.%C3%84._-_Martin_Luther%2C_1528_%28Veste_Coburg%29.jpg/960px-Lucas_Cranach_d.%C3%84._-_Martin_Luther%2C_1528_%28Veste_Coburg%29.jpg' + CQ, en:'Martin Luther, painted by Lucas Cranach the Elder in 1528 (Veste Coburg).', zh:'马丁·路德像，老卢卡斯·克拉纳赫绘于1528年（科堡城堡藏）。', kind:PT, credit:'Lucas Cranach the Elder', license:'Public domain', page:CP + 'Lucas_Cranach_d.%C3%84._-_Martin_Luther,_1528_(Veste_Coburg).jpg' },
+  { type:'youtube', yt:'v4ARRcED3Ro', en:'Video: The Print Workshop in the Fifteenth Century.', zh:'视频：15世纪的印刷作坊（英文）。', kind:VID, credit:'Cambridge University Library (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'_IOPlGPQPuM', en:'Video: How an Amateur Built the World’s Biggest Dome — Brunelleschi’s dome in Florence.', zh:'视频：一个“外行”怎样建成世界最大的穹顶——佛罗伦萨的布鲁内莱斯基穹顶（英文）。', kind:VID, credit:'National Geographic (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'IATyzSAjC1w', en:'Video: History 101 — the Protestant Reformation.', zh:'视频：历史101——新教宗教改革（英文）。', kind:VID, credit:'National Geographic (YouTube)', license:'YouTube' }
+];
+LabPhotos.render('#gallery', PHOTOS, { title:o('See the real thing','看看真实的历史'), sub:o('Real paintings, drawings, buildings and books from the Renaissance and Reformation (Wikimedia Commons), plus videos. Click to enlarge; videos open on YouTube.','来自维基共享资源的文艺复兴与宗教改革时期的真实绘画、素描、建筑和书籍，还有视频。点击可放大；视频在 YouTube 打开。') });
+</script>
+</body>
+</html>
