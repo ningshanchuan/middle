@@ -243,21 +243,21 @@ window.LAB_CATALOG = [
    {id:'wh-india-persia', soon:1, std:'World History', en:'Ancient India & Persia', zh:'古印度与古波斯', d:{en:'The Indus cities, Buddhism, Hinduism and the Persian Empire.',zh:'印度河城市、佛教、印度教与波斯帝国。'}},
    {id:'wh-middle-ages', soon:1, std:'World History', en:'The Middle Ages & the Islamic Golden Age', zh:'中世纪与伊斯兰黄金时代', d:{en:'Castles and knights, Byzantium and scholars of Baghdad.',zh:'城堡与骑士、拜占庭和巴格达的学者。'}},
    {id:'wh-renaissance', soon:1, std:'World History', en:'Renaissance & Reformation', zh:'文艺复兴与宗教改革', d:{en:'Leonardo, the printing press and a changing Europe.',zh:'达·芬奇、印刷机与变化中的欧洲。'}},
-   {id:'wh-exploration', soon:1, std:'SS6H / World History', en:'The Age of Exploration', zh:'大航海时代', d:{en:'Ships, routes and the Columbian Exchange.',zh:'船只、航线与“哥伦布大交换”。'}},
-   {id:'wh-revolutions', soon:1, std:'World History', en:'Revolutions: Science, Politics & Industry', zh:'革命：科学、政治与工业', d:{en:'The Scientific Revolution, the French Revolution and steam power.',zh:'科学革命、法国大革命与蒸汽动力。'}},
-   {id:'wh-world-wars', soon:1, std:'SS6H6–7', en:'The World Wars & the Holocaust', zh:'两次世界大战与大屠杀', d:{en:'Causes, turning points and consequences of both world wars.',zh:'两次世界大战的起因、转折点和影响。'}},
-   {id:'wh-cold-war', soon:1, std:'SS6H / SS7H', en:'The Cold War & Independence Movements', zh:'冷战与民族独立运动', d:{en:'Two superpowers, a divided Europe and new nations in Africa and Asia.',zh:'两个超级大国、分裂的欧洲与亚非新国家。'}},
-   {id:'wh-today', soon:1, std:'SS6H / SS7H', en:'Our Connected World', zh:'相互联系的世界', d:{en:'The UN, the European Union and globalization today.',zh:'联合国、欧盟与今天的全球化。'}}
+   {id:'wh-exploration', std:'SS6H / World History', en:'The Age of Exploration', zh:'大航海时代', d:{en:'Ships, routes and the Columbian Exchange.',zh:'船只、航线与“哥伦布大交换”。'}},
+   {id:'wh-revolutions', std:'World History', en:'Revolutions: Science, Politics & Industry', zh:'革命：科学、政治与工业', d:{en:'The Scientific Revolution, the French Revolution and steam power.',zh:'科学革命、法国大革命与蒸汽动力。'}},
+   {id:'wh-world-wars', std:'SS6H3 / SS7H2–3', en:'The World Wars & the Holocaust', zh:'两次世界大战与大屠杀', d:{en:'Causes, turning points and consequences of both world wars.',zh:'两次世界大战的起因、转折点和影响。'}},
+   {id:'wh-cold-war', std:'SS6H3 · SS7H1 · SS7H3', en:'The Cold War & Independence Movements', zh:'冷战与民族独立运动', d:{en:'Two superpowers, a divided Europe and new nations in Africa and Asia.',zh:'两个超级大国、分裂的欧洲与亚非新国家。'}},
+   {id:'wh-today', std:'SS6E / SS7E · SS6H3', en:'Our Connected World', zh:'相互联系的世界', d:{en:'The UN, the European Union and globalization today.',zh:'联合国、欧盟与今天的全球化。'}}
  ]},
  { id:'economics', icon:'💰', color:'#15803d', en:'Economics & Personal Finance', zh:'经济与个人理财',
    blurb:{en:'Choices, markets, trade and money skills (Georgia SS6E / SS7E).',zh:'选择、市场、贸易与理财技能（佐治亚州 SS6E / SS7E）。'},
    topics:[
-   {id:'econ-scarcity', soon:1, std:'SS6E / SS7E', en:'Scarcity & Opportunity Cost', zh:'稀缺性与机会成本', d:{en:'Every choice costs something: what do you give up?',zh:'每个选择都有代价：你放弃了什么？'}},
-   {id:'econ-systems', soon:1, std:'SS6E1 / SS7E1', en:'Economic Systems', zh:'经济体制', d:{en:'Traditional, command, market and mixed economies.',zh:'传统经济、计划经济、市场经济与混合经济。'}},
-   {id:'econ-supply-demand', soon:1, std:'SS6E / SS7E', en:'Supply, Demand & Prices', zh:'供给、需求与价格', d:{en:'Run a market stand and watch prices move.',zh:'经营一个小摊，看价格如何变化。'}},
-   {id:'econ-trade', soon:1, std:'SS6E2 / SS7E2', en:'Trade, Tariffs & Currency', zh:'贸易、关税与货币', d:{en:'Why countries trade, trade barriers and exchange rates.',zh:'国家为什么要贸易、贸易壁垒与汇率。'}},
-   {id:'econ-growth', soon:1, std:'SS6E3 / SS7E3', en:'What Makes Economies Grow', zh:'经济增长的动力', d:{en:'Human capital, capital goods, natural resources and entrepreneurs.',zh:'人力资本、资本品、自然资源与企业家精神。'}},
-   {id:'econ-personal-finance', soon:1, std:'SS6E4 / SS7E4', en:'Personal Finance', zh:'个人理财', d:{en:'Budgeting, saving, interest, credit and smart spending.',zh:'预算、储蓄、利息、信用与理性消费。'}}
+   {id:'econ-scarcity', std:'SS6E / SS7E', en:'Scarcity & Opportunity Cost', zh:'稀缺性与机会成本', d:{en:'Every choice costs something: what do you give up?',zh:'每个选择都有代价：你放弃了什么？'}},
+   {id:'econ-systems', std:'SS6E1 / SS7E1', en:'Economic Systems', zh:'经济体制', d:{en:'Traditional, command, market and mixed economies.',zh:'传统经济、计划经济、市场经济与混合经济。'}},
+   {id:'econ-supply-demand', std:'SS6E1a / SS7E1a · HS SSEMI2', en:'Supply, Demand & Prices', zh:'供给、需求与价格', d:{en:'Run a market stand and watch prices move.',zh:'经营一个小摊，看价格如何变化。'}},
+   {id:'econ-trade', std:'SS6E2 / SS7E2', en:'Trade, Tariffs & Currency', zh:'贸易、关税与货币', d:{en:'Why countries trade, trade barriers and exchange rates.',zh:'国家为什么要贸易、贸易壁垒与汇率。'}},
+   {id:'econ-growth', std:'SS6E3 / SS7E3', en:'What Makes Economies Grow', zh:'经济增长的动力', d:{en:'Human capital, capital goods, natural resources and entrepreneurs.',zh:'人力资本、资本品、自然资源与企业家精神。'}},
+   {id:'econ-personal-finance', std:'SS6E13 / SS7E10 / SS8E3', en:'Personal Finance', zh:'个人理财', d:{en:'Budgeting, saving, interest, credit and smart spending.',zh:'预算、储蓄、利息、信用与理性消费。'}}
  ]},
  { id:'yuwen', icon:'🖌️', color:'#9f1239', en:'Chinese Language Arts (语文)', zh:'初中语文',
    blurb:{en:'Mainland China’s middle-school Chinese (统编版 七—九年级): characters, classical poems and prose, reading and writing.',zh:'依据统编版初中语文（七—九年级）：汉字、古诗词、文言文、现代文阅读与写作。'},
@@ -289,11 +289,11 @@ window.LAB_CATALOG = [
  { id:'music', icon:'🎵', color:'#be185d', en:'Music', zh:'音乐',
    blurb:{en:'Rhythm, pitch, instruments and composing — hear it, play it, make it.',zh:'节奏、音高、乐器与作曲：听一听、弹一弹、编一编。'},
    topics:[
-   {id:'music-rhythm', soon:1, std:'Fine Arts · Music', en:'Rhythm & Beat', zh:'节奏与节拍', d:{en:'Build beats on a drum machine.',zh:'在鼓机上编出节奏。'}},
-   {id:'music-pitch', soon:1, std:'Fine Arts · Music', en:'Pitch, Notes & Scales', zh:'音高、音符与音阶', d:{en:'Play a keyboard, read notes and hear scales.',zh:'弹键盘、读音符、听音阶。'}},
-   {id:'music-instruments', soon:1, std:'Fine Arts · Music', en:'Instruments of the World', zh:'世界各地的乐器', d:{en:'The orchestra and Chinese instruments like the erhu and pipa.',zh:'管弦乐队与二胡、琵琶等中国乐器。'}},
-   {id:'music-compose', soon:1, std:'Fine Arts · Music', en:'Compose a Melody', zh:'创作一段旋律', d:{en:'Write and play your own tune.',zh:'写出并演奏你自己的曲调。'}},
-   {id:'music-history', soon:1, std:'Fine Arts · Music', en:'Music Through Time & Cultures', zh:'穿越时空与文化的音乐', d:{en:'From Bach to jazz to Chinese folk songs.',zh:'从巴赫到爵士乐，再到中国民歌。'}}
+   {id:'music-rhythm', std:'Fine Arts · Music', en:'Rhythm & Beat', zh:'节奏与节拍', d:{en:'Build beats on a drum machine.',zh:'在鼓机上编出节奏。'}},
+   {id:'music-pitch', std:'Fine Arts · Music', en:'Pitch, Notes & Scales', zh:'音高、音符与音阶', d:{en:'Play a keyboard, read notes and hear scales.',zh:'弹键盘、读音符、听音阶。'}},
+   {id:'music-instruments', std:'Fine Arts · Music', en:'Instruments of the World', zh:'世界各地的乐器', d:{en:'The orchestra and Chinese instruments like the erhu and pipa.',zh:'管弦乐队与二胡、琵琶等中国乐器。'}},
+   {id:'music-compose', std:'Fine Arts · Music', en:'Compose a Melody', zh:'创作一段旋律', d:{en:'Write and play your own tune.',zh:'写出并演奏你自己的曲调。'}},
+   {id:'music-history', std:'Fine Arts · Music', en:'Music Through Time & Cultures', zh:'穿越时空与文化的音乐', d:{en:'From Bach to jazz to Chinese folk songs.',zh:'从巴赫到爵士乐，再到中国民歌。'}}
  ]},
  { id:'art', icon:'🎨', color:'#ea580c', en:'Visual Art', zh:'美术',
    blurb:{en:'Color, perspective, design and great art from around the world.',zh:'色彩、透视、设计与世界各地的经典艺术。'},

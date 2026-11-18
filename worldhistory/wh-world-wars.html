@@ -1,0 +1,642 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The World Wars & the Holocaust</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/photos.js"></script>
+<script src="../shared/chinamap.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-array@3.2.4/dist/d3-array.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-geo@3.1.0/dist/d3-geo.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<style>
+.mission-line{font-weight:800;color:var(--ink);margin-top:10px}
+.unit{display:inline-block;font-size:13px;font-weight:800;padding:4px 10px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2);margin-top:8px}
+.stage canvas.map{touch-action:pan-y;cursor:pointer}
+.info .kh{font-size:13px;letter-spacing:.06em;color:var(--brand);margin-bottom:-6px}
+.info .date{font-family:Fredoka;font-weight:700;font-size:19px;color:var(--brand);margin-top:-8px}
+.counters.c4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.counters.c3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.dot-s{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.ranks{display:flex;flex-wrap:wrap;gap:6px}
+.ranks span{font-size:13px;font-weight:800;padding:4px 10px;border-radius:999px;background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line)}
+.ranks span.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.gm{padding:22px;display:flex;flex-direction:column;gap:14px}
+.bar{height:10px;border-radius:999px;background:var(--surface-2);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--brand);border-radius:999px;transition:width .3s}
+.scard{border:1px solid var(--line);border-radius:16px;padding:16px;background:var(--surface-2);display:flex;flex-direction:column;gap:10px}
+.scard .when{font-family:Fredoka;font-weight:700;color:var(--brand);font-size:18px}
+.scard h3{font-size:21px;margin:0}
+.choices{display:grid;gap:10px}
+.choices button{text-align:left;border:2px solid var(--line);background:var(--surface);color:var(--ink);border-radius:14px;padding:12px 14px;font-weight:700}
+.choices button:hover:not(:disabled){border-color:var(--brand)}
+.choices button.best{border-color:var(--good);background:color-mix(in srgb,var(--good) 12%,var(--surface))}
+.choices button.meh{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 9%,var(--surface))}
+.fb{border-radius:14px;padding:12px 14px;font-size:15.5px}
+.fb.good{background:color-mix(in srgb,var(--good) 12%,var(--surface));border:1px solid var(--good)}
+.fb.bad{background:color-mix(in srgb,var(--bad) 10%,var(--surface));border:1px solid var(--bad)}
+.stars{font-size:24px;letter-spacing:3px;color:var(--warn)}
+.two{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:18px}
+.two>.card{padding:20px;display:flex;flex-direction:column;gap:12px}
+.chart{position:relative;height:300px}
+.chart canvas{position:absolute;inset:0;width:100%;height:100%;cursor:pointer}
+.src{font-size:12.5px;color:var(--ink-2);margin:0}
+.readout{background:var(--surface-2);border-radius:14px;padding:12px 14px;min-height:60px;font-size:15.5px}
+.readout b{font-family:Fredoka;color:var(--brand);font-size:19px}
+.cnstrip{margin-top:18px;padding:16px 18px;border-left:6px solid #c0392b}
+.cnstrip-h{font-weight:800;letter-spacing:.04em;font-size:13px;text-transform:uppercase;color:#c0392b;margin-bottom:10px}
+.cnstrip-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.cnc{background:var(--surface-2);border-radius:14px;padding:12px 14px}
+.cnc b{font-family:Fredoka;color:#c0392b;font-size:18px}
+.cnc h4{margin:2px 0 4px;font-size:16px}
+.cnc p{margin:0;font-size:14.5px;color:var(--ink-2)}
+.chain{display:flex;flex-direction:column;gap:8px}
+.chain .slot{border:2px dashed var(--line);border-radius:14px;padding:10px 12px;min-height:46px;font-weight:700;display:flex;align-items:center;gap:8px;background:var(--surface)}
+.chain .slot.ok{border-style:solid;border-color:var(--good);background:color-mix(in srgb,var(--good) 10%,var(--surface))}
+.chain .arrow{text-align:center;color:var(--ink-2);font-weight:800;line-height:1}
+.tiles{display:flex;flex-wrap:wrap;gap:8px}
+.tiles button{border:2px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:12px;padding:8px 11px;font-weight:700;font-size:14.5px}
+.tiles button.sel{border-color:var(--brand);box-shadow:0 0 0 2px color-mix(in srgb,var(--brand) 30%,transparent)}
+.tiles button.bad{border-color:var(--bad);animation:labshake .35s}
+.tiles button:disabled{opacity:.35}
+@media (max-width:860px){.two{grid-template-columns:1fr}}
+@media (max-width:560px){.counters.c4,.counters.c3{grid-template-columns:1fr 1fr}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .cnstrip-h,:root:not([data-theme="light"]) .cnc b{color:#ff8a7a}}
+:root[data-theme="dark"] .cnstrip-h,:root[data-theme="dark"] .cnc b{color:#ff8a7a}
+.explorer>.stage{align-self:start;height:600px;min-height:0}
+@media (max-width:860px){.explorer>.stage{height:480px}}
+
+.web{position:relative;aspect-ratio:16/10;width:100%;border-radius:14px;overflow:hidden;background:linear-gradient(180deg,var(--stage-1),var(--stage-2))}
+.web svg{position:absolute;inset:0;width:100%;height:100%}
+.web text{font:800 12.5px Nunito,"Microsoft YaHei",sans-serif;fill:var(--ink);paint-order:stroke;stroke:var(--surface);stroke-width:3px}
+.trench{position:relative;aspect-ratio:700/300;width:100%;max-width:820px;margin:0 auto;border-radius:14px;overflow:hidden}
+.trench canvas{position:absolute;inset:0;width:100%;height:100%}
+.opts2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.opts2 .og{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 10px}
+.opts2 .og b{display:block;font-size:13.5px;margin-bottom:6px}
+.opts2 .seg{flex-wrap:wrap}
+.opts2 .seg button:disabled{opacity:.35}
+.legend2{display:flex;flex-wrap:wrap;gap:10px;font-size:13px;font-weight:700;color:var(--ink-2)}
+.legend2 i{display:inline-block;width:14px;height:14px;border-radius:4px;margin-right:5px;vertical-align:-2px}
+.solemn{border-left:6px solid var(--ink-2);padding:16px 18px}
+@media (max-width:560px){.opts2{grid-template-columns:1fr}.web{aspect-ratio:4/4}}
+</style>
+</head>
+<body data-subject="worldhistory" data-topic="wh-world-wars">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="世界历史 · 佐治亚州标准 SS6H3、SS7H · 统编版九年级下册">World History · Georgia GSE SS6H3, SS7H · China: Grade 9 World History</span>
+  <h1 data-zh-html="两次世界大战：<em>从一声枪响到原子时代</em>">The World Wars: <em>from one gunshot to the atomic age</em></h1>
+  <p class="lead" data-zh="1914年6月，萨拉热窝街头的两声枪响，六个星期内把欧洲所有大国卷入战争。仅仅21年后，一场更大的战争从中国的卢沟桥和波兰的边境开始，全世界约有7000万人或更多死去。为什么同盟体系像多米诺骨牌一样倒下？为什么西线打了四年却几乎原地不动？">In June 1914 two shots on a street in Sarajevo pulled every great power in Europe into war within six weeks. Barely 21 years later an even bigger war began — at the Marco Polo Bridge in China and on the border of Poland — and roughly 70 million people or more died. Why did the alliances fall like dominoes? And why did the Western Front barely move for four years?</p>
+  <p class="mission-line" data-zh="🎯 你的任务：推倒1914年的“同盟多米诺”；作为参谋，在四场战役中想办法打破堑壕僵局；拖动时间，看二战的战线从1937年变化到1945年——别忘了东方主战场中国。">🎯 Your mission: knock over the 1914 alliance dominoes; as a staff officer, find a way to break the trench stalemate in four battles; drag the timeline and watch World War II’s map change from 1937 to 1945 — including China, the main Eastern battlefield.</p>
+  <span class="unit" data-zh="📘 统编版《世界历史》九年级下册 第三单元“第一次世界大战和战后初期的世界”、第四单元“经济大危机和第二次世界大战”；《中国历史》八年级上册“中华民族的抗日战争”">📘 China’s textbook: World History Grade 9 Vol. 2, Unit 3 (World War I and after) &amp; Unit 4 (the Great Depression and World War II); Chinese History Grade 8 Vol. 1 (the War of Resistance against Japan)</span>
+</header>
+
+<section class="wrap" id="web" data-nav="1914 dominoes" data-nav-zh="1914多米诺">
+  <div class="sec-head">
+    <h2 data-zh="1914年：同盟之网如何把欧洲拖进战争">1914: how the alliance web dragged Europe into war</h2>
+    <p data-zh="蓝线是协约国的关系，灰线是同盟国的关系。按“下一张骨牌”，看一个国家的宣战怎样引发另一个。">Blue lines link the Triple Entente, grey lines the Triple Alliance. Press “Next domino” and watch one declaration of war trigger the next.</p>
+  </div>
+  <div class="two">
+    <div class="card">
+      <div class="web"><svg id="webSvg" viewBox="0 0 800 500" role="img" aria-label="Alliance web 1914"></svg></div>
+      <div class="btnrow"><button class="btn" id="webNext" data-zh="▶ 下一张骨牌">▶ Next domino</button><button class="btn ghost" id="webBack" data-zh="◀ 上一步">◀ Back</button><button class="btn ghost" id="webReset" data-zh="↻ 重来">↻ Reset</button></div>
+    </div>
+    <div class="card">
+      <div class="counters">
+        <div class="counter"><b id="wDate">June 1914</b><span data-zh="日期">date</span></div>
+        <div class="counter"><b id="wAt">0</b><span data-zh="参战国家">countries at war</span></div>
+      </div>
+      <div class="readout" id="webRead" aria-live="polite"></div>
+      <div class="legend2"><span><i style="background:#2563eb"></i><span data-zh="协约国/协约国一方">Allies (Entente)</span></span><span><i style="background:#6b7280"></i><span data-zh="同盟国">Central Powers</span></span><span><i style="background:#dc2626"></i><span data-zh="宣战">declaration of war</span></span></div>
+      <details class="peek"><summary data-zh="一战的根本原因（MAIN）">The deep causes (remember “MAIN”)</summary><p data-zh="M 军国主义（军备竞赛，如英德海军竞赛）；A 同盟体系（两大军事集团）；I 帝国主义（争夺殖民地和市场）；N 民族主义（如巴尔干的塞尔维亚民族主义）。萨拉热窝事件只是导火线。">M — Militarism (arms races, like the British–German navy race); A — Alliances (two armed camps); I — Imperialism (competition for colonies and markets); N — Nationalism (e.g., Serbian nationalism in the Balkans). The Sarajevo assassination was only the spark.</p></details>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="mission" data-nav="Trench mission" data-nav-zh="堑壕任务">
+  <div class="sec-head">
+    <h2 data-zh="任务：打破西线僵局（1915—1918年）">Mission: break the Western Front stalemate (1915–1918)</h2>
+    <p data-zh="你是参谋。每场战役选择炮击、徐进弹幕、坦克和飞机侦察——只能用当年已有的技术。看看你的计划能推进多远，再和真实历史比一比。">You are a staff officer. For each battle choose the shelling, creeping barrage, tanks and air spotting — only the technology that existed that year. See how far your plan gets, then compare with what really happened.</p>
+  </div>
+  <div class="gm card">
+    <div class="counters c4">
+      <div class="counter"><b id="tScore">0</b><span data-zh="总分">total score</span></div>
+      <div class="counter"><b id="tRun">0/100</b><span data-zh="本轮得分">this campaign</span></div>
+      <div class="counter"><b id="tStars" class="stars">☆☆☆</b><span data-zh="本轮星级">campaign stars</span></div>
+      <div class="counter"><b id="tBattle">1/4</b><span data-zh="战役">battle</span></div>
+    </div>
+    <div class="ranks" id="tRanks"></div>
+    <div class="trench"><canvas id="trCv"></canvas></div>
+    <div id="tBox" aria-live="polite"></div>
+  </div>
+</section>
+
+<section class="wrap" id="map" data-nav="WWII map" data-nav-zh="二战地图">
+  <div class="sec-head">
+    <h2 data-zh="互动地图：第二次世界大战，1937—1945年">Interactive map: World War II, 1937–1945</h2>
+    <p data-zh="拖动月份或按 ▶。深灰是轴心国，浅灰是被轴心国占领的地区，蓝色是同盟国（反法西斯国家）。点击圆点看转折点。">Drag the month or press ▶. Dark grey = Axis powers, light grey = areas the Axis occupied, blue = the Allies (the anti-fascist side). Click a dot for the turning points.</p>
+  </div>
+  <div style="margin-bottom:12px"><div class="timebar"><button id="playBtn" aria-label="Play">▶</button><input id="mo" type="range" min="0" max="98" step="1" value="0" aria-label="Month"><output id="moOut">1937</output></div></div>
+  <div class="explorer">
+    <div class="stage card" id="mapStage">
+      <canvas id="mapCv" class="map"></canvas>
+      <div class="toolbar"><div class="legend2 pill" style="background:var(--surface)"><span><i style="background:#374151"></i><span data-zh="轴心国">Axis</span></span><span><i style="background:#9ca3af"></i><span data-zh="被占领区">occupied</span></span><span><i style="background:#60a5fa"></i><span data-zh="同盟国">Allies</span></span></div></div>
+      <div class="bottombar"><div class="tip" id="mapTip"></div></div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="counters c3" style="margin-top:12px">
+    <div class="counter"><b id="cDays">0</b><span data-zh="中国全面抗战已进行（天）">days since China’s full-scale war began</span></div>
+    <div class="counter"><b id="cEur">—</b><span data-zh="欧洲战场">war in Europe</span></div>
+    <div class="counter"><b id="cPac">—</b><span data-zh="亚洲太平洋战场">war in Asia &amp; the Pacific</span></div>
+  </div>
+  <div class="card cnstrip" id="cnStrip"></div>
+</section>
+
+<section class="wrap" id="cost" data-nav="The cost" data-nav-zh="战争的代价">
+  <div class="sec-head"><h2 data-zh="战争的代价，以及不能忘记的罪行">The cost of the war — and crimes we must remember</h2></div>
+  <div class="two">
+    <div class="card">
+      <h3 data-zh="📊 数据：二战中部分国家的死亡人数（军人和平民）">📊 Data: World War II deaths, selected countries (military + civilian)</h3>
+      <div class="chart" style="height:320px"><canvas id="deathCv"></canvas></div>
+      <p class="src" data-zh="单位：百万人，取常见估计范围的中间值（约数，各方估计差别较大）。来源：历史学家的常用估计汇总；中国教科书称中国军民伤亡3500万以上（含伤者）。点击柱子查看范围。">Millions of people; middle of commonly cited ranges (approx. — estimates differ a lot). Source: standard historians’ estimates; China’s textbook gives over 35 million Chinese soldiers and civilians killed or wounded. Click a bar for the range.</p>
+      <div class="readout" id="deathRead"></div>
+    </div>
+    <div class="card solemn">
+      <h3 data-zh="🕯️ 大屠杀与南京大屠杀">🕯️ The Holocaust and the Nanjing Massacre</h3>
+      <p data-zh="大屠杀（Holocaust）是纳粹德国有计划、由国家组织的种族灭绝：约600万犹太人被杀害，还有罗姆人、残障人士、政治犯等数百万人遇害。奥斯维辛—比克瑙是最大的死亡集中营，1945年1月被苏联红军解放。">The Holocaust was Nazi Germany’s planned, state-run genocide: about 6 million Jewish people were murdered, along with millions of others, including Roma, disabled people and political prisoners. Auschwitz-Birkenau, the largest death camp, was liberated by the Soviet Red Army in January 1945.</p>
+      <p data-zh="1937年12月，日军攻占南京后进行了长达六周的大屠杀，中国遇难同胞30万以上（中国官方和教科书的数据；远东国际军事法庭判决认定20万以上）。">In December 1937, after capturing Nanjing, Japanese troops carried out a massacre lasting about six weeks; China’s official figure and textbooks give more than 300,000 Chinese victims (the Tokyo war-crimes tribunal found over 200,000).</p>
+      <p class="muted" data-zh="战后，纽伦堡审判和东京审判追究了战争罪行。我们记住这些历史，是为了不让它重演。">After the war the Nuremberg and Tokyo trials punished war crimes. We remember so that it never happens again.</p>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real media" data-nav-zh="真实影像">
+  <div id="gallery"></div>
+  <div class="sec-head" style="margin-top:26px"><h2 data-zh="走得更远：博物馆和档案">Go further: museums and archives</h2></div>
+  <div class="linkgrid" id="links"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 测验（12题）">🧠 Quiz (12 questions)</h3><p class="sub" data-zh="选出正确答案，看看解析。有的题要看地图或图表。">Pick the best answer and read the explanation. Some questions use the map or a chart.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分一分：一战还是二战？">🗂️ Sort it: WWI or WWII?</h3><p class="sub" data-zh="把每一项拖到（或先点再点方框）它所属的战争。">Drag each item (or tap it, then tap a box) into the right war.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="佐治亚州标准（GSE 2016）：六年级 SS6H3“解释欧洲到21世纪的冲突与变化”：a 一战的后果（共产主义兴起、《凡尔赛条约》、纳粹兴起、世界性经济萧条），b 二战的影响（大屠杀、冷战的起源、超级大国的崛起）；七年级 SS7H2（一战后奥斯曼帝国解体与中东）、SS7H3c（美国在二战后重建日本中的作用）。目录中本课标为 SS6H6–7（旧版 GPS 编号），按2016年 GSE 应为 SS6H3。">Georgia Standards of Excellence (2016): Grade 6 SS6H3 “Explain conflict and change in Europe to the 21st century” — a. the aftermath of WWI (rise of communism, the Treaty of Versailles, rise of Nazism, worldwide depression), b. the impact of WWII (the Holocaust, origins of the Cold War, rise of superpowers); Grade 7 SS7H2 (breakup of the Ottoman Empire and the Middle East after WWI) and SS7H3c (the US role in rebuilding Japan after WWII). The catalog labels this lesson SS6H6–7 (older GPS numbering); under the 2016 GSE it is SS6H3.</p>
+    <p data-zh="中国课程：统编版《世界历史》九年级下册第三单元“第一次世界大战”“《凡尔赛条约》和《九国公约》”，第四单元“法西斯国家的侵略扩张”“第二次世界大战”（斯大林格勒战役、诺曼底登陆、《联合国家宣言》、雅尔塔会议）。“同一时期的中国”对应《中国历史》八年级上册：五四运动（巴黎和会上的山东问题）、九一八事变、七七事变与全民族抗战、台儿庄战役、中国远征军、抗日战争的胜利。教材观点：中国的抗日战争是世界反法西斯战争的重要组成部分，中国战场是世界反法西斯战争的东方主战场。课次以所用版次为准。">China curriculum: unified-edition World History Grade 9 Vol. 2, Unit 3 (World War I; the Treaty of Versailles and the Nine-Power Treaty) and Unit 4 (fascist aggression; World War II — Stalingrad, D-Day, the Declaration by United Nations, Yalta). The China strip matches Chinese History Grade 8 Vol. 1: the May Fourth Movement (the Shandong question at Paris), the 18 September Incident, the 7 July Incident and the nationwide War of Resistance, Taierzhuang, the Chinese Expeditionary Force, victory. The textbook’s view: China’s War of Resistance was an important part of the World Anti-Fascist War, and China was its main Eastern battlefield. Lesson numbers vary by printing.</p>
+    <p data-zh="说明：二战地图为示意图，按国家（现代国界）粗略标示状态，日军在中国的占领区是简化的多边形；年份和月份为大致时间。死亡人数取常见估计范围的中值。堑壕任务的结果模型为教学简化，但每场战役的史实（新沙佩勒约35分钟炮击、索姆河7天炮击、康布雷集中使用约400多辆坦克、亚眠首日推进约11千米）来自常见史料。大屠杀与南京大屠杀以事实、克制的方式呈现，可配合美国大屠杀纪念馆和侵华日军南京大屠杀遇难同胞纪念馆的学生资源。">Notes: the WWII map is schematic — status is shown by modern country borders, and Japanese-occupied China is a simplified polygon; dates are approximate. Death tolls are mid-points of commonly cited ranges. The trench mission’s outcome model is simplified, but the battle facts (Neuve Chapelle’s ~35-minute bombardment, the Somme’s 7-day bombardment, roughly 400+ tanks at Cambrai, about 11 km gained on the first day at Amiens) follow standard accounts. The Holocaust and the Nanjing Massacre are presented factually and calmly; the US Holocaust Memorial Museum and the Memorial Hall of the Victims in Nanjing Massacre have student resources.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+/* ===== WMap: canvas world map (world-atlas@2.0.2 countries-110m + d3-geo); China drawn from shared/chinamap.js (standard map incl. 台湾省、南海诸岛). Inlined in each worldhistory lesson. =====
+   M = WMap.create(stageSel, canvasSel, { extent:[[lonW,latS],[lonE,latN]], top, bottom, fill:f => colour|null, overlay:(g,M)=>{}, click:(f,h)=>{}, hover:(f,h)=>text }); M.draw(). Schematic map, modern borders. */
+const WNAMES = {
+  asia:'Kazakhstan:哈萨克斯坦|Uzbekistan:乌兹别克斯坦|Indonesia:印度尼西亚|Timor-Leste:东帝汶|Israel:以色列|Lebanon:黎巴嫩|Palestine:巴勒斯坦|Jordan:约旦|United Arab Emirates:阿联酋|Qatar:卡塔尔|Kuwait:科威特|Iraq:伊拉克|Oman:阿曼|Cambodia:柬埔寨|Thailand:泰国|Laos:老挝|Myanmar:缅甸|Vietnam:越南|North Korea:朝鲜|South Korea:韩国|Mongolia:蒙古|India:印度|Bangladesh:孟加拉国|Bhutan:不丹|Nepal:尼泊尔|Pakistan:巴基斯坦|Afghanistan:阿富汗|Tajikistan:塔吉克斯坦|Kyrgyzstan:吉尔吉斯斯坦|Turkmenistan:土库曼斯坦|Iran:伊朗|Syria:叙利亚|Armenia:亚美尼亚|Sri Lanka:斯里兰卡|China:中国|Taiwan:中国台湾省|Azerbaijan:阿塞拜疆|Georgia:格鲁吉亚|Philippines:菲律宾|Malaysia:马来西亚|Brunei:文莱|Japan:日本|Yemen:也门|Saudi Arabia:沙特阿拉伯|N. Cyprus:北塞浦路斯|Cyprus:塞浦路斯|Turkey:土耳其',
+  africa:'Tanzania:坦桑尼亚|W. Sahara:西撒哈拉|Dem. Rep. Congo:刚果(金)|Somalia:索马里|Kenya:肯尼亚|Sudan:苏丹|Chad:乍得|South Africa:南非|Lesotho:莱索托|Zimbabwe:津巴布韦|Botswana:博茨瓦纳|Namibia:纳米比亚|Senegal:塞内加尔|Mali:马里|Mauritania:毛里塔尼亚|Benin:贝宁|Niger:尼日尔|Nigeria:尼日利亚|Cameroon:喀麦隆|Togo:多哥|Ghana:加纳|Côte d\'Ivoire:科特迪瓦|Guinea:几内亚|Guinea-Bissau:几内亚比绍|Liberia:利比里亚|Sierra Leone:塞拉利昂|Burkina Faso:布基纳法索|Central African Rep.:中非|Congo:刚果(布)|Gabon:加蓬|Eq. Guinea:赤道几内亚|Zambia:赞比亚|Malawi:马拉维|Mozambique:莫桑比克|eSwatini:斯威士兰|Angola:安哥拉|Burundi:布隆迪|Madagascar:马达加斯加|Gambia:冈比亚|Tunisia:突尼斯|Algeria:阿尔及利亚|Eritrea:厄立特里亚|Morocco:摩洛哥|Egypt:埃及|Libya:利比亚|Ethiopia:埃塞俄比亚|Djibouti:吉布提|Somaliland:索马里兰地区|Uganda:乌干达|Rwanda:卢旺达|S. Sudan:南苏丹',
+  europe:'Russia:俄罗斯|Norway:挪威|France:法国|Sweden:瑞典|Belarus:白俄罗斯|Ukraine:乌克兰|Poland:波兰|Austria:奥地利|Hungary:匈牙利|Moldova:摩尔多瓦|Romania:罗马尼亚|Lithuania:立陶宛|Latvia:拉脱维亚|Estonia:爱沙尼亚|Germany:德国|Bulgaria:保加利亚|Greece:希腊|Albania:阿尔巴尼亚|Croatia:克罗地亚|Switzerland:瑞士|Luxembourg:卢森堡|Belgium:比利时|Netherlands:荷兰|Portugal:葡萄牙|Spain:西班牙|Ireland:爱尔兰|Italy:意大利|Denmark:丹麦|United Kingdom:英国|Iceland:冰岛|Slovenia:斯洛文尼亚|Finland:芬兰|Slovakia:斯洛伐克|Czechia:捷克|Bosnia and Herz.:波黑|Macedonia:北马其顿|Serbia:塞尔维亚|Montenegro:黑山|Kosovo:科索沃',
+  namerica:'Canada:加拿大|United States of America:美国|Haiti:海地|Dominican Rep.:多米尼加|Bahamas:巴哈马|Greenland:格陵兰岛|Mexico:墨西哥|Panama:巴拿马|Costa Rica:哥斯达黎加|Nicaragua:尼加拉瓜|Honduras:洪都拉斯|El Salvador:萨尔瓦多|Guatemala:危地马拉|Belize:伯利兹|Puerto Rico:波多黎各|Jamaica:牙买加|Cuba:古巴|Trinidad and Tobago:特立尼达和多巴哥',
+  samerica:'Argentina:阿根廷|Chile:智利|Falkland Is.:马尔维纳斯群岛(福克兰群岛)|Uruguay:乌拉圭|Brazil:巴西|Bolivia:玻利维亚|Peru:秘鲁|Colombia:哥伦比亚|Venezuela:委内瑞拉|Guyana:圭亚那|Suriname:苏里南|Ecuador:厄瓜多尔|Paraguay:巴拉圭',
+  oceania:'Australia:澳大利亚|New Zealand:新西兰|Papua New Guinea:巴布亚新几内亚|Fiji:斐济|Vanuatu:瓦努阿图|New Caledonia:新喀里多尼亚|Solomon Is.:所罗门群岛',
+  antarctica:'Antarctica:南极洲'
+};
+const WMap = (() => {
+  const ZH = { 'Fr. S. Antarctic Lands':'法属南部领地', 'United States of America':'美国' }, EN = { 'United States of America':'United States', 'Dem. Rep. Congo':'DR Congo', 'Central African Rep.':'Central African Republic', 'Bosnia and Herz.':'Bosnia & Herzegovina' };
+  for (const c in WNAMES) WNAMES[c].split('|').forEach(s => { const [en, zh] = s.split(':'); ZH[en] = zh; });
+  ZH['Taiwan'] = '中国台湾省'; EN['Taiwan'] = 'Taiwan Province of China';
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  let P = null, CN = null;
+  const load = () => P || (P = fetch('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json').then(r => r.json()).then(t =>
+    topojson.feature(t, t.objects.countries).features.filter(f => f.geometry).map(f => { const n = f.properties.name; f.info = { name:n, en:EN[n] || n, zh:ZH[n] || n }; return f; })));
+  const loadCN = () => CN || (CN = (window.ChinaMap ? ChinaMap.load() : Promise.reject('no ChinaMap')).catch(e => { console.warn('China map unavailable', e); return null; }));
+  const CHINA = { name:'China', en:'China', zh:'中国' };
+  function create(stageSel, cvSel, opt = {}){
+    const stage = document.querySelector(stageSel), cv = document.querySelector(cvSel), g = cv.getContext('2d');
+    const M = { g, opt, feats:null, cn:null, failed:false, W:0, H:0, small:false, hoverF:null };
+    let proj = null, path = null;
+    const lineWith = xy => (pts, stroke, lw = 2, dash, t = 1) => { const p = pts.map(xy).filter(Boolean); if (p.length < 2) return null;
+      const seg = []; let tot = 0; for (let i = 1; i < p.length; i++){ const l = Math.hypot(p[i][0] - p[i - 1][0], p[i][1] - p[i - 1][1]); seg.push(l); tot += l; }
+      let left = tot * Math.max(0, Math.min(1, t)), end = p[0];
+      g.beginPath(); g.moveTo(...p[0]);
+      for (let i = 1; i < p.length && left > 0; i++){ const l = seg[i - 1]; if (l > M.W * .6){ g.moveTo(...p[i]); end = p[i]; left -= l; continue; }
+        if (left >= l){ g.lineTo(...p[i]); end = p[i]; left -= l; } else { const k = left / l; end = [p[i - 1][0] + (p[i][0] - p[i - 1][0]) * k, p[i - 1][1] + (p[i][1] - p[i - 1][1]) * k]; g.lineTo(...end); left = 0; } }
+      g.setLineDash(dash || []); g.strokeStyle = stroke; g.lineWidth = lw; g.lineJoin = g.lineCap = 'round'; g.stroke(); g.setLineDash([]); return end; };
+    const dotWith = xy => (ll, r, fill, stroke) => { const p = xy(ll); if (!p) return null; g.beginPath(); g.arc(p[0], p[1], r, 0, 7); g.fillStyle = fill; g.fill(); if (stroke){ g.lineWidth = 2; g.strokeStyle = stroke; g.stroke(); } return p; };
+    M.text = (t, x, y, o = {}) => { g.font = `${o.w || 800} ${o.s || 12}px Nunito, "PingFang SC", "Microsoft YaHei", sans-serif`; g.textAlign = o.a || 'center'; g.textBaseline = 'middle';
+      g.lineWidth = 3.2; g.strokeStyle = o.halo || css('--surface') || '#fff'; g.lineJoin = 'round'; g.strokeText(t, x, y); g.fillStyle = o.c || css('--ink'); g.fillText(t, x, y); };
+    function fitProj(ex, box, rot){ const [[a, b], [c, e]] = ex, P = d3.geoNaturalEarth1().rotate([-(rot ?? ((a + c) / 2)), 0]);
+      const pts = []; for (let i = 0; i <= 72; i++){ const lo = a + (c - a) * i / 72; pts.push([lo, b], [lo, e], [lo, (b + e) / 2]); } P.fitExtent(box, { type:'MultiPoint', coordinates:pts }); return P; }
+    function layout(){
+      const r = stage.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!r.width) return false;
+      cv.width = r.width * d; cv.height = r.height * d; M.W = r.width; M.H = r.height; M.d = d; M.small = r.width < 560;
+      const top = M.small ? (opt.topS ?? opt.top ?? 60) : (opt.top ?? 60), bot = M.small ? (opt.bottomS ?? opt.bottom ?? 50) : (opt.bottom ?? 50);
+      proj = fitProj((M.small && opt.extentS) || opt.extent || [[-170, -58], [180, 78]], [[8, top], [r.width - 8, r.height - bot]], opt.rot);
+      path = d3.geoPath(proj, g); M.proj = proj; M.path = path;
+      M.I = null;
+      if (opt.inset){ const fb = (M.small && opt.inset.boxS) || opt.inset.box, bx = [fb[0] * r.width, fb[1] * r.height, fb[2] * r.width, fb[3] * r.height];
+        const P = fitProj(opt.inset.extent, [[bx[0] + 4, bx[1] + 18], [bx[0] + bx[2] - 4, bx[1] + bx[3] - 4]], opt.inset.rot);
+        const I = { inset:true, box:bx, proj:P, path:d3.geoPath(P, g), small:M.small, W:M.W, H:M.H, text:M.text };
+        I.xy = ll => P(ll); I.inv = (x, y) => P.invert([x, y]); I.line = lineWith(I.xy); I.dot = dotWith(I.xy); M.I = I; }
+      return true;
+    }
+    M.xy = ll => proj ? proj(ll) : null;
+    M.inv = (x, y) => proj && proj.invert ? proj.invert([x, y]) : null;
+    /* M.line(pts, colour, width, dash, t): polyline through [lon,lat] waypoints; t (0..1) draws only the first part; returns the [x,y] of the tip */
+    M.line = lineWith(M.xy);
+    M.dot = dotWith(M.xy);
+    M.inBox = (x, y) => !!(M.I && x >= M.I.box[0] && x <= M.I.box[0] + M.I.box[2] && y >= M.I.box[1] && y <= M.I.box[1] + M.I.box[3]);
+    M.view = h => (h && h.inset) ? M.I : M;
+    function countries(pth, P, fillOf, land, ink2){
+      const useCN = !!M.cn, skip = f => useCN && (f.info.name === 'China' || f.info.name === 'Taiwan');
+      M.feats.forEach(f => { if (skip(f)) return; g.beginPath(); pth(f); g.fillStyle = land; g.fill(); const fc = f.info.name === 'Taiwan' ? fillOf(CHINA) : fillOf(f.info); if (fc !== land){ g.fillStyle = fc; g.fill(); } });
+      g.beginPath(); M.feats.forEach(f => { if (!skip(f) && f.info.name !== 'Antarctica') pth(f); }); g.strokeStyle = ink2; g.lineWidth = .5; g.globalAlpha = .7; g.stroke(); g.globalAlpha = 1;
+      if (useCN){ const T = p => P(p), cf = fillOf(CHINA), polys = { features:M.cn.features.filter(f => f.geometry.type !== 'MultiLineString') };
+        g.globalAlpha = .8; ChinaMap.draw2D(g, polys, T, { stroke:ink2, lineWidth:1.1 }); g.globalAlpha = 1; ChinaMap.draw2D(g, polys, T, { fill:land }); if (cf !== land) ChinaMap.draw2D(g, polys, T, { fill:cf });
+        ChinaMap.draw2D(g, { features:M.cn.features.filter(f => f.geometry.type === 'MultiLineString') }, T, { stroke:ink2, lineWidth:.8 }); }
+      if (M.hoverF && M.hoverF !== CHINA){ const hf = M.feats.find(f => f.info === M.hoverF); if (hf){ g.beginPath(); pth(hf); g.strokeStyle = css('--ink'); g.lineWidth = 1.6; g.stroke(); } }
+    }
+    M.draw = () => {
+      const r = stage.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2);
+      if (!M.feats){ cv.width = r.width * d; cv.height = r.height * d; g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, r.width, r.height); M.W = r.width; M.H = r.height;
+        M.text(Lab.L(M.failed ? {en:'The map needs an internet connection.', zh:'地图需要联网才能加载。'} : {en:'Loading map…', zh:'地图加载中…'}), r.width / 2, r.height / 2, { s:15, c:css('--ink-2') }); return; }
+      if (!proj && !layout()) return;
+      g.setTransform(M.d, 0, 0, M.d, 0, 0); g.clearRect(0, 0, M.W, M.H);
+      const land = css('--surface') || '#fff', sea = css('--surface-2') || '#eef3f9', ink2 = css('--ink-2') || '#4a5878';
+      g.beginPath(); path({ type:'Sphere' }); g.fillStyle = sea; g.fill();
+      g.beginPath(); path(d3.geoGraticule10()); g.strokeStyle = ink2; g.globalAlpha = .12; g.lineWidth = .6; g.stroke(); g.globalAlpha = 1;
+      const fillOf = info => (opt.fill && opt.fill(info)) || land;
+      countries(path, proj, fillOf, land, ink2);
+      if (M.I){ const [[a, b], [c, e]] = opt.inset.extent; g.beginPath(); path({ type:'LineString', coordinates:[[a, b], [a, e], [c, e], [c, b], [a, b]] }); g.setLineDash([4, 3]); g.strokeStyle = ink2; g.lineWidth = 1.2; g.stroke(); g.setLineDash([]); }
+      if (opt.overlay){ g.save(); opt.overlay(g, M); g.restore(); }
+      if (M.I){ const I = M.I, [x, y, w, h] = I.box; g.save(); g.shadowColor = 'rgba(0,0,0,.18)'; g.shadowBlur = 10; g.fillStyle = sea; g.fillRect(x, y, w, h); g.restore();
+        g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip(); g.fillStyle = sea; g.fillRect(x, y, w, h); countries(I.path, I.proj, fillOf, land, ink2);
+        if (opt.overlay){ g.save(); opt.overlay(g, I); g.restore(); } g.restore();
+        g.strokeStyle = ink2; g.lineWidth = 1.2; g.strokeRect(x, y, w, h); g.fillStyle = sea; g.fillRect(x + 1, y + 1, w - 2, 15);
+        M.text(Lab.L(opt.inset.label || {en:'Zoom', zh:'放大图'}), x + 6, y + 9, { s:10.5, a:'left', c:ink2, w:800 }); }
+      if (opt.note !== false) M.text(Lab.L({en:'Schematic map · modern borders', zh:'示意图 · 现代国界'}), 10, M.H - 10, { s:10, a:'left', c:ink2, w:700 });
+    };
+    M.hit = e => { const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, ins = M.inBox(x, y), ll = ins ? M.I.inv(x, y) : M.inv(x, y); if (!ll || !M.feats) return { x, y, inset:ins };
+      if (M.cn && ChinaMap.hit(M.cn, ll[0], ll[1])) return { x, y, ll, f:CHINA, inset:ins };
+      const f = M.feats.find(f => d3.geoContains(f, ll)); return { x, y, ll, inset:ins, f:f ? (f.info.name === 'Taiwan' ? CHINA : f.info) : null }; };
+    cv.addEventListener('click', e => { if (!M.feats || !opt.click) return; const h = M.hit(e); opt.click(h.f || null, h, e); });
+    cv.addEventListener('pointermove', e => { if (e.pointerType === 'touch' || !M.feats) return; const h = M.hit(e), f = h.f || null; if (f !== M.hoverF){ M.hoverF = f; M.draw(); }
+      cv.title = opt.hover ? (opt.hover(f, h) || '') : (f ? Lab.L(f) : ''); });
+    cv.addEventListener('pointerleave', () => { if (M.hoverF){ M.hoverF = null; M.draw(); } });
+    new ResizeObserver(() => requestAnimationFrame(() => { proj = null; M.draw(); })).observe(stage);
+    const redraw = () => setTimeout(M.draw, 60);
+    new MutationObserver(redraw).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme', 'lang'] });
+    if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redraw);
+    Promise.all([load(), loadCN()]).then(([f, cn]) => { M.feats = f; M.cn = cn; proj = null; M.draw(); if (opt.ready) opt.ready(M); }).catch(err => { console.warn(err); M.failed = true; M.draw(); });
+    M.draw();
+    return M;
+  }
+  return { create, css, ZH };
+})();
+/* ===== shared helpers for the worldhistory lessons ===== */
+const o = (en, zh) => ({en, zh});
+const css = WMap.css;
+const stars = n => '★'.repeat(n) + '☆'.repeat(3 - n);
+function ranksHTML(R, score){ const ri = R.reduce((a, r, i) => score >= r[0] ? i : a, 0); return R.map((r, i) => `<span class="${i === ri ? 'on' : ''}">${i <= ri ? '🏅' : '🔒'} ${Lab.L(r[1])}</span>`).join(''); }
+function renderLinks(sel, LINKS){ Lab.$(sel).innerHTML = LINKS.map(l => `<a class="linkcard" href="${l.u}" target="_blank" rel="noopener"><b data-zh="${l.t.zh}">${l.t.en}</b><span data-zh="${l.d.zh}">${l.d.en}</span><small>${new URL(l.u).hostname.replace('www.', '')} ↗</small></a>`).join(''); Lab.translate(Lab.$(sel)); }
+const CQ = '?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', CP = 'https://commons.wikimedia.org/wiki/File:';
+const HP = o('Historic photo','历史照片');
+const YT = (yt, en, zh, ch) => ({ type:'youtube', yt, en, zh, kind:o('Video','视频'), credit:ch + ' (YouTube)', license:'YouTube' });
+/* "Meanwhile in China" strip: items [{y, t:{en,zh}, b:{en,zh}}] */
+function chinaStrip(sel, items){ const el = Lab.$(sel); const draw = () => el.innerHTML = `<div class="cnstrip-h">${Lab.L(o('🇨🇳 Meanwhile in China','🇨🇳 同一时期的中国'))}</div><div class="cnstrip-row">${items.map(i => `<div class="cnc"><b>${i.y}</b><h4>${Lab.L(i.t)}</h4><p>${Lab.L(i.b)}</p></div>`).join('')}</div>`; Lab.onLang(draw); }
+
+/* ================= 1914 alliance web ================= */
+const NODES = { uk:[250,110,'e',o('Britain','英国')], fr:[200,250,'e',o('France','法国')], be:[300,185,'e',o('Belgium','比利时')], de:[400,175,'c',o('Germany','德国')], ah:[490,270,'c',o('Austria-Hungary','奥匈帝国')],
+  it:[390,370,'c',o('Italy','意大利')], rs:[560,370,'e',o('Serbia','塞尔维亚')], ru:[630,130,'e',o('Russia','俄国')], ot:[700,330,'c',o('Ottoman Empire','奥斯曼帝国')], bg:[640,440,'c',o('Bulgaria','保加利亚')],
+  jp:[745,60,'e',o('Japan','日本')], us:[75,95,'e',o('USA','美国')], cn:[745,200,'e',o('China','中国')] };
+const ALLY = [['uk','fr','e'],['fr','ru','e'],['uk','ru','e'],['de','ah','c'],['de','it','c'],['ah','it','c'],['ru','rs','e',1],['uk','be','e',1]];
+const STEPS = [
+ { d:o('June 1914','1914年6月'), war:[], t:o('Two armed camps: the Triple Entente (Britain, France, Russia) and the Triple Alliance (Germany, Austria-Hungary, Italy). Russia promises to protect Serbia; Britain has promised (1839) to protect Belgium.','两大军事集团：协约国（英、法、俄）和同盟国（德、奥匈、意）。俄国承诺保护塞尔维亚；英国早在1839年就承诺保护比利时。') },
+ { d:o('28 June 1914','1914年6月28日'), war:[], spark:true, t:o('Sarajevo: Gavrilo Princip, a Bosnian Serb nationalist, shoots Archduke Franz Ferdinand, heir to Austria-Hungary’s throne, and his wife Sophie.','萨拉热窝事件：波斯尼亚塞族民族主义者普林西普刺杀了奥匈帝国皇储斐迪南大公夫妇。') },
+ { d:o('28 July 1914','1914年7月28日'), war:[['ah','rs']], t:o('Austria-Hungary, backed by Germany’s “blank cheque”, declares war on Serbia.','奥匈帝国在德国的“空白支票”支持下，向塞尔维亚宣战。') },
+ { d:o('30 July 1914','1914年7月30日'), war:[['ah','rs']], mob:'ru', t:o('Russia mobilizes its huge army to defend Serbia.','俄国为保护塞尔维亚，动员它庞大的军队。') },
+ { d:o('1 August 1914','1914年8月1日'), war:[['ah','rs'],['de','ru']], t:o('Germany declares war on Russia.','德国向俄国宣战。') },
+ { d:o('3 August 1914','1914年8月3日'), war:[['ah','rs'],['de','ru'],['de','fr']], t:o('Germany declares war on France. Its Schlieffen Plan: knock out France fast through Belgium, then turn on Russia.','德国向法国宣战。它的“施里芬计划”：取道比利时迅速打败法国，再回头对付俄国。') },
+ { d:o('4 August 1914','1914年8月4日'), war:[['ah','rs'],['de','ru'],['de','fr'],['de','be'],['uk','de']], t:o('German troops invade neutral Belgium — so Britain declares war on Germany. In six weeks every great power in Europe is at war.','德军入侵中立国比利时——英国随即对德宣战。短短六周，欧洲所有大国都卷入了战争。') },
+ { d:o('23 August 1914','1914年8月23日'), war:[['ah','rs'],['de','ru'],['de','fr'],['de','be'],['uk','de'],['jp','de']], t:o('Japan declares war on Germany and seizes Germany’s base at Qingdao (青岛) in Shandong, China.','日本对德宣战，夺取了德国在中国山东的据点青岛。') },
+ { d:o('November 1914','1914年11月'), war:[['ah','rs'],['de','ru'],['de','fr'],['de','be'],['uk','de'],['jp','de'],['ru','ot']], t:o('The Ottoman Empire joins the Central Powers. The war spreads to the Middle East.','奥斯曼帝国加入同盟国一方，战火蔓延到中东。') },
+ { d:o('1915','1915年'), war:[['ah','rs'],['de','ru'],['de','fr'],['de','be'],['uk','de'],['jp','de'],['ru','ot'],['it','ah'],['bg','rs']], itSwitch:true, t:o('Italy switches sides and attacks Austria-Hungary (May); Bulgaria joins the Central Powers (October).','意大利倒向协约国，进攻奥匈帝国（5月）；保加利亚加入同盟国（10月）。') },
+ { d:o('1917','1917年'), war:[['ah','rs'],['de','ru'],['de','fr'],['de','be'],['uk','de'],['jp','de'],['ru','ot'],['it','ah'],['bg','rs'],['us','de'],['cn','de']], itSwitch:true, t:o('German submarines sink American ships: the USA declares war (April). China declares war on Germany (August) and sends about 140,000 laborers to France. Russia leaves the war after its revolution.','德国潜艇击沉美国船只，美国宣战（4月）。中国对德宣战（8月），派约14万华工赴法。俄国爆发革命后退出战争。') },
+ { d:o('11 November 1918','1918年11月11日'), war:[], end:true, itSwitch:true, t:o('Armistice: the guns fall silent at 11 a.m. About 9 million soldiers and millions of civilians had died. Four empires collapsed: German, Austro-Hungarian, Russian and Ottoman.','停战：上午11点枪炮声停止。约900万士兵和数百万平民死亡。德意志、奥匈、俄罗斯和奥斯曼四大帝国崩溃。') }
+];
+(function(){
+  const svg = Lab.$('#webSvg'); let i = 0;
+  const NS = 'http://www.w3.org/2000/svg', el = (n, a) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); return e; };
+  function draw(){
+    const s = STEPS[i], at = new Set(); s.war.forEach(([a, b]) => { at.add(a); at.add(b); }); if (s.end) STEPS[i - 1].war.forEach(([a, b]) => { at.add(a); at.add(b); });
+    svg.innerHTML = '<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#dc2626"/></marker></defs>';
+    const side = k => k === 'it' ? (s.itSwitch ? 'e' : 'c') : NODES[k][2];
+    ALLY.forEach(([a, b, c, dash]) => { if ((a === 'it' || b === 'it') && s.itSwitch) return; svg.appendChild(el('line', { x1:NODES[a][0], y1:NODES[a][1], x2:NODES[b][0], y2:NODES[b][1], stroke:c === 'e' ? '#2563eb' : '#6b7280', 'stroke-width':4, 'stroke-opacity':.45, 'stroke-dasharray':dash ? '8 6' : '' })); });
+    s.war.forEach(([a, b], j) => { const A = NODES[a], B = NODES[b], dx = B[0] - A[0], dy = B[1] - A[1], L = Math.hypot(dx, dy), k1 = 30 / L, k2 = (L - 32) / L;
+      const ln = el('line', { x1:A[0] + dx * k1, y1:A[1] + dy * k1, x2:A[0] + dx * k2, y2:A[1] + dy * k2, stroke:'#dc2626', 'stroke-width':3.5, 'marker-end':'url(#ar)' });
+      if (j === s.war.length - 1){ ln.style.strokeDasharray = L; ln.style.strokeDashoffset = L; ln.style.transition = 'stroke-dashoffset .8s'; requestAnimationFrame(() => requestAnimationFrame(() => ln.style.strokeDashoffset = 0)); }
+      svg.appendChild(ln); });
+    Object.keys(NODES).forEach(k => { const [x, y] = NODES[k], sd = side(k), war = at.has(k) || (s.end && (at.has(k))), col = sd === 'e' ? '#2563eb' : '#6b7280';
+      const g = el('g', {}); g.appendChild(el('circle', { cx:x, cy:y, r:26, fill:war || s.mob === k ? col : css('--surface'), stroke:col, 'stroke-width':3, opacity:(k === 'us' || k === 'cn' || k === 'jp') && !war ? .7 : 1 }));
+      if (s.mob === k){ g.appendChild(el('circle', { cx:x, cy:y, r:34, fill:'none', stroke:'#f59e0b', 'stroke-width':3, 'stroke-dasharray':'5 4' })); }
+      const t = el('text', { x, y:y + 44, 'text-anchor':'middle' }); t.textContent = Lab.L(NODES[k][3]); g.appendChild(t);
+      const ic = el('text', { x, y:y + 5, 'text-anchor':'middle', style:'stroke:none;fill:' + (war ? '#fff' : col) }); ic.textContent = war ? '⚔' : sd === 'e' ? (Lab.lang === 'zh' ? '协' : 'E') : (Lab.lang === 'zh' ? '同' : 'C'); g.appendChild(ic); svg.appendChild(g); });
+    if (s.spark){ const t = el('text', { x:520, y:330, 'text-anchor':'middle', style:'font-size:22px' }); t.textContent = '💥'; svg.appendChild(t); const t2 = el('text', { x:520, y:312, 'text-anchor':'middle' }); t2.textContent = Lab.L(o('Sarajevo','萨拉热窝')); svg.appendChild(t2); }
+    Lab.$('#wDate').textContent = Lab.L(s.d); Lab.$('#wAt').textContent = s.end ? '—' : at.size;
+    Lab.$('#webRead').innerHTML = `<b>${i}/${STEPS.length - 1}</b> · ${Lab.L(s.t)}`;
+    Lab.$('#webNext').disabled = i >= STEPS.length - 1; Lab.$('#webBack').disabled = i <= 0;
+  }
+  Lab.$('#webNext').onclick = () => { if (i < STEPS.length - 1){ i++; draw(); } };
+  Lab.$('#webBack').onclick = () => { if (i > 0){ i--; draw(); } };
+  Lab.$('#webReset').onclick = () => { i = 0; draw(); };
+  new MutationObserver(() => setTimeout(draw, 60)).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme'] });
+  Lab.onLang(draw);
+})();
+
+/* ================= Trench mission ================= */
+const BOMB = { none:o('No shelling (surprise)','不炮击（突袭）'), short:o('Short, sharp (hours)','短促猛烈（几小时）'), long:o('Long (a week)','长时间（一周）') };
+const TANK = { none:o('None','无'), few:o('A few','少量'), many:o('Hundreds','数百辆') };
+const BATTLES = [
+ { y:1915, n:o('Neuve Chapelle · March 1915','新沙佩勒战役 · 1915年3月'), bomb:['none','short','long'], creep:false, tanks:['none'], rel:0, maxKm:2.5,
+   brief:o('Your sector faces German trenches about 100–200 m away, behind belts of barbed wire. Machine guns can sweep no man’s land. Shells are scarce in 1915.','你的阵地对面100—200米处是德军战壕，前面有一道道铁丝网，机枪能横扫“无人区”。1915年炮弹很紧缺。'),
+   hist:o('History: the British used a short, intense 35-minute bombardment — a real surprise — and took the village of Neuve Chapelle, advancing about 1 km. Then shells and reserves ran short and the Germans sealed the gap.','真实历史：英军进行了只有约35分钟的短促猛烈炮击，达成突然性，攻占了新沙佩勒村，推进约1千米。随后炮弹和预备队不足，德军堵住了缺口。') },
+ { y:1916, n:o('The Somme · July 1916','索姆河战役 · 1916年7月'), bomb:['none','short','long'], creep:true, tanks:['none','few'], rel:.5, maxKm:4,
+   brief:o('A huge British–French offensive. You have more guns than ever, and the first tanks are being built (they appear in September, unreliable). The German dugouts are deep.','英法联军的大规模进攻。你拥有前所未有的大炮，第一批坦克正在制造（9月才上战场，还不可靠）。德军的掩蔽部挖得很深。'),
+   hist:o('History: a 7-day bombardment of about 1.5 million shells warned the Germans, who sheltered in deep dugouts; much of the wire was not cut. 1 July 1916 was the costliest day in British military history. In four and a half months the Allies advanced only about 10 km.','真实历史：持续7天、约150万发炮弹的炮击暴露了进攻意图，德军躲在深掩蔽部里，许多铁丝网没被炸开。1916年7月1日是英国军事史上损失最惨重的一天。四个半月里联军只推进了约10千米。') },
+ { y:1917, n:o('Cambrai · November 1917','康布雷战役 · 1917年11月'), bomb:['none','short','long'], creep:true, tanks:['none','few','many'], rel:.9, maxKm:8,
+   brief:o('Firm, dry chalk ground — good for tanks. Gunners can now aim by maps and calculations without warning shots.','坚实干燥的白垩地——适合坦克。炮兵已经能根据地图和计算瞄准，不用先试射暴露目标。'),
+   hist:o('History: about 400+ British tanks attacked with NO preliminary bombardment — a total surprise. They crushed the wire and advanced about 6 km in a day; church bells rang in Britain. But there were no reserves to follow up, and a German counterattack retook most of the ground.','真实历史：英军集中约400多辆坦克，不进行预先炮击就发起进攻，达成完全的突然性。坦克压平铁丝网，一天推进约6千米，英国教堂为此鸣钟。但后续兵力不足，德军反击夺回了大部分阵地。') },
+ { y:1918, n:o('Amiens · August 1918','亚眠战役 · 1918年8月'), bomb:['none','short','long'], creep:true, tanks:['none','few','many'], rel:1, maxKm:12,
+   brief:o('Allied armies have learned to fight as one team: infantry, guns, tanks and aircraft. Fresh American troops are arriving in France.','协约国军队已经学会让步兵、炮兵、坦克和飞机协同作战。美国的生力军正在源源不断地抵达法国。'),
+   hist:o('History: secret preparation, a short barrage at zero hour, hundreds of tanks and aircraft working together. The Allies advanced about 11 km on the first day. German commander Ludendorff called 8 August “the black day of the German Army”. Three months later Germany asked for an armistice.','真实历史：秘密准备，零点时刻短促炮击，数百辆坦克和飞机协同作战。协约国军队第一天推进约11千米。德军统帅鲁登道夫称8月8日是“德军最黑暗的一天”。三个月后德国请求停战。') }
+];
+function planScore(B, p){ const wire = Math.min(1, ({ none:0, short:.4, long:.6 })[p.bomb] + ({ none:0, few:.25, many:.6 })[p.tanks]), sur = ({ none:1, short:.7, long:0 })[p.bomb];
+  let s = 20 * wire + 25 * sur + (B.creep && p.creep ? 20 : 0) + (p.air ? 10 : 0) + 20 * ({ none:0, few:.4, many:1 })[p.tanks] * B.rel;
+  if (p.creep && p.tanks === 'many' && sur >= .7) s += 10; return s; }
+const bestScore = B => { let b = 0; B.bomb.forEach(bo => B.tanks.forEach(t => [false, B.creep].forEach(c => [false, true].forEach(a => b = Math.max(b, planScore(B, { bomb:bo, tanks:t, creep:c, air:a })))))); return b; };
+const TR = [ [0,o('Private','列兵')], [40,o('Corporal','下士')], [100,o('Sergeant','中士')], [170,o('Lieutenant','中尉')], [250,o('Captain','上尉')], [350,o('General','将军')] ];
+(function(){
+  const G = { total:0, run:0, bi:0, plan:{ bomb:'short', tanks:'none', creep:false, air:false }, res:null, anim:0, done:false };
+  const cv = Lab.$('#trCv'), g = cv.getContext('2d'), box = Lab.$('#tBox');
+  function drawTrench(){
+    const r = cv.parentElement.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!r.width) return;
+    cv.width = r.width * d; cv.height = r.height * d; const k = r.width / 700; g.setTransform(d * k, 0, 0, d * k, 0, 0);
+    const sky = g.createLinearGradient(0, 0, 0, 170); sky.addColorStop(0, '#9fb6cf'); sky.addColorStop(1, '#d9d2bf'); g.fillStyle = sky; g.fillRect(0, 0, 700, 300);
+    g.fillStyle = '#7a6a4f'; g.fillRect(0, 170, 700, 130);
+    for (let i = 0; i < 9; i++){ g.fillStyle = '#6a5a40'; g.beginPath(); g.ellipse(200 + i * 40 + (i % 3) * 7, 178 + (i % 2) * 6, 16, 5, 0, 0, 7); g.fill(); }
+    const B = BATTLES[Math.min(G.bi, 3)], p = G.plan, res = G.res, t = G.anim;
+    g.fillStyle = '#4b3b28'; g.fillRect(40, 170, 70, 60); g.fillRect(590, 170, 70, 60);
+    g.fillStyle = '#c2b48f'; for (let i = 0; i < 6; i++){ g.fillRect(36 + i * 13, 162, 11, 8); g.fillRect(586 + i * 13, 162, 11, 8); }
+    g.fillStyle = '#334155'; g.fillRect(612, 154, 18, 10); g.fillRect(650, 156, 14, 8);
+    const cut = res ? res.wire : 0;
+    g.strokeStyle = '#3f3f46'; g.lineWidth = 1.5; for (let w = 0; w < 3; w++){ const x0 = 470 + w * 30; g.setLineDash(cut > .5 + w * .15 ? [3, 7] : []); g.beginPath(); for (let x = 0; x < 24; x += 4){ g.moveTo(x0 + x, 158); g.lineTo(x0 + x + 4, 172); g.moveTo(x0 + x + 4, 158); g.lineTo(x0 + x, 172); } g.stroke(); } g.setLineDash([]);
+    g.font = '800 12px Nunito, "Microsoft YaHei", sans-serif'; g.textAlign = 'center'; g.fillStyle = '#1e293b';
+    g.fillText(Lab.L(o('Your trench','我方战壕')), 75, 250); g.fillText(Lab.L(o('No man’s land','无人区')), 330, 250); g.fillText(Lab.L(o('Barbed wire','铁丝网')), 505, 150); g.fillText(Lab.L(o('Enemy trench + machine guns','敌方战壕 + 机枪')), 610, 250);
+    g.fillText(B ? `${B.y}` : '', 350, 24);
+    if (res && t > 0){
+      const bombT = Math.min(1, t * 3); if (p.bomb !== 'none' && t < .4){ for (let i = 0; i < (p.bomb === 'long' ? 9 : 5); i++){ const x = 470 + ((i * 53 + Math.floor(t * 40) * 17) % 190); g.fillStyle = 'rgba(255,220,150,.8)'; g.beginPath(); g.arc(x, 165 - (i % 3) * 6, 6 + (i % 2) * 4, 0, 7); g.fill(); } }
+      const adv = Math.max(0, (t - .3) / .7), reach = 130 + (590 - 130) * res.frac * Math.min(1, adv * 1.2);
+      if (p.creep){ g.fillStyle = 'rgba(148,163,184,.55)'; g.fillRect(reach + 20, 120, 30, 50); }
+      if (p.tanks !== 'none'){ const n = p.tanks === 'many' ? 3 : 1; for (let i = 0; i < n; i++){ const x = reach + 10 + i * 18; g.fillStyle = '#57534e'; g.beginPath(); g.moveTo(x - 14, 170); g.lineTo(x - 8, 156); g.lineTo(x + 10, 156); g.lineTo(x + 16, 170); g.closePath(); g.fill(); } }
+      for (let i = 0; i < 7; i++){ const x = reach - i * 16 - (i % 2) * 6; g.fillStyle = '#2563eb'; g.fillRect(x, 160 - (i % 3) * 3, 7, 10); }
+      if (p.air){ const ax = 80 + t * 560; g.fillStyle = '#1e293b'; g.fillRect(ax - 10, 52, 20, 3); g.fillRect(ax - 2, 47, 4, 14); }
+    }
+  }
+  function head(){
+    Lab.$('#tScore').textContent = G.total; Lab.$('#tRun').textContent = G.run + '/100'; Lab.$('#tBattle').textContent = Math.min(G.bi + 1, 4) + '/4';
+    const st = G.run >= 85 ? 3 : G.run >= 65 ? 2 : G.run >= 40 ? 1 : 0; Lab.$('#tStars').textContent = stars(st); Lab.$('#tRanks').innerHTML = ranksHTML(TR, G.total);
+  }
+  function render(){
+    head(); drawTrench();
+    if (G.done){ const st = G.run >= 85 ? 3 : G.run >= 65 ? 2 : G.run >= 40 ? 1 : 0;
+      box.innerHTML = `<div class="scard"><div class="when">11 Nov 1918</div><h3>${Lab.L(o('Armistice','停战'))}</h3><p class="stars" style="margin:0">${stars(st)}</p><p style="margin:0">${Lab.L(o(`Campaign score: ${G.run}/100. The lesson armies learned the hard way: no single wonder weapon won — surprise plus infantry, artillery, tanks and aircraft working together finally broke the stalemate.`, `战役得分：${G.run}/100。各国军队付出巨大代价才明白：没有哪一种“神奇武器”能单独取胜——突然性加上步兵、炮兵、坦克和飞机的协同作战，才最终打破了僵局。`))}</p><div class="btnrow"><button class="btn" id="tAgain">${Lab.L(o('Play again ▶','再玩一次 ▶'))}</button></div></div>`;
+      Lab.$('#tAgain').onclick = () => { G.run = 0; G.bi = 0; G.res = null; G.done = false; G.plan = { bomb:'short', tanks:'none', creep:false, air:false }; render(); }; return; }
+    const B = BATTLES[G.bi], p = G.plan, res = G.res, seg = (key, list, names) => `<div class="seg" data-key="${key}">${list.map(v => `<button data-v="${v}" class="${p[key] === v ? 'on' : ''}" ${res ? 'disabled' : ''}>${Lab.L(names[v])}</button>`).join('')}</div>`;
+    box.innerHTML = `<div class="scard"><div class="when">${Lab.L(B.n)}</div><p style="margin:0">${Lab.L(B.brief)}</p>
+      <div class="opts2">
+        <div class="og"><b>💥 ${Lab.L(o('Artillery bombardment','炮火准备'))}</b>${seg('bomb', B.bomb, BOMB)}</div>
+        <div class="og"><b>🛡️ ${Lab.L(o('Tanks','坦克'))}</b>${seg('tanks', ['none', 'few', 'many'].filter(v => B.tanks.includes(v)), TANK)}${B.tanks.length === 1 ? `<span class="muted" style="font-size:12.5px"> ${Lab.L(o('(not invented yet)','（还没有发明）'))}</span>` : ''}</div>
+        <div class="og"><b>🌫️ ${Lab.L(o('Creeping barrage (a curtain of shells that moves just ahead of your troops)','徐进弹幕（在步兵前方逐步推进的炮火幕）'))}</b>${B.creep ? seg('creep', [false, true], { false:o('Off','不用'), true:o('On','使用') }) : `<span class="muted">${Lab.L(o('Not developed until 1916','1916年才发展出来'))}</span>`}</div>
+        <div class="og"><b>✈️ ${Lab.L(o('Aircraft spotting for the guns','飞机为炮兵侦察校射'))}</b>${seg('air', [false, true], { false:o('Off','不用'), true:o('On','使用') })}</div>
+      </div>
+      ${res ? `<div class="fb ${res.pts >= 20 ? 'good' : 'bad'}">${Lab.L(o(`Your plan: about ${res.km.toFixed(1)} km gained (model). Points ${res.pts}/25.`, `你的计划：约推进 ${res.km.toFixed(1)} 千米（模型）。得分 ${res.pts}/25。`))} ${Lab.L(res.tip)}</div><div class="readout">📜 ${Lab.L(B.hist)}</div><div class="btnrow"><button class="btn" id="tNext">${Lab.L(G.bi < 3 ? o('Next battle ▶','下一场战役 ▶') : o('Finish the war ▶','结束战争 ▶'))}</button></div>`
+        : `<div class="btnrow"><button class="btn" id="tGo">${Lab.L(o('🎯 Launch the attack','🎯 发起进攻'))}</button></div>`}</div>`;
+    Lab.$$('#tBox .seg').forEach(sg => sg.querySelectorAll('button').forEach(b => b.onclick = () => { const k = sg.dataset.key, v = b.dataset.v; G.plan[k] = v === 'true' ? true : v === 'false' ? false : v; render(); }));
+    const go = Lab.$('#tGo'); if (go) go.onclick = () => { const s = planScore(B, p), best = bestScore(B), pts = Math.round(25 * s / best);
+      const wire = Math.min(1, ({ none:0, short:.4, long:.6 })[p.bomb] + ({ none:0, few:.25, many:.6 })[p.tanks]);
+      const tip = p.bomb === 'long' ? o('A week of shelling told the enemy exactly where you would attack — and churned the ground into mud.', '一周的炮击等于告诉敌人你要在哪里进攻，还把地面炸成了烂泥。') : (wire < .3 ? o('Without shells or tanks to break it, the barbed wire stopped your troops in no man’s land.', '没有炮火或坦克破坏铁丝网，你的士兵被挡在了无人区。') : (B.creep && !p.creep ? o('Without a creeping barrage, the defenders had time to climb out of their dugouts to their machine guns.', '没有徐进弹幕，守军有时间从掩蔽部爬出来操作机枪。') : o('Good combination: surprise and teamwork.', '很好的组合：突然性加协同作战。')));
+      G.res = { pts, wire, frac:Math.min(.98, s / 100), km:B.maxKm * s / 100, tip }; G.run += pts; G.total += pts;
+      const t0 = performance.now(); const step = now => { G.anim = Math.min(1, (now - t0) / 2600); drawTrench(); if (G.anim < 1) requestAnimationFrame(step); }; requestAnimationFrame(step); render(); };
+    const nx = Lab.$('#tNext'); if (nx) nx.onclick = () => { G.res = null; G.anim = 0; if (G.bi < 3) G.bi++; else G.done = true; render(); };
+  }
+  new ResizeObserver(() => requestAnimationFrame(drawTrench)).observe(cv.parentElement);
+  Lab.onLang(render);
+})();
+
+/* ================= WWII map ================= */
+const MON = { en:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'] };
+const tOf = m => 1937.5 + m / 12;
+const fmtT = t => { const y = Math.floor(t + 1e-6), mi = Math.round((t - y) * 12) % 12; return Lab.lang === 'zh' ? `${y}年${mi + 1}月` : `${MON.en[mi]} ${y}`; };
+const AXW = { Germany:[1937,1945.35], Italy:[1937,1943.7], Japan:[1937,1945.67], Austria:[1938.2,1945.35], Hungary:[1940.9,1945.3], Romania:[1940.9,1944.65], Bulgaria:[1941.2,1944.7], Slovakia:[1939.2,1945.3], Thailand:[1941.95,1945.67], Libya:[1937,1943.1] };
+const OCW = { Czechia:[1939.2,1945.35], Poland:[1939.7,1945.1], Denmark:[1940.27,1945.35], Norway:[1940.3,1945.35], Netherlands:[1940.37,1945.35], Belgium:[1940.37,1944.72], Luxembourg:[1940.37,1944.72], France:[1940.46,1944.68], Italy:[1943.7,1945.33],
+  Serbia:[1941.27,1944.85], Croatia:[1941.27,1945.3], 'Bosnia and Herz.':[1941.27,1945.3], Slovenia:[1941.27,1945.3], Montenegro:[1941.27,1944.9], Macedonia:[1941.27,1944.85], Kosovo:[1941.27,1944.85], Greece:[1941.3,1944.8], Albania:[1939.27,1944.9],
+  Lithuania:[1941.5,1944.8], Latvia:[1941.5,1944.8], Estonia:[1941.6,1944.75], Belarus:[1941.5,1944.55], Ukraine:[1941.6,1944.3], Moldova:[1941.55,1944.6], Philippines:[1942.3,1945.45], Indonesia:[1942.2,1945.67], Malaysia:[1942.1,1945.67], Brunei:[1942.0,1945.5],
+  Myanmar:[1942.4,1945.4], Vietnam:[1940.7,1945.67], Laos:[1941.6,1945.67], Cambodia:[1941.6,1945.67], 'North Korea':[1937,1945.67], 'South Korea':[1937,1945.67], 'Timor-Leste':[1942.1,1945.67], 'Papua New Guinea':[1942.1,1944.9], Ethiopia:[1937,1941.35], Tunisia:[1942.9,1943.35] };
+const SOV = ['Russia','Kazakhstan','Uzbekistan','Turkmenistan','Kyrgyzstan','Tajikistan','Georgia','Armenia','Azerbaijan','Belarus','Ukraine','Moldova','Lithuania','Latvia','Estonia'];
+const ALW = { China:1937.52, 'United Kingdom':1939.67, France:1939.67, Poland:1939.67, Canada:1939.69, Australia:1939.67, 'New Zealand':1939.67, 'South Africa':1939.68, India:1939.67, Pakistan:1939.67, Bangladesh:1939.67, 'Sri Lanka':1939.67,
+  'United States of America':1941.93, Philippines:1941.93, Mexico:1942.37, Brazil:1942.64, Greece:1940.8, Norway:1940.27, Netherlands:1940.37, Belgium:1940.37, Luxembourg:1940.37, Ethiopia:1941.35, Mongolia:1945.6, Serbia:1941.27, Montenegro:1941.27 };
+SOV.forEach(n => ALW[n] = 1941.47);
+function status(n, t){ const a = AXW[n]; if (a && t >= a[0] && t < a[1]) return 'axis'; const c = OCW[n]; if (c && t >= c[0] && t < c[1]) return 'occ'; if (ALW[n] != null && t >= ALW[n]) return 'ally'; if (c && t >= c[1] && n !== 'Italy') return 'ally'; return null; }
+const JPOCC = [ { a:1931.7, b:1945.62, p:[[120.5,40.2],[124.4,39.9],[130.5,42.4],[131.3,44.9],[134.7,48.2],[127.5,53.3],[121,53.2],[119.6,49.5],[117.8,47.6],[119.5,46.5],[119,42.3]] },
+  { a:1937.6, b:1945.67, p:[[113.5,41],[119.5,41.5],[119.5,39.3],[117.8,38.3],[116.5,36.5],[114,36],[112.5,37.5],[112,39.5]] },
+  { a:1937.9, b:1945.67, p:[[118.5,34.5],[121.3,32.3],[121.9,31],[120.5,30],[118.5,30.5],[117,31.5],[116.5,33.5]] },
+  { a:1938.8, b:1945.67, p:[[112.5,36.5],[116.5,36.5],[118.5,34.5],[117,31.5],[115.5,29.5],[113.5,29.8],[112.5,31.5],[111.2,34.6]] },
+  { a:1938.8, b:1945.67, p:[[112.6,22.3],[114.5,22.4],[114.6,23.9],[112.8,24]] },
+  { a:1944.4, b:1945.5, p:[[109.4,22.4],[112.6,22.4],[114,26],[113.3,29],[112,28.5],[110.2,26.8],[108.6,24.6]] } ];
+const WM = {
+ lugou:{ t:1937.52, ll:[116.21,39.85], c:'#dc2626', short:o('Marco Polo Bridge','卢沟桥'), name:o('The Marco Polo Bridge Incident (七七事变)','七七事变（卢沟桥事变）'), date:o('7 July 1937','1937年7月7日'),
+   facts:{en:['Japanese troops attacked Chinese forces at the Marco Polo Bridge (卢沟桥) near Beijing.','China began its nationwide War of Resistance (全民族抗战) — years before the war in Europe started.','Japan had already seized Northeast China in 1931 (the 18 September Incident), the start of China’s 14-year war.'],zh:['日军在北平（今北京）附近的卢沟桥向中国守军发动进攻。','中国开始了全民族抗战——比欧洲战争的爆发早了两年。','早在1931年，日本就发动九一八事变侵占中国东北，这是中国十四年抗战的开端。']},
+   rhyme:o('7·7·1937: China’s full-scale war begins.','1937年7月7日：全民族抗战开始。'), mix:o('For China, World War II began in 1937 (or 1931) — not 1939.','对中国来说，二战不是从1939年开始的，而是1937年（甚至1931年）。') },
+ nanjing:{ t:1937.95, ll:[118.8,32.05], c:'#6b7280', short:o('Nanjing','南京'), name:o('The Nanjing Massacre (南京大屠杀)','南京大屠杀'), date:o('December 1937','1937年12月'),
+   facts:{en:['After capturing Nanjing, then China’s capital, Japanese troops killed huge numbers of civilians and prisoners over about six weeks.','China’s official figure: more than 300,000 victims. 13 December is China’s National Memorial Day.'],zh:['日军攻占当时的首都南京后，在约六周内屠杀了大量平民和战俘。','中国官方数据：遇难同胞30万以上。12月13日是南京大屠杀死难者国家公祭日。']},
+   rhyme:o('Remember 13 December.','铭记12月13日。'), mix:o('Nanjing was China’s capital in 1937; the government moved to Chongqing (重庆).','1937年南京是中国的首都，国民政府后来迁都重庆。') },
+ taier:{ t:1938.25, ll:[117.73,34.56], c:'#2563eb', short:o('Taierzhuang','台儿庄'), name:o('The Battle of Taierzhuang (台儿庄战役)','台儿庄战役'), date:o('March–April 1938','1938年3—4月'),
+   facts:{en:['Chinese armies under Li Zongren (李宗仁) trapped and defeated Japanese divisions in fierce street fighting.','It was China’s first major victory of the war and lifted morale across the country.'],zh:['李宗仁指挥的中国军队在激烈的巷战中围歼了部分日军。','这是全民族抗战以来中国军队取得的第一次重大胜利，大大鼓舞了全国军民。']},
+   rhyme:o('1938: Taierzhuang, the first big win.','1938年：台儿庄大捷。'), mix:o('Taierzhuang was a victory, but Japan still took Wuhan and Guangzhou later in 1938.','台儿庄是一场胜利，但1938年底日军仍攻占了武汉和广州。') },
+ poland:{ t:1939.67, eu:1, ll:[21,52.2], c:'#dc2626', short:o('Poland','波兰'), name:o('Germany invades Poland','德国入侵波兰'), date:o('1 September 1939','1939年9月1日'),
+   facts:{en:['Hitler’s Germany attacked Poland with fast tanks and aircraft (“Blitzkrieg”, lightning war).','Britain and France declared war on Germany on 3 September — the war in Europe began.','The USSR, under a secret deal with Germany, invaded eastern Poland on 17 September.'],zh:['希特勒的德国用快速坦克和飞机（“闪电战”）进攻波兰。','9月3日英法对德宣战，欧洲战争爆发。','苏联根据与德国的秘密协议，于9月17日进攻波兰东部。']},
+   rhyme:o('1·9·1939: war in Europe.','1939年9月1日：欧洲大战爆发。'), mix:o('Britain and France had tried “appeasement” (Munich, 1938) — giving Hitler land to avoid war. It failed.','英法曾实行“绥靖政策”（1938年慕尼黑协定），割让别国领土给希特勒以避免战争，结果失败了。') },
+ france:{ t:1940.46, eu:1, ll:[2.35,48.86], c:'#dc2626', short:o('France falls','法国沦陷'), name:o('The fall of France & Dunkirk','法国沦陷与敦刻尔克撤退'), date:o('May–June 1940','1940年5—6月'),
+   facts:{en:['German tanks raced through the Ardennes forest, around France’s Maginot Line.','About 338,000 Allied soldiers were rescued from Dunkirk by ships and small boats.','France surrendered in June 1940; Britain fought on alone, winning the Battle of Britain in the air.'],zh:['德国坦克穿过阿登森林，绕过了法国的马奇诺防线。','约33.8万盟军士兵乘军舰和小船从敦刻尔克撤离。','1940年6月法国投降；英国独自坚持作战，并在不列颠空战中获胜。']},
+   rhyme:o('Around the Maginot Line, not through it.','绕过马奇诺防线，而不是攻破它。'), mix:o('The Battle of Britain (1940) was fought in the air, not on land.','不列颠之战（1940年）是空战，不是陆战。') },
+ moscow:{ t:1941.47, eu:1, ll:[37.6,55.75], c:'#dc2626', short:o('Barbarossa','巴巴罗萨'), name:o('Germany invades the Soviet Union','德国入侵苏联'), date:o('22 June 1941','1941年6月22日'),
+   facts:{en:['Operation Barbarossa: about 3 million German and allied troops attacked the USSR.','German armies reached the edge of Moscow, but were stopped in December 1941 by the Red Army and the Russian winter.','The Eastern Front became the biggest land war in history.'],zh:['“巴巴罗萨计划”：约300万德军及其仆从国军队进攻苏联。','德军打到莫斯科城下，1941年12月被苏联红军和严冬挡住。','东线成为历史上规模最大的陆战。']},
+   rhyme:o('Hitler repeated Napoleon’s mistake: invading Russia.','希特勒重犯了拿破仑的错误：进攻俄国。'), mix:o('The USSR joined the Allies only after Germany attacked it in 1941.','苏联是在1941年遭德国进攻后才加入同盟国一方的。') },
+ pearl:{ t:1941.93, ll:[-157.95,21.36], c:'#dc2626', short:o('Pearl Harbor','珍珠港'), name:o('Pearl Harbor','珍珠港事件'), date:o('7 December 1941','1941年12月7日'),
+   facts:{en:['Japan made a surprise attack on the US Navy base in Hawaii.','The USA declared war on Japan; Germany and Italy then declared war on the USA. China formally declared war on Japan, Germany and Italy.','The war became truly global.'],zh:['日本偷袭美国夏威夷的海军基地。','美国对日宣战，随后德国、意大利对美宣战；中国国民政府正式对日、德、意宣战。','战争真正变成了全球性的大战。']},
+   rhyme:o('12/7/41: the war goes global.','1941年12月7日：战争扩大到全世界。'), mix:o('Pearl Harbor brought the US into WWII; it did not start the war.','珍珠港事件使美国参战，但并不是二战的开始。') },
+ un:{ t:1942.0, ll:[-77.04,38.9], c:'#2563eb', short:o('United Nations declaration','《联合国家宣言》'), name:o('The Declaration by United Nations','《联合国家宣言》'), date:o('1 January 1942','1942年1月1日'),
+   facts:{en:['26 nations, led by the USA, Britain, the USSR and China, signed in Washington, D.C. and promised not to make a separate peace.','It formed the world anti-fascist alliance. China signed as one of the “Big Four”.'],zh:['以美、英、苏、中为首的26个国家在华盛顿签署宣言，保证不单独与敌人议和。','这标志着世界反法西斯同盟的形成。中国作为“四大国”之一签字。']},
+   rhyme:o('1942: the Big Four — USA, Britain, USSR, China.','1942年：四大国——美、英、苏、中。'), mix:o('This 1942 declaration came before the United Nations organization (1945).','这份1942年的宣言比联合国组织（1945年）成立得早。') },
+ midway:{ t:1942.43, ll:[-177.37,28.2], c:'#2563eb', short:o('Midway','中途岛'), name:o('The Battle of Midway','中途岛海战'), date:o('June 1942','1942年6月'),
+   facts:{en:['US codebreakers learned Japan’s plan; American carrier planes sank four Japanese aircraft carriers.','It was the turning point of the war in the Pacific: Japan’s navy was on the defensive from then on.'],zh:['美国破译了日本的作战计划，美军舰载机击沉了四艘日本航空母舰。','这是太平洋战争的转折点，此后日本海军转入防御。']},
+   rhyme:o('Midway: four carriers, one turning point.','中途岛：四艘航母，一个转折点。'), mix:o('Midway was fought by aircraft from carriers — the ships never saw each other.','中途岛海战是航母舰载机之间的较量，双方军舰根本没有相互看见。') },
+ stalin:{ t:1942.6, ll:[44.5,48.7], c:'#2563eb', short:o('Stalingrad','斯大林格勒'), name:o('The Battle of Stalingrad','斯大林格勒战役'), date:o('Aug 1942 – Feb 1943','1942年8月—1943年2月'),
+   facts:{en:['Soviet and German armies fought house by house for the city on the Volga River.','In November 1942 the Red Army encircled the German 6th Army; it surrendered in February 1943.','China’s textbook calls it the turning point of World War II.'],zh:['苏德两军在伏尔加河畔的城市里逐屋争夺。','1942年11月，苏联红军包围了德军第六集团军，1943年2月德军投降。','中国教科书称之为第二次世界大战的转折点。']},
+   rhyme:o('Stalingrad: the tide turns in the East.','斯大林格勒：东线的转折点。'), mix:o('Stalingrad (Eastern Front) and El Alamein (North Africa) were both turning points in late 1942.','斯大林格勒（东线）和阿拉曼（北非）都是1942年底的转折点。') },
+ hump:{ t:1942.4, ll:[96.5,26.5], c:'#2563eb', short:o('The Hump','驼峰航线'), name:o('The Hump airlift & the Chinese Expeditionary Force','驼峰航线与中国远征军'), date:o('1942–1945','1942—1945年'),
+   facts:{en:['When Japan cut the Burma Road in 1942, US and Chinese pilots flew supplies from India to Kunming over the Himalayas — “the Hump” — about 650,000 tons by 1945 (approx.).','The Chinese Expeditionary Force (中国远征军) fought in Burma alongside British and American troops and reopened the land route in 1945.','The American volunteer “Flying Tigers” (飞虎队) and later US air units fought from Chinese bases.'],zh:['1942年日军切断滇缅公路后，中美飞行员从印度飞越喜马拉雅山向昆明运送物资——“驼峰航线”，到1945年共运送约65万吨（约数）。','中国远征军与英美军队一起在缅甸作战，1945年重新打通了陆上通道。','美国志愿航空队“飞虎队”以及后来的美国空军部队以中国为基地作战。']},
+   rhyme:o('Over the Hump to Kunming.','飞越驼峰到昆明。'), mix:o('The Hump was an air route; the Burma Road and Ledo Road were land routes.','驼峰航线是空中通道；滇缅公路和中印公路是陆上通道。') },
+ alamein:{ t:1942.82, ll:[28.95,30.83], c:'#2563eb', short:o('El Alamein','阿拉曼'), name:o('El Alamein','阿拉曼战役'), date:o('October–November 1942','1942年10—11月'),
+   facts:{en:['British and Commonwealth forces under Montgomery defeated Rommel’s German–Italian army in Egypt.','Churchill: “Before Alamein we never had a victory. After Alamein we never had a defeat.”'],zh:['蒙哥马利指挥的英联邦军队在埃及打败了隆美尔指挥的德意军队。','丘吉尔说：“阿拉曼战役之前，我们从未胜利过；阿拉曼战役之后，我们从未失败过。”']},
+   rhyme:o('Alamein: the desert turning point.','阿拉曼：沙漠中的转折点。'), mix:o('El Alamein is in Egypt, North Africa — not in Europe.','阿拉曼在北非埃及，不在欧洲。') },
+ ausch:{ t:1942.0, eu:1, ll:[19.2,50.03], c:'#4b5563', short:o('Auschwitz','奥斯维辛'), name:o('The Holocaust · Auschwitz-Birkenau','大屠杀 · 奥斯维辛—比克瑙'), date:o('1940–January 1945','1940年—1945年1月'),
+   facts:{en:['Nazi Germany built camps to murder Jews and others in an organized genocide; about 6 million Jews were killed.','About 1.1 million people were murdered at Auschwitz-Birkenau in occupied Poland, most of them Jews.','Soviet soldiers liberated Auschwitz on 27 January 1945 — today International Holocaust Remembrance Day.'],zh:['纳粹德国修建集中营，有组织地屠杀犹太人和其他人群，约600万犹太人遇害。','在被占领的波兰的奥斯维辛—比克瑙集中营，约110万人遇害，其中大多数是犹太人。','1945年1月27日苏联红军解放了奥斯维辛，这一天现在是“国际大屠杀纪念日”。']},
+   rhyme:o('27 January: never forget.','1月27日：永不忘记。'), mix:o('The Holocaust was not a side effect of fighting — it was a deliberate plan of mass murder.','大屠杀不是战争的“副作用”，而是蓄意的大规模屠杀计划。') },
+ dday:{ t:1944.43, eu:1, ll:[-0.6,49.3], c:'#2563eb', short:o('D-Day','诺曼底'), name:o('D-Day: the Normandy landings','诺曼底登陆'), date:o('6 June 1944','1944年6月6日'),
+   facts:{en:['About 156,000 American, British, Canadian and other Allied troops landed on five beaches in Normandy, France.','It opened the “second front” the Soviets had long asked for. Paris was freed in August 1944.'],zh:['约15.6万美、英、加等盟军士兵在法国诺曼底的五处海滩登陆。','这开辟了苏联期盼已久的“第二战场”。1944年8月巴黎解放。']},
+   rhyme:o('6·6·1944: the second front opens.','1944年6月6日：开辟第二战场。'), mix:o('D-Day was the largest sea landing in history, but the war in Europe lasted almost another year.','诺曼底登陆是史上规模最大的登陆作战，但欧洲战争又打了将近一年。') },
+ berlin:{ t:1945.33, eu:1, ll:[13.4,52.52], c:'#2563eb', short:o('Berlin','柏林'), name:o('Berlin falls · V-E Day','攻克柏林 · 欧洲胜利日'), date:o('April–8 May 1945','1945年4月—5月8日'),
+   facts:{en:['Soviet troops fought into Berlin; Hitler killed himself on 30 April 1945.','Germany surrendered unconditionally; 8 May 1945 is Victory in Europe (V-E) Day.'],zh:['苏联红军攻入柏林，希特勒于1945年4月30日自杀。','德国无条件投降，1945年5月8日成为欧洲胜利日。']},
+   rhyme:o('8 May 1945: V-E Day.','1945年5月8日：欧洲胜利日。'), mix:o('The war against Japan continued for three more months after V-E Day.','欧洲胜利日后，对日作战又持续了三个月。') },
+ hiro:{ t:1945.6, ll:[132.46,34.39], c:'#dc2626', short:o('Hiroshima','广岛'), name:o('Atomic bombs and the Soviet offensive','原子弹与苏联出兵'), date:o('August 1945','1945年8月'),
+   facts:{en:['The USA dropped atomic bombs on Hiroshima (6 August) and Nagasaki (9 August). Well over 100,000 people died.','On 8–9 August the USSR declared war on Japan and attacked Japanese forces in Northeast China.','China’s army and people launched a final counter-offensive. Japan announced its surrender on 15 August.'],zh:['美国在广岛（8月6日）和长崎（8月9日）投下原子弹，死亡人数超过10万。','8月8—9日苏联对日宣战，出兵中国东北进攻日军。','中国军民发起全面反攻。8月15日日本宣布无条件投降。']},
+   rhyme:o('6 August, 9 August, 15 August.','八月六、八月九、八月十五。'), mix:o('Historians still debate how much the bombs versus the Soviet attack caused Japan’s surrender.','历史学家至今仍在讨论：原子弹和苏联出兵，哪一个对日本投降影响更大。') },
+ victory:{ t:1945.67, ll:[139.75,35.35], c:'#2563eb', short:o('Surrender','日本签降'), name:o('Japan signs the surrender','日本签署投降书'), date:o('2 September 1945','1945年9月2日'),
+   facts:{en:['Japan signed the instrument of surrender aboard USS Missouri in Tokyo Bay; a Chinese representative signed for China.','On 9 September Japan’s army in China surrendered to China in Nanjing. China marks 3 September as Victory Day of the War of Resistance.','The United Nations was founded in October 1945, with China as a permanent member of the Security Council.'],zh:['日本在东京湾的美国“密苏里号”战列舰上签署投降书，中国代表在受降书上签字。','9月9日，侵华日军在南京向中国投降。中国以9月3日为抗日战争胜利纪念日。','1945年10月联合国成立，中国是安理会常任理事国。']},
+   rhyme:o('3 September: China’s Victory Day.','9月3日：中国抗战胜利纪念日。'), mix:o('The war ended in 1945 for everyone, but it started in different years in different places.','战争在1945年同时结束，但在不同地方开始的年份不同。') }
+};
+const WORDER = Object.keys(WM).sort((a, b) => WM[a].t - WM[b].t);
+const CNS = [
+ { y:1917, t:o('China joins the Allies','中国参加协约国'), b:o('About 140,000 Chinese laborers (华工) go to France to dig trenches and move supplies.','约14万华工赴法国挖战壕、运物资。') },
+ { y:1919, t:o('May Fourth Movement','五四运动'), b:o('The Paris Peace Conference gives Germany’s rights in Shandong to Japan. Students protest on 4 May.','巴黎和会把德国在山东的权益交给日本，5月4日北京学生游行抗议。') },
+ { y:1931, t:o('18 September Incident','九一八事变'), b:o('Japan seizes Northeast China — the start of China’s 14-year war.','日本侵占中国东北——中国十四年抗战的开端。') },
+ { y:1937, t:o('Nationwide resistance','全民族抗战'), b:o('After 7 July, the Communist Party and the Nationalist government form a united front against Japan.','七七事变后，国共两党形成抗日民族统一战线。') },
+ { y:1945, t:o('Victory','抗战胜利'), b:o('China, the main Eastern battlefield, wins at a cost of over 35 million soldiers and civilians killed or wounded.','中国作为世界反法西斯战争的东方主战场取得胜利，军民伤亡3500万以上。') }
+];
+const App = { m:0, sel:null, timer:null };
+const SCOL = { axis:'#374151', occ:'rgba(156,163,175,.75)', ally:'rgba(96,165,250,.55)' };
+const M = WMap.create('#mapStage', '#mapCv', { extent:[[-20,-12],[212,66]], rot:95, top:60, bottom:30, topS:96, bottomS:28,
+  inset:{ extent:[[-10,36],[46,62]], box:[.01,.53,.36,.45], boxS:[.01,.6,.62,.38], label:o('Zoom: Europe','放大图：欧洲') },
+  fill: f => { const s = status(f.name, tOf(App.m)); return s ? SCOL[s] : null; },
+  overlay: (g, V) => {
+    const t = tOf(App.m), surf = css('--surface');
+    if (!V.inset) JPOCC.forEach(z => { if (t < z.a || t >= z.b) return; const pts = z.p.map(V.xy).filter(Boolean); if (pts.length < 3) return; g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(...p) : g.moveTo(...p)); g.closePath(); g.fillStyle = SCOL.occ; g.fill(); g.setLineDash([3, 3]); g.strokeStyle = '#4b5563'; g.lineWidth = 1; g.stroke(); g.setLineDash([]); });
+    if (!V.inset && t >= 1937.6 && t < 1945.67){ const p = V.xy([117, 37.5]); if (p && !M.small) V.text(Lab.L(o('Japanese-occupied (schematic)', '日占区（示意）')), p[0] + 2, p[1] - 30, { s:10, c:'#374151' }); }
+    WORDER.forEach(k => { const w = WM[k]; if (t < w.t || !!w.eu !== !!V.inset) return; const old = t > w.t + 1.2, sel = App.sel === k; g.globalAlpha = old && !sel ? .45 : 1;
+      const xy = V.dot(w.ll, sel ? 8 : 6, w.c, surf); if (xy && (!M.small || sel) && (!old || sel)) V.text(Lab.L(w.short), xy[0] + 9, xy[1] - 8, { s:11, a:'left', c:sel ? w.c : css('--ink') }); g.globalAlpha = 1; });
+  },
+  click: (f, h) => { const k = keyAt(h); if (k) select(k); else if (f) tip(o(`${f.en}: ${statusName(status(f.name, tOf(App.m))).en}`, `${f.zh}：${statusName(status(f.name, tOf(App.m))).zh}`)); },
+  hover: (f, h) => { const k = keyAt(h); return k ? Lab.L(WM[k].name) : (f ? Lab.L(f) + ' · ' + Lab.L(statusName(status(f.name, tOf(App.m)))) : ''); }
+});
+const statusName = s => s === 'axis' ? o('Axis power','轴心国') : s === 'occ' ? o('occupied by the Axis','被轴心国占领') : s === 'ally' ? o('Allied side','同盟国一方') : o('neutral / not at war','中立或未参战');
+function keyAt(h){ if (!h) return null; const V = M.view(h), t = tOf(App.m); let best = null, bd = 15; WORDER.forEach(k => { const w = WM[k]; if (t < w.t || !!w.eu !== !!h.inset) return; const p = V.xy(w.ll); if (!p) return; const d = Math.hypot(p[0] - h.x, p[1] - h.y); if (d < bd){ bd = d; best = k; } }); return best; }
+const tip = m => Lab.$('#mapTip').textContent = Lab.L(m || o('Click a dot or a country · drag the month', '点击圆点或国家 · 拖动月份'));
+function select(k){ App.sel = k; renderInfo(); M.draw(); }
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel;
+  if (!k){ box.innerHTML = `<span class="tag">${Lab.L(o('How to read the map','怎样看地图'))}</span><h3>${Lab.L(o('Two wars that became one','两场战争汇成一场世界大战'))}</h3>
+      <ul><li>${Lab.L(o('<b>Asia:</b> Japan’s war on China began in 1937 (1931 in the Northeast).','<b>亚洲：</b>日本侵华战争1937年全面爆发（东北从1931年开始）。'))}</li><li>${Lab.L(o('<b>Europe:</b> Germany’s attack on Poland began the war in 1939.','<b>欧洲：</b>1939年德国进攻波兰，欧洲战争爆发。'))}</li><li>${Lab.L(o('<b>1941:</b> Germany attacks the USSR and Japan attacks the USA — the two wars merge.','<b>1941年：</b>德国进攻苏联，日本进攻美国——两场战争连成一体。'))}</li></ul>
+      <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(o('’37 China · ’39 Poland · ’41 USSR & Pearl Harbor · ’42–43 turning points · ’44 D-Day · ’45 victory.','三七中国，三九波兰，四一苏联珍珠港，四二四三大转折，四四诺曼底，四五胜利。'))}</div>
+      <div class="nav"><button id="startBtn">${Lab.L(o('Start at the Marco Polo Bridge ▶','从卢沟桥开始 ▶'))}</button></div>`;
+    Lab.$('#startBtn').onclick = () => { go(0); select('lugou'); }; return; }
+  const w = WM[k], i = WORDER.indexOf(k);
+  box.innerHTML = `<span class="tag">${Lab.L(w.date)}</span><h3><span class="dot" style="background:${w.c}"></span>${Lab.L(w.name)}</h3>
+    <b class="kh">${Lab.L(o('📌 KEY FACTS','📌 要点'))}</b><ul>${Lab.L(w.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(w.rhyme)}</div><div class="mix"><b>${Lab.L(o('⚠️ Don’t mix up:','⚠️ 易错点：'))}</b><span>${Lab.L(w.mix)}</span></div>
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(w.name), Lab.L(w.date), ...Lab.L(w.facts)].join(Lab.lang === 'zh' ? '。' : '. '));
+  const jump = d => { const n = WORDER[(i + d + WORDER.length) % WORDER.length]; go(Math.max(0, Math.round((WM[n].t - 1937.5) * 12))); select(n); };
+  Lab.$('#pPrev').onclick = () => jump(-1); Lab.$('#pNext').onclick = () => jump(1);
+}
+function renderYear(){
+  const t = tOf(App.m); Lab.$('#mo').value = App.m; Lab.$('#moOut').textContent = fmtT(t);
+  Lab.$('#cDays').textContent = Math.max(0, Math.round((t - 1937.515) * 365.25)).toLocaleString('en-US');
+  Lab.$('#cEur').textContent = Lab.L(t < 1939.67 ? o('not yet','尚未爆发') : t < 1945.35 ? o('at war','战争中') : o('over · 8 May 1945','结束 · 1945年5月8日'));
+  Lab.$('#cPac').textContent = Lab.L(t < 1941.93 ? o('China vs Japan','中国抗击日本') : t < 1945.66 ? o('across the Pacific','扩大到太平洋') : o('over · 2 Sept 1945','结束 · 1945年9月2日'));
+  Lab.$('#playBtn').textContent = App.timer ? '⏸' : '▶'; M.draw();
+}
+function go(m){ App.m = Math.max(0, Math.min(98, m)); renderYear(); }
+function stop(){ if (App.timer){ clearInterval(App.timer); App.timer = null; } }
+Lab.$('#mo').oninput = e => { stop(); go(+e.target.value); };
+Lab.$('#playBtn').onclick = () => { if (App.timer){ stop(); renderYear(); return; } if (App.m >= 98) App.m = 0; App.timer = setInterval(() => { if (App.m >= 98){ stop(); renderYear(); } else go(App.m + 1); }, 260); renderYear(); };
+Lab.onLang(() => { tip(); renderInfo(); renderYear(); });
+chinaStrip('#cnStrip', CNS);
+
+/* ================= Deaths chart ================= */
+const DEATHS = [ { n:o('Soviet Union','苏联'), v:26, r:'24–27' }, { n:o('China','中国'), v:17, r:'15–20' }, { n:o('Germany','德国'), v:7.5, r:'6.6–8.8' }, { n:o('Poland','波兰'), v:5.8, r:'5.6–6.0' },
+  { n:o('Japan','日本'), v:2.9, r:'2.6–3.1' }, { n:o('Yugoslavia','南斯拉夫'), v:1.0, r:'≈1' }, { n:o('France','法国'), v:.57, r:'≈0.55–0.6' }, { n:o('United Kingdom','英国'), v:.45, r:'≈0.45' }, { n:o('United States','美国'), v:.42, r:'≈0.42' } ];
+(function(){
+  const cv = Lab.$('#deathCv'), g = cv.getContext('2d'); let sel = 1, rows = [];
+  function draw(){ const r = cv.parentElement.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!r.width) return;
+    cv.width = r.width * d; cv.height = r.height * d; g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, r.width, r.height);
+    const L = r.width < 420 ? 92 : 120, W = r.width - L - 40, h = r.height / DEATHS.length;
+    rows = DEATHS.map((it, i) => { const y = i * h, w = it.v / 27 * W, on = i === sel; g.fillStyle = on ? css('--accent') : (i === 1 ? '#c0392b' : '#64748b'); g.globalAlpha = on ? 1 : .8; g.fillRect(L, y + h * .2, Math.max(2, w), h * .6); g.globalAlpha = 1;
+      g.fillStyle = css('--ink'); g.font = `${on ? 800 : 700} 12.5px Nunito, "Microsoft YaHei", sans-serif`; g.textAlign = 'right'; g.textBaseline = 'middle'; g.fillText(Lab.L(it.n), L - 6, y + h / 2);
+      g.textAlign = 'left'; g.fillText(it.v + (Lab.lang === 'zh' ? '' : ' M'), L + Math.max(2, w) + 5, y + h / 2); return { i, y0:y, y1:y + h }; });
+    const it = DEATHS[sel]; Lab.$('#deathRead').innerHTML = `<b>${Lab.L(it.n)}</b> · ${Lab.L(o(`about ${it.r} million deaths (estimates vary)`, `约 ${it.r} 百万人死亡（各方估计不同）`))}`; }
+  cv.addEventListener('click', e => { const y = e.clientY - cv.getBoundingClientRect().top, rr = rows.find(q => y >= q.y0 && y < q.y1); if (rr){ sel = rr.i; draw(); } });
+  new ResizeObserver(() => requestAnimationFrame(draw)).observe(cv.parentElement);
+  new MutationObserver(() => setTimeout(draw, 60)).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme'] });
+  Lab.onLang(draw);
+})();
+
+/* ================= Quiz & sort ================= */
+const QUIZ = [
+ {q:o('What event sparked World War I in June 1914?','1914年6月，什么事件成为第一次世界大战的导火线？'), options:[o('The assassination of Archduke Franz Ferdinand in Sarajevo','萨拉热窝事件：斐迪南大公遇刺'),o('Germany’s invasion of Poland','德国入侵波兰'),o('The attack on Pearl Harbor','偷袭珍珠港'),o('The sinking of the Titanic','泰坦尼克号沉没')], answer:0},
+ {q:o('Which group made up the Triple Entente?','协约国由哪几个国家组成？'), options:[o('Britain, France, Russia','英国、法国、俄国'),o('Germany, Austria-Hungary, Italy','德国、奥匈帝国、意大利'),o('USA, China, Japan','美国、中国、日本'),o('Germany, Italy, Japan','德国、意大利、日本')], answer:0},
+ {q:o('Why did Britain declare war on Germany on 4 August 1914?','1914年8月4日英国为什么对德宣战？'), options:[o('Germany invaded neutral Belgium','德国入侵了中立国比利时'),o('Germany bombed London','德国轰炸了伦敦'),o('Germany attacked the USA','德国进攻美国'),o('Germany seized Qingdao','德国夺取了青岛')], answer:0},
+ {q:o('Why did the Western Front barely move for years?','西线为什么多年几乎没有移动？'), options:[o('Trenches, barbed wire and machine guns made defense stronger than attack','战壕、铁丝网和机枪使防守远强于进攻'),o('Neither side had soldiers','双方都没有士兵'),o('It was always winter','那里总是冬天'),o('A peace treaty forbade attacks','和约禁止进攻')], answer:0},
+ {q:o('At the 1919 Paris Peace Conference, Germany’s rights in Shandong were given to…','1919年巴黎和会把德国在山东的权益交给了'), options:[o('Japan — which sparked the May Fourth Movement','日本——引发了五四运动'),o('China','中国'),o('Britain','英国'),o('the USA','美国')], answer:0},
+ {q:o('For China, the full-scale War of Resistance against Japan began on…','中国的全民族抗战开始于'), options:[o('7 July 1937 (Marco Polo Bridge)','1937年7月7日（卢沟桥事变）'),o('1 September 1939','1939年9月1日'),o('7 December 1941','1941年12月7日'),o('6 June 1944','1944年6月6日')], answer:0},
+ {q:o('Map reading: which battle on the Volga River turned the tide on the Eastern Front?','读地图：伏尔加河畔的哪一场战役扭转了东线战局？'), options:[o('Stalingrad','斯大林格勒战役'),o('Midway','中途岛海战'),o('Taierzhuang','台儿庄战役'),o('Dunkirk','敦刻尔克')], answer:0},
+ {q:o('The Battle of Midway (1942) was a turning point because…','中途岛海战（1942年）是转折点，因为'), options:[o('Japan lost four aircraft carriers and went on the defensive','日本损失四艘航母，从此转入防御'),o('it ended the war in Europe','它结束了欧洲战争'),o('China captured Tokyo','中国攻占了东京'),o('Germany surrendered there','德国在那里投降')], answer:0},
+ {q:o('What was the Holocaust?','什么是大屠杀（Holocaust）？'), options:[o('Nazi Germany’s organized murder of about 6 million Jews and millions of others','纳粹德国有组织地杀害约600万犹太人和数百万其他人'),o('A WWI trench battle','一战中的一场堑壕战'),o('The bombing of London','伦敦大轰炸'),o('A peace conference','一次和平会议')], answer:0},
+ {q:o('The 1942 Declaration by United Nations was led by the “Big Four”. Which country was NOT one of them?','1942年《联合国家宣言》由“四大国”领衔。下列哪个国家不是“四大国”之一？'), options:[o('Japan','日本'),o('China','中国'),o('USSR','苏联'),o('USA','美国')], answer:0, explain:o('The Big Four were the USA, Britain, the USSR and China.','四大国是美国、英国、苏联和中国。')},
+ {q:o('Chart reading: which two countries suffered the most deaths in World War II?','读图表：二战中死亡人数最多的两个国家是'), options:[o('The Soviet Union and China','苏联和中国'),o('The USA and Britain','美国和英国'),o('France and Japan','法国和日本'),o('Germany and Poland','德国和波兰')], answer:0},
+ {q:o('What did D-Day (6 June 1944) achieve?','诺曼底登陆（1944年6月6日）的意义是'), options:[o('It opened a second front in Western Europe','开辟了欧洲第二战场'),o('It ended the war in the Pacific','结束了太平洋战争'),o('It began World War II','开始了第二次世界大战'),o('It freed Nanjing','解放了南京')], answer:0}
+];
+Lab.quiz(Lab.$('#quiz'), QUIZ, { count:12 });
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'a',en:'World War I (1914–1918)',zh:'第一次世界大战（1914—1918年）'},{id:'b',en:'World War II (1937/1939–1945)',zh:'第二次世界大战（1937/1939—1945年）'}],
+  items:[{en:'Trench warfare on the Western Front',zh:'西线堑壕战',bin:'a'},{en:'Sarajevo assassination',zh:'萨拉热窝事件',bin:'a'},{en:'Chinese Labour Corps in France',zh:'赴法华工',bin:'a'},{en:'The first tanks',zh:'第一批坦克',bin:'a'},{en:'Treaty of Versailles',zh:'《凡尔赛条约》',bin:'a'},{en:'Battle of the Somme',zh:'索姆河战役',bin:'a'},
+    {en:'Battle of Stalingrad',zh:'斯大林格勒战役',bin:'b'},{en:'Battle of Taierzhuang',zh:'台儿庄战役',bin:'b'},{en:'D-Day',zh:'诺曼底登陆',bin:'b'},{en:'The Hump airlift',zh:'驼峰航线',bin:'b'},{en:'The Holocaust',zh:'大屠杀',bin:'b'},{en:'Atomic bombs',zh:'原子弹',bin:'b'}]
+});
+
+/* ================= Real media & links ================= */
+const PHOTOS = [
+ { src:'https://upload.wikimedia.org/wikipedia/commons/3/38/Archduke_Franz_Ferdinand_in_Sarajevo%2C_June_1914_Q91848.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Archduke Franz Ferdinand, heir to the Austro-Hungarian throne, in Sarajevo in June 1914 (Imperial War Museums).', zh:'1914年6月，奥匈帝国皇储斐迪南大公在萨拉热窝（英国帝国战争博物馆藏）。', kind:HP, credit:'Unknown author', license:'Public domain', page:CP + 'Archduke_Franz_Ferdinand_in_Sarajevo,_June_1914_Q91848.jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fa/Cheshire_Regiment_trench_Somme_1916.jpg/960px-Cheshire_Regiment_trench_Somme_1916.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'British soldiers of the Cheshire Regiment in a captured German trench at the Somme, July 1916.', zh:'1916年7月，索姆河战役中，英军柴郡团士兵在一条占领的德军战壕里。', kind:HP, credit:'John Warwick Brooke', license:'Public domain', page:CP + 'Cheshire_Regiment_trench_Somme_1916.jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f6/British_Mark_I_male_tank_Somme_25_September_1916.jpg/960px-British_Mark_I_male_tank_Somme_25_September_1916.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A British Mark I tank at the Somme, 25 September 1916 — tanks were brand new that year.', zh:'1916年9月25日，索姆河战场上的英国马克I型坦克——坦克在这一年刚刚问世。', kind:HP, credit:'Ernest Brooks', license:'Public domain', page:CP + 'British_Mark_I_male_tank_Somme_25_September_1916.jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8d/The_Chinese_Labour_Corps_on_the_Western_Front_1916-1918_Q8482.jpg/960px-The_Chinese_Labour_Corps_on_the_Western_Front_1916-1918_Q8482.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Workers of the Chinese Labour Corps on the Western Front celebrating, 1916–1918 (Imperial War Museums).', zh:'1916—1918年，西线的华工在庆祝节日（英国帝国战争博物馆藏）。', kind:HP, credit:'David McLellan', license:'Public domain', page:CP + 'The_Chinese_Labour_Corps_on_the_Western_Front_1916-1918_Q8482.jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fe/William_Orpen_-_The_Signing_of_Peace_in_the_Hall_of_Mirrors%2C_Versailles.jpg/960px-William_Orpen_-_The_Signing_of_Peace_in_the_Hall_of_Mirrors%2C_Versailles.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'“The Signing of Peace in the Hall of Mirrors, Versailles, 28 June 1919” by William Orpen.', zh:'威廉·奥彭的画《1919年6月28日在凡尔赛宫镜厅签署和约》。', kind:o('Painting','ç»ç»'), credit:'William Orpen', license:'Public domain', page:CP + 'William_Orpen_-_The_Signing_of_Peace_in_the_Hall_of_Mirrors,_Versailles.jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f9/Taierzhuang.jpg/960px-Taierzhuang.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Chinese soldiers in house-to-house fighting during the Battle of Taierzhuang, 1938.', zh:'1938年台儿庄战役中，中国士兵进行逐屋巷战。', kind:HP, credit:'Unknown author', license:'Public domain', page:CP + 'Taierzhuang.jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/20/Flying_Tiger_P-40_Kunming.jpg/960px-Flying_Tiger_P-40_Kunming.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Ground crew service a P-40 fighter of the American Volunteer Group (“Flying Tigers”) in Kunming, China.', zh:'地勤人员在中国昆明维护美国志愿航空队（“飞虎队”）的P-40战斗机。', kind:HP, credit:'USAF', license:'Public domain', page:CP + 'Flying_Tiger_P-40_Kunming.jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2b/Soldiers_with_Stalingrad_villages.jpg/960px-Soldiers_with_Stalingrad_villages.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Soviet infantry marching toward Stalingrad on the Southern Front, 1942 (photo by B. N. Yaroslavtsev, Moscow Main Archive).', zh:'1942年，苏联步兵在南方面军向斯大林格勒行进（雅罗斯拉夫采夫摄，莫斯科总档案馆藏）。', kind:HP, credit:'Moscow Main Archive (Главархив Москвы)', license:'CC BY 4.0', page:CP + 'Soldiers_with_Stalingrad_villages.jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fe/Gatehouse_Auschwitz_II_%28Birkenau%29%2C_Poland.jpg/960px-Gatehouse_Auschwitz_II_%28Birkenau%29%2C_Poland.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The gatehouse of Auschwitz II-Birkenau in Poland, today a memorial and museum.', zh:'波兰奥斯维辛第二集中营（比克瑙）的大门，今天是纪念馆和博物馆。', kind:o('Photo','ç§ç'), credit:'Diego Delso', license:'CC BY-SA 3.0', page:CP + 'Gatehouse_Auschwitz_II_(Birkenau),_Poland.jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/94/Mamoru_Shigemitsu_signs_the_Instrument_of_Surrender%2C_officially_ending_the_Second_World_War.jpg/960px-Mamoru_Shigemitsu_signs_the_Instrument_of_Surrender%2C_officially_ending_the_Second_World_War.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'2 September 1945: Japan’s foreign minister Mamoru Shigemitsu signs the Instrument of Surrender aboard USS Missouri.', zh:'1945年9月2日：日本外相重光葵在“密苏里号”战列舰上签署投降书。', kind:HP, credit:'Army Signal Corps photographer LT. Stephen E. Korpanty; restored by Adam Cuerden', license:'Public domain', page:CP + 'Mamoru_Shigemitsu_signs_the_Instrument_of_Surrender,_officially_ending_the_Second_World_War.jpg' },
+ YT('9E7xYLv8N2E', 'Life in the trenches of World War I, explained by the Imperial War Museums.', '一战堑壕里的生活——英国帝国战争博物馆讲解（英文）。', 'Imperial War Museums'),
+ YT('kXPtyuA7duw', 'What was the turning point of WW2? — Imperial War Museums.', '二战的转折点是什么？——英国帝国战争博物馆（英文）。', 'Imperial War Museums'),
+ YT('e1En77-0ig8', 'The attack on Pearl Harbor — “WWII in 2” from The National WWII Museum.', '偷袭珍珠港——美国国家二战博物馆“两分钟看二战”（英文）。', 'The National WWII Museum')
+];
+LabPhotos.render('#gallery', PHOTOS, { title:o('See the real thing','看看真实的样子'), sub:o('Photographs taken during the wars and paintings made at the time, from Wikimedia Commons, plus three museum videos. Click to enlarge; videos open on YouTube.','来自维基共享资源的战时照片和当时的绘画，以及三段博物馆视频。点击可放大；视频在 YouTube 打开。') });
+renderLinks('#links', [
+ { u:'https://www.iwm.org.uk/history/the-causes-of-the-first-world-war', t:o('Outbreak of the First World War (IWM)','第一次世界大战的爆发（帝国战争博物馆）'), d:o('How alliances, empires and one assassination led to war.','同盟、帝国和一次刺杀如何引发战争（英文）。') },
+ { u:'https://www.iwm.org.uk/learning/resources/fighting-in-the-trenches', t:o('Fighting in the trenches (IWM Learning)','堑壕里的战斗（帝国战争博物馆学习资源）'), d:o('Real objects and photos from trench life, made for students.','面向学生的堑壕生活实物和照片（英文）。') },
+ { u:'https://www.nationalww2museum.org/students-teachers/student-resources/research-starters/research-starters-worldwide-deaths-world-war', t:o('Worldwide deaths in WWII (National WWII Museum)','二战全球死亡人数（美国国家二战博物馆）'), d:o('Research Starter with numbers by country, including China.','分国家的数据（含中国）研究入门资料（英文）。') },
+ { u:'https://encyclopedia.ushmm.org/', t:o('Holocaust Encyclopedia (US Holocaust Memorial Museum)','大屠杀百科（美国大屠杀纪念馆）'), d:o('Careful, age-appropriate articles about the Holocaust.','严谨、适合学生阅读的大屠杀文章（英文）。') },
+ { u:'https://www.19371213.com.cn/en/', t:o('Memorial Hall of the Victims in Nanjing Massacre','侵华日军南京大屠杀遇难同胞纪念馆'), d:o('The official memorial museum in Nanjing (English site).','南京的官方纪念馆（英文网站）。') }
+]);
+</script>
+</body>
+</html>

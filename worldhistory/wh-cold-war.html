@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Cold War & Independence Movements</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/photos.js"></script>
+<script src="../shared/chinamap.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-array@3.2.4/dist/d3-array.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-geo@3.1.0/dist/d3-geo.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<style>
+.mission-line{font-weight:800;color:var(--ink);margin-top:10px}
+.unit{display:inline-block;font-size:13px;font-weight:800;padding:4px 10px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2);margin-top:8px}
+.stage canvas.map{touch-action:pan-y;cursor:pointer}
+.info .kh{font-size:13px;letter-spacing:.06em;color:var(--brand);margin-bottom:-6px}
+.info .date{font-family:Fredoka;font-weight:700;font-size:19px;color:var(--brand);margin-top:-8px}
+.counters.c4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.counters.c3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.dot-s{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.ranks{display:flex;flex-wrap:wrap;gap:6px}
+.ranks span{font-size:13px;font-weight:800;padding:4px 10px;border-radius:999px;background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line)}
+.ranks span.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.gm{padding:22px;display:flex;flex-direction:column;gap:14px}
+.bar{height:10px;border-radius:999px;background:var(--surface-2);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--brand);border-radius:999px;transition:width .3s}
+.scard{border:1px solid var(--line);border-radius:16px;padding:16px;background:var(--surface-2);display:flex;flex-direction:column;gap:10px}
+.scard .when{font-family:Fredoka;font-weight:700;color:var(--brand);font-size:18px}
+.scard h3{font-size:21px;margin:0}
+.choices{display:grid;gap:10px}
+.choices button{text-align:left;border:2px solid var(--line);background:var(--surface);color:var(--ink);border-radius:14px;padding:12px 14px;font-weight:700}
+.choices button:hover:not(:disabled){border-color:var(--brand)}
+.choices button.best{border-color:var(--good);background:color-mix(in srgb,var(--good) 12%,var(--surface))}
+.choices button.meh{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 9%,var(--surface))}
+.fb{border-radius:14px;padding:12px 14px;font-size:15.5px}
+.fb.good{background:color-mix(in srgb,var(--good) 12%,var(--surface));border:1px solid var(--good)}
+.fb.bad{background:color-mix(in srgb,var(--bad) 10%,var(--surface));border:1px solid var(--bad)}
+.stars{font-size:24px;letter-spacing:3px;color:var(--warn)}
+.two{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:18px}
+.two>.card{padding:20px;display:flex;flex-direction:column;gap:12px}
+.chart{position:relative;height:300px}
+.chart canvas{position:absolute;inset:0;width:100%;height:100%;cursor:pointer}
+.src{font-size:12.5px;color:var(--ink-2);margin:0}
+.readout{background:var(--surface-2);border-radius:14px;padding:12px 14px;min-height:60px;font-size:15.5px}
+.readout b{font-family:Fredoka;color:var(--brand);font-size:19px}
+.cnstrip{margin-top:18px;padding:16px 18px;border-left:6px solid #c0392b}
+.cnstrip-h{font-weight:800;letter-spacing:.04em;font-size:13px;text-transform:uppercase;color:#c0392b;margin-bottom:10px}
+.cnstrip-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.cnc{background:var(--surface-2);border-radius:14px;padding:12px 14px}
+.cnc b{font-family:Fredoka;color:#c0392b;font-size:18px}
+.cnc h4{margin:2px 0 4px;font-size:16px}
+.cnc p{margin:0;font-size:14.5px;color:var(--ink-2)}
+.chain{display:flex;flex-direction:column;gap:8px}
+.chain .slot{border:2px dashed var(--line);border-radius:14px;padding:10px 12px;min-height:46px;font-weight:700;display:flex;align-items:center;gap:8px;background:var(--surface)}
+.chain .slot.ok{border-style:solid;border-color:var(--good);background:color-mix(in srgb,var(--good) 10%,var(--surface))}
+.chain .arrow{text-align:center;color:var(--ink-2);font-weight:800;line-height:1}
+.tiles{display:flex;flex-wrap:wrap;gap:8px}
+.tiles button{border:2px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:12px;padding:8px 11px;font-weight:700;font-size:14.5px}
+.tiles button.sel{border-color:var(--brand);box-shadow:0 0 0 2px color-mix(in srgb,var(--brand) 30%,transparent)}
+.tiles button.bad{border-color:var(--bad);animation:labshake .35s}
+.tiles button:disabled{opacity:.35}
+@media (max-width:860px){.two{grid-template-columns:1fr}}
+@media (max-width:560px){.counters.c4,.counters.c3{grid-template-columns:1fr 1fr}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .cnstrip-h,:root:not([data-theme="light"]) .cnc b{color:#ff8a7a}}
+:root[data-theme="dark"] .cnstrip-h,:root[data-theme="dark"] .cnc b{color:#ff8a7a}
+.explorer>.stage{align-self:start;height:600px;min-height:0}
+@media (max-width:860px){.explorer>.stage{height:480px}}
+
+.legend2{display:flex;flex-wrap:wrap;gap:10px;font-size:13px;font-weight:700;color:var(--ink-2)}
+.legend2 i{display:inline-block;width:14px;height:14px;border-radius:4px;margin-right:5px;vertical-align:-2px}
+.berlin{position:relative;aspect-ratio:16/11;width:100%;border-radius:14px;overflow:hidden;background:linear-gradient(180deg,var(--stage-1),var(--stage-2))}
+.berlin svg{position:absolute;inset:0;width:100%;height:100%}
+.berlin text{font:800 12px Nunito,"Microsoft YaHei",sans-serif;fill:var(--ink);paint-order:stroke;stroke:var(--surface);stroke-width:3px}
+.defcon{display:flex;gap:6px}
+.defcon span{flex:1;text-align:center;font-weight:800;font-size:13px;padding:6px 0;border-radius:10px;background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line)}
+.defcon span.on{color:#fff;border-color:transparent}
+.tl{position:relative;height:96px;margin:6px 0 4px}
+.tl canvas{position:absolute;inset:0;width:100%;height:100%}
+.flagbtns{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.flagbtns button{border:2px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:10px 6px;font-weight:800}
+.flagbtns button:hover:not(:disabled){border-color:var(--brand)}
+@media (max-width:560px){.flagbtns{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body data-subject="worldhistory" data-topic="wh-cold-war">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="世界历史 · 佐治亚州标准 SS6H3、SS7H1、SS7H3 · 统编版九年级下册">World History · Georgia GSE SS6H3, SS7H1, SS7H3 · China: Grade 9 World History</span>
+  <h1 data-zh-html="冷战与民族独立：<em>两个超级大国，一百个新国家</em>">The Cold War &amp; Independence: <em>two superpowers, a hundred new nations</em></h1>
+  <p class="lead" data-zh="1945年，联合国只有51个会员国；到1991年，增加到166个——一百多个国家在亚洲和非洲摆脱殖民统治获得独立。同一时期，美国和苏联手握几万枚核弹头对峙了四十多年，却始终没有直接开战。这场“冷”战为什么没有变“热”？">In 1945 the United Nations had 51 members; by 1991 it had 166 — over a hundred nations in Asia and Africa won independence from colonial rule. At the same time the USA and the USSR faced each other with tens of thousands of nuclear warheads for more than 40 years, yet never fought each other directly. Why did this “cold” war never turn hot?</p>
+  <p class="mission-line" data-zh="🎯 你的任务：拖动年份，看北约、华约和新独立国家在地图上出现；在“危机指挥室”里化解柏林、朝鲜、古巴等危机而不引发核战争；猜一猜太空竞赛里每个“第一”是谁的；再看看柏林墙的建起与倒塌。">🎯 Your mission: drag the years and watch NATO, the Warsaw Pact and new nations appear on the map; in the Crisis Room, handle Berlin, Korea, Cuba and more without starting a nuclear war; guess who won each “first” of the space race; and watch the Berlin Wall rise and fall.</p>
+  <span class="unit" data-zh="📘 统编版《世界历史》九年级下册 第五单元“二战后的世界变化”（冷战、亚非拉国家的新发展）、第六单元“冷战后的世界格局”">📘 China’s textbook: World History Grade 9 Vol. 2, Unit 5 “The world after WWII” (the Cold War; new nations in Asia, Africa and Latin America) &amp; Unit 6 (the post-Cold War world)</span>
+</header>
+
+<section class="wrap" id="map" data-nav="Cold War map" data-nav-zh="冷战地图">
+  <div class="sec-head">
+    <h2 data-zh="互动地图：1945—1991年">Interactive map: 1945–1991</h2>
+    <p data-zh="“阵营”图层：蓝色是北约，红色是华约，浅红是其他社会主义国家，黑色虚线是“铁幕”。“新国家”图层：绿色国家在当年以前已经获得独立。点击圆点了解大事件。">“Blocs” layer: blue = NATO, red = Warsaw Pact, light red = other communist states, dashed black line = the “Iron Curtain”. “New nations” layer: green countries have won independence by that year. Click a dot for the big events.</p>
+  </div>
+  <div style="margin-bottom:12px"><div class="timebar"><button id="playBtn" aria-label="Play">▶</button><input id="yr" type="range" min="1945" max="1991" step="1" value="1945" aria-label="Year"><output id="yrOut">1945</output></div></div>
+  <div class="explorer">
+    <div class="stage card" id="mapStage">
+      <canvas id="mapCv" class="map"></canvas>
+      <div class="toolbar">
+        <div class="seg" id="layerSeg"><button class="on" data-k="bloc" data-zh="🧱 阵营">🧱 Blocs</button><button data-k="indep" data-zh="🌍 新国家">🌍 New nations</button></div>
+      </div>
+      <div class="bottombar"><div class="tip" id="mapTip"></div></div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="counters c4" style="margin-top:12px">
+    <div class="counter"><b id="cNato">0</b><span data-zh="北约成员国">NATO members</span></div>
+    <div class="counter"><b id="cWp">0</b><span data-zh="华约成员国">Warsaw Pact members</span></div>
+    <div class="counter"><b id="cUn">51</b><span data-zh="联合国会员国">UN member states</span></div>
+    <div class="counter"><b id="cNuke">2</b><span data-zh="世界核弹头（约数）">nuclear warheads in the world (approx.)</span></div>
+  </div>
+  <div class="two" style="margin-top:14px">
+    <div class="card">
+      <h3 data-zh="📊 数据：联合国会员国数量">📊 Data: number of UN member states</h3>
+      <div class="chart" style="height:230px"><canvas id="unCv"></canvas></div>
+      <p class="src" data-zh="来源：联合国“会员国增长”统计（1945—1991年）。1960年一年就有17个非洲国家独立并加入联合国，被称为“非洲独立年”。点击柱子查看。">Source: United Nations, “Growth in UN membership” (1945–1991). In 1960 alone 17 African countries became independent and joined — the “Year of Africa”. Click a bar.</p>
+      <div class="readout" id="unRead"></div>
+    </div>
+    <div class="card cnstrip" id="cnStrip" style="margin-top:0"></div>
+  </div>
+</section>
+
+<section class="wrap" id="crisis" data-nav="Crisis room" data-nav-zh="危机指挥室">
+  <div class="sec-head">
+    <h2 data-zh="任务：危机指挥室（1948—1989年）">Mission: the Crisis Room (1948–1989)</h2>
+    <p data-zh="你是顾问。每张卡片是一场真实的危机。目标：守住自己的利益，同时别让紧张度（DEFCON）升到1——那意味着核战争。每次选择后看看真实历史。">You are an adviser. Each card is a real crisis. Goal: protect your side’s interests without letting tension (DEFCON) reach 1 — that would mean nuclear war. After each choice, see what really happened.</p>
+  </div>
+  <div class="gm card">
+    <div class="counters c4">
+      <div class="counter"><b id="gScore">0</b><span data-zh="总分">total score</span></div>
+      <div class="counter"><b id="gRun">0/80</b><span data-zh="本轮得分">this round</span></div>
+      <div class="counter"><b id="gStars" class="stars">☆☆☆</b><span data-zh="本轮星级">round stars</span></div>
+      <div class="counter"><b id="gDone">0/8</b><span data-zh="进度">progress</span></div>
+    </div>
+    <div class="ranks" id="gRanks"></div>
+    <div><b style="font-size:13px;color:var(--ink-2)" data-zh="紧张度（DEFCON：5最平静，1是核战争）">Tension (DEFCON: 5 = calm, 1 = nuclear war)</b><div class="defcon" id="defcon"></div></div>
+    <div id="gBox" aria-live="polite"></div>
+  </div>
+</section>
+
+<section class="wrap" id="space" data-nav="Space race & Berlin" data-nav-zh="太空竞赛与柏林">
+  <div class="sec-head">
+    <h2 data-zh="太空竞赛：谁先做到？">The space race: who did it first?</h2>
+    <p data-zh="每张卡片是一个太空“第一”。猜一猜是谁完成的，时间轴会记录下来。">Each card is a space “first”. Guess who did it — the timeline keeps score.</p>
+  </div>
+  <div class="two">
+    <div class="card">
+      <div class="counters c3"><div class="counter"><b id="sUS">0</b><span data-zh="美国的“第一”">US firsts</span></div><div class="counter"><b id="sSU">0</b><span data-zh="苏联的“第一”">Soviet firsts</span></div><div class="counter"><b id="sOK">0/14</b><span data-zh="猜对">guessed right</span></div></div>
+      <div class="tl"><canvas id="tlCv"></canvas></div>
+      <div id="sBox" aria-live="polite"></div>
+    </div>
+    <div class="card">
+      <h3 data-zh="🧱 分裂的柏林">🧱 Divided Berlin</h3>
+      <div class="seg" id="berSeg"><button class="on" data-k="48" data-zh="1948 空运">1948 airlift</button><button data-k="61" data-zh="1961 建墙">1961 wall</button><button data-k="89" data-zh="1989 墙倒">1989 opening</button></div>
+      <div class="berlin"><svg id="berSvg" viewBox="0 0 640 440" role="img" aria-label="Divided Berlin"></svg></div>
+      <div class="readout" id="berRead" aria-live="polite"></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real media" data-nav-zh="真实影像">
+  <div id="gallery"></div>
+  <div class="sec-head" style="margin-top:26px"><h2 data-zh="走得更远：博物馆和档案">Go further: museums and archives</h2></div>
+  <div class="linkgrid" id="links"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 测验（12题）">🧠 Quiz (12 questions)</h3><p class="sub" data-zh="选出正确答案，看看解析。有的题要看地图或图表。">Pick the best answer and read the explanation. Some questions use the map or a chart.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分一分：哪一方？">🗂️ Sort it: which side?</h3><p class="sub" data-zh="把每一项拖到（或先点再点方框）它所属的一方。">Drag each item (or tap it, then tap a box) to its side.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="佐治亚州标准（GSE 2016）：六年级 SS6H3 b、c（冷战的起源与超级大国崛起；苏联解体如何结束冷战并带来德国统一）；七年级 SS7H1（非洲：民族主义与肯尼亚、尼日利亚、南非的独立，泛非运动）、SS7H3（南亚和东亚：印度和越南的独立、甘地的非暴力、毛泽东对中国的影响、朝鲜战争、美国卷入越南战争）。目录中写作 SS6H / SS7H。">Georgia Standards of Excellence (2016): Grade 6 SS6H3 b–c (origins of the Cold War and the rise of superpowers; how the collapse of the Soviet Union ended the Cold War and led to German reunification); Grade 7 SS7H1 (Africa: nationalism and independence in Kenya, Nigeria and South Africa; Pan-Africanism) and SS7H3 (Southern and Eastern Asia: independence of India and Vietnam, Gandhi’s non-violence, Mao Zedong’s impact on China, the Korean War, US involvement in Vietnam). The catalog lists SS6H / SS7H.</p>
+    <p data-zh="中国课程：统编版《世界历史》九年级下册第五单元“冷战”（杜鲁门主义、马歇尔计划、北约和华约、两极格局）、“亚非拉国家的新发展”（民族独立运动，1960年“非洲独立年”）；第六单元“冷战后的世界格局”（东欧剧变、苏联解体、两极格局结束）。“同一时期的中国”对应《中国历史》八年级下册：中华人民共和国成立、抗美援朝、万隆会议上周恩来提出“求同存异”、“两弹一星”、恢复在联合国的合法席位（1971年）、尼克松访华（1972年）。课次以所用版次为准。">China curriculum: unified-edition World History Grade 9 Vol. 2, Unit 5 — the Cold War (Truman Doctrine, Marshall Plan, NATO and the Warsaw Pact, the two-pole world) and new nations in Asia, Africa and Latin America (1960, “Year of Africa”); Unit 6 — the post-Cold War world (changes in Eastern Europe, the USSR’s collapse, the end of the two-pole world). The China strip matches Chinese History Grade 8 Vol. 2: founding of the PRC, the Korean War (抗美援朝, “resist America, aid Korea”), Zhou Enlai’s “seek common ground while reserving differences” at Bandung, “two bombs and one satellite”, restoration of China’s UN seat (1971) and Nixon’s visit (1972). Lesson numbers vary by printing.</p>
+    <p data-zh="说明：地图为示意图（现代国界）；东德用简化的多边形表示。独立年份是国际上通行的独立日期，部分国家宣布独立与获得承认的年份不同（如印度尼西亚1945/1949年、越南1945/1954年）。核弹头数量取美国科学家联合会等机构估计的约数。危机卡片中的“最佳选择”依据历史上实际化解危机的做法评分，并给出不同视角；页面对美苏双方和各国立场力求客观。">Notes: the map is schematic (modern borders); East Germany is a simplified polygon. Independence years are the internationally used dates; some countries declared independence earlier than it was recognized (e.g., Indonesia 1945/1949, Vietnam 1945/1954). Warhead totals are approximate (Federation of American Scientists estimates). Crisis-card scoring follows how each crisis was actually defused, and the feedback gives several viewpoints; the page aims to present both superpowers and other nations fairly.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+/* ===== WMap: canvas world map (world-atlas@2.0.2 countries-110m + d3-geo); China drawn from shared/chinamap.js (standard map incl. 台湾省、南海诸岛). Inlined in each worldhistory lesson. =====
+   M = WMap.create(stageSel, canvasSel, { extent:[[lonW,latS],[lonE,latN]], top, bottom, fill:f => colour|null, overlay:(g,M)=>{}, click:(f,h)=>{}, hover:(f,h)=>text }); M.draw(). Schematic map, modern borders. */
+const WNAMES = {
+  asia:'Kazakhstan:哈萨克斯坦|Uzbekistan:乌兹别克斯坦|Indonesia:印度尼西亚|Timor-Leste:东帝汶|Israel:以色列|Lebanon:黎巴嫩|Palestine:巴勒斯坦|Jordan:约旦|United Arab Emirates:阿联酋|Qatar:卡塔尔|Kuwait:科威特|Iraq:伊拉克|Oman:阿曼|Cambodia:柬埔寨|Thailand:泰国|Laos:老挝|Myanmar:缅甸|Vietnam:越南|North Korea:朝鲜|South Korea:韩国|Mongolia:蒙古|India:印度|Bangladesh:孟加拉国|Bhutan:不丹|Nepal:尼泊尔|Pakistan:巴基斯坦|Afghanistan:阿富汗|Tajikistan:塔吉克斯坦|Kyrgyzstan:吉尔吉斯斯坦|Turkmenistan:土库曼斯坦|Iran:伊朗|Syria:叙利亚|Armenia:亚美尼亚|Sri Lanka:斯里兰卡|China:中国|Taiwan:中国台湾省|Azerbaijan:阿塞拜疆|Georgia:格鲁吉亚|Philippines:菲律宾|Malaysia:马来西亚|Brunei:文莱|Japan:日本|Yemen:也门|Saudi Arabia:沙特阿拉伯|N. Cyprus:北塞浦路斯|Cyprus:塞浦路斯|Turkey:土耳其',
+  africa:'Tanzania:坦桑尼亚|W. Sahara:西撒哈拉|Dem. Rep. Congo:刚果(金)|Somalia:索马里|Kenya:肯尼亚|Sudan:苏丹|Chad:乍得|South Africa:南非|Lesotho:莱索托|Zimbabwe:津巴布韦|Botswana:博茨瓦纳|Namibia:纳米比亚|Senegal:塞内加尔|Mali:马里|Mauritania:毛里塔尼亚|Benin:贝宁|Niger:尼日尔|Nigeria:尼日利亚|Cameroon:喀麦隆|Togo:多哥|Ghana:加纳|Côte d\'Ivoire:科特迪瓦|Guinea:几内亚|Guinea-Bissau:几内亚比绍|Liberia:利比里亚|Sierra Leone:塞拉利昂|Burkina Faso:布基纳法索|Central African Rep.:中非|Congo:刚果(布)|Gabon:加蓬|Eq. Guinea:赤道几内亚|Zambia:赞比亚|Malawi:马拉维|Mozambique:莫桑比克|eSwatini:斯威士兰|Angola:安哥拉|Burundi:布隆迪|Madagascar:马达加斯加|Gambia:冈比亚|Tunisia:突尼斯|Algeria:阿尔及利亚|Eritrea:厄立特里亚|Morocco:摩洛哥|Egypt:埃及|Libya:利比亚|Ethiopia:埃塞俄比亚|Djibouti:吉布提|Somaliland:索马里兰地区|Uganda:乌干达|Rwanda:卢旺达|S. Sudan:南苏丹',
+  europe:'Russia:俄罗斯|Norway:挪威|France:法国|Sweden:瑞典|Belarus:白俄罗斯|Ukraine:乌克兰|Poland:波兰|Austria:奥地利|Hungary:匈牙利|Moldova:摩尔多瓦|Romania:罗马尼亚|Lithuania:立陶宛|Latvia:拉脱维亚|Estonia:爱沙尼亚|Germany:德国|Bulgaria:保加利亚|Greece:希腊|Albania:阿尔巴尼亚|Croatia:克罗地亚|Switzerland:瑞士|Luxembourg:卢森堡|Belgium:比利时|Netherlands:荷兰|Portugal:葡萄牙|Spain:西班牙|Ireland:爱尔兰|Italy:意大利|Denmark:丹麦|United Kingdom:英国|Iceland:冰岛|Slovenia:斯洛文尼亚|Finland:芬兰|Slovakia:斯洛伐克|Czechia:捷克|Bosnia and Herz.:波黑|Macedonia:北马其顿|Serbia:塞尔维亚|Montenegro:黑山|Kosovo:科索沃',
+  namerica:'Canada:加拿大|United States of America:美国|Haiti:海地|Dominican Rep.:多米尼加|Bahamas:巴哈马|Greenland:格陵兰岛|Mexico:墨西哥|Panama:巴拿马|Costa Rica:哥斯达黎加|Nicaragua:尼加拉瓜|Honduras:洪都拉斯|El Salvador:萨尔瓦多|Guatemala:危地马拉|Belize:伯利兹|Puerto Rico:波多黎各|Jamaica:牙买加|Cuba:古巴|Trinidad and Tobago:特立尼达和多巴哥',
+  samerica:'Argentina:阿根廷|Chile:智利|Falkland Is.:马尔维纳斯群岛(福克兰群岛)|Uruguay:乌拉圭|Brazil:巴西|Bolivia:玻利维亚|Peru:秘鲁|Colombia:哥伦比亚|Venezuela:委内瑞拉|Guyana:圭亚那|Suriname:苏里南|Ecuador:厄瓜多尔|Paraguay:巴拉圭',
+  oceania:'Australia:澳大利亚|New Zealand:新西兰|Papua New Guinea:巴布亚新几内亚|Fiji:斐济|Vanuatu:瓦努阿图|New Caledonia:新喀里多尼亚|Solomon Is.:所罗门群岛',
+  antarctica:'Antarctica:南极洲'
+};
+const WMap = (() => {
+  const ZH = { 'Fr. S. Antarctic Lands':'法属南部领地', 'United States of America':'美国' }, EN = { 'United States of America':'United States', 'Dem. Rep. Congo':'DR Congo', 'Central African Rep.':'Central African Republic', 'Bosnia and Herz.':'Bosnia & Herzegovina' };
+  for (const c in WNAMES) WNAMES[c].split('|').forEach(s => { const [en, zh] = s.split(':'); ZH[en] = zh; });
+  ZH['Taiwan'] = '中国台湾省'; EN['Taiwan'] = 'Taiwan Province of China';
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  let P = null, CN = null;
+  const load = () => P || (P = fetch('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json').then(r => r.json()).then(t =>
+    topojson.feature(t, t.objects.countries).features.filter(f => f.geometry).map(f => { const n = f.properties.name; f.info = { name:n, en:EN[n] || n, zh:ZH[n] || n }; return f; })));
+  const loadCN = () => CN || (CN = (window.ChinaMap ? ChinaMap.load() : Promise.reject('no ChinaMap')).catch(e => { console.warn('China map unavailable', e); return null; }));
+  const CHINA = { name:'China', en:'China', zh:'中国' };
+  function create(stageSel, cvSel, opt = {}){
+    const stage = document.querySelector(stageSel), cv = document.querySelector(cvSel), g = cv.getContext('2d');
+    const M = { g, opt, feats:null, cn:null, failed:false, W:0, H:0, small:false, hoverF:null };
+    let proj = null, path = null;
+    const lineWith = xy => (pts, stroke, lw = 2, dash, t = 1) => { const p = pts.map(xy).filter(Boolean); if (p.length < 2) return null;
+      const seg = []; let tot = 0; for (let i = 1; i < p.length; i++){ const l = Math.hypot(p[i][0] - p[i - 1][0], p[i][1] - p[i - 1][1]); seg.push(l); tot += l; }
+      let left = tot * Math.max(0, Math.min(1, t)), end = p[0];
+      g.beginPath(); g.moveTo(...p[0]);
+      for (let i = 1; i < p.length && left > 0; i++){ const l = seg[i - 1]; if (l > M.W * .6){ g.moveTo(...p[i]); end = p[i]; left -= l; continue; }
+        if (left >= l){ g.lineTo(...p[i]); end = p[i]; left -= l; } else { const k = left / l; end = [p[i - 1][0] + (p[i][0] - p[i - 1][0]) * k, p[i - 1][1] + (p[i][1] - p[i - 1][1]) * k]; g.lineTo(...end); left = 0; } }
+      g.setLineDash(dash || []); g.strokeStyle = stroke; g.lineWidth = lw; g.lineJoin = g.lineCap = 'round'; g.stroke(); g.setLineDash([]); return end; };
+    const dotWith = xy => (ll, r, fill, stroke) => { const p = xy(ll); if (!p) return null; g.beginPath(); g.arc(p[0], p[1], r, 0, 7); g.fillStyle = fill; g.fill(); if (stroke){ g.lineWidth = 2; g.strokeStyle = stroke; g.stroke(); } return p; };
+    M.text = (t, x, y, o = {}) => { g.font = `${o.w || 800} ${o.s || 12}px Nunito, "PingFang SC", "Microsoft YaHei", sans-serif`; g.textAlign = o.a || 'center'; g.textBaseline = 'middle';
+      g.lineWidth = 3.2; g.strokeStyle = o.halo || css('--surface') || '#fff'; g.lineJoin = 'round'; g.strokeText(t, x, y); g.fillStyle = o.c || css('--ink'); g.fillText(t, x, y); };
+    function fitProj(ex, box, rot){ const [[a, b], [c, e]] = ex, P = d3.geoNaturalEarth1().rotate([-(rot ?? ((a + c) / 2)), 0]);
+      const pts = []; for (let i = 0; i <= 72; i++){ const lo = a + (c - a) * i / 72; pts.push([lo, b], [lo, e], [lo, (b + e) / 2]); } P.fitExtent(box, { type:'MultiPoint', coordinates:pts }); return P; }
+    function layout(){
+      const r = stage.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!r.width) return false;
+      cv.width = r.width * d; cv.height = r.height * d; M.W = r.width; M.H = r.height; M.d = d; M.small = r.width < 560;
+      const top = M.small ? (opt.topS ?? opt.top ?? 60) : (opt.top ?? 60), bot = M.small ? (opt.bottomS ?? opt.bottom ?? 50) : (opt.bottom ?? 50);
+      proj = fitProj((M.small && opt.extentS) || opt.extent || [[-170, -58], [180, 78]], [[8, top], [r.width - 8, r.height - bot]], opt.rot);
+      path = d3.geoPath(proj, g); M.proj = proj; M.path = path;
+      M.I = null;
+      if (opt.inset){ const fb = (M.small && opt.inset.boxS) || opt.inset.box, bx = [fb[0] * r.width, fb[1] * r.height, fb[2] * r.width, fb[3] * r.height];
+        const P = fitProj(opt.inset.extent, [[bx[0] + 4, bx[1] + 18], [bx[0] + bx[2] - 4, bx[1] + bx[3] - 4]], opt.inset.rot);
+        const I = { inset:true, box:bx, proj:P, path:d3.geoPath(P, g), small:M.small, W:M.W, H:M.H, text:M.text };
+        I.xy = ll => P(ll); I.inv = (x, y) => P.invert([x, y]); I.line = lineWith(I.xy); I.dot = dotWith(I.xy); M.I = I; }
+      return true;
+    }
+    M.xy = ll => proj ? proj(ll) : null;
+    M.inv = (x, y) => proj && proj.invert ? proj.invert([x, y]) : null;
+    /* M.line(pts, colour, width, dash, t): polyline through [lon,lat] waypoints; t (0..1) draws only the first part; returns the [x,y] of the tip */
+    M.line = lineWith(M.xy);
+    M.dot = dotWith(M.xy);
+    M.inBox = (x, y) => !!(M.I && x >= M.I.box[0] && x <= M.I.box[0] + M.I.box[2] && y >= M.I.box[1] && y <= M.I.box[1] + M.I.box[3]);
+    M.view = h => (h && h.inset) ? M.I : M;
+    function countries(pth, P, fillOf, land, ink2){
+      const useCN = !!M.cn, skip = f => useCN && (f.info.name === 'China' || f.info.name === 'Taiwan');
+      M.feats.forEach(f => { if (skip(f)) return; g.beginPath(); pth(f); g.fillStyle = land; g.fill(); const fc = f.info.name === 'Taiwan' ? fillOf(CHINA) : fillOf(f.info); if (fc !== land){ g.fillStyle = fc; g.fill(); } });
+      g.beginPath(); M.feats.forEach(f => { if (!skip(f) && f.info.name !== 'Antarctica') pth(f); }); g.strokeStyle = ink2; g.lineWidth = .5; g.globalAlpha = .7; g.stroke(); g.globalAlpha = 1;
+      if (useCN){ const T = p => P(p), cf = fillOf(CHINA), polys = { features:M.cn.features.filter(f => f.geometry.type !== 'MultiLineString') };
+        g.globalAlpha = .8; ChinaMap.draw2D(g, polys, T, { stroke:ink2, lineWidth:1.1 }); g.globalAlpha = 1; ChinaMap.draw2D(g, polys, T, { fill:land }); if (cf !== land) ChinaMap.draw2D(g, polys, T, { fill:cf });
+        ChinaMap.draw2D(g, { features:M.cn.features.filter(f => f.geometry.type === 'MultiLineString') }, T, { stroke:ink2, lineWidth:.8 }); }
+      if (M.hoverF && M.hoverF !== CHINA){ const hf = M.feats.find(f => f.info === M.hoverF); if (hf){ g.beginPath(); pth(hf); g.strokeStyle = css('--ink'); g.lineWidth = 1.6; g.stroke(); } }
+    }
+    M.draw = () => {
+      const r = stage.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2);
+      if (!M.feats){ cv.width = r.width * d; cv.height = r.height * d; g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, r.width, r.height); M.W = r.width; M.H = r.height;
+        M.text(Lab.L(M.failed ? {en:'The map needs an internet connection.', zh:'地图需要联网才能加载。'} : {en:'Loading map…', zh:'地图加载中…'}), r.width / 2, r.height / 2, { s:15, c:css('--ink-2') }); return; }
+      if (!proj && !layout()) return;
+      g.setTransform(M.d, 0, 0, M.d, 0, 0); g.clearRect(0, 0, M.W, M.H);
+      const land = css('--surface') || '#fff', sea = css('--surface-2') || '#eef3f9', ink2 = css('--ink-2') || '#4a5878';
+      g.beginPath(); path({ type:'Sphere' }); g.fillStyle = sea; g.fill();
+      g.beginPath(); path(d3.geoGraticule10()); g.strokeStyle = ink2; g.globalAlpha = .12; g.lineWidth = .6; g.stroke(); g.globalAlpha = 1;
+      const fillOf = info => (opt.fill && opt.fill(info)) || land;
+      countries(path, proj, fillOf, land, ink2);
+      if (M.I){ const [[a, b], [c, e]] = opt.inset.extent; g.beginPath(); path({ type:'LineString', coordinates:[[a, b], [a, e], [c, e], [c, b], [a, b]] }); g.setLineDash([4, 3]); g.strokeStyle = ink2; g.lineWidth = 1.2; g.stroke(); g.setLineDash([]); }
+      if (opt.overlay){ g.save(); opt.overlay(g, M); g.restore(); }
+      if (M.I){ const I = M.I, [x, y, w, h] = I.box; g.save(); g.shadowColor = 'rgba(0,0,0,.18)'; g.shadowBlur = 10; g.fillStyle = sea; g.fillRect(x, y, w, h); g.restore();
+        g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip(); g.fillStyle = sea; g.fillRect(x, y, w, h); countries(I.path, I.proj, fillOf, land, ink2);
+        if (opt.overlay){ g.save(); opt.overlay(g, I); g.restore(); } g.restore();
+        g.strokeStyle = ink2; g.lineWidth = 1.2; g.strokeRect(x, y, w, h); g.fillStyle = sea; g.fillRect(x + 1, y + 1, w - 2, 15);
+        M.text(Lab.L(opt.inset.label || {en:'Zoom', zh:'放大图'}), x + 6, y + 9, { s:10.5, a:'left', c:ink2, w:800 }); }
+      if (opt.note !== false) M.text(Lab.L({en:'Schematic map · modern borders', zh:'示意图 · 现代国界'}), 10, M.H - 10, { s:10, a:'left', c:ink2, w:700 });
+    };
+    M.hit = e => { const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, ins = M.inBox(x, y), ll = ins ? M.I.inv(x, y) : M.inv(x, y); if (!ll || !M.feats) return { x, y, inset:ins };
+      if (M.cn && ChinaMap.hit(M.cn, ll[0], ll[1])) return { x, y, ll, f:CHINA, inset:ins };
+      const f = M.feats.find(f => d3.geoContains(f, ll)); return { x, y, ll, inset:ins, f:f ? (f.info.name === 'Taiwan' ? CHINA : f.info) : null }; };
+    cv.addEventListener('click', e => { if (!M.feats || !opt.click) return; const h = M.hit(e); opt.click(h.f || null, h, e); });
+    cv.addEventListener('pointermove', e => { if (e.pointerType === 'touch' || !M.feats) return; const h = M.hit(e), f = h.f || null; if (f !== M.hoverF){ M.hoverF = f; M.draw(); }
+      cv.title = opt.hover ? (opt.hover(f, h) || '') : (f ? Lab.L(f) : ''); });
+    cv.addEventListener('pointerleave', () => { if (M.hoverF){ M.hoverF = null; M.draw(); } });
+    new ResizeObserver(() => requestAnimationFrame(() => { proj = null; M.draw(); })).observe(stage);
+    const redraw = () => setTimeout(M.draw, 60);
+    new MutationObserver(redraw).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme', 'lang'] });
+    if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redraw);
+    Promise.all([load(), loadCN()]).then(([f, cn]) => { M.feats = f; M.cn = cn; proj = null; M.draw(); if (opt.ready) opt.ready(M); }).catch(err => { console.warn(err); M.failed = true; M.draw(); });
+    M.draw();
+    return M;
+  }
+  return { create, css, ZH };
+})();
+/* ===== shared helpers for the worldhistory lessons ===== */
+const o = (en, zh) => ({en, zh});
+const css = WMap.css;
+const stars = n => '★'.repeat(n) + '☆'.repeat(3 - n);
+function ranksHTML(R, score){ const ri = R.reduce((a, r, i) => score >= r[0] ? i : a, 0); return R.map((r, i) => `<span class="${i === ri ? 'on' : ''}">${i <= ri ? '🏅' : '🔒'} ${Lab.L(r[1])}</span>`).join(''); }
+function renderLinks(sel, LINKS){ Lab.$(sel).innerHTML = LINKS.map(l => `<a class="linkcard" href="${l.u}" target="_blank" rel="noopener"><b data-zh="${l.t.zh}">${l.t.en}</b><span data-zh="${l.d.zh}">${l.d.en}</span><small>${new URL(l.u).hostname.replace('www.', '')} ↗</small></a>`).join(''); Lab.translate(Lab.$(sel)); }
+const CQ = '?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', CP = 'https://commons.wikimedia.org/wiki/File:';
+const HP = o('Historic photo','历史照片');
+const YT = (yt, en, zh, ch) => ({ type:'youtube', yt, en, zh, kind:o('Video','视频'), credit:ch + ' (YouTube)', license:'YouTube' });
+/* "Meanwhile in China" strip: items [{y, t:{en,zh}, b:{en,zh}}] */
+function chinaStrip(sel, items){ const el = Lab.$(sel); const draw = () => el.innerHTML = `<div class="cnstrip-h">${Lab.L(o('🇨🇳 Meanwhile in China','🇨🇳 同一时期的中国'))}</div><div class="cnstrip-row">${items.map(i => `<div class="cnc"><b>${i.y}</b><h4>${Lab.L(i.t)}</h4><p>${Lab.L(i.b)}</p></div>`).join('')}</div>`; Lab.onLang(draw); }
+
+/* ================= Data ================= */
+const NATOJ = { 'United States of America':1949, Canada:1949, 'United Kingdom':1949, France:1949, Belgium:1949, Netherlands:1949, Luxembourg:1949, Denmark:1949, Norway:1949, Iceland:1949, Italy:1949, Portugal:1949, Greece:1952, Turkey:1952, Germany:1955, Spain:1982 };
+const SOV = ['Russia','Kazakhstan','Uzbekistan','Turkmenistan','Kyrgyzstan','Tajikistan','Georgia','Armenia','Azerbaijan','Belarus','Ukraine','Moldova','Lithuania','Latvia','Estonia'];
+const EAST = ['Poland','Czechia','Slovakia','Hungary','Romania','Bulgaria','Albania'];
+const YUGO = ['Serbia','Croatia','Bosnia and Herz.','Slovenia','Montenegro','Macedonia','Kosovo'];
+const COM = { China:[1949,2100], Mongolia:[1945,1990], 'North Korea':[1948,2100], Vietnam:[1976,2100], Cuba:[1959,2100], Laos:[1975,2100], Cambodia:[1975,1989] };
+YUGO.forEach(n => COM[n] = [1945,1991]);
+const INDEP = { India:1947, Pakistan:1947, Bangladesh:1971, 'Sri Lanka':1948, Myanmar:1948, Indonesia:1949, Philippines:1946, Vietnam:1954, Laos:1953, Cambodia:1953, Malaysia:1957, Israel:1948, Jordan:1946, Syria:1946, Lebanon:1943, Libya:1951, Sudan:1956, Morocco:1956, Tunisia:1956, Ghana:1957, Guinea:1958,
+  Cameroon:1960, Senegal:1960, Togo:1960, Madagascar:1960, 'Dem. Rep. Congo':1960, Somalia:1960, Benin:1960, Niger:1960, 'Burkina Faso':1960, "Côte d'Ivoire":1960, Chad:1960, 'Central African Rep.':1960, Congo:1960, Gabon:1960, Mali:1960, Nigeria:1960, Mauritania:1960,
+  'Sierra Leone':1961, Tanzania:1961, Kuwait:1961, Algeria:1962, Uganda:1962, Rwanda:1962, Burundi:1962, Jamaica:1962, 'Trinidad and Tobago':1962, Kenya:1963, Malawi:1964, Zambia:1964, Gambia:1965, Botswana:1966, Lesotho:1966, Guyana:1966, 'Eq. Guinea':1968, eSwatini:1968,
+  Fiji:1970, Oman:1971, 'United Arab Emirates':1971, Qatar:1971, 'Guinea-Bissau':1974, Mozambique:1975, Angola:1975, Suriname:1975, 'Papua New Guinea':1975, Djibouti:1977, Zimbabwe:1980, Brunei:1984, Namibia:1990, 'North Korea':1948, 'South Korea':1948, Cyprus:1960, Yemen:1967 };
+const GDR = [[10.9,53.95],[11.5,54.05],[13.4,54.6],[14.25,53.9],[14.6,52.6],[15.0,51.1],[12.1,50.3],[11.9,50.4],[10.1,50.5],[10.4,51.6],[10.6,52.4],[11.2,53.1],[10.6,53.4]];
+const CURTAIN = [[10.9,54.2],[10.8,53.0],[10.5,51.7],[10.2,50.6],[12.1,50.3],[13.0,49.3],[13.8,48.7],[16.0,48.8],[16.9,48.0],[16.5,47.5],[16.1,46.8],[15,46.6],[13.7,45.6]];
+const UN = {1945:51,1946:55,1950:60,1955:76,1956:80,1960:99,1961:104,1962:110,1965:117,1970:127,1971:132,1975:144,1980:154,1984:159,1990:159,1991:166};
+const NUKE = {1945:2,1950:300,1955:2500,1960:22000,1965:38000,1970:39000,1975:47000,1980:55000,1986:70000,1991:50000};
+const lerp = (T, y) => { const ks = Object.keys(T).map(Number); let a = ks[0], b = ks[ks.length - 1]; ks.forEach(k => { if (k <= y) a = k; }); ks.slice().reverse().forEach(k => { if (k >= y) b = k; }); return a === b ? T[a] : T[a] + (T[b] - T[a]) * (y - a) / (b - a); };
+const BC = { nato:'rgba(37,99,235,.45)', wp:'rgba(220,38,38,.45)', com:'rgba(248,113,113,.28)', ind:'rgba(22,163,74,.42)' };
+function bloc(n, y){
+  if (NATOJ[n] && y >= NATOJ[n]) return 'nato';
+  if (SOV.includes(n) && y <= 1991) return 'wp';
+  if (EAST.includes(n)){ if (n === 'Albania' && y >= 1968) return y < 1991 ? 'com' : null; if (y >= 1955 && y < 1990) return 'wp'; if (y >= 1948 && y < 1955) return 'com'; return null; }
+  const c = COM[n]; if (c && y >= c[0] && y < c[1]) return 'com'; return null;
+}
+const EV = {
+ india:{ y:1947, ll:[77.2,28.6], c:'#16a34a', short:o('India','印度'), name:o('Independence for India and Pakistan','印度和巴基斯坦独立'), date:o('15 August 1947','1947年8月15日'),
+   facts:{en:['Mohandas Gandhi led mass non-violent protests against British rule, such as the 1930 Salt March.','Britain left in 1947; British India was split (partitioned) into India and Pakistan. Millions were forced to move and many died in violence.','India’s independence encouraged freedom movements across Asia and Africa.'],zh:['甘地领导大规模的非暴力不合作运动反对英国统治，如1930年的“食盐进军”。','1947年英国撤出，英属印度被分为印度和巴基斯坦两个国家，数以百万计的人被迫迁移，许多人死于冲突。','印度的独立鼓舞了亚非各地的民族独立运动。']},
+   rhyme:o('Gandhi: freedom without violence.','甘地：非暴力争取独立。'), mix:o('Bangladesh (once East Pakistan) became independent later, in 1971.','孟加拉国（原东巴基斯坦）在1971年才独立。') },
+ berlin48:{ y:1948, eu:1, ll:[13.4,52.52], c:'#2563eb', short:o('Berlin Airlift','柏林空运'), name:o('The Berlin Blockade and Airlift','柏林封锁与空运'), date:o('June 1948 – May 1949','1948年6月—1949年5月'),
+   facts:{en:['Germany and Berlin were split into American, British, French and Soviet zones. Stalin blocked all roads and railways into West Berlin.','The Western Allies flew in food and coal: about 277,000 flights carried about 2.3 million tons. The blockade was lifted in May 1949.','In 1949 Germany split into two states: West Germany (FRG) and East Germany (GDR).'],zh:['德国和柏林被分成美、英、法、苏四个占领区。斯大林封锁了通往西柏林的所有公路和铁路。','西方盟国用飞机运送食品和煤炭：约27.7万架次，运送约230万吨物资。1949年5月封锁解除。','1949年德国分裂为两个国家：联邦德国（西德）和民主德国（东德）。']},
+   rhyme:o('Blockade by land, answered by air.','陆上封锁，空中解围。'), mix:o('The airlift supplied WEST Berlin, which was surrounded by East Germany.','空运补给的是西柏林，它被东德包围着。') },
+ nato:{ y:1949, eu:1, ll:[4.35,50.85], c:'#2563eb', short:o('NATO','北约'), name:o('NATO is founded','北大西洋公约组织成立'), date:o('April 1949','1949年4月'),
+   facts:{en:['12 countries, led by the USA, agreed that an attack on one would be an attack on all.','The US had already announced the Truman Doctrine (1947) to “contain” communism and the Marshall Plan to rebuild Western Europe.'],zh:['以美国为首的12个国家约定：一国受到攻击就视为全体受到攻击。','此前美国已提出“遏制”共产主义的杜鲁门主义（1947年）和复兴西欧的马歇尔计划。']},
+   rhyme:o('Truman ’47, Marshall ’47–48, NATO ’49.','杜鲁门主义四七，马歇尔计划四七—四八，北约四九。'), mix:o('NATO is a military alliance; the Marshall Plan was economic aid.','北约是军事同盟；马歇尔计划是经济援助。') },
+ korea:{ y:1950, ll:[127,38], c:'#dc2626', short:o('Korean War','朝鲜战争'), name:o('The Korean War','朝鲜战争'), date:o('1950–1953','1950—1953年'),
+   facts:{en:['Korea had been split at the 38th parallel in 1945. In June 1950 North Korea invaded South Korea.','UN forces led by the USA pushed north toward China’s border; in October 1950 the Chinese People’s Volunteers (中国人民志愿军) entered the war (China calls it 抗美援朝, “Resist America, Aid Korea”).','An armistice in July 1953 left the border near the 38th parallel — where it began. Korea is still divided today.'],zh:['1945年朝鲜半岛以北纬38度线为界分为两部分。1950年6月朝鲜战争爆发。','以美国为首的“联合国军”向北推进到中国边境附近；1950年10月中国人民志愿军入朝参战（抗美援朝）。','1953年7月签订停战协定，分界线仍在三八线附近——回到了起点。朝鲜半岛至今仍处于分裂状态。']},
+   rhyme:o('Started at the 38th parallel, ended at the 38th parallel.','从三八线开始，在三八线附近结束。'), mix:o('The Korean War ended with an armistice (ceasefire), not a peace treaty.','朝鲜战争以停战协定结束，并没有签订和平条约。') },
+ bandung:{ y:1955, ll:[107.6,-6.9], c:'#16a34a', short:o('Bandung','万隆'), name:o('The Bandung Conference','万隆会议（亚非会议）'), date:o('April 1955','1955年4月'),
+   facts:{en:['29 Asian and African countries met in Bandung, Indonesia — the first big conference without the colonial powers.','China’s premier Zhou Enlai (周恩来) proposed to “seek common ground while reserving differences” (求同存异).','It led to the Non-Aligned Movement (1961): countries that joined neither bloc.'],zh:['29个亚非国家在印度尼西亚万隆召开会议——这是第一次没有殖民国家参加的大型国际会议。','周恩来提出“求同存异”的方针，促进了会议的成功。','此后形成了不结盟运动（1961年）：不加入任何集团的国家。']},
+   rhyme:o('Seek common ground, reserve differences.','求同存异。'), mix:o('The Non-Aligned Movement wanted to stay out of BOTH blocs — not join the Soviet side.','不结盟运动希望不加入美苏任何一方的集团。') },
+ warsaw:{ y:1955, eu:1, ll:[21,52.2], c:'#dc2626', short:o('Warsaw Pact','华约'), name:o('The Warsaw Pact','华沙条约组织'), date:o('May 1955','1955年5月'),
+   facts:{en:['Days after West Germany joined NATO, the USSR and seven East European communist states formed a military alliance.','The world now had two armed blocs facing each other across the “Iron Curtain” — the “two-pole” world.'],zh:['西德加入北约后不久，苏联和东欧七个社会主义国家组成了军事同盟。','世界上形成了隔着“铁幕”对峙的两大军事集团——两极格局。']},
+   rhyme:o('NATO ’49 vs Warsaw Pact ’55.','北约四九对华约五五。'), mix:o('China was communist but never joined the Warsaw Pact.','中国是社会主义国家，但没有加入华约。') },
+ sputnik:{ y:1957, ll:[63.3,45.9], c:'#dc2626', short:o('Sputnik','斯普特尼克'), name:o('Sputnik and the space race','斯普特尼克号与太空竞赛'), date:o('4 October 1957','1957年10月4日'),
+   facts:{en:['The USSR launched Sputnik 1, the first artificial satellite, from Baikonur. It was about the size of a beach ball and beeped as it orbited.','Americans worried: a rocket that could reach orbit could carry a nuclear warhead. The US created NASA in 1958 and poured money into science education.'],zh:['苏联在拜科努尔发射了世界上第一颗人造卫星斯普特尼克1号，它大约有一个沙滩球大小，绕地球飞行时发出“嘀嘀”声。','美国人很担心：能把卫星送入轨道的火箭也能携带核弹头。美国于1958年成立了航空航天局（NASA），并大力投资科学教育。']},
+   rhyme:o('1957: the beep that started the space race.','1957年：一声“嘀嘀”开启太空竞赛。'), mix:o('The first satellite (1957) and the first person in space (Gagarin, 1961) were both Soviet.','第一颗人造卫星（1957年）和第一位进入太空的人（加加林，1961年）都是苏联的。') },
+ ghana:{ y:1957, ll:[-0.19,5.6], c:'#16a34a', short:o('Ghana','加纳'), name:o('Ghana leads Africa to independence','加纳带领非洲走向独立'), date:o('6 March 1957','1957年3月6日'),
+   facts:{en:['Led by Kwame Nkrumah, the Gold Coast became Ghana — the first colony south of the Sahara to win independence.','In 1960, the “Year of Africa”, 17 African countries became independent. Kenya (Jomo Kenyatta) followed in 1963.'],zh:['在恩克鲁玛领导下，黄金海岸成为加纳——撒哈拉以南第一个获得独立的殖民地。','1960年被称为“非洲独立年”，有17个非洲国家独立。肯尼亚（肯雅塔领导）于1963年独立。']},
+   rhyme:o('Ghana ’57 → Year of Africa ’60.','加纳五七 → 非洲独立年六零。'), mix:o('Many new borders followed old colonial lines, drawn by Europeans — a cause of later conflicts.','许多新国家的边界沿用欧洲殖民者划定的旧界线，这成为后来一些冲突的原因。') },
+ wall61:{ y:1961, eu:1, ll:[13.38,52.51], c:'#dc2626', short:o('Berlin Wall','柏林墙'), name:o('The Berlin Wall goes up','柏林墙建立'), date:o('13 August 1961','1961年8月13日'),
+   facts:{en:['About 2.7 million East Germans had fled west through Berlin since 1949. Overnight, East Germany sealed the border with barbed wire, then concrete.','The wall around West Berlin was about 155 km (96 miles) long. At least 140 people died trying to cross it.'],zh:['1949年以来约有270万东德人经柏林逃往西方。一夜之间，东德用铁丝网、随后用混凝土封锁了边界。','环绕西柏林的墙长约155千米（96英里），至少有140人在试图越墙时死亡。']},
+   rhyme:o('Up in ’61, down in ’89.','六一年建墙，八九年墙倒。'), mix:o('The wall surrounded WEST Berlin; Berlin itself was deep inside East Germany.','柏林墙包围的是西柏林；整个柏林位于东德境内。') },
+ cuba:{ y:1962, ll:[-82.4,23.1], c:'#dc2626', short:o('Cuba','古巴'), name:o('The Cuban Missile Crisis','古巴导弹危机'), date:o('October 1962','1962年10月'),
+   facts:{en:['A US U-2 spy plane photographed Soviet nuclear missile sites in Cuba, about 90 miles (145 km) from Florida.','For 13 days the world stood close to nuclear war. Kennedy ordered a naval “quarantine” and both leaders negotiated.','Khrushchev removed the missiles; the US promised not to invade Cuba and secretly removed its missiles from Turkey. A hotline linked Washington and Moscow in 1963.'],zh:['美国U-2侦察机拍到苏联在古巴修建的核导弹发射场，距佛罗里达只有约145千米（90英里）。','13天里世界离核战争近在咫尺。肯尼迪下令进行海上“隔离”（封锁），双方领导人进行谈判。','赫鲁晓夫撤走导弹；美国承诺不入侵古巴，并秘密撤走部署在土耳其的导弹。1963年华盛顿与莫斯科之间开通了热线电话。']},
+   rhyme:o('13 days in October 1962.','1962年10月的13天。'), mix:o('No missiles were fired — the crisis ended with a deal.','危机中没有发射任何导弹，最终以谈判达成协议结束。') },
+ vietnam:{ y:1965, ll:[106.7,10.8], c:'#dc2626', short:o('Vietnam','越南'), name:o('The Vietnam War','越南战争'), date:o('1955–1975 (US combat troops 1965–1973)','1955—1975年（美军地面部队1965—1973年）'),
+   facts:{en:['After defeating France in 1954, Vietnam was split into a communist North and a US-backed South.','The USA sent over 500,000 troops at the peak (1968) to stop communism spreading (“domino theory”). The war became deeply unpopular in America.','US forces left in 1973; North Vietnam took Saigon in 1975 and reunited the country.'],zh:['1954年打败法国后，越南分为北方的社会主义政权和美国支持的南方政权。','为阻止共产主义扩散（“多米诺理论”），美国在高峰时（1968年）派出50多万军队。战争在美国国内极不得人心。','1973年美军撤出；1975年北越攻占西贡，越南实现统一。']},
+   rhyme:o('Dominoes feared, war lost, country reunited (1975).','担心“多米诺”，战争失败，越南统一（1975年）。'), mix:o('The Korean War (1950–53) and the Vietnam War (to 1975) are different wars.','朝鲜战争（1950—1953年）和越南战争（到1975年）是两场不同的战争。') },
+ apollo:{ y:1969, ll:[-80.6,28.6], c:'#2563eb', short:o('Apollo 11','阿波罗11号'), name:o('Apollo 11: people on the Moon','阿波罗11号：人类登月'), date:o('20 July 1969','1969年7月20日'),
+   facts:{en:['Neil Armstrong and Buzz Aldrin walked on the Moon while Michael Collins orbited above.','“That’s one small step for [a] man, one giant leap for mankind.” About 600 million people watched on TV.'],zh:['尼尔·阿姆斯特朗和巴兹·奥尔德林登上月球，迈克尔·柯林斯在月球轨道上等待。','“这是一个人的一小步，却是人类的一大步。”约6亿人通过电视观看。']},
+   rhyme:o('1969: the US wins the race to the Moon.','1969年：美国赢得登月竞赛。'), mix:o('Apollo launched from Florida (Cape Kennedy), not from Houston (Mission Control).','阿波罗号从佛罗里达的肯尼迪角发射，休斯敦是任务控制中心。') },
+ nixon:{ y:1972, ll:[116.4,39.9], c:'#16a34a', short:o('Nixon in China','尼克松访华'), name:o('Nixon visits China','尼克松访华'), date:o('February 1972','1972年2月'),
+   facts:{en:['After “ping-pong diplomacy” (1971), US President Nixon met Chairman Mao Zedong in Beijing.','The Shanghai Communiqué began a thaw; the US and China set up full diplomatic relations on 1 January 1979.','In 1971 the UN had already restored the People’s Republic of China’s seat, including on the Security Council.'],zh:['经过1971年的“乒乓外交”，美国总统尼克松在北京会见毛泽东主席。','中美发表《上海公报》，两国关系开始解冻；1979年1月1日中美正式建交。','1971年，联合国已恢复中华人民共和国的合法席位，包括安理会常任理事国席位。']},
+   rhyme:o('Ping-pong ’71, Nixon ’72, relations ’79.','乒乓外交七一，尼克松访华七二，中美建交七九。'), mix:o('The thaw changed the Cold War from two sides into a “triangle”: USA, USSR, China.','中美关系解冻，使冷战从两方对峙变成美、苏、中“大三角”。') },
+ wall89:{ y:1989, eu:1, ll:[13.40,52.53], c:'#2563eb', short:o('Wall falls','柏林墙倒塌'), name:o('The fall of the Berlin Wall','柏林墙倒塌'), date:o('9 November 1989','1989年11月9日'),
+   facts:{en:['Soviet leader Mikhail Gorbachev’s reforms let Eastern Europe change. Peaceful protests spread through East Germany.','After a confused announcement on new travel rules, crowds gathered at the checkpoints; guards opened the gates. People danced on the wall.','Germany reunited on 3 October 1990.'],zh:['苏联领导人戈尔巴乔夫的改革使东欧局势发生变化，东德各地爆发和平示威。','新的出境规定被仓促宣布后，人群涌向检查站，守卫打开了大门。人们在墙上欢庆。','1990年10月3日，德国重新统一。']},
+   rhyme:o('11/9/1989: the wall opens.','1989年11月9日：柏林墙开放。'), mix:o('The wall fell in 1989; the USSR ended two years later, in 1991.','柏林墙1989年倒塌；苏联两年后的1991年才解体。') },
+ ussr:{ y:1991, ll:[37.6,55.75], c:'#2563eb', short:o('USSR ends','苏联解体'), name:o('The Soviet Union breaks up','苏联解体'), date:o('December 1991','1991年12月'),
+   facts:{en:['The Warsaw Pact dissolved in July 1991. In December the USSR split into 15 independent countries, and Gorbachev resigned.','The Cold War’s two-pole world was over. China’s textbook describes a world moving toward many centres of power (多极化).'],zh:['1991年7月华约解散。12月苏联解体为15个独立国家，戈尔巴乔夫辞职。','冷战的两极格局结束。中国教科书指出，世界格局朝着多极化方向发展。']},
+   rhyme:o('1 USSR → 15 countries.','一个苏联 → 15个国家。'), mix:o('Russia is the largest of the 15 countries that came out of the USSR — not the same thing as the USSR.','俄罗斯是苏联解体后15个国家中最大的一个，但俄罗斯不等于苏联。') }
+};
+const EORDER = Object.keys(EV).sort((a, b) => EV[a].y - EV[b].y);
+const CNS = [
+ { y:1949, t:o('The PRC is founded','中华人民共和国成立'), b:o('1 October 1949: Mao Zedong proclaims the People’s Republic of China.','1949年10月1日，毛泽东宣告中华人民共和国成立。') },
+ { y:1950, t:o('Korean War','抗美援朝'), b:o('The Chinese People’s Volunteers enter the Korean War in October 1950; armistice 1953.','1950年10月中国人民志愿军入朝作战；1953年签订停战协定。') },
+ { y:1955, t:o('Bandung','万隆会议'), b:o('Zhou Enlai: “seek common ground while reserving differences” (求同存异).','周恩来提出“求同存异”的方针。') },
+ { y:1964, t:o('Two bombs, one satellite','“两弹一星”'), b:o('First atomic test (1964), hydrogen bomb (1967), first satellite Dong Fang Hong 1 (1970).','原子弹试爆成功（1964年）、氢弹（1967年）、第一颗人造卫星“东方红一号”（1970年）。') },
+ { y:1971, t:o('Back in the UN','恢复联合国合法席位'), b:o('The UN restores the PRC’s seat; Nixon visits Beijing in 1972.','联合国恢复中华人民共和国的合法席位；1972年尼克松访华。') }
+];
+
+/* ================= Map ================= */
+const App = { year:1945, sel:null, layer:'bloc', timer:null };
+const M = WMap.create('#mapStage', '#mapCv', { extent:[[-170,-50],[180,76]], rot:10, top:60, bottom:30, topS:96, bottomS:28,
+  inset:{ extent:[[-10,40],[40,62]], box:[.01,.55,.3,.43], boxS:[.01,.62,.58,.36], label:o('Zoom: Europe','放大图：欧洲') },
+  fill: f => { if (App.layer === 'indep'){ const y = INDEP[f.name]; return y && App.year >= y ? BC.ind : null; } const b = bloc(f.name, App.year); return b ? BC[b] : null; },
+  overlay: (g, V) => {
+    const y = App.year, surf = css('--surface');
+    if (App.layer === 'bloc'){
+      if (y >= 1949 && y < 1990 && (V.inset || !M.small)){ const pts = GDR.map(V.xy).filter(Boolean); g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(...p) : g.moveTo(...p)); g.closePath(); g.fillStyle = css('--surface'); g.fill(); g.fillStyle = y >= 1955 ? BC.wp : BC.com; g.fill(); }
+      if (y >= 1946 && y < 1990) V.line(CURTAIN, css('--ink'), V.inset ? 2.6 : 1.6, [5, 4]);
+      if (V.inset && y >= 1946 && y < 1990){ const p = V.xy([12.5, 48.2]); if (p) V.text(Lab.L(o('Iron Curtain', '铁幕')), p[0] + 6, p[1] + 14, { s:11, a:'left' }); }
+    }
+    EORDER.forEach(k => { const e = EV[k]; if (y < e.y || !!e.eu !== !!V.inset) return; if (k === 'wall61' && y >= 1989 && App.sel !== 'wall61') return; const sel = App.sel === k, old = y > e.y + 6 && !sel;
+      g.globalAlpha = old ? .45 : 1; const xy = V.dot(e.ll, sel ? 8 : 6, e.c, surf); if (xy && (!M.small || sel) && !old) V.text(Lab.L(e.short), xy[0] + 9, xy[1] - 8, { s:11, a:'left', c:sel ? e.c : css('--ink') }); g.globalAlpha = 1; });
+  },
+  click: (f, h) => { const k = keyAt(h); if (k) select(k); else if (f) tip(o(`${f.en}: ${descr(f.name).en}`, `${f.zh}：${descr(f.name).zh}`)); },
+  hover: (f, h) => { const k = keyAt(h); return k ? Lab.L(EV[k].name) : (f ? Lab.L(f) + ' · ' + Lab.L(descr(f.name)) : ''); }
+});
+function descr(n){ if (App.layer === 'indep'){ const y = INDEP[n]; return y ? (App.year >= y ? o(`independent since ${y}`, `${y}年独立`) : o(`still a colony (independent in ${y})`, `仍是殖民地（${y}年独立）`)) : o('not a new nation in this period', '不是这一时期的新独立国家'); }
+  const b = bloc(n, App.year); return b === 'nato' ? o('NATO member', '北约成员国') : b === 'wp' ? o('Soviet bloc / Warsaw Pact', '苏联集团/华约') : b === 'com' ? o('communist state, not in the Warsaw Pact', '社会主义国家（未加入华约）') : o('not in either bloc', '不属于任何一方集团'); }
+function keyAt(h){ if (!h) return null; const V = M.view(h); let best = null, bd = 15; EORDER.forEach(k => { const e = EV[k]; if (App.year < e.y || !!e.eu !== !!h.inset) return; const p = V.xy(e.ll); if (!p) return; const d = Math.hypot(p[0] - h.x, p[1] - h.y); if (d < bd){ bd = d; best = k; } }); return best; }
+const tip = m => Lab.$('#mapTip').textContent = Lab.L(m || o('Click a dot or a country · drag the year', '点击圆点或国家 · 拖动年份'));
+function select(k){ App.sel = k; renderInfo(); M.draw(); }
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel;
+  if (!k){ box.innerHTML = `<span class="tag">${Lab.L(o('Cold War','冷战'))}</span><h3>${Lab.L(o('Why “cold”?','为什么叫“冷”战？'))}</h3>
+      <ul><li>${Lab.L(o('The USA and the USSR never fought each other directly — nuclear weapons made that too dangerous.','美苏两国从未直接交战——核武器让直接开战太危险。'))}</li><li>${Lab.L(o('Instead they competed with alliances, arms, money, spies, sport, space — and “proxy wars” fought by others (Korea, Vietnam).','它们通过结盟、军备、援助、间谍、体育、太空竞赛，以及别国参与的“代理人战争”（朝鲜、越南）来较量。'))}</li><li>${Lab.L(o('Meanwhile colonies in Asia and Africa won independence and many chose not to join either side.','与此同时，亚非殖民地纷纷独立，许多国家选择不加入任何一方。'))}</li></ul>
+      <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(o('’47 Truman · ’49 NATO · ’55 Warsaw · ’61 wall · ’62 Cuba · ’89 wall falls · ’91 USSR ends.','四七杜鲁门，四九北约，五五华约，六一建墙，六二古巴，八九墙倒，九一苏联解体。'))}</div>
+      <div class="nav"><button id="startBtn">${Lab.L(o('Start with India 1947 ▶','从1947年印度开始 ▶'))}</button></div>`;
+    Lab.$('#startBtn').onclick = () => { go(1947); select('india'); }; return; }
+  const e = EV[k], i = EORDER.indexOf(k);
+  box.innerHTML = `<span class="tag">${Lab.L(e.date)}</span><h3><span class="dot" style="background:${e.c}"></span>${Lab.L(e.name)}</h3>
+    <b class="kh">${Lab.L(o('📌 KEY FACTS','📌 要点'))}</b><ul>${Lab.L(e.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(e.rhyme)}</div><div class="mix"><b>${Lab.L(o('⚠️ Don’t mix up:','⚠️ 易错点：'))}</b><span>${Lab.L(e.mix)}</span></div>
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(e.name), Lab.L(e.date), ...Lab.L(e.facts)].join(Lab.lang === 'zh' ? '。' : '. '));
+  const jump = d => { const n = EORDER[(i + d + EORDER.length) % EORDER.length]; go(EV[n].y); select(n); };
+  Lab.$('#pPrev').onclick = () => jump(-1); Lab.$('#pNext').onclick = () => jump(1);
+}
+function renderYear(){
+  const y = App.year; Lab.$('#yr').value = y; Lab.$('#yrOut').textContent = y;
+  Lab.$('#cNato').textContent = Object.values(NATOJ).filter(v => y >= v).length;
+  Lab.$('#cWp').textContent = y < 1955 || y >= 1991 ? (y >= 1991 ? Lab.L(o('dissolved','已解散')) : '—') : (y >= 1968 ? 7 : 8);
+  Lab.$('#cUn').textContent = Math.round(lerp(UN, y));
+  Lab.$('#cNuke').textContent = '≈ ' + (Math.round(lerp(NUKE, y) / (y < 1955 ? 10 : 1000)) * (y < 1955 ? 10 : 1000)).toLocaleString('en-US');
+  Lab.$('#playBtn').textContent = App.timer ? '⏸' : '▶'; M.draw();
+}
+function go(y){ App.year = Math.max(1945, Math.min(1991, y)); renderYear(); }
+function stop(){ if (App.timer){ clearInterval(App.timer); App.timer = null; } }
+Lab.$('#yr').oninput = e => { stop(); go(+e.target.value); };
+Lab.$('#playBtn').onclick = () => { if (App.timer){ stop(); renderYear(); return; } if (App.year >= 1991) App.year = 1945; App.timer = setInterval(() => { if (App.year >= 1991){ stop(); renderYear(); } else go(App.year + 1); }, 450); renderYear(); };
+Lab.$$('#layerSeg button').forEach(b => b.onclick = () => { App.layer = b.dataset.k; Lab.$$('#layerSeg button').forEach(x => x.classList.toggle('on', x === b)); M.draw(); });
+Lab.onLang(() => { tip(); renderInfo(); renderYear(); });
+chinaStrip('#cnStrip', CNS);
+
+/* UN chart */
+(function(){
+  const cv = Lab.$('#unCv'), g = cv.getContext('2d'), yrs = [1945,1950,1955,1960,1965,1970,1975,1980,1985,1991]; let sel = 1960, bars = [];
+  const NOTE = {1945:o('51 founding members.','51个创始会员国。'),1950:o('A few new Asian states join (e.g., Indonesia, Israel).','一些亚洲新国家加入（如印度尼西亚、以色列）。'),1955:o('16 countries join together in 1955.','1955年一次加入16个国家。'),1960:o('Year of Africa: 17 African countries become independent.','“非洲独立年”：17个非洲国家独立。'),1965:o('More African and Caribbean states (Kenya, Jamaica…).','更多非洲和加勒比国家加入（肯尼亚、牙买加等）。'),1970:o('Gulf and Pacific states start to join.','海湾国家和太平洋岛国开始加入。'),1975:o('Portugal’s African colonies win independence.','葡萄牙的非洲殖民地获得独立。'),1980:o('Zimbabwe joins in 1980.','津巴布韦1980年加入。'),1985:o('Almost all colonies are now independent.','几乎所有殖民地都已独立。'),1991:o('After the Cold War: the Baltic states and both Koreas join.','冷战结束后：波罗的海三国和朝鲜半岛南北双方加入。')};
+  function draw(){ const r = cv.parentElement.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!r.width) return;
+    cv.width = r.width * d; cv.height = r.height * d; g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, r.width, r.height);
+    const L = 30, B = 22, T = 14, W = r.width - L - 6, H = r.height - T - B, bw = W / yrs.length;
+    [0, 50, 100, 150].forEach(t => { const y = T + H - t / 175 * H; g.strokeStyle = css('--line'); g.beginPath(); g.moveTo(L, y); g.lineTo(L + W, y); g.stroke(); g.fillStyle = css('--ink-2'); g.font = '11px Nunito, sans-serif'; g.textAlign = 'right'; g.textBaseline = 'middle'; g.fillText(t, L - 4, y); });
+    bars = yrs.map((y, i) => { const v = Math.round(lerp(UN, y)), h = v / 175 * H, x = L + i * bw + bw * .15, on = y === sel; g.fillStyle = on ? css('--accent') : '#16a34a'; g.globalAlpha = on ? 1 : .75; g.fillRect(x, T + H - h, bw * .7, h); g.globalAlpha = 1;
+      g.fillStyle = css('--ink'); g.textAlign = 'center'; g.font = `${on ? 800 : 600} 11px Nunito, sans-serif`; g.fillText(v, x + bw * .35, T + H - h - 7); g.fillStyle = css('--ink-2'); g.fillText("'" + String(y).slice(2), x + bw * .35, T + H + 11); return { y, x0:L + i * bw, x1:L + (i + 1) * bw }; });
+    Lab.$('#unRead').innerHTML = `<b>${sel}</b> · ${Math.round(lerp(UN, sel))} ${Lab.L(o('members','个会员国'))} — ${Lab.L(NOTE[sel])}`; }
+  cv.addEventListener('click', e => { const x = e.clientX - cv.getBoundingClientRect().left, b = bars.find(b => x >= b.x0 && x < b.x1); if (b){ sel = b.y; draw(); } });
+  new ResizeObserver(() => requestAnimationFrame(draw)).observe(cv.parentElement);
+  new MutationObserver(() => setTimeout(draw, 60)).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme'] });
+  Lab.onLang(draw);
+})();
+
+/* ================= Crisis room ================= */
+const CR = [
+ { w:'1948', h:o('Berlin is blockaded','柏林被封锁'), p:o('Stalin has cut every road, railway and canal into West Berlin. 2 million people have about a month of food left. You advise the Western Allies.','斯大林切断了通往西柏林的所有公路、铁路和运河。200万人的食物只够吃一个月左右。你是西方盟国的顾问。'),
+   c:[ { t:o('Fly in food and coal by plane — an airlift','用飞机运送食品和煤炭——空运'), s:10, d:0, f:o('Planes didn’t force the Soviets to shoot first. About 277,000 flights later, Stalin lifted the blockade (May 1949).','飞机运输不会迫使苏联先开火。大约27.7万架次之后，斯大林于1949年5月解除了封锁。') },
+       { t:o('Send an armed convoy of tanks down the highway','派坦克车队强行沿公路开进'), s:3, d:2, f:o('Some generals proposed this. It risked a shooting war with Soviet troops.','一些将军提出过这个方案，但它可能引发与苏军的直接交火。') },
+       { t:o('Give up West Berlin','放弃西柏林'), s:0, d:0, f:o('Calm for now, but West Berliners — and Western allies everywhere — would lose faith in your promises.','暂时平静了，但西柏林人以及各地的盟友都会对你的承诺失去信心。') } ] },
+ { w:'1950', h:o('Korea: how far north?','朝鲜：要向北打多远？'), p:o('UN forces have pushed North Korea’s army back to the 38th parallel. China has warned it will act if they approach its border.','“联合国军”已把朝鲜军队打回三八线。中国警告说，如果他们逼近中国边境，中国将采取行动。'),
+   c:[ { t:o('Stop near the 38th parallel and seek talks','在三八线附近停下，寻求谈判'), s:10, d:0, f:o('Many historians think this could have avoided a wider war. In reality UN forces advanced toward the Yalu River…','许多历史学家认为这样可以避免战争扩大。但实际上“联合国军”继续向鸭绿江推进……') },
+       { t:o('Push on to the Yalu River, China’s border','继续推进到中国边境的鸭绿江'), s:3, d:2, f:o('This is what happened. The Chinese People’s Volunteers entered in October 1950. After three years of fighting, the 1953 armistice line was near the 38th parallel again.','历史上正是这样。1950年10月中国人民志愿军入朝作战。打了三年，1953年停战线又回到三八线附近。') },
+       { t:o('Use atomic bombs to end it quickly','用原子弹速战速决'), s:0, d:3, f:o('General MacArthur wanted to widen the war. President Truman fired him (1951) and kept the war limited.','麦克阿瑟将军想扩大战争。杜鲁门总统在1951年撤了他的职，把战争控制在有限范围内。') } ] },
+ { w:'1957', h:o('Sputnik is beeping overhead','斯普特尼克号在头顶“嘀嘀”作响'), p:o('The USSR has put the first satellite in orbit. Americans fear Soviet rockets could also carry nuclear warheads. You advise the US government.','苏联把第一颗人造卫星送入轨道。美国人担心苏联火箭也能携带核弹头。你是美国政府的顾问。'),
+   c:[ { t:o('Create a space agency and fund science and math education','成立航天机构，资助科学和数学教育'), s:10, d:0, f:o('NASA was created in 1958, and the National Defense Education Act paid for science classes and student loans.','1958年美国成立NASA，并通过《国防教育法》资助科学课程和学生贷款。') },
+       { t:o('Threaten to shoot the satellite down','威胁要把卫星打下来'), s:0, d:1, f:o('Nobody could do that in 1957 — and it would only raise tension.','1957年谁也做不到——这样只会加剧紧张。') },
+       { t:o('Ignore it — it is just a beeping ball','不理它——不过是个会“嘀嘀”响的球'), s:3, d:0, f:o('The public would not accept that. The space race had begun.','公众不会接受。太空竞赛已经开始了。') } ] },
+ { w:'Oct 16, 1962', h:o('Missiles in Cuba!','古巴有导弹！'), p:o('U-2 photos show Soviet nuclear missile sites being built in Cuba, 90 miles from Florida. President Kennedy asks for your advice.','U-2侦察照片显示，苏联正在距佛罗里达90英里的古巴修建核导弹发射场。肯尼迪总统征求你的意见。'),
+   c:[ { t:o('A naval “quarantine” to stop more missiles, while talking','实施海上“隔离”阻止更多导弹运入，同时谈判'), s:10, d:1, f:o('Kennedy chose this: it was firm but left Khrushchev time and room to step back.','肯尼迪选择了这个办法：态度坚决，又给赫鲁晓夫留出时间和退路。') },
+       { t:o('Bomb the missile sites at once','立即轰炸导弹发射场'), s:0, d:3, f:o('Many generals wanted this. We now know Soviet forces in Cuba had nuclear weapons ready — air strikes could have started a nuclear war.','许多将军主张这样做。我们现在知道，驻古巴的苏军已有可用的核武器——空袭很可能引发核战争。') },
+       { t:o('Do nothing and hope','什么都不做，听天由命'), s:3, d:1, f:o('The missiles would stay, and allies would doubt US promises.','导弹会留下来，盟友也会怀疑美国的承诺。') } ] },
+ { w:'Oct 27, 1962', h:o('The deal','达成协议'), p:o('Khrushchev offers to remove the missiles if the US promises never to invade Cuba — and he wants US missiles out of Turkey too.','赫鲁晓夫提出：如果美国保证永不入侵古巴，他就撤走导弹——他还要求美国撤走部署在土耳其的导弹。'),
+   c:[ { t:o('Promise not to invade Cuba, and secretly agree to remove the missiles in Turkey','公开保证不入侵古巴，并秘密同意撤走土耳其的导弹'), s:10, d:-2, f:o('That is what happened. Both sides stepped back; in 1963 they set up a hotline and signed a treaty banning nuclear tests in the air.','历史上正是这样。双方都后退了一步；1963年美苏开通热线，并签署条约禁止在大气层进行核试验。') },
+       { t:o('Refuse — invade Cuba instead','拒绝，并入侵古巴'), s:0, d:3, f:o('An invasion would have met Soviet troops with nuclear weapons.','入侵会与装备核武器的苏军直接对抗。') },
+       { t:o('Demand the USSR also leave Eastern Europe','要求苏联同时撤出东欧'), s:3, d:1, f:o('Far too much to ask in one deal — the crisis would drag on.','一次谈判中要求太多，危机会拖延下去。') } ] },
+ { w:'1971', h:o('An invitation to ping-pong','一张乒乓球邀请'), p:o('The USA and the People’s Republic of China have not talked officially for over 20 years. China invites the US table-tennis team to visit.','美国和中华人民共和国20多年来没有正式往来。中国邀请美国乒乓球队来访。'),
+   c:[ { t:o('Accept, and prepare a presidential visit to Beijing','接受邀请，并筹备总统访问北京'), s:10, d:-1, f:o('Nixon visited in February 1972 and met Mao Zedong. Diplomatic relations followed in 1979.','1972年2月尼克松访华，会见毛泽东。1979年两国建交。') },
+       { t:o('Refuse all contact','拒绝一切接触'), s:3, d:0, f:o('Possible — but a huge chance to reduce tension would be lost.','可以——但会错失缓和紧张局势的大好机会。') },
+       { t:o('Send warships to show strength','派军舰示威'), s:0, d:1, f:o('That would raise tension for no gain.','这只会无谓地加剧紧张。') } ] },
+ { w:'1987', h:o('70,000 warheads','七万枚核弹头'), p:o('At the 1986 peak there were about 70,000 nuclear warheads in the world. Soviet leader Gorbachev and President Reagan meet.','1986年高峰时，世界上约有7万枚核弹头。苏联领导人戈尔巴乔夫和美国总统里根举行会晤。'),
+   c:[ { t:o('Sign a treaty to destroy a whole class of missiles, with inspections','签署条约，销毁一整类导弹，并允许核查'), s:10, d:-1, f:o('The INF Treaty (1987) destroyed 2,692 missiles. Reagan’s motto: “Trust, but verify.”','1987年《中导条约》销毁了2692枚导弹。里根的口号：“信任，但要核查。”') },
+       { t:o('Build even more missiles','造更多的导弹'), s:0, d:1, f:o('The arms race was already bankrupting the Soviet economy and frightening the world.','军备竞赛已经拖垮了苏联经济，也让全世界提心吊胆。') },
+       { t:o('Sign a promise with no inspections','签一个不核查的承诺'), s:3, d:0, f:o('Without checks, neither side could be sure the other kept its word.','没有核查，谁也不能确定对方是否守约。') } ] },
+ { w:'Nov 9, 1989', h:o('Crowds at the wall','墙边的人群'), p:o('A confused announcement says East Germans may travel freely. Thousands crowd the Bornholmer Straße checkpoint. You command the guards.','一则仓促的通告说东德人可以自由出境。成千上万的人涌到伯恩霍尔默大街检查站。你指挥那里的守卫。'),
+   c:[ { t:o('Open the gates peacefully','和平地打开大门'), s:10, d:-2, f:o('Officer Harald Jäger opened his gate around 11:30 p.m.; other checkpoints followed. No shots were fired. Germany reunited in October 1990.','军官哈拉尔德·耶格尔在晚上11点半左右打开了大门，其他检查站随后跟进，没有开一枪。1990年10月德国统一。') },
+       { t:o('Use force to push the crowds back','用武力驱散人群'), s:0, d:3, f:o('With tens of thousands of people there, force could have caused a disaster. Gorbachev had made clear Soviet troops would not intervene.','现场有几万人，使用武力可能酿成大祸。戈尔巴乔夫已明确表示苏军不会干预。') },
+       { t:o('Wait for orders from above','等待上级命令'), s:3, d:1, f:o('Jäger called his superiors for hours and got no clear answer — the crowd kept growing.','耶格尔打了几个小时电话，上级始终没有明确答复——人群越聚越多。') } ] }
+];
+const GR = [ [0,o('Clerk','办事员')], [40,o('Analyst','分析员')], [100,o('Diplomat','外交官')], [170,o('Ambassador','大使')], [250,o('Foreign minister','外交部长')], [350,o('Peacemaker','和平缔造者')] ];
+(function(){
+  const G = { total:0, run:0, i:0, ans:null, ten:0, over:false };
+  const box = Lab.$('#gBox'), DC = ['#16a34a','#65a30d','#ca8a04','#ea580c','#dc2626'];
+  function render(){
+    Lab.$('#gScore').textContent = G.total; Lab.$('#gRun').textContent = G.run + '/80'; Lab.$('#gDone').textContent = Math.min(G.i + (G.ans != null ? 1 : 0), 8) + '/8';
+    const st = G.run >= 72 ? 3 : G.run >= 56 ? 2 : G.run >= 40 ? 1 : 0; Lab.$('#gStars').textContent = stars(st); Lab.$('#gRanks').innerHTML = ranksHTML(GR, G.total);
+    Lab.$('#defcon').innerHTML = [5, 4, 3, 2, 1].map((n, j) => `<span class="${4 - G.ten === n - 1 ? 'on' : ''}" style="${4 - G.ten === n - 1 ? 'background:' + DC[j] : ''}">DEFCON ${n}</span>`).join('');
+    if (G.over || G.i >= CR.length){ const boom = G.over;
+      box.innerHTML = `<div class="scard"><h3>${Lab.L(boom ? o('DEFCON 1 — the simulation stops here','DEFCON 1——模拟到此停止') : o('1991: the Cold War is over','1991年：冷战结束'))}</h3><p class="stars" style="margin:0">${stars(st)}</p><p style="margin:0">${Lab.L(boom ? o('This is exactly the outcome everyone feared. In real life, leaders on both sides stepped back from the edge. Try again!', '这正是全世界最害怕的结局。在真实历史中，双方领导人都在悬崖边停了下来。再试一次！') : o(`This round: ${G.run}/80. The Cold War ended without the two superpowers ever fighting each other directly — partly through luck, partly through leaders who chose talks over force.`, `本轮得分：${G.run}/80。冷战结束时，两个超级大国始终没有直接交战——一部分靠运气，一部分靠领导人选择了谈判而不是武力。`))}</p><div class="btnrow"><button class="btn" id="gAgain">${Lab.L(o('Play again ▶','再玩一轮 ▶'))}</button></div></div>`;
+      Lab.$('#gAgain').onclick = () => { G.run = 0; G.i = 0; G.ans = null; G.ten = 0; G.over = false; render(); }; return; }
+    const s = CR[G.i]; if (!G.ord || G.ordFor !== s){ G.ord = Lab.shuffle([0, 1, 2]); G.ordFor = s; }
+    box.innerHTML = `<div class="scard"><div class="when">${s.w}</div><h3>${Lab.L(s.h)}</h3><p style="margin:0">${Lab.L(s.p)}</p>
+      <div class="choices">${G.ord.map(j => `<button data-j="${j}" ${G.ans != null ? 'disabled' : ''} class="${G.ans != null ? (s.c[j].s === 10 ? 'best' : G.ans === j ? 'meh' : '') : ''}">${Lab.L(s.c[j].t)}</button>`).join('')}</div>
+      ${G.ans != null ? `<div class="fb ${s.c[G.ans].s === 10 ? 'good' : 'bad'}">${s.c[G.ans].s === 10 ? '✅ ' : '🤔 '}${Lab.L(s.c[G.ans].f)}</div><div class="btnrow"><button class="btn" id="gGo">${Lab.L(o('Next crisis ▶','下一场危机 ▶'))}</button></div>` : ''}</div>`;
+    Lab.$$('#gBox .choices button').forEach(b => b.onclick = () => { const c = s.c[+b.dataset.j]; G.ans = +b.dataset.j; G.run += c.s; G.total += c.s; G.ten = Math.max(0, Math.min(4, G.ten + c.d)); render(); });
+    const n = Lab.$('#gGo'); if (n) n.onclick = () => { G.ans = null; if (G.ten >= 4) G.over = true; else G.i++; render(); };
+  }
+  Lab.onLang(render);
+})();
+
+/* ================= Space race ================= */
+const SPACE = [
+ { y:1957.76, who:'su', t:o('First artificial satellite (Sputnik 1)','第一颗人造卫星（斯普特尼克1号）') },
+ { y:1957.84, who:'su', t:o('First animal in orbit (the dog Laika)','第一个进入轨道的动物（小狗莱卡）') },
+ { y:1958.08, who:'us', t:o('First satellite to discover radiation belts around Earth (Explorer 1)','第一颗发现地球辐射带的卫星（探险者1号）') },
+ { y:1959.7, who:'su', t:o('First spacecraft to reach the Moon’s surface (Luna 2, a crash landing)','第一个抵达月面的航天器（月球2号，硬着陆）') },
+ { y:1961.28, who:'su', t:o('First person in space (Yuri Gagarin)','第一个进入太空的人（尤里·加加林）') },
+ { y:1962.13, who:'us', t:o('First American to orbit Earth (John Glenn)','第一个绕地球轨道飞行的美国人（约翰·格伦）') },
+ { y:1963.46, who:'su', t:o('First woman in space (Valentina Tereshkova)','第一位进入太空的女性（瓦莲京娜·捷列什科娃）') },
+ { y:1965.22, who:'su', t:o('First spacewalk (Alexei Leonov)','第一次太空行走（阿列克谢·列昂诺夫）') },
+ { y:1966.1, who:'su', t:o('First soft landing on the Moon (Luna 9)','第一次在月球软着陆（月球9号）') },
+ { y:1968.98, who:'us', t:o('First people to orbit the Moon (Apollo 8)','第一批绕月飞行的人（阿波罗8号）') },
+ { y:1969.55, who:'us', t:o('First people to walk on the Moon (Apollo 11)','第一批登上月球的人（阿波罗11号）') },
+ { y:1970.31, who:'cn', t:o('China’s first satellite, playing the song “The East Is Red” (Dong Fang Hong 1)','中国第一颗人造卫星，播放《东方红》乐曲（东方红一号）') },
+ { y:1971.3, who:'su', t:o('First space station (Salyut 1)','第一个空间站（礼炮1号）') },
+ { y:1975.54, who:'both', t:o('First US–Soviet handshake in orbit (Apollo–Soyuz)','美苏宇航员第一次在太空握手（阿波罗—联盟号）') }
+];
+const WHO = { us:o('🇺🇸 USA','🇺🇸 美国'), su:o('☭ USSR','☭ 苏联'), cn:o('🇨🇳 China','🇨🇳 中国'), both:o('🤝 Both together','🤝 美苏合作') }, WCOL = { us:'#2563eb', su:'#dc2626', cn:'#d97706', both:'#7c3aed' };
+(function(){
+  const S = { i:0, ok:0, ans:null, done:[] }, cv = Lab.$('#tlCv'), g = cv.getContext('2d');
+  function tl(){ const r = cv.parentElement.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!r.width) return;
+    cv.width = r.width * d; cv.height = r.height * d; g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, r.width, r.height);
+    const X = y => 14 + (y - 1957) / 19 * (r.width - 28), ym = r.height / 2; g.strokeStyle = css('--line'); g.lineWidth = 3; g.beginPath(); g.moveTo(X(1957), ym); g.lineTo(X(1976), ym); g.stroke();
+    g.fillStyle = css('--ink-2'); g.font = '700 11px Nunito, sans-serif'; g.textAlign = 'center'; [1957, 1961, 1965, 1969, 1973, 1976].forEach(y => g.fillText(y, X(y), r.height - 6));
+    S.done.forEach((e, j) => { g.beginPath(); g.arc(X(e.y), ym + (j % 2 ? 14 : -14), 7, 0, 7); g.fillStyle = WCOL[e.who]; g.fill(); g.strokeStyle = css('--surface'); g.lineWidth = 2; g.stroke(); }); }
+  function render(){
+    Lab.$('#sUS').textContent = S.done.filter(e => e.who === 'us').length; Lab.$('#sSU').textContent = S.done.filter(e => e.who === 'su').length; Lab.$('#sOK').textContent = S.ok + '/' + SPACE.length;
+    tl(); const box = Lab.$('#sBox');
+    if (S.i >= SPACE.length){ box.innerHTML = `<div class="fb good">${Lab.L(o(`You got ${S.ok}/${SPACE.length}. The USSR won most early “firsts”; the USA won the race to the Moon. In 1975 the rivals shook hands in orbit — and today astronauts from many countries, and China’s own Tiangong station, keep exploring.`, `你猜对了 ${S.ok}/${SPACE.length} 个。苏联赢得了大部分早期的“第一”；美国赢得了登月竞赛。1975年两个对手在太空握手——今天，许多国家的宇航员和中国自己的天宫空间站仍在继续探索。`))}</div><div class="btnrow"><button class="btn ghost" id="sAgain">${Lab.L(o('↻ Again','↻ 再来'))}</button></div>`;
+      Lab.$('#sAgain').onclick = () => { S.i = 0; S.ok = 0; S.ans = null; S.done = []; render(); }; return; }
+    const e = SPACE[S.i];
+    box.innerHTML = `<div class="scard"><div class="when">${Math.floor(e.y)} · ${S.i + 1}/${SPACE.length}</div><h3>${Lab.L(e.t)}</h3>
+      <div class="flagbtns">${Object.keys(WHO).map(k => `<button data-k="${k}" ${S.ans ? 'disabled' : ''} style="${S.ans && k === e.who ? 'border-color:var(--good)' : S.ans === k ? 'border-color:var(--bad)' : ''}">${Lab.L(WHO[k])}</button>`).join('')}</div>
+      ${S.ans ? `<div class="result ${S.ans === e.who ? 'good' : 'bad'}">${S.ans === e.who ? '✅ ' : '❌ '}${Lab.L(WHO[e.who])}</div><div class="btnrow"><button class="btn" id="sNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>` : ''}</div>`;
+    Lab.$$('#sBox .flagbtns button').forEach(b => b.onclick = () => { S.ans = b.dataset.k; if (S.ans === e.who) S.ok++; S.done.push(e); render(); });
+    const n = Lab.$('#sNext'); if (n) n.onclick = () => { S.ans = null; S.i++; render(); };
+  }
+  new ResizeObserver(() => requestAnimationFrame(tl)).observe(cv.parentElement);
+  Lab.onLang(render);
+})();
+
+/* ================= Divided Berlin ================= */
+(function(){
+  const svg = Lab.$('#berSvg'); let k = '48';
+  const TXT = { '48':o('1948–49: Berlin lies 160 km (100 miles) inside the Soviet zone. With roads and railways blocked, Allied planes land in West Berlin every few minutes along three air corridors.','1948—1949年：柏林位于苏占区内160千米（100英里）处。公路和铁路被封锁后，盟军飞机沿三条空中走廊，每隔几分钟就在西柏林降落一架。'),
+    '61':o('1961: East Germany builds a wall right around West Berlin — about 155 km long — with a guarded “death strip” behind it. Checkpoint Charlie becomes the famous crossing for foreigners.','1961年：东德沿西柏林四周修建了约155千米长的墙，墙后是有人看守的“死亡地带”。查理检查站成为外国人通行的著名关口。'),
+    '89':o('9 November 1989: the gates open and Berliners from both sides meet on the wall. Within a year Germany is one country again (3 October 1990).','1989年11月9日：大门打开，东西柏林人在墙上相聚。不到一年，德国重新统一（1990年10月3日）。') };
+  const WB = 'M408,150 L470,140 L500,170 L495,215 L470,250 L420,252 L395,215 Z';
+  function draw(){
+    const ink2 = css('--ink-2');
+    let h = `<rect x="0" y="0" width="640" height="440" fill="none"/>`;
+    h += `<path d="M10,20 L250,20 L240,140 L260,260 L230,420 L10,420 Z" fill="${k === '89' ? 'rgba(124,58,237,.18)' : 'rgba(37,99,235,.22)'}" stroke="${ink2}"/>`;
+    h += `<path d="M250,20 L630,20 L630,420 L230,420 L260,260 L240,140 Z" fill="${k === '89' ? 'rgba(124,58,237,.18)' : 'rgba(220,38,38,.18)'}" stroke="${ink2}"/>`;
+    h += `<text x="120" y="60" text-anchor="middle">${Lab.L(k === '89' ? o('Germany (reunited 1990)','德国（1990年统一）') : o('West Germany','西德（联邦德国）'))}</text>`;
+    if (k !== '89') h += `<text x="520" y="60" text-anchor="middle">${Lab.L(k === '48' ? o('Soviet zone','苏占区') : o('East Germany','东德（民主德国）'))}</text>`;
+    h += `<circle cx="455" cy="200" r="85" fill="rgba(220,38,38,.22)" stroke="${ink2}"/><path d="${WB}" fill="rgba(37,99,235,.35)" stroke="${ink2}"/>`;
+    h += `<text x="445" y="200" text-anchor="middle">${Lab.L(o('West Berlin','西柏林'))}</text><text x="515" y="125" text-anchor="middle">${Lab.L(o('East Berlin','东柏林'))}</text>`;
+    if (k === '48'){ [['Hamburg','汉堡',150,70],['Hannover','汉诺威',140,200],['Frankfurt','法兰克福',130,360]].forEach(([en, zh, x, y], i) => { const p = `M${x},${y} L440,195`;
+      h += `<path d="${p}" stroke="#2563eb" stroke-width="10" stroke-opacity=".18" fill="none"/><path d="${p}" stroke="#2563eb" stroke-dasharray="6 6" fill="none"/><circle cx="${x}" cy="${y}" r="5" fill="#2563eb"/><text x="${x}" y="${y - 10}" text-anchor="middle">${Lab.lang === 'zh' ? zh : en}</text>`;
+      for (let j = 0; j < 3; j++) h += `<text style="stroke:none;font-size:15px">✈<animateMotion dur="4s" begin="${j * 1.33 + i * .4}s" repeatCount="indefinite" path="${p}" rotate="auto"/></text>`; });
+      h += `<text x="320" y="410" text-anchor="middle">${Lab.L(o('≈ 277,000 flights · ≈ 2.3 million tons','约27.7万架次 · 约230万吨物资'))}</text>`; }
+    if (k === '61') h += `<path d="${WB}" fill="none" stroke="#111827" stroke-width="6"/><circle cx="470" cy="205" r="6" fill="#f59e0b"/><text x="476" y="225">${Lab.L(o('Checkpoint Charlie','查理检查站'))}</text><text x="320" y="410" text-anchor="middle">${Lab.L(o('Wall ≈ 155 km · at least 140 people killed trying to cross','墙长约155千米 · 至少140人在越墙时死亡'))}</text>`;
+    if (k === '89'){ h += `<path d="${WB}" fill="none" stroke="#111827" stroke-width="6" stroke-dasharray="14 12"/>`; for (let j = 0; j < 14; j++){ const a = j / 14 * Math.PI * 2; h += `<circle r="3.5" fill="#7c3aed"><animate attributeName="cx" values="${455 + Math.cos(a) * 30};${455 + Math.cos(a + 1) * 75};${455 + Math.cos(a) * 30}" dur="${3 + j % 3}s" repeatCount="indefinite"/><animate attributeName="cy" values="${200 + Math.sin(a) * 25};${200 + Math.sin(a + 1) * 60};${200 + Math.sin(a) * 25}" dur="${3 + j % 3}s" repeatCount="indefinite"/></circle>`; }
+      h += `<text x="320" y="410" text-anchor="middle">${Lab.L(o('9 Nov 1989: gates open · 3 Oct 1990: one Germany','1989年11月9日开放 · 1990年10月3日统一'))}</text>`; }
+    h += `<text x="20" y="436" style="font-size:10px;font-weight:700">${Lab.L(o('Schematic, not to scale','示意图，不按比例'))}</text>`;
+    svg.innerHTML = h; Lab.$('#berRead').textContent = Lab.L(TXT[k]);
+  }
+  Lab.$$('#berSeg button').forEach(b => b.onclick = () => { k = b.dataset.k; Lab.$$('#berSeg button').forEach(x => x.classList.toggle('on', x === b)); draw(); });
+  new MutationObserver(() => setTimeout(draw, 60)).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme'] });
+  Lab.onLang(draw);
+})();
+
+/* ================= Quiz & sort ================= */
+const QUIZ = [
+ {q:o('Why was it called a “cold” war?','为什么叫“冷战”？'), options:[o('The USA and USSR never fought each other directly','美苏两国从未直接交战'),o('It was fought only in winter','只在冬天打仗'),o('It happened near the Arctic','发生在北极附近'),o('No weapons were built','没有制造武器')], answer:0},
+ {q:o('Which plan gave US economic aid to rebuild Western Europe?','哪个计划由美国提供经济援助，复兴西欧？'), options:[o('The Marshall Plan','马歇尔计划'),o('The Warsaw Pact','华沙条约'),o('The Five-Year Plan','五年计划'),o('The Schlieffen Plan','施里芬计划')], answer:0},
+ {q:o('NATO (1949) and the Warsaw Pact (1955) were…','北约（1949年）和华约（1955年）是'), options:[o('rival military alliances','相互对立的军事同盟'),o('trade agreements in Asia','亚洲的贸易协定'),o('space agencies','航天机构'),o('UN agencies','联合国机构')], answer:0},
+ {q:o('Map reading: during the Berlin Airlift, which part of Berlin was supplied by plane?','读地图：柏林空运期间，柏林的哪一部分靠飞机补给？'), options:[o('West Berlin, surrounded by the Soviet zone','被苏占区包围的西柏林'),o('East Berlin','东柏林'),o('All of Germany','整个德国'),o('Moscow','莫斯科')], answer:0},
+ {q:o('How did the Korean War end in 1953?','朝鲜战争在1953年如何结束？'), options:[o('With an armistice near the 38th parallel','在三八线附近签订停战协定'),o('With Korea united','朝鲜半岛统一'),o('With a peace treaty signed in Paris','在巴黎签订和约'),o('With atomic bombs','用原子弹结束')], answer:0},
+ {q:o('At the 1955 Bandung Conference Zhou Enlai proposed…','1955年万隆会议上周恩来提出了'), options:[o('“seek common ground while reserving differences”','“求同存异”的方针'),o('the Marshall Plan','马歇尔计划'),o('building the Berlin Wall','修建柏林墙'),o('the domino theory','多米诺理论')], answer:0},
+ {q:o('Who led Ghana to independence in 1957?','谁领导加纳在1957年获得独立？'), options:[o('Kwame Nkrumah','恩克鲁玛'),o('Mohandas Gandhi','甘地'),o('Jomo Kenyatta','肯雅塔'),o('Nelson Mandela','曼德拉')], answer:0, explain:o('Kenyatta led Kenya (1963); Gandhi led India’s non-violent movement.','肯雅塔领导肯尼亚（1963年）；甘地领导印度的非暴力运动。')},
+ {q:o('Chart reading: about how many UN members were there in 1960 compared with 51 in 1945?','读图表：1960年联合国大约有多少会员国（1945年为51个）？'), options:[o('About 100','约100个'),o('About 25','约25个'),o('About 300','约300个'),o('Exactly 51','仍是51个')], answer:0, explain:o('99 — mostly new nations from Asia and Africa.','99个——主要是亚非新独立国家。')},
+ {q:o('What happened in the Cuban Missile Crisis (1962)?','古巴导弹危机（1962年）中发生了什么？'), options:[o('The USSR removed its missiles from Cuba after a deal with the US','经过美苏谈判，苏联撤走了古巴的导弹'),o('A nuclear war started','爆发了核战争'),o('The US invaded Cuba','美国入侵了古巴'),o('Cuba joined NATO','古巴加入了北约')], answer:0},
+ {q:o('Who was the first person in space?','第一个进入太空的人是谁？'), options:[o('Yuri Gagarin (USSR, 1961)','尤里·加加林（苏联，1961年）'),o('Neil Armstrong','尼尔·阿姆斯特朗'),o('John Glenn','约翰·格伦'),o('Yang Liwei','杨利伟')], answer:0, explain:o('Yang Liwei was China’s first astronaut, in 2003.','杨利伟是中国第一位航天员，2003年进入太空。')},
+ {q:o('The Berlin Wall fell in…','柏林墙倒塌于'), options:[o('1989','1989年'),o('1961','1961年'),o('1991','1991年'),o('1945','1945年')], answer:0},
+ {q:o('In December 1991 the Soviet Union…','1991年12月，苏联'), options:[o('broke up into 15 independent countries','解体为15个独立国家'),o('joined NATO','加入了北约'),o('landed on the Moon','登上月球'),o('built the Berlin Wall','修建了柏林墙')], answer:0}
+];
+Lab.quiz(Lab.$('#quiz'), QUIZ, { count:12 });
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'w',en:'USA / NATO side',zh:'美国/北约一方'},{id:'e',en:'USSR / Warsaw Pact side',zh:'苏联/华约一方'},{id:'n',en:'Non-aligned & new nations',zh:'不结盟与新独立国家'}],
+  items:[{en:'Marshall Plan',zh:'马歇尔计划',bin:'w'},{en:'Truman Doctrine',zh:'杜鲁门主义',bin:'w'},{en:'Apollo 11',zh:'阿波罗11号',bin:'w'},{en:'Berlin Airlift',zh:'柏林空运',bin:'w'},
+    {en:'Sputnik 1',zh:'斯普特尼克1号',bin:'e'},{en:'Yuri Gagarin',zh:'尤里·加加林',bin:'e'},{en:'Building the Berlin Wall',zh:'修建柏林墙',bin:'e'},{en:'Warsaw Pact treaty',zh:'《华沙条约》',bin:'e'},
+    {en:'Bandung Conference',zh:'万隆会议',bin:'n'},{en:'Nkrumah’s Ghana',zh:'恩克鲁玛领导的加纳',bin:'n'},{en:'Gandhi’s non-violence',zh:'甘地的非暴力运动',bin:'n'},{en:'Year of Africa (1960)',zh:'非洲独立年（1960年）',bin:'n'}]
+});
+
+/* ================= Real media & links ================= */
+const PHOTOS = [
+ { src:'https://upload.wikimedia.org/wikipedia/commons/2/2a/C-54_landing_at_Tempelhof_%28cropped%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Berliners watch a C-54 transport plane land at Tempelhof Airport during the Berlin Airlift, 1948.', zh:'1948年柏林空运期间，柏林人看着一架C-54运输机降落在滕珀尔霍夫机场。', kind:HP, credit:'Henry Ries / USAF', license:'Public domain', page:CP + 'C-54_landing_at_Tempelhof_(cropped).jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d8/U._S._Tanks_at_Checkpoint_Charlie_-_Flickr_-_The_Central_Intelligence_Agency.jpg/960px-U._S._Tanks_at_Checkpoint_Charlie_-_Flickr_-_The_Central_Intelligence_Agency.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'27 October 1961: US tanks face Soviet tanks at Checkpoint Charlie, Berlin, weeks after the Wall went up.', zh:'1961年10月27日：柏林墙建起几周后，美军坦克与苏军坦克在查理检查站对峙。', kind:HP, credit:'The Central Intelligence Agency', license:'Public domain', page:CP + 'U._S._Tanks_at_Checkpoint_Charlie_-_Flickr_-_The_Central_Intelligence_Agency.jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7e/U-2_photo_during_Cuban_Missile_Crisis.jpg/960px-U-2_photo_during_Cuban_Missile_Crisis.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A U-2 spy-plane photo of a Soviet missile convoy near San Cristóbal, Cuba, 14 October 1962.', zh:'1962年10月14日，U-2侦察机拍摄的古巴圣克里斯托瓦尔附近的苏联导弹车队。', kind:HP, credit:'USAF', license:'Public domain', page:CP + 'U-2_photo_during_Cuban_Missile_Crisis.jpg' },
+ { src:'https://upload.wikimedia.org/wikipedia/commons/a/a7/1955%E5%B9%B44%E6%9C%88%E5%91%A8%E6%81%A9%E6%9D%A5%E3%80%81%E5%B0%BC%E8%B5%AB%E9%B2%81%E4%B8%8E%E5%90%B4%E5%8A%AA%E5%9C%A8%E4%B8%87%E9%9A%86%E4%BC%9A%E8%AE%AE%E6%9C%9F%E9%97%B4%E4%BA%A4%E8%B0%88.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Zhou Enlai, Jawaharlal Nehru and U Nu talking during the Bandung Conference, April 1955.', zh:'1955年4月，周恩来、尼赫鲁与吴努在万隆会议期间交谈。', kind:HP, credit:'Unknown author', license:'Public domain', page:CP + '1955%E5%B9%B44%E6%9C%88%E5%91%A8%E6%81%A9%E6%9D%A5%E3%80%81%E5%B0%BC%E8%B5%AB%E9%B2%81%E4%B8%8E%E5%90%B4%E5%8A%AA%E5%9C%A8%E4%B8%87%E9%9A%86%E4%BC%9A%E8%AE%AE%E6%9C%9F%E9%97%B4%E4%BA%A4%E8%B0%88.jpg' },
+ { src:'https://upload.wikimedia.org/wikipedia/commons/7/76/Gandhi_Salt_March.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Mohandas Gandhi during the Salt March, March–April 1930 — a non-violent protest against British rule in India.', zh:'1930年3—4月，甘地在“食盐进军”途中——反抗英国统治的非暴力抗议。', kind:HP, credit:'Unknown author', license:'Public domain', page:CP + 'Gandhi_Salt_March.jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ea/Replica_of_Sputnik_1%2C_World_Museum_Liverpool_%281%29.JPG/960px-Replica_of_Sputnik_1%2C_World_Museum_Liverpool_%281%29.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A replica of Sputnik 1 (1957), the first artificial satellite, at World Museum Liverpool.', zh:'英国利物浦世界博物馆里的斯普特尼克1号（1957年）复制品——世界上第一颗人造卫星。', kind:o('Replica','å¤å¶å'), credit:'Rept0n1x', license:'CC BY-SA 3.0', page:CP + 'Replica_of_Sputnik_1,_World_Museum_Liverpool_(1).JPG' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/98/Aldrin_Apollo_11_original.jpg/960px-Aldrin_Apollo_11_original.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Buzz Aldrin on the Moon, photographed by Neil Armstrong, July 1969.', zh:'1969年7月，尼尔·阿姆斯特朗拍摄的月球上的巴兹·奥尔德林。', kind:o('Photo','ç§ç'), credit:'Neil Armstrong', license:'Public domain', page:CP + 'Aldrin_Apollo_11_original.jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1e/DFH-1_Satellite.jpg/960px-DFH-1_Satellite.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Dong Fang Hong 1 (1970), China’s first satellite, at a space-technology exhibition in Hohhot.', zh:'呼和浩特航天技术展览中的东方红一号卫星（1970年），中国第一颗人造卫星。', kind:o('Object','å®ç©'), credit:'Brücke-Osteuropa', license:'CC0', page:CP + 'DFH-1_Satellite.jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/25/BerlinWall-BrandenburgGate.jpg/960px-BerlinWall-BrandenburgGate.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'People on top of the Berlin Wall near the Brandenburg Gate, 9 November 1989.', zh:'1989年11月9日，人们站在勃兰登堡门附近的柏林墙上。', kind:HP, credit:'Sue Ream, photographer (San Francisco, California)', license:'CC BY 3.0', page:CP + 'BerlinWall-BrandenburgGate.jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f5/President_Richard_Nixon_and_Mao_Zedong.jpg/960px-President_Richard_Nixon_and_Mao_Zedong.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'President Richard Nixon shakes hands with Chairman Mao Zedong in Beijing, February 1972.', zh:'1972年2月，尼克松总统与毛泽东主席在北京握手。', kind:HP, credit:'White House Photo Office (US National Archives)', license:'Public domain', page:CP + 'President_Richard_Nixon_and_Mao_Zedong.jpg' },
+ YT('A9fQPzZ1-hg', 'The rise and fall of the Berlin Wall — TED-Ed lesson by Konrad H. Jarausch (about 6 min).', '柏林墙的兴建与倒塌——TED-Ed 动画课，康拉德·雅劳施（约6分钟，英文）。', 'TED-Ed'),
+ YT('bwWW3sbk4EU', 'The history of the Cuban Missile Crisis — TED-Ed lesson by Matthew A. Jordan.', '古巴导弹危机的历史——TED-Ed 动画课，马修·乔丹（英文）。', 'TED-Ed'),
+ YT('lkyjKGIWRF0', 'Sputnik — from the Smithsonian National Air and Space Museum.', '斯普特尼克号——美国史密森尼国家航空航天博物馆（英文）。', 'Smithsonian National Air and Space Museum')
+];
+LabPhotos.render('#gallery', PHOTOS, { title:o('See the real thing','看看真实的样子'), sub:o('Photographs from Wikimedia Commons — Berlin, Cuba, Bandung, the space race — plus three videos. Click to enlarge; videos open on YouTube.','来自维基共享资源的照片——柏林、古巴、万隆、太空竞赛——以及三段视频。点击可放大；视频在 YouTube 打开。') });
+renderLinks('#links', [
+ { u:'https://www.berliner-mauer-gedenkstaette.de/en/', t:o('Berlin Wall Memorial','柏林墙纪念馆'), d:o('Explore the last preserved stretch of the Wall and the stories of people who crossed it.','了解保存下来的最后一段柏林墙和越墙者的故事（英文）。') },
+ { u:'https://history.state.gov/milestones/1945-1952/berlin-airlift', t:o('The Berlin Airlift (US Office of the Historian)','柏林空运（美国国务院历史办公室）'), d:o('A short official history of the blockade and airlift.','封锁与空运的简明官方历史（英文）。') },
+ { u:'https://history.state.gov/milestones/1961-1968/cuban-missile-crisis', t:o('The Cuban Missile Crisis (US Office of the Historian)','古巴导弹危机（美国国务院历史办公室）'), d:o('What happened during the 13 days of October 1962.','1962年10月那13天里发生了什么（英文）。') },
+ { u:'https://airandspace.si.edu/exhibitions/space-race', t:o('Space Race (Smithsonian Air and Space Museum)','太空竞赛（史密森尼航空航天博物馆）'), d:o('Rockets, satellites and spacesuits from the race to space.','太空竞赛中的火箭、卫星和航天服（英文）。') },
+ { u:'https://www.nasa.gov/history/', t:o('NASA History','NASA历史'), d:o('From Explorer 1 to Apollo 11 and beyond.','从“探险者1号”到“阿波罗11号”及以后（英文）。') },
+ { u:'https://www.un.org/en/about-us/history-of-the-un', t:o('History of the UN','联合国的历史'), d:o('See how the UN grew from 51 to 193 members as colonies became independent.','看殖民地独立后，联合国怎样从51个会员国增加到193个（英文）。') }
+]);
+</script>
+</body>
+</html>

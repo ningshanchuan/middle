@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Our Connected World</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/photos.js"></script>
+<script src="../shared/chinamap.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-array@3.2.4/dist/d3-array.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-geo@3.1.0/dist/d3-geo.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<style>
+.mission-line{font-weight:800;color:var(--ink);margin-top:10px}
+.unit{display:inline-block;font-size:13px;font-weight:800;padding:4px 10px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2);margin-top:8px}
+.stage canvas.map{touch-action:pan-y;cursor:pointer}
+.info .kh{font-size:13px;letter-spacing:.06em;color:var(--brand);margin-bottom:-6px}
+.info .date{font-family:Fredoka;font-weight:700;font-size:19px;color:var(--brand);margin-top:-8px}
+.counters.c4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.counters.c3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.dot-s{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.ranks{display:flex;flex-wrap:wrap;gap:6px}
+.ranks span{font-size:13px;font-weight:800;padding:4px 10px;border-radius:999px;background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line)}
+.ranks span.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.gm{padding:22px;display:flex;flex-direction:column;gap:14px}
+.bar{height:10px;border-radius:999px;background:var(--surface-2);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--brand);border-radius:999px;transition:width .3s}
+.scard{border:1px solid var(--line);border-radius:16px;padding:16px;background:var(--surface-2);display:flex;flex-direction:column;gap:10px}
+.scard .when{font-family:Fredoka;font-weight:700;color:var(--brand);font-size:18px}
+.scard h3{font-size:21px;margin:0}
+.choices{display:grid;gap:10px}
+.choices button{text-align:left;border:2px solid var(--line);background:var(--surface);color:var(--ink);border-radius:14px;padding:12px 14px;font-weight:700}
+.choices button:hover:not(:disabled){border-color:var(--brand)}
+.choices button.best{border-color:var(--good);background:color-mix(in srgb,var(--good) 12%,var(--surface))}
+.choices button.meh{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 9%,var(--surface))}
+.fb{border-radius:14px;padding:12px 14px;font-size:15.5px}
+.fb.good{background:color-mix(in srgb,var(--good) 12%,var(--surface));border:1px solid var(--good)}
+.fb.bad{background:color-mix(in srgb,var(--bad) 10%,var(--surface));border:1px solid var(--bad)}
+.stars{font-size:24px;letter-spacing:3px;color:var(--warn)}
+.two{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:18px}
+.two>.card{padding:20px;display:flex;flex-direction:column;gap:12px}
+.chart{position:relative;height:300px}
+.chart canvas{position:absolute;inset:0;width:100%;height:100%;cursor:pointer}
+.src{font-size:12.5px;color:var(--ink-2);margin:0}
+.readout{background:var(--surface-2);border-radius:14px;padding:12px 14px;min-height:60px;font-size:15.5px}
+.readout b{font-family:Fredoka;color:var(--brand);font-size:19px}
+.cnstrip{margin-top:18px;padding:16px 18px;border-left:6px solid #c0392b}
+.cnstrip-h{font-weight:800;letter-spacing:.04em;font-size:13px;text-transform:uppercase;color:#c0392b;margin-bottom:10px}
+.cnstrip-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.cnc{background:var(--surface-2);border-radius:14px;padding:12px 14px}
+.cnc b{font-family:Fredoka;color:#c0392b;font-size:18px}
+.cnc h4{margin:2px 0 4px;font-size:16px}
+.cnc p{margin:0;font-size:14.5px;color:var(--ink-2)}
+.chain{display:flex;flex-direction:column;gap:8px}
+.chain .slot{border:2px dashed var(--line);border-radius:14px;padding:10px 12px;min-height:46px;font-weight:700;display:flex;align-items:center;gap:8px;background:var(--surface)}
+.chain .slot.ok{border-style:solid;border-color:var(--good);background:color-mix(in srgb,var(--good) 10%,var(--surface))}
+.chain .arrow{text-align:center;color:var(--ink-2);font-weight:800;line-height:1}
+.tiles{display:flex;flex-wrap:wrap;gap:8px}
+.tiles button{border:2px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:12px;padding:8px 11px;font-weight:700;font-size:14.5px}
+.tiles button.sel{border-color:var(--brand);box-shadow:0 0 0 2px color-mix(in srgb,var(--brand) 30%,transparent)}
+.tiles button.bad{border-color:var(--bad);animation:labshake .35s}
+.tiles button:disabled{opacity:.35}
+@media (max-width:860px){.two{grid-template-columns:1fr}}
+@media (max-width:560px){.counters.c4,.counters.c3{grid-template-columns:1fr 1fr}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .cnstrip-h,:root:not([data-theme="light"]) .cnc b{color:#ff8a7a}}
+:root[data-theme="dark"] .cnstrip-h,:root[data-theme="dark"] .cnc b{color:#ff8a7a}
+.explorer>.stage{align-self:start;height:600px;min-height:0}
+@media (max-width:860px){.explorer>.stage{height:480px}}
+
+.parts{display:flex;flex-wrap:wrap;gap:6px}
+.parts span{font-size:12.5px;font-weight:800;padding:4px 9px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2)}
+.parts span.ok{border-color:var(--good);color:var(--good)}
+.parts span.no{border-color:var(--bad);color:var(--bad)}
+.parts span.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.sdg{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}
+.sdg button{border:0;border-radius:10px;color:#fff;font-weight:800;font-size:12px;line-height:1.15;padding:8px 6px;min-height:64px;text-align:left;display:flex;flex-direction:column;gap:2px;opacity:.92}
+.sdg button b{font-family:Fredoka;font-size:20px}
+.sdg button:hover,.sdg button.sel{opacity:1;outline:3px solid var(--ink);outline-offset:1px}
+.sdg button.wrong{animation:labshake .35s}
+#phoneStage{height:520px}
+@media (max-width:860px){.sdg{grid-template-columns:repeat(3,minmax(0,1fr))}#phoneStage{height:440px}}
+</style>
+</head>
+<body data-subject="worldhistory" data-topic="wh-today">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="世界历史 · 佐治亚州标准 SS6、SS7（含经济） · 统编版九年级下册">World History · Georgia GSE SS6, SS7 (incl. economics) · China: Grade 9 World History</span>
+  <h1 data-zh-html="相互联系的世界：<em>你的手机走了多远？</em>">Our Connected World: <em>how far has your phone travelled?</em></h1>
+  <p class="lead" data-zh="你口袋里的手机，零件可能来自十几个国家：刚果（金）的钴、澳大利亚的锂、日本的相机芯片、韩国的屏幕，在中国或印度组装，再坐船经过太平洋和巴拿马运河，到佐治亚州的萨凡纳港。这样一个连在一起的世界是怎样形成的？谁来制定规则、解决全球问题？">The phone in your pocket may contain parts from a dozen countries: cobalt from DR Congo, lithium from Australia, a camera chip from Japan, a screen from South Korea — put together in China or India, then shipped across the Pacific and through the Panama Canal to the Port of Savannah, Georgia. How did the world get this connected? And who sets the rules and tackles global problems?</p>
+  <p class="mission-line" data-zh="🎯 你的任务：拖动年份，看联合国、欧盟和世界贸易怎样增长；当一回“供应链侦探”，在地图上找出手机零件的来源；再把真实的问题和联合国17个可持续发展目标配对。">🎯 Your mission: drag the years to watch the UN, the EU and world trade grow; become a supply-chain detective and find where your phone’s parts come from; then match real problems to the UN’s 17 Sustainable Development Goals.</p>
+  <span class="unit" data-zh="📘 统编版《世界历史》九年级下册 第六单元“走向和平发展的世界”（联合国与世界贸易组织、不断发展的现代社会、经济全球化）">📘 China’s textbook: World History Grade 9 Vol. 2, Unit 6 “Toward a world of peace and development” (the UN and the WTO, modern society, economic globalization)</span>
+</header>
+
+<section class="wrap" id="map" data-nav="Timeline map" data-nav-zh="年份地图">
+  <div class="sec-head">
+    <h2 data-zh="互动地图：1945—2026年，世界连起来了">Interactive map: 1945–2026, the world links up</h2>
+    <p data-zh="拖动年份或按 ▶。蓝色是欧盟（及其前身）成员国，深蓝是使用欧元的国家；圆点是全球合作的大事件。点击了解详情。">Drag the year or press ▶. Blue = members of the EU (and the communities before it); dark blue = countries using the euro; dots are big moments of global cooperation. Click for details.</p>
+  </div>
+  <div style="margin-bottom:12px"><div class="timebar"><button id="playBtn" aria-label="Play">▶</button><input id="yr" type="range" min="1945" max="2026" step="1" value="1945" aria-label="Year"><output id="yrOut">1945</output></div></div>
+  <div class="explorer">
+    <div class="stage card" id="mapStage">
+      <canvas id="mapCv" class="map"></canvas>
+      <div class="toolbar"><span class="pill" style="background:var(--surface)"><span class="dot-s" style="background:#93c5fd"></span><span data-zh="欧盟成员国">EU member</span> <span class="dot-s" style="background:#1d4ed8;margin-left:8px"></span><span data-zh="使用欧元">uses the euro</span></span></div>
+      <div class="bottombar"><div class="tip" id="mapTip"></div></div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="counters c4" style="margin-top:12px">
+    <div class="counter"><b id="cUn">51</b><span data-zh="联合国会员国">UN member states</span></div>
+    <div class="counter"><b id="cEu">0</b><span data-zh="欧共体/欧盟成员国">EC / EU members</span></div>
+    <div class="counter"><b id="cTrade">—</b><span data-zh="世界商品出口额（约数）">world goods exports per year (approx.)</span></div>
+    <div class="counter"><b id="cChina">—</b><span data-zh="中国占世界出口的份额（约数）">China’s share of world exports (approx.)</span></div>
+  </div>
+  <div class="card cnstrip" id="cnStrip"></div>
+</section>
+
+<section class="wrap" id="phone" data-nav="Phone mission" data-nav-zh="手机任务">
+  <div class="sec-head">
+    <h2 data-zh="任务：供应链侦探——我的手机是哪里造的？">Mission: supply-chain detective — where was my phone made?</h2>
+    <p data-zh="每张卡片是一个零件或原料。在地图上点击你认为它主要来自的国家。猜对得10分，然后航线会画出来。最后把手机运到亚特兰大！">Each card is a part or raw material. Click the country on the map where you think it mostly comes from. Right = 10 points, and the route appears. At the end, ship the phone to Atlanta!</p>
+  </div>
+  <div class="gm card">
+    <div class="counters c4">
+      <div class="counter"><b id="pScore">0</b><span data-zh="总分">total score</span></div>
+      <div class="counter"><b id="pRun">0/120</b><span data-zh="本轮得分">this round</span></div>
+      <div class="counter"><b id="pStars" class="stars">☆☆☆</b><span data-zh="本轮星级">round stars</span></div>
+      <div class="counter"><b id="pKm">0</b><span data-zh="零件走过的路程（约数）">distance travelled by the parts (approx.)</span></div>
+    </div>
+    <div class="ranks" id="pRanks"></div>
+    <div class="parts" id="pParts"></div>
+    <div class="explorer">
+      <div class="stage card" id="phoneStage"><canvas id="phoneCv" class="map"></canvas><div class="bottombar"><div class="tip" id="phoneTip"></div></div></div>
+      <aside class="info card" id="pBox" aria-live="polite"></aside>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="un" data-nav="UN & SDGs" data-nav-zh="联合国与目标">
+  <div class="sec-head">
+    <h2 data-zh="联合国与17个可持续发展目标">The United Nations and the 17 Sustainable Development Goals</h2>
+    <p data-zh="2015年，联合国全部193个会员国一致通过了到2030年要实现的17个目标。读一读情景卡片，点出它最符合的目标；也可以点任意目标看看你能做什么。">In 2015 all 193 UN member states agreed on 17 goals to reach by 2030. Read each situation and tap the goal it fits best — or tap any goal to see what you can do.</p>
+  </div>
+  <div class="two">
+    <div class="card">
+      <div class="counters c3"><div class="counter"><b id="dScore">0/8</b><span data-zh="配对正确">matched</span></div><div class="counter"><b id="dTry">0</b><span data-zh="尝试次数">tries</span></div><div class="counter"><b id="dStreak">0</b><span data-zh="连对">streak</span></div></div>
+      <div class="readout" id="dCard" aria-live="polite"></div>
+      <div class="sdg" id="sdgGrid"></div>
+      <div class="result" id="dMsg"></div>
+    </div>
+    <div class="card">
+      <h3 data-zh="🏛️ 联合国怎样运作">🏛️ How the UN works</h3>
+      <details class="peek" open><summary data-zh="大会与安理会">General Assembly &amp; Security Council</summary><p data-zh="大会：193个会员国一国一票。安理会：15个成员，其中5个常任理事国——中国、法国、俄罗斯、英国、美国——拥有否决权，负责维护国际和平与安全。">General Assembly: all 193 members, one country one vote. Security Council: 15 members, including 5 permanent members — China, France, Russia, the United Kingdom and the United States — each with a veto; it is responsible for international peace and security.</p></details>
+      <details class="peek"><summary data-zh="专门机构和维和行动">Agencies and peacekeepers</summary><p data-zh="联合国儿童基金会（UNICEF）、世界卫生组织（WHO）、世界粮食计划署（WFP）、联合国教科文组织（UNESCO）等机构在全球工作。联合国维和人员戴蓝色头盔；中国是安理会常任理事国中派出维和人员最多的国家。">Agencies such as UNICEF, the World Health Organization (WHO), the World Food Programme (WFP) and UNESCO work worldwide. UN peacekeepers wear blue helmets; China sends more peacekeepers than any other permanent Security Council member.</p></details>
+      <h3 data-zh="📊 数据：生活在极端贫困中的世界人口比例">📊 Data: share of the world living in extreme poverty</h3>
+      <div class="chart" style="height:220px"><canvas id="povCv"></canvas></div>
+      <p class="src" data-zh="按每天2.15美元（2017年购买力平价）的贫困线计算，约数。来源：世界银行贫困与不平等平台。世界银行估计，改革开放以来中国约8亿人摆脱了极端贫困。点击柱子查看。">At the $2.15-a-day line (2017 prices, PPP), approx. Source: World Bank Poverty &amp; Inequality Platform. The World Bank estimates about 800 million people in China left extreme poverty since reform began. Click a bar.</p>
+      <div class="readout" id="povRead"></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real media" data-nav-zh="真实影像">
+  <div id="gallery"></div>
+  <div class="sec-head" style="margin-top:26px"><h2 data-zh="走得更远：官方网站">Go further: official sites</h2></div>
+  <div class="linkgrid" id="links"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 测验（12题）">🧠 Quiz (12 questions)</h3><p class="sub" data-zh="选出正确答案，看看解析。有的题要看地图或图表。">Pick the best answer and read the explanation. Some questions use the map or a chart.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分一分：哪个组织？">🗂️ Sort it: which organization?</h3><p class="sub" data-zh="把每一项拖到（或先点再点方框）它所属的组织。">Drag each item (or tap it, then tap a box) to the right organization.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="佐治亚州标准（GSE 2016）：六、七年级经济标准（SS6E、SS7E）——贸易、贸易壁垒（关税、配额、禁运）、汇率，六年级包括欧盟的作用和欧元；六年级 SS6H3 及七年级各地区历史为“冷战后世界”提供背景；地理标准中的区位与人类活动可结合“供应链”任务。目录中本课写作 SS6H / SS7H，具体编号以学区现行版本为准。">Georgia Standards of Excellence (2016): Grade 6 and 7 economics (SS6E, SS7E) — trade, trade barriers (tariffs, quotas, embargoes), exchange rates; Grade 6 includes the purpose of the European Union and the euro. SS6H3 and the Grade 7 regional history standards give the post-Cold War background; geography standards on location and human activity fit the supply-chain mission. The catalog lists SS6H / SS7H — check numbering against your district’s current version.</p>
+    <p data-zh="中国课程：统编版《世界历史》九年级下册第六单元“走向和平发展的世界”——“联合国与世界贸易组织”（联合国的宗旨与作用、世界贸易组织与中国2001年加入）、“冷战后的世界格局”（多极化趋势、欧盟）、“不断发展的现代社会”（经济全球化、信息技术）。“同一时期的中国”对应《中国历史》八年级下册：改革开放（1978年十一届三中全会）、经济特区、加入世界贸易组织、“一带一路”倡议。道德与法治九年级也有经济全球化的内容。课次以所用版次为准。">China curriculum: unified-edition World History Grade 9 Vol. 2, Unit 6 — the UN and the World Trade Organization (the UN’s purposes and role; the WTO and China’s entry in 2001), the post-Cold War world (a multipolar trend, the EU), modern society (economic globalization, information technology). The China strip matches Chinese History Grade 8 Vol. 2: reform and opening up (the 1978 Third Plenary Session), special economic zones, WTO entry, the Belt and Road Initiative. Grade 9 Morality and Law also covers economic globalization. Lesson numbers vary by printing.</p>
+    <p data-zh="说明：地图为示意图（现代国界）。手机零件来源是常见的行业概况（不同品牌差别很大），用于说明全球分工，不代表某一具体产品。世界贸易额与中国份额取世界贸易组织统计的约数；贫困数据取世界银行估计的约数（2025年世界银行改用新的贫困线后数值有所变化）。欧元区国家数以2026年为准（保加利亚于2026年1月加入）。">Notes: the map is schematic (modern borders). Phone-part sources are a typical industry picture (brands differ a lot) to show the global division of labour, not any one product. World trade values and China’s share are approximate WTO figures; poverty figures are approximate World Bank estimates (the World Bank moved to a new poverty line in 2025, which shifts the numbers). The euro-area count is as of 2026 (Bulgaria joined in January 2026).</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+/* ===== WMap: canvas world map (world-atlas@2.0.2 countries-110m + d3-geo); China drawn from shared/chinamap.js (standard map incl. 台湾省、南海诸岛). Inlined in each worldhistory lesson. =====
+   M = WMap.create(stageSel, canvasSel, { extent:[[lonW,latS],[lonE,latN]], top, bottom, fill:f => colour|null, overlay:(g,M)=>{}, click:(f,h)=>{}, hover:(f,h)=>text }); M.draw(). Schematic map, modern borders. */
+const WNAMES = {
+  asia:'Kazakhstan:哈萨克斯坦|Uzbekistan:乌兹别克斯坦|Indonesia:印度尼西亚|Timor-Leste:东帝汶|Israel:以色列|Lebanon:黎巴嫩|Palestine:巴勒斯坦|Jordan:约旦|United Arab Emirates:阿联酋|Qatar:卡塔尔|Kuwait:科威特|Iraq:伊拉克|Oman:阿曼|Cambodia:柬埔寨|Thailand:泰国|Laos:老挝|Myanmar:缅甸|Vietnam:越南|North Korea:朝鲜|South Korea:韩国|Mongolia:蒙古|India:印度|Bangladesh:孟加拉国|Bhutan:不丹|Nepal:尼泊尔|Pakistan:巴基斯坦|Afghanistan:阿富汗|Tajikistan:塔吉克斯坦|Kyrgyzstan:吉尔吉斯斯坦|Turkmenistan:土库曼斯坦|Iran:伊朗|Syria:叙利亚|Armenia:亚美尼亚|Sri Lanka:斯里兰卡|China:中国|Taiwan:中国台湾省|Azerbaijan:阿塞拜疆|Georgia:格鲁吉亚|Philippines:菲律宾|Malaysia:马来西亚|Brunei:文莱|Japan:日本|Yemen:也门|Saudi Arabia:沙特阿拉伯|N. Cyprus:北塞浦路斯|Cyprus:塞浦路斯|Turkey:土耳其',
+  africa:'Tanzania:坦桑尼亚|W. Sahara:西撒哈拉|Dem. Rep. Congo:刚果(金)|Somalia:索马里|Kenya:肯尼亚|Sudan:苏丹|Chad:乍得|South Africa:南非|Lesotho:莱索托|Zimbabwe:津巴布韦|Botswana:博茨瓦纳|Namibia:纳米比亚|Senegal:塞内加尔|Mali:马里|Mauritania:毛里塔尼亚|Benin:贝宁|Niger:尼日尔|Nigeria:尼日利亚|Cameroon:喀麦隆|Togo:多哥|Ghana:加纳|Côte d\'Ivoire:科特迪瓦|Guinea:几内亚|Guinea-Bissau:几内亚比绍|Liberia:利比里亚|Sierra Leone:塞拉利昂|Burkina Faso:布基纳法索|Central African Rep.:中非|Congo:刚果(布)|Gabon:加蓬|Eq. Guinea:赤道几内亚|Zambia:赞比亚|Malawi:马拉维|Mozambique:莫桑比克|eSwatini:斯威士兰|Angola:安哥拉|Burundi:布隆迪|Madagascar:马达加斯加|Gambia:冈比亚|Tunisia:突尼斯|Algeria:阿尔及利亚|Eritrea:厄立特里亚|Morocco:摩洛哥|Egypt:埃及|Libya:利比亚|Ethiopia:埃塞俄比亚|Djibouti:吉布提|Somaliland:索马里兰地区|Uganda:乌干达|Rwanda:卢旺达|S. Sudan:南苏丹',
+  europe:'Russia:俄罗斯|Norway:挪威|France:法国|Sweden:瑞典|Belarus:白俄罗斯|Ukraine:乌克兰|Poland:波兰|Austria:奥地利|Hungary:匈牙利|Moldova:摩尔多瓦|Romania:罗马尼亚|Lithuania:立陶宛|Latvia:拉脱维亚|Estonia:爱沙尼亚|Germany:德国|Bulgaria:保加利亚|Greece:希腊|Albania:阿尔巴尼亚|Croatia:克罗地亚|Switzerland:瑞士|Luxembourg:卢森堡|Belgium:比利时|Netherlands:荷兰|Portugal:葡萄牙|Spain:西班牙|Ireland:爱尔兰|Italy:意大利|Denmark:丹麦|United Kingdom:英国|Iceland:冰岛|Slovenia:斯洛文尼亚|Finland:芬兰|Slovakia:斯洛伐克|Czechia:捷克|Bosnia and Herz.:波黑|Macedonia:北马其顿|Serbia:塞尔维亚|Montenegro:黑山|Kosovo:科索沃',
+  namerica:'Canada:加拿大|United States of America:美国|Haiti:海地|Dominican Rep.:多米尼加|Bahamas:巴哈马|Greenland:格陵兰岛|Mexico:墨西哥|Panama:巴拿马|Costa Rica:哥斯达黎加|Nicaragua:尼加拉瓜|Honduras:洪都拉斯|El Salvador:萨尔瓦多|Guatemala:危地马拉|Belize:伯利兹|Puerto Rico:波多黎各|Jamaica:牙买加|Cuba:古巴|Trinidad and Tobago:特立尼达和多巴哥',
+  samerica:'Argentina:阿根廷|Chile:智利|Falkland Is.:马尔维纳斯群岛(福克兰群岛)|Uruguay:乌拉圭|Brazil:巴西|Bolivia:玻利维亚|Peru:秘鲁|Colombia:哥伦比亚|Venezuela:委内瑞拉|Guyana:圭亚那|Suriname:苏里南|Ecuador:厄瓜多尔|Paraguay:巴拉圭',
+  oceania:'Australia:澳大利亚|New Zealand:新西兰|Papua New Guinea:巴布亚新几内亚|Fiji:斐济|Vanuatu:瓦努阿图|New Caledonia:新喀里多尼亚|Solomon Is.:所罗门群岛',
+  antarctica:'Antarctica:南极洲'
+};
+const WMap = (() => {
+  const ZH = { 'Fr. S. Antarctic Lands':'法属南部领地', 'United States of America':'美国' }, EN = { 'United States of America':'United States', 'Dem. Rep. Congo':'DR Congo', 'Central African Rep.':'Central African Republic', 'Bosnia and Herz.':'Bosnia & Herzegovina' };
+  for (const c in WNAMES) WNAMES[c].split('|').forEach(s => { const [en, zh] = s.split(':'); ZH[en] = zh; });
+  ZH['Taiwan'] = '中国台湾省'; EN['Taiwan'] = 'Taiwan Province of China';
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  let P = null, CN = null;
+  const load = () => P || (P = fetch('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json').then(r => r.json()).then(t =>
+    topojson.feature(t, t.objects.countries).features.filter(f => f.geometry).map(f => { const n = f.properties.name; f.info = { name:n, en:EN[n] || n, zh:ZH[n] || n }; return f; })));
+  const loadCN = () => CN || (CN = (window.ChinaMap ? ChinaMap.load() : Promise.reject('no ChinaMap')).catch(e => { console.warn('China map unavailable', e); return null; }));
+  const CHINA = { name:'China', en:'China', zh:'中国' };
+  function create(stageSel, cvSel, opt = {}){
+    const stage = document.querySelector(stageSel), cv = document.querySelector(cvSel), g = cv.getContext('2d');
+    const M = { g, opt, feats:null, cn:null, failed:false, W:0, H:0, small:false, hoverF:null };
+    let proj = null, path = null;
+    const lineWith = xy => (pts, stroke, lw = 2, dash, t = 1) => { const p = pts.map(xy).filter(Boolean); if (p.length < 2) return null;
+      const seg = []; let tot = 0; for (let i = 1; i < p.length; i++){ const l = Math.hypot(p[i][0] - p[i - 1][0], p[i][1] - p[i - 1][1]); seg.push(l); tot += l; }
+      let left = tot * Math.max(0, Math.min(1, t)), end = p[0];
+      g.beginPath(); g.moveTo(...p[0]);
+      for (let i = 1; i < p.length && left > 0; i++){ const l = seg[i - 1]; if (l > M.W * .6){ g.moveTo(...p[i]); end = p[i]; left -= l; continue; }
+        if (left >= l){ g.lineTo(...p[i]); end = p[i]; left -= l; } else { const k = left / l; end = [p[i - 1][0] + (p[i][0] - p[i - 1][0]) * k, p[i - 1][1] + (p[i][1] - p[i - 1][1]) * k]; g.lineTo(...end); left = 0; } }
+      g.setLineDash(dash || []); g.strokeStyle = stroke; g.lineWidth = lw; g.lineJoin = g.lineCap = 'round'; g.stroke(); g.setLineDash([]); return end; };
+    const dotWith = xy => (ll, r, fill, stroke) => { const p = xy(ll); if (!p) return null; g.beginPath(); g.arc(p[0], p[1], r, 0, 7); g.fillStyle = fill; g.fill(); if (stroke){ g.lineWidth = 2; g.strokeStyle = stroke; g.stroke(); } return p; };
+    M.text = (t, x, y, o = {}) => { g.font = `${o.w || 800} ${o.s || 12}px Nunito, "PingFang SC", "Microsoft YaHei", sans-serif`; g.textAlign = o.a || 'center'; g.textBaseline = 'middle';
+      g.lineWidth = 3.2; g.strokeStyle = o.halo || css('--surface') || '#fff'; g.lineJoin = 'round'; g.strokeText(t, x, y); g.fillStyle = o.c || css('--ink'); g.fillText(t, x, y); };
+    function fitProj(ex, box, rot){ const [[a, b], [c, e]] = ex, P = d3.geoNaturalEarth1().rotate([-(rot ?? ((a + c) / 2)), 0]);
+      const pts = []; for (let i = 0; i <= 72; i++){ const lo = a + (c - a) * i / 72; pts.push([lo, b], [lo, e], [lo, (b + e) / 2]); } P.fitExtent(box, { type:'MultiPoint', coordinates:pts }); return P; }
+    function layout(){
+      const r = stage.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!r.width) return false;
+      cv.width = r.width * d; cv.height = r.height * d; M.W = r.width; M.H = r.height; M.d = d; M.small = r.width < 560;
+      const top = M.small ? (opt.topS ?? opt.top ?? 60) : (opt.top ?? 60), bot = M.small ? (opt.bottomS ?? opt.bottom ?? 50) : (opt.bottom ?? 50);
+      proj = fitProj((M.small && opt.extentS) || opt.extent || [[-170, -58], [180, 78]], [[8, top], [r.width - 8, r.height - bot]], opt.rot);
+      path = d3.geoPath(proj, g); M.proj = proj; M.path = path;
+      M.I = null;
+      if (opt.inset){ const fb = (M.small && opt.inset.boxS) || opt.inset.box, bx = [fb[0] * r.width, fb[1] * r.height, fb[2] * r.width, fb[3] * r.height];
+        const P = fitProj(opt.inset.extent, [[bx[0] + 4, bx[1] + 18], [bx[0] + bx[2] - 4, bx[1] + bx[3] - 4]], opt.inset.rot);
+        const I = { inset:true, box:bx, proj:P, path:d3.geoPath(P, g), small:M.small, W:M.W, H:M.H, text:M.text };
+        I.xy = ll => P(ll); I.inv = (x, y) => P.invert([x, y]); I.line = lineWith(I.xy); I.dot = dotWith(I.xy); M.I = I; }
+      return true;
+    }
+    M.xy = ll => proj ? proj(ll) : null;
+    M.inv = (x, y) => proj && proj.invert ? proj.invert([x, y]) : null;
+    /* M.line(pts, colour, width, dash, t): polyline through [lon,lat] waypoints; t (0..1) draws only the first part; returns the [x,y] of the tip */
+    M.line = lineWith(M.xy);
+    M.dot = dotWith(M.xy);
+    M.inBox = (x, y) => !!(M.I && x >= M.I.box[0] && x <= M.I.box[0] + M.I.box[2] && y >= M.I.box[1] && y <= M.I.box[1] + M.I.box[3]);
+    M.view = h => (h && h.inset) ? M.I : M;
+    function countries(pth, P, fillOf, land, ink2){
+      const useCN = !!M.cn, skip = f => useCN && (f.info.name === 'China' || f.info.name === 'Taiwan');
+      M.feats.forEach(f => { if (skip(f)) return; g.beginPath(); pth(f); g.fillStyle = land; g.fill(); const fc = f.info.name === 'Taiwan' ? fillOf(CHINA) : fillOf(f.info); if (fc !== land){ g.fillStyle = fc; g.fill(); } });
+      g.beginPath(); M.feats.forEach(f => { if (!skip(f) && f.info.name !== 'Antarctica') pth(f); }); g.strokeStyle = ink2; g.lineWidth = .5; g.globalAlpha = .7; g.stroke(); g.globalAlpha = 1;
+      if (useCN){ const T = p => P(p), cf = fillOf(CHINA), polys = { features:M.cn.features.filter(f => f.geometry.type !== 'MultiLineString') };
+        g.globalAlpha = .8; ChinaMap.draw2D(g, polys, T, { stroke:ink2, lineWidth:1.1 }); g.globalAlpha = 1; ChinaMap.draw2D(g, polys, T, { fill:land }); if (cf !== land) ChinaMap.draw2D(g, polys, T, { fill:cf });
+        ChinaMap.draw2D(g, { features:M.cn.features.filter(f => f.geometry.type === 'MultiLineString') }, T, { stroke:ink2, lineWidth:.8 }); }
+      if (M.hoverF && M.hoverF !== CHINA){ const hf = M.feats.find(f => f.info === M.hoverF); if (hf){ g.beginPath(); pth(hf); g.strokeStyle = css('--ink'); g.lineWidth = 1.6; g.stroke(); } }
+    }
+    M.draw = () => {
+      const r = stage.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2);
+      if (!M.feats){ cv.width = r.width * d; cv.height = r.height * d; g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, r.width, r.height); M.W = r.width; M.H = r.height;
+        M.text(Lab.L(M.failed ? {en:'The map needs an internet connection.', zh:'地图需要联网才能加载。'} : {en:'Loading map…', zh:'地图加载中…'}), r.width / 2, r.height / 2, { s:15, c:css('--ink-2') }); return; }
+      if (!proj && !layout()) return;
+      g.setTransform(M.d, 0, 0, M.d, 0, 0); g.clearRect(0, 0, M.W, M.H);
+      const land = css('--surface') || '#fff', sea = css('--surface-2') || '#eef3f9', ink2 = css('--ink-2') || '#4a5878';
+      g.beginPath(); path({ type:'Sphere' }); g.fillStyle = sea; g.fill();
+      g.beginPath(); path(d3.geoGraticule10()); g.strokeStyle = ink2; g.globalAlpha = .12; g.lineWidth = .6; g.stroke(); g.globalAlpha = 1;
+      const fillOf = info => (opt.fill && opt.fill(info)) || land;
+      countries(path, proj, fillOf, land, ink2);
+      if (M.I){ const [[a, b], [c, e]] = opt.inset.extent; g.beginPath(); path({ type:'LineString', coordinates:[[a, b], [a, e], [c, e], [c, b], [a, b]] }); g.setLineDash([4, 3]); g.strokeStyle = ink2; g.lineWidth = 1.2; g.stroke(); g.setLineDash([]); }
+      if (opt.overlay){ g.save(); opt.overlay(g, M); g.restore(); }
+      if (M.I){ const I = M.I, [x, y, w, h] = I.box; g.save(); g.shadowColor = 'rgba(0,0,0,.18)'; g.shadowBlur = 10; g.fillStyle = sea; g.fillRect(x, y, w, h); g.restore();
+        g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip(); g.fillStyle = sea; g.fillRect(x, y, w, h); countries(I.path, I.proj, fillOf, land, ink2);
+        if (opt.overlay){ g.save(); opt.overlay(g, I); g.restore(); } g.restore();
+        g.strokeStyle = ink2; g.lineWidth = 1.2; g.strokeRect(x, y, w, h); g.fillStyle = sea; g.fillRect(x + 1, y + 1, w - 2, 15);
+        M.text(Lab.L(opt.inset.label || {en:'Zoom', zh:'放大图'}), x + 6, y + 9, { s:10.5, a:'left', c:ink2, w:800 }); }
+      if (opt.note !== false) M.text(Lab.L({en:'Schematic map · modern borders', zh:'示意图 · 现代国界'}), 10, M.H - 10, { s:10, a:'left', c:ink2, w:700 });
+    };
+    M.hit = e => { const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, ins = M.inBox(x, y), ll = ins ? M.I.inv(x, y) : M.inv(x, y); if (!ll || !M.feats) return { x, y, inset:ins };
+      if (M.cn && ChinaMap.hit(M.cn, ll[0], ll[1])) return { x, y, ll, f:CHINA, inset:ins };
+      const f = M.feats.find(f => d3.geoContains(f, ll)); return { x, y, ll, inset:ins, f:f ? (f.info.name === 'Taiwan' ? CHINA : f.info) : null }; };
+    cv.addEventListener('click', e => { if (!M.feats || !opt.click) return; const h = M.hit(e); opt.click(h.f || null, h, e); });
+    cv.addEventListener('pointermove', e => { if (e.pointerType === 'touch' || !M.feats) return; const h = M.hit(e), f = h.f || null; if (f !== M.hoverF){ M.hoverF = f; M.draw(); }
+      cv.title = opt.hover ? (opt.hover(f, h) || '') : (f ? Lab.L(f) : ''); });
+    cv.addEventListener('pointerleave', () => { if (M.hoverF){ M.hoverF = null; M.draw(); } });
+    new ResizeObserver(() => requestAnimationFrame(() => { proj = null; M.draw(); })).observe(stage);
+    const redraw = () => setTimeout(M.draw, 60);
+    new MutationObserver(redraw).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme', 'lang'] });
+    if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redraw);
+    Promise.all([load(), loadCN()]).then(([f, cn]) => { M.feats = f; M.cn = cn; proj = null; M.draw(); if (opt.ready) opt.ready(M); }).catch(err => { console.warn(err); M.failed = true; M.draw(); });
+    M.draw();
+    return M;
+  }
+  return { create, css, ZH };
+})();
+/* ===== shared helpers for the worldhistory lessons ===== */
+const o = (en, zh) => ({en, zh});
+const css = WMap.css;
+const stars = n => '★'.repeat(n) + '☆'.repeat(3 - n);
+function ranksHTML(R, score){ const ri = R.reduce((a, r, i) => score >= r[0] ? i : a, 0); return R.map((r, i) => `<span class="${i === ri ? 'on' : ''}">${i <= ri ? '🏅' : '🔒'} ${Lab.L(r[1])}</span>`).join(''); }
+function renderLinks(sel, LINKS){ Lab.$(sel).innerHTML = LINKS.map(l => `<a class="linkcard" href="${l.u}" target="_blank" rel="noopener"><b data-zh="${l.t.zh}">${l.t.en}</b><span data-zh="${l.d.zh}">${l.d.en}</span><small>${new URL(l.u).hostname.replace('www.', '')} ↗</small></a>`).join(''); Lab.translate(Lab.$(sel)); }
+const CQ = '?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', CP = 'https://commons.wikimedia.org/wiki/File:';
+const HP = o('Historic photo','历史照片');
+const YT = (yt, en, zh, ch) => ({ type:'youtube', yt, en, zh, kind:o('Video','视频'), credit:ch + ' (YouTube)', license:'YouTube' });
+/* "Meanwhile in China" strip: items [{y, t:{en,zh}, b:{en,zh}}] */
+function chinaStrip(sel, items){ const el = Lab.$(sel); const draw = () => el.innerHTML = `<div class="cnstrip-h">${Lab.L(o('🇨🇳 Meanwhile in China','🇨🇳 同一时期的中国'))}</div><div class="cnstrip-row">${items.map(i => `<div class="cnc"><b>${i.y}</b><h4>${Lab.L(i.t)}</h4><p>${Lab.L(i.b)}</p></div>`).join('')}</div>`; Lab.onLang(draw); }
+
+/* ================= Data ================= */
+const EUJ = { Belgium:1952, France:1952, Germany:1952, Italy:1952, Luxembourg:1952, Netherlands:1952, Denmark:1973, Ireland:1973, 'United Kingdom':1973, Greece:1981, Spain:1986, Portugal:1986, Austria:1995, Finland:1995, Sweden:1995,
+  Cyprus:2004, Czechia:2004, Estonia:2004, Hungary:2004, Latvia:2004, Lithuania:2004, Poland:2004, Slovakia:2004, Slovenia:2004, Bulgaria:2007, Romania:2007, Croatia:2013 };
+const EURO = { Austria:1999, Belgium:1999, Finland:1999, France:1999, Germany:1999, Ireland:1999, Italy:1999, Luxembourg:1999, Netherlands:1999, Portugal:1999, Spain:1999, Greece:2001, Slovenia:2007, Cyprus:2008, Slovakia:2009, Estonia:2011, Latvia:2014, Lithuania:2015, Croatia:2023, Bulgaria:2026 };
+const inEU = (n, y) => EUJ[n] && y >= EUJ[n] && !(n === 'United Kingdom' && y >= 2020);
+const UN = {1945:51,1950:60,1955:76,1960:99,1965:117,1970:127,1975:144,1980:154,1985:159,1990:159,1991:166,1992:179,1993:184,2000:189,2002:191,2006:192,2011:193,2026:193};
+const TRADE = {1950:.06,1960:.13,1970:.32,1980:2.0,1990:3.5,2000:6.5,2010:15.3,2015:16.6,2020:17.6,2022:25.0,2024:24.4};
+const CNSH = {1978:.8,1990:1.8,2000:3.9,2001:4.3,2010:10.3,2015:13.8,2020:14.7,2024:14.6};
+const lerp = (T, y) => { const ks = Object.keys(T).map(Number); if (y < ks[0]) return null; y = Math.min(y, ks[ks.length - 1]); let a = ks[0], b = ks[ks.length - 1]; ks.forEach(k => { if (k <= y) a = k; }); ks.slice().reverse().forEach(k => { if (k >= y) b = k; }); return a === b ? T[a] : T[a] + (T[b] - T[a]) * (y - a) / (b - a); };
+const EV = {
+ un:{ y:1945, ll:[-122.42,37.78], c:'#0284c7', short:o('UN Charter','《联合国宪章》'), name:o('The United Nations is founded','联合国成立'), date:o('San Francisco, June 1945 · in force 24 Oct 1945','1945年6月旧金山 · 10月24日生效'),
+   facts:{en:['50 countries signed the UN Charter in San Francisco; China’s delegation signed first, as the first country to fight the Axis.','Goals: keep world peace, develop friendly relations among nations, and cooperate on economic, social and human-rights problems.','24 October is United Nations Day. Its headquarters is in New York.'],zh:['50个国家在旧金山签署《联合国宪章》，中国代表团第一个签字——中国是最早抗击法西斯侵略的国家。','宗旨：维护国际和平与安全，发展各国间的友好关系，合作解决经济、社会和人权等国际问题。','10月24日是联合国日。联合国总部设在纽约。']},
+   rhyme:o('51 members in 1945 → 193 today.','1945年51个会员国 → 今天193个。'), mix:o('The League of Nations (1920) failed to stop WWII; the UN (1945) replaced it.','国际联盟（1920年）没能阻止二战；联合国（1945年）取代了它。') },
+ ecsc:{ y:1952, eu:1, lp:[-9,9,'right'], ll:[6.13,49.61], c:'#2563eb', short:o('Coal & Steel','煤钢共同体'), name:o('The European Coal and Steel Community','欧洲煤钢共同体'), date:o('1951–1952','1951—1952年'),
+   facts:{en:['France, West Germany, Italy, Belgium, the Netherlands and Luxembourg pooled their coal and steel — the materials for weapons.','French minister Robert Schuman wanted to make war between France and Germany “not merely unthinkable, but materially impossible.”','It grew into the European Economic Community (1958) and the European Union (1993).'],zh:['法国、联邦德国、意大利、比利时、荷兰和卢森堡把煤和钢——制造武器的原料——联合起来管理。','法国外长舒曼希望让法德之间的战争“不仅不可想象，而且在物质上不可能”。','它后来发展为欧洲经济共同体（1958年）和欧洲联盟（1993年）。']},
+   rhyme:o('Coal + steel shared = no more war in western Europe.','共享煤钢 = 西欧不再打仗。'), mix:o('The EU began as an economic deal, not a political union.','欧盟起初只是经济合作，不是政治联盟。') },
+ rome:{ y:1957, eu:1, ll:[12.5,41.9], c:'#2563eb', short:o('Treaty of Rome','《罗马条约》'), name:o('The Treaty of Rome: a common market','《罗马条约》：共同市场'), date:o('1957 (in force 1958)','1957年（1958年生效）'),
+   facts:{en:['The six created the European Economic Community: no tariffs between members and one tariff for goods from outside.','Trade among them grew fast; more countries joined in 1973, 1981, 1986 and 1995.'],zh:['六国建立了欧洲经济共同体：成员国之间取消关税，对外实行统一关税。','成员国之间的贸易迅速增长；1973年、1981年、1986年、1995年不断有新成员加入。']},
+   rhyme:o('Rome 1957: the common market.','1957年罗马：共同市场。'), mix:o('A tariff is a tax on imported goods; removing tariffs makes trade cheaper.','关税是对进口商品征收的税；取消关税会让贸易更便宜。') },
+ shenzhen:{ y:1980, ll:[114.06,22.54], c:'#c0392b', short:o('Shenzhen','深圳'), name:o('Reform and opening up · Shenzhen','改革开放 · 深圳经济特区'), date:o('1978 · Special Economic Zone 1980','1978年 · 1980年设立经济特区'),
+   facts:{en:['In December 1978 China decided to reform its economy and open to the world (改革开放, “reform and opening up”), led by Deng Xiaoping.','In 1980 Shenzhen, next to Hong Kong, became a Special Economic Zone welcoming foreign investment. A town of about 300,000 people grew into a city of over 17 million (approx.).','Today Shenzhen is a centre for electronics — many of the world’s phones and drones are designed or made there.'],zh:['1978年12月，中共十一届三中全会作出实行改革开放的决策，邓小平是改革开放的总设计师。','1980年，毗邻香港的深圳成为经济特区，吸引外国投资。一个约30万人的小城发展成人口超过1700万的大城市（约数）。','今天深圳是电子产业中心，世界上许多手机和无人机在这里设计或制造。']},
+   rhyme:o('1978 reform, 1980 Shenzhen, 2001 WTO.','七八改革开放，八零深圳特区，零一加入世贸。'), mix:o('China kept its socialist system while building a market economy — it calls this a socialist market economy.','中国在坚持社会主义制度的同时发展市场经济，称为社会主义市场经济。') },
+ maas:{ y:1993, eu:1, lp:[-9,-8,'right'], ll:[5.69,50.85], c:'#2563eb', short:o('European Union','欧盟'), name:o('The European Union is born','欧洲联盟成立'), date:o('Maastricht Treaty, in force 1993','《马斯特里赫特条约》，1993年生效'),
+   facts:{en:['The European Community became the European Union, adding cooperation on foreign policy, justice and a future single currency.','In most of the EU people can live, work and travel without passport checks (the Schengen area).','After the Cold War, many former Warsaw Pact countries joined in 2004 and 2007.'],zh:['欧洲共同体发展为欧洲联盟，增加了外交、司法合作，并计划发行统一货币。','在欧盟大部分地区，人们可以自由居住、工作，旅行无需护照检查（申根区）。','冷战结束后，许多原华约国家在2004年和2007年加入欧盟。']},
+   rhyme:o('6 → 9 → 10 → 12 → 15 → 25 → 27 → 28 → 27 members.','6 → 9 → 10 → 12 → 15 → 25 → 27 → 28 → 27个成员国。'), mix:o('Europe ≠ the EU: Norway, Switzerland and the UK (since 2020) are in Europe but not in the EU.','欧洲 ≠ 欧盟：挪威、瑞士和英国（2020年起）在欧洲，但不是欧盟成员国。') },
+ wto:{ y:1995, eu:1, ll:[6.14,46.2], c:'#0f766e', short:o('WTO','世贸组织'), name:o('The World Trade Organization','世界贸易组织'), date:o('1995 · Geneva','1995年 · 日内瓦'),
+   facts:{en:['The WTO replaced the GATT (1947). Its members agree on trade rules and settle trade disputes.','Over 160 members cover about 98% of world trade.'],zh:['世界贸易组织取代了关税及贸易总协定（1947年）。成员共同制定贸易规则、解决贸易争端。','160多个成员的贸易额约占世界贸易的98%。']},
+   rhyme:o('UN for peace, WTO for trade.','联合国管和平，世贸组织管贸易。'), mix:o('The WTO sets trade rules; the World Bank and IMF lend money.','世贸组织制定贸易规则；世界银行和国际货币基金组织负责贷款。') },
+ cnwto:{ y:2001, ll:[51.53,25.29], c:'#c0392b', short:o('China joins WTO','中国入世'), name:o('China joins the WTO','中国加入世界贸易组织'), date:o('Approved at Doha, Nov 2001 · member 11 Dec 2001','2001年11月多哈会议批准 · 12月11日正式成为成员'),
+   facts:{en:['After 15 years of talks, China became the WTO’s 143rd member.','China’s share of world exports rose from about 4% (2001) to about 15% (2024, approx.); it became the world’s biggest exporter of goods.','Cheaper goods reached shoppers worldwide; factories and supply chains moved; China’s economy grew rapidly.'],zh:['经过15年谈判，中国成为世贸组织第143个成员。','中国占世界出口的份额从约4%（2001年）升至约15%（2024年，约数），成为世界第一大货物出口国。','物美价廉的商品走向世界各地；工厂和供应链发生转移；中国经济快速增长。']},
+   rhyme:o('2001: China joins the world trading system.','2001年：中国融入世界贸易体系。'), mix:o('Doha (Qatar) is where the decision was made; the WTO itself is based in Geneva.','卡塔尔多哈是作出决定的会议地点，世贸组织总部在日内瓦。') },
+ euro:{ y:2002, eu:1, lp:[9,9,'left'], ll:[8.68,50.11], c:'#1d4ed8', short:o('Euro cash','欧元现钞'), name:o('Euro coins and notes','欧元硬币和纸币'), date:o('1 January 2002 (currency since 1999)','2002年1月1日（1999年起作为记账货币）'),
+   facts:{en:['12 countries swapped their old money for euros overnight; the European Central Bank is in Frankfurt.','Today more than 20 EU countries use the euro (Bulgaria joined in 2026). Some EU members, like Denmark and Sweden, keep their own currency.'],zh:['12个国家一夜之间把旧货币换成欧元；欧洲中央银行设在法兰克福。','如今有20多个欧盟国家使用欧元（保加利亚2026年加入）。丹麦、瑞典等欧盟国家仍使用本国货币。']},
+   rhyme:o('One money, many countries.','一种货币，多个国家。'), mix:o('Not every EU country uses the euro, and the euro has nothing to do with the UN.','并不是所有欧盟国家都用欧元，欧元也和联合国无关。') },
+ bri:{ y:2013, ll:[71.45,51.17], c:'#c0392b', short:o('Belt and Road','“一带一路”'), name:o('The Belt and Road Initiative','“一带一路”倡议'), date:o('2013 · Astana and Jakarta','2013年 · 阿斯塔纳和雅加达'),
+   facts:{en:['China proposed the “Silk Road Economic Belt” (in Kazakhstan) and the “21st-Century Maritime Silk Road” (in Indonesia).','It funds railways, ports, roads and power plants across Asia, Africa, Europe and beyond — like the China–Europe freight trains.','Supporters point to new infrastructure; critics worry about debt in some countries. Both views are part of the debate.'],zh:['中国提出共建“丝绸之路经济带”（在哈萨克斯坦）和“21世纪海上丝绸之路”（在印度尼西亚）。','它在亚洲、非洲、欧洲等地资助建设铁路、港口、公路和电站，比如中欧班列。','支持者看重新的基础设施；批评者担心一些国家的债务问题。两种看法都是讨论的一部分。']},
+   rhyme:o('Belt by land, Road by sea.','“带”在陆上，“路”在海上。'), mix:o('It is named after the ancient Silk Road (Han dynasty) — but it is a modern project.','它借用了古代（汉朝开辟的）丝绸之路之名，但是一个现代项目。') },
+ sdg:{ y:2015, ll:[-73.97,40.75], c:'#0284c7', short:o('SDGs','可持续发展目标'), name:o('17 Sustainable Development Goals','17个可持续发展目标'), date:o('September 2015 · UN, New York','2015年9月 · 纽约联合国总部'),
+   facts:{en:['All 193 UN members adopted 17 goals for 2030 — from ending poverty and hunger to clean energy and climate action.','In December 2015 the Paris Agreement set the aim of keeping global warming well below 2 °C (3.6 °F).'],zh:['联合国全部193个会员国通过了到2030年要实现的17个目标——从消除贫困和饥饿到清洁能源和气候行动。','2015年12月，《巴黎协定》提出把全球升温控制在2 °C（3.6 °F）以内。']},
+   rhyme:o('17 goals by 2030.','17个目标，2030年实现。'), mix:o('The SDGs (2015–2030) replaced the earlier Millennium Development Goals (2000–2015).','可持续发展目标（2015—2030年）接替了此前的千年发展目标（2000—2015年）。') },
+ brexit:{ y:2020, eu:1, ll:[-0.13,51.5], c:'#6b7280', short:o('Brexit','英国脱欧'), name:o('The UK leaves the EU','英国脱离欧盟'), date:o('31 January 2020','2020年1月31日'),
+   facts:{en:['In a 2016 vote, 52% of British voters chose to leave the EU.','The UK left in 2020 — the first country ever to leave. The EU now has 27 members.'],zh:['2016年公投中，52%的英国选民选择脱离欧盟。','英国于2020年脱欧——第一个退出欧盟的国家。欧盟现有27个成员国。']},
+   rhyme:o('Britain + exit = Brexit.','英国 + 退出 = “脱欧”。'), mix:o('The UK is still in NATO and the UN — it only left the EU.','英国仍是北约和联合国成员，它只是退出了欧盟。') },
+ suez:{ y:2021, ll:[32.55,30.0], c:'#0f766e', short:o('Suez jam','苏伊士运河堵塞'), name:o('One ship blocks world trade','一艘船堵住世界贸易'), date:o('March 2021','2021年3月'),
+   facts:{en:['The giant container ship Ever Given, about 400 m (1,300 ft) long, got stuck across Egypt’s Suez Canal for six days.','Hundreds of ships waited; roughly 12% of world trade passes through the canal (approx.).','It showed how tightly connected — and fragile — global supply chains are.'],zh:['长约400米（1300英尺）的巨型集装箱船“长赐号”横卡在埃及苏伊士运河里长达六天。','数百艘船排队等候；世界贸易约有12%经过这条运河（约数）。','这件事显示出全球供应链联系有多紧密，又有多脆弱。']},
+   rhyme:o('One ship, six days, hundreds waiting.','一艘船，六天，几百艘船排队。'), mix:o('The Suez Canal links the Mediterranean and the Red Sea; the Panama Canal links the Atlantic and the Pacific.','苏伊士运河连接地中海和红海；巴拿马运河连接大西洋和太平洋。') }
+};
+const EORDER = Object.keys(EV).sort((a, b) => EV[a].y - EV[b].y);
+const CNS = [
+ { y:1978, t:o('Reform and opening up','改革开放'), b:o('The Third Plenary Session of the 11th CPC Central Committee shifts the focus to economic development.','中共十一届三中全会把工作重点转移到经济建设上来。') },
+ { y:1980, t:o('Special Economic Zones','经济特区'), b:o('Shenzhen, Zhuhai, Shantou and Xiamen open to foreign investment.','深圳、珠海、汕头、厦门设立经济特区。') },
+ { y:2001, t:o('Joins the WTO','加入世界贸易组织'), b:o('China becomes the 143rd member and soon the world’s biggest goods exporter.','中国成为第143个成员，很快成为世界第一大货物出口国。') },
+ { y:2013, t:o('Belt and Road','“一带一路”'), b:o('A plan for infrastructure and trade links across Asia, Africa and Europe.','连接亚洲、非洲、欧洲的基础设施和贸易合作倡议。') },
+ { y:2020, t:o('Absolute poverty ended','消除绝对贫困'), b:o('China announces that all rural residents under its poverty line have been lifted out (announced 2021).','中国宣布现行标准下农村贫困人口全部脱贫（2021年宣布）。') }
+];
+
+/* ================= Timeline map ================= */
+const App = { year:1945, sel:null, timer:null };
+const M = WMap.create('#mapStage', '#mapCv', { extent:[[-170,-50],[180,76]], rot:10, top:58, bottom:30, topS:90, bottomS:28,
+  inset:{ extent:[[-11,35],[34,62]], box:[.01,.55,.3,.43], boxS:[.01,.62,.58,.36], label:o('Zoom: Europe','放大图：欧洲') },
+  fill: f => EURO[f.name] && App.year >= EURO[f.name] ? 'rgba(29,78,216,.55)' : inEU(f.name, App.year) ? 'rgba(147,197,253,.75)' : (f.name === 'China' && App.year >= 1978 ? 'rgba(192,57,43,.14)' : null),
+  overlay: (g, V) => { const y = App.year, surf = css('--surface');
+    EORDER.forEach(k => { const e = EV[k]; if (y < e.y || !!e.eu !== !!V.inset) return; const sel = App.sel === k, old = y > e.y + 12 && !sel; g.globalAlpha = old ? .45 : 1;
+      const lp = e.lp || [9, -8, 'left'], xy = V.dot(e.ll, sel ? 8 : 6, e.c, surf); if (xy && (!M.small || sel) && !old) V.text(Lab.L(e.short), xy[0] + lp[0], xy[1] + lp[1], { s:11, a:lp[2], c:sel ? e.c : css('--ink') }); g.globalAlpha = 1; }); },
+  click: (f, h) => { const k = keyAt(h); if (k) select(k); else if (f) tip(o(`${f.en}${inEU(f.name, App.year) ? ': EU member' : ''}${EURO[f.name] && App.year >= EURO[f.name] ? ', uses the euro' : ''}`, `${f.zh}${inEU(f.name, App.year) ? '：欧盟成员国' : ''}${EURO[f.name] && App.year >= EURO[f.name] ? '，使用欧元' : ''}`)); },
+  hover: (f, h) => { const k = keyAt(h); return k ? Lab.L(EV[k].name) : (f ? Lab.L(f) : ''); }
+});
+function keyAt(h){ if (!h) return null; const V = M.view(h); let best = null, bd = 15; EORDER.forEach(k => { const e = EV[k]; if (App.year < e.y || !!e.eu !== !!h.inset) return; const p = V.xy(e.ll); if (!p) return; const d = Math.hypot(p[0] - h.x, p[1] - h.y); if (d < bd){ bd = d; best = k; } }); return best; }
+const tip = m => Lab.$('#mapTip').textContent = Lab.L(m || o('Click a dot or a country · drag the year', '点击圆点或国家 · 拖动年份'));
+function select(k){ App.sel = k; renderInfo(); M.draw(); }
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel;
+  if (!k){ box.innerHTML = `<span class="tag">${Lab.L(o('Globalization','全球化'))}</span><h3>${Lab.L(o('Three ways the world links up','世界连成一体的三种方式'))}</h3>
+      <ul><li>${Lab.L(o('<b>Rules & talks:</b> the UN, where 193 countries meet.','<b>规则与对话：</b>联合国，193个国家在这里商讨问题。'))}</li><li>${Lab.L(o('<b>Regions:</b> groups like the EU, the African Union and ASEAN.','<b>区域合作：</b>欧盟、非洲联盟、东盟等区域组织。'))}</li><li>${Lab.L(o('<b>Trade:</b> the WTO, container ships, the internet and global supply chains.','<b>贸易：</b>世贸组织、集装箱船、互联网和全球供应链。'))}</li></ul>
+      <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(o('UN ’45 · Rome ’57 · reform ’78 · EU ’93 · WTO ’95 · China in WTO ’01 · euro ’02 · SDGs ’15.','联合国四五，罗马条约五七，改革开放七八，欧盟九三，世贸九五，中国入世零一，欧元零二，可持续发展目标一五。'))}</div>
+      <div class="nav"><button id="startBtn">${Lab.L(o('Start with 1945 ▶','从1945年开始 ▶'))}</button></div>`;
+    Lab.$('#startBtn').onclick = () => { go(1945); select('un'); }; return; }
+  const e = EV[k], i = EORDER.indexOf(k);
+  box.innerHTML = `<span class="tag">${Lab.L(e.date)}</span><h3><span class="dot" style="background:${e.c}"></span>${Lab.L(e.name)}</h3>
+    <b class="kh">${Lab.L(o('📌 KEY FACTS','📌 要点'))}</b><ul>${Lab.L(e.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(e.rhyme)}</div><div class="mix"><b>${Lab.L(o('⚠️ Don’t mix up:','⚠️ 易错点：'))}</b><span>${Lab.L(e.mix)}</span></div>
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(e.name), Lab.L(e.date), ...Lab.L(e.facts)].join(Lab.lang === 'zh' ? '。' : '. '));
+  const jump = d => { const n = EORDER[(i + d + EORDER.length) % EORDER.length]; go(EV[n].y); select(n); };
+  Lab.$('#pPrev').onclick = () => jump(-1); Lab.$('#pNext').onclick = () => jump(1);
+}
+function renderYear(){
+  const y = App.year; Lab.$('#yr').value = y; Lab.$('#yrOut').textContent = y;
+  Lab.$('#cUn').textContent = Math.round(lerp(UN, y));
+  Lab.$('#cEu').textContent = Object.keys(EUJ).filter(n => inEU(n, y)).length + (y >= 2004 ? 1 : 0);
+  const tr = lerp(TRADE, y); Lab.$('#cTrade').textContent = tr == null ? '—' : (Lab.lang === 'zh' ? (tr >= 1 ? (tr).toFixed(1) + ' 万亿美元' : Math.round(tr * 10000) + ' 亿美元') : '$' + (tr >= 1 ? tr.toFixed(1) + ' trillion' : Math.round(tr * 1000) + ' billion')) + (y > 2024 ? ' (2024)' : '');
+  const cs = lerp(CNSH, y); Lab.$('#cChina').textContent = cs == null ? '—' : cs.toFixed(1) + '%' + (y > 2024 ? ' (2024)' : '');
+  Lab.$('#playBtn').textContent = App.timer ? '⏸' : '▶'; M.draw();
+}
+function go(y){ App.year = Math.max(1945, Math.min(2026, y)); renderYear(); }
+function stop(){ if (App.timer){ clearInterval(App.timer); App.timer = null; } }
+Lab.$('#yr').oninput = e => { stop(); go(+e.target.value); };
+Lab.$('#playBtn').onclick = () => { if (App.timer){ stop(); renderYear(); return; } if (App.year >= 2026) App.year = 1945; App.timer = setInterval(() => { if (App.year >= 2026){ stop(); renderYear(); } else go(App.year + 1); }, 320); renderYear(); };
+Lab.onLang(() => { tip(); renderInfo(); renderYear(); });
+chinaStrip('#cnStrip', CNS);
+
+/* ================= Phone supply-chain mission ================= */
+const PT = { 'United States of America':[-98,39], 'South Korea':[127.8,36.4], China:[104,33], Japan:[138.5,36.5], 'Dem. Rep. Congo':[25.5,-8], Australia:[121,-25], Chile:[-69.3,-23.6], Argentina:[-66.5,-24.5], Myanmar:[97,23], 'United Kingdom':[-1.5,52.5], India:[78,15], Vietnam:[105.8,21], 'Taiwan':[121,23.7], Indonesia:[113,-1] };
+const HUB = [114.06,22.54], SAV = [-81.09,32.08], ATL = [-84.39,33.75];
+const PARTS = [
+ { n:o('Processor chip (the “brain”) — manufacturing','处理器芯片（“大脑”）——制造'), src:['China','South Korea','United States of America'], pts:['Taiwan','South Korea'], f:o('Most of the world’s most advanced chips are made in Taiwan, China (by TSMC) and in South Korea; the chip designs often come from the USA or the UK (Arm).','世界上最先进的芯片大多在中国台湾（台积电）和韩国制造；芯片设计常常来自美国或英国（Arm公司）。') },
+ { n:o('Memory chips','存储芯片'), src:['South Korea','United States of America','Japan','China'], pts:['South Korea','United States of America'], f:o('Memory chips come mostly from South Korea (Samsung, SK Hynix), plus the USA (Micron), Japan and China.','存储芯片主要来自韩国（三星、SK海力士），还有美国（美光）、日本和中国。') },
+ { n:o('Screen (OLED display)','屏幕（OLED显示屏）'), src:['South Korea','China','Japan'], pts:['South Korea','China'], f:o('South Korea and China make most phone screens (Samsung Display, LG, BOE).','韩国和中国生产了大部分手机屏幕（三星显示、LG、京东方）。') },
+ { n:o('Camera image sensor','摄像头图像传感器'), src:['Japan','South Korea','China'], pts:['Japan'], f:o('Japan’s Sony makes about half of the world’s phone camera sensors (approx.).','日本索尼生产了世界上约一半的手机摄像头传感器（约数）。') },
+ { n:o('Battery cells','电池电芯'), src:['China','South Korea','Japan'], pts:['China'], f:o('China makes most of the world’s lithium-ion battery cells.','世界上大部分锂离子电池电芯是中国制造的。') },
+ { n:o('Cobalt (in the battery)','钴（电池原料）'), src:['Dem. Rep. Congo'], pts:['Dem. Rep. Congo'], f:o('About 70% of the world’s cobalt is mined in DR Congo (approx.) — sometimes in dangerous conditions, including child labour, which companies are pressed to stop.','世界上约70%的钴产自刚果（金）（约数）——有些矿山条件危险，甚至存在童工问题，企业正被要求杜绝。') },
+ { n:o('Lithium (in the battery)','锂（电池原料）'), src:['Australia','Chile','China','Argentina'], pts:['Australia','Chile'], f:o('Australia mines the most lithium; Chile and Argentina pump it from salt flats; China refines most of it.','澳大利亚的锂产量最大；智利和阿根廷从盐湖中提取锂；大部分锂在中国精炼。') },
+ { n:o('Rare-earth magnets (speakers, vibration motor)','稀土磁体（扬声器、振动马达）'), src:['China','Myanmar','Australia','United States of America'], pts:['China'], f:o('China mines most rare earths and processes about 90% of them (approx.).','中国开采了大部分稀土，并加工了约90%的稀土（约数）。') },
+ { n:o('Toughened cover glass','钢化保护玻璃'), src:['United States of America','China','Japan'], pts:['United States of America'], f:o('Gorilla Glass is made by Corning, an American company — including at a factory in Kentucky; China and Japan also make cover glass.','“大猩猩玻璃”由美国康宁公司生产，其中包括肯塔基州的工厂；中国和日本也生产手机玻璃。') },
+ { n:o('Phone design & software','手机设计与软件'), src:['United States of America','South Korea','China'], pts:['United States of America'], f:o('Big phone brands design their phones in the USA (California), South Korea and China.','大的手机品牌在美国（加利福尼亚）、韩国和中国设计手机。') },
+ { n:o('Final assembly','最后组装'), src:['China','India','Vietnam'], pts:['China','India'], f:o('Most phones are put together in giant factories in China; India and Vietnam assemble a fast-growing share.','大多数手机在中国的大型工厂组装；印度和越南组装的份额增长很快。') }
+];
+const PR = [ [0,o('Shopper','顾客')], [40,o('Shipping clerk','货运员')], [100,o('Logistics manager','物流经理')], [180,o('Supply-chain detective','供应链侦探')], [280,o('Globalization expert','全球化专家')] ];
+const gc = (a, b, n = 28) => { const it = d3.geoInterpolate(a, b); return Array.from({ length:n + 1 }, (_, i) => it(i / n)); };
+const PH = { total:0, run:0, i:0, res:[], ans:null, ship:0, km:0 };
+const PM = WMap.create('#phoneStage', '#phoneCv', { extent:[[-180,-45],[180,70]], rot:150, top:20, bottom:26, topS:20, bottomS:24, note:true,
+  fill: f => { if (PH.i >= PARTS.length) return null; const p = PARTS[PH.i]; if (PH.ans != null && p.src.includes(f.name)) return 'rgba(22,163,74,.45)'; return null; },
+  overlay: (g, V) => {
+    PH.res.forEach(r => r.pts.forEach(c => { const a = PT[c]; if (!a) return; V.line(gc(a, HUB), r.ok ? 'rgba(22,163,74,.75)' : 'rgba(234,88,12,.6)', 2); V.dot(a, 3.5, r.ok ? '#16a34a' : '#ea580c'); }));
+    const h = V.dot(HUB, 6, '#c0392b', css('--surface')); if (h && PH.res.length) V.text(Lab.L(o('Assembly (Shenzhen area)', '组装（深圳一带）')), h[0] + 8, h[1] + 12, { s:10.5, a:'left' });
+    if (PH.ship > 0){ const route = [...gc(HUB, [140, 30], 10), ...gc([140, 30], [-150, 25], 16), ...gc([-150, 25], [-79.6, 8.9], 22), ...gc([-79.6, 9.3], [-75, 17], 6), ...gc([-75, 17], SAV, 10), ...gc(SAV, ATL, 4)];
+      const tipP = V.line(route, '#0284c7', 3, [7, 5], PH.ship); if (tipP){ g.font = '18px sans-serif'; g.textAlign = 'center'; g.fillText('📦', tipP[0], tipP[1] - 4); }
+      const p1 = V.dot([-79.6, 9.1], 3, '#0284c7'); if (p1 && !V.small) V.text(Lab.L(o('Panama Canal', '巴拿马运河')), p1[0] + 6, p1[1] + 10, { s:10, a:'left', c:'#0284c7' });
+      if (PH.ship >= 1){ const p2 = V.dot(ATL, 6, '#0284c7', css('--surface')); if (p2) V.text(Lab.L(o('Atlanta, GA', '佐治亚州亚特兰大')), p2[0] - 8, p2[1] - 12, { s:11, a:'right', c:'#0284c7' }); }
+    }
+  },
+  click: (f, h) => { if (PH.i >= PARTS.length || PH.ans != null) return; if (!f){ Lab.$('#phoneTip').textContent = Lab.L(o('That is the ocean — click a country.', '那是海洋——请点击一个国家。')); return; } guess(f); },
+  hover: f => f ? Lab.L(f) : ''
+});
+function guess(f){ const p = PARTS[PH.i], ok = p.src.includes(f.name); PH.ans = { name:f, ok }; const pts = ok ? 10 : 0; PH.run += pts; PH.total += pts;
+  PH.res.push({ ok, pts:p.pts }); PH.km += p.pts.reduce((s, c) => s + (PT[c] ? d3.geoDistance(PT[c], HUB) * 6371 : 0), 0); renderPhone(); PM.draw(); }
+function renderPhone(){
+  Lab.$('#pScore').textContent = PH.total; Lab.$('#pRun').textContent = PH.run + '/' + PARTS.length * 10;
+  const st = PH.run >= 95 ? 3 : PH.run >= 70 ? 2 : PH.run >= 45 ? 1 : 0; Lab.$('#pStars').textContent = stars(st); Lab.$('#pRanks').innerHTML = ranksHTML(PR, PH.total);
+  const km = PH.km + (PH.ship >= 1 ? 19500 : 0); Lab.$('#pKm').textContent = Lab.lang === 'zh' ? Math.round(km / 100) * 100 + ' 千米' : (Math.round(km / 100) * 100).toLocaleString('en-US') + ' km · ' + (Math.round(km * .6214 / 100) * 100).toLocaleString('en-US') + ' mi';
+  Lab.$('#pParts').innerHTML = PARTS.map((p, j) => `<span class="${j < PH.res.length ? (PH.res[j].ok ? 'ok' : 'no') : j === PH.i ? 'on' : ''}">${j < PH.res.length ? (PH.res[j].ok ? '✓ ' : '✗ ') : ''}${j + 1}</span>`).join('');
+  const box = Lab.$('#pBox');
+  if (PH.i >= PARTS.length){
+    box.innerHTML = `<span class="tag">${Lab.L(o('Last step','最后一步'))}</span><h3>${Lab.L(o('Ship it to Atlanta!','运到亚特兰大！'))}</h3><p>${Lab.L(o('Your phone leaves South China by container ship, crosses the Pacific, goes through the Panama Canal and lands at the Port of Savannah — one of the busiest container ports in the US — then rides a truck to Atlanta.', '你的手机装上集装箱船从华南出发，横渡太平洋，穿过巴拿马运河，到达萨凡纳港——美国最繁忙的集装箱港口之一——再坐卡车到亚特兰大。'))}</p>
+      ${PH.ship >= 1 ? `<p class="stars" style="margin:0">${stars(st)}</p><div class="fb good">${Lab.L(o(`Delivered! Round score ${PH.run}/${PARTS.length * 10}. About ${new Set(PARTS.flatMap(p => p.pts)).size} countries in this one phone: that is globalization — and why one blocked canal or one closed factory can delay products everywhere.`, `送达！本轮得分 ${PH.run}/${PARTS.length * 10}。一部手机就涉及约 ${new Set(PARTS.flatMap(p => p.pts)).size} 个国家和地区：这就是全球化——也说明为什么一条运河堵塞、一家工厂停工，就会让世界各地的商品延误。`))}</div><div class="btnrow"><button class="btn" id="pAgain">${Lab.L(o('Play again ▶','再玩一轮 ▶'))}</button></div>` : `<div class="btnrow"><button class="btn" id="pShip">${Lab.L(o('🚢 Ship it','🚢 开船'))}</button></div>`}`;
+    const s = Lab.$('#pShip'); if (s) s.onclick = () => { const t0 = performance.now(); const step = now => { PH.ship = Math.min(1, (now - t0) / 4000); PM.draw(); if (PH.ship < 1) requestAnimationFrame(step); else renderPhone(); }; requestAnimationFrame(step); };
+    const a = Lab.$('#pAgain'); if (a) a.onclick = () => { PH.run = 0; PH.i = 0; PH.res = []; PH.ans = null; PH.ship = 0; PH.km = 0; renderPhone(); PM.draw(); };
+    return; }
+  const p = PARTS[PH.i];
+  box.innerHTML = `<span class="tag">${Lab.L(o('Part', '零件'))} ${PH.i + 1}/${PARTS.length}</span><h3>📱 ${Lab.L(p.n)}</h3>
+    ${PH.ans ? `<div class="fb ${PH.ans.ok ? 'good' : 'bad'}">${PH.ans.ok ? '✅ ' : '🤔 ' + Lab.L(o(`Not mainly ${PH.ans.name.en}. `, `主要不是${PH.ans.name.zh}。`))}${Lab.L(p.f)}</div><div class="btnrow"><button class="btn" id="pNext">${Lab.L(o('Next part ▶','下一个零件 ▶'))}</button></div>`
+      : `<p class="muted">${Lab.L(o('Click the country on the map where this mostly comes from.', '在地图上点击它主要来自的国家。'))}</p>`}
+    <div class="memory"><b>${Lab.L(o('💡 Why so many countries?','💡 为什么要这么多国家？'))}</b>${Lab.L(o('Each country specializes in what it does best or cheapest — economists call it comparative advantage. Trade lets everyone get the best parts.', '每个国家专门做自己最擅长或成本最低的事——经济学家称之为“比较优势”。贸易让大家都能得到最好的零件。'))}</div>`;
+  const n = Lab.$('#pNext'); if (n) n.onclick = () => { PH.ans = null; PH.i++; renderPhone(); PM.draw(); };
+  Lab.$('#phoneTip').textContent = Lab.L(o('Click a country', '点击一个国家'));
+}
+Lab.onLang(renderPhone);
+
+/* ================= SDGs ================= */
+const SDG = [ ['#E5243B',o('No poverty','无贫穷'),o('Donate outgrown clothes and books.','把穿不下的衣服和看过的书捐出去。')], ['#DDA63A',o('Zero hunger','零饥饿'),o('Don’t waste food; help at a food bank.','不浪费食物；去食物银行做志愿者。')], ['#4C9F38',o('Good health and well-being','良好健康与福祉'),o('Get vaccinated, sleep, exercise — and look out for friends.','按时接种疫苗、睡好觉、多运动——也关心朋友。')],
+  ['#C5192D',o('Quality education','优质教育'),o('Help a classmate learn something you are good at.','教同学一样你擅长的东西。')], ['#FF3A21',o('Gender equality','性别平等'),o('Speak up when someone says “that’s not for girls/boys”.','有人说“这不是女孩/男孩干的事”时，勇敢说出来。')], ['#26BDE2',o('Clean water and sanitation','清洁饮水和卫生设施'),o('Turn off the tap while brushing your teeth.','刷牙时关掉水龙头。')],
+  ['#FCC30B',o('Affordable and clean energy','经济适用的清洁能源'),o('Switch off lights and screens you are not using.','随手关掉不用的灯和屏幕。')], ['#A21942',o('Decent work and economic growth','体面工作和经济增长'),o('Learn where your clothes are made and how workers are treated.','了解你的衣服在哪里制造、工人的待遇如何。')], ['#FD6925',o('Industry, innovation and infrastructure','产业、创新和基础设施'),o('Build, code and invent — join a robotics club!','动手造、学编程、搞发明——参加机器人社团！')],
+  ['#DD1367',o('Reduced inequalities','减少不平等'),o('Include the new kid at lunch.','午饭时邀请新同学一起坐。')], ['#FD9D24',o('Sustainable cities and communities','可持续城市和社区'),o('Walk, bike or take the bus when you can.','能走路、骑车或坐公交时就不坐私家车。')], ['#BF8B2E',o('Responsible consumption and production','负责任消费和生产'),o('Reuse, repair and recycle — fix your phone instead of replacing it.','重复使用、修理、回收——手机坏了先修再换。')],
+  ['#3F7E44',o('Climate action','气候行动'),o('Plant a tree and learn how your town plans for heat and floods.','种一棵树，了解你所在的城市怎样应对高温和洪水。')], ['#0A97D9',o('Life below water','水下生物'),o('Skip single-use plastic straws and bags.','不用一次性塑料吸管和塑料袋。')], ['#56C02B',o('Life on land','陆地生物'),o('Plant native flowers for bees and butterflies.','为蜜蜂和蝴蝶种本地的花。')],
+  ['#00689D',o('Peace, justice and strong institutions','和平、正义与强大机构'),o('Solve arguments with words; stand up to bullying.','用语言解决分歧；勇敢反对霸凌。')], ['#19486A',o('Partnerships for the goals','促进目标实现的伙伴关系'),o('Team up with a pen pal school in another country.','和另一个国家的学校结成笔友。')] ];
+const SCEN = [ { g:6, t:o('A village gets a well and toilets, so children no longer walk two hours a day to fetch water.','一个村庄打了井、建了厕所，孩子们不用再每天走两小时去取水。') }, { g:7, t:o('Solar panels bring electricity to a school that never had lights.','太阳能电池板给一所从没通过电的学校带来了电。') },
+  { g:5, t:o('Girls and boys get the same chance to go to school, and later the same pay for the same job.','女孩和男孩有同样的上学机会，长大后同工同酬。') }, { g:13, t:o('A city cuts carbon emissions and plants trees to slow global warming.','一座城市减少碳排放、植树造林，减缓全球变暖。') },
+  { g:14, t:o('A country bans plastic bags to protect sea turtles and coral reefs.','一个国家禁用塑料袋，保护海龟和珊瑚礁。') }, { g:3, t:o('Free vaccines protect every child against measles.','免费疫苗让每个孩子都能预防麻疹。') },
+  { g:12, t:o('A town recycles electronics and teaches people to buy only what they need.','一个小镇回收电子产品，教人们只买需要的东西。') }, { g:2, t:o('Free school lunches make sure no child studies on an empty stomach.','免费午餐让孩子们不再饿着肚子上课。') } ];
+(function(){
+  const D = { i:0, ok:0, tries:0, streak:0, order:Lab.shuffle(SCEN.map((_, i) => i)), msg:null };
+  function render(){
+    Lab.$('#dScore').textContent = D.ok + '/' + SCEN.length; Lab.$('#dTry').textContent = D.tries; Lab.$('#dStreak').textContent = D.streak;
+    Lab.$('#dCard').innerHTML = D.i < SCEN.length ? `<b>${D.i + 1}/${SCEN.length}</b> · ${Lab.L(SCEN[D.order[D.i]].t)}` : Lab.L(o('🎉 All matched! Tap any goal to see what you can do.', '🎉 全部配对完成！点击任意目标，看看你能做什么。'));
+    Lab.$('#sdgGrid').innerHTML = SDG.map((s, j) => `<button style="background:${s[0]}" data-g="${j + 1}"><b>${j + 1}</b>${Lab.L(s[1])}</button>`).join('');
+    const m = Lab.$('#dMsg'); m.className = 'result ' + (D.msg ? D.msg.c : ''); m.textContent = D.msg ? Lab.L(D.msg.t) : '';
+    Lab.$$('#sdgGrid button').forEach(b => b.onclick = () => { const g = +b.dataset.g, s = SDG[g - 1];
+      if (D.i >= SCEN.length){ D.msg = { c:'good', t:o(`Goal ${g} · ${s[1].en}: ${s[2].en}`, `目标${g} · ${s[1].zh}：${s[2].zh}`) }; render(); return; }
+      D.tries++; const want = SCEN[D.order[D.i]].g;
+      if (g === want){ D.ok++; D.streak++; D.i++; D.msg = { c:'good', t:o(`✅ Goal ${g}: ${s[1].en}. You can help: ${s[2].en}`, `✅ 目标${g}：${s[1].zh}。你可以：${s[2].zh}`) }; render(); }
+      else { D.streak = 0; D.msg = { c:'bad', t:o(`❌ Goal ${g} is “${s[1].en}”. Try another.`, `❌ 目标${g}是“${s[1].zh}”，再试试。`) }; render(); const nb = Lab.$(`#sdgGrid button[data-g="${g}"]`); if (nb) nb.classList.add('wrong'); } });
+  }
+  Lab.onLang(render);
+})();
+/* poverty chart */
+(function(){
+  const cv = Lab.$('#povCv'), g = cv.getContext('2d'), DATA = { 1990:38, 1999:29, 2005:22, 2010:16, 2015:10, 2019:9 }, yrs = Object.keys(DATA).map(Number); let sel = 1990, bars = [];
+  const NOTE = { 1990:o('About 2 billion people lived on less than $2.15 a day.','约20亿人每天生活费不足2.15美元。'), 1999:o('Growth in China and India starts to pull the number down.','中国和印度的经济增长开始让贫困人口减少。'), 2005:o('China’s share of the world’s poor falls fast.','中国在世界贫困人口中的比重迅速下降。'), 2010:o('The Millennium goal of halving extreme poverty is reached early.','“千年发展目标”中贫困人口减半的目标提前实现。'), 2015:o('The SDGs aim to end extreme poverty by 2030.','可持续发展目标提出到2030年消除极端贫困。'), 2019:o('Progress slowed; the COVID-19 pandemic (2020) pushed millions back into poverty.','进展放缓；新冠疫情（2020年）使数以百万计的人重新陷入贫困。') };
+  function draw(){ const r = cv.parentElement.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!r.width) return;
+    cv.width = r.width * d; cv.height = r.height * d; g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, r.width, r.height);
+    const L = 30, B = 22, T = 14, W = r.width - L - 6, H = r.height - T - B, bw = W / yrs.length;
+    [0, 10, 20, 30, 40].forEach(t => { const y = T + H - t / 42 * H; g.strokeStyle = css('--line'); g.beginPath(); g.moveTo(L, y); g.lineTo(L + W, y); g.stroke(); g.fillStyle = css('--ink-2'); g.font = '11px Nunito, sans-serif'; g.textAlign = 'right'; g.textBaseline = 'middle'; g.fillText(t + '%', L - 4, y); });
+    bars = yrs.map((y, i) => { const v = DATA[y], h = v / 42 * H, x = L + i * bw + bw * .15, on = y === sel; g.fillStyle = on ? css('--accent') : '#E5243B'; g.globalAlpha = on ? 1 : .7; g.fillRect(x, T + H - h, bw * .7, h); g.globalAlpha = 1;
+      g.fillStyle = css('--ink'); g.textAlign = 'center'; g.font = `${on ? 800 : 600} 11px Nunito, sans-serif`; g.fillText(v + '%', x + bw * .35, T + H - h - 7); g.fillStyle = css('--ink-2'); g.fillText(y, x + bw * .35, T + H + 11); return { y, x0:L + i * bw, x1:L + (i + 1) * bw }; });
+    Lab.$('#povRead').innerHTML = `<b>${sel}</b> · ≈ ${DATA[sel]}% — ${Lab.L(NOTE[sel])}`; }
+  cv.addEventListener('click', e => { const x = e.clientX - cv.getBoundingClientRect().left, b = bars.find(b => x >= b.x0 && x < b.x1); if (b){ sel = b.y; draw(); } });
+  new ResizeObserver(() => requestAnimationFrame(draw)).observe(cv.parentElement);
+  new MutationObserver(() => setTimeout(draw, 60)).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme'] });
+  Lab.onLang(draw);
+})();
+
+/* ================= Quiz & sort ================= */
+const QUIZ = [
+ {q:o('When was the United Nations founded?','联合国成立于哪一年？'), options:[o('1945','1945年'),o('1919','1919年'),o('1957','1957年'),o('1991','1991年')], answer:0},
+ {q:o('Which countries are the five permanent members of the UN Security Council?','联合国安理会的五个常任理事国是'), options:[o('China, France, Russia, the UK and the USA','中国、法国、俄罗斯、英国、美国'),o('Germany, Japan, India, Brazil and Italy','德国、日本、印度、巴西、意大利'),o('The USA, Canada, Mexico, Brazil and Chile','美国、加拿大、墨西哥、巴西、智利'),o('Any five countries that win an election','选举产生的任意五国')], answer:0},
+ {q:o('The European Union began in the 1950s as…','欧盟起源于20世纪50年代的'), options:[o('a community sharing coal and steel','共享煤钢的共同体'),o('a military alliance against the USSR','对抗苏联的军事同盟'),o('a sports league','体育联盟'),o('a group of colonies','一批殖民地')], answer:0},
+ {q:o('Which country left the EU in 2020?','哪个国家在2020年退出了欧盟？'), options:[o('The United Kingdom','英国'),o('France','法国'),o('Norway','挪威'),o('Switzerland','瑞士')], answer:0, explain:o('Norway and Switzerland were never EU members.','挪威和瑞士从来不是欧盟成员国。')},
+ {q:o('Map reading: which group of countries uses the euro?','读地图：哪些国家使用欧元？'), options:[o('More than 20 EU countries, such as Germany, France and Italy','德国、法国、意大利等20多个欧盟国家'),o('Every country in Europe','欧洲所有国家'),o('The UK and the USA','英国和美国'),o('Members of the UN Security Council','联合国安理会成员国')], answer:0},
+ {q:o('In what year did China begin “reform and opening up”?','中国在哪一年开始改革开放？'), options:[o('1978','1978年'),o('1949','1949年'),o('2001','2001年'),o('1997','1997年')], answer:0},
+ {q:o('China joined the World Trade Organization in…','中国加入世界贸易组织是在'), options:[o('2001','2001年'),o('1978','1978年'),o('1995','1995年'),o('2013','2013年')], answer:0},
+ {q:o('What does the WTO do?','世界贸易组织的作用是'), options:[o('Sets trade rules and settles trade disputes','制定贸易规则、解决贸易争端'),o('Keeps peace with soldiers','派军队维持和平'),o('Prints the euro','印刷欧元'),o('Runs the Olympic Games','举办奥运会')], answer:0},
+ {q:o('Why does one phone contain parts from many countries?','为什么一部手机里有来自许多国家的零件？'), options:[o('Countries specialize in what they do best (comparative advantage) and trade','各国专门生产自己最擅长的东西（比较优势）并相互贸易'),o('It is required by the UN','联合国规定的'),o('Phones are made by hand in every country','每个国家都手工制造手机'),o('Parts are cheaper to fly than to ship','零件空运比海运便宜')], answer:0},
+ {q:o('Most of the world’s cobalt for batteries is mined in…','世界上用于电池的钴大部分产自'), options:[o('DR Congo','刚果（金）'),o('Canada','加拿大'),o('Japan','日本'),o('Georgia, USA','美国佐治亚州')], answer:0},
+ {q:o('How many Sustainable Development Goals did the UN adopt in 2015?','2015年联合国通过了多少个可持续发展目标？'), options:[o('17','17个'),o('10','10个'),o('5','5个'),o('193','193个')], answer:0, explain:o('193 is the number of UN member states.','193是联合国会员国的数量。')},
+ {q:o('Chart reading: what happened to the share of people in extreme poverty from 1990 to 2019?','读图表：1990年到2019年，极端贫困人口的比例发生了什么变化？'), options:[o('It fell from about 38% to about 9%','从约38%降到约9%'),o('It doubled','翻了一番'),o('It stayed the same','保持不变'),o('It rose to 50%','升到50%')], answer:0}
+];
+Lab.quiz(Lab.$('#quiz'), QUIZ, { count:12 });
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'un',en:'United Nations',zh:'联合国'},{id:'eu',en:'European Union',zh:'欧盟'},{id:'wto',en:'World Trade Organization',zh:'世界贸易组织'}],
+  items:[{en:'Security Council',zh:'安理会',bin:'un'},{en:'Blue-helmet peacekeepers',zh:'蓝盔维和部队',bin:'un'},{en:'17 SDGs',zh:'17个可持续发展目标',bin:'un'},{en:'UNICEF',zh:'联合国儿童基金会',bin:'un'},
+    {en:'The euro',zh:'欧元',bin:'eu'},{en:'Treaty of Rome',zh:'《罗马条约》',bin:'eu'},{en:'Schengen travel area',zh:'申根区',bin:'eu'},{en:'Brexit',zh:'英国脱欧',bin:'eu'},
+    {en:'Trade dispute settlement',zh:'贸易争端解决',bin:'wto'},{en:'Replaced the GATT in 1995',zh:'1995年取代关贸总协定',bin:'wto'},{en:'China’s entry in 2001',zh:'中国2001年加入',bin:'wto'},{en:'Rules on tariffs',zh:'关税规则',bin:'wto'}]
+});
+
+/* ================= Real media & links ================= */
+const PHOTOS = [
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/da/Headquarters_of_the_United_Nations%2C_New_York_City%2C_20231001_1103_1006.jpg/960px-Headquarters_of_the_United_Nations%2C_New_York_City%2C_20231001_1103_1006.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The United Nations headquarters on the East River, New York City.', zh:'位于纽约东河畔的联合国总部。', kind:o('Photo','ç§ç'), credit:'Jakub Hałun', license:'CC BY 4.0', page:CP + 'Headquarters_of_the_United_Nations,_New_York_City,_20231001_1103_1006.jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e8/United_Nations_General_Assembly_Hall_%283%29.jpg/960px-United_Nations_General_Assembly_Hall_%283%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The General Assembly Hall, where all 193 member states have a seat and a vote.', zh:'联合国大会会堂，193个会员国在这里都有席位和投票权。', kind:o('Photo','ç§ç'), credit:'Basil D Soufi', license:'CC BY-SA 3.0', page:CP + 'United_Nations_General_Assembly_Hall_(3).jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2c/European_Parliament_Strasbourg_Hemicycle_-_Diliff.jpg/960px-European_Parliament_Strasbourg_Hemicycle_-_Diliff.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The European Parliament in Strasbourg during a plenary session (2014). EU citizens elect its members.', zh:'欧洲议会在斯特拉斯堡举行全体会议（2014年）。议员由欧盟公民选举产生。', kind:o('Photo','ç§ç'), credit:'Diliff', license:'CC BY-SA 3.0', page:CP + 'European_Parliament_Strasbourg_Hemicycle_-_Diliff.jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ae/Yangshan_Intermodal_Container_Port.JPG/960px-Yangshan_Intermodal_Container_Port.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Yangshan Port, part of the Port of Shanghai — the world’s busiest container port.', zh:'洋山港，上海港的一部分——上海港是世界上最繁忙的集装箱港口。', kind:o('Photo','ç§ç'), credit:'Acstar', license:'CC0', page:CP + 'Yangshan_Intermodal_Container_Port.JPG' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c2/Port_of_Shanghai%2C_Yangshan_Deep-water_Harbour_Zone%2C_02.jpg/960px-Port_of_Shanghai%2C_Yangshan_Deep-water_Harbour_Zone%2C_02.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The Yangshan deep-water harbour zone of the Port of Shanghai, built on islands out at sea.', zh:'上海港洋山深水港区，建在海上的岛屿上。', kind:o('Photo','ç§ç'), credit:'Alex Needham (English Wikipedia)', license:'Public domain', page:CP + 'Port_of_Shanghai,_Yangshan_Deep-water_Harbour_Zone,_02.jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/11/Container_ship_NYK_Themis_at_the_Port_of_Los_Angeles.jpg/960px-Container_ship_NYK_Themis_at_the_Port_of_Los_Angeles.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The container ship NYK Themis at the Port of Los Angeles — a gateway for goods from Asia to the US.', zh:'洛杉矶港的“NYK忒弥斯号”集装箱船——亚洲货物进入美国的门户之一。', kind:o('Photo','ç§ç'), credit:'Downtowngal', license:'CC BY-SA 4.0', page:CP + 'Container_ship_NYK_Themis_at_the_Port_of_Los_Angeles.jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2f/Shenzhen_Skyline_from_Futian_District2.jpg/960px-Shenzhen_Skyline_from_Futian_District2.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Shenzhen’s Futian district in 2016 — a small town in 1979, a giant tech city today.', zh:'2016年的深圳福田区——1979年还是小城，如今是巨大的科技城市。', kind:o('Photo','ç§ç'), credit:'Huangdan2060', license:'CC BY 3.0', page:CP + 'Shenzhen_Skyline_from_Futian_District2.jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/88/Container_ship_exiting_Mombasa_port.jpg/960px-Container_ship_exiting_Mombasa_port.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A container ship leaving Mombasa, Kenya — East Africa’s biggest port.', zh:'一艘集装箱船驶离肯尼亚蒙巴萨港——东非最大的港口。', kind:o('Photo','ç§ç'), credit:'Ian Kiptoo', license:'CC BY 4.0', page:CP + 'Container_ship_exiting_Mombasa_port.jpg' },
+ YT('Ttoad811t88', 'How 193 countries work together — the United Nations explains itself.', '193个国家如何合作——联合国官方介绍（英文）。', 'United Nations'),
+ YT('Gn7IoT_WSRA', 'How containerization shaped the modern world — TED-Ed.', '集装箱如何塑造了现代世界——TED-Ed（英文）。', 'TED-Ed')
+];
+LabPhotos.render('#gallery', PHOTOS, { title:o('See the real thing','看看真实的样子'), sub:o('Photographs from Wikimedia Commons — the UN, the EU, giant ports and container ships — plus two videos. Click to enlarge; videos open on YouTube.','来自维基共享资源的照片——联合国、欧盟、大港口和集装箱船——以及两段视频。点击可放大；视频在 YouTube 打开。') });
+renderLinks('#links', [
+ { u:'https://www.un.org/en/', t:o('United Nations','联合国'), d:o('News, member states and how the UN works.','新闻、会员国和联合国的运作方式（英文）。') },
+ { u:'https://sdgs.un.org/goals', t:o('The 17 Goals','17个可持续发展目标'), d:o('Each goal with its targets and progress.','每个目标的具体指标和进展（英文）。') },
+ { u:'https://worldslargestlesson.globalgoals.org/', t:o('The World’s Largest Lesson','“世界最大的一课”'), d:o('Free activities and comics about the Global Goals for students.','关于全球目标的免费学生活动和漫画（英文）。') },
+ { u:'https://peacekeeping.un.org/en', t:o('UN Peacekeeping','联合国维和行动'), d:o('Where the blue helmets serve today.','今天“蓝盔”部队在哪里执行任务（英文）。') },
+ { u:'https://european-union.europa.eu/index_en', t:o('The European Union','欧洲联盟'), d:o('Official EU site: countries, the euro and how decisions are made.','欧盟官方网站：成员国、欧元和决策方式（英文）。') },
+ { u:'https://www.wto.org/', t:o('World Trade Organization','世界贸易组织'), d:o('Trade rules, members and world trade statistics.','贸易规则、成员和世界贸易统计（英文）。') }
+]);
+</script>
+</body>
+</html>

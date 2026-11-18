@@ -1,0 +1,620 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Revolutions: Science, Politics & Industry</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/photos.js"></script>
+<script src="../shared/chinamap.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-array@3.2.4/dist/d3-array.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-geo@3.1.0/dist/d3-geo.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<style>
+.mission-line{font-weight:800;color:var(--ink);margin-top:10px}
+.unit{display:inline-block;font-size:13px;font-weight:800;padding:4px 10px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2);margin-top:8px}
+.stage canvas.map{touch-action:pan-y;cursor:pointer}
+.info .kh{font-size:13px;letter-spacing:.06em;color:var(--brand);margin-bottom:-6px}
+.info .date{font-family:Fredoka;font-weight:700;font-size:19px;color:var(--brand);margin-top:-8px}
+.counters.c4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.counters.c3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.dot-s{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.ranks{display:flex;flex-wrap:wrap;gap:6px}
+.ranks span{font-size:13px;font-weight:800;padding:4px 10px;border-radius:999px;background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line)}
+.ranks span.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.gm{padding:22px;display:flex;flex-direction:column;gap:14px}
+.bar{height:10px;border-radius:999px;background:var(--surface-2);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--brand);border-radius:999px;transition:width .3s}
+.scard{border:1px solid var(--line);border-radius:16px;padding:16px;background:var(--surface-2);display:flex;flex-direction:column;gap:10px}
+.scard .when{font-family:Fredoka;font-weight:700;color:var(--brand);font-size:18px}
+.scard h3{font-size:21px;margin:0}
+.choices{display:grid;gap:10px}
+.choices button{text-align:left;border:2px solid var(--line);background:var(--surface);color:var(--ink);border-radius:14px;padding:12px 14px;font-weight:700}
+.choices button:hover:not(:disabled){border-color:var(--brand)}
+.choices button.best{border-color:var(--good);background:color-mix(in srgb,var(--good) 12%,var(--surface))}
+.choices button.meh{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 9%,var(--surface))}
+.fb{border-radius:14px;padding:12px 14px;font-size:15.5px}
+.fb.good{background:color-mix(in srgb,var(--good) 12%,var(--surface));border:1px solid var(--good)}
+.fb.bad{background:color-mix(in srgb,var(--bad) 10%,var(--surface));border:1px solid var(--bad)}
+.stars{font-size:24px;letter-spacing:3px;color:var(--warn)}
+.two{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:18px}
+.two>.card{padding:20px;display:flex;flex-direction:column;gap:12px}
+.chart{position:relative;height:300px}
+.chart canvas{position:absolute;inset:0;width:100%;height:100%;cursor:pointer}
+.src{font-size:12.5px;color:var(--ink-2);margin:0}
+.readout{background:var(--surface-2);border-radius:14px;padding:12px 14px;min-height:60px;font-size:15.5px}
+.readout b{font-family:Fredoka;color:var(--brand);font-size:19px}
+.cnstrip{margin-top:18px;padding:16px 18px;border-left:6px solid #c0392b}
+.cnstrip-h{font-weight:800;letter-spacing:.04em;font-size:13px;text-transform:uppercase;color:#c0392b;margin-bottom:10px}
+.cnstrip-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.cnc{background:var(--surface-2);border-radius:14px;padding:12px 14px}
+.cnc b{font-family:Fredoka;color:#c0392b;font-size:18px}
+.cnc h4{margin:2px 0 4px;font-size:16px}
+.cnc p{margin:0;font-size:14.5px;color:var(--ink-2)}
+.chain{display:flex;flex-direction:column;gap:8px}
+.chain .slot{border:2px dashed var(--line);border-radius:14px;padding:10px 12px;min-height:46px;font-weight:700;display:flex;align-items:center;gap:8px;background:var(--surface)}
+.chain .slot.ok{border-style:solid;border-color:var(--good);background:color-mix(in srgb,var(--good) 10%,var(--surface))}
+.chain .arrow{text-align:center;color:var(--ink-2);font-weight:800;line-height:1}
+.tiles{display:flex;flex-wrap:wrap;gap:8px}
+.tiles button{border:2px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:12px;padding:8px 11px;font-weight:700;font-size:14.5px}
+.tiles button.sel{border-color:var(--brand);box-shadow:0 0 0 2px color-mix(in srgb,var(--brand) 30%,transparent)}
+.tiles button.bad{border-color:var(--bad);animation:labshake .35s}
+.tiles button:disabled{opacity:.35}
+@media (max-width:860px){.two{grid-template-columns:1fr}}
+@media (max-width:560px){.counters.c4,.counters.c3{grid-template-columns:1fr 1fr}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .cnstrip-h,:root:not([data-theme="light"]) .cnc b{color:#ff8a7a}}
+:root[data-theme="dark"] .cnstrip-h,:root[data-theme="dark"] .cnc b{color:#ff8a7a}
+.explorer>.stage{align-self:start;height:600px;min-height:0}
+@media (max-width:860px){.explorer>.stage{height:480px}}
+
+.engine{position:relative;aspect-ratio:600/340;width:100%;border-radius:14px;overflow:hidden;background:linear-gradient(180deg,var(--stage-1),var(--stage-2))}
+.engine canvas{position:absolute;inset:0;width:100%;height:100%}
+.ctlrow{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.ctlrow label{font-weight:800;font-size:14px;display:flex;align-items:center;gap:8px}
+.phase{font-weight:700;background:var(--surface-2);border-radius:12px;padding:10px 12px;min-height:48px}
+.chainbox{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.chain .slot small{font-size:11.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);min-width:68px}
+@media (max-width:760px){.chainbox{grid-template-columns:1fr}}
+</style>
+</head>
+<body data-subject="worldhistory" data-topic="wh-revolutions">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="世界历史 · 佐治亚州标准 · 统编版九年级上册">World History · Georgia GSE · China: Grade 9 World History</span>
+  <h1 data-zh-html="革命的时代：<em>科学、政治与蒸汽</em>">The Age of Revolutions: <em>science, politics and steam</em></h1>
+  <p class="lead" data-zh="1700年，世界上最快的交通工具是马。150年后，火车以每小时50多千米的速度呼啸而过；国王们发现，人民可以审判他们，甚至推翻他们；而一个苹果的落下，帮人类算出了行星的轨道。这一切是怎样连在一起发生的？">In 1700 the fastest thing on land was a horse. 150 years later trains roared along at over 30 mph (50 km/h); kings learned that their people could put them on trial or throw them out; and a falling apple helped people calculate the paths of planets. How did all of this happen in one chain?</p>
+  <p class="mission-line" data-zh="🎯 你的任务：拖动年份，看革命从英国、北美、法国传到世界；亲手开动纽科门和瓦特的蒸汽机，看看分离式冷凝器省了多少煤；再把五场革命的“原因—导火索—大事—结果”串成链条。">🎯 Your mission: drag the years and watch revolutions spread from Britain, North America and France; run Newcomen’s and Watt’s steam engines and see how much coal the separate condenser saves; then build the cause → spark → event → result chain for five revolutions.</p>
+  <span class="unit" data-zh="📘 统编版《世界历史》九年级上册 第六单元“资本主义制度的初步确立”（英国、美国、法国）与第七单元“工业革命……”（第一次工业革命）">📘 China’s textbook: World History Grade 9 Vol. 1, Unit 6 “The early establishment of capitalism” (Britain, the USA, France) &amp; Unit 7 (the First Industrial Revolution)</span>
+</header>
+
+<section class="wrap" id="map" data-nav="Map & years" data-nav-zh="地图与年份">
+  <div class="sec-head">
+    <h2 data-zh="互动地图：1540—1850年的革命">Interactive map: revolutions, 1540–1850</h2>
+    <p data-zh="按 ▶ 或拖动年份。紫色是科学，红色是政治革命，蓝色是工业（变蓝的国家开始工业化），金色是同一时期的中国。点击圆点了解详情。">Press ▶ or drag the year. Purple = science, red = political revolutions, blue = industry (countries turn blue as they industrialize), gold = China at the same time. Click a dot for details.</p>
+  </div>
+  <div style="margin-bottom:12px"><div class="timebar"><button id="playBtn" aria-label="Play">▶</button><input id="yr" type="range" min="1540" max="1850" step="1" value="1540" aria-label="Year"><output id="yrOut">1540</output></div></div>
+  <div class="explorer">
+    <div class="stage card" id="mapStage">
+      <canvas id="mapCv" class="map"></canvas>
+      <div class="toolbar">
+        <button class="tbtn on" data-layer="sci" data-zh="🔭 科学">🔭 Science</button>
+        <button class="tbtn on" data-layer="pol" data-zh="⚖️ 政治">⚖️ Politics</button>
+        <button class="tbtn on" data-layer="ind" data-zh="⚙️ 工业">⚙️ Industry</button>
+        <button class="tbtn on" data-layer="cn" data-zh="🏯 中国">🏯 China</button>
+      </div>
+      <div class="bottombar"><div class="tip" id="mapTip"></div></div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div style="margin-top:14px;display:flex;flex-direction:column;gap:12px">
+    <div class="counters c4">
+      <div class="counter"><b id="cCoal">—</b><span data-zh="英国年产煤（百万吨，约数）">British coal per year (million tons, approx.)</span></div>
+      <div class="counter"><b id="cRail">0</b><span data-zh="英国铁路长度（约数）">railways in Britain (approx.)</span></div>
+      <div class="counter"><b id="cPop">—</b><span data-zh="世界人口（约数）">world population (approx.)</span></div>
+      <div class="counter"><b id="cRev">0</b><span data-zh="已发生的政治革命">political revolutions so far</span></div>
+    </div>
+  </div>
+  <div class="card cnstrip" id="cnStrip"></div>
+</section>
+
+<section class="wrap" id="steam" data-nav="Steam engine" data-nav-zh="蒸汽机">
+  <div class="sec-head">
+    <h2 data-zh="蒸汽机实验室：瓦特到底改进了什么？">Steam engine lab: what did Watt actually improve?</h2>
+    <p data-zh="先开纽科门机（1712年）：每冲程都要往汽缸里喷冷水，汽缸一冷一热，白白浪费煤。再换成瓦特机：蒸汽被引到旁边单独的冷凝器里，汽缸一直保持热的。比比烧了多少煤！">First run Newcomen’s engine (1712): every stroke sprays cold water into the cylinder, so it cools and must be heated again — burning coal for nothing. Then switch to Watt’s engine: the steam goes to a separate, always-cold condenser, so the cylinder stays hot. Compare the coal!</p>
+  </div>
+  <div class="two">
+    <div class="card">
+      <div class="engine"><canvas id="engCv"></canvas></div>
+      <div class="ctlrow">
+        <div class="seg" id="engSeg"><button class="on" data-k="new" data-zh="纽科门 1712">Newcomen 1712</button><button data-k="watt" data-zh="瓦特 1769—1785">Watt 1769–1785</button></div>
+        <label><span data-zh="🔥 火力">🔥 Fire</span><input type="range" id="fire" min="1" max="10" value="5"></label>
+        <label><input type="checkbox" id="rotary"> <span data-zh="⚙️ 加装行星齿轮（1781年，带动机器）">⚙️ Sun-and-planet gear (1781: drive machines)</span></label>
+      </div>
+      <div class="phase" id="engPhase" aria-live="polite"></div>
+    </div>
+    <div class="card">
+      <div class="counters">
+        <div class="counter"><b id="eStrokes">0</b><span data-zh="冲程数（做功）">strokes (work done)</span></div>
+        <div class="counter"><b id="eCoal">0</b><span data-zh="已铲的煤（铲）">coal shoveled (shovels)</span></div>
+        <div class="counter"><b id="eSpm">0</b><span data-zh="每分钟冲程">strokes per minute</span></div>
+        <div class="counter"><b id="eEff">—</b><span data-zh="热效率（约数）">efficiency (approx.)</span></div>
+      </div>
+      <div class="readout" id="engRead"></div>
+      <details class="peek"><summary data-zh="为什么瓦特蒸汽机这么重要？">Why did Watt’s engine matter so much?</summary><p data-zh="纽科门机只能在煤矿边抽水，因为它太费煤。瓦特的分离式冷凝器大约只用四分之一的煤；1781年后的行星齿轮又把上下运动变成转动，能带动纺纱机、织布机。从此工厂不必建在河边靠水车了——1785年瓦特改良的蒸汽机投入使用，人类进入“蒸汽时代”。">Newcomen engines burned so much coal that they only made sense next to coal mines, pumping out water. Watt’s separate condenser used roughly a quarter of the coal, and after 1781 his sun-and-planet gear turned up-and-down motion into spinning motion that could drive spinning and weaving machines. Factories no longer had to sit beside rivers for water wheels — the “Age of Steam” began (China’s textbook marks 1785, when Watt’s improved engine went into use).</p></details>
+      <h3 data-zh="📊 数据：英国年产煤量">📊 Data: Britain’s coal output</h3>
+      <div class="chart" style="height:220px"><canvas id="coalCv"></canvas></div>
+      <p class="src" data-zh="单位：百万吨/年（约数）。来源：英国煤炭工业史研究的常用估计（弗林、丘奇等），1850年为近似值。点击柱子查看。">Million tons per year (approx.). Source: standard estimates from histories of the British coal industry (Flinn, Church and others); 1850 is approximate. Click a bar.</p>
+      <div class="readout" id="coalRead"></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="chains" data-nav="Chain mission" data-nav-zh="链条任务">
+  <div class="sec-head">
+    <h2 data-zh="任务：串起因果链">Mission: build the cause-and-effect chains</h2>
+    <p data-zh="每场革命有四环：背景原因 → 导火索 → 关键事件 → 结果。按顺序点出下一环。小心，混进了别的革命的卡片！第一次就选对得10分。">Every revolution has four links: background cause → spark → key event → result. Tap the next link in order. Careful — cards from other revolutions are mixed in! Right first time = 10 points.</p>
+  </div>
+  <div class="gm card">
+    <div class="counters c4">
+      <div class="counter"><b id="kScore">0</b><span data-zh="总分">total score</span></div>
+      <div class="counter"><b id="kRun">0/200</b><span data-zh="本轮得分">this round</span></div>
+      <div class="counter"><b id="kStars" class="stars">☆☆☆</b><span data-zh="本轮星级">round stars</span></div>
+      <div class="counter"><b id="kStreak">0</b><span data-zh="连对">streak</span></div>
+    </div>
+    <div class="ranks" id="kRanks"></div>
+    <div class="bar"><i id="kBar" style="width:0"></i></div>
+    <div id="kBox" aria-live="polite"></div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real media" data-nav-zh="真实影像">
+  <div id="gallery"></div>
+  <div class="sec-head" style="margin-top:26px"><h2 data-zh="走得更远：博物馆和档案">Go further: museums and archives</h2></div>
+  <div class="linkgrid" id="links"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 测验（12题）">🧠 Quiz (12 questions)</h3><p class="sub" data-zh="选出正确答案，看看解析。有的题要看地图或图表。">Pick the best answer and read the explanation. Some questions use the map or a chart.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分一分：哪一种革命？">🗂️ Sort it: which revolution?</h3><p class="sub" data-zh="把每一项拖到（或先点再点方框）它所属的革命。">Drag each item (or tap it, then tap a box) into its revolution.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="佐治亚州标准：本课在佐治亚州初中社会科中没有单独的对应标准（目录中写作 World History）。它为 SS6H（拉丁美洲独立运动的背景、欧洲）、SS7E/SS6E（经济体制与生产要素）以及八年级 SS8H3（美国革命在佐治亚）提供背景；美国革命的细节见本站“美国历史”板块。科学革命内容可联系初中科学课（牛顿运动定律、太阳系）。">Georgia standards: there is no single Georgia middle-school standard for this lesson (the catalog labels it “World History”). It gives background for SS6H (Latin American independence, Europe), economics (SS6E/SS7E: economic systems, factors of production) and Grade 8 SS8H3 (the American Revolution in Georgia); see this site’s U.S. History lessons for American details. The Scientific Revolution links to middle-school science (Newton’s laws, the solar system).</p>
+    <p data-zh="中国课程：统编版《世界历史》九年级上册第六单元“资本主义制度的初步确立”——“君主立宪制的英国”（1640年英国资产阶级革命爆发，1688年“光荣革命”，1689年《权利法案》，确立君主立宪制）、“美国的独立”（来克星顿的枪声、《独立宣言》、萨拉托加大捷、1787年宪法）、“法国大革命和拿破仑帝国”（攻占巴士底狱、《人权宣言》、《拿破仑法典》）；第七单元“第一次工业革命”（珍妮机、瓦特改良蒸汽机、史蒂芬孙的火车机车、工厂制度的建立，英国成为“世界工厂”）。“同一时期的中国”对应八年级上册：英国马戛尔尼使团访华（1793年）、鸦片战争（1840年）和《南京条约》。课次以所用版次为准。">China curriculum: unified-edition World History Grade 9 Vol. 1, Unit 6 — constitutional monarchy in Britain (the 1640 English bourgeois revolution, the 1688 Glorious Revolution, the 1689 Bill of Rights), American independence (Lexington, the Declaration of Independence, Saratoga, the 1787 Constitution), the French Revolution and Napoleon’s empire (the Bastille, the Declaration of the Rights of Man, the Civil Code); Unit 7 — the First Industrial Revolution (spinning jenny, Watt’s improved steam engine, Stephenson’s locomotive, the factory system, Britain as the “workshop of the world”). The China strip matches Chinese History Grade 8 Vol. 1: the Macartney embassy (1793), the Opium War (1840) and the Treaty of Nanjing. Lesson numbers vary by printing.</p>
+    <p data-zh="说明：地图为示意图（现代国界），工业化的年份是大致开始年代。煤产量、铁路长度和世界人口都是常用估计的约数。蒸汽机模型是教学简化：“铲煤数”和效率只表示相对大小（纽科门约1%，瓦特约2—3%，常见说法是瓦特机用煤约为纽科门机的四分之一）。海地革命和拉美独立运动按国际通行史实补充，统编版九年级下册“殖民地人民的反抗斗争”有相关内容。">Notes: the map is schematic (modern borders); industrialization dates are rough starting decades. Coal output, railway length and world population are approximate standard estimates. The steam model is simplified for teaching: “shovels” and efficiency show relative size only (Newcomen about 1%, Watt about 2–3%; Watt’s engine is commonly said to use about a quarter of the coal). The Haitian Revolution and Latin American independence are added from standard world-history accounts; China’s Grade 9 Vol. 2 covers them under resistance by colonized peoples.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+/* ===== WMap: canvas world map (world-atlas@2.0.2 countries-110m + d3-geo); China drawn from shared/chinamap.js (standard map incl. 台湾省、南海诸岛). Inlined in each worldhistory lesson. =====
+   M = WMap.create(stageSel, canvasSel, { extent:[[lonW,latS],[lonE,latN]], top, bottom, fill:f => colour|null, overlay:(g,M)=>{}, click:(f,h)=>{}, hover:(f,h)=>text }); M.draw(). Schematic map, modern borders. */
+const WNAMES = {
+  asia:'Kazakhstan:哈萨克斯坦|Uzbekistan:乌兹别克斯坦|Indonesia:印度尼西亚|Timor-Leste:东帝汶|Israel:以色列|Lebanon:黎巴嫩|Palestine:巴勒斯坦|Jordan:约旦|United Arab Emirates:阿联酋|Qatar:卡塔尔|Kuwait:科威特|Iraq:伊拉克|Oman:阿曼|Cambodia:柬埔寨|Thailand:泰国|Laos:老挝|Myanmar:缅甸|Vietnam:越南|North Korea:朝鲜|South Korea:韩国|Mongolia:蒙古|India:印度|Bangladesh:孟加拉国|Bhutan:不丹|Nepal:尼泊尔|Pakistan:巴基斯坦|Afghanistan:阿富汗|Tajikistan:塔吉克斯坦|Kyrgyzstan:吉尔吉斯斯坦|Turkmenistan:土库曼斯坦|Iran:伊朗|Syria:叙利亚|Armenia:亚美尼亚|Sri Lanka:斯里兰卡|China:中国|Taiwan:中国台湾省|Azerbaijan:阿塞拜疆|Georgia:格鲁吉亚|Philippines:菲律宾|Malaysia:马来西亚|Brunei:文莱|Japan:日本|Yemen:也门|Saudi Arabia:沙特阿拉伯|N. Cyprus:北塞浦路斯|Cyprus:塞浦路斯|Turkey:土耳其',
+  africa:'Tanzania:坦桑尼亚|W. Sahara:西撒哈拉|Dem. Rep. Congo:刚果(金)|Somalia:索马里|Kenya:肯尼亚|Sudan:苏丹|Chad:乍得|South Africa:南非|Lesotho:莱索托|Zimbabwe:津巴布韦|Botswana:博茨瓦纳|Namibia:纳米比亚|Senegal:塞内加尔|Mali:马里|Mauritania:毛里塔尼亚|Benin:贝宁|Niger:尼日尔|Nigeria:尼日利亚|Cameroon:喀麦隆|Togo:多哥|Ghana:加纳|Côte d\'Ivoire:科特迪瓦|Guinea:几内亚|Guinea-Bissau:几内亚比绍|Liberia:利比里亚|Sierra Leone:塞拉利昂|Burkina Faso:布基纳法索|Central African Rep.:中非|Congo:刚果(布)|Gabon:加蓬|Eq. Guinea:赤道几内亚|Zambia:赞比亚|Malawi:马拉维|Mozambique:莫桑比克|eSwatini:斯威士兰|Angola:安哥拉|Burundi:布隆迪|Madagascar:马达加斯加|Gambia:冈比亚|Tunisia:突尼斯|Algeria:阿尔及利亚|Eritrea:厄立特里亚|Morocco:摩洛哥|Egypt:埃及|Libya:利比亚|Ethiopia:埃塞俄比亚|Djibouti:吉布提|Somaliland:索马里兰地区|Uganda:乌干达|Rwanda:卢旺达|S. Sudan:南苏丹',
+  europe:'Russia:俄罗斯|Norway:挪威|France:法国|Sweden:瑞典|Belarus:白俄罗斯|Ukraine:乌克兰|Poland:波兰|Austria:奥地利|Hungary:匈牙利|Moldova:摩尔多瓦|Romania:罗马尼亚|Lithuania:立陶宛|Latvia:拉脱维亚|Estonia:爱沙尼亚|Germany:德国|Bulgaria:保加利亚|Greece:希腊|Albania:阿尔巴尼亚|Croatia:克罗地亚|Switzerland:瑞士|Luxembourg:卢森堡|Belgium:比利时|Netherlands:荷兰|Portugal:葡萄牙|Spain:西班牙|Ireland:爱尔兰|Italy:意大利|Denmark:丹麦|United Kingdom:英国|Iceland:冰岛|Slovenia:斯洛文尼亚|Finland:芬兰|Slovakia:斯洛伐克|Czechia:捷克|Bosnia and Herz.:波黑|Macedonia:北马其顿|Serbia:塞尔维亚|Montenegro:黑山|Kosovo:科索沃',
+  namerica:'Canada:加拿大|United States of America:美国|Haiti:海地|Dominican Rep.:多米尼加|Bahamas:巴哈马|Greenland:格陵兰岛|Mexico:墨西哥|Panama:巴拿马|Costa Rica:哥斯达黎加|Nicaragua:尼加拉瓜|Honduras:洪都拉斯|El Salvador:萨尔瓦多|Guatemala:危地马拉|Belize:伯利兹|Puerto Rico:波多黎各|Jamaica:牙买加|Cuba:古巴|Trinidad and Tobago:特立尼达和多巴哥',
+  samerica:'Argentina:阿根廷|Chile:智利|Falkland Is.:马尔维纳斯群岛(福克兰群岛)|Uruguay:乌拉圭|Brazil:巴西|Bolivia:玻利维亚|Peru:秘鲁|Colombia:哥伦比亚|Venezuela:委内瑞拉|Guyana:圭亚那|Suriname:苏里南|Ecuador:厄瓜多尔|Paraguay:巴拉圭',
+  oceania:'Australia:澳大利亚|New Zealand:新西兰|Papua New Guinea:巴布亚新几内亚|Fiji:斐济|Vanuatu:瓦努阿图|New Caledonia:新喀里多尼亚|Solomon Is.:所罗门群岛',
+  antarctica:'Antarctica:南极洲'
+};
+const WMap = (() => {
+  const ZH = { 'Fr. S. Antarctic Lands':'法属南部领地', 'United States of America':'美国' }, EN = { 'United States of America':'United States', 'Dem. Rep. Congo':'DR Congo', 'Central African Rep.':'Central African Republic', 'Bosnia and Herz.':'Bosnia & Herzegovina' };
+  for (const c in WNAMES) WNAMES[c].split('|').forEach(s => { const [en, zh] = s.split(':'); ZH[en] = zh; });
+  ZH['Taiwan'] = '中国台湾省'; EN['Taiwan'] = 'Taiwan Province of China';
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  let P = null, CN = null;
+  const load = () => P || (P = fetch('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json').then(r => r.json()).then(t =>
+    topojson.feature(t, t.objects.countries).features.filter(f => f.geometry).map(f => { const n = f.properties.name; f.info = { name:n, en:EN[n] || n, zh:ZH[n] || n }; return f; })));
+  const loadCN = () => CN || (CN = (window.ChinaMap ? ChinaMap.load() : Promise.reject('no ChinaMap')).catch(e => { console.warn('China map unavailable', e); return null; }));
+  const CHINA = { name:'China', en:'China', zh:'中国' };
+  function create(stageSel, cvSel, opt = {}){
+    const stage = document.querySelector(stageSel), cv = document.querySelector(cvSel), g = cv.getContext('2d');
+    const M = { g, opt, feats:null, cn:null, failed:false, W:0, H:0, small:false, hoverF:null };
+    let proj = null, path = null;
+    const lineWith = xy => (pts, stroke, lw = 2, dash, t = 1) => { const p = pts.map(xy).filter(Boolean); if (p.length < 2) return null;
+      const seg = []; let tot = 0; for (let i = 1; i < p.length; i++){ const l = Math.hypot(p[i][0] - p[i - 1][0], p[i][1] - p[i - 1][1]); seg.push(l); tot += l; }
+      let left = tot * Math.max(0, Math.min(1, t)), end = p[0];
+      g.beginPath(); g.moveTo(...p[0]);
+      for (let i = 1; i < p.length && left > 0; i++){ const l = seg[i - 1]; if (l > M.W * .6){ g.moveTo(...p[i]); end = p[i]; left -= l; continue; }
+        if (left >= l){ g.lineTo(...p[i]); end = p[i]; left -= l; } else { const k = left / l; end = [p[i - 1][0] + (p[i][0] - p[i - 1][0]) * k, p[i - 1][1] + (p[i][1] - p[i - 1][1]) * k]; g.lineTo(...end); left = 0; } }
+      g.setLineDash(dash || []); g.strokeStyle = stroke; g.lineWidth = lw; g.lineJoin = g.lineCap = 'round'; g.stroke(); g.setLineDash([]); return end; };
+    const dotWith = xy => (ll, r, fill, stroke) => { const p = xy(ll); if (!p) return null; g.beginPath(); g.arc(p[0], p[1], r, 0, 7); g.fillStyle = fill; g.fill(); if (stroke){ g.lineWidth = 2; g.strokeStyle = stroke; g.stroke(); } return p; };
+    M.text = (t, x, y, o = {}) => { g.font = `${o.w || 800} ${o.s || 12}px Nunito, "PingFang SC", "Microsoft YaHei", sans-serif`; g.textAlign = o.a || 'center'; g.textBaseline = 'middle';
+      g.lineWidth = 3.2; g.strokeStyle = o.halo || css('--surface') || '#fff'; g.lineJoin = 'round'; g.strokeText(t, x, y); g.fillStyle = o.c || css('--ink'); g.fillText(t, x, y); };
+    function fitProj(ex, box, rot){ const [[a, b], [c, e]] = ex, P = d3.geoNaturalEarth1().rotate([-(rot ?? ((a + c) / 2)), 0]);
+      const pts = []; for (let i = 0; i <= 72; i++){ const lo = a + (c - a) * i / 72; pts.push([lo, b], [lo, e], [lo, (b + e) / 2]); } P.fitExtent(box, { type:'MultiPoint', coordinates:pts }); return P; }
+    function layout(){
+      const r = stage.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!r.width) return false;
+      cv.width = r.width * d; cv.height = r.height * d; M.W = r.width; M.H = r.height; M.d = d; M.small = r.width < 560;
+      const top = M.small ? (opt.topS ?? opt.top ?? 60) : (opt.top ?? 60), bot = M.small ? (opt.bottomS ?? opt.bottom ?? 50) : (opt.bottom ?? 50);
+      proj = fitProj((M.small && opt.extentS) || opt.extent || [[-170, -58], [180, 78]], [[8, top], [r.width - 8, r.height - bot]], opt.rot);
+      path = d3.geoPath(proj, g); M.proj = proj; M.path = path;
+      M.I = null;
+      if (opt.inset){ const fb = (M.small && opt.inset.boxS) || opt.inset.box, bx = [fb[0] * r.width, fb[1] * r.height, fb[2] * r.width, fb[3] * r.height];
+        const P = fitProj(opt.inset.extent, [[bx[0] + 4, bx[1] + 18], [bx[0] + bx[2] - 4, bx[1] + bx[3] - 4]], opt.inset.rot);
+        const I = { inset:true, box:bx, proj:P, path:d3.geoPath(P, g), small:M.small, W:M.W, H:M.H, text:M.text };
+        I.xy = ll => P(ll); I.inv = (x, y) => P.invert([x, y]); I.line = lineWith(I.xy); I.dot = dotWith(I.xy); M.I = I; }
+      return true;
+    }
+    M.xy = ll => proj ? proj(ll) : null;
+    M.inv = (x, y) => proj && proj.invert ? proj.invert([x, y]) : null;
+    /* M.line(pts, colour, width, dash, t): polyline through [lon,lat] waypoints; t (0..1) draws only the first part; returns the [x,y] of the tip */
+    M.line = lineWith(M.xy);
+    M.dot = dotWith(M.xy);
+    M.inBox = (x, y) => !!(M.I && x >= M.I.box[0] && x <= M.I.box[0] + M.I.box[2] && y >= M.I.box[1] && y <= M.I.box[1] + M.I.box[3]);
+    M.view = h => (h && h.inset) ? M.I : M;
+    function countries(pth, P, fillOf, land, ink2){
+      const useCN = !!M.cn, skip = f => useCN && (f.info.name === 'China' || f.info.name === 'Taiwan');
+      M.feats.forEach(f => { if (skip(f)) return; g.beginPath(); pth(f); g.fillStyle = land; g.fill(); const fc = f.info.name === 'Taiwan' ? fillOf(CHINA) : fillOf(f.info); if (fc !== land){ g.fillStyle = fc; g.fill(); } });
+      g.beginPath(); M.feats.forEach(f => { if (!skip(f) && f.info.name !== 'Antarctica') pth(f); }); g.strokeStyle = ink2; g.lineWidth = .5; g.globalAlpha = .7; g.stroke(); g.globalAlpha = 1;
+      if (useCN){ const T = p => P(p), cf = fillOf(CHINA), polys = { features:M.cn.features.filter(f => f.geometry.type !== 'MultiLineString') };
+        g.globalAlpha = .8; ChinaMap.draw2D(g, polys, T, { stroke:ink2, lineWidth:1.1 }); g.globalAlpha = 1; ChinaMap.draw2D(g, polys, T, { fill:land }); if (cf !== land) ChinaMap.draw2D(g, polys, T, { fill:cf });
+        ChinaMap.draw2D(g, { features:M.cn.features.filter(f => f.geometry.type === 'MultiLineString') }, T, { stroke:ink2, lineWidth:.8 }); }
+      if (M.hoverF && M.hoverF !== CHINA){ const hf = M.feats.find(f => f.info === M.hoverF); if (hf){ g.beginPath(); pth(hf); g.strokeStyle = css('--ink'); g.lineWidth = 1.6; g.stroke(); } }
+    }
+    M.draw = () => {
+      const r = stage.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2);
+      if (!M.feats){ cv.width = r.width * d; cv.height = r.height * d; g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, r.width, r.height); M.W = r.width; M.H = r.height;
+        M.text(Lab.L(M.failed ? {en:'The map needs an internet connection.', zh:'地图需要联网才能加载。'} : {en:'Loading map…', zh:'地图加载中…'}), r.width / 2, r.height / 2, { s:15, c:css('--ink-2') }); return; }
+      if (!proj && !layout()) return;
+      g.setTransform(M.d, 0, 0, M.d, 0, 0); g.clearRect(0, 0, M.W, M.H);
+      const land = css('--surface') || '#fff', sea = css('--surface-2') || '#eef3f9', ink2 = css('--ink-2') || '#4a5878';
+      g.beginPath(); path({ type:'Sphere' }); g.fillStyle = sea; g.fill();
+      g.beginPath(); path(d3.geoGraticule10()); g.strokeStyle = ink2; g.globalAlpha = .12; g.lineWidth = .6; g.stroke(); g.globalAlpha = 1;
+      const fillOf = info => (opt.fill && opt.fill(info)) || land;
+      countries(path, proj, fillOf, land, ink2);
+      if (M.I){ const [[a, b], [c, e]] = opt.inset.extent; g.beginPath(); path({ type:'LineString', coordinates:[[a, b], [a, e], [c, e], [c, b], [a, b]] }); g.setLineDash([4, 3]); g.strokeStyle = ink2; g.lineWidth = 1.2; g.stroke(); g.setLineDash([]); }
+      if (opt.overlay){ g.save(); opt.overlay(g, M); g.restore(); }
+      if (M.I){ const I = M.I, [x, y, w, h] = I.box; g.save(); g.shadowColor = 'rgba(0,0,0,.18)'; g.shadowBlur = 10; g.fillStyle = sea; g.fillRect(x, y, w, h); g.restore();
+        g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip(); g.fillStyle = sea; g.fillRect(x, y, w, h); countries(I.path, I.proj, fillOf, land, ink2);
+        if (opt.overlay){ g.save(); opt.overlay(g, I); g.restore(); } g.restore();
+        g.strokeStyle = ink2; g.lineWidth = 1.2; g.strokeRect(x, y, w, h); g.fillStyle = sea; g.fillRect(x + 1, y + 1, w - 2, 15);
+        M.text(Lab.L(opt.inset.label || {en:'Zoom', zh:'放大图'}), x + 6, y + 9, { s:10.5, a:'left', c:ink2, w:800 }); }
+      if (opt.note !== false) M.text(Lab.L({en:'Schematic map · modern borders', zh:'示意图 · 现代国界'}), 10, M.H - 10, { s:10, a:'left', c:ink2, w:700 });
+    };
+    M.hit = e => { const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, ins = M.inBox(x, y), ll = ins ? M.I.inv(x, y) : M.inv(x, y); if (!ll || !M.feats) return { x, y, inset:ins };
+      if (M.cn && ChinaMap.hit(M.cn, ll[0], ll[1])) return { x, y, ll, f:CHINA, inset:ins };
+      const f = M.feats.find(f => d3.geoContains(f, ll)); return { x, y, ll, inset:ins, f:f ? (f.info.name === 'Taiwan' ? CHINA : f.info) : null }; };
+    cv.addEventListener('click', e => { if (!M.feats || !opt.click) return; const h = M.hit(e); opt.click(h.f || null, h, e); });
+    cv.addEventListener('pointermove', e => { if (e.pointerType === 'touch' || !M.feats) return; const h = M.hit(e), f = h.f || null; if (f !== M.hoverF){ M.hoverF = f; M.draw(); }
+      cv.title = opt.hover ? (opt.hover(f, h) || '') : (f ? Lab.L(f) : ''); });
+    cv.addEventListener('pointerleave', () => { if (M.hoverF){ M.hoverF = null; M.draw(); } });
+    new ResizeObserver(() => requestAnimationFrame(() => { proj = null; M.draw(); })).observe(stage);
+    const redraw = () => setTimeout(M.draw, 60);
+    new MutationObserver(redraw).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme', 'lang'] });
+    if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redraw);
+    Promise.all([load(), loadCN()]).then(([f, cn]) => { M.feats = f; M.cn = cn; proj = null; M.draw(); if (opt.ready) opt.ready(M); }).catch(err => { console.warn(err); M.failed = true; M.draw(); });
+    M.draw();
+    return M;
+  }
+  return { create, css, ZH };
+})();
+/* ===== shared helpers for the worldhistory lessons ===== */
+const o = (en, zh) => ({en, zh});
+const css = WMap.css;
+const stars = n => '★'.repeat(n) + '☆'.repeat(3 - n);
+function ranksHTML(R, score){ const ri = R.reduce((a, r, i) => score >= r[0] ? i : a, 0); return R.map((r, i) => `<span class="${i === ri ? 'on' : ''}">${i <= ri ? '🏅' : '🔒'} ${Lab.L(r[1])}</span>`).join(''); }
+function renderLinks(sel, LINKS){ Lab.$(sel).innerHTML = LINKS.map(l => `<a class="linkcard" href="${l.u}" target="_blank" rel="noopener"><b data-zh="${l.t.zh}">${l.t.en}</b><span data-zh="${l.d.zh}">${l.d.en}</span><small>${new URL(l.u).hostname.replace('www.', '')} ↗</small></a>`).join(''); Lab.translate(Lab.$(sel)); }
+const CQ = '?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', CP = 'https://commons.wikimedia.org/wiki/File:';
+const HP = o('Historic photo','历史照片');
+const YT = (yt, en, zh, ch) => ({ type:'youtube', yt, en, zh, kind:o('Video','视频'), credit:ch + ' (YouTube)', license:'YouTube' });
+/* "Meanwhile in China" strip: items [{y, t:{en,zh}, b:{en,zh}}] */
+function chinaStrip(sel, items){ const el = Lab.$(sel); const draw = () => el.innerHTML = `<div class="cnstrip-h">${Lab.L(o('🇨🇳 Meanwhile in China','🇨🇳 同一时期的中国'))}</div><div class="cnstrip-row">${items.map(i => `<div class="cnc"><b>${i.y}</b><h4>${Lab.L(i.t)}</h4><p>${Lab.L(i.b)}</p></div>`).join('')}</div>`; Lab.onLang(draw); }
+
+/* ================= Data ================= */
+const C = { sci:'#7c3aed', pol:'#dc2626', ind:'#2563eb', cn:'#b7791f' };
+const PL = {
+ copern:{ layer:'sci', y0:1543, ll:[19.68,54.36], short:o('Copernicus','哥白尼'), name:o('Copernicus: the Sun at the center','哥白尼：太阳在中心'), date:o('1543 · Frombork, Poland','1543年 · 波兰弗龙堡'),
+   job:o('Moved Earth out of the center of the universe','把地球从宇宙中心“请”了出去'),
+   facts:{en:['For 1,400 years Europeans followed Ptolemy: Earth sits still at the center and everything circles it.','Nicolaus Copernicus argued that Earth and the planets go around the Sun. His book came out the year he died.','It was the first big step of the Scientific Revolution: trust observation and math, not just old books.'],zh:['1400年来，欧洲人一直相信托勒密的“地心说”：地球静止在中心，万物绕地球转。','尼古拉·哥白尼提出“日心说”：地球和行星都绕太阳转。他的书在他去世那年出版。','这是科学革命的第一大步：相信观察和数学，而不只是古书。']},
+   rhyme:o('Copernicus: Sun in the middle.','哥白尼：太阳居中。'), mix:o('Heliocentric = Sun-centered (helios = Sun). Geocentric = Earth-centered.','日心说 = 以太阳为中心；地心说 = 以地球为中心。') },
+ galileo:{ layer:'sci', y0:1610, ll:[11.88,45.41], short:o('Galileo','伽利略'), name:o('Galileo’s telescope','伽利略的望远镜'), date:o('1609–1610 · Padua, Italy','1609—1610年 · 意大利帕多瓦'),
+   job:o('Pointed a telescope at the sky — and saw evidence for Copernicus','把望远镜对准天空，找到了支持哥白尼的证据'),
+   facts:{en:['Galileo built telescopes that magnified about 20 times.','He saw mountains on the Moon, four moons circling Jupiter and the phases of Venus — things that did not fit the Earth-centered model.','The Church put him on trial in 1633 for supporting Copernicus; he spent his last years under house arrest.'],zh:['伽利略制作了能放大约20倍的望远镜。','他看到了月球上的山、绕木星转的四颗卫星和金星的相位——这些都和地心说对不上。','1633年，他因支持哥白尼受到教会审判，晚年被软禁在家中。']},
+   rhyme:o('Galileo looked UP and proved the idea.','伽利略抬头看，用证据说话。'), mix:o('Galileo did not invent the telescope (Dutch lens-makers did, 1608) — he improved it and used it for science.','望远镜不是伽利略发明的（1608年荷兰眼镜匠发明），他改进了它并用来研究天文。') },
+ newton:{ layer:'sci', y0:1687, ll:[0.12,52.2], short:o('Newton','牛顿'), name:o('Newton’s laws and gravity','牛顿运动定律和万有引力'), date:o('1687 · Cambridge, England','1687年 · 英国剑桥'),
+   job:o('One set of laws for falling apples AND orbiting planets','同一套定律，既管苹果落地，也管行星运转'),
+   facts:{en:['Isaac Newton’s book Principia (1687) stated three laws of motion and the law of universal gravitation.','The same force that pulls an apple down keeps the Moon in orbit — the universe follows rules people can calculate.','This confidence in reason fed the Enlightenment — the ideas of Locke, Montesquieu and Rousseau that inspired political revolutions.'],zh:['艾萨克·牛顿在1687年出版的《自然哲学的数学原理》中提出了三大运动定律和万有引力定律。','让苹果落地的力，也让月球绕地球转——宇宙遵循人们能够计算的规律。','这种对理性的信心推动了启蒙运动——洛克、孟德斯鸠、卢梭等人的思想又激发了政治革命。']},
+   rhyme:o('Science revolution → Enlightenment → political revolutions.','科学革命 → 启蒙运动 → 政治革命。'), mix:o('Newton built on Copernicus, Kepler and Galileo: “standing on the shoulders of giants.”','牛顿是在哥白尼、开普勒和伽利略的基础上前进的——“站在巨人的肩膀上”。') },
+ england:{ layer:'pol', y0:1640, ll:[-0.13,51.5], short:o('England','英国'), name:o('The English Revolution','英国资产阶级革命'), date:o('1640–1689 · London','1640—1689年 · 伦敦'),
+   job:o('Parliament wins power over the king','议会的权力超过了国王'),
+   facts:{en:['King Charles I claimed a “divine right” to rule and raised taxes without Parliament. Civil war broke out in 1642.','Parliament’s army, led by Oliver Cromwell, won; Charles I was tried and executed in 1649.','In the bloodless “Glorious Revolution” of 1688, Parliament invited William and Mary to rule. The Bill of Rights (1689) said the monarch could not tax, make laws or keep an army without Parliament — a constitutional monarchy (君主立宪制).'],zh:['国王查理一世宣称“君权神授”，不经议会同意就征税。1642年爆发内战。','克伦威尔率领的议会军获胜，1649年查理一世被审判并处死。','1688年不流血的“光荣革命”中，议会迎立威廉和玛丽。1689年《权利法案》规定：国王不经议会同意不能征税、立法或维持军队——确立了君主立宪制。']},
+   rhyme:o('1640 starts, 1688 glorious, 1689 Bill of Rights.','1640革命起，1688光荣革命，1689权利法案。'), mix:o('Britain still has a king today — but in a constitutional monarchy, Parliament holds the real power.','英国今天仍有国王，但在君主立宪制下，真正的权力在议会。') },
+ america:{ layer:'pol', y0:1775, ll:[-75.16,39.95], short:o('Thirteen Colonies','北美十三州'), name:o('The American Revolution','美国独立战争'), date:o('1775–1783 · Philadelphia','1775—1783年 · 费城'),
+   job:o('Colonies break away and create a republic','殖民地独立，建立共和国'),
+   facts:{en:['Britain taxed the colonies (Stamp Act 1765, tea tax) though they had no vote in Parliament: “no taxation without representation.”','April 1775: shots at Lexington and Concord start the war. 4 July 1776: the Declaration of Independence says all men are created equal, with rights to “life, liberty and the pursuit of happiness.”','Victory at Saratoga (1777) brought France in as an ally; Britain recognized US independence in 1783. The 1787 Constitution set up a federal republic with separation of powers.','Its promise was limited at first: enslaved people, women and Native Americans were left out.'],zh:['英国向殖民地征税（1765年印花税法、茶叶税），而殖民地在议会中没有代表：“无代表，不纳税”。','1775年4月，来克星顿和康科德的枪声揭开战争序幕。1776年7月4日，《独立宣言》宣布人人生而平等，享有“生命、自由和追求幸福”的权利。','1777年萨拉托加大捷使法国与美国结盟；1783年英国承认美国独立。1787年宪法建立了三权分立的联邦制共和国。','起初它的承诺是有限的：被奴役者、妇女和印第安人被排除在外。']},
+   rhyme:o('’75 shots, ’76 Declaration, ’77 Saratoga, ’83 peace, ’87 Constitution.','七五枪响，七六宣言，七七萨拉托加，八三和约，八七宪法。'), mix:o('Independence was declared in 1776, but won in 1783.','美国1776年宣布独立，1783年才真正赢得独立。') },
+ france:{ layer:'pol', y0:1789, ll:[2.35,48.86], short:o('France','法国'), name:o('The French Revolution','法国大革命'), date:o('1789–1799 · Paris','1789—1799年 · 巴黎'),
+   job:o('“Liberty, equality, fraternity”','“自由、平等、博爱”'),
+   facts:{en:['France was deep in debt; bread prices soared; the Third Estate (commoners, about 97% of people) paid the taxes but had little power.','14 July 1789: Parisians stormed the Bastille, a royal fortress and prison. In August the Declaration of the Rights of Man said people are born free and equal in rights.','France became a republic in 1792; King Louis XVI was executed in 1793; a violent “Reign of Terror” followed.','Napoleon took power in 1799. His Civil Code (1804) spread legal equality across Europe, even as his armies conquered it.'],zh:['法国债台高筑，面包价格飞涨；第三等级（平民，约占人口97%）承担赋税，却几乎没有权力。','1789年7月14日，巴黎人民攻占王家要塞和监狱巴士底狱。8月，《人权宣言》宣布人生来自由、权利平等。','1792年法国成为共和国，1793年国王路易十六被处死，随后是暴力的“恐怖统治”。','1799年拿破仑掌权。他的《拿破仑法典》（1804年）把法律上的平等传遍欧洲，同时他的军队也在征服欧洲。']},
+   rhyme:o('14 July 1789: Bastille Day — still France’s national holiday.','1789年7月14日攻占巴士底狱，如今是法国国庆日。'), mix:o('The Declaration of the Rights of Man is French (1789); the Declaration of Independence is American (1776).','《人权宣言》是法国的（1789年）；《独立宣言》是美国的（1776年）。') },
+ haiti:{ layer:'pol', y0:1791, ll:[-72.3,18.9], short:o('Haiti','海地'), name:o('The Haitian Revolution','海地革命'), date:o('1791–1804','1791—1804年'),
+   job:o('Enslaved people free themselves and found a nation','被奴役者解放自己，建立国家'),
+   facts:{en:['Saint-Domingue, a French colony, was the world’s richest sugar island, worked by about 500,000 enslaved Africans.','In 1791 enslaved people rose up; Toussaint Louverture became their leading general.','In 1804 Haiti declared independence — the first Black republic and the first nation founded after a successful uprising of enslaved people.'],zh:['法国殖民地圣多明各是世界上最富的产糖岛，约50万被奴役的非洲人在那里劳动。','1791年，被奴役者起义，杜桑·卢维杜尔成为他们最重要的将领。','1804年海地宣布独立——成为第一个黑人共和国，也是第一个由被奴役者起义成功建立的国家。']},
+   rhyme:o('1804: Haiti, the first free Black republic.','1804年：海地，第一个黑人共和国。'), mix:o('Haiti became independent before almost every Latin American country.','海地比几乎所有拉丁美洲国家都更早独立。') },
+ latam:{ layer:'pol', y0:1810, ll:[-66.9,10.5], short:o('Latin America','拉丁美洲'), name:o('Latin American independence','拉丁美洲独立运动'), date:o('1810–1826','1810—1826年'),
+   job:o('Spanish and Portuguese colonies become free nations','西班牙和葡萄牙的殖民地纷纷独立'),
+   facts:{en:['Inspired by the American and French revolutions, colonists rose up while Napoleon occupied Spain.','Simón Bolívar (“the Liberator”) and José de San Martín led armies that freed much of South America.','By 1826 most of Latin America was independent; Brazil separated from Portugal in 1822.'],zh:['受美国和法国革命鼓舞，趁拿破仑占领西班牙之机，殖民地人民起来反抗。','西蒙·玻利瓦尔（“解放者”）和圣马丁率领军队解放了南美洲大部分地区。','到1826年，拉丁美洲大部分国家获得独立；巴西于1822年脱离葡萄牙。']},
+   rhyme:o('Bolívar in the north, San Martín in the south.','北有玻利瓦尔，南有圣马丁。'), mix:o('Bolivia is named after Simón Bolívar.','玻利维亚就是以玻利瓦尔的名字命名的。') },
+ uk:{ layer:'ind', y0:1765, ll:[-2.24,53.48], short:o('Manchester','曼彻斯特'), name:o('Britain: the first Industrial Revolution','英国：第一次工业革命'), date:o('1760s–1840s','18世纪60年代—19世纪40年代'),
+   job:o('Machines + steam + factories = the “workshop of the world”','机器 + 蒸汽 + 工厂 = “世界工厂”'),
+   facts:{en:['Why Britain first? Coal and iron, money from trade and colonies, a big market, and inventors who could patent ideas.','1765: Hargreaves’ spinning jenny spins 8 threads at once. Bigger machines needed more power.','1785: Watt’s improved steam engine goes into use in factories — the “Age of Steam”.','1814: Stephenson’s first locomotive; 1830: the Liverpool–Manchester railway opens. By the 1840s Britain is the “workshop of the world”.'],zh:['为什么英国最先？有煤和铁，有从贸易和殖民地积累的资金，有广阔的市场，还有能申请专利的发明家。','1765年，哈格里夫斯的珍妮机一次能纺8根纱。机器越来越大，需要更多动力。','1785年，瓦特改良的蒸汽机投入工厂使用——人类进入“蒸汽时代”。','1814年史蒂芬孙造出第一台火车机车；1830年利物浦—曼彻斯特铁路通车。到19世纪40年代，英国成为“世界工厂”。']},
+   rhyme:o('Jenny ’65, Watt ’85, Rocket ’29, railway ’30.','珍妮六五，瓦特八五，火箭号二九，铁路三零。'), mix:o('Watt did not invent the steam engine (Newcomen’s was 1712) — he made it far more efficient and able to turn wheels.','瓦特并没有发明蒸汽机（纽科门机1712年就有了），他让蒸汽机效率高得多，还能带动机器转动。') },
+ belg:{ layer:'ind', y0:1820, ll:[5.57,50.63], short:o('Belgium','比利时'), name:o('Industry spreads to Europe','工业革命传到欧洲大陆'), date:o('1820s–1840s','19世纪20—40年代'),
+   job:o('Belgium, France, then Germany build mills, mines and railways','比利时、法国、德国相继兴建工厂、煤矿和铁路'),
+   facts:{en:['Belgium, rich in coal near Liège, was the first country on the continent to industrialize.','France and the German states followed; Germany’s Ruhr valley became a giant coal-and-steel region.','By 1850 steam railways crossed much of western Europe.'],zh:['比利时列日一带煤炭丰富，是欧洲大陆最早工业化的国家。','法国和德意志各邦随后跟上，德国鲁尔区成为巨大的煤钢基地。','到1850年，蒸汽铁路已经遍布西欧大部分地区。']},
+   rhyme:o('Britain → Belgium → France → Germany.','英国 → 比利时 → 法国 → 德国。'), mix:o('Industrialization spread country by country over about 100 years — it did not happen everywhere at once.','工业化是在约100年里一国接一国传开的，不是到处同时发生。') },
+ lowell:{ layer:'ind', y0:1822, ll:[-71.3,42.64], short:o('Lowell, USA','美国洛厄尔'), name:o('America’s first factory towns','美国最早的工厂城镇'), date:o('1820s','19世纪20年代'),
+   job:o('Water-powered cotton mills in New England','新英格兰的水力棉纺厂'),
+   facts:{en:['Lowell, Massachusetts was built around cotton mills; many workers were young women from farms, the “mill girls”.','The cotton came from Southern plantations worked by enslaved people — industry in the North was tied to slavery in the South.','Steamboats (Fulton, 1807) and railways soon linked American markets.'],zh:['马萨诸塞州的洛厄尔围绕棉纺厂建立，许多工人是来自农村的年轻女性——“纺织女工”。','棉花来自南方由被奴役者劳动的种植园——北方的工业与南方的奴隶制紧密相连。','汽船（富尔顿，1807年）和铁路很快把美国各地的市场连接起来。']},
+   rhyme:o('Fulton ’07 steamboat.','富尔顿一八零七造汽船。'), mix:o('Early American mills used water power before steam took over.','美国早期工厂先用水力，后来才普遍用蒸汽。') },
+ mac:{ layer:'cn', y0:1793, ll:[117.9,40.97], short:o('Chengde','承德'), name:o('Qianlong meets the Macartney mission','乾隆皇帝接见马戛尔尼使团'), date:o('1793 · Chengde (承德)','1793年 · 承德避暑山庄'),
+   job:o('Britain asks for more trade; the Qing says no','英国要求扩大通商，清朝拒绝'),
+   facts:{en:['Lord George Macartney brought gifts from George III: telescopes, a planetarium, globes, guns — samples of British science and industry.','Britain asked for more trading ports and an ambassador in Beijing. Since 1757 foreign trade had been limited to Guangzhou (Canton).','Emperor Qianlong’s reply told King George that the Celestial Empire “possesses all things” and needed no foreign goods; every request was refused.','Many historians see the meeting as a missed chance to learn about the industrializing West.'],zh:['马戛尔尼带来英王乔治三世的礼物：望远镜、天体运行仪、地球仪、枪炮——展示英国的科学和工业。','英国要求增开通商口岸、派使节常驻北京。自1757年起，清朝只开放广州一处对外通商。','乾隆皇帝在给英王的敕谕中说天朝“物产丰盈，无所不有”，不需要外国货物，英方的要求全部被拒绝。','许多历史学家认为，这次会面让中国错过了了解正在工业化的西方的机会。']},
+   rhyme:o('1793: the emperor said “no” to the steam age’s messengers.','1793年：乾隆对“蒸汽时代”的来客说了“不”。'), mix:o('In 1793 Britain was in the middle of its Industrial Revolution; Qing China was still a farming empire with trade limited to one port.','1793年英国正处于工业革命之中；清朝仍是农业帝国，只开放一个通商口岸。') },
+ opium:{ layer:'cn', y0:1840, ll:[113.67,22.82], short:o('Guangzhou','广州'), name:o('The Opium War','鸦片战争'), date:o('1840–1842 · Guangdong coast','1840—1842年 · 广东沿海'),
+   job:o('Factory-age warships against sailing junks','工业时代的军舰对帆船'),
+   facts:{en:['Britain bought huge amounts of Chinese tea but sold little in return, so British merchants smuggled opium from India into China.','In 1839 Commissioner Lin Zexu (林则徐) destroyed over a million kg of seized opium at Humen (虎门销烟).','Britain sent warships in 1840, including the iron steamship Nemesis. The Qing navy of wooden junks was badly beaten.','The Treaty of Nanjing (1842) forced China to cede Hong Kong Island, pay 21 million silver dollars and open five ports — the start of China’s modern history in Chinese textbooks.'],zh:['英国大量购买中国茶叶，却很难把商品卖到中国，英国商人便从印度向中国走私鸦片。','1839年，林则徐在虎门销毁收缴的鸦片100多万千克（虎门销烟）。','1840年英国派出舰队，其中有铁壳蒸汽船“复仇女神号”。清朝的木帆船水师惨败。','1842年《南京条约》：割香港岛给英国，赔款2100万银元，开放五处通商口岸。中国历史教科书以此为中国近代史的开端。']},
+   rhyme:o('1839 Humen, 1840 war, 1842 Treaty of Nanjing.','一八三九虎门销烟，一八四零战争，一八四二《南京条约》。'), mix:o('The war was about trade and opium smuggling — and showed the gap the Industrial Revolution had opened.','这场战争起因于贸易和鸦片走私，也暴露出工业革命造成的巨大差距。') }
+};
+const PORDER = ['copern','galileo','england','newton','uk','america','france','haiti','mac','latam','belg','lowell','opium'];
+const LPOS = { newton:[9,-9,"left"], england:[9,6,"left"], uk:[-9,-4,"right"], belg:[9,-6,"left"], france:[9,6,"left"], copern:[-9,-6,"right"], galileo:[9,6,"left"] };
+const EU = ["copern","galileo","newton","england","uk","france","belg"];
+const IND = { 'United Kingdom':1760, 'Belgium':1820, 'United States of America':1825, 'France':1830, 'Germany':1840 };
+const COAL = {1700:2.6,1750:4.8,1775:8.8,1800:15,1815:22.6,1830:30.4,1850:50};
+const RAIL = {1824:0,1825:40,1830:160,1835:540,1840:2400,1845:3900,1850:9800};
+const POP = {1540:.48,1600:.55,1700:.6,1750:.79,1800:.98,1850:1.26};
+const lerp = (T, y) => { const ks = Object.keys(T).map(Number); if (y < ks[0]) return null; let a = ks[0], b = ks[ks.length - 1]; ks.forEach(k => { if (k <= y) a = k; }); ks.slice().reverse().forEach(k => { if (k >= y) b = k; }); return a === b ? T[a] : T[a] + (T[b] - T[a]) * (y - a) / (b - a); };
+const CNS = [
+ { y:1644, t:o('The Qing dynasty','清朝建立统治'), b:o('The Manchu Qing (清) take Beijing; they rule China until 1912.','清军入关，定都北京，统治中国直到1912年。') },
+ { y:1757, t:o('One port only','一口通商'), b:o('Foreign trade is limited to Guangzhou (广州), through licensed merchants (十三行).','对外贸易只限广州一处，由官府特许的“十三行”经营。') },
+ { y:1793, t:o('The Macartney mission','马戛尔尼使团访华'), b:o('Emperor Qianlong (乾隆) refuses Britain’s requests for more trade.','乾隆皇帝拒绝了英国扩大通商的要求。') },
+ { y:1839, t:o('Burning the opium','虎门销烟'), b:o('Lin Zexu (林则徐) destroys smuggled opium at Humen.','林则徐在虎门销毁走私鸦片。') },
+ { y:1840, t:o('The Opium War','鸦片战争'), b:o('British steam warships defeat the Qing navy; the Treaty of Nanjing follows in 1842.','英国蒸汽军舰打败清朝水师；1842年签订《南京条约》。') }
+];
+
+/* ================= Map ================= */
+const App = { year:1540, sel:null, layers:{ sci:true, pol:true, ind:true, cn:true }, timer:null };
+const visible = k => App.layers[PL[k].layer] && App.year >= PL[k].y0;
+const M = WMap.create('#mapStage', '#mapCv', { extent:[[-100,0],[125,62]], extentS:[[-85,0],[125,62]], rot:15, top:62, bottom:30, topS:104, bottomS:28,
+  inset:{ extent:[[-9,42],[24,57]], box:[.6,.52,.39,.38], boxS:[.38,.64,.6,.33], label:o("Zoom: western Europe","放大图：西欧") },
+  fill: f => App.layers.ind && IND[f.name] && App.year >= IND[f.name] ? `rgba(37,99,235,${Math.min(.35, .12 + (App.year - IND[f.name]) / 400).toFixed(3)})` : (App.layers.cn && f.name === 'China' ? 'rgba(183,121,31,.16)' : null),
+  overlay: (g, M) => {
+    const surf = css('--surface');
+    PORDER.forEach(k => { if (!visible(k) || EU.includes(k) !== !!M.inset) return; const p = PL[k], sel = App.sel === k, xy = M.dot(p.ll, sel ? 8 : 6, C[p.layer], surf); if (!xy) return;
+      const lp = LPOS[k] || [9, 0, 'left']; if (!M.small || sel) M.text(Lab.L(p.short), xy[0] + lp[0], xy[1] + lp[1], { s:11.5, a:lp[2], c:sel ? C[p.layer] : css('--ink') }); });
+  },
+  click: (f, h) => { const k = keyAt(h.x, h.y); if (k) select(k); else if (f) tip(o(`${f.en}: no marker here in ${App.year}.`, `${f.zh}：${App.year}年这里没有标记。`)); },
+  hover: (f, h) => { const k = h && keyAt(h.x, h.y); return k ? Lab.L(PL[k].name) : (f ? Lab.L(f) : ''); }
+});
+function keyAt(x, y){ let best = null, bd = 15; const ins = M.inBox(x, y), V = ins ? M.I : M; PORDER.forEach(k => { if (!visible(k) || EU.includes(k) !== ins) return; const p = V.xy(PL[k].ll); if (!p) return; const d = Math.hypot(p[0] - x, p[1] - y); if (d < bd){ bd = d; best = k; } }); return best; }
+const tip = m => Lab.$('#mapTip').textContent = Lab.L(m || o('Click a dot · drag the year', '点击圆点 · 拖动年份'));
+function select(k){ App.sel = k; renderInfo(); M.draw(); }
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel;
+  if (!k){
+    box.innerHTML = `<span class="tag">${Lab.L(o('Three revolutions','三场革命'))}</span><h3>${Lab.L(o('Ideas → rights → machines','思想 → 权利 → 机器'))}</h3>
+      <ul><li><span class="dot-s" style="background:${C.sci}"></span>${Lab.L(o('<b>Science:</b> new ways of finding truth — observe, measure, calculate.','<b>科学革命：</b>寻找真理的新方法——观察、测量、计算。'))}</li>
+      <li><span class="dot-s" style="background:${C.pol}"></span>${Lab.L(o('<b>Politics:</b> people, not kings, are the source of power.','<b>政治革命：</b>权力来自人民，而不是国王。'))}</li>
+      <li><span class="dot-s" style="background:${C.ind}"></span>${Lab.L(o('<b>Industry:</b> machines and steam replace muscle, wind and water.','<b>工业革命：</b>机器和蒸汽代替人力、风力和水力。'))}</li>
+      <li><span class="dot-s" style="background:${C.cn}"></span>${Lab.L(o('<b>China:</b> what the Qing empire was doing meanwhile.','<b>中国：</b>同一时期的清朝在做什么。'))}</li></ul>
+      <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(o('1640 England · 1776 America · 1789 France · 1785 Watt’s steam.','1640英国 · 1776美国 · 1789法国 · 1785瓦特蒸汽机。'))}</div>
+      <div class="nav"><button id="startBtn">${Lab.L(o('Start with Copernicus ▶','从哥白尼开始 ▶'))}</button></div>`;
+    Lab.$('#startBtn').onclick = () => { go(1543); select('copern'); }; return;
+  }
+  const p = PL[k], i = PORDER.indexOf(k);
+  box.innerHTML = `<span class="tag">${Lab.L({sci:o('Scientific Revolution','科学革命'),pol:o('Political revolution','政治革命'),ind:o('Industrial Revolution','工业革命'),cn:o('Meanwhile in China','同一时期的中国')}[p.layer])}</span>
+    <h3><span class="dot" style="background:${C[p.layer]}"></span>${Lab.L(p.name)}</h3><div class="date">${Lab.L(p.date)}</div><div class="job">${Lab.L(p.job)}</div>
+    <b class="kh">${Lab.L(o('📌 KEY FACTS','📌 要点'))}</b><ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(p.rhyme)}</div>
+    <div class="mix"><b>${Lab.L(o('⚠️ Don’t mix up:','⚠️ 易错点：'))}</b><span>${Lab.L(p.mix)}</span></div>
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.date), ...Lab.L(p.facts)].join(Lab.lang === 'zh' ? '。' : '. '));
+  const jump = d => { const n = PORDER[(i + d + PORDER.length) % PORDER.length], q = PL[n]; if (App.year < q.y0) go(q.y0); if (!App.layers[q.layer]){ App.layers[q.layer] = true; Lab.$(`[data-layer="${q.layer}"]`).classList.add('on'); } select(n); };
+  Lab.$('#pPrev').onclick = () => jump(-1); Lab.$('#pNext').onclick = () => jump(1);
+}
+function renderYear(){
+  const y = App.year; Lab.$('#yr').value = y; Lab.$('#yrOut').textContent = y;
+  const c = lerp(COAL, y), r = lerp(RAIL, y), p = lerp(POP, y);
+  Lab.$('#cCoal').textContent = c == null ? '—' : c.toFixed(c < 10 ? 1 : 0);
+  Lab.$('#cRail').textContent = r == null || r < 1 ? '0' : (Lab.lang === 'zh' ? Math.round(r).toLocaleString('en-US') + ' 千米' : Math.round(r).toLocaleString('en-US') + ' km · ' + Math.round(r * .6214).toLocaleString('en-US') + ' mi');
+  Lab.$('#cPop').textContent = Lab.lang === 'zh' ? (p * 10).toFixed(1) + ' 亿' : p.toFixed(2) + ' bn';
+  Lab.$('#cRev').textContent = PORDER.filter(k => PL[k].layer === 'pol' && y >= PL[k].y0).length;
+  Lab.$('#playBtn').textContent = App.timer ? '⏸' : '▶';
+  M.draw();
+}
+function go(y){ App.year = Math.max(1540, Math.min(1850, y)); renderYear(); }
+function stop(){ if (App.timer){ clearInterval(App.timer); App.timer = null; } }
+Lab.$('#yr').oninput = e => { stop(); go(+e.target.value); };
+Lab.$('#playBtn').onclick = () => { if (App.timer){ stop(); renderYear(); return; } if (App.year >= 1850) App.year = 1540;
+  App.timer = setInterval(() => { if (App.year >= 1850){ stop(); renderYear(); } else go(App.year + 2); }, 150); renderYear(); };
+Lab.$$('[data-layer]').forEach(b => b.onclick = () => { const l = b.dataset.layer; App.layers[l] = !App.layers[l]; b.classList.toggle('on', App.layers[l]); if (App.sel && !App.layers[PL[App.sel].layer]){ App.sel = null; renderInfo(); } M.draw(); });
+Lab.onLang(() => { tip(); renderInfo(); renderYear(); });
+chinaStrip('#cnStrip', CNS);
+
+/* ================= Steam engine lab ================= */
+(function(){
+  const cv = Lab.$('#engCv'), g = cv.getContext('2d'), E = { mode:'new', ph:0, strokes:0, coal:0, heat:1, last:0, run:false };
+  const EFF = { new:o('≈ 1%','约1%'), watt:o('≈ 2–3%','约2%—3%') };
+  const PH = { new:[o('① Steam from the boiler fills the cylinder; the heavy pump rod pulls the piston UP.','① 锅炉的蒸汽充满汽缸，沉重的抽水杆把活塞拉上去。'), o('② A jet of cold water is sprayed INSIDE the cylinder: the steam condenses into a few drops → almost a vacuum.','② 冷水直接喷进汽缸里：蒸汽凝结成几滴水，汽缸里几乎成了真空。'), o('③ Air pressure pushes the piston DOWN — the power stroke lifts water out of the mine. But now the cylinder is cold and must be re-heated: wasted coal!','③ 大气压把活塞压下去——这是做功冲程，把矿井里的水抽上来。可汽缸也被冷水浇凉了，下次得重新加热：白白浪费煤！')],
+              watt:[o('① Steam fills the HOT cylinder; the piston rises.','① 蒸汽进入始终保持高温的汽缸，活塞上升。'), o('② A valve lets the steam rush into the SEPARATE condenser, kept cold in a water tank. The cylinder never gets sprayed.','② 阀门打开，蒸汽冲进旁边单独的冷凝器（泡在冷水箱里）。汽缸本身从不喷冷水。'), o('③ The vacuum pulls the piston down — power stroke! The cylinder stays hot, so far less coal is needed.','③ 真空把活塞拉下来——做功冲程！汽缸一直是热的，所以省下大量的煤。')] };
+  const rot = () => Lab.$('#rotary').checked && E.mode === 'watt';
+  function frame(now){
+    const dt = Math.min(.05, (now - (E.last || now)) / 1000); E.last = now;
+    if (E.run){ const fire = +Lab.$('#fire').value, spm = (E.mode === 'watt' ? 10 : 7) + fire * 1.6, prev = E.ph;
+      E.ph += dt * spm / 60; if (E.ph >= 1){ E.ph -= 1; E.strokes++; E.coal += E.mode === 'watt' ? 1 : 4; updateRead(); }
+      if (E.mode === 'new'){ if (prev < .5 && E.ph >= .5) E.heat = 0; E.heat = Math.min(1, E.heat + dt * (.4 + fire * .08)); } else E.heat = 1;
+      Lab.$('#eSpm').textContent = Math.round(spm); }
+    draw(); requestAnimationFrame(frame);
+  }
+  function draw(){
+    const r = cv.parentElement.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!r.width) return;
+    if (cv.width !== Math.round(r.width * d)){ cv.width = r.width * d; cv.height = r.height * d; }
+    const k = r.width / 600; g.setTransform(d * k, 0, 0, d * k, 0, 0); g.clearRect(0, 0, 600, 340);
+    const ink = css('--ink'), ink2 = css('--ink-2'), surf = css('--surface'), fire = +Lab.$('#fire').value;
+    const up = E.ph < .5 ? E.ph / .5 : 1 - (E.ph - .5) / .5, py = 210 - up * 90, ang = (up - .5) * .32;
+    // boiler + fire
+    g.fillStyle = '#8a6d4f'; g.fillRect(30, 300, 140, 26); for (let i = 0; i < 7; i++){ const h = 10 + fire * 2.2 + Math.sin(performance.now() / 120 + i) * 5 * (E.run ? 1 : .2); g.fillStyle = i % 2 ? '#f59e0b' : '#ef4444'; g.beginPath(); g.moveTo(40 + i * 19, 300); g.lineTo(49 + i * 19, 300 - h); g.lineTo(58 + i * 19, 300); g.fill(); }
+    g.fillStyle = '#9aa7b8'; g.strokeStyle = ink2; g.lineWidth = 2; g.beginPath(); g.roundRect(30, 190, 140, 100, 40); g.fill(); g.stroke();
+    g.fillStyle = ink; g.font = '800 13px Nunito, "Microsoft YaHei", sans-serif'; g.textAlign = 'center'; g.fillText(Lab.L(o('Boiler','锅炉')), 100, 245);
+    // steam pipe
+    g.strokeStyle = '#cbd5e1'; g.lineWidth = 8; g.beginPath(); g.moveTo(170, 230); g.lineTo(215, 230); g.stroke();
+    // cylinder (colour = temperature)
+    const hot = E.heat, cr = Math.round(80 + 160 * hot), cb = Math.round(230 - 150 * hot);
+    g.fillStyle = `rgb(${cr},110,${cb})`; g.fillRect(215, 110, 60, 140); g.strokeStyle = ink; g.lineWidth = 2.5; g.strokeRect(215, 110, 60, 140);
+    if (E.mode === 'new' && E.ph > .5 && E.ph < .62){ g.fillStyle = '#60a5fa'; for (let i = 0; i < 8; i++){ g.beginPath(); g.arc(225 + i * 6, 240 - (E.ph - .5) * 600 % 60, 2.2, 0, 7); g.fill(); } }
+    // steam inside (below piston) when filling
+    if (E.ph < .5){ g.fillStyle = 'rgba(255,255,255,.55)'; g.fillRect(217, py + 10, 56, 248 - py - 10); }
+    // piston + rod
+    g.fillStyle = '#475569'; g.fillRect(217, py, 56, 12); g.strokeStyle = '#475569'; g.lineWidth = 6;
+    const lx = 245, ly = 70 + Math.sin(ang) * -120; g.beginPath(); g.moveTo(245, py); g.lineTo(lx, ly); g.stroke();
+    // beam
+    g.save(); g.translate(365, 70); g.rotate(ang); g.fillStyle = '#7c5a3a'; g.fillRect(-125, -8, 250, 16); g.restore();
+    g.fillStyle = '#334155'; g.fillRect(355, 70, 20, 230); g.beginPath(); g.arc(365, 70, 7, 0, 7); g.fillStyle = ink; g.fill();
+    const rx = 365 + Math.cos(ang) * 120, ry = 70 + Math.sin(ang) * 120;
+    if (rot()){ // crank + flywheel
+      const cx = 500, cy = 230, R0 = 48, a = E.ph * Math.PI * 2 * 2; g.strokeStyle = ink2; g.lineWidth = 6; g.beginPath(); g.arc(cx, cy, R0, 0, 7); g.stroke();
+      for (let i = 0; i < 6; i++){ g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(a + i * 1.047) * R0, cy + Math.sin(a + i * 1.047) * R0); g.lineWidth = 3; g.stroke(); }
+      g.strokeStyle = '#475569'; g.lineWidth = 5; g.beginPath(); g.moveTo(rx, ry); g.lineTo(cx + Math.cos(a) * 18, cy + Math.sin(a) * 18); g.stroke();
+      g.fillStyle = ink; g.fillText(Lab.L(o('Flywheel → factory machines','飞轮 → 带动工厂机器')), cx, 312);
+    } else { // mine pump
+      g.strokeStyle = '#475569'; g.lineWidth = 5; g.beginPath(); g.moveTo(rx, ry); g.lineTo(rx, 250 + (1 - up) * 20); g.stroke();
+      g.fillStyle = '#6b4f3a'; g.fillRect(470, 270, 60, 60); g.fillStyle = '#3b82f6'; g.fillRect(476, 300 - up * 18, 48, 30 + up * 18);
+      g.fillStyle = ink; g.fillText(Lab.L(o('Mine shaft (pump)','矿井（抽水）')), 500, 262);
+    }
+    if (E.mode === 'watt'){ g.fillStyle = '#93c5fd'; g.fillRect(285, 255, 54, 45); g.fillStyle = '#1d4ed8'; g.fillRect(295, 262, 34, 30); g.strokeStyle = ink; g.lineWidth = 2; g.strokeRect(285, 255, 54, 45);
+      g.strokeStyle = '#cbd5e1'; g.lineWidth = 6; g.beginPath(); g.moveTo(275, 245); g.lineTo(305, 262); g.stroke();
+      g.fillStyle = ink; g.font = '800 11px Nunito, "Microsoft YaHei", sans-serif'; g.fillText(Lab.L(o('Separate condenser','分离式冷凝器')), 312, 318); }
+    g.font = '800 11px Nunito, "Microsoft YaHei", sans-serif'; g.fillStyle = ink; g.fillText(Lab.L(o('Cylinder','汽缸')), 245, 102);
+    g.fillText(Lab.L(hot > .8 ? o('hot','热') : o('cold → re-heating','变冷 → 重新加热')), 245, 268);
+    if (!E.run){ g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(0, 0, 600, 340); g.fillStyle = '#fff'; g.font = '800 22px Nunito, "Microsoft YaHei", sans-serif'; g.fillText(Lab.L(o('▶ Click to start the engine','▶ 点击启动蒸汽机')), 300, 175); }
+    Lab.$('#engPhase').textContent = Lab.L(PH[E.mode][E.ph < .5 ? 0 : E.ph < .62 ? 1 : 2]);
+  }
+  function updateRead(){
+    Lab.$('#eStrokes').textContent = E.strokes; Lab.$('#eCoal').textContent = E.coal; Lab.$('#eEff').textContent = Lab.L(EFF[E.mode]);
+    const per = E.mode === 'watt' ? 1 : 4;
+    Lab.$('#engRead').innerHTML = `<b>${per}</b> ${Lab.L(o(per > 1 ? 'shovels of coal per stroke (model).' : 'shovel of coal per stroke (model).', '铲煤/冲程（模型）。'))} ${Lab.L(E.mode === 'watt' ? o('Same work for about ¼ of the coal — now steam engines make sense far from coal mines.', '同样的功只用约四分之一的煤——蒸汽机终于可以在远离煤矿的地方使用了。') : o('Most of the heat goes into re-warming the cylinder after each cold spray.', '大部分热量都花在每次喷冷水后重新加热汽缸上了。'))}`;
+  }
+  cv.addEventListener('click', () => { E.run = !E.run; });
+  Lab.$$('#engSeg button').forEach(b => b.onclick = () => { E.mode = b.dataset.k; Lab.$$('#engSeg button').forEach(x => x.classList.toggle('on', x === b)); E.strokes = 0; E.coal = 0; E.heat = 1; E.run = true; updateRead(); });
+  Lab.onLang(() => { updateRead(); draw(); });
+  requestAnimationFrame(frame);
+})();
+/* coal chart */
+(function(){
+  const cv = Lab.$('#coalCv'), g = cv.getContext('2d'), yrs = Object.keys(COAL).map(Number); let sel = 1800, bars = [];
+  const NOTE = {1700:o('Coal mostly heats homes; pumps use horses.','煤主要用于家庭取暖，矿井抽水靠马。'),1750:o('Newcomen engines pump water from deeper mines.','纽科门机为更深的矿井抽水。'),1775:o('Watt and Boulton start building engines (1775).','瓦特与博尔顿合作制造蒸汽机（1775年）。'),1800:o('Steam-powered cotton mills spread across Lancashire.','蒸汽动力棉纺厂遍布兰开夏郡。'),1815:o('Steam ships and the first locomotives appear.','汽船和最早的火车机车出现。'),1830:o('The Liverpool–Manchester railway opens.','利物浦—曼彻斯特铁路通车。'),1850:o('Britain is the “workshop of the world”.','英国成为“世界工厂”。')};
+  function draw(){
+    const r = cv.parentElement.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!r.width) return;
+    cv.width = r.width * d; cv.height = r.height * d; g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, r.width, r.height);
+    const L = 30, B = 24, T = 14, W = r.width - L - 6, H = r.height - T - B, bw = W / yrs.length;
+    g.font = '11px Nunito, sans-serif'; g.textBaseline = 'middle';
+    [0, 10, 20, 30, 40, 50].forEach(t => { const y = T + H - t / 55 * H; g.strokeStyle = css('--line'); g.beginPath(); g.moveTo(L, y); g.lineTo(L + W, y); g.stroke(); g.fillStyle = css('--ink-2'); g.textAlign = 'right'; g.fillText(t, L - 4, y); });
+    bars = yrs.map((y, i) => { const v = COAL[y], h = v / 55 * H, x = L + i * bw + bw * .15, on = y === sel; g.fillStyle = on ? css('--accent') : C.ind; g.globalAlpha = on ? 1 : .75; g.fillRect(x, T + H - h, bw * .7, h); g.globalAlpha = 1;
+      g.fillStyle = css('--ink'); g.textAlign = 'center'; g.font = `${on ? 800 : 600} 11px Nunito, sans-serif`; g.fillText(v, x + bw * .35, T + H - h - 7); g.fillStyle = css('--ink-2'); g.fillText(y, x + bw * .35, T + H + 12); return { y, x0:L + i * bw, x1:L + (i + 1) * bw }; });
+    Lab.$('#coalRead').innerHTML = `<b>${sel}</b> · ${COAL[sel]} ${Lab.L(o('million tons','百万吨'))} — ${Lab.L(NOTE[sel])}`;
+  }
+  cv.addEventListener('click', e => { const x = e.clientX - cv.getBoundingClientRect().left, b = bars.find(b => x >= b.x0 && x < b.x1); if (b){ sel = b.y; draw(); } });
+  new ResizeObserver(() => requestAnimationFrame(draw)).observe(cv.parentElement);
+  new MutationObserver(() => setTimeout(draw, 60)).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme'] });
+  Lab.onLang(draw);
+})();
+
+/* ================= Chain mission ================= */
+const SLOTN = [o('Cause','原因'), o('Spark','导火索'), o('Event','关键事件'), o('Result','结果')];
+const CHAINS = [
+ { t:o('The Scientific Revolution','科学革命'), c:C.sci, k:[o('Renaissance thinkers start questioning old authorities','文艺复兴后，人们开始质疑旧权威'), o('Copernicus: Earth goes around the Sun (1543)','哥白尼提出“日心说”（1543年）'), o('Galileo’s telescope finds evidence (1610)','伽利略用望远镜找到证据（1610年）'), o('Newton’s laws of motion and gravity (1687)','牛顿提出运动定律和万有引力（1687年）')],
+   why:o('Observation + math replaced “because the old books say so” — and gave the Enlightenment its confidence in reason.','观察加数学取代了“古书上就是这么说的”——也给了启蒙运动相信理性的底气。') },
+ { t:o('The English Revolution','英国资产阶级革命'), c:C.pol, k:[o('Kings claim “divine right” and tax without Parliament','国王宣称“君权神授”，不经议会就征税'), o('Civil war between Charles I and Parliament (1642)','查理一世与议会爆发内战（1642年）'), o('The Glorious Revolution: William & Mary invited (1688)','“光荣革命”：迎立威廉和玛丽（1688年）'), o('Bill of Rights → constitutional monarchy (1689)','《权利法案》→ 君主立宪制（1689年）')],
+   why:o('Power moved from the crown to Parliament — a model later revolutions studied.','权力从国王转到议会——后来的革命都参考了这个榜样。') },
+ { t:o('The American Revolution','美国独立战争'), c:C.pol, k:[o('“No taxation without representation”: British taxes on the colonies','“无代表，不纳税”：英国向殖民地征税'), o('Shots at Lexington and Concord (1775)','来克星顿和康科德的枪声（1775年）'), o('Declaration of Independence (4 July 1776)','《独立宣言》（1776年7月4日）'), o('Independence won (1783); the Constitution (1787)','赢得独立（1783年）；制定宪法（1787年）')],
+   why:o('The first big colony to break free from a European empire, with a written constitution and separation of powers.','第一个从欧洲帝国独立的大殖民地，有成文宪法和三权分立。') },
+ { t:o('The French Revolution','法国大革命'), c:C.pol, k:[o('Debt, hunger and an unfair system of “estates”','国家负债、民众饥饿、不公平的等级制度'), o('Storming of the Bastille (14 July 1789)','攻占巴士底狱（1789年7月14日）'), o('Declaration of the Rights of Man; a republic (1792)','《人权宣言》；建立共和国（1792年）'), o('Napoleon’s Civil Code spreads equality before the law','《拿破仑法典》传播法律面前人人平等')],
+   why:o('“Liberty, equality, fraternity” shook every monarchy in Europe — and inspired Haiti and Latin America.','“自由、平等、博爱”震撼了欧洲所有君主国，也鼓舞了海地和拉丁美洲。') },
+ { t:o('The Industrial Revolution','工业革命'), c:C.ind, k:[o('Britain has coal, iron, capital and big markets','英国有煤、铁、资金和广阔市场'), o('Spinning jenny (1765): machines need more power','珍妮机（1765年）：机器需要更多动力'), o('Watt’s improved steam engine goes into use (1785)','瓦特改良的蒸汽机投入使用（1785年）'), o('Factories, railways and big cities: the “workshop of the world”','工厂、铁路和大城市：“世界工厂”')],
+   why:o('Production soared — and so did Britain’s need for markets abroad, one root of the Opium War.','生产突飞猛进——英国对海外市场的需求也随之猛增，这也是鸦片战争的根源之一。') }
+];
+const KR = [ [0,o('Apprentice','学徒')], [60,o('Pamphlet writer','小册子作者')], [150,o('Inventor','发明家')], [260,o('Enlightenment thinker','启蒙思想家')], [400,o('Master historian','历史大师')] ];
+(function(){
+  const G = { total:0, run:0, streak:0, ci:0, step:0, miss:false, tiles:[], done:false, order:Lab.shuffle([0, 1, 2, 3, 4]) };
+  const box = Lab.$('#kBox');
+  function deal(){ const ch = CHAINS[G.order[G.ci]], others = CHAINS.filter(x => x !== ch); const dis = Lab.shuffle(others.flatMap(x => x.k)).slice(0, 2);
+    G.tiles = Lab.shuffle([...ch.k.map((t, i) => ({ t, i })), ...dis.map(t => ({ t, i:-1 }))]); G.step = 0; G.miss = false; }
+  function render(){
+    Lab.$('#kScore').textContent = G.total; Lab.$('#kRun').textContent = G.run + '/200'; Lab.$('#kStreak').textContent = G.streak;
+    const st = G.run >= 180 ? 3 : G.run >= 140 ? 2 : G.run >= 90 ? 1 : 0; Lab.$('#kStars').textContent = stars(st);
+    Lab.$('#kRanks').innerHTML = ranksHTML(KR, G.total); Lab.$('#kBar').style.width = ((G.ci + (G.step >= 4 ? 1 : 0)) / 5 * 100) + '%';
+    if (G.done){ box.innerHTML = `<div class="scard"><h3>${Lab.L(o('All five chains built!','五条链全部完成！'))}</h3><p class="stars" style="margin:0">${stars(st)}</p><p style="margin:0">${Lab.L(o(`This round: ${G.run}/200. Notice how each revolution fed the next: science → Enlightenment ideas → political revolutions; coal + inventions → industry.`, `本轮得分：${G.run}/200。注意每场革命是怎样推动下一场的：科学 → 启蒙思想 → 政治革命；煤炭 + 发明 → 工业。`))}</p><div class="btnrow"><button class="btn" id="kAgain">${Lab.L(o('Play again ▶','再玩一轮 ▶'))}</button></div></div>`;
+      Lab.$('#kAgain').onclick = () => { G.run = 0; G.ci = 0; G.done = false; G.order = Lab.shuffle([0, 1, 2, 3, 4]); deal(); render(); }; return; }
+    const ch = CHAINS[G.order[G.ci]];
+    box.innerHTML = `<div class="scard"><div class="when">${Lab.L(o('Chain', '链条'))} ${G.ci + 1}/5</div><h3 style="color:${ch.c}">${Lab.L(ch.t)}</h3>
+      <div class="chainbox"><div class="chain">${SLOTN.map((s, i) => `${i ? '<div class="arrow">↓</div>' : ''}<div class="slot ${i < G.step ? 'ok' : ''}"><small>${Lab.L(s)}</small>${i < G.step ? Lab.L(ch.k[i]) : '❔'}</div>`).join('')}</div>
+      <div><p class="muted" style="margin:0 0 8px">${Lab.L(G.step < 4 ? o(`Tap the ${SLOTN[G.step].en.toLowerCase()}:`, `请点出“${SLOTN[G.step].zh}”：`) : o('Chain complete!', '链条完成！'))}</p>
+      <div class="tiles">${G.tiles.map((x, j) => `<button data-j="${j}" ${x.used ? 'disabled' : ''}>${Lab.L(x.t)}</button>`).join('')}</div></div></div>
+      <div class="result" id="kMsg"></div>
+      ${G.step >= 4 ? `<div class="fb good">✅ ${Lab.L(ch.why)}</div><div class="btnrow"><button class="btn" id="kNext">${Lab.L(G.ci < 4 ? o('Next chain ▶','下一条 ▶') : o('Finish ▶','完成 ▶'))}</button></div>` : ''}</div>`;
+    Lab.$$('#kBox .tiles button').forEach(b => b.onclick = () => { if (G.step >= 4) return; const x = G.tiles[+b.dataset.j];
+      if (x.i === G.step){ x.used = true; const pts = G.miss ? 5 : 10; G.run += pts; G.total += pts; G.streak = G.miss ? 0 : G.streak + 1; G.step++; G.miss = false; render(); }
+      else { G.miss = true; G.streak = 0; b.classList.add('bad'); const m = Lab.$('#kMsg'); m.className = 'result bad'; m.textContent = Lab.L(x.i < 0 ? o('❌ That card belongs to a different revolution.', '❌ 这张卡属于另一场革命。') : o('❌ Right revolution, wrong order — what comes first?', '❌ 革命对了，顺序不对——哪个先发生？')); setTimeout(() => b.classList.remove('bad'), 400); } });
+    const n = Lab.$('#kNext'); if (n) n.onclick = () => { if (G.ci < 4){ G.ci++; deal(); } else G.done = true; render(); };
+  }
+  deal(); Lab.onLang(render);
+})();
+
+/* ================= Quiz & sort ================= */
+const QUIZ = [
+ {q:o('Who argued that Earth goes around the Sun (1543)?','谁在1543年提出地球绕太阳转？'), options:[o('Copernicus','哥白尼'),o('Newton','牛顿'),o('Watt','瓦特'),o('Napoleon','拿破仑')], answer:0},
+ {q:o('Newton’s Principia (1687) described…','牛顿的《自然哲学的数学原理》（1687年）提出了'), options:[o('laws of motion and universal gravitation','运动定律和万有引力定律'),o('the steam engine','蒸汽机'),o('the rights of man','人权'),o('a new sea route to India','通往印度的新航路')], answer:0},
+ {q:o('The 1689 Bill of Rights made England a…','1689年《权利法案》使英国成为'), options:[o('constitutional monarchy','君主立宪制国家'),o('republic with a president','有总统的共和国'),o('colony of France','法国的殖民地'),o('absolute monarchy','君主专制国家')], answer:0, explain:o('The monarch could no longer tax, make laws or keep an army without Parliament.','国王不经议会同意不能征税、立法或维持常备军。')},
+ {q:o('“No taxation without representation” was a complaint of…','“无代表，不纳税”是谁的不满？'), options:[o('American colonists','北美殖民地人民'),o('French nobles','法国贵族'),o('Qing officials','清朝官员'),o('British factory owners','英国工厂主')], answer:0},
+ {q:o('What happened on 14 July 1789?','1789年7月14日发生了什么？'), options:[o('Parisians stormed the Bastille','巴黎人民攻占巴士底狱'),o('The Declaration of Independence was signed','签署《独立宣言》'),o('Watt patented his engine','瓦特为蒸汽机申请专利'),o('Napoleon became emperor','拿破仑称帝')], answer:0},
+ {q:o('Which document says people are “born and remain free and equal in rights”?','哪份文件说人“生来是而且始终是自由的，在权利方面一律平等”？'), options:[o('The Declaration of the Rights of Man (France, 1789)','《人权宣言》（法国，1789年）'),o('The Bill of Rights (England, 1689)','《权利法案》（英国，1689年）'),o('The Treaty of Nanjing (1842)','《南京条约》（1842年）'),o('Principia (1687)','《自然哲学的数学原理》（1687年）')], answer:0},
+ {q:o('Watt’s key improvement to the steam engine was…','瓦特对蒸汽机最关键的改进是'), options:[o('a separate condenser that kept the cylinder hot','分离式冷凝器，使汽缸保持高温'),o('inventing the first steam engine','发明了第一台蒸汽机'),o('using wind instead of steam','用风力代替蒸汽'),o('a bigger boiler only','只是把锅炉做得更大')], answer:0, explain:o('Newcomen built the first practical engine in 1712.','第一台实用蒸汽机是纽科门1712年造的。')},
+ {q:o('Chart reading: about how much coal did Britain mine in 1830?','读图表：1830年英国大约产煤多少？'), options:[o('About 30 million tons','约3000万吨'),o('About 3 million tons','约300万吨'),o('About 300 million tons','约3亿吨'),o('None','没有')], answer:0},
+ {q:o('Why did the Industrial Revolution start in Britain?','工业革命为什么首先发生在英国？'), options:[o('Coal and iron, money from trade, big markets and inventors','有煤和铁、贸易积累的资金、广阔的市场和发明家'),o('It had the most people in the world','它人口世界第一'),o('It had no colonies','它没有殖民地'),o('Its king banned farming','国王禁止农业')], answer:0},
+ {q:o('Map reading: the Haitian Revolution (1791–1804) took place in…','读地图：海地革命（1791—1804年）发生在'), options:[o('the Caribbean','加勒比海地区'),o('West Africa','西非'),o('South Asia','南亚'),o('Northern Europe','北欧')], answer:0, explain:o('Haiti became the first Black republic in 1804.','1804年海地成为第一个黑人共和国。')},
+ {q:o('In 1793 Emperor Qianlong responded to Britain’s Macartney mission by…','1793年，乾隆皇帝对英国马戛尔尼使团的回应是'), options:[o('refusing its requests for more trade','拒绝了扩大通商的要求'),o('opening five new ports','开放五个新口岸'),o('buying steam engines','购买蒸汽机'),o('declaring war','宣战')], answer:0},
+ {q:o('The Treaty of Nanjing (1842) ended…','《南京条约》（1842年）结束了'), options:[o('the Opium War','鸦片战争'),o('the French Revolution','法国大革命'),o('the American Revolution','美国独立战争'),o('the English Civil War','英国内战')], answer:0, explain:o('China had to cede Hong Kong Island, pay an indemnity and open five ports.','中国被迫割让香港岛、赔款、开放五处通商口岸。')}
+];
+Lab.quiz(Lab.$('#quiz'), QUIZ, { count:12 });
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'s',en:'Scientific',zh:'科学革命'},{id:'p',en:'Political',zh:'政治革命'},{id:'i',en:'Industrial',zh:'工业革命'}],
+  items:[{en:'Galileo’s telescope',zh:'伽利略的望远镜',bin:'s'},{en:'Laws of motion',zh:'运动定律',bin:'s'},{en:'Heliocentric model',zh:'日心说',bin:'s'},{en:'Principia',zh:'《自然哲学的数学原理》',bin:'s'},
+    {en:'Bill of Rights 1689',zh:'1689年《权利法案》',bin:'p'},{en:'Storming the Bastille',zh:'攻占巴士底狱',bin:'p'},{en:'Declaration of Independence',zh:'《独立宣言》',bin:'p'},{en:'Simón Bolívar',zh:'西蒙·玻利瓦尔',bin:'p'},
+    {en:'Spinning jenny',zh:'珍妮机',bin:'i'},{en:'Separate condenser',zh:'分离式冷凝器',bin:'i'},{en:'Stephenson’s Rocket',zh:'史蒂芬孙的“火箭号”',bin:'i'},{en:'Cotton mill',zh:'棉纺厂',bin:'i'}]
+});
+
+/* ================= Real media & links ================= */
+const PHOTOS = [
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4e/Prise_de_la_Bastille.jpg/960px-Prise_de_la_Bastille.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'“The Storming of the Bastille”, 14 July 1789 — a watercolour by Jean-Pierre Houël, who lived at the time.', zh:'《攻占巴士底狱》（1789年7月14日）——同时代画家让-皮埃尔·乌埃尔的水彩画。', kind:o('Painting','ç»ç»'), credit:'Jean-Pierre Houël', license:'Public domain', page:CP + 'Prise_de_la_Bastille.jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/ce/Jacques_Louis_David_-_Le_serment_du_Jeu_de_Paume_-_Google_Art_Project.jpg/960px-Jacques_Louis_David_-_Le_serment_du_Jeu_de_Paume_-_Google_Art_Project.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Jacques-Louis David’s picture of the Tennis Court Oath (20 June 1789): the Third Estate swears not to part until France has a constitution.', zh:'雅克-路易·大卫描绘的“网球场宣誓”（1789年6月20日）：第三等级代表宣誓，不制定宪法决不解散。', kind:o('Painting','ç»ç»'), credit:'Jacques-Louis David', license:'Public domain', page:CP + 'Jacques_Louis_David_-_Le_serment_du_Jeu_de_Paume_-_Google_Art_Project.jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6c/Declaration_of_the_Rights_of_Man_and_of_the_Citizen_in_1789.jpg/960px-Declaration_of_the_Rights_of_Man_and_of_the_Citizen_in_1789.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The Declaration of the Rights of Man and of the Citizen (1789), painted as a stone tablet (attributed to Jean-Jacques-François Le Barbier).', zh:'1789年《人权和公民权宣言》，被画成石碑的样子（传为勒·巴比耶所作）。', kind:o('Painting','ç»ç»'), credit:'Unknown author', license:'Public domain', page:CP + 'Declaration_of_the_Rights_of_Man_and_of_the_Citizen_in_1789.jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f9/Declaration_of_Independence_%281819%29%2C_by_John_Trumbull.jpg/960px-Declaration_of_Independence_%281819%29%2C_by_John_Trumbull.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'John Trumbull’s painting of the five-man committee presenting the Declaration of Independence to Congress (1776).', zh:'约翰·特朗布尔的画：五人起草委员会向大陆会议提交《独立宣言》（1776年）。', kind:o('Painting','ç»ç»'), credit:'John Trumbull', license:'Public domain', page:CP + 'Declaration_of_Independence_(1819),_by_John_Trumbull.jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7f/Spinning_jenny_blackburn.JPG/960px-Spinning_jenny_blackburn.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A spinning jenny at Blackburn Museum and Art Gallery — Hargreaves’ machine let one worker spin many threads at once.', zh:'布莱克本博物馆和美术馆里的珍妮机——哈格里夫斯发明的机器让一个工人能同时纺多根纱。', kind:o('Object','å®ç©'), credit:'Geni', license:'CC BY-SA 4.0', page:CP + 'Spinning_jenny_blackburn.JPG' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8b/Boulton_%26_Watt_steam_engine%2C_Sydney_Powerhouse_Museum%2C_2014_%2815243331353%29.jpg/960px-Boulton_%26_Watt_steam_engine%2C_Sydney_Powerhouse_Museum%2C_2014_%2815243331353%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A Boulton & Watt steam engine built in the 1780s, now at the Powerhouse Museum, Sydney.', zh:'一台18世纪80年代制造的博尔顿—瓦特蒸汽机，现藏悉尼动力博物馆。', kind:o('Object','å®ç©'), credit:'David Maciulaitis from Auckland, New Zealand', license:'CC BY 2.0', page:CP + 'Boulton_%26_Watt_steam_engine,_Sydney_Powerhouse_Museum,_2014_(15243331353).jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/97/Stephenson%27s_Rocket_National_Railway_Museum.jpg/960px-Stephenson%27s_Rocket_National_Railway_Museum.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Stephenson’s Rocket (1829), the locomotive that won the Rainhill Trials, on display at the National Railway Museum.', zh:'史蒂芬孙的“火箭号”机车（1829年），在雨山机车比赛中获胜，图为在英国国家铁路博物馆展出。', kind:o('Object','å®ç©'), credit:'Matt Brown', license:'CC BY 2.0', page:CP + 'Stephenson%27s_Rocket_National_Railway_Museum.jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/41/NewtonsPrincipia.jpg/960px-NewtonsPrincipia.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Isaac Newton’s own first-edition copy of the Principia (1687), with his handwritten corrections.', zh:'牛顿本人收藏的《自然哲学的数学原理》第一版（1687年），上面有他亲笔写的修改。', kind:o('Object','å®ç©'), credit:'Isaac Newton', license:'CC0', page:CP + 'NewtonsPrincipia.jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e4/LordMacartneyEmbassyToChina1793.jpg/960px-LordMacartneyEmbassyToChina1793.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Lord Macartney’s first meeting with Emperor Qianlong, 1793 — drawn by William Alexander, an artist with the embassy.', zh:'1793年马戛尔尼第一次觐见乾隆皇帝——使团画家威廉·亚历山大所绘。', kind:o('Painting','ç»ç»'), credit:'William Alexander', license:'Public domain', page:CP + 'LordMacartneyEmbassyToChina1793.jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/89/Destroying_Chinese_war_junks%2C_by_E._Duncan_%281843%29.jpg/960px-Destroying_Chinese_war_junks%2C_by_E._Duncan_%281843%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The East India Company iron steamship Nemesis destroying Qing war junks in the First Opium War (painting by Edward Duncan, 1843).', zh:'鸦片战争中，东印度公司的铁壳蒸汽船“复仇女神号”摧毁清军战船（爱德华·邓肯绘，1843年）。', kind:o('Painting','ç»ç»'), credit:'Edward Duncan', license:'Public domain', page:CP + 'Destroying_Chinese_war_junks,_by_E._Duncan_(1843).jpg' },
+ YT('PBn7iWzrKoI', 'What caused the French Revolution? — TED-Ed animated lesson by Tom Mullaney (about 5 min).', '法国大革命的起因是什么？——TED-Ed 动画课，汤姆·马拉尼（约5分钟，英文）。', 'TED-Ed'),
+ YT('ChzWleyNLhs', 'James Watt and our world: Adam Hart-Davis at London’s Science Museum.', '詹姆斯·瓦特和我们的世界：亚当·哈特-戴维斯在伦敦科学博物馆（英文）。', 'Culture24videos')
+];
+LabPhotos.render('#gallery', PHOTOS, { title:o('See the real thing','看看真实的样子'), sub:o('Paintings made at the time, real machines in museums and historic books from Wikimedia Commons, plus two videos. Click to enlarge; videos open on YouTube.','来自维基共享资源的当时的绘画、博物馆里的真实机器和历史书籍，以及两段视频。点击可放大；视频在 YouTube 打开。') });
+renderLinks('#links', [
+ { u:'https://www.worldhistory.org/French_Revolution/', t:o('The French Revolution','法国大革命'), d:o('World History Encyclopedia: causes, events and key figures, 1789–1799.','世界历史百科：1789—1799年的原因、事件和关键人物（英文）。') },
+ { u:'https://www.archives.gov/founding-docs/declaration', t:o('The Declaration of Independence (National Archives)','《独立宣言》（美国国家档案馆）'), d:o('Read the real document and a transcript.','阅读原件照片和文字稿（英文）。') },
+ { u:'https://www.nps.gov/inde/index.htm', t:o('Independence National Historical Park','独立国家历史公园'), d:o('Independence Hall in Philadelphia, where the Declaration and Constitution were signed.','费城独立厅——《独立宣言》和宪法签署的地方（英文）。') },
+ { u:'https://www.loc.gov/exhibits/creating-the-united-states/', t:o('Creating the United States (Library of Congress)','美国的创建（美国国会图书馆）'), d:o('Drafts and documents from the Revolution to the Constitution.','从独立战争到宪法的草稿和文件（英文）。') },
+ { u:'https://www.nms.ac.uk/', t:o('National Museums Scotland','苏格兰国家博物馆'), d:o('Search “James Watt” to see his tools and engine models.','搜索“James Watt”，看他的工具和蒸汽机模型（英文）。') }
+]);
+</script>
+</body>
+</html>

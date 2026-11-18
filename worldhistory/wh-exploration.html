@@ -1,0 +1,665 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Age of Exploration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/photos.js"></script>
+<script src="../shared/chinamap.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-array@3.2.4/dist/d3-array.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-geo@3.1.0/dist/d3-geo.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<style>
+.mission-line{font-weight:800;color:var(--ink);margin-top:10px}
+.unit{display:inline-block;font-size:13px;font-weight:800;padding:4px 10px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2);margin-top:8px}
+.stage canvas.map{touch-action:pan-y;cursor:pointer}
+.info .kh{font-size:13px;letter-spacing:.06em;color:var(--brand);margin-bottom:-6px}
+.info .date{font-family:Fredoka;font-weight:700;font-size:19px;color:var(--brand);margin-top:-8px}
+.counters.c4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.counters.c3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.dot-s{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.ranks{display:flex;flex-wrap:wrap;gap:6px}
+.ranks span{font-size:13px;font-weight:800;padding:4px 10px;border-radius:999px;background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line)}
+.ranks span.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.gm{padding:22px;display:flex;flex-direction:column;gap:14px}
+.bar{height:10px;border-radius:999px;background:var(--surface-2);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--brand);border-radius:999px;transition:width .3s}
+.scard{border:1px solid var(--line);border-radius:16px;padding:16px;background:var(--surface-2);display:flex;flex-direction:column;gap:10px}
+.scard .when{font-family:Fredoka;font-weight:700;color:var(--brand);font-size:18px}
+.scard h3{font-size:21px;margin:0}
+.choices{display:grid;gap:10px}
+.choices button{text-align:left;border:2px solid var(--line);background:var(--surface);color:var(--ink);border-radius:14px;padding:12px 14px;font-weight:700}
+.choices button:hover:not(:disabled){border-color:var(--brand)}
+.choices button.best{border-color:var(--good);background:color-mix(in srgb,var(--good) 12%,var(--surface))}
+.choices button.meh{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 9%,var(--surface))}
+.fb{border-radius:14px;padding:12px 14px;font-size:15.5px}
+.fb.good{background:color-mix(in srgb,var(--good) 12%,var(--surface));border:1px solid var(--good)}
+.fb.bad{background:color-mix(in srgb,var(--bad) 10%,var(--surface));border:1px solid var(--bad)}
+.stars{font-size:24px;letter-spacing:3px;color:var(--warn)}
+.two{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:18px}
+.two>.card{padding:20px;display:flex;flex-direction:column;gap:12px}
+.chart{position:relative;height:300px}
+.chart canvas{position:absolute;inset:0;width:100%;height:100%;cursor:pointer}
+.src{font-size:12.5px;color:var(--ink-2);margin:0}
+.readout{background:var(--surface-2);border-radius:14px;padding:12px 14px;min-height:60px;font-size:15.5px}
+.readout b{font-family:Fredoka;color:var(--brand);font-size:19px}
+.cnstrip{margin-top:18px;padding:16px 18px;border-left:6px solid #c0392b}
+.cnstrip-h{font-weight:800;letter-spacing:.04em;font-size:13px;text-transform:uppercase;color:#c0392b;margin-bottom:10px}
+.cnstrip-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.cnc{background:var(--surface-2);border-radius:14px;padding:12px 14px}
+.cnc b{font-family:Fredoka;color:#c0392b;font-size:18px}
+.cnc h4{margin:2px 0 4px;font-size:16px}
+.cnc p{margin:0;font-size:14.5px;color:var(--ink-2)}
+.chain{display:flex;flex-direction:column;gap:8px}
+.chain .slot{border:2px dashed var(--line);border-radius:14px;padding:10px 12px;min-height:46px;font-weight:700;display:flex;align-items:center;gap:8px;background:var(--surface)}
+.chain .slot.ok{border-style:solid;border-color:var(--good);background:color-mix(in srgb,var(--good) 10%,var(--surface))}
+.chain .arrow{text-align:center;color:var(--ink-2);font-weight:800;line-height:1}
+.tiles{display:flex;flex-wrap:wrap;gap:8px}
+.tiles button{border:2px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:12px;padding:8px 11px;font-weight:700;font-size:14.5px}
+.tiles button.sel{border-color:var(--brand);box-shadow:0 0 0 2px color-mix(in srgb,var(--brand) 30%,transparent)}
+.tiles button.bad{border-color:var(--bad);animation:labshake .35s}
+.tiles button:disabled{opacity:.35}
+@media (max-width:860px){.two{grid-template-columns:1fr}}
+@media (max-width:560px){.counters.c4,.counters.c3{grid-template-columns:1fr 1fr}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .cnstrip-h,:root:not([data-theme="light"]) .cnc b{color:#ff8a7a}}
+:root[data-theme="dark"] .cnstrip-h,:root[data-theme="dark"] .cnc b{color:#ff8a7a}
+.explorer>.stage{align-self:start;height:600px;min-height:0}
+@media (max-width:860px){.explorer>.stage{height:480px}}
+
+.sky{position:relative;height:250px;border-radius:14px;overflow:hidden}
+.sky canvas{position:absolute;inset:0;width:100%;height:100%}
+.legs{display:flex;gap:6px;flex-wrap:wrap}
+.legs span{font-size:13px;font-weight:800;padding:4px 10px;border-radius:999px;background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line)}
+.legs span.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.legs span.done{border-color:var(--good);color:var(--good)}
+.prov{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.prov label{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 10px;font-weight:700;font-size:14px;display:flex;flex-direction:column;gap:4px}
+.prov input{width:100%}
+.sizes{position:relative;height:250px}
+.sizes canvas{position:absolute;inset:0;width:100%;height:100%}
+@media (max-width:560px){.prov{grid-template-columns:1fr}}
+</style>
+</head>
+<body data-subject="worldhistory" data-topic="wh-exploration">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="世界历史 · 佐治亚州标准 SS6H1、SS4H2 · 统编版九年级上册">World History · Georgia GSE SS6H1, SS4H2 · China: Grade 9 World History</span>
+  <h1 data-zh-html="大航海时代：<em>海洋把世界连在一起</em>">The Age of Exploration: <em>when the oceans joined the world</em></h1>
+  <p class="lead" data-zh="1405年，郑和率领200多艘船、2.7万多人驶向印度洋；87年后，哥伦布只带着3艘小船和大约90个人出发。可是，真正把美洲、欧洲、非洲和亚洲连成一个整体的，却是那支小船队开辟的航路。为什么？">In 1405 China’s admiral Zheng He sailed into the Indian Ocean with more than 200 ships and over 27,000 sailors. Eighty-seven years later Christopher Columbus set out with 3 small ships and about 90 men. Yet it was the small fleets that ended up tying the Americas, Europe, Africa and Asia together. Why?</p>
+  <p class="mission-line" data-zh="🎯 你的任务：拖动年份，看五次远航在地图上展开；当一回领航员——用北极星测纬度、借信风、备粮防坏血病；再把“哥伦布大交换”的物种分到正确的方向。">🎯 Your mission: drag the years and watch five great voyages unroll on the map; work as a navigator — find your latitude by the North Star, ride the trade winds, pack food against scurvy; then sort the Columbian Exchange.</p>
+  <span class="unit" data-zh="📘 统编版《世界历史》九年级上册 第五单元“走向近代”：探寻新航路、早期殖民掠夺">📘 China’s textbook: World History Grade 9 Vol. 1, Unit 5 “Toward the Modern Age” — new sea routes &amp; early colonial plunder</span>
+</header>
+
+<section class="wrap" id="map" data-nav="Voyage map" data-nav-zh="航线地图">
+  <div class="sec-head">
+    <h2 data-zh="互动地图：1400—1600年的大航海">Interactive map: the great voyages, 1400–1600</h2>
+    <p data-zh="按 ▶ 或拖动年份，航线会一段段画出来。点击航线上的船或按钮查看详情；后面还会出现“三角贸易”和“马尼拉大帆船”。">Press ▶ or drag the year and each route draws itself. Click a ship or a button for details; later the Atlantic “triangle trade” and the Manila galleons appear.</p>
+  </div>
+  <div style="margin-bottom:12px"><div class="timebar"><button id="playBtn" aria-label="Play">▶</button><input id="yr" type="range" min="1400" max="1600" step="1" value="1400" aria-label="Year"><output id="yrOut">1400</output></div></div>
+  <div class="explorer">
+    <div class="stage card" id="mapStage">
+      <canvas id="mapCv" class="map"></canvas>
+      <div class="toolbar" id="vbtns"></div>
+      <div class="bottombar"><div class="tip" id="mapTip"></div></div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div style="margin-top:14px;display:flex;flex-direction:column;gap:12px">
+    <div class="counters c4">
+      <div class="counter"><b id="cShips">0</b><span data-zh="此刻在海上的船（约数）">ships at sea right now (approx.)</span></div>
+      <div class="counter"><b id="cCrew">0</b><span data-zh="此刻在海上的船员（约数）">sailors at sea right now (approx.)</span></div>
+      <div class="counter"><b id="cLong">—</b><span data-zh="到目前为止最长的航线">longest route so far</span></div>
+      <div class="counter"><b id="cJoin">✗</b><span data-zh="各大洲由海路连成一体了吗？">continents linked by sea?</span></div>
+    </div>
+  </div>
+  <div class="card cnstrip" id="cnStrip"></div>
+</section>
+
+<section class="wrap" id="ships" data-nav="Ship sizes" data-nav-zh="船有多大">
+  <div class="sec-head">
+    <h2 data-zh="郑和宝船 vs 哥伦布的船：到底差多大？">Zheng He’s treasure ship vs Columbus’s ship: how big is the gap?</h2>
+    <p data-zh="切换两种数据：古书记载的尺寸，以及现代许多学者的估计。用美式橄榄球场和校车来比一比。">Switch between the size recorded in old Chinese books and what many modern scholars estimate. Compare with a football field and a school bus.</p>
+  </div>
+  <div class="two">
+    <div class="card">
+      <div class="seg" id="sizeSeg"><button class="on" data-k="rec" data-zh="📜 古书记载">📜 Old records</button><button data-k="mod" data-zh="🔬 现代估计">🔬 Modern estimate</button></div>
+      <div class="sizes"><canvas id="sizeCv"></canvas></div>
+      <p class="src" data-zh="数据（约数）：《明史·郑和传》记大宝船“修四十四丈，广十八丈”（按明代1丈约3.1米，约137米长）；不少学者认为木船造不了这么大，估计约60—75米。圣玛利亚号长约19米（按复原船）。橄榄球场含两端得分区约110米；校车约12米。">Data (approx.): the Ming History records the largest treasure ships as “44 zhang long, 18 zhang wide” (at about 3.1 m per Ming zhang ≈ 137 m / 450 ft). Many scholars doubt a wooden ship could be that big and estimate about 60–75 m. Santa María ≈ 19 m (from replicas). A football field with end zones ≈ 110 m (120 yd); a school bus ≈ 12 m (40 ft).</p>
+    </div>
+    <div class="card">
+      <h3 data-zh="⚖️ 两支船队，两种目的">⚖️ Two fleets, two goals</h3>
+      <div class="readout" id="sizeRead"></div>
+      <details class="peek"><summary data-zh="为什么大船队没有改变世界，小船队却改变了？">Why didn’t the giant fleet change the world, while the small ones did?</summary>
+        <p data-zh="郑和的船队是为了宣扬明朝国威、与亚非国家友好往来、开展朝贡贸易，1433年后就停止了，明朝随后实行海禁。欧洲的远航是为了寻找黄金和香料、开辟新商路，背后有王室和商人不断投资，于是一支接一支地出海，并且开始殖民和掠夺。">Zheng He’s fleet went to show the Ming emperor’s power, make friends and collect tribute gifts; the voyages stopped after 1433 and the Ming then limited sea trade. European voyages hunted for gold and spices and new trade routes, kept funded by kings and merchants — so fleet after fleet sailed, and conquest and colonies followed.</p></details>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="mission" data-nav="Navigator mission" data-nav-zh="领航员任务">
+  <div class="sec-head">
+    <h2 data-zh="任务：1492—1521年的领航员">Mission: navigator, 1492–1521</h2>
+    <p data-zh="三段航程：①借对风；②用北极星保持纬度；③为横渡太平洋备粮，对抗坏血病。每段最多得星，累计分数升级。">Three legs: ① catch the right wind; ② hold your latitude using the North Star; ③ pack food for crossing the Pacific and fight scurvy. Earn stars on each leg; your total score raises your rank.</p>
+  </div>
+  <div class="gm card">
+    <div class="counters c4">
+      <div class="counter"><b id="gScore">0</b><span data-zh="总分">total score</span></div>
+      <div class="counter"><b id="gRun">0/80</b><span data-zh="本次航行得分">this voyage</span></div>
+      <div class="counter"><b id="gStars" class="stars">☆☆☆</b><span data-zh="本次星级">voyage stars</span></div>
+      <div class="counter"><b id="gTry">1</b><span data-zh="第几次航行">voyage no.</span></div>
+    </div>
+    <div class="ranks" id="gRanks"></div>
+    <div class="legs" id="gLegs"></div>
+    <div id="gBox" aria-live="polite"></div>
+  </div>
+</section>
+
+<section class="wrap" id="exchange" data-nav="Columbian Exchange" data-nav-zh="哥伦布大交换">
+  <div class="sec-head">
+    <h2 data-zh="哥伦布大交换：什么东西去了哪里？">The Columbian Exchange: what went where?</h2>
+    <p data-zh="1492年以后，植物、动物、疾病和人在大西洋两岸来回流动，历史学家称之为“哥伦布大交换”。把每一项拖到它流动的方向。">After 1492 plants, animals, germs and people crossed the Atlantic in both directions — historians call it the Columbian Exchange. Drag each item to the direction it travelled.</p>
+  </div>
+  <div class="two">
+    <div class="card"><div id="exSort"></div></div>
+    <div class="card">
+      <h3 data-zh="🌽 改变了谁的餐桌？">🌽 Whose dinner changed?</h3>
+      <details class="peek" open><summary data-zh="欧洲和中国：美洲作物">Europe and China: American crops</summary><p data-zh="马铃薯成了爱尔兰、德国和俄国的主食；玉米、番薯在明朝后期传入中国，能种在山地和旱地上，帮助清朝人口大大增长（约1700年1.5亿，约1800年超过3亿，约数）。辣椒也是从美洲来的——想想川菜！">Potatoes became a main food in Ireland, Germany and Russia. Maize (corn) and sweet potatoes reached China in the late Ming; they grow on hills and dry land and helped China’s population soar under the Qing (about 150 million around 1700, over 300 million by 1800, approx.). Chili peppers came from the Americas too — think Sichuan food!</p></details>
+      <details class="peek"><summary data-zh="美洲：马、牛和可怕的疾病">The Americas: horses, cattle — and deadly germs</summary><p data-zh="马改变了大平原印第安人的狩猎和生活。但天花、麻疹等旧大陆疾病让没有免疫力的美洲原住民大量死亡，许多地区人口在一百年内减少了很多（各种估计差别很大）。">Horses changed hunting and life for Plains Indians. But smallpox, measles and other Old World diseases killed huge numbers of Native Americans, who had no immunity; in many regions the population fell by a very large share within a century (estimates vary widely).</p></details>
+      <details class="peek"><summary data-zh="被迫的迁移：大西洋奴隶贸易">A forced migration: the Atlantic slave trade</summary><p data-zh="为了在美洲种植园种甘蔗、烟草和棉花，欧洲奴隶贩子把非洲人强行运过大西洋。16—19世纪，约1250万非洲人被强行押上奴隶船，约1070万人活着到达美洲（“跨大西洋奴隶贸易数据库”估计）。教科书称之为“三角贸易”。">To grow sugar, tobacco and cotton on American plantations, European slave traders forced Africans across the Atlantic. From the 1500s to the 1860s about 12.5 million Africans were forced onto slave ships and about 10.7 million survived the crossing (Trans-Atlantic Slave Trade Database estimates). China’s textbook calls it the “triangle trade”.</p></details>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real media" data-nav-zh="真实影像">
+  <div id="gallery"></div>
+  <div class="sec-head" style="margin-top:26px"><h2 data-zh="走得更远：博物馆和档案">Go further: museums and archives</h2></div>
+  <div class="linkgrid" id="links"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 测验（12题）">🧠 Quiz (12 questions)</h3><p class="sub" data-zh="选出正确答案，看看解析。有的题要看地图或图表。">Pick the best answer and read the explanation. Some questions use the map or a chart.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分一分：谁的船队？">🗂️ Sort it: whose fleet?</h3><p class="sub" data-zh="把每一项拖到（或先点再点方框）对应的国家。">Drag each item (or tap it, then tap a box) to the country that sent the fleet.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="佐治亚州标准（社会科卓越标准 GSE）：六年级 SS6H1“描述欧洲人接触对拉丁美洲的影响”，其中 b 项为哥伦布大交换（原住民人口下降、农业变化、马的引入）；四年级 SS4H2 欧洲探险者（哥伦布等）的动机、困难与成就；八年级 SS8H1 欧洲探险对佐治亚原住民的影响。标准编号以各学区现行版本为准。">Georgia Standards of Excellence (Social Studies): Grade 6 SS6H1 “Describe the impact of European contact on Latin America”, esp. element b — the Columbian Exchange (decline of the indigenous population, agricultural change, the introduction of the horse); Grade 4 SS4H2 — reasons for, obstacles to and accomplishments of explorers such as Columbus; Grade 8 SS8H1 — impact of European exploration on American Indians in Georgia. Check numbering against your district’s current version.</p>
+    <p data-zh="中国课程：统编版《世界历史》九年级上册第五单元“走向近代”——“探寻新航路”（迪亚士、达·伽马、哥伦布、麦哲伦；原因：寻找黄金与香料、传统商路受奥斯曼帝国阻碍；条件：地圆学说、航海技术、王室支持；影响：世界开始连为一体）和“早期殖民掠夺”（西班牙、葡萄牙的殖民，三角贸易）。郑和下西洋见七年级下册“明朝的对外关系”（1405—1433年七次下西洋，最远到达非洲东海岸和红海沿岸）。课次以所用版次为准。">China curriculum: unified-edition World History, Grade 9 Vol. 1, Unit 5 “Toward the Modern Age” — the lesson on new sea routes (Dias, da Gama, Columbus, Magellan; causes: gold and spices, Ottoman control of old trade routes; conditions: the round-Earth idea, ship and navigation technology, royal sponsors; result: the world began to become one connected whole) and the lesson on early colonial plunder (Spanish and Portuguese colonies, the triangle trade). Zheng He is in Chinese History Grade 7 Vol. 2, “Ming foreign relations” (seven voyages 1405–1433, as far as the east coast of Africa and the Red Sea). Lesson numbers vary by printing.</p>
+    <p data-zh="说明：航线为示意图，按史料大致走向绘制，郑和航线把七次航行合在一起显示。船只数、人数、天数均为常见引用的约数：郑和首航“宝船六十二艘、二万七千八百余人”（《明史》），总船数常说二百余艘；达·伽马约170人出发、约55人返回；麦哲伦船队约270人，1522年随“维多利亚号”回到西班牙的只有18人。宝船尺寸有争议，页面同时给出古籍记载和现代估计。“领航员任务”中的天数参考史实（哥伦布从加那利群岛到巴哈马约36天；麦哲伦横渡太平洋约98天，据皮加费塔记载约19人死亡），配给和坏血病模型为教学简化。">Notes: routes are schematic, drawn from the general course in the sources; Zheng He’s seven voyages are combined. Ship, crew and day counts are commonly cited approximations: Zheng He’s first voyage “62 treasure ships, over 27,800 men” (Ming History), with 200+ ships in total often quoted; da Gama left with about 170 men and about 55 came home; Magellan’s fleet had about 270 men, and only 18 reached Spain on the Victoria in 1522. Treasure-ship size is disputed, so both the recorded size and a modern estimate are shown. The mission’s day counts follow the history (Columbus, Canaries → Bahamas ≈ 36 days; Magellan’s Pacific crossing ≈ 98 days, about 19 deaths according to Pigafetta); rations and the scurvy model are simplified for teaching. Encounters, conquest and the slave trade are presented factually and from several viewpoints.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+/* ===== WMap: canvas world map (world-atlas@2.0.2 countries-110m + d3-geo); China drawn from shared/chinamap.js (standard map incl. 台湾省、南海诸岛). Inlined in each worldhistory lesson. =====
+   M = WMap.create(stageSel, canvasSel, { extent:[[lonW,latS],[lonE,latN]], top, bottom, fill:f => colour|null, overlay:(g,M)=>{}, click:(f,h)=>{}, hover:(f,h)=>text }); M.draw(). Schematic map, modern borders. */
+const WNAMES = {
+  asia:'Kazakhstan:哈萨克斯坦|Uzbekistan:乌兹别克斯坦|Indonesia:印度尼西亚|Timor-Leste:东帝汶|Israel:以色列|Lebanon:黎巴嫩|Palestine:巴勒斯坦|Jordan:约旦|United Arab Emirates:阿联酋|Qatar:卡塔尔|Kuwait:科威特|Iraq:伊拉克|Oman:阿曼|Cambodia:柬埔寨|Thailand:泰国|Laos:老挝|Myanmar:缅甸|Vietnam:越南|North Korea:朝鲜|South Korea:韩国|Mongolia:蒙古|India:印度|Bangladesh:孟加拉国|Bhutan:不丹|Nepal:尼泊尔|Pakistan:巴基斯坦|Afghanistan:阿富汗|Tajikistan:塔吉克斯坦|Kyrgyzstan:吉尔吉斯斯坦|Turkmenistan:土库曼斯坦|Iran:伊朗|Syria:叙利亚|Armenia:亚美尼亚|Sri Lanka:斯里兰卡|China:中国|Taiwan:中国台湾省|Azerbaijan:阿塞拜疆|Georgia:格鲁吉亚|Philippines:菲律宾|Malaysia:马来西亚|Brunei:文莱|Japan:日本|Yemen:也门|Saudi Arabia:沙特阿拉伯|N. Cyprus:北塞浦路斯|Cyprus:塞浦路斯|Turkey:土耳其',
+  africa:'Tanzania:坦桑尼亚|W. Sahara:西撒哈拉|Dem. Rep. Congo:刚果(金)|Somalia:索马里|Kenya:肯尼亚|Sudan:苏丹|Chad:乍得|South Africa:南非|Lesotho:莱索托|Zimbabwe:津巴布韦|Botswana:博茨瓦纳|Namibia:纳米比亚|Senegal:塞内加尔|Mali:马里|Mauritania:毛里塔尼亚|Benin:贝宁|Niger:尼日尔|Nigeria:尼日利亚|Cameroon:喀麦隆|Togo:多哥|Ghana:加纳|Côte d\'Ivoire:科特迪瓦|Guinea:几内亚|Guinea-Bissau:几内亚比绍|Liberia:利比里亚|Sierra Leone:塞拉利昂|Burkina Faso:布基纳法索|Central African Rep.:中非|Congo:刚果(布)|Gabon:加蓬|Eq. Guinea:赤道几内亚|Zambia:赞比亚|Malawi:马拉维|Mozambique:莫桑比克|eSwatini:斯威士兰|Angola:安哥拉|Burundi:布隆迪|Madagascar:马达加斯加|Gambia:冈比亚|Tunisia:突尼斯|Algeria:阿尔及利亚|Eritrea:厄立特里亚|Morocco:摩洛哥|Egypt:埃及|Libya:利比亚|Ethiopia:埃塞俄比亚|Djibouti:吉布提|Somaliland:索马里兰地区|Uganda:乌干达|Rwanda:卢旺达|S. Sudan:南苏丹',
+  europe:'Russia:俄罗斯|Norway:挪威|France:法国|Sweden:瑞典|Belarus:白俄罗斯|Ukraine:乌克兰|Poland:波兰|Austria:奥地利|Hungary:匈牙利|Moldova:摩尔多瓦|Romania:罗马尼亚|Lithuania:立陶宛|Latvia:拉脱维亚|Estonia:爱沙尼亚|Germany:德国|Bulgaria:保加利亚|Greece:希腊|Albania:阿尔巴尼亚|Croatia:克罗地亚|Switzerland:瑞士|Luxembourg:卢森堡|Belgium:比利时|Netherlands:荷兰|Portugal:葡萄牙|Spain:西班牙|Ireland:爱尔兰|Italy:意大利|Denmark:丹麦|United Kingdom:英国|Iceland:冰岛|Slovenia:斯洛文尼亚|Finland:芬兰|Slovakia:斯洛伐克|Czechia:捷克|Bosnia and Herz.:波黑|Macedonia:北马其顿|Serbia:塞尔维亚|Montenegro:黑山|Kosovo:科索沃',
+  namerica:'Canada:加拿大|United States of America:美国|Haiti:海地|Dominican Rep.:多米尼加|Bahamas:巴哈马|Greenland:格陵兰岛|Mexico:墨西哥|Panama:巴拿马|Costa Rica:哥斯达黎加|Nicaragua:尼加拉瓜|Honduras:洪都拉斯|El Salvador:萨尔瓦多|Guatemala:危地马拉|Belize:伯利兹|Puerto Rico:波多黎各|Jamaica:牙买加|Cuba:古巴|Trinidad and Tobago:特立尼达和多巴哥',
+  samerica:'Argentina:阿根廷|Chile:智利|Falkland Is.:马尔维纳斯群岛(福克兰群岛)|Uruguay:乌拉圭|Brazil:巴西|Bolivia:玻利维亚|Peru:秘鲁|Colombia:哥伦比亚|Venezuela:委内瑞拉|Guyana:圭亚那|Suriname:苏里南|Ecuador:厄瓜多尔|Paraguay:巴拉圭',
+  oceania:'Australia:澳大利亚|New Zealand:新西兰|Papua New Guinea:巴布亚新几内亚|Fiji:斐济|Vanuatu:瓦努阿图|New Caledonia:新喀里多尼亚|Solomon Is.:所罗门群岛',
+  antarctica:'Antarctica:南极洲'
+};
+const WMap = (() => {
+  const ZH = { 'Fr. S. Antarctic Lands':'法属南部领地', 'United States of America':'美国' }, EN = { 'United States of America':'United States', 'Dem. Rep. Congo':'DR Congo', 'Central African Rep.':'Central African Republic', 'Bosnia and Herz.':'Bosnia & Herzegovina' };
+  for (const c in WNAMES) WNAMES[c].split('|').forEach(s => { const [en, zh] = s.split(':'); ZH[en] = zh; });
+  ZH['Taiwan'] = '中国台湾省'; EN['Taiwan'] = 'Taiwan Province of China';
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  let P = null, CN = null;
+  const load = () => P || (P = fetch('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json').then(r => r.json()).then(t =>
+    topojson.feature(t, t.objects.countries).features.filter(f => f.geometry).map(f => { const n = f.properties.name; f.info = { name:n, en:EN[n] || n, zh:ZH[n] || n }; return f; })));
+  const loadCN = () => CN || (CN = (window.ChinaMap ? ChinaMap.load() : Promise.reject('no ChinaMap')).catch(e => { console.warn('China map unavailable', e); return null; }));
+  const CHINA = { name:'China', en:'China', zh:'中国' };
+  function create(stageSel, cvSel, opt = {}){
+    const stage = document.querySelector(stageSel), cv = document.querySelector(cvSel), g = cv.getContext('2d');
+    const M = { g, opt, feats:null, cn:null, failed:false, W:0, H:0, small:false, hoverF:null };
+    let proj = null, path = null;
+    const lineWith = xy => (pts, stroke, lw = 2, dash, t = 1) => { const p = pts.map(xy).filter(Boolean); if (p.length < 2) return null;
+      const seg = []; let tot = 0; for (let i = 1; i < p.length; i++){ const l = Math.hypot(p[i][0] - p[i - 1][0], p[i][1] - p[i - 1][1]); seg.push(l); tot += l; }
+      let left = tot * Math.max(0, Math.min(1, t)), end = p[0];
+      g.beginPath(); g.moveTo(...p[0]);
+      for (let i = 1; i < p.length && left > 0; i++){ const l = seg[i - 1]; if (l > M.W * .6){ g.moveTo(...p[i]); end = p[i]; left -= l; continue; }
+        if (left >= l){ g.lineTo(...p[i]); end = p[i]; left -= l; } else { const k = left / l; end = [p[i - 1][0] + (p[i][0] - p[i - 1][0]) * k, p[i - 1][1] + (p[i][1] - p[i - 1][1]) * k]; g.lineTo(...end); left = 0; } }
+      g.setLineDash(dash || []); g.strokeStyle = stroke; g.lineWidth = lw; g.lineJoin = g.lineCap = 'round'; g.stroke(); g.setLineDash([]); return end; };
+    const dotWith = xy => (ll, r, fill, stroke) => { const p = xy(ll); if (!p) return null; g.beginPath(); g.arc(p[0], p[1], r, 0, 7); g.fillStyle = fill; g.fill(); if (stroke){ g.lineWidth = 2; g.strokeStyle = stroke; g.stroke(); } return p; };
+    M.text = (t, x, y, o = {}) => { g.font = `${o.w || 800} ${o.s || 12}px Nunito, "PingFang SC", "Microsoft YaHei", sans-serif`; g.textAlign = o.a || 'center'; g.textBaseline = 'middle';
+      g.lineWidth = 3.2; g.strokeStyle = o.halo || css('--surface') || '#fff'; g.lineJoin = 'round'; g.strokeText(t, x, y); g.fillStyle = o.c || css('--ink'); g.fillText(t, x, y); };
+    function fitProj(ex, box, rot){ const [[a, b], [c, e]] = ex, P = d3.geoNaturalEarth1().rotate([-(rot ?? ((a + c) / 2)), 0]);
+      const pts = []; for (let i = 0; i <= 72; i++){ const lo = a + (c - a) * i / 72; pts.push([lo, b], [lo, e], [lo, (b + e) / 2]); } P.fitExtent(box, { type:'MultiPoint', coordinates:pts }); return P; }
+    function layout(){
+      const r = stage.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!r.width) return false;
+      cv.width = r.width * d; cv.height = r.height * d; M.W = r.width; M.H = r.height; M.d = d; M.small = r.width < 560;
+      const top = M.small ? (opt.topS ?? opt.top ?? 60) : (opt.top ?? 60), bot = M.small ? (opt.bottomS ?? opt.bottom ?? 50) : (opt.bottom ?? 50);
+      proj = fitProj((M.small && opt.extentS) || opt.extent || [[-170, -58], [180, 78]], [[8, top], [r.width - 8, r.height - bot]], opt.rot);
+      path = d3.geoPath(proj, g); M.proj = proj; M.path = path;
+      M.I = null;
+      if (opt.inset){ const fb = (M.small && opt.inset.boxS) || opt.inset.box, bx = [fb[0] * r.width, fb[1] * r.height, fb[2] * r.width, fb[3] * r.height];
+        const P = fitProj(opt.inset.extent, [[bx[0] + 4, bx[1] + 18], [bx[0] + bx[2] - 4, bx[1] + bx[3] - 4]], opt.inset.rot);
+        const I = { inset:true, box:bx, proj:P, path:d3.geoPath(P, g), small:M.small, W:M.W, H:M.H, text:M.text };
+        I.xy = ll => P(ll); I.inv = (x, y) => P.invert([x, y]); I.line = lineWith(I.xy); I.dot = dotWith(I.xy); M.I = I; }
+      return true;
+    }
+    M.xy = ll => proj ? proj(ll) : null;
+    M.inv = (x, y) => proj && proj.invert ? proj.invert([x, y]) : null;
+    /* M.line(pts, colour, width, dash, t): polyline through [lon,lat] waypoints; t (0..1) draws only the first part; returns the [x,y] of the tip */
+    M.line = lineWith(M.xy);
+    M.dot = dotWith(M.xy);
+    M.inBox = (x, y) => !!(M.I && x >= M.I.box[0] && x <= M.I.box[0] + M.I.box[2] && y >= M.I.box[1] && y <= M.I.box[1] + M.I.box[3]);
+    M.view = h => (h && h.inset) ? M.I : M;
+    function countries(pth, P, fillOf, land, ink2){
+      const useCN = !!M.cn, skip = f => useCN && (f.info.name === 'China' || f.info.name === 'Taiwan');
+      M.feats.forEach(f => { if (skip(f)) return; g.beginPath(); pth(f); g.fillStyle = land; g.fill(); const fc = f.info.name === 'Taiwan' ? fillOf(CHINA) : fillOf(f.info); if (fc !== land){ g.fillStyle = fc; g.fill(); } });
+      g.beginPath(); M.feats.forEach(f => { if (!skip(f) && f.info.name !== 'Antarctica') pth(f); }); g.strokeStyle = ink2; g.lineWidth = .5; g.globalAlpha = .7; g.stroke(); g.globalAlpha = 1;
+      if (useCN){ const T = p => P(p), cf = fillOf(CHINA), polys = { features:M.cn.features.filter(f => f.geometry.type !== 'MultiLineString') };
+        g.globalAlpha = .8; ChinaMap.draw2D(g, polys, T, { stroke:ink2, lineWidth:1.1 }); g.globalAlpha = 1; ChinaMap.draw2D(g, polys, T, { fill:land }); if (cf !== land) ChinaMap.draw2D(g, polys, T, { fill:cf });
+        ChinaMap.draw2D(g, { features:M.cn.features.filter(f => f.geometry.type === 'MultiLineString') }, T, { stroke:ink2, lineWidth:.8 }); }
+      if (M.hoverF && M.hoverF !== CHINA){ const hf = M.feats.find(f => f.info === M.hoverF); if (hf){ g.beginPath(); pth(hf); g.strokeStyle = css('--ink'); g.lineWidth = 1.6; g.stroke(); } }
+    }
+    M.draw = () => {
+      const r = stage.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2);
+      if (!M.feats){ cv.width = r.width * d; cv.height = r.height * d; g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, r.width, r.height); M.W = r.width; M.H = r.height;
+        M.text(Lab.L(M.failed ? {en:'The map needs an internet connection.', zh:'地图需要联网才能加载。'} : {en:'Loading map…', zh:'地图加载中…'}), r.width / 2, r.height / 2, { s:15, c:css('--ink-2') }); return; }
+      if (!proj && !layout()) return;
+      g.setTransform(M.d, 0, 0, M.d, 0, 0); g.clearRect(0, 0, M.W, M.H);
+      const land = css('--surface') || '#fff', sea = css('--surface-2') || '#eef3f9', ink2 = css('--ink-2') || '#4a5878';
+      g.beginPath(); path({ type:'Sphere' }); g.fillStyle = sea; g.fill();
+      g.beginPath(); path(d3.geoGraticule10()); g.strokeStyle = ink2; g.globalAlpha = .12; g.lineWidth = .6; g.stroke(); g.globalAlpha = 1;
+      const fillOf = info => (opt.fill && opt.fill(info)) || land;
+      countries(path, proj, fillOf, land, ink2);
+      if (M.I){ const [[a, b], [c, e]] = opt.inset.extent; g.beginPath(); path({ type:'LineString', coordinates:[[a, b], [a, e], [c, e], [c, b], [a, b]] }); g.setLineDash([4, 3]); g.strokeStyle = ink2; g.lineWidth = 1.2; g.stroke(); g.setLineDash([]); }
+      if (opt.overlay){ g.save(); opt.overlay(g, M); g.restore(); }
+      if (M.I){ const I = M.I, [x, y, w, h] = I.box; g.save(); g.shadowColor = 'rgba(0,0,0,.18)'; g.shadowBlur = 10; g.fillStyle = sea; g.fillRect(x, y, w, h); g.restore();
+        g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip(); g.fillStyle = sea; g.fillRect(x, y, w, h); countries(I.path, I.proj, fillOf, land, ink2);
+        if (opt.overlay){ g.save(); opt.overlay(g, I); g.restore(); } g.restore();
+        g.strokeStyle = ink2; g.lineWidth = 1.2; g.strokeRect(x, y, w, h); g.fillStyle = sea; g.fillRect(x + 1, y + 1, w - 2, 15);
+        M.text(Lab.L(opt.inset.label || {en:'Zoom', zh:'放大图'}), x + 6, y + 9, { s:10.5, a:'left', c:ink2, w:800 }); }
+      if (opt.note !== false) M.text(Lab.L({en:'Schematic map · modern borders', zh:'示意图 · 现代国界'}), 10, M.H - 10, { s:10, a:'left', c:ink2, w:700 });
+    };
+    M.hit = e => { const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, ins = M.inBox(x, y), ll = ins ? M.I.inv(x, y) : M.inv(x, y); if (!ll || !M.feats) return { x, y, inset:ins };
+      if (M.cn && ChinaMap.hit(M.cn, ll[0], ll[1])) return { x, y, ll, f:CHINA, inset:ins };
+      const f = M.feats.find(f => d3.geoContains(f, ll)); return { x, y, ll, inset:ins, f:f ? (f.info.name === 'Taiwan' ? CHINA : f.info) : null }; };
+    cv.addEventListener('click', e => { if (!M.feats || !opt.click) return; const h = M.hit(e); opt.click(h.f || null, h, e); });
+    cv.addEventListener('pointermove', e => { if (e.pointerType === 'touch' || !M.feats) return; const h = M.hit(e), f = h.f || null; if (f !== M.hoverF){ M.hoverF = f; M.draw(); }
+      cv.title = opt.hover ? (opt.hover(f, h) || '') : (f ? Lab.L(f) : ''); });
+    cv.addEventListener('pointerleave', () => { if (M.hoverF){ M.hoverF = null; M.draw(); } });
+    new ResizeObserver(() => requestAnimationFrame(() => { proj = null; M.draw(); })).observe(stage);
+    const redraw = () => setTimeout(M.draw, 60);
+    new MutationObserver(redraw).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme', 'lang'] });
+    if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redraw);
+    Promise.all([load(), loadCN()]).then(([f, cn]) => { M.feats = f; M.cn = cn; proj = null; M.draw(); if (opt.ready) opt.ready(M); }).catch(err => { console.warn(err); M.failed = true; M.draw(); });
+    M.draw();
+    return M;
+  }
+  return { create, css, ZH };
+})();
+/* ===== shared helpers for the worldhistory lessons ===== */
+const o = (en, zh) => ({en, zh});
+const css = WMap.css;
+const stars = n => '★'.repeat(n) + '☆'.repeat(3 - n);
+function ranksHTML(R, score){ const ri = R.reduce((a, r, i) => score >= r[0] ? i : a, 0); return R.map((r, i) => `<span class="${i === ri ? 'on' : ''}">${i <= ri ? '🏅' : '🔒'} ${Lab.L(r[1])}</span>`).join(''); }
+function renderLinks(sel, LINKS){ Lab.$(sel).innerHTML = LINKS.map(l => `<a class="linkcard" href="${l.u}" target="_blank" rel="noopener"><b data-zh="${l.t.zh}">${l.t.en}</b><span data-zh="${l.d.zh}">${l.d.en}</span><small>${new URL(l.u).hostname.replace('www.', '')} ↗</small></a>`).join(''); Lab.translate(Lab.$(sel)); }
+const CQ = '?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', CP = 'https://commons.wikimedia.org/wiki/File:';
+const HP = o('Historic photo','历史照片');
+const YT = (yt, en, zh, ch) => ({ type:'youtube', yt, en, zh, kind:o('Video','视频'), credit:ch + ' (YouTube)', license:'YouTube' });
+/* "Meanwhile in China" strip: items [{y, t:{en,zh}, b:{en,zh}}] */
+function chinaStrip(sel, items){ const el = Lab.$(sel); const draw = () => el.innerHTML = `<div class="cnstrip-h">${Lab.L(o('🇨🇳 Meanwhile in China','🇨🇳 同一时期的中国'))}</div><div class="cnstrip-row">${items.map(i => `<div class="cnc"><b>${i.y}</b><h4>${Lab.L(i.t)}</h4><p>${Lab.L(i.b)}</p></div>`).join('')}</div>`; Lab.onLang(draw); }
+
+/* ================= Voyage data (lon, lat — schematic) ================= */
+const R = {
+  zhMain:[[118.8,32.05],[121.1,31.5],[122.5,29],[119.6,25.9],[117,22],[111.5,15.5],[109.3,13.8],[107.5,9],[104.6,1.4],[102.25,2.2],[99,4.5],[97.1,5.3],[92,6],[80.2,5.9],[77.6,7.4],[75.8,11.25],[70,17],[62,23.5],[56.3,26.6]],
+  zhAf:[[75.8,11.25],[74,6],[73.5,4.2],[60,2],[45.4,2.0],[42,-1],[40.1,-3.2]],
+  zhRed:[[56.3,26.6],[58,22],[52,14],[45.0,12.6],[43.4,12.7],[41,16],[39.2,21.5]],
+  dias:[[-9.14,38.7],[-13,30],[-17.5,21],[-18,14.7],[-12,6],[-2,3.5],[6,1],[9,-3],[11.5,-12],[13,-20],[14.5,-27],[12,-35],[18,-38.5],[22.1,-34.3],[26.5,-33.8],[22.1,-34.6],[18.47,-34.5],[15,-30]],
+  gama:[[-9.14,38.7],[-15.5,28],[-23.5,15],[-25,2],[-31,-15],[-27,-28],[-10,-35],[17.9,-32.7],[18.47,-34.6],[22.1,-34.4],[31,-30],[36,-24],[40.7,-15],[39.7,-4.05],[40.1,-3.2],[55,4],[68,10],[75.8,11.25]],
+  col:[[-6.95,37.2],[-12,32],[-17.1,28.1],[-30,28.2],[-45,28],[-60,26.5],[-74.5,24.05],[-75.8,21.6],[-72.4,19.9]],
+  mag:[[-6.35,36.8],[-16,28],[-23,12],[-30,-4],[-36,-12],[-43.2,-22.9],[-55,-35.5],[-62,-42],[-67.7,-49.3],[-68.5,-52.4],[-71.5,-53.6],[-75,-52.5],[-78,-46],[-82,-35],[-92,-22],[-110,-12],[-135,-4],[-155,3],[-170,9],[-179.9,11.5]],
+  mag2:[[179.9,11.5],[160,13],[144.8,13.4],[130,11.5],[125.8,10.3],[123.95,10.3],[121,8.5],[119,6.5],[125,2],[127.4,0.7],[125,-6],[124,-9.5],[110,-20],[90,-30],[60,-38],[35,-37],[18.5,-35.5],[10,-25],[0,-10],[-18,5],[-23.5,15],[-20,28],[-12,35],[-6.35,36.8]],
+  triOut:[[-9.14,38.7],[-15,25],[-17.5,14.5],[-12,7],[2.4,5.8]], triMid:[[2.4,5.8],[-15,2],[-30,5],[-50,12],[-61,15.3]], triHome:[[-61,15.3],[-66,25],[-55,35],[-35,40],[-9.14,38.7]],
+  galOut:[[-99.9,16.85],[-115,13],[-140,13],[-170,13],[-179.9,13.2]], galOut2:[[179.9,13.2],[160,13.4],[144.8,13.4],[130,13.5],[120.97,14.6]],
+  galBack:[[120.97,14.6],[130,25],[145,35],[165,40],[179.9,40.5]], galBack2:[[-179.9,40.5],[-155,40],[-130,37],[-118,31],[-105,22],[-99.9,16.85]]
+};
+const V = {
+ zheng:{ c:'#c0392b', who:o('Zheng He (China, Ming)','郑和（中国·明朝）'), short:o('Zheng He','郑和'), date:o('7 voyages, 1405–1433','七次下西洋，1405—1433年'), ships:200, crew:27800,
+   act:[[1405,1407.7],[1407.8,1409.5],[1409.8,1411.5],[1413.8,1415.6],[1417.4,1419.6],[1421.2,1422.7],[1431.9,1433.6]],
+   paths:[{p:'zhMain',a:1405,b:1414.5},{p:'zhAf',a:1417.5,b:1419},{p:'zhRed',a:1432,b:1433,dash:[5,4]}],
+   job:o('“Down to the Western Oceans” with the biggest wooden fleet of its time','率领当时世界上规模最大的木帆船队“下西洋”'),
+   facts:{en:['The first voyage: 62 large “treasure ships” and over 27,800 men (Ming History); 200+ ships in all are often quoted.','Over 28 years the fleet visited 30+ countries and regions of Asia and Africa — as far as the east coast of Africa and the Red Sea.','It carried silk and porcelain and brought back spices, gems — and a giraffe for the emperor (1414).','Goal: show the Ming emperor’s power and build friendly “tribute” ties — not conquest or colonies. The voyages stopped after 1433.'],
+         zh:['第一次出航有大宝船62艘、2.78万余人（《明史》），全部船只常说有200多艘。','28年间到访亚非30多个国家和地区，最远到达非洲东海岸和红海沿岸。','船队带去丝绸、瓷器，带回香料、宝石，1414年还带回一头长颈鹿献给皇帝。','目的：宣扬明朝国威，加强与亚非国家的友好往来和朝贡贸易，不是征服和殖民。1433年以后不再远航。']},
+   rhyme:o('1405 + 87 = 1492: Zheng He sailed 87 years before Columbus.','1405 + 87 = 1492：郑和下西洋比哥伦布早87年。'), mix:o('Zheng He did not reach the Americas; his farthest point was East Africa (around today’s Kenya) and the Red Sea.','郑和没有到达美洲，他最远到达非洲东海岸（今肯尼亚一带）和红海沿岸。') },
+ dias:{ c:'#7c3aed', who:o('Bartolomeu Dias (Portugal)','迪亚士（葡萄牙）'), short:o('Dias','迪亚士'), date:o('1487–1488','1487—1488年'), ships:3, crew:null, act:[[1487.6,1488.95]],
+   paths:[{p:'dias',a:1487.6,b:1488.95}],
+   job:o('First European to sail round the southern tip of Africa','第一个绕过非洲南端的欧洲航海家'),
+   facts:{en:['Portugal had crept down Africa’s coast for 70 years, looking for gold and a sea road to Asian spices.','A storm blew Dias’s two caravels far south; turning east, then north, he found the coast running east — Africa had an end!','His tired crew made him turn back. The king renamed the “Cape of Storms” the Cape of Good Hope.'],
+         zh:['葡萄牙人沿非洲海岸向南探索了约70年，寻找黄金和通往亚洲香料产地的海路。','风暴把迪亚士的两艘轻快帆船吹到很远的南方；他向东、再向北航行，发现海岸线转向东方——非洲到头了！','疲惫的船员逼他返航。国王把“风暴角”改名为“好望角”。']},
+   rhyme:o('Dias = the Door (Cape of Good Hope); da Gama = the Goal (India).','迪亚士找到“门”（好望角），达·伽马到达“目的地”（印度）。'), mix:o('Dias did NOT reach India — he turned back in South Africa. Da Gama reached India ten years later.','迪亚士没有到达印度，他在南非就返航了；十年后达·伽马才到达印度。') },
+ gama:{ c:'#2563eb', who:o('Vasco da Gama (Portugal)','达·伽马（葡萄牙）'), short:o('da Gama','达·伽马'), date:o('1497–1499 (India: May 1498)','1497—1499年（1498年5月到达印度）'), ships:4, crew:170, act:[[1497.5,1499.6]],
+   paths:[{p:'gama',a:1497.5,b:1498.4}],
+   job:o('Opened the sea road from Europe to India','开辟了从欧洲到印度的新航路'),
+   facts:{en:['Four ships, about 170 men. In the South Atlantic he swung far out to sea — about 3 months without seeing land.','In East Africa (Malindi) he took on a local pilot who knew the monsoon winds across the Indian Ocean.','He reached Calicut, India, in May 1498. Only about 55 of his men made it home — many died of scurvy.','The pepper and spices he brought back paid for the voyage many times over.'],
+         zh:['4艘船、约170人。在南大西洋他远离海岸航行，约3个月看不到陆地。','在东非的马林迪，他请到一位熟悉印度洋季风的当地领航员。','1498年5月到达印度的卡利卡特。只有约55人活着回国，许多人死于坏血病。','带回的胡椒和香料，价值是这次航行费用的许多倍。']},
+   rhyme:o('’97 leave, ’98 India.','九七出发，九八到印度。'), mix:o('The route around Africa reached ASIA (India); Columbus sailed west and reached the AMERICAS.','绕过非洲的航路通往亚洲（印度）；哥伦布向西航行，到达的是美洲。') },
+ col:{ c:'#d97706', who:o('Christopher Columbus (sailing for Spain)','哥伦布（为西班牙航行）'), short:o('Columbus','哥伦布'), date:o('1492–1493','1492—1493年'), ships:3, crew:90, act:[[1492.58,1493.2]],
+   paths:[{p:'col',a:1492.58,b:1492.8}],
+   job:o('Sailed west to reach Asia — and reached the Americas','想向西到达亚洲，却到达了美洲'),
+   facts:{en:['An Italian from Genoa, paid by Spain’s Queen Isabella and King Ferdinand. Three ships: Niña, Pinta and Santa María.','He believed Earth was round (true) but much smaller than it is (false) — he thought Japan was about where America is.','12 October 1492: landing in the Bahamas, home of the Taíno people. He called them “Indians” because he thought he was in the Indies.','His voyages began Spanish conquest and colonies; Taíno numbers collapsed from disease, forced labour and violence.'],
+         zh:['他是意大利热那亚人，受西班牙女王伊莎贝拉和国王斐迪南资助，率“尼尼亚号”“平塔号”“圣玛利亚号”三艘船出发。','他相信地球是圆的（对），但把地球想得太小（错）——他以为日本就在美洲的位置。','1492年10月12日，他在巴哈马群岛登陆，那里住着泰诺人。他以为到了“印度”，就把当地人叫作“印第安人”。','他的航行开启了西班牙的征服和殖民；泰诺人因疾病、强迫劳动和暴力而大量死亡。']},
+   rhyme:o('In fourteen hundred ninety-two, Columbus sailed the ocean blue.','1492年，哥伦布驶过蔚蓝的大洋。'), mix:o('Columbus never knew he had found continents unknown to Europeans; the name “America” comes from Amerigo Vespucci.','哥伦布至死都以为自己到的是亚洲；“美洲”（America）一词来自另一位航海家亚美利哥·韦斯普奇。') },
+ mag:{ c:'#059669', who:o('Magellan & Elcano (sailing for Spain)','麦哲伦与埃尔卡诺（为西班牙航行）'), short:o('Magellan','麦哲伦'), date:o('1519–1522','1519—1522年'), ships:5, crew:270, act:[[1519.7,1522.7]],
+   paths:[{p:'mag',a:1519.7,b:1520.98},{p:'mag2',a:1521,b:1522.68}],
+   job:o('The first voyage all the way around the world','人类第一次环球航行'),
+   facts:{en:['Five ships and about 270 men left Spain in 1519 to reach the Spice Islands by sailing west.','They found a stormy passage at South America’s tip (the Strait of Magellan) and entered an ocean so calm Magellan called it the “Pacific”.','The crossing took about 98 days; the crew ate leather and sawdust, and scurvy killed many.','Magellan was killed in 1521 in a battle on Mactan in the Philippines. Juan Sebastián Elcano brought the last ship, the Victoria, home with 18 men in 1522.'],
+         zh:['1519年，5艘船、约270人从西班牙出发，想向西航行到达香料群岛。','他们在南美洲南端找到一条风浪险恶的海峡（麦哲伦海峡），驶入一片平静的大洋，麦哲伦称之为“太平洋”。','横渡太平洋用了约98天，船员吃皮革和木屑，许多人死于坏血病。','1521年，麦哲伦在菲律宾的马克坦岛与当地人作战时被杀。埃尔卡诺率领最后一艘船“维多利亚号”和18个人于1522年回到西班牙。']},
+   rhyme:o('5 ships out, 1 ship home: the world is round and the oceans are one.','五船出发，一船归来：地球是圆的，海洋连成一片。'), mix:o('Magellan himself did not finish the trip — he died in the Philippines. The voyage is often called the Magellan–Elcano expedition.','麦哲伦本人没有完成环球航行，他死在菲律宾；这次航行也常被称为“麦哲伦—埃尔卡诺环球航行”。') },
+ tri:{ c:'#6b7280', who:o('The Atlantic “triangle trade”','大西洋“三角贸易”'), short:o('Triangle trade','三角贸易'), date:o('1500s–1860s','16—19世纪'), ships:0, crew:0, act:[], paths:[{p:'triOut',a:1530,b:1540},{p:'triMid',a:1530,b:1540,dash:[6,4]},{p:'triHome',a:1530,b:1540}],
+   job:o('Goods → Africa; enslaved people → Americas; sugar, cotton, silver → Europe','商品运往非洲；被奴役的人运往美洲；糖、棉花、金银运回欧洲'),
+   facts:{en:['Outward: European ships carried cloth, guns and metal goods to West Africa.','Middle passage: about 12.5 million Africans were forced onto slave ships; about 10.7 million survived the crossing (Trans-Atlantic Slave Trade Database).','Homeward: sugar, tobacco, cotton and silver made in the Americas went back to Europe.','Africa lost millions of young people; enslaved people and their descendants built much of the Americas’ wealth.'],
+         zh:['出程：欧洲船把布匹、枪支和金属制品运往西非。','中程：约1250万非洲人被强行押上奴隶船，约1070万人活着到达美洲（“跨大西洋奴隶贸易数据库”估计）。','归程：把美洲生产的糖、烟草、棉花和金银运回欧洲。','非洲失去了数以百万计的青壮年；被奴役者和他们的后代为美洲创造了大量财富。']},
+   rhyme:o('Out, Middle, Home — three sides of one triangle.','出程、中程、归程——三角贸易的三条边。'), mix:o('The “middle passage” is the crossing from Africa to the Americas — the cruellest side of the triangle.','“中程”指从非洲到美洲的航程，是三角贸易中最残酷的一段。') },
+ gal:{ c:'#a16207', who:o('The Manila galleons (Spain)','马尼拉大帆船（西班牙）'), short:o('Manila galleons','马尼拉大帆船'), date:o('1565–1815','1565—1815年'), ships:2, crew:400, act:[[1565,1600]], paths:[{p:'galOut',a:1565,b:1567},{p:'galOut2',a:1567,b:1568},{p:'galBack',a:1568,b:1569},{p:'galBack2',a:1569,b:1570}],
+   job:o('American silver across the Pacific to buy Chinese silk and porcelain','把美洲白银运过太平洋，换取中国丝绸和瓷器'),
+   facts:{en:['Each year Spanish galleons sailed between Acapulco (Mexico) and Manila (Philippines).','They carried silver mined in Mexico and Peru; Chinese merchants in Manila traded silk and porcelain for it.','A huge share of the world’s silver flowed to Ming China — and the Ming began collecting taxes in silver.'],
+         zh:['西班牙大帆船每年往返于墨西哥的阿卡普尔科和菲律宾的马尼拉。','船上装着墨西哥和秘鲁开采的白银；中国商人在马尼拉用丝绸和瓷器换取白银。','世界上很大一部分白银流入明代中国，明朝开始用白银征税。']},
+   rhyme:o('Silver west, silk east.','白银向西，丝绸向东。'), mix:o('The galleons linked the Americas and Asia directly — globalization started earlier than you think!','大帆船把美洲和亚洲直接连了起来——全球化比你想象的开始得更早！') }
+};
+const ORDER = ['zheng','dias','col','gama','mag','tri','gal'];
+const LEN = {}; ORDER.forEach(k => LEN[k] = V[k].paths.reduce((s, p) => s + d3.geoLength({ type:'LineString', coordinates:R[p.p] }) * 6371, 0));
+const fmtKm = km => Lab.lang === 'zh' ? Math.round(km / 100) * 100 + ' 千米' : Math.round(km / 100) * 100 + ' km · ' + Math.round(km * .6214 / 100) * 100 + ' mi';
+const CNS = [
+ { y:1405, t:o('Zheng He sets sail','郑和首次下西洋'), b:o('Emperor Yongle (永乐帝) sends the fleet from Liujiagang (刘家港, today’s Taicang) near Shanghai.','明成祖派船队从刘家港（今江苏太仓）出发。') },
+ { y:1433, t:o('The last voyage','最后一次远航'), b:o('After Zheng He dies, the voyages stop; the Ming limits private sea trade (海禁, “sea ban”).','郑和去世后不再远航；明朝实行“海禁”，限制民间海外贸易。') },
+ { y:1553, t:o('Portuguese in Macao','葡萄牙人进入澳门'), b:o('Portugal gains the right to live and trade in Macao (澳门) — Europeans arrive on China’s coast.','葡萄牙攫取了在澳门的居住权——欧洲人来到中国沿海。') },
+ { y:1581, t:o('Taxes paid in silver','赋税用白银交纳'), b:o('Zhang Juzheng’s “Single Whip” tax reform (一条鞭法) — silver flowing in from the Americas and Japan made it possible.','张居正推行“一条鞭法”，赋役折银交纳——大量来自美洲和日本的白银让这成为可能。') },
+ { y:'1500s', t:o('New crops arrive','美洲作物传入'), b:o('Maize (玉米), sweet potatoes (番薯) and chili peppers reach China from the Americas.','玉米、番薯、辣椒等美洲作物传入中国。') }
+];
+
+/* ================= Map ================= */
+const App = { year:1400, sel:null, on:{}, timer:null, hits:[] };
+ORDER.forEach(k => App.on[k] = true);
+const visible = k => App.on[k] && App.year >= V[k].paths[0].a;
+const prog = (k, p) => Math.max(0, Math.min(1, (App.year - p.a) / (p.b - p.a)));
+const atSea = k => V[k].act.some(([a, b]) => App.year >= a && App.year <= b);
+const M = WMap.create('#mapStage', '#mapCv', { extent:[[-180,-58],[180,76]], rot:20, top:64, bottom:34, topS:120, bottomS:30,
+  fill: f => f.name === 'Portugal' || f.name === 'Spain' ? (App.year >= 1480 ? 'rgba(217,119,6,.28)' : null) : f.name === 'China' ? 'rgba(192,57,43,.20)' : null,
+  overlay: (g, M) => {
+    App.hits = [];
+    if (App.year >= 1494){ const t = [[-46.6, 72], [-46.6, -60]]; M.line(t, css('--ink-2'), 1.2, [3, 5]); const p = M.xy([-46.6, 48]); if (p && !M.small) M.text(Lab.L(o('Tordesillas line (1494)', '托尔德西里亚斯线（1494年）')), p[0] + 4, p[1], { s:10.5, a:'left', c:css('--ink-2') }); }
+    ORDER.forEach(k => { if (!visible(k)) return; const v = V[k], sel = App.sel === k, lw = sel ? 4 : 2.6;
+      let tip = null; v.paths.forEach(pp => { const t = prog(k, pp); if (t <= 0) return; const e = M.line(R[pp.p], v.c, lw, pp.dash, t); if (e) tip = e; App.hits.push({ k, pts:R[pp.p].map(M.xy).filter(Boolean) }); });
+      if (tip){ const sea = atSea(k) || (k === 'tri' || k === 'gal'); g.beginPath(); g.arc(tip[0], tip[1], sel ? 7 : 5.5, 0, 7); g.fillStyle = sea ? v.c : css('--surface'); g.fill(); g.lineWidth = 2; g.strokeStyle = sea ? css('--surface') : v.c; g.stroke();
+        App.hits.push({ k, pts:[tip] }); if (!M.small || sel) M.text(Lab.L(v.short), tip[0] + 9, tip[1] - 9, { s:11.5, a:'left', c:v.c }); } });
+    [['Calicut','卡利卡特',75.8,11.25],['Malindi','马林迪',40.1,-3.2],['Lisbon','里斯本',-9.14,38.7],['Nanjing','南京',118.8,32.05]].forEach(c => { if (App.year < 1405) return; const p = M.dot([c[2], c[3]], 3, css('--ink-2')); if (p && !M.small) M.text(Lab.lang === 'zh' ? c[1] : c[0], p[0], p[1] + 11, { s:10, c:css('--ink-2'), w:700 }); });
+    if (App.year >= 1488 && (App.sel === 'dias' || App.sel === 'gama' || !M.small)){ const p = M.xy([18.47, -34.4]); if (p) M.text(Lab.L(o('Cape of Good Hope', '好望角')), p[0], p[1] + 14, { s:10.5, c:css('--ink-2') }); }
+  },
+  click: (f, h) => { const k = keyAt(h.x, h.y); if (k){ select(k); } else if (f) tip(o(`${f.en} (modern border).`, `${f.zh}（现代国界）。`)); },
+  hover: (f, h) => { const k = h && keyAt(h.x, h.y); return k ? Lab.L(V[k].who) : (f ? Lab.L(f) : ''); }
+});
+function keyAt(x, y){
+  let best = null, bd = 13;
+  App.hits.forEach(H => { const p = H.pts; if (p.length === 1){ const d = Math.hypot(p[0][0] - x, p[0][1] - y); if (d < bd + 4){ bd = d - 4; best = H.k; } return; }
+    for (let i = 1; i < p.length; i++){ const a = p[i - 1], b = p[i], L2 = (b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2; if (!L2 || L2 > (M.W * .6) ** 2) continue;
+      const t = Math.max(0, Math.min(1, ((x - a[0]) * (b[0] - a[0]) + (y - a[1]) * (b[1] - a[1])) / L2)), d = Math.hypot(x - a[0] - t * (b[0] - a[0]), y - a[1] - t * (b[1] - a[1])); if (d < bd){ bd = d; best = H.k; } } });
+  return best;
+}
+const tip = m => Lab.$('#mapTip').textContent = Lab.L(m || o('Click a route or a ship · drag the year', '点击航线或船只 · 拖动年份'));
+function renderBtns(){
+  Lab.$('#vbtns').innerHTML = ORDER.map(k => `<button class="tbtn ${App.on[k] ? 'on' : ''}" data-k="${k}"><span class="dot-s" style="background:${V[k].c}"></span>${Lab.L(V[k].short)}</button>`).join('');
+  Lab.$$('#vbtns button').forEach(b => b.onclick = () => { const k = b.dataset.k; App.on[k] = !App.on[k]; if (!App.on[k] && App.sel === k){ App.sel = null; renderInfo(); } renderBtns(); M.draw(); });
+}
+function select(k){ App.sel = k; if (!App.on[k]){ App.on[k] = true; renderBtns(); } renderInfo(); M.draw(); }
+function sail(k){ stop(); const v = V[k], a = v.paths[0].a, b = v.paths[v.paths.length - 1].b, t0 = performance.now(), dur = 4500;
+  App.sel = k; renderInfo();
+  const step = now => { const t = Math.min(1, (now - t0) / dur); App.year = a + (b - a) * t; renderYear(); if (t < 1 && App.sail === step) requestAnimationFrame(step); };
+  App.sail = step; requestAnimationFrame(step); }
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel;
+  if (!k){
+    box.innerHTML = `<span class="tag">${Lab.L(o('How to use the map','怎样使用地图'))}</span><h3>${Lab.L(o('Five voyages, one connected world','五次远航，一个相连的世界'))}</h3>
+      <ul><li>${Lab.L(o('Each colour is one fleet. A filled dot = the fleet is at sea in this year.','每种颜色代表一支船队；实心圆点表示这一年船队正在海上。'))}</li>
+      <li>${Lab.L(o('Why sail at all? Europeans wanted gold and Asian spices, and the Ottoman Empire controlled the old land routes.','为什么要远航？欧洲人想要黄金和亚洲香料，而传统商路被奥斯曼帝国控制。'))}</li>
+      <li>${Lab.L(o('How? A round-Earth idea, the compass (from China), the astrolabe and quick, nimble caravels — plus kings who paid.','靠什么？地圆学说、来自中国的指南针、星盘和轻快帆船，以及肯出钱的国王。'))}</li></ul>
+      <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(o('Dias ’88 Cape · Columbus ’92 America · da Gama ’98 India · Magellan ’19–’22 round the world.','迪亚士八八好望角，哥伦布九二到美洲，达·伽马九八到印度，麦哲伦一九到二二绕地球。'))}</div>
+      <div class="nav"><button id="startBtn">${Lab.L(o('Start with Zheng He ▶','从郑和开始 ▶'))}</button></div>`;
+    Lab.$('#startBtn').onclick = () => sail('zheng'); return;
+  }
+  const v = V[k], i = ORDER.indexOf(k);
+  box.innerHTML = `<span class="tag">${Lab.L(v.date)}</span><h3><span class="dot" style="background:${v.c}"></span>${Lab.L(v.who)}</h3>
+    <div class="job">${Lab.L(v.job)}</div>
+    <div class="pill">${v.ships ? `🚢 ${k === 'zheng' ? '200+' : v.ships} · ` : ''}${v.crew ? `👥 ${k === 'zheng' ? '27,800' : '~' + v.crew} · ` : ''}📏 ${fmtKm(LEN[k])}</div>
+    <b class="kh">${Lab.L(o('📌 KEY FACTS','📌 要点'))}</b><ul>${Lab.L(v.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(v.rhyme)}</div>
+    <div class="mix"><b>${Lab.L(o('⚠️ Don’t mix up:','⚠️ 易错点：'))}</b><span>${Lab.L(v.mix)}</span></div>
+    <div class="btnrow"><button class="btn" id="sailBtn">${Lab.L(o('⛵ Sail this route','⛵ 播放这条航线'))}</button><button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button></div>
+    <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
+  Lab.$('#sailBtn').onclick = () => sail(k);
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(v.who), Lab.L(v.date), Lab.L(v.job), ...Lab.L(v.facts)].join(Lab.lang === 'zh' ? '。' : '. '));
+  Lab.$('#pPrev').onclick = () => { const n = ORDER[(i - 1 + ORDER.length) % ORDER.length]; if (App.year < V[n].paths[0].b) go(V[n].paths[V[n].paths.length - 1].b); select(n); };
+  Lab.$('#pNext').onclick = () => { const n = ORDER[(i + 1) % ORDER.length]; if (App.year < V[n].paths[0].b) go(V[n].paths[V[n].paths.length - 1].b); select(n); };
+}
+function renderYear(){
+  const y = App.year; Lab.$('#yr').value = Math.floor(y); Lab.$('#yrOut').textContent = Math.floor(y);
+  let ships = 0, crew = 0, longest = 0;
+  ORDER.forEach(k => { if (atSea(k) && k !== 'tri'){ ships += V[k].ships; crew += V[k].crew || 0; }
+    const done = V[k].paths.reduce((s, p) => s + prog(k, p) * d3.geoLength({ type:'LineString', coordinates:R[p.p] }) * 6371, 0); if (k !== 'tri' && k !== 'gal') longest = Math.max(longest, done); });
+  if (y >= 1530) { ships += 30; crew += 1500; }
+  Lab.$('#cShips').textContent = ships ? (y >= 1530 ? ships + '+' : ships) : '0';
+  Lab.$('#cCrew').textContent = crew ? crew.toLocaleString('en-US') + (y >= 1530 ? '+' : '') : '0';
+  Lab.$('#cLong').textContent = longest ? fmtKm(longest) : '—';
+  Lab.$('#cJoin').textContent = Lab.L(y >= 1522.68 ? o('✓ Yes — round the world', '✓ 是——环球航行') : y >= 1492.8 ? o('◐ Partly', '◐ 部分') : o('✗ Not yet', '✗ 还没有'));
+  Lab.$('#playBtn').textContent = App.timer ? '⏸' : '▶';
+  M.draw();
+}
+function go(y){ App.year = Math.max(1400, Math.min(1600, y)); renderYear(); }
+function stop(){ App.sail = null; if (App.timer){ clearInterval(App.timer); App.timer = null; } }
+Lab.$('#yr').oninput = e => { stop(); go(+e.target.value); };
+Lab.$('#playBtn').onclick = () => { if (App.timer){ stop(); renderYear(); return; } stop(); if (App.year >= 1600) App.year = 1400;
+  App.timer = setInterval(() => { if (App.year >= 1600){ stop(); renderYear(); } else go(Math.floor(App.year) + 1); }, 160); renderYear(); };
+Lab.onLang(() => { tip(); renderBtns(); renderInfo(); renderYear(); });
+chinaStrip('#cnStrip', CNS);
+
+/* ================= Ship sizes ================= */
+(function(){
+  const cv = Lab.$('#sizeCv'), g = cv.getContext('2d'); let mode = 'rec';
+  const ITEMS = () => [
+    { n:o('Zheng He’s largest treasure ship','郑和最大的宝船'), m:mode === 'rec' ? 137 : 70, c:'#c0392b', ship:true },
+    { n:o('Football field (with end zones)','橄榄球场（含得分区）'), m:110, c:'#16a34a' },
+    { n:o('Santa María (Columbus)','圣玛利亚号（哥伦布）'), m:19, c:'#d97706', ship:true },
+    { n:o('School bus','校车'), m:12, c:'#eab308' } ];
+  function draw(){
+    const r = cv.parentElement.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!r.width) return;
+    cv.width = r.width * d; cv.height = r.height * d; g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, r.width, r.height);
+    const L = 8, W = r.width - 16, max = 140, rowH = r.height / 4, ink = css('--ink'), ink2 = css('--ink-2');
+    ITEMS().forEach((it, i) => { const y = i * rowH + rowH * .55, w = it.m / max * W;
+      g.fillStyle = it.c; g.globalAlpha = .85;
+      if (it.ship){ g.beginPath(); g.moveTo(L, y - 6); g.lineTo(L + w, y - 10); g.lineTo(L + w * .93, y + 9); g.lineTo(L + w * .05, y + 9); g.closePath(); g.fill();
+        g.globalAlpha = 1; g.strokeStyle = it.c; g.lineWidth = 2; const masts = it.m > 60 ? 9 : 3; for (let j = 1; j <= masts; j++){ const x = L + w * j / (masts + 1); g.beginPath(); g.moveTo(x, y - 7); g.lineTo(x, y - 7 - Math.min(rowH * .2, 6 + w * .04)); g.stroke(); } }
+      else { g.fillRect(L, y - 7, w, 14); }
+      g.globalAlpha = 1; g.font = '800 13px Nunito, "Microsoft YaHei", sans-serif'; g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.fillStyle = ink;
+      g.fillText(`${Lab.L(it.n)} · ${it.m} m (${Math.round(it.m * 3.281)} ft)`, L, y - rowH * .36); });
+    g.fillStyle = ink2; g.font = '700 11px Nunito, sans-serif'; g.textAlign = 'right'; g.fillText(Lab.L(o('same scale for every bar', '所有条形使用同一比例')), r.width - 8, r.height - 4);
+    const k = (mode === 'rec' ? 137 : 70) / 19;
+    Lab.$('#sizeRead').innerHTML = `<b>≈ ${k.toFixed(1)}×</b> ${Lab.L(o(`as long as the Santa María (${mode === 'rec' ? 'recorded size' : 'modern estimate'}).`, `圣玛利亚号的长度（${mode === 'rec' ? '按古书记载' : '按现代估计'}）。`))}<br>${Lab.L(o('Fleet: 200+ ships and 27,800 men vs 3 ships and about 90 men.', '船队：200多艘船、2.78万人 对 3艘船、约90人。'))}`;
+  }
+  Lab.$$('#sizeSeg button').forEach(b => b.onclick = () => { mode = b.dataset.k; Lab.$$('#sizeSeg button').forEach(x => x.classList.toggle('on', x === b)); draw(); });
+  new ResizeObserver(() => requestAnimationFrame(draw)).observe(cv.parentElement);
+  new MutationObserver(() => setTimeout(draw, 60)).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme'] });
+  Lab.onLang(draw);
+})();
+
+/* ================= Navigator mission ================= */
+const GR = [ [0,o('Ship’s boy','见习水手')], [40,o('Sailor','水手')], [100,o('Helmsman','舵手')], [170,o('Navigator','领航员')], [250,o('Captain','船长')], [350,o('Admiral','海军上将')] ];
+const WIND = [
+ { w:'Aug 1492', h:o('Leg 1a: which way to “the Indies”?','第1段（上）：去“印度”走哪条路？'), p:o('You leave Palos, Spain (37°N) with 3 ships, heading west for Asia. Near Spain the winds usually blow FROM the west. What is your course?','你率3艘船从西班牙帕洛斯港（北纬37°）出发，向西去亚洲。西班牙附近的风通常从西边吹来。你的航线是？'),
+   c:[ { t:o('Sail south to the Canary Islands (28°N), then west with the trade winds behind you','先向南到加那利群岛（北纬28°），再顺着信风向西'), s:10, f:o('That is exactly what Columbus did. The northeast trade winds pushed his ships west in about 36 days.','哥伦布正是这么做的。东北信风推着他的船向西，用了约36天。') },
+       { t:o('Sail straight west from Spain at 37°N','从北纬37°的西班牙直接向西'), s:3, f:o('You would fight the westerlies — winds blowing in your face. Slow and dangerous.','你会一路顶着西风航行，又慢又危险。') },
+       { t:o('Hug the African coast all the way to the equator first','先沿非洲海岸一直开到赤道'), s:0, f:o('Near the equator the winds often die — sailors called it the doldrums (赤道无风带). You could drift for weeks.','赤道附近经常无风（赤道无风带），船可能漂上好几个星期。') } ] },
+ { w:'Jan 1493', h:o('Leg 1b: the way home','第1段（下）：回家的路'), p:o('Going home, the trade winds blow from the northeast — right against you. What now?','回程时，信风从东北方吹来，正好迎面。怎么办？'),
+   c:[ { t:o('Sail north to about 35–40°N, catch the westerlies and run east to Spain','向北到约北纬35°—40°，借西风向东回西班牙'), s:10, f:o('Right! Atlantic winds turn in a giant clockwise loop. Portuguese sailors called this trick the volta do mar — “turn of the sea”.','对！大西洋上的风大致绕成一个顺时针的大圈。葡萄牙水手把这个办法叫“绕海回航”。') },
+       { t:o('Zigzag (tack) straight back against the trade winds','逆着信风“之”字形抢风航行'), s:3, f:o('Possible, but painfully slow — weeks more food and water.','可以，但非常慢，要多花几个星期的食物和淡水。') },
+       { t:o('Wait in the Caribbean until the wind changes','留在加勒比海等风向改变'), s:0, f:o('The trade winds blow that way almost all year. You would wait a very long time.','信风几乎一年四季都朝那个方向吹，你要等很久很久。') } ] } ];
+const SLOTS = 30, DAYS = 98;
+function voyageHealth(W, F, Fr){ const rw = Math.min(1, 7 * W / DAYS), rf = Math.min(1, 7 * F / DAYS), safe = 42 + 7 * Math.min(Fr, 3);
+  const pen = DAYS * (1.0 * (1 - rw) + .6 * (1 - rf)) + .6 * Math.max(0, DAYS - safe) + (rw < .35 ? 40 : 0); return Math.max(0, 100 - pen); }
+const BEST = (() => { let b = 0; for (let W = 0; W <= SLOTS; W++) for (let F = 0; W + F <= SLOTS; F++) for (let Fr = 0; W + F + Fr <= SLOTS; Fr++){ const G = SLOTS - W - F - Fr; b = Math.max(b, voyageHealth(W, F, Fr) + 2 * Math.min(G, 5)); } return b; })();
+const DAYSEA = [ { n:o('Columbus 1492: Canaries → Bahamas','哥伦布1492年：加那利→巴哈马'), d:36, c:'#d97706' }, { n:o('da Gama 1497: South Atlantic loop','达·伽马1497年：南大西洋大绕行'), d:93, c:'#2563eb' }, { n:o('Magellan 1520–21: Pacific crossing','麦哲伦1520—1521年：横渡太平洋'), d:98, c:'#059669' } ];
+(function(){
+  const G = { total:0, run:0, n:1, leg:0, card:0, ans:null, lat:28, day:0, fc:0, log:[], W:10, F:10, Fr:2, done:false, res:null };
+  const box = Lab.$('#gBox');
+  function head(){
+    Lab.$('#gScore').textContent = G.total; Lab.$('#gRun').textContent = G.run + '/80'; Lab.$('#gTry').textContent = G.n;
+    const st = G.run >= 68 ? 3 : G.run >= 50 ? 2 : G.run >= 30 ? 1 : 0; Lab.$('#gStars').textContent = stars(st);
+    Lab.$('#gRanks').innerHTML = ranksHTML(GR, G.total);
+    const L = [o('① Winds','① 借风'), o('② Latitude','② 纬度'), o('③ Pacific','③ 太平洋')];
+    Lab.$('#gLegs').innerHTML = L.map((l, i) => `<span class="${i === G.leg ? 'on' : i < G.leg ? 'done' : ''}">${i < G.leg ? '✓ ' : ''}${Lab.L(l)}</span>`).join('');
+  }
+  const add = s => { G.run += s; G.total += s; };
+  function render(){ head(); if (G.leg === 0) legWind(); else if (G.leg === 1) legLat(); else if (G.leg === 2) legPac(); else finish(); }
+  function legWind(){
+    const s = WIND[G.card], best = 10;
+    if (!G.ord || G.ordFor !== s){ G.ord = Lab.shuffle([0, 1, 2]); G.ordFor = s; }
+    box.innerHTML = `<div class="scard"><div class="when">${s.w}</div><h3>${Lab.L(s.h)}</h3><p style="margin:0">${Lab.L(s.p)}</p>
+      <div class="choices">${G.ord.map(j => `<button data-j="${j}" ${G.ans != null ? 'disabled' : ''} class="${G.ans != null ? (s.c[j].s === best ? 'best' : G.ans === j ? 'meh' : '') : ''}">${Lab.L(s.c[j].t)}</button>`).join('')}</div>
+      ${G.ans != null ? `<div class="fb ${s.c[G.ans].s === best ? 'good' : 'bad'}">${s.c[G.ans].s === best ? '✅ ' : '🤔 '}${Lab.L(s.c[G.ans].f)}</div><div class="btnrow"><button class="btn" id="gGo">${Lab.L(o('Next ▶','下一步 ▶'))}</button></div>` : ''}</div>`;
+    Lab.$$('#gBox .choices button').forEach(b => b.onclick = () => { G.ans = +b.dataset.j; add(s.c[G.ans].s); render(); });
+    const n = Lab.$('#gGo'); if (n) n.onclick = () => { G.ans = null; if (++G.card >= WIND.length){ G.leg = 1; G.card = 0; G.lat = 28; G.day = 0; G.log = []; G.fc = fcast(); } render(); };
+  }
+  const fcast = () => Math.round((Math.random() * 2.2 - 1.1) * 10) / 10;
+  function legLat(){
+    const off = G.lat - 28, sc = G.log.reduce((s, x) => s + x, 0);
+    box.innerHTML = `<div class="scard"><div class="when">Sept 1492 · ${Lab.L(o('day', '第'))} ${Math.min(G.day + 1, 10)}${Lab.lang === 'zh' ? ' 天' : ''} / 10</div>
+      <h3>${Lab.L(o('Leg 2: hold 28°N by the North Star','第2段：用北极星保持北纬28°'))}</h3>
+      <p style="margin:0">${Lab.L(o('The height of the North Star (Polaris) above the horizon equals your latitude. Columbus “ran down” about 28°N from the Canaries. Each day, read your quadrant, check the current, then steer.','北极星离地平线的高度角，就等于你所在的纬度。哥伦布从加那利群岛出发，大致沿北纬28°向西航行。每天读一读象限仪，看看洋流，然后掌舵。'))}</p>
+      <div class="sky"><canvas id="skyCv"></canvas></div>
+      <div class="readout">${Lab.L(o('Quadrant: Polaris at', '象限仪：北极星高度'))} <b>${(G.lat + (Math.random() - .5) * .2).toFixed(1)}°</b> → ${Lab.L(o('latitude ≈', '纬度约'))} ${G.lat.toFixed(1)}°N · ${Lab.L(o('target 28.0°N', '目标 北纬28.0°'))} · ${Lab.L(o('score', '得分'))} ${sc}/30<br>
+        ${G.day < 10 ? `🌊 ${Lab.L(o(`Today’s wind & current will push you about ${Math.abs(G.fc).toFixed(1)}° ${G.fc >= 0 ? 'north' : 'south'} (give or take a little).`, `今天的风和洋流大约会把你推向${G.fc >= 0 ? '北' : '南'} ${Math.abs(G.fc).toFixed(1)}°（会有一点误差）。`))}` : ''}</div>
+      ${G.day < 10 ? `<div class="tiles" id="steer">${[[1, '⬆ 1° N', '⬆ 向北 1°'], [.5, '↑ ½° N', '↑ 向北 ½°'], [0, '⏺ hold', '⏺ 保持'], [-.5, '↓ ½° S', '↓ 向南 ½°'], [-1, '⬇ 1° S', '⬇ 向南 1°']].map(s => `<button data-s="${s[0]}">${Lab.lang === 'zh' ? s[2] : s[1]}</button>`).join('')}</div>`
+        : `<div class="fb ${sc >= 22 ? 'good' : 'bad'}">${Lab.L(o(`Landfall! You kept close to 28°N on ${G.log.filter(x => x >= 3).length} of 10 days. On 12 October 1492 Columbus’s lookout sighted an island in the Bahamas.`, `看见陆地了！10天中你有 ${G.log.filter(x => x >= 3).length} 天紧贴北纬28°。1492年10月12日，哥伦布的瞭望员看见了巴哈马群岛中的一座岛。`))}</div><div class="btnrow"><button class="btn" id="gGo">${Lab.L(o('Next leg ▶','下一段 ▶'))}</button></div>`}</div>`;
+    drawSky();
+    Lab.$$('#steer button').forEach(b => b.onclick = () => { const real = G.fc + (Math.random() - .5) * .5; G.lat = Math.round((G.lat + +b.dataset.s + real) * 100) / 100;
+      const d = Math.abs(G.lat - 28), pts = d <= .5 ? 3 : d <= 1 ? 2 : d <= 1.5 ? 1 : 0; G.log.push(pts); add(pts); G.day++; G.fc = fcast(); render(); });
+    const n = Lab.$('#gGo'); if (n) n.onclick = () => { const sc = G.log.reduce((s, x) => s + x, 0); G.leg = 2; render(); };
+  }
+  function drawSky(){
+    const cv = Lab.$('#skyCv'); if (!cv) return; const r = cv.parentElement.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2), g = cv.getContext('2d');
+    cv.width = r.width * d; cv.height = r.height * d; g.setTransform(d, 0, 0, d, 0, 0);
+    const gr = g.createLinearGradient(0, 0, 0, r.height); gr.addColorStop(0, '#0b1430'); gr.addColorStop(1, '#25406e'); g.fillStyle = gr; g.fillRect(0, 0, r.width, r.height);
+    for (let i = 0; i < 60; i++){ const x = (i * 97 % 1000) / 1000 * r.width, y = (i * 61 % 700) / 1000 * r.height; g.fillStyle = 'rgba(255,255,255,.5)'; g.fillRect(x, y, 1.4, 1.4); }
+    const hy = r.height - 34, ox = 40, R0 = Math.min(r.width - 80, (hy - 10) / Math.sin(60 * Math.PI / 180)) * .92;
+    g.fillStyle = '#0d2a3f'; g.fillRect(0, hy, r.width, r.height - hy); g.strokeStyle = '#9fb0cc'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(0, hy); g.lineTo(r.width, hy); g.stroke();
+    g.strokeStyle = 'rgba(255,255,255,.25)'; g.lineWidth = 1; g.beginPath(); g.arc(ox, hy, R0 * .45, -Math.PI / 2, 0); g.stroke();
+    g.fillStyle = '#c9d6ee'; g.font = '700 10px Nunito, sans-serif'; [0, 15, 30, 45, 60].forEach(a => { const rad = a * Math.PI / 180; g.fillText(a + '°', ox + Math.cos(rad) * (R0 * .45 + 6), hy - Math.sin(rad) * (R0 * .45 + 6)); });
+    const draw = (lat, col, dash) => { const a = lat * Math.PI / 180, x = ox + Math.cos(a) * R0, y = hy - Math.sin(a) * R0; g.setLineDash(dash || []); g.strokeStyle = col; g.lineWidth = 1.6; g.beginPath(); g.moveTo(ox, hy); g.lineTo(x, y); g.stroke(); g.setLineDash([]); return [x, y]; };
+    draw(28, 'rgba(126,231,135,.7)', [4, 4]);
+    const [sx, sy] = draw(G.lat, '#ffd75e');
+    g.fillStyle = '#fff6c8'; g.beginPath(); g.arc(sx, sy, 5, 0, 7); g.fill(); g.font = '800 12px Nunito, "Microsoft YaHei", sans-serif'; g.fillStyle = '#ffe58a'; g.textAlign = 'left';
+    g.fillText(Lab.L(o('★ Polaris', '★ 北极星')), sx + 8, sy - 4); g.fillStyle = '#9fe6a8'; g.fillText(Lab.L(o('target 28°', '目标 28°')), ox + Math.cos(.489) * R0 * .7, hy - Math.sin(.489) * R0 * .7 + 16);
+    g.fillStyle = '#c9d6ee'; g.fillText(Lab.L(o('horizon (north)', '地平线（正北）')), ox, hy + 18);
+  }
+  function legPac(){
+    const used = G.W + G.F + G.Fr, Gd = SLOTS - used, res = G.res;
+    box.innerHTML = `<div class="scard"><div class="when">Nov 1520</div><h3>${Lab.L(o('Leg 3: pack for the unknown ocean','第3段：为未知的大洋备粮'))}</h3>
+      <p style="margin:0">${Lab.L(o(`Magellan’s ships leave the strait into a huge, unknown ocean. The best maps of 1520 say Asia is only a few weeks away. Your holds have ${SLOTS} slots. Each slot of water or biscuit feeds the crew for 1 week. Fresh fruit stops scurvy, but rots after about 3 weeks. Empty slots carry trade goods for profit.`, `麦哲伦的船队驶出海峡，进入一片巨大而陌生的大洋。1520年最好的地图说，几个星期就能到亚洲。你的货舱有${SLOTS}格：每格淡水或饼干够全体船员吃1周；新鲜水果能防坏血病，但大约3周就会烂掉；剩下的格子装货物，可以赚钱。`))}</p>
+      <div class="prov">
+        <label>💧 ${Lab.L(o('Water (weeks)','淡水（周）'))}: <b>${G.W}</b><input type="range" min="0" max="20" value="${G.W}" data-k="W" ${res ? 'disabled' : ''}></label>
+        <label>🍞 ${Lab.L(o('Ship’s biscuit & salt meat (weeks)','饼干和咸肉（周）'))}: <b>${G.F}</b><input type="range" min="0" max="20" value="${G.F}" data-k="F" ${res ? 'disabled' : ''}></label>
+        <label>🍋 ${Lab.L(o('Fresh fruit (weeks)','新鲜水果（周）'))}: <b>${G.Fr}</b><input type="range" min="0" max="8" value="${G.Fr}" data-k="Fr" ${res ? 'disabled' : ''}></label>
+        <label>📦 ${Lab.L(o('Trade goods (slots left)','货物（剩余格数）'))}: <b style="color:${Gd < 0 ? 'var(--bad)' : 'inherit'}">${Gd}</b><span class="muted" style="font-size:12.5px">${Lab.L(o('Over the limit? Take something out.','超出了？请减少一些。'))}</span></label>
+      </div>
+      <div class="chart" style="height:210px"><canvas id="pacCv"></canvas></div>
+      <p class="src">${Lab.L(o('Data figure: days out of sight of land on three famous voyages (approx., from the voyage logs as summarised by historians). Dashed line ≈ 6 weeks, about when scurvy (坏血病, lack of vitamin C) starts without fresh food.', '数据图：三次著名航行中看不到陆地的天数（约数，依据历史学家整理的航海日志）。虚线约为6周——没有新鲜食物时，坏血病（缺乏维生素C）大约在这时开始出现。'))}</p>
+      ${res ? `<div class="fb ${res.pts >= 24 ? 'good' : 'bad'}">${Lab.L(res.msg)}</div><div class="btnrow"><button class="btn" id="gGo">${Lab.L(o('See your voyage result ▶','查看航行结果 ▶'))}</button></div>`
+        : `<div class="btnrow"><button class="btn" id="gSail" ${Gd < 0 ? 'disabled' : ''}>${Lab.L(o('⛵ Sail into the Pacific','⛵ 驶入太平洋'))}</button></div>`}</div>`;
+    Lab.$$('#gBox .prov input').forEach(inp => inp.oninput = () => { G[inp.dataset.k] = +inp.value; inp.previousElementSibling.textContent = inp.value;
+      const left = SLOTS - G.W - G.F - G.Fr, gb = Lab.$$('#gBox .prov label b')[3]; gb.textContent = left; gb.style.color = left < 0 ? 'var(--bad)' : 'inherit'; const sb = Lab.$('#gSail'); if (sb) sb.disabled = left < 0; });
+    drawPac();
+    const s = Lab.$('#gSail'); if (s) s.onclick = () => { const h = voyageHealth(G.W, G.F, G.Fr), goods = Math.max(0, Math.min(SLOTS - G.W - G.F - G.Fr, 5)), pts = Math.round(30 * (h + 2 * goods) / BEST);
+      const scurvyDay = 42 + 7 * Math.min(G.Fr, 3), short = 7 * Math.min(G.W, G.F);
+      G.res = { pts, h, msg:o(`Day 98: land at last (Guam)! Crew health ${Math.round(h)}/100. ${short < DAYS ? `Your ${G.W < G.F ? 'water' : 'food'} would have run out on day ${short}, so the crew went on short rations. ` : 'You never ran out of water or food. '}Scurvy began around day ${Math.min(scurvyDay, 98)}. Points: ${pts}/30. The real crew ate leather from the rigging and sawdust; about 19 died (Pigafetta).`,
+        `第98天，终于看见陆地（关岛）！船员健康度 ${Math.round(h)}/100。${short < DAYS ? `你的${G.W < G.F ? '淡水' : '食物'}本来第${short}天就会吃完，所以船员只能减量配给。` : '你的淡水和食物一直没有断。'}坏血病大约从第${Math.min(scurvyDay, 98)}天开始。得分：${pts}/30。真实的船员吃过帆索上的皮革和木屑，据皮加费塔记载约19人死亡。`) };
+      add(pts); render(); };
+    const n = Lab.$('#gGo'); if (n) n.onclick = () => { G.leg = 3; render(); };
+  }
+  function drawPac(){
+    const cv = Lab.$('#pacCv'); if (!cv) return; const r = cv.parentElement.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2), g = cv.getContext('2d');
+    cv.width = r.width * d; cv.height = r.height * d; g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, r.width, r.height);
+    const L = 8, W = r.width - 50, rowH = (r.height - 26) / 3, ink = css('--ink'), ink2 = css('--ink-2'), X = dd => L + dd / 105 * W;
+    DAYSEA.forEach((it, i) => { const y = 8 + i * rowH; g.fillStyle = it.c; g.globalAlpha = .85; g.fillRect(L, y + rowH * .45, X(it.d) - L, rowH * .38); g.globalAlpha = 1;
+      g.fillStyle = ink; g.font = '800 12.5px Nunito, "Microsoft YaHei", sans-serif'; g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.fillText(Lab.L(it.n), L, y + rowH * .38);
+      g.textAlign = 'left'; g.fillText(it.d + (Lab.lang === 'zh' ? ' 天' : ' days'), X(it.d) + 5, y + rowH * .78); });
+    g.setLineDash([5, 4]); g.strokeStyle = css('--bad'); g.lineWidth = 1.5; g.beginPath(); g.moveTo(X(42), 4); g.lineTo(X(42), r.height - 18); g.stroke(); g.setLineDash([]);
+    g.fillStyle = css('--bad'); g.font = '800 11px Nunito, "Microsoft YaHei", sans-serif'; g.textAlign = 'center'; g.fillText(Lab.L(o('~42 days: scurvy risk', '约42天：坏血病风险')), X(42), r.height - 5);
+  }
+  function finish(){
+    const st = G.run >= 68 ? 3 : G.run >= 50 ? 2 : G.run >= 30 ? 1 : 0;
+    box.innerHTML = `<div class="scard"><div class="when">Sept 1522</div><h3>${Lab.L(o('Home: the Victoria reaches Spain','回到家乡：“维多利亚号”抵达西班牙'))}</h3>
+      <p class="stars" style="margin:0">${stars(st)}</p><p style="margin:0">${Lab.L(o(`This voyage: ${G.run}/80. Only 18 of about 270 men made it all the way round — but they proved that all the oceans are connected.`, `本次航行：${G.run}/80。约270人中只有18人完成了环球航行——但他们证明了世界各大洋是连在一起的。`))}</p>
+      <div class="btnrow"><button class="btn" id="gAgain">${Lab.L(o('Sail again ▶','再航行一次 ▶'))}</button></div></div>`;
+    Lab.$('#gAgain').onclick = () => { G.n++; G.run = 0; G.leg = 0; G.card = 0; G.ans = null; G.res = null; G.W = 10; G.F = 10; G.Fr = 2; render(); };
+  }
+  new ResizeObserver(() => requestAnimationFrame(() => { drawSky(); drawPac(); })).observe(box);
+  Lab.onLang(render);
+})();
+
+/* ================= Columbian Exchange sort, quiz & sort ================= */
+Lab.sort(Lab.$('#exSort'), {
+  bins:[{id:'ow',en:'Americas → Europe, Africa & Asia',zh:'美洲 → 欧洲、非洲和亚洲'},{id:'nw',en:'Europe, Africa & Asia → Americas',zh:'欧洲、非洲和亚洲 → 美洲'}],
+  items:[{en:'Potato',zh:'马铃薯',bin:'ow'},{en:'Maize (corn)',zh:'玉米',bin:'ow'},{en:'Tomato',zh:'番茄',bin:'ow'},{en:'Cacao (chocolate)',zh:'可可（巧克力）',bin:'ow'},{en:'Chili pepper',zh:'辣椒',bin:'ow'},{en:'Turkey',zh:'火鸡',bin:'ow'},
+    {en:'Horse',zh:'马',bin:'nw'},{en:'Cattle',zh:'牛',bin:'nw'},{en:'Wheat',zh:'小麦',bin:'nw'},{en:'Sugarcane',zh:'甘蔗',bin:'nw'},{en:'Smallpox',zh:'天花',bin:'nw'},{en:'Coffee',zh:'咖啡',bin:'nw'}]
+});
+const QUIZ = [
+ {q:o('Who sailed first: Zheng He or Columbus?','谁先远航：郑和还是哥伦布？'), options:[o('Zheng He, 87 years earlier (1405)','郑和，早87年（1405年）'),o('Columbus, in 1405','哥伦布，1405年'),o('They sailed in the same year','同一年'),o('Magellan, before both','麦哲伦，比他们都早')], answer:0},
+ {q:o('Map reading: which explorer first sailed round the Cape of Good Hope?','读地图：谁第一个绕过好望角？'), options:[o('Bartolomeu Dias','迪亚士'),o('Christopher Columbus','哥伦布'),o('Zheng He','郑和'),o('Hernán Cortés','科尔特斯')], answer:0, explain:o('1488; ten years later da Gama used the same cape to reach India.','1488年；十年后达·伽马绕过它到达印度。')},
+ {q:o('Vasco da Gama’s voyage (1497–98) was important because it…','达·伽马的航行（1497—1498年）的意义是'), options:[o('opened a sea route from Europe to India','开辟了从欧洲到印度的海上航路'),o('reached the Americas','到达了美洲'),o('sailed around the world','完成了环球航行'),o('discovered Australia','发现了澳大利亚')], answer:0},
+ {q:o('Where did Columbus land on 12 October 1492?','1492年10月12日，哥伦布在哪里登陆？'), options:[o('An island in the Bahamas','巴哈马群岛中的一个岛'),o('India','印度'),o('Florida','佛罗里达'),o('Brazil','巴西')], answer:0, explain:o('He thought he was near Asia and called the Taíno people “Indians”.','他以为到了亚洲附近，把泰诺人称为“印第安人”。')},
+ {q:o('The first voyage around the world (1519–1522) proved that…','第一次环球航行（1519—1522年）证明了'), options:[o('Earth is round and the oceans are connected','地球是圆的，各大洋是相通的'),o('Asia is next to Europe','亚洲紧挨着欧洲'),o('Africa has no southern tip','非洲没有南端'),o('the Pacific is small','太平洋很小')], answer:0},
+ {q:o('Which was NOT a main reason Europeans looked for new sea routes?','下列哪一项不是欧洲人寻找新航路的主要原因？'), options:[o('To escape cold winters in Europe','为了躲避欧洲寒冷的冬天'),o('To find gold and get spices from Asia','寻找黄金、获取亚洲香料'),o('The Ottoman Empire controlled old trade routes','奥斯曼帝国控制了传统商路'),o('Kings hoped to grow rich and powerful','国王希望变得更富有、更强大')], answer:0},
+ {q:o('What did Zheng He’s voyages mainly aim to do?','郑和下西洋的主要目的是'), options:[o('Show Ming power and build friendly tribute ties','宣扬明朝国威、加强友好往来和朝贡贸易'),o('Conquer colonies in Africa','在非洲征服殖民地'),o('Find a route to America','寻找通往美洲的航路'),o('Sell enslaved people','贩卖奴隶')], answer:0},
+ {q:o('The Columbian Exchange brought which of these TO the Americas?','“哥伦布大交换”把下列哪一项带到了美洲？'), options:[o('Horses','马'),o('Potatoes','马铃薯'),o('Maize','玉米'),o('Cacao','可可')], answer:0, explain:o('Potatoes, maize and cacao went the other way — from the Americas to the rest of the world.','马铃薯、玉米和可可是从美洲传到世界其他地方的。')},
+ {q:o('Why did so many Native Americans die after 1492?','1492年以后，为什么那么多美洲原住民死亡？'), options:[o('Mainly Old World diseases like smallpox, plus war and forced labour','主要是天花等旧大陆疾病，还有战争和强迫劳动'),o('A long drought','长期干旱'),o('Volcano eruptions','火山喷发'),o('They all moved to Europe','他们都搬去了欧洲')], answer:0},
+ {q:o('In the triangle trade, the “middle passage” carried…','在三角贸易中，“中程”运送的是'), options:[o('enslaved Africans to the Americas','被奴役的非洲人前往美洲'),o('sugar to Europe','把糖运往欧洲'),o('guns to Africa','把枪支运往非洲'),o('silk to Mexico','把丝绸运往墨西哥')], answer:0},
+ {q:o('Chart reading: about how many days did Magellan’s crossing of the Pacific last?','读图表：麦哲伦横渡太平洋大约用了多少天？'), options:[o('About 98 days','约98天'),o('About 36 days','约36天'),o('About 10 days','约10天'),o('About 300 days','约300天')], answer:0, explain:o('Far past the ~6-week point when scurvy starts — that is why so many sailors fell sick.','远远超过了坏血病开始出现的约6周——所以许多水手病倒了。')},
+ {q:o('What did the Manila galleons carry across the Pacific to trade for Chinese silk?','马尼拉大帆船把什么运过太平洋，换取中国丝绸？'), options:[o('Silver from Mexico and Peru','墨西哥和秘鲁的白银'),o('Tea','茶叶'),o('Opium','鸦片'),o('Steam engines','蒸汽机')], answer:0}
+];
+Lab.quiz(Lab.$('#quiz'), QUIZ, { count:12 });
+Lab.sort(Lab.$('#sort'), {
+  bins:[{id:'pt',en:'Portugal',zh:'葡萄牙'},{id:'es',en:'Spain',zh:'西班牙'},{id:'cn',en:'China (Ming)',zh:'中国（明朝）'}],
+  items:[{en:'Dias rounds the Cape (1488)',zh:'迪亚士绕过好望角（1488年）',bin:'pt'},{en:'Da Gama reaches India (1498)',zh:'达·伽马到达印度（1498年）',bin:'pt'},{en:'Prince Henry the Navigator',zh:'“航海家”亨利王子',bin:'pt'},{en:'Settling in Macao (1553)',zh:'取得澳门居住权（1553年）',bin:'pt'},
+    {en:'Columbus’s three ships',zh:'哥伦布的三艘船',bin:'es'},{en:'Queen Isabella pays',zh:'伊莎贝拉女王资助',bin:'es'},{en:'Magellan–Elcano voyage',zh:'麦哲伦—埃尔卡诺环球航行',bin:'es'},{en:'Manila galleons',zh:'马尼拉大帆船',bin:'es'},
+    {en:'Seven voyages, 1405–1433',zh:'七下西洋，1405—1433年',bin:'cn'},{en:'Treasure ships',zh:'宝船',bin:'cn'},{en:'A giraffe for the emperor',zh:'献给皇帝的长颈鹿',bin:'cn'},{en:'Liujiagang (Taicang) port',zh:'刘家港（今太仓）',bin:'cn'}]
+});
+
+/* ================= Real media & links ================= */
+const PHOTOS = [
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/40/Boa_Esperan%C3%A7a_caravel_replica_moored_in_Lagos_-_Portugal_-_2015-08-06.jpg/960px-Boa_Esperan%C3%A7a_caravel_replica_moored_in_Lagos_-_Portugal_-_2015-08-06.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The caravel replica Boa Esperança in Lagos, Portugal — the kind of small, quick ship Portuguese explorers sailed down Africa’s coast.', zh:'葡萄牙拉古什港的轻快帆船复原船“博阿埃斯佩兰萨号”——葡萄牙探险者沿非洲海岸南下时用的就是这种小而灵活的船。', kind:o('Replica','å¤åè¹'), credit:'Norbert Nagel', license:'CC BY-SA 4.0', page:CP + 'Boa_Esperan%C3%A7a_caravel_replica_moored_in_Lagos_-_Portugal_-_2015-08-06.jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6a/Life_Size_Replica_of_Bartolomeu_Dias_Caravel_..._%2852659163964%29.jpg/960px-Life_Size_Replica_of_Bartolomeu_Dias_Caravel_..._%2852659163964%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A life-size replica of Bartolomeu Dias’s caravel at the Bartolomeu Dias Museum in Mossel Bay, South Africa.', zh:'南非莫塞尔湾迪亚士博物馆里的迪亚士轻快帆船等大复原船。', kind:o('Replica','å¤åè¹'), credit:'Bernard DUPONT from FRANCE', license:'CC BY-SA 2.0', page:CP + 'Life_Size_Replica_of_Bartolomeu_Dias_Caravel_..._(52659163964).jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8c/Muelle_de_la_Carabelas_-_Replica_of_Columbus_Ship_Santa_Maria_-_La_Rabida_-_Spain.jpg/960px-Muelle_de_la_Carabelas_-_Replica_of_Columbus_Ship_Santa_Maria_-_La_Rabida_-_Spain.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A replica of Columbus’s Santa María at the Muelle de las Carabelas, La Rábida, Spain.', zh:'西班牙拉拉维达“帆船码头”的哥伦布“圣玛利亚号”复原船。', kind:o('Replica','å¤åè¹'), credit:'Adam63', license:'CC BY-SA 3.0', page:CP + 'Muelle_de_la_Carabelas_-_Replica_of_Columbus_Ship_Santa_Maria_-_La_Rabida_-_Spain.jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e8/Nao_Victoria_%28Sevilla%29.jpg/960px-Nao_Victoria_%28Sevilla%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A replica of the Victoria, the only ship of Magellan’s fleet to sail all the way around the world, in Seville, Spain.', zh:'西班牙塞维利亚的“维多利亚号”复原船——麦哲伦船队中唯一完成环球航行的船。', kind:o('Replica','å¤åè¹'), credit:'CarlosVdeHabsburgo', license:'CC BY-SA 4.0', page:CP + 'Nao_Victoria_(Sevilla).jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/17/Tribute_Giraffe_with_Attendant_cropped.jpg/960px-Tribute_Giraffe_with_Attendant_cropped.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'“Tribute Giraffe with Attendant”: a giraffe presented to the Ming court on 20 September 1414 (painting attributed to Shen Du; detail).', zh:'《瑞应麒麟图》：1414年9月20日献给明朝宫廷的长颈鹿（传为沈度所绘，局部）。', kind:o('Painting','ç»ç»'), credit:'Shen Du (沈度, 1357–1434), attributed', license:'Public domain', page:CP + 'Tribute_Giraffe_with_Attendant_cropped.jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/db/Treasure_Boat_Shipyard_-_Zheng_He_statue_-_P1080029.JPG/960px-Treasure_Boat_Shipyard_-_Zheng_He_statue_-_P1080029.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A monumental map of Zheng He’s voyages at the Treasure Boat Shipyard site in Nanjing.', zh:'南京宝船厂遗址的郑和下西洋航线纪念地图。', kind:o('Photo','ç§ç'), credit:'User:Vmenkov', license:'CC BY-SA 3.0', page:CP + 'Treasure_Boat_Shipyard_-_Zheng_He_statue_-_P1080029.JPG' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4f/Astrolabe_de_marin%2C_France%2C_1603.jpg/960px-Astrolabe_de_marin%2C_France%2C_1603.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A real mariner’s astrolabe made in France in 1603 — sailors used it to measure the height of the Sun or stars and find their latitude.', zh:'一件1603年法国制造的真实航海星盘——水手用它测量太阳或星星的高度，求出所在纬度。', kind:o('Object','å®ç©'), credit:'Pierre5018', license:'CC BY-SA 4.0', page:CP + 'Astrolabe_de_marin,_France,_1603.jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dc/Cantino_planisphere_1502.jpg/960px-Cantino_planisphere_1502.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The Cantino planisphere (1502), a Portuguese world map that already shows Africa’s full outline and the coast of Brazil.', zh:'坎蒂诺平面球形图（1502年）：一幅葡萄牙世界地图，已经画出了非洲的完整轮廓和巴西海岸。', kind:o('Map','å°å¾'), credit:'Biblioteca Estense, Modena', license:'Public domain', page:CP + 'Cantino_planisphere_1502.jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8e/Vasco_da_Gama%27s_arrival_at_Calicut.jpg/960px-Vasco_da_Gama%27s_arrival_at_Calicut.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A Renaissance tapestry from Tournai showing Vasco da Gama’s arrival at Calicut, India.', zh:'一幅图尔奈文艺复兴时期挂毯，描绘达·伽马抵达印度卡利卡特。', kind:o('Painting','ç»ç»'), credit:'Tournai tapestries', license:'Public domain', page:CP + 'Vasco_da_Gama%27s_arrival_at_Calicut.jpg' },
+ { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2f/Portrait_of_a_Man%2C_Said_to_be_Christopher_Columbus_%28born_about_1446%2C_died_1506%29_MET_DT369.jpg/960px-Portrait_of_a_Man%2C_Said_to_be_Christopher_Columbus_%28born_about_1446%2C_died_1506%29_MET_DT369.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'“Portrait of a Man, Said to be Christopher Columbus” by Sebastiano del Piombo (Metropolitan Museum of Art). No portrait made from life survives.', zh:'塞巴斯蒂亚诺·德尔·皮翁博所绘《据说是哥伦布的男子肖像》（大都会艺术博物馆）。哥伦布没有留下写生肖像。', kind:o('Painting','ç»ç»'), credit:'Sebastiano del Piombo', license:'Public domain', page:CP + 'Portrait_of_a_Man,_Said_to_be_Christopher_Columbus_(born_about_1446,_died_1506)_MET_DT369.jpg' },
+ YT('pFdiX8mj0Es', 'How Magellan circumnavigated the globe — TED-Ed animated lesson (about 6 min).', '麦哲伦是怎样完成环球航行的——TED-Ed 动画课（约6分钟，英文）。', 'TED-Ed'),
+ YT('GD3dgiDreGc', 'History vs. Christopher Columbus — a TED-Ed “trial” weighing his achievements and the harm done.', '历史审判哥伦布——TED-Ed 用“法庭辩论”评价他的成就和造成的伤害（英文）。', 'TED-Ed'),
+ YT('PN6W8kPUkFI', 'Who was Zheng He? — a short PBS LearningMedia video about the Ming admiral.', '郑和是谁？——PBS LearningMedia 关于这位明代航海家的短片（英文）。', 'PBS LearningMedia')
+];
+LabPhotos.render('#gallery', PHOTOS, { title:o('See the real thing','看看真实的样子'), sub:o('Ship replicas, real instruments, old maps and paintings from Wikimedia Commons, plus three videos. Click to enlarge; videos open on YouTube.','来自维基共享资源的复原船、真实仪器、古地图和绘画，以及三段视频。点击可放大；视频在 YouTube 打开。') });
+renderLinks('#links', [
+ { u:'https://www.worldhistory.org/article/1334/the-seven-voyages-of-zheng-he/', t:o('The Seven Voyages of Zheng He','郑和七下西洋'), d:o('World History Encyclopedia: ships, routes and what the voyages achieved.','世界历史百科：船队、航线和远航的成果（英文）。') },
+ { u:'https://www.worldhistory.org/Columbian_Exchange/', t:o('The Columbian Exchange','哥伦布大交换'), d:o('World History Encyclopedia: plants, animals and diseases that crossed the oceans.','世界历史百科：跨越大洋的植物、动物和疾病（英文）。') },
+ { u:'https://www.worldhistory.org/Christopher_Columbus/', t:o('Christopher Columbus','哥伦布'), d:o('World History Encyclopedia: his four voyages and their consequences.','世界历史百科：他的四次航行及其后果（英文）。') },
+ { u:'https://exploration.marinersmuseum.org/', t:o('Ages of Exploration (Mariners’ Museum)','探险时代（水手博物馆）'), d:o('Interactive timelines, maps and explorer profiles.','互动时间轴、地图和探险家介绍（英文）。') },
+ { u:'https://www.loc.gov/exhibits/exploring-the-early-americas/', t:o('Exploring the Early Americas (Library of Congress)','探索早期美洲（美国国会图书馆）'), d:o('See the 1507 Waldseemüller map — the first to name “America”.','看1507年的瓦尔德泽米勒地图——第一张标出“亚美利加”的地图（英文）。') },
+ { u:'https://www.slavevoyages.org/', t:o('SlaveVoyages database','奴隶贸易航行数据库'), d:o('Historians’ records of the trans-Atlantic slave trade (for older students, with a teacher).','历史学家整理的跨大西洋奴隶贸易记录（适合高年级，在老师指导下使用，英文）。') }
+]);
+
+</script>
+</body>
+</html>
