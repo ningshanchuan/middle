@@ -298,11 +298,11 @@ window.LAB_CATALOG = [
  { id:'art', icon:'🎨', color:'#ea580c', en:'Visual Art', zh:'美术',
    blurb:{en:'Color, perspective, design and great art from around the world.',zh:'色彩、透视、设计与世界各地的经典艺术。'},
    topics:[
-   {id:'art-color', soon:1, std:'Fine Arts · Visual Art', en:'Color Theory', zh:'色彩原理', d:{en:'Mix colors and build palettes.',zh:'调色并搭配色彩。'}},
-   {id:'art-perspective', soon:1, std:'Fine Arts · Visual Art', en:'Perspective & Space', zh:'透视与空间', d:{en:'Draw depth with vanishing points.',zh:'用消失点画出纵深感。'}},
-   {id:'art-design', soon:1, std:'Fine Arts · Visual Art', en:'Elements & Principles of Design', zh:'设计的元素与原则', d:{en:'Line, shape, balance, contrast and rhythm.',zh:'线条、形状、平衡、对比与节奏。'}},
-   {id:'art-history', soon:1, std:'Fine Arts · Visual Art', en:'Art Through History', zh:'艺术史之旅', d:{en:'Cave paintings to modern art — explore real masterpieces.',zh:'从洞穴壁画到现代艺术，欣赏真实名作。'}},
-   {id:'art-chinese', soon:1, std:'Fine Arts · Visual Art', en:'Chinese Painting & Calligraphy', zh:'中国画与书法', d:{en:'Ink, brush and the art of empty space.',zh:'笔墨、毛笔与留白的艺术。'}}
+   {id:'art-color', std:'GA Visual Art VA6–8 · NCAS · 艺术课标2022', en:'Color Theory', zh:'色彩原理', d:{en:'Mix colors and build palettes.',zh:'调色并搭配色彩。'}},
+   {id:'art-perspective', std:'GA Visual Art VA6–8 · NCAS · 艺术课标2022', en:'Perspective & Space', zh:'透视与空间', d:{en:'Draw depth with vanishing points.',zh:'用消失点画出纵深感。'}},
+   {id:'art-design', std:'GA Visual Art VA6–8 · NCAS · 艺术课标2022', en:'Elements & Principles of Design', zh:'设计的元素与原则', d:{en:'Line, shape, balance, contrast and rhythm.',zh:'线条、形状、平衡、对比与节奏。'}},
+   {id:'art-history', std:'GA Visual Art VA6–8 · NCAS · 艺术课标2022', en:'Art Through History', zh:'艺术史之旅', d:{en:'Cave paintings to modern art — explore real masterpieces.',zh:'从洞穴壁画到现代艺术，欣赏真实名作。'}},
+   {id:'art-chinese', std:'GA Visual Art VA6–8 · NCAS · 艺术课标2022', en:'Chinese Painting & Calligraphy', zh:'中国画与书法', d:{en:'Ink, brush and the art of empty space.',zh:'笔墨、毛笔与留白的艺术。'}}
  ]}
 ];
 /* Topics flagged soon:1 are not built yet: the hub shows them as greyed "coming soon" cards,
