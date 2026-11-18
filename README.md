@@ -1,6 +1,6 @@
 # 🔬 Science Lab — Interactive 3D Middle-School Science (EN · 中文)
 
-**Live site:** https://nshanchuan.github.io/middle/  
+**Live site:** https://shanchuan.org/middle/  
 **Source:** https://github.com/nshanchuan/middle
 
 Or open **`index.html`** in a modern browser (Chrome / Edge / Safari / Firefox) with an internet connection.
