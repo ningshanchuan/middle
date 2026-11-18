@@ -1,0 +1,832 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Land, Gold &amp; Cherokee Removal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&family=Noto+Sans+Cherokee:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/photos.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-array@3.2.4/dist/d3-array.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-geo@3.1.0/dist/d3-geo.min.js"></script>
+<style>
+/* mission bar (page-local) */
+.mbar{margin-top:18px;padding:14px 18px;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+.mbar .ms{display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px;color:var(--ink-2)}
+.mbar .st{letter-spacing:1px;color:var(--warn);font-size:16px}
+.mbar .rk{margin-left:auto;font-family:Fredoka;font-size:18px;color:var(--brand)}
+.mbar .bar{flex:1 1 100%;height:8px;border-radius:999px;background:var(--surface-2);overflow:hidden}
+.mbar .bar i{display:block;height:100%;width:0;background:var(--brand);transition:width .3s}
+#mapCv,#trailCv{cursor:pointer}
+#mapStage{min-height:680px}@media (max-width:560px){#mapStage{min-height:600px}}
+#trailStage{min-height:560px}@media (max-width:560px){#trailStage{min-height:520px}}
+#yr,#tj{width:min(46vw,340px)}
+.stage .pill b{font-family:Fredoka;font-size:17px;min-width:44px;display:inline-block;color:var(--brand)}
+.yc{padding:18px 20px;margin-top:16px;display:flex;flex-direction:column;gap:12px}
+.yc-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.yc-head b{font-family:Fredoka;font-size:40px;line-height:1;color:var(--brand)}
+.yc-head .note{color:var(--ink-2);font-size:14px;font-weight:700}
+.yc-ev{border-left:5px solid var(--line);padding:2px 0 2px 12px}
+.yc-ev h4{margin:0 0 2px;font-size:19px}
+.yc-ev p{margin:0;font-size:15.5px}
+.yc-ev small{font-weight:800;letter-spacing:.04em;font-size:12px;text-transform:uppercase}
+.landbar{display:flex;height:22px;border-radius:999px;overflow:hidden;background:var(--surface-2);font-size:12px;font-weight:800;color:#fff}
+.landbar i{display:flex;align-items:center;justify-content:center;transition:width .4s;white-space:nowrap;overflow:hidden}
+.lg{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13.5px;font-weight:700;color:var(--ink-2)}
+.lg span{display:inline-flex;align-items:center;gap:6px}.lg i{width:14px;height:14px;border-radius:4px;display:inline-block}
+.drum{display:grid;place-items:center;height:150px;border-radius:18px;background:var(--surface-2);font-family:Fredoka;font-size:26px;text-align:center;padding:10px;transition:background .3s}
+.drum.win{background:color-mix(in srgb,var(--good) 22%,var(--surface))}.drum.blank{background:color-mix(in srgb,var(--bad) 12%,var(--surface))}
+.who{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
+.who button{text-align:left;border:2px solid var(--line);border-radius:12px;padding:9px 11px;background:var(--surface);color:var(--ink);cursor:pointer;font:inherit;font-size:14.5px;font-weight:700}
+.who button.on{border-color:var(--brand);background:color-mix(in srgb,var(--brand) 12%,var(--surface))}
+.chr{font-family:"Noto Sans Cherokee","Gadugi","Plantagenet Cherokee",sans-serif}
+.syl-target{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.syl-target .big{font-size:44px;line-height:1.1;min-height:52px;letter-spacing:4px}
+.slots{display:flex;gap:8px}
+.slots span{width:58px;height:66px;border-radius:12px;border:2px dashed var(--line);display:grid;place-items:center;font-size:34px}
+.slots span.ok{border-style:solid;border-color:var(--good);background:color-mix(in srgb,var(--good) 12%,var(--surface))}
+.keys{display:grid;grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:8px}
+.keys button{border:2px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);cursor:pointer;padding:6px 2px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.keys button b{font-size:28px;font-weight:500;line-height:1.1}.keys button small{font-size:12px;font-weight:800;color:var(--ink-2)}
+.keys button.bad{border-color:var(--bad);animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
+.quote{border-left:5px solid var(--accent);padding:6px 0 6px 14px;font-style:italic;color:var(--ink)}
+.quote small{display:block;font-style:normal;color:var(--ink-2);font-weight:700;margin-top:4px}
+.people .box h3{font-size:19px}
+.people .box .yr{font-family:Fredoka;color:var(--brand);font-weight:600}
+.tstop{padding:16px 18px;margin-top:14px;display:flex;flex-direction:column;gap:8px}
+.tstop h3{margin:0}.tstop .when{font-family:Fredoka;color:var(--brand);font-size:18px}
+#popBox{min-height:320px}
+.hg{padding:22px;display:flex;flex-direction:column;gap:14px}
+.hg .counters{grid-template-columns:repeat(4,minmax(0,1fr))}
+.clue{border:2px solid var(--line);border-radius:16px;padding:16px 18px;background:var(--surface-2)}
+.clue small{display:block;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);font-size:12px}
+.clue p{margin:6px 0 0;font-family:Georgia,"Times New Roman",serif;font-size:19px;line-height:1.42}
+.hg .opts{margin:0}
+.hg-bar{height:10px;border-radius:999px;background:var(--surface-2);overflow:hidden}
+.hg-bar i{display:block;height:100%;width:0;background:var(--brand);transition:width .3s}
+@media (max-width:760px){.hg .counters{grid-template-columns:1fr 1fr}.yc-head b{font-size:32px}.slots span{width:48px;height:56px;font-size:28px}}
+</style>
+</head>
+<body data-subject="georgia" data-topic="ga-removal">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="佐治亚州研究 · 8 年级 · SS8H4">Georgia Studies · Grade 8 · SS8H4</span>
+  <h1 data-zh-html="土地、黄金与<em>切罗基人迁移</em>">Land, Gold &amp; <em>Cherokee Removal</em></h1>
+  <p class="lead" data-zh="1733 年，佐治亚只是海边的一小条土地；到 1838 年，它已经覆盖了约 3700 万英亩。这些土地原本属于克里克人和切罗基人——它们是怎样易手的？">In 1733 Georgia was a thin strip of coast. By 1838 it covered about 37 million acres. That land was the home of the Creek (Muscogee) and Cherokee nations — so how did it change hands?</p>
+  <p class="lead" style="margin-top:8px" data-zh-html="<b>你的任务：</b>拖动年份看土地如何一块块被割让；进入 1832 年的土地抽签；用塞阔亚的音节文字写字；最后当一回“史料侦探”，认出每一份原始资料的作者。"><b>Your mission:</b> drag the years to watch the land change hands piece by piece, enter the 1832 land lottery, write with Sequoyah’s syllabary — and work as a source detective to identify who wrote each primary source.</p>
+  <div class="card mbar" id="mbar" aria-live="polite"></div>
+</header>
+
+<section class="wrap" id="map" data-nav="Land map" data-nav-zh="土地地图">
+  <div class="sec-head">
+    <h2 data-zh="任务 1：土地是怎样易手的（1733—1838）">Mission 1: how the land changed hands (1733–1838)</h2>
+    <p data-zh="拖动年份滑块或按“播放”。颜色显示每一年谁拥有这片土地；虚线框出的是当年刚被割让的土地。点击地图上的任意一块，查看是哪一个条约。">Drag the year slider or press Play. Colors show who held each part of today’s Georgia that year; a dashed outline marks the newest cession. Click any area to see which treaty took it.</p>
+  </div>
+  <div class="explorer">
+    <div class="stage card" id="mapStage">
+      <canvas id="mapCv" aria-label="Map of Georgia land cessions"></canvas>
+      <div class="toolbar">
+        <button class="tbtn" id="playBtn" data-zh="▶ 播放">▶ Play</button>
+        <button class="tbtn" id="evPrev" data-zh="◀ 上一件">◀ Previous</button>
+        <button class="tbtn" id="evNext" data-zh="下一件 ▶">Next ▶</button>
+      </div>
+      <div class="bottombar">
+        <div class="pill"><span data-zh="年份">Year</span><b id="yrVal">1733</b><input id="yr" type="range" min="1733" max="1838" step="1" value="1733" aria-label="Year"></div>
+        <div class="tip" data-zh="示意图：割让范围依据罗伊斯（Royce）的割让地图大致勾画。">Schematic: cession areas roughly traced from Royce’s cession maps.</div>
+      </div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="card yc" aria-live="polite">
+    <div class="yc-head"><b id="ycYear">1733</b><span class="note" id="ycNote"></span></div>
+    <div class="landbar" id="landbar"></div>
+    <div class="lg" id="legend"></div>
+    <div id="ycList" style="display:flex;flex-direction:column;gap:10px"></div>
+  </div>
+  <div class="grid3" style="margin-top:16px">
+    <details class="peek"><summary data-zh="人头权制度（1783 年起）">The headright system (from 1783)</summary><p data-zh="独立战争后，每个户主可以免费“申请”200 英亩土地，家里每多一个成员（包括被奴役的人）再多 50 英亩，最多 1000 英亩。申请人自己选地、自己找人测量——结果地块形状不规则，还出现了同一块地被重复授予的混乱。">After the Revolution, every head of household could claim 200 acres free, plus 50 more for each family member (enslaved people were counted too), up to 1,000 acres. Claimants picked and surveyed their own plots — so lots had odd shapes, and some land was granted twice.</p></details>
+    <details class="peek"><summary data-zh="亚祖土地欺诈案（1795）">The Yazoo land fraud (1795)</summary><p data-zh="议员们收受贿赂，把佐治亚西部（今亚拉巴马州和密西西比州的大部分）约 3500 万英亩土地以 50 万美元卖给四家土地公司——每英亩约 1.5 美分！民众愤怒，1796 年新议会撤销了这项交易，并在路易斯维尔当众烧毁文件。">Bribed lawmakers sold about 35 million acres of Georgia’s western land (most of today’s Alabama and Mississippi) to four land companies for $500,000 — about 1.5 cents an acre! Voters were furious; in 1796 a new legislature cancelled the deal and burned the papers in public at Louisville.</p></details>
+    <details class="peek"><summary data-zh="1802 年协定">The Compact of 1802</summary><p data-zh="佐治亚把西部土地主张让给联邦政府，换取 125 万美元——以及联邦的一项承诺：尽快“消除”佐治亚境内印第安人的土地所有权。此后几十年，佐治亚领导人一直拿这项承诺向华盛顿施压。">Georgia gave its western land claims to the US government for $1.25 million — and a federal promise to end Native land titles inside Georgia as soon as possible. For decades Georgia’s leaders used that promise to pressure Washington.</p></details>
+  </div>
+  <div class="mix" style="margin-top:14px"><b data-zh="⚠️ 易错点：">⚠️ Don’t mix up:</b><span data-zh="人头权制度 = 自己申请、自己测量（1783 年起）；土地抽签 = 州政府先测量成方块，再抽签分配（1805—1833）。抽签更公平、更整齐，但分出去的是从原住民手里拿来的土地。">Headright = claim it and survey it yourself (from 1783). Land lottery = the state surveyed neat lots first, then gave them out by drawing (1805–1833). Lotteries were fairer and tidier — but the land was taken from Native nations.</span></div>
+</section>
+
+<section class="wrap" id="lottery" data-nav="Land lottery" data-nav-zh="土地抽签">
+  <div class="sec-head">
+    <h2 data-zh="任务 2：进入 1832 年土地抽签">Mission 2: enter the 1832 land lottery</h2>
+    <p data-zh="1832 年，约 8.5 万人争夺 18309 块 160 英亩（约 65 公顷，约 120 个足球场）的土地，另有 13.3 万多人争夺 3.5 万块 40 英亩的“金矿地”。选一个身份，看看你能抽几次——再想一想：谁根本不能参加？">In 1832 about 85,000 people competed for 18,309 land lots of 160 acres (about 120 football fields each), and more than 133,000 for 35,000 “gold lots” of 40 acres. Pick who you are, see how many draws you get — and notice who could not enter at all.</p>
+  </div>
+  <div class="sim">
+    <div class="card simbox" style="padding:18px;display:flex;flex-direction:column;gap:12px">
+      <div class="who" id="who"></div>
+      <div class="drum" id="drum" aria-live="polite"></div>
+      <div class="btnrow" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="spin" data-zh="转动抽签桶 ▶">Turn the drum ▶</button><button class="btn ghost" id="sim1000" data-zh="模拟 1000 名抽签者">Simulate 1,000 drawers</button></div>
+    </div>
+    <div class="card simside">
+      <h3 data-zh="你的抽签资格">Your lottery ticket</h3>
+      <p id="whoNote" style="font-size:15px"></p>
+      <div class="counters" style="grid-template-columns:1fr 1fr"><div class="counter"><b id="lDraws">1</b><span data-zh="抽签次数">draws</span></div><div class="counter"><b id="lOdds">—</b><span data-zh="中签机会">chance to win</span></div><div class="counter"><b id="lTries">0</b><span data-zh="已抽">turns taken</span></div><div class="counter"><b id="lWins">0</b><span data-zh="抽中">won</span></div></div>
+      <div class="result" id="lMsg"></div>
+      <div class="callout" style="margin-top:8px" data-zh="⚠️ 抽签桶里的土地属于切罗基族。1832 年抽签时，成千上万的切罗基家庭仍然住在这些土地上——有的中签者到了地方，发现那里还住着切罗基人的一家。">⚠️ The land in this drum belonged to the Cherokee Nation. In 1832 thousands of Cherokee families were still living on it — some winners arrived to find a Cherokee family in the house on “their” lot.</div>
+    </div>
+  </div>
+  <div class="grid3 people" style="margin-top:16px">
+    <div class="card box"><div class="ico">⚙️</div><h3 data-zh="轧棉机（1793）">The cotton gin (1793)</h3><p data-zh-html="伊莱·惠特尼在萨凡纳附近的种植园造出轧棉机，能快速去掉短绒棉的棉籽。棉花变得非常赚钱——人们想要更多土地，也更多地使用被奴役的劳动力。">Eli Whitney built it near Savannah. It pulled the seeds out of short-staple cotton fast, so cotton became hugely profitable — and planters wanted more land and more enslaved workers.</p></div>
+    <div class="card box"><div class="ico">🚂</div><h3 data-zh="铁路（19 世纪 30 年代起）">Railroads (from the 1830s)</h3><p data-zh-html="州政府修建的西部与大西洋铁路在 <span class='yr'>1837</span> 年定下南端终点“Terminus”，这里后来改名马萨斯维尔，<span class='yr'>1845</span> 年改名亚特兰大。铁路把棉花运到港口，也带来了新的城镇。">The state-built Western &amp; Atlantic Railroad set its southern end point, “Terminus,” in <span class="yr">1837</span>. The town became Marthasville, then Atlanta in <span class="yr">1845</span>. Rails carried cotton to the ports and created new towns.</p></div>
+    <div class="card box"><div class="ico">🗺️</div><h3 data-zh="抽签怎样运作">How a lottery worked</h3><p data-zh-html="一个桶里放写着名字的票，另一个桶里放写着地块编号的票和空白票。两边各抽一张：抽到编号就中签，付一笔小额登记费（1832 年每块 18 美元）就能拿到地契。">One drum held tickets with names; another held lot numbers mixed with blanks. A name and a ticket were drawn together: a lot number meant you won and could get the grant for a small fee ($18 per lot in 1832).</p></div>
+  </div>
+  <div class="card" style="margin-top:16px;padding:18px 20px">
+    <h3 style="margin:0 0 4px" data-zh="数据图：佐治亚人口增长（1790—1840）">Data figure: Georgia’s population boom (1790–1840)</h3>
+    <p class="muted" style="margin:0 0 8px;font-size:15px" data-zh="整根柱 = 佐治亚总人口；深色部分 = 被奴役的人口（单位：千人）。点击柱子查看数字。人口越多、棉花越多，对土地的需求就越大。">Full bar = Georgia’s total population; dark part = enslaved people (thousands). Click a bar for its numbers. More people and more cotton meant more demand for land.</p>
+    <div class="simbox" id="popBox"><canvas id="popCv" aria-label="Georgia population chart 1790 to 1840"></canvas></div>
+    <p class="muted" id="popRead" style="margin:8px 0 0;font-weight:700"></p>
+    <p class="muted" style="margin:6px 0 0;font-size:12.5px" data-zh="来源：美国人口普查（1790—1840 年各次普查），四舍五入到千人。人口普查不统计生活在本民族领土上的切罗基人和克里克人。">Source: US Census, 1790–1840 counts, rounded to thousands. The census did not count Cherokee and Creek people living in their own nations.</p>
+  </div>
+</section>
+
+<section class="wrap" id="cherokee" data-nav="Cherokee Nation" data-nav-zh="切罗基族">
+  <div class="sec-head">
+    <h2 data-zh="切罗基族：文字、报纸与法庭">The Cherokee Nation: writing, a newspaper and the courts</h2>
+    <p data-zh="19 世纪 20 年代，切罗基人建立了一个有成文宪法（1827）、首都新埃乔塔、法院和双语报纸的国家。他们想证明：自己可以按照美国人的方式生活，留在祖先的土地上。">In the 1820s the Cherokee built a nation with a written constitution (1827), a capital at New Echota, courts and a bilingual newspaper. They meant to show they could live the way Americans did — and stay on the land of their ancestors.</p>
+  </div>
+  <div class="grid2">
+    <div class="card box">
+      <h3 data-zh="任务 3：用塞阔亚的音节文字写字">Mission 3: write with Sequoyah’s syllabary</h3>
+      <p data-zh="塞阔亚没有学过读写，却在 1821 年创造了一套音节文字：86 个符号，每个代表一个音节。点击下面的符号，拼出目标词。">Sequoyah could not read or write any language, yet by 1821 he created a syllabary: 86 symbols, each standing for one syllable. Tap the symbols to spell the target word.</p>
+      <div class="syl-target"><div><small class="muted" style="font-weight:800" id="sylLabel"></small><div class="slots chr" id="slots"></div></div></div>
+      <div class="keys chr" id="keys" style="margin-top:12px"></div>
+      <div class="result" id="sylMsg" style="margin-top:10px"></div>
+      <div class="btnrow" style="display:flex;gap:8px;margin-top:8px"><button class="btn ghost" id="sylSkip" data-zh="换一个词 ▶">Next word ▶</button></div>
+    </div>
+    <div class="card box">
+      <h3 data-zh="一套能在几周内学会的文字">A writing system you could learn in weeks</h3>
+      <p data-zh="英语字母只代表单个的音，而切罗基音节文字的一个符号就是一个完整的音节。会说切罗基语的人只要记住这些符号，就能读会写。切罗基人很快就开始用它写信、记法律、出报纸。">English letters stand for single sounds; one Cherokee symbol is a whole syllable. A Cherokee speaker who learned the symbols could read and write — and soon people were writing letters, laws and a newspaper with it.</p>
+      <div class="counters" style="grid-template-columns:1fr 1fr;margin-top:10px"><div class="counter"><b id="cmpEn">8</b><span data-zh="英文字母（CHEROKEE）">English letters (CHEROKEE)</span></div><div class="counter"><b id="cmpCh">3</b><span data-zh="切罗基符号（ᏣᎳᎩ）">Cherokee symbols (ᏣᎳᎩ)</span></div></div>
+      <div class="quote" style="font-style:normal;margin-top:12px" data-zh-html="📰 《切罗基凤凰报》（<span class='chr'>ᏣᎳᎩ ᏧᎴᎯᏌᏅᎯ</span>）1828 年 2 月 21 日在新埃乔塔创刊，用英语和切罗基文两种文字印刷，主编是伊莱亚斯·布迪诺特——这是第一份美洲原住民报纸。">📰 The <i>Cherokee Phoenix</i> (<span class="chr">ᏣᎳᎩ ᏧᎴᎯᏌᏅᎯ</span>) first appeared at New Echota on February 21, 1828, printed in English and Cherokee, edited by Elias Boudinot — the first Native American newspaper.</div>
+    </div>
+  </div>
+  <div class="grid3 people" style="margin-top:16px">
+    <div class="card box"><div class="ico">✍️</div><h3 data-zh="塞阔亚">Sequoyah</h3><p data-zh-html="<span class='yr'>1821</span> 年完成切罗基音节文字，<span class='yr'>1825</span> 年切罗基族正式采用。这是历史上极少见的、由一个人独自创造的文字。">Finished the Cherokee syllabary in <span class="yr">1821</span>; the Cherokee Nation adopted it in <span class="yr">1825</span>. One of the very few writing systems in history created by one person.</p></div>
+    <div class="card box"><div class="ico">🏛️</div><h3 data-zh="约翰·罗斯">John Ross</h3><p data-zh-html="切罗基族首席酋长（<span class='yr'>1828—1866</span>）。他通过法庭、请愿和谈判反对迁移；1836 年把一份有约 1.5 万人签名的抗议书送到国会。">Principal Chief (<span class="yr">1828–1866</span>). He fought removal through courts, petitions and talks; in 1836 he took a protest signed by about 15,000 Cherokee to Congress.</p></div>
+    <div class="card box"><div class="ico">⚖️</div><h3 data-zh="伍斯特诉佐治亚州案（1832）">Worcester v. Georgia (1832)</h3><p data-zh-html="佐治亚逮捕了没有州许可就住在切罗基领地的传教士塞缪尔·伍斯特。首席大法官约翰·马歇尔判决：切罗基族是一个独立的群体，<b>佐治亚的法律在那里无效</b>。佐治亚拒不执行，杰克逊总统也没有出面执行。">Georgia jailed missionary Samuel Worcester for living in the Cherokee Nation without a state license. Chief Justice John Marshall ruled the Cherokee Nation was a distinct community where <b>Georgia’s laws had no force</b>. Georgia ignored it, and President Jackson did not enforce it.</p></div>
+    <div class="card box"><div class="ico">⛏️</div><h3 data-zh="达洛尼加淘金热（1829）">Dahlonega gold rush (1829)</h3><p data-zh-html="<span class='yr'>1828—1829</span> 年，在切罗基领地发现了黄金，数千名淘金者（“二九年人”）涌入。“达洛尼加”来自切罗基语中表示“黄色”的词。1838 年这里建起了铸币厂。">Gold was found in the Cherokee Nation in <span class="yr">1828–29</span>, and thousands of miners — the “Twenty-Niners” — rushed in. “Dahlonega” comes from the Cherokee word for yellow. A US Mint opened there in 1838.</p></div>
+    <div class="card box"><div class="ico">🦅</div><h3 data-zh="安德鲁·杰克逊">Andrew Jackson</h3><p data-zh-html="总统（<span class='yr'>1829—1837</span>）。<span class='yr'>1830</span> 年签署《印第安人迁移法》，授权用密西西比河以西的土地“交换”东部原住民的土地。">President (<span class="yr">1829–1837</span>). In <span class="yr">1830</span> he signed the Indian Removal Act, which let him trade land west of the Mississippi for Native lands in the East.</p></div>
+    <div class="card box"><div class="ico">🪶</div><h3 data-zh="威廉·麦金托什（克里克人）">William McIntosh (Creek)</h3><p data-zh-html="下克里克人首领。<span class='yr'>1825</span> 年他签订《印第安斯普林斯条约》，把克里克族在佐治亚剩下的土地几乎全部让出。克里克族法律规定出卖族地者死刑，同年 4 月他被克里克族执法者处死。条约后被另一份条约取代，但到 1827 年克里克人在佐治亚的土地已全部失去。">Lower Creek leader. In <span class="yr">1825</span> he signed the Treaty of Indian Springs, giving up almost all remaining Creek land in Georgia. Creek law made selling Creek land a crime punished by death; that April he was executed by Creek law enforcers. The treaty was replaced, but by 1827 all Creek land in Georgia was gone.</p></div>
+  </div>
+  <div class="grid2" style="margin-top:16px">
+    <div class="card box"><h3 data-zh="原始资料：两种声音">Primary sources: two voices</h3>
+      <div class="quote" data-zh-html="“我们希望留在我们祖先的土地上。我们拥有完整的、原初的权利，不受干扰地留在这里。”<small>——《切罗基族备忘录》（致美国国会），1830 年</small>">“We wish to remain on the land of our fathers. We have a perfect and original right to remain without interruption or molestation.”<small>— Memorial of the Cherokee Nation to Congress, 1830</small></div>
+      <div class="quote" style="margin-top:10px" data-zh-html="“最高法院的判决一出生就是死的，他们发现它无法强迫佐治亚服从。”<small>——安德鲁·杰克逊致约翰·科菲的信，1832 年 4 月</small>">“The decision of the supreme court has fell still born, and they find that it cannot coerce Georgia to yield to its mandate.”<small>— Andrew Jackson, letter to John Coffee, April 1832</small></div>
+    </div>
+    <div class="card box"><h3 data-zh="《新埃乔塔条约》（1835）">The Treaty of New Echota (1835)</h3>
+      <p data-zh="1835 年 12 月，一小群切罗基人（“条约派”，包括梅杰·里奇、约翰·里奇和伊莱亚斯·布迪诺特）在新埃乔塔签约，以 500 万美元让出密西西比河以东的全部切罗基土地。他们不是民选政府的代表，大多数切罗基人反对。美国参议院以仅多出一票的结果批准了条约，并定下 1838 年 5 月为搬迁期限。">In December 1835 a small group of Cherokee — the “Treaty Party,” including Major Ridge, John Ridge and Elias Boudinot — signed at New Echota, giving up all Cherokee land east of the Mississippi for $5 million. They were not the elected government, and most Cherokee opposed it. The US Senate approved it by a single vote more than it needed, setting May 1838 as the deadline to leave.</p>
+      <div class="mix"><b data-zh="⚠️ 易错点：">⚠️ Don’t mix up:</b><span data-zh="“马歇尔已经作出了判决，现在让他去执行吧！”这句名言很可能是后人编的，没有可靠证据表明杰克逊说过。他在信中真实写下的是“一出生就是死的”。">“John Marshall has made his decision; now let him enforce it!” is probably a later invention — there’s no reliable record Jackson said it. What he really wrote was that the decision “fell still born.”</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="trail" data-nav="Trail of Tears" data-nav-zh="血泪之路">
+  <div class="sec-head">
+    <h2 data-zh="血泪之路（1838—1839）">The Trail of Tears (1838–1839)</h2>
+    <p data-zh="1838 年 5 月，温菲尔德·斯科特将军率约 7000 名士兵开始驱赶切罗基人。约 1.6 万名切罗基人被迫离开家园，大约 4000 人死于拘留营和路途中的疾病、寒冷和饥饿（估计数）。拖动滑块，沿着北线走一遍。">In May 1838 General Winfield Scott and about 7,000 soldiers began forcing the Cherokee out. About 16,000 Cherokee were made to leave their homes; an estimated 4,000 died of disease, cold and hunger in the camps and on the way. Drag the slider to follow the main northern route.</p>
+  </div>
+  <div class="explorer">
+    <div class="stage card" id="trailStage">
+      <canvas id="trailCv" aria-label="Map of the Trail of Tears routes"></canvas>
+      <div class="toolbar">
+        <button class="tbtn" id="tjPlay" data-zh="▶ 播放">▶ Play</button>
+        <button class="tbtn on" id="lyYazoo" data-zh="1802 年前佐治亚的西部主张">Georgia’s claim before 1802</button>
+        <button class="tbtn on" id="lyWater" data-zh="水路">Water route</button>
+      </div>
+      <div class="bottombar">
+        <div class="pill"><span data-zh="站点">Stop</span><b id="tjVal">1</b><input id="tj" type="range" min="0" max="7" step="1" value="0" aria-label="Stop on the trail"></div>
+        <div class="tip" data-zh="示意图：路线依据美国国家公园管理局血泪之路国家历史小道地图大致勾画。">Schematic: routes roughly traced from the National Park Service trail map.</div>
+      </div>
+    </div>
+    <aside class="info card" id="tInfo" aria-live="polite"></aside>
+  </div>
+  <div class="quote" style="margin-top:16px" data-zh-html="“我们被剥夺了国籍，被剥夺了公民权利。我们被排除在人类大家庭之外！”<small>——约翰·罗斯致美国参议院和众议院的信，1836 年</small>">“We are denationalized; we are disfranchised. We are deprived of membership in the human family!”<small>— John Ross, letter to the US Senate and House of Representatives, 1836</small></div>
+  <div class="callout" style="margin-top:12px" data-zh="切罗基人在印第安领地（今俄克拉何马州）重建了自己的国家，以塔勒阔为首都。今天，切罗基族是美国人数最多的部族之一；一些逃过驱赶的切罗基人留在北卡罗来纳山区，成为今天的东部切罗基族。">The Cherokee rebuilt their nation in Indian Territory (today’s Oklahoma), with Tahlequah as its capital. Today the Cherokee Nation is one of the largest tribal nations in the US, and Cherokee who escaped removal in the North Carolina mountains became today’s Eastern Band of Cherokee Indians.</div>
+</section>
+
+<section class="wrap" id="detective">
+  <div class="hg card" id="hg">
+    <h2 style="margin:0" data-zh="任务 4：史料侦探">Mission 4: source detective</h2>
+    <p class="muted" style="margin:0;font-size:15px" data-zh="每张卡片是一段真实的原始资料（或对它的描述）。选出它的作者或出处。连续答对有额外加分；10 张卡结束后看看你的星级和级别。">Each card is a real primary source (or a description of one). Pick who wrote it or where it comes from. A streak earns bonus points; after 10 cards you get stars and a rank.</p>
+    <div class="counters"><div class="counter"><b id="hgScore">0</b><span data-zh="得分">score</span></div><div class="counter"><b id="hgStreak">0</b><span data-zh="连对">streak</span></div><div class="counter"><b id="hgN">1/10</b><span data-zh="卡片">card</span></div><div class="counter"><b id="hgRank">—</b><span data-zh="级别">rank</span></div></div>
+    <div class="hg-bar"><i id="hgBar"></i></div>
+    <div class="clue"><small id="hgYear"></small><p id="hgClue"></p></div>
+    <div class="opts" id="hgOpts"></div>
+    <div class="result" id="hgMsg"></div>
+    <div class="btnrow" style="display:flex;gap:8px"><button class="btn" id="hgNext" data-zh="下一张 ▶">Next card ▶</button></div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real media" data-nav-zh="真实影像">
+  <div id="gallery"></div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 测验（12 题）">🧠 Quiz (12 questions)</h3><p class="sub" data-zh="选出最佳答案，并阅读解析。有两题需要读地图或图表。">Pick the best answer and read the explanation. Two questions use the map or the chart.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分一分">🗂️ Sort it</h3><p class="sub" data-zh="把每一项拖到（或先点再点方框）正确的类别：佐治亚的土地政策、切罗基族的成就，还是走向迁移的步骤？">Drag each item (or tap it, then tap a box): a Georgia land policy, a Cherokee achievement, or a step toward removal?</p><div id="sort"></div></div>
+  </div>
+  <div class="sec-head" style="margin-top:26px"><h2 data-zh="继续探索">Go further</h2></div>
+  <div class="linkgrid">
+    <a class="linkcard" href="https://www.nps.gov/trte/index.htm" target="_blank" rel="noopener"><b data-zh="美国国家公园管理局：血泪之路国家历史小道">NPS: Trail of Tears National Historic Trail</b><span data-zh="查看所有路线的地图，找到沿途可以参观的纪念地。">Maps of all the routes and places you can visit along them.</span><small>nps.gov ↗</small></a>
+    <a class="linkcard" href="https://www.cherokee.gov/" target="_blank" rel="noopener"><b data-zh="切罗基族官方网站">Cherokee Nation (official site)</b><span data-zh="今天的切罗基族：政府、语言和文化——由切罗基人自己讲述。">The Cherokee Nation today — government, language and culture, in its own words.</span><small>cherokee.gov ↗</small></a>
+    <a class="linkcard" href="https://gastateparks.org/NewEchota" target="_blank" rel="noopener"><b data-zh="新埃乔塔州立历史遗址">New Echota State Historic Site</b><span data-zh="参观切罗基族首都：印刷所、最高法院大楼和伍斯特的住宅。">Visit the Cherokee capital: the print shop, the Supreme Court building and Worcester’s house.</span><small>gastateparks.org ↗</small></a>
+    <a class="linkcard" href="https://www.georgiaencyclopedia.org/articles/history-archaeology/cherokee-removal/" target="_blank" rel="noopener"><b data-zh="《新佐治亚百科全书》：切罗基人迁移">New Georgia Encyclopedia: Cherokee Removal</b><span data-zh="从《新埃乔塔条约》到驱赶与拘留营的完整经过。">The full story, from the Treaty of New Echota to the roundup and camps.</span><small>georgiaencyclopedia.org ↗</small></a>
+    <a class="linkcard" href="https://www.georgiaencyclopedia.org/articles/history-archaeology/land-lottery-system/" target="_blank" rel="noopener"><b data-zh="《新佐治亚百科全书》：土地抽签制度">New Georgia Encyclopedia: Land Lottery System</b><span data-zh="八次土地抽签怎样分掉了佐治亚约四分之三的土地。">How eight lotteries gave out about three-quarters of Georgia.</span><small>georgiaencyclopedia.org ↗</small></a>
+    <a class="linkcard" href="https://www.georgiaencyclopedia.org/articles/history-archaeology/yazoo-land-fraud/" target="_blank" rel="noopener"><b data-zh="《新佐治亚百科全书》：亚祖土地欺诈案">New Georgia Encyclopedia: Yazoo Land Fraud</b><span data-zh="贿赂、愤怒的选民和“来自天上的火”。">Bribes, angry voters and the burning of the papers.</span><small>georgiaencyclopedia.org ↗</small></a>
+    <a class="linkcard" href="https://www.georgiaencyclopedia.org/articles/history-archaeology/gold-rush/" target="_blank" rel="noopener"><b data-zh="《新佐治亚百科全书》：佐治亚淘金热">New Georgia Encyclopedia: Gold Rush</b><span data-zh="二九年人、达洛尼加铸币厂，以及黄金如何加速了迁移。">The Twenty-Niners, the Dahlonega Mint, and how gold sped up removal.</span><small>georgiaencyclopedia.org ↗</small></a>
+    <a class="linkcard" href="https://www.georgiaencyclopedia.org/articles/government-politics/worcester-v-georgia-1832/" target="_blank" rel="noopener"><b data-zh="《新佐治亚百科全书》：伍斯特诉佐治亚州案">New Georgia Encyclopedia: Worcester v. Georgia</b><span data-zh="读一读这场最高法院案件的来龙去脉。">The background and results of the Supreme Court case.</span><small>georgiaencyclopedia.org ↗</small></a>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="课程标准：佐治亚州卓越标准（GSE）8 年级佐治亚州研究 SS8H4——解释 1789—1840 年间影响佐治亚西进扩张的重要因素：a 佐治亚大学的建立与首府西迁的原因（见上一课）；b 评价佐治亚的土地政策，包括人头权制度、土地抽签和亚祖土地欺诈案；c 解释轧棉机和铁路等技术发展对佐治亚发展的影响；d 描述威廉·麦金托什在克里克人迁出佐治亚中的作用；e 分析关键人物（约翰·罗斯、约翰·马歇尔、安德鲁·杰克逊）和事件（达洛尼加淘金热、伍斯特诉佐治亚州案）如何导致切罗基人被迫迁出佐治亚，即“血泪之路”。">Standards: Georgia Standards of Excellence, Grade 8 Georgia Studies — SS8H4, Explain significant factors that affected westward expansion in Georgia between 1789 and 1840: a. reasons for the University of Georgia and the westward movement of the capitals (see the previous lesson); b. land policies — headright system, land lotteries, Yazoo Land Fraud; c. technology — cotton gin and railroads; d. the role of William McIntosh in the removal of the Creek; e. how John Ross, John Marshall, Andrew Jackson, the Dahlonega Gold Rush and Worcester v. Georgia led to the removal of the Cherokees known as the Trail of Tears.</p>
+    <p data-zh="说明：割让地图是示意图，依据罗伊斯《美国印第安人土地割让》地图大致勾画，边界做了简化；“原住民土地占比”按示意图估算，仅供比较。抽签机会按 1832 年的总数简化计算（约 8.5 万人、18309 块地），并非某一个人的真实概率。死亡人数 4000 是常用估计，研究者的估计从数千到更多不等。本课使用克里克（马斯科吉）和切罗基两个民族自己的名称，并引用他们自己的文字。">Notes: the cession map is schematic, roughly traced from Royce’s “Indian Land Cessions in the United States” maps, with simplified borders; the “share of Native land” is estimated from that schematic and is for comparison only. Lottery odds are simplified from the 1832 totals (about 85,000 people, 18,309 lots). The figure of about 4,000 deaths is the commonly used estimate; historians’ estimates vary. The lesson uses the nations’ own names (Muscogee/Creek, Cherokee) and quotes their own words.</p>
+    <p data-zh="与中国课程的联系：统编版《世界历史》九年级下册第 3 课《美国内战》在背景部分讲到美国领土向西扩张；本课从佐治亚的角度讲述西进扩张对原住民的影响。">Link to China’s curriculum: the national textbook World History, Grade 9 Volume 2, Lesson 3 “The American Civil War” mentions US westward expansion as background; this lesson shows what that expansion meant for Native nations in Georgia.</p>
+    <p data-zh="教学建议：让学生在播放地图时记下“原住民土地占比”的变化，找出下降最快的几年；再读切罗基族备忘录和杰克逊的信，讨论：法律站在切罗基人一边，为什么他们仍然失去了土地？">Suggested use: as the map plays, have students record the share of Native land and find the years it fell fastest. Then read the Cherokee Memorial and Jackson’s letter and discuss: the law was on the Cherokee side, so why did they still lose their land?</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+const o = (en, zh) => ({en, zh});
+/* ===== Land cessions (schematic, after Royce's cession maps). Polygons in [lon, lat]; each may spill east into OLDER cessions
+   (older ones are painted on top) but never into newer ones. n: C = Creek (Muscogee), K = Cherokee; m: c colony, h headright, l lottery ===== */
+const CHEROKEE = [[-85.8,33.84],[-85.0,33.83],[-84.55,33.77],[-84.46,33.84],[-84.44,33.92],[-84.36,34.01],[-84.27,33.97],[-84.11,34.07],[-84.10,34.15],[-84.08,34.17],[-84.02,34.21],[-83.98,34.22],[-83.92,34.32],[-83.81,34.36],[-83.6,34.25],[-83.15,34.15],[-82.75,34.25],[-82.5,34.6],[-83.1,35.3],[-85.8,35.3]];
+const FLINT = [[-84.45,33.63],[-84.40,33.60],[-84.37,33.54],[-84.39,33.48],[-84.39,33.32],[-84.42,33.28],[-84.45,33.21],[-84.51,33.15],[-84.54,33.02],[-84.53,32.92],[-84.48,32.87],[-84.45,32.83],[-84.39,32.78],[-84.23,32.73],[-84.19,32.68],[-84.11,32.67],[-84.07,32.64],[-84.05,32.57],[-84.01,32.54],[-84.05,32.21],[-83.95,32.03],[-83.93,31.92],[-83.95,31.84],[-84.01,31.80],[-83.99,31.77],[-84.02,31.72]];
+const OCMULGEE = [[-83.87,33.37],[-83.81,33.24],[-83.82,33.13],[-83.73,33.04],[-83.70,32.93],[-83.59,32.79],[-83.61,32.68],[-83.55,32.63],[-83.54,32.53],[-83.49,32.48],[-83.50,32.34],[-83.42,32.24],[-83.40,32.15],[-83.30,32.08],[-83.28,31.97],[-83.22,31.93],[-83.17,31.84],[-83.02,31.78],[-82.87,31.78],[-82.68,31.92],[-82.52,31.96]];
+const OCONEE = [[-83.71,34.06],[-83.56,34.04],[-83.40,33.94],[-83.39,33.91],[-83.31,33.84],[-83.27,33.57],[-83.28,33.50],[-83.23,33.40],[-83.17,33.39],[-83.15,33.32],[-83.25,33.26],[-83.26,33.19],[-83.20,33.13],[-83.21,33.08],[-83.19,33.03],[-83.13,33.01],[-83.03,32.87],[-82.97,32.83],[-82.93,32.63],[-82.88,32.59],[-82.88,32.53],[-82.82,32.40],[-82.75,32.37],[-82.75,32.33],[-82.71,32.30],[-82.64,32.27],[-82.60,32.02],[-82.57,31.99]];
+const OGEECHEE = [[-82.66,33.12],[-82.60,33.04],[-82.39,32.96],[-82.34,32.90],[-82.31,32.83],[-82.22,32.81],[-81.97,32.79],[-81.92,32.76],[-81.86,32.66],[-81.81,32.65],[-81.69,32.55],[-81.55,32.49],[-81.53,32.46],[-81.54,32.41],[-81.45,32.30],[-81.40,32.11]];
+const ZONES = [
+ { id:'z1', y:1733, n:'C', m:'c', name:o('Agreement with Tomochichi & the Lower Creek, 1733','与托莫奇奇及下克里克人的协议，1733'), ll:[-81.3,31.85],
+   poly:[[-80.5,32.25],[-81.17,32.35],[-81.37,32.05],[-81.6,31.6],[-81.45,31.25],[-80.5,31.25]],
+   facts:o(['Tomochichi, leader of the Yamacraw, welcomed James Oglethorpe at Yamacraw Bluff.','Lower Creek leaders agreed to English settlement on the coast between the Savannah and Altamaha rivers.','The Trustees, and later the King, granted this land to colonists.'],['亚马克劳人首领托莫奇奇在亚马克劳崖欢迎了詹姆斯·奥格尔索普。','下克里克人首领同意英国人在萨凡纳河与奥尔塔马霍河之间的沿海定居。','这些土地先由托管人、后由英王分给殖民者。']) },
+ { id:'z2', y:1763, n:'C', m:'c', name:o('Treaty of Augusta, 1763','《奥古斯塔条约》，1763'), ll:[-81.9,32.5],
+   poly:[[-82.21,33.66],[-82.55,33.38],...OGEECHEE.slice(0), [-81.62,31.65],[-81.8,31.2],[-82.0,30.8],[-82.05,30.55],[-82.05,30.1],[-80.4,30.1],[-80.4,33.9],[-82.0,33.9]],
+   facts:o(['After the French and Indian War, Creek and Cherokee leaders met British officials at Augusta.','They ceded land between the Savannah and Ogeechee rivers and a coastal strip south to the St. Marys River.','Settlers poured into the new backcountry.'],['法国-印第安人战争结束后，克里克人和切罗基人的首领在奥古斯塔与英国官员会面。','他们割让了萨凡纳河与奥吉奇河之间的土地，以及向南直到圣玛丽斯河的沿海地带。','移民涌入新开放的边疆。']) },
+ { id:'z3', y:1773, n:'K', m:'c', name:o('Treaty of Augusta, 1773 (“New Purchase”)','《奥古斯塔条约》，1773（“新购地”）'), ll:[-82.75,33.85],
+   poly:[[-82.21,33.66],[-82.55,33.38],[-82.80,33.32],[-82.95,33.55],[-83.1,33.9],[-83.25,34.25],[-83.0,34.5],[-82.85,34.47],[-82.3,34.5],[-82.0,33.8]],
+   facts:o(['Cherokee and Creek leaders gave up about 2 million acres north of the Little River.','The land paid off debts that Native hunters owed to British traders.','It became Wilkes County — the Kettle Creek country of the Revolution.'],['切罗基人和克里克人的首领让出了小河以北约 200 万英亩土地。','这些土地被用来抵偿原住民猎人欠英国商人的债务。','这里成了威尔克斯县——独立战争中凯特尔溪之战的地方。']) },
+ { id:'z4', y:1790, n:'C', m:'h', name:o('Treaties of Augusta (1783) → New York (1790)','《奥古斯塔条约》（1783）→《纽约条约》（1790）'), ll:[-82.6,32.4],
+   poly:[[-82.85,34.47],[-83.17,34.60],[-83.45,34.45],[-83.6,34.25],...OCONEE, [-82.2,30.6],[-82.2,30.1],[-80.4,30.1],[-80.4,33.9],[-82.3,34.5]],
+   facts:o(['In 1783 a few Creek leaders signed away land up to the Oconee River; most Creek rejected it and years of fighting followed.','In 1790 Creek leader Alexander McGillivray accepted the Oconee line in the Treaty of New York.','The Cherokee also gave up land in the northeast in 1783 (Franklin County). Georgia gave this land out as headrights.'],['1783 年，少数克里克首领签约让出直到奥科尼河的土地；大多数克里克人拒绝承认，随后发生了多年冲突。','1790 年，克里克首领亚历山大·麦吉利夫雷在《纽约条约》中接受了奥科尼河边界。','1783 年切罗基人也让出了东北部的土地（富兰克林县）。佐治亚用“人头权”方式分配这些土地。']) },
+ { id:'z5', y:1805, n:'C', m:'l', lot:1805, name:o('Treaties of Fort Wilkinson (1802) & Washington (1805)','《威尔金森堡条约》（1802）与《华盛顿条约》（1805）'), ll:[-83.4,32.75],
+   poly:[[-83.40,33.94],[-83.6,33.62],...OCMULGEE, [-82.3,32.6],[-82.9,33.7]],
+   facts:o(['The Creek ceded land between the Oconee and Ocmulgee rivers.','Georgia gave it out in its first land lottery (1805).','Milledgeville, the next capital, was laid out here in 1803.'],['克里克人割让了奥科尼河与奥克马尔吉河之间的土地。','佐治亚通过第一次土地抽签（1805）分配了这些土地。','下一个首府米利奇维尔于 1803 年在这里规划建设。']) },
+ { id:'z6', y:1814, n:'C', m:'l', lot:1820, name:o('Treaty of Fort Jackson, 1814','《杰克逊堡条约》，1814'), ll:[-83.6,31.1],
+   poly:[[-85.6,30.1],[-85.6,31.62],[-85.06,31.62],[-84.4,31.69],[-84.02,31.72],[-83.6,31.80],[-83.17,31.84],[-82.52,31.96],[-82.2,31.4],[-82.1,30.1]],
+   facts:o(['After the Creek War (1813–14), General Andrew Jackson forced the Creek Nation to give up about 23 million acres in Alabama and south Georgia.','Even Creek who had fought on the US side lost land.','Georgia gave the land out in the 1820 lottery.'],['克里克战争（1813—1814）后，安德鲁·杰克逊将军迫使克里克族让出亚拉巴马和南佐治亚约 2300 万英亩土地。','就连站在美国一边作战的克里克人也失去了土地。','佐治亚在 1820 年的抽签中分配了这些土地。']) },
+ { id:'z7', y:1818, n:'C', m:'l', lot:1820, name:o('Treaty of the Creek Agency, 1818','《克里克代理处条约》，1818'), ll:[-83.85,33.85],
+   poly:[[-83.40,33.94],[-83.55,34.1],[-83.85,34.15],[-84.08,34.17],[-84.11,34.07],[-84.27,33.97],[-84.1,33.75],[-83.95,33.55],[-83.87,33.37],[-83.6,33.62]],
+   facts:o(['The Creek ceded land near the heads of the Ocmulgee and Apalachee rivers.','It became Gwinnett and Walton counties.','Given out in the 1820 lottery.'],['克里克人割让了奥克马尔吉河与阿巴拉契河上游附近的土地。','这里成为格威内特县和沃尔顿县。','在 1820 年的抽签中分配。']) },
+ { id:'z8', y:1819, n:'K', m:'l', lot:1820, name:o('Cherokee treaties of 1817 & 1819','1817 年与 1819 年切罗基条约'), ll:[-83.45,34.6],
+   poly:[[-83.15,34.15],[-83.55,34.1],[-83.85,34.15],[-84.08,34.17],[-84.02,34.21],[-83.98,34.22],[-83.92,34.32],[-83.81,34.36],[-83.73,34.40],[-83.62,34.55],[-83.67,34.70],[-83.75,34.72],[-83.66,35.3],[-82.9,35.3],[-82.8,34.4]],
+   facts:o(['The Cherokee ceded land in the northeast mountains.','It became Habersham, Hall and Rabun counties.','Given out in the 1820 lottery.'],['切罗基人割让了东北山区的土地。','这里成为哈伯沙姆县、霍尔县和拉本县。','在 1820 年的抽签中分配。']) },
+ { id:'z9', y:1821, n:'C', m:'l', lot:1821, name:o('First Treaty of Indian Springs, 1821','第一次《印第安斯普林斯条约》，1821'), ll:[-84.05,32.9],
+   poly:[[-83.87,33.37],[-83.95,33.55],[-84.1,33.75],[-84.27,33.97],[-84.36,34.01],[-84.44,33.92],[-84.46,33.84],[-84.55,33.77],[-84.62,33.5],...FLINT.slice(5), [-83.6,31.80],[-83.17,31.84],[-83.4,32.5],[-83.8,33.2]],
+   facts:o(['The Creek ceded land between the Ocmulgee and Flint rivers.','It included the place where Atlanta would later grow.','Given out in the 1821 lottery.'],['克里克人割让了奥克马尔吉河与弗林特河之间的土地。','其中包括后来亚特兰大兴起的地方。','在 1821 年的抽签中分配。']) },
+ { id:'z10', y:1826, n:'C', m:'l', lot:1827, name:o('Indian Springs (1825) → Washington (1826–27)','《印第安斯普林斯条约》（1825）→《华盛顿条约》（1826—1827）'), ll:[-84.75,32.6],
+   poly:[[-85.8,33.84],[-85.0,33.83],[-84.55,33.77],[-84.62,33.5],...FLINT.slice(5), [-84.4,31.69],[-85.06,31.62],[-85.8,31.62]],
+   facts:o(['In 1825 William McIntosh signed away the last Creek land in Georgia; Creek law enforcers executed him.','The 1826 Treaty of Washington replaced his treaty, and a final 1827 agreement took the last strip.','Given out in the 1827 lottery. No Creek land was left in Georgia.'],['1825 年威廉·麦金托什签约让出克里克人在佐治亚的最后土地，随后被克里克族执法者处死。','1826 年的《华盛顿条约》取代了他的条约，1827 年的最后协议拿走了剩下的一条土地。','在 1827 年的抽签中分配。克里克人在佐治亚已没有土地。']) },
+ { id:'z11', y:1835, n:'K', m:'l', lot:1832, name:o('Treaty of New Echota, 1835','《新埃乔塔条约》，1835'), ll:[-84.6,34.45], poly:CHEROKEE,
+   facts:o(['Georgia surveyed the Cherokee Nation and gave it away in the 1832 land and gold lotteries — while Cherokee families still lived there.','In 1835 a small “Treaty Party” signed it away without the consent of the elected Cherokee government.','In 1838 the US Army forced the Cherokee out: the Trail of Tears.'],['佐治亚测量了切罗基族的领地，并在 1832 年的土地抽签和金矿地抽签中把它分掉——当时切罗基家庭还住在那里。','1835 年，一个小小的“条约派”在没有得到民选切罗基政府同意的情况下签约让出了这片土地。','1838 年美国军队把切罗基人赶走：这就是“血泪之路”。']) }
+];
+const NATION = { C:{ c:'#c2410c', n:o('Creek (Muscogee) land','克里克（马斯科吉）人的土地') }, K:{ c:'#7c5cbf', n:o('Cherokee land','切罗基人的土地') } };
+const METHOD = { c:{ c:'#d9a441', n:o('Colonial grants','殖民地授地') }, h:{ c:'#2b7bb9', n:o('Headrights','人头权授地') }, l:{ c:'#1aa36b', n:o('Land lotteries','土地抽签') } };
+const EV = [
+ { y:1733, z:'z1', t:o('Oglethorpe meets Tomochichi','奥格尔索普会见托莫奇奇'), b:o('The Yamacraw leader agrees to English settlement at Savannah; Lower Creek leaders allow settlement along the coast.','亚马克劳人首领同意英国人在萨凡纳定居；下克里克人首领允许他们在沿海居住。') },
+ { y:1763, z:'z2', t:o('Treaty of Augusta','《奥古斯塔条约》'), b:o('After the French and Indian War, the Creek and Cherokee cede land between the Savannah and Ogeechee rivers.','法国-印第安人战争后，克里克人和切罗基人割让萨凡纳河与奥吉奇河之间的土地。') },
+ { y:1773, z:'z3', t:o('The “New Purchase”','“新购地”'), b:o('About 2 million acres north of the Little River are ceded to pay debts to traders.','小河以北约 200 万英亩土地被割让，用来抵偿欠商人的债务。') },
+ { y:1783, z:'z4', t:o('The headright system begins','人头权制度开始'), b:o('Heads of household can claim 200 acres plus 50 per family member. A disputed 1783 treaty claims Creek land to the Oconee.','户主可以申请 200 英亩土地，每多一名家庭成员再加 50 英亩。一份有争议的 1783 年条约宣称得到直到奥科尼河的克里克土地。') },
+ { y:1790, z:'z4', t:o('Treaty of New York','《纽约条约》'), b:o('Creek leader Alexander McGillivray accepts the Oconee River as the border.','克里克首领亚历山大·麦吉利夫雷接受以奥科尼河为界。') },
+ { y:1795, z:null, t:o('The Yazoo land fraud','亚祖土地欺诈案'), b:o('Bribed lawmakers sell about 35 million acres of western land for $500,000. A new legislature cancels the sale in 1796 and burns the papers.','受贿的议员把约 3500 万英亩西部土地以 50 万美元卖掉。1796 年新议会撤销交易并烧毁文件。') },
+ { y:1802, z:null, t:o('The Compact of 1802','1802 年协定'), b:o('Georgia gives up its western claims for $1.25 million and a federal promise to remove Native nations from Georgia.','佐治亚放弃西部土地主张，换来 125 万美元和联邦政府把原住民迁出佐治亚的承诺。') },
+ { y:1805, z:'z5', t:o('The first land lottery','第一次土地抽签'), b:o('Creek land between the Oconee and Ocmulgee is given out by lottery — the end of headrights for new land.','奥科尼河与奥克马尔吉河之间的克里克土地通过抽签分配——新土地不再用人头权方式分配。') },
+ { y:1814, z:'z6', t:o('Treaty of Fort Jackson','《杰克逊堡条约》'), b:o('After the Creek War, Andrew Jackson forces the Creek to give up about 23 million acres in Alabama and south Georgia.','克里克战争后，安德鲁·杰克逊迫使克里克人让出亚拉巴马和南佐治亚约 2300 万英亩土地。') },
+ { y:1818, z:'z7', t:o('Creek cession of 1818','1818 年克里克割地'), b:o('Land near the upper Ocmulgee becomes Gwinnett and Walton counties.','奥克马尔吉河上游附近的土地成为格威内特县和沃尔顿县。') },
+ { y:1819, z:'z8', t:o('Cherokee cessions of 1817–1819','1817—1819 年切罗基割地'), b:o('Cherokee land in the northeast mountains is ceded.','东北山区的切罗基土地被割让。') },
+ { y:1821, z:'z9', t:o('First Treaty of Indian Springs','第一次《印第安斯普林斯条约》'), b:o('Creek land between the Ocmulgee and Flint is ceded and raffled off in 1821.','奥克马尔吉河与弗林特河之间的克里克土地被割让，并在 1821 年抽签分配。') },
+ { y:1825, z:'z10', t:o('McIntosh signs at Indian Springs','麦金托什在印第安斯普林斯签约'), b:o('William McIntosh signs away the last Creek land in Georgia. Under Creek law he is executed that spring.','威廉·麦金托什签约让出克里克人在佐治亚的最后土地。按照克里克法律，他在当年春天被处死。') },
+ { y:1826, z:'z10', t:o('Treaty of Washington','《华盛顿条约》'), b:o('A new treaty replaces McIntosh’s; by 1827 no Creek land is left in Georgia.','新条约取代了麦金托什的条约；到 1827 年，佐治亚已没有克里克人的土地。') },
+ { y:1827, z:'z11', t:o('The Cherokee constitution','切罗基宪法'), b:o('The Cherokee Nation adopts a written constitution, with New Echota as its capital.','切罗基族通过成文宪法，以新埃乔塔为首都。') },
+ { y:1828, z:'z11', t:o('The Cherokee Phoenix','《切罗基凤凰报》'), b:o('The first Native American newspaper is printed at New Echota in English and Cherokee.','第一份美洲原住民报纸在新埃乔塔用英语和切罗基文印刷出版。') },
+ { y:1829, z:'z11', t:o('Gold!','发现黄金！'), b:o('Gold is found near Dahlonega in the Cherokee Nation. Thousands of “Twenty-Niners” rush in illegally.','在切罗基领地的达洛尼加附近发现黄金，数千名“二九年人”非法涌入。') },
+ { y:1830, z:'z11', t:o('The Indian Removal Act','《印第安人迁移法》'), b:o('President Jackson signs the law. Georgia extends its laws over the Cherokee Nation.','杰克逊总统签署该法。佐治亚宣布把州法律延伸到切罗基领地。') },
+ { y:1832, z:'z11', t:o('Worcester v. Georgia — and the lotteries','伍斯特诉佐治亚州案——以及抽签'), b:o('The Supreme Court rules Georgia’s laws have no force in the Cherokee Nation. Georgia ignores it and raffles Cherokee land anyway.','最高法院判决佐治亚的法律在切罗基领地无效。佐治亚置之不理，照样抽签分掉切罗基土地。') },
+ { y:1835, z:'z11', t:o('Treaty of New Echota','《新埃乔塔条约》'), b:o('A small Treaty Party signs away all Cherokee land east of the Mississippi for $5 million.','一个小小的“条约派”以 500 万美元签约让出密西西比河以东的全部切罗基土地。') },
+ { y:1838, z:'z11', t:o('The Trail of Tears','血泪之路'), b:o('Soldiers force about 16,000 Cherokee from their homes; an estimated 4,000 die.','士兵把约 1.6 万名切罗基人赶出家园；估计约 4000 人死亡。') }
+];
+const EYEARS = [...new Set(EV.map(e => e.y))];
+
+/* ===== 1832 lottery (rules: Georgia Archives; odds simplified) ===== */
+const WHO = [
+ { k:'bach', d:1, n:o('Single white man, 18+, 3 years in Georgia','18 岁以上、在佐治亚住满 3 年的白人单身男子') },
+ { k:'fam', d:2, n:o('Married white man with children','有妻儿的已婚白人男子') },
+ { k:'wid', d:1, n:o('Widow (3 years in Georgia)','寡妇（在佐治亚住满 3 年）') },
+ { k:'vet', d:2, n:o('Revolutionary War veteran','独立战争老兵') },
+ { k:'orph', d:1, n:o('Family of 1–2 orphans','有 1—2 名孤儿的家庭') },
+ { k:'miner', d:0, n:o('Man who dug gold on Cherokee land after 1830','1830 年后在切罗基土地上淘金的男子') },
+ { k:'wom', d:0, n:o('Married woman','已婚妇女') },
+ { k:'free', d:0, n:o('Free Black Georgian','佐治亚的自由黑人') },
+ { k:'ensl', d:0, n:o('Enslaved person','被奴役的人') },
+ { k:'cher', d:0, n:o('Cherokee family living on the land','住在这片土地上的切罗基家庭') }
+];
+const WHYNOT = { miner:o('Excluded: the law shut out anyone who had mined gold in the Cherokee Nation after June 1, 1830.','被排除：法律规定 1830 年 6 月 1 日后在切罗基领地淘过金的人不能参加。'), wom:o('No draw of her own: a married woman was counted only through her husband’s draws.','没有自己的抽签机会：已婚妇女只能通过丈夫的抽签次数被计算在内。'), free:o('Not eligible: the lottery was only for white citizens.','没有资格：抽签只对白人公民开放。'), ensl:o('Not eligible: enslaved people were treated as property, not citizens.','没有资格：被奴役的人被当作财产，而不是公民。'), cher:o('Not eligible — and this is your own land being given away.','没有资格——而且被分掉的正是你自己的土地。') };
+const P_DRAW = 0.2;   /* about 1 in 5 per draw (simplified from ~85,000 drawers for 18,309 lots) */
+
+/* ===== Georgia population (US Census, thousands, rounded) ===== */
+const POP = [ [1790, 83, 29], [1800, 163, 60], [1810, 252, 105], [1820, 341, 150], [1830, 517, 218], [1840, 691, 281] ];
+
+/* ===== Cherokee syllabary (Unicode code points) ===== */
+const SYL = { a:0x13A0, e:0x13A1, i:0x13A2, o:0x13A3, ga:0x13A6, ge:0x13A8, gi:0x13A9, la:0x13B3, na:0x13BE, ni:0x13C2, quo:0x13C9, s:0x13CD, si:0x13CF, da:0x13D3, do:0x13D9, tsa:0x13E3, wa:0x13E9, ya:0x13EF, yo:0x13F2 };
+const WORDS = [ { n:o('“Cherokee” — Tsalagi','“切罗基”——Tsalagi'), s:['tsa','la','gi'] }, { n:o('“Hello” — osiyo','“你好”——osiyo'), s:['o','si','yo'] }, { n:o('“Thank you” — wado','“谢谢”——wado'), s:['wa','do'] }, { n:o('“Sequoyah” — S-si-quo-ya','“塞阔亚”——S-si-quo-ya'), s:['s','si','quo','ya'] } ];
+
+/* ===== Trail of Tears (schematic, after the NPS trail map) ===== */
+const ROUTE = [[-84.91,34.54],[-84.80,35.29],[-85.77,35.68],[-86.78,36.16],[-87.49,36.87],[-88.49,37.37],[-89.27,37.45],[-89.52,37.31],[-89.67,37.38],[-91.77,37.95],[-93.29,37.21],[-94.12,36.45],[-94.97,35.91]];
+const WATER = [[-85.31,35.05],[-86.29,34.36],[-86.98,34.61],[-87.70,34.73],[-88.1,35.2],[-88.25,36.4],[-88.6,37.08],[-89.18,37.0],[-90.05,35.15],[-91.1,33.95],[-92.29,34.75],[-94.40,35.39],[-95.25,35.80]];
+const STOPS = [
+ { i:0, w:o('May 1838','1838 年 5 月'), n:o('New Echota, Georgia (Fort Wool)','佐治亚州新埃乔塔（伍尔堡）'), t:o('Soldiers go from farm to farm gathering Cherokee families, often with no time to pack. Families are held in stockades such as Fort Wool, here at the former Cherokee capital.','士兵挨家挨户驱赶切罗基家庭，常常不给收拾东西的时间。人们被关进伍尔堡等围栏营地——就在这座昔日的切罗基首都。') },
+ { i:1, w:o('June–September 1838','1838 年 6—9 月'), n:o('Camps near Fort Cass (Charleston, Tennessee)','卡斯堡附近的营地（田纳西州查尔斯顿）'), t:o('Families wait through a hot, dry summer in crowded camps, and disease spreads. John Ross wins permission for the Cherokee to manage their own removal, so most groups wait until fall to leave. A few groups go by river in June (blue dashed line).','人们在拥挤的营地里熬过炎热干旱的夏天，疾病蔓延。约翰·罗斯争取到由切罗基人自己组织迁移的权利，大多数队伍等到秋天才出发。6 月有几支队伍走水路（蓝色虚线）。') },
+ { i:3, w:o('October 1838','1838 年 10 月'), n:o('Nashville, Tennessee','田纳西州纳什维尔'), t:o('About a dozen groups of roughly 1,000 people each set out on the northern route, with wagons, on horseback and on foot.','十几支队伍、每支约 1000 人，赶着马车、骑马或步行，踏上北线。') },
+ { i:4, w:o('November 1838','1838 年 11 月'), n:o('Hopkinsville, Kentucky','肯塔基州霍普金斯维尔'), t:o('Cherokee leaders White Path and Fly Smith died near here. A park marks their graves today.','切罗基领袖怀特·帕斯和弗莱·史密斯在这里附近去世，今天这里有一座公园纪念他们。') },
+ { i:5, w:o('Late 1838','1838 年底'), n:o('Golconda, Illinois — the Ohio River','伊利诺伊州戈尔康达——俄亥俄河'), t:o('The groups cross the Ohio River by ferry.','队伍乘渡船渡过俄亥俄河。') },
+ { i:7, w:o('December 1838–January 1839','1838 年 12 月—1839 年 1 月'), n:o('The Mississippi River crossing','渡过密西西比河'), t:o('Ice on the Mississippi stops the crossing. Thousands wait for weeks in freezing weather in southern Illinois, and many die.','密西西比河结冰，无法渡河。数千人在伊利诺伊南部的严寒中等了好几个星期，许多人死去。') },
+ { i:10, w:o('January–February 1839','1839 年 1—2 月'), n:o('Springfield, Missouri','密苏里州斯普林菲尔德'), t:o('The groups push west across the Missouri Ozarks in the middle of winter.','队伍在隆冬时节向西穿越密苏里州的欧扎克山区。') },
+ { i:12, w:o('January–March 1839','1839 年 1—3 月'), n:o('Indian Territory (Tahlequah, Oklahoma)','印第安领地（今俄克拉何马州塔勒阔）'), t:o('The last groups arrive in March 1839. The Cherokee begin rebuilding their nation, with Tahlequah as its capital.','最后一批队伍在 1839 年 3 月到达。切罗基人开始重建自己的国家，以塔勒阔为首都。') }
+];
+
+/* ===== Mission 4: source detective ===== */
+const NAMES = { seq:o('Sequoyah’s syllabary','塞阔亚的音节文字'), phoenix:o('The Cherokee Phoenix','《切罗基凤凰报》'), memorial:o('Memorial of the Cherokee Nation','《切罗基族备忘录》'), marshall:o('Chief Justice John Marshall','首席大法官约翰·马歇尔'), jackson:o('President Andrew Jackson','安德鲁·杰克逊总统'), act:o('The Indian Removal Act (Congress)','《印第安人迁移法》（国会）'), ross:o('Principal Chief John Ross','首席酋长约翰·罗斯'), treaty:o('The Treaty of New Echota','《新埃乔塔条约》'), scott:o('General Winfield Scott','温菲尔德·斯科特将军'), galaw:o('Georgia’s legislature','佐治亚州议会'), mcintosh:o('William McIntosh','威廉·麦金托什'), lottery:o('A Georgia land lottery grant','佐治亚土地抽签地契'), whitney:o('Eli Whitney’s patent','伊莱·惠特尼的专利'), mint:o('The Dahlonega Mint','达洛尼加铸币厂') };
+const CLUES = [
+ { a:'seq', y:o('1821','1821 年'), c:o('A chart of 86 symbols. Each one stands for a syllable of spoken Cherokee, so a speaker can learn to read in weeks.','一张由 86 个符号组成的表，每个符号代表切罗基语的一个音节，会说切罗基语的人几周就能学会读。'), x:o('Sequoyah’s syllabary; the Cherokee Nation adopted it in 1825.','塞阔亚的音节文字，1825 年被切罗基族正式采用。') },
+ { a:'phoenix', y:o('1828 · New Echota','1828 年 · 新埃乔塔'), c:o('A newspaper printed in two languages, English and Cherokee, edited by Elias Boudinot.','一份用英语和切罗基文两种文字印刷的报纸，主编是伊莱亚斯·布迪诺特。'), x:o('The Cherokee Phoenix — the first Native American newspaper.','《切罗基凤凰报》——第一份美洲原住民报纸。') },
+ { a:'memorial', y:o('1830 · to Congress','1830 年 · 致国会'), c:o('“We wish to remain on the land of our fathers.”','“我们希望留在我们祖先的土地上。”'), x:o('The Cherokee Nation’s Memorial to Congress asked the US to honor its treaties.','切罗基族致国会的备忘录，要求美国遵守条约。') },
+ { a:'marshall', y:o('1832 · Supreme Court','1832 年 · 最高法院'), c:o('“…a distinct community, occupying its own territory… in which the laws of Georgia can have no force…”','“……一个独立的群体，占有自己的领土……佐治亚的法律在那里无效……”'), x:o('John Marshall’s opinion in Worcester v. Georgia.','约翰·马歇尔在伍斯特诉佐治亚州案中的判决意见。') },
+ { a:'jackson', y:o('1832 · a private letter','1832 年 · 一封私人信件'), c:o('“The decision of the supreme court has fell still born, and they find that it cannot coerce Georgia to yield to its mandate.”','“最高法院的判决一出生就是死的，他们发现它无法强迫佐治亚服从。”'), x:o('Andrew Jackson, writing to his friend John Coffee about Worcester v. Georgia.','安德鲁·杰克逊写给朋友约翰·科菲的信，谈的是伍斯特诉佐治亚州案。') },
+ { a:'act', y:o('1830 · Washington','1830 年 · 华盛顿'), c:o('“An Act to provide for an exchange of lands with the Indians residing in any of the states or territories, and for their removal west of the river Mississippi.”','“一项关于与居住在各州或领地的印第安人交换土地，并把他们迁移到密西西比河以西的法律。”'), x:o('The full title of the Indian Removal Act, passed by Congress and signed by Jackson.','《印第安人迁移法》的完整标题，由国会通过、杰克逊签署。') },
+ { a:'ross', y:o('1836 · letter to Congress','1836 年 · 致国会的信'), c:o('“We are denationalized; we are disfranchised. We are deprived of membership in the human family!”','“我们被剥夺了国籍，被剥夺了公民权利。我们被排除在人类大家庭之外！”'), x:o('Principal Chief John Ross protesting the Treaty of New Echota.','首席酋长约翰·罗斯抗议《新埃乔塔条约》。') },
+ { a:'treaty', y:o('1835 · signed by a few','1835 年 · 少数人签署'), c:o('All Cherokee land east of the Mississippi is given up for $5 million, and the Cherokee must move west within two years.','以 500 万美元让出密西西比河以东的全部切罗基土地，切罗基人必须在两年内西迁。'), x:o('The Treaty of New Echota, signed by the Treaty Party, not the elected Cherokee government.','《新埃乔塔条约》，由“条约派”签署，而不是民选的切罗基政府。') },
+ { a:'scott', y:o('May 1838 · an address','1838 年 5 月 · 一份通告'), c:o('“Cherokees! The President of the United States has sent me, with a powerful army, to cause you, in obedience to the Treaty of 1835, to join that part of your people who are already… on the other side of the Mississippi.”','“切罗基人！美国总统派我率领一支强大的军队，按照 1835 年的条约，让你们去密西西比河对岸与你们的族人会合。”'), x:o('General Winfield Scott’s address to the Cherokee before the roundup.','温菲尔德·斯科特将军在驱赶开始前对切罗基人发布的通告。') },
+ { a:'galaw', y:o('1830 · Milledgeville','1830 年 · 米利奇维尔'), c:o('A state law: white people living in the Cherokee Nation must get a license from the governor and swear an oath to the state.','一项州法律：住在切罗基领地的白人必须从州长那里领取许可证，并宣誓效忠本州。'), x:o('Georgia’s legislature passed it — and arrested Samuel Worcester under it.','这是佐治亚州议会通过的法律——塞缪尔·伍斯特就是根据它被捕的。') },
+ { a:'mcintosh', y:o('1825 · Indian Springs','1825 年 · 印第安斯普林斯'), c:o('A Lower Creek leader signs away almost all remaining Creek land in Georgia — breaking a Creek law that made this a capital crime.','一位下克里克首领签约让出克里克人在佐治亚剩下的几乎全部土地——违反了把这种行为定为死罪的克里克法律。'), x:o('William McIntosh, executed by Creek law enforcers that spring.','威廉·麦金托什，当年春天被克里克族执法者处死。') },
+ { a:'lottery', y:o('1832 · a paper grant','1832 年 · 一张地契'), c:o('A grant for a 160-acre lot in former Cherokee country, signed by Georgia’s governor, for a “fortunate drawer.”','一张由佐治亚州长签署的地契，把原切罗基领地上的一块 160 英亩土地授予一位“幸运抽中者”。'), x:o('A land lottery grant — winners paid a fee to receive one.','土地抽签地契——中签者交费后才能领取。') },
+ { a:'whitney', y:o('1794 · US Patent Office','1794 年 · 美国专利局'), c:o('A drawing of a machine with wire teeth on a turning drum that pulls cotton fiber away from the seeds.','一台机器的图纸：转动的滚筒上装着铁丝齿，可以把棉纤维从棉籽上拉下来。'), x:o('Eli Whitney’s cotton gin patent — cotton, and the demand for land, boomed.','伊莱·惠特尼的轧棉机专利——棉花和对土地的需求随之暴涨。') },
+ { a:'mint', y:o('1838–1861 · North Georgia','1838—1861 年 · 北佐治亚'), c:o('Gold coins stamped with a small “D,” made from gold dug in the mountains of the old Cherokee Nation.','印有小小字母“D”的金币，用从昔日切罗基领地山中挖出的黄金铸成。'), x:o('Coins from the US Mint at Dahlonega.','达洛尼加美国铸币厂铸造的金币。') }
+];
+const RANKS = [o('Reader','读者'), o('Researcher','研究员'), o('Archivist','档案员'), o('Historian','历史学家'), o('Chief historian','首席历史学家')];
+
+/* ===== Quiz & sort ===== */
+const QUIZ = [
+ {q:o('Under the headright system, a head of household could claim…','在人头权制度下，户主可以申请'), options:[o('200 acres, plus more for each family member','200 英亩，每个家庭成员再加一些'),o('a lot won in a lottery drawing','一块抽签中得的土地'),o('land bought from a land company','从土地公司买来的土地'),o('only land in towns','只有城镇里的土地')], answer:0},
+ {q:o('What was the Yazoo land fraud?','什么是亚祖土地欺诈案？'), options:[o('Bribed lawmakers sold western land very cheaply to land companies','受贿的议员把西部土地极其便宜地卖给土地公司'),o('Settlers faked their headright surveys','移民伪造人头权测量结果'),o('Gold miners cheated the Cherokee','淘金者欺骗切罗基人'),o('A lottery was rigged by the governor','州长操纵了抽签')], answer:0, explain:o('About 35 million acres for $500,000 — the deal was cancelled in 1796.','约 3500 万英亩只卖 50 万美元——1796 年交易被撤销。')},
+ {q:o('In the Compact of 1802, the US government promised Georgia that it would…','在 1802 年协定中，联邦政府向佐治亚承诺'), options:[o('end Native land titles in Georgia','消除佐治亚境内原住民的土地所有权'),o('build a railroad to Atlanta','修一条通往亚特兰大的铁路'),o('give Georgia all of Alabama','把整个亚拉巴马给佐治亚'),o('pay for the University of Georgia','出钱办佐治亚大学')], answer:0},
+ {q:o('Who could NOT enter Georgia’s land lotteries?','谁不能参加佐治亚的土地抽签？'), options:[o('Black Georgians and Native people','佐治亚的黑人和原住民'),o('Widows','寡妇'),o('Revolutionary War veterans','独立战争老兵'),o('Married white men','已婚白人男子')], answer:0, explain:o('The lotteries were for white citizens — and the land came from the Creek and Cherokee.','抽签只对白人公民开放——而土地来自克里克人和切罗基人。')},
+ {q:o('How did the cotton gin affect the demand for land in Georgia?','轧棉机怎样影响了佐治亚对土地的需求？'), options:[o('Cotton became so profitable that planters wanted much more land','棉花变得非常赚钱，种植园主想要更多土地'),o('Farmers needed less land','农民需要的土地变少了'),o('People moved back to the coast','人们搬回了沿海'),o('It ended slavery','它结束了奴隶制')], answer:0},
+ {q:o('Why was William McIntosh executed in 1825?','威廉·麦金托什为什么在 1825 年被处死？'), options:[o('He signed away Creek land, breaking Creek law','他签约出让克里克土地，违反了克里克法律'),o('He led the Trail of Tears','他带领了血泪之路'),o('He started the gold rush','他引发了淘金热'),o('He invented the syllabary','他发明了音节文字')], answer:0},
+ {q:o('Sequoyah is famous for…','塞阔亚因什么而闻名？'), options:[o('creating a written syllabary for the Cherokee language','为切罗基语创造了音节文字'),o('winning Worcester v. Georgia','打赢了伍斯特诉佐治亚州案'),o('discovering gold at Dahlonega','在达洛尼加发现黄金'),o('signing the Treaty of New Echota','签署《新埃乔塔条约》')], answer:0},
+ {q:o('The Cherokee Phoenix was…','《切罗基凤凰报》是'), options:[o('the first Native American newspaper, in English and Cherokee','第一份美洲原住民报纸，用英语和切罗基文印刷'),o('a Georgia law about land','一部佐治亚土地法律'),o('a steamboat on the Trail of Tears','血泪之路上的一艘汽船'),o('the Cherokee constitution','切罗基宪法')], answer:0},
+ {q:o('What did the Supreme Court decide in Worcester v. Georgia (1832)?','最高法院在伍斯特诉佐治亚州案（1832）中作出了什么判决？'), options:[o('Georgia’s laws had no force in the Cherokee Nation','佐治亚的法律在切罗基领地无效'),o('The Cherokee had to move west','切罗基人必须西迁'),o('The land lotteries were fair','土地抽签是公平的'),o('Missionaries had to leave Georgia','传教士必须离开佐治亚')], answer:0, explain:o('Georgia ignored the ruling, and President Jackson did not enforce it.','佐治亚无视这一判决，杰克逊总统也没有执行。')},
+ {q:o('How did the Dahlonega gold rush affect the Cherokee?','达洛尼加淘金热对切罗基人有什么影响？'), options:[o('Thousands of miners poured onto their land and pressure for removal grew','数千名淘金者涌入他们的土地，迁移的压力增大'),o('The Cherokee became the richest nation in America','切罗基人成为美国最富有的民族'),o('Georgia gave the Cherokee more land','佐治亚给了切罗基人更多土地'),o('It had no effect','没有影响')], answer:0},
+ {q:o('On the land map, which treaty took the last Cherokee land in Georgia?','在土地地图上，哪个条约拿走了切罗基人在佐治亚的最后土地？'), options:[o('Treaty of New Echota (1835)','《新埃乔塔条约》（1835）'),o('Treaty of Fort Jackson (1814)','《杰克逊堡条约》（1814）'),o('Treaty of Augusta (1773)','《奥古斯塔条约》（1773）'),o('Treaty of New York (1790)','《纽约条约》（1790）')], answer:0},
+ {q:o('Look at the chart: from 1790 to 1840, Georgia’s population grew about…','读图：1790 年到 1840 年，佐治亚的人口大约增长了'), options:[o('8 times','8 倍'),o('2 times','2 倍'),o('20 times','20 倍'),o('It shrank','反而减少了')], answer:0, explain:o('About 83,000 → about 691,000: more than 8 times as many people.','约 8.3 万 → 约 69.1 万：增长到 8 倍多。')}
+];
+const SORT = {
+  bins:[{id:'l',en:'Georgia land policy',zh:'佐治亚的土地政策'},{id:'c',en:'Cherokee achievement',zh:'切罗基族的成就'},{id:'r',en:'Step toward removal',zh:'走向迁移的步骤'}],
+  items:[
+    {en:'Headright system',zh:'人头权制度',bin:'l'},{en:'Land lotteries',zh:'土地抽签',bin:'l'},{en:'Yazoo sale cancelled (1796)',zh:'撤销亚祖交易（1796）',bin:'l'},{en:'Compact of 1802',zh:'1802 年协定',bin:'l'},
+    {en:'Sequoyah’s syllabary',zh:'塞阔亚的音节文字',bin:'c'},{en:'The Cherokee Phoenix',zh:'《切罗基凤凰报》',bin:'c'},{en:'Cherokee constitution (1827)',zh:'切罗基宪法（1827）',bin:'c'},{en:'Capital at New Echota',zh:'定都新埃乔塔',bin:'c'},
+    {en:'Indian Removal Act (1830)',zh:'《印第安人迁移法》（1830）',bin:'r'},{en:'Worcester ruling ignored',zh:'伍斯特案判决被无视',bin:'r'},{en:'Treaty of New Echota',zh:'《新埃乔塔条约》',bin:'r'},{en:'Gold rush brings miners',zh:'淘金热引来淘金者',bin:'r'}
+  ]
+};
+
+/* ===== Real photos (Wikimedia Commons) + verified YouTube videos ===== */
+const CQ = '?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', CQU = CQ + '_unscaled', CT = 'https://thumb.wikimedia.org/wikipedia/commons/thumb/', CU = 'https://upload.wikimedia.org/wikipedia/commons/', CP = 'https://commons.wikimedia.org/wiki/File:';
+const PD = 'Public domain', HP = o('Portrait','肖像'), YT = o('Video','视频'), PH = o('Photo','照片'), DOC = o('Document','文献');
+const PHOTOS = [
+  { type:'youtube', yt:'H0OkSqsZnIw', en:'Video: “Investigating the Cherokee Syllabary” — from the Cherokee Nation.', zh:'视频：《探索切罗基音节文字》——切罗基族官方制作（英文）。', kind:YT, credit:'Cherokee Nation (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'dc1dpYv_U30', en:'Video: “Georgia Land Policies Explained: Headright System, Yazoo Land Fraud, and Land Lotteries.”', zh:'视频：《佐治亚土地政策：人头权制度、亚祖土地欺诈案与土地抽签》（英文）。', kind:YT, credit:'GPB Education (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'avYd7wanDmU', en:'Video: “Tragedy in Georgia: The Trail of Tears” — Georgia Stories.', zh:'视频：《佐治亚的悲剧：血泪之路》——GPB《佐治亚故事》（英文）。', kind:YT, credit:'GPB Education (YouTube)', license:'YouTube' },
+  { src:CT + '9/98/Sequoyah%2C_Cherokee_inventor%2C_by_C.B._King%2C_1836.jpg/960px-Sequoyah%2C_Cherokee_inventor%2C_by_C.B._King%2C_1836.jpg' + CQ, en:'Sequoyah holding the Cherokee syllabary, after a portrait by Charles Bird King (1836).', zh:'手持切罗基音节文字表的塞阔亚，依据查尔斯·伯德·金的肖像（1836）。', kind:HP, credit:'Charles Bird King', license:PD, page:CP + 'Sequoyah,_Cherokee_inventor,_by_C.B._King,_1836.jpg' },
+  { src:CT + 'd/d2/Cherokee_Syllabary.svg/960px-Cherokee_Syllabary.svg.png' + CQ, en:'The Cherokee syllabary chart: each symbol is one syllable.', zh:'切罗基音节文字表：每个符号代表一个音节。', kind:DOC, credit:'Sakurambo (from a public-domain chart)', license:PD, page:CP + 'Cherokee_Syllabary.svg' },
+  { src:CT + '4/45/Cherokee_Phoenix_first_issue.jpg/960px-Cherokee_Phoenix_first_issue.jpg' + CQ, en:'The first issue of the Cherokee Phoenix (1828), in English and Cherokee.', zh:'1828 年《切罗基凤凰报》创刊号，英文与切罗基文对照。', kind:DOC, credit:'Elias Boudinot and Isaac H. Harris', license:PD, page:CP + 'Cherokee_Phoenix_first_issue.jpg' },
+  { src:CT + '0/09/Visitors_walk_towards_Vann%27s_Tavern_at_New_Echota_Historic_Site_in_Gordon_County%2C_Georgia_%2848da6467-dc63-488c-afd5-ecb6f11e73f5%29.JPG/960px-Visitors_walk_towards_Vann%27s_Tavern_at_New_Echota_Historic_Site_in_Gordon_County%2C_Georgia_%2848da6467-dc63-488c-afd5-ecb6f11e73f5%29.JPG' + CQ, en:'Visitors walk toward Vann’s Tavern at New Echota Historic Site, Gordon County.', zh:'游客走向新埃乔塔历史遗址中的范恩酒馆（戈登县）。', kind:PH, credit:'National Trails Office (NPS)', license:PD, page:CP + 'Visitors_walk_towards_Vann%27s_Tavern_at_New_Echota_Historic_Site_in_Gordon_County,_Georgia_(48da6467-dc63-488c-afd5-ecb6f11e73f5).JPG' },
+  { src:CT + 'f/f1/Log_cabins%2C_New_Echota_July_2017.jpg/960px-Log_cabins%2C_New_Echota_July_2017.jpg' + CQ, en:'Log cabins at New Echota, capital of the Cherokee Nation.', zh:'切罗基族首都新埃乔塔的小木屋。', kind:PH, credit:'Thomson200', license:'CC0', page:CP + 'Log_cabins,_New_Echota_July_2017.jpg' },
+  { src:CT + '2/27/Chief_Vann_House%2C_Sept_2017.jpg/960px-Chief_Vann_House%2C_Sept_2017.jpg' + CQ, en:'The Chief Vann House, the brick home of a wealthy Cherokee family, near Chatsworth.', zh:'查茨沃思附近的范恩酋长故居——一个富裕切罗基家庭的砖房。', kind:PH, credit:'Thomson200', license:'CC0', page:CP + 'Chief_Vann_House,_Sept_2017.jpg' },
+  { src:CU + '2/20/1843_John_Ross_Lithograph.jpg' + CQU, en:'John Ross, Principal Chief of the Cherokee Nation (lithograph, 1843).', zh:'切罗基族首席酋长约翰·罗斯（石版画，1843）。', kind:HP, credit:'Lehman & Duval', license:PD, page:CP + '1843_John_Ross_Lithograph.jpg' },
+  { src:CT + '5/54/M%27Intosh%2C_a_Creek_chief.jpg/960px-M%27Intosh%2C_a_Creek_chief.jpg' + CQ, en:'William McIntosh, Lower Creek leader, from McKenney and Hall’s History of the Indian Tribes of North America.', zh:'下克里克首领威廉·麦金托什，出自麦肯尼与霍尔的《北美印第安部落史》。', kind:HP, credit:'McKenney & Hall', license:PD, page:CP + 'M%27Intosh,_a_Creek_chief.jpg' },
+  { src:CT + 'f/fe/John_Marshall_by_Henry_Inman%2C_1832.jpg/960px-John_Marshall_by_Henry_Inman%2C_1832.jpg' + CQ, en:'Chief Justice John Marshall, painted by Henry Inman in 1832 — the year of Worcester v. Georgia.', zh:'首席大法官约翰·马歇尔，亨利·英曼 1832 年绘——正是伍斯特诉佐治亚州案那一年。', kind:HP, credit:'Henry Inman', license:PD, page:CP + 'John_Marshall_by_Henry_Inman,_1832.jpg' },
+  { src:CT + '4/40/CherokeeLotteryLandDeed.jpg/960px-CherokeeLotteryLandDeed.jpg' + CQ, en:'A grant issued to a winner of the 1832 Cherokee land lottery.', zh:'颁发给 1832 年切罗基土地抽签中签者的地契。', kind:DOC, credit:'State of Georgia (scan: Cculber007)', license:PD, page:CP + 'CherokeeLotteryLandDeed.jpg' },
+  { src:CT + '2/24/Cherokee_Petition_in_Protest_of_the_New_Echota_Treaty_-_DPLA_-_37620f9ddd2bf8b2cbe7a76d7eace9fd_%28page_2%29.jpg/960px-Cherokee_Petition_in_Protest_of_the_New_Echota_Treaty_-_DPLA_-_37620f9ddd2bf8b2cbe7a76d7eace9fd_%28page_2%29.jpg' + CQ, en:'A page of the Cherokee petition protesting the Treaty of New Echota (US Senate records).', zh:'切罗基人抗议《新埃乔塔条约》的请愿书中的一页（美国参议院档案）。', kind:DOC, credit:'US Senate / National Archives (DPLA)', license:PD, page:CP + 'Cherokee_Petition_in_Protest_of_the_New_Echota_Treaty_-_DPLA_-_37620f9ddd2bf8b2cbe7a76d7eace9fd_(page_2).jpg' },
+  { src:CT + 'f/f5/Dahlonega_Gold_Museum_Historic_Site.jpg/960px-Dahlonega_Gold_Museum_Historic_Site.jpg' + CQ, en:'The Dahlonega Gold Museum Historic Site, in the old courthouse.', zh:'达洛尼加黄金博物馆历史遗址，位于旧法院大楼内。', kind:PH, credit:'HowardSF', license:'CC BY-SA 3.0', page:CP + 'Dahlonega_Gold_Museum_Historic_Site.jpg' },
+  { src:CU + '4/47/Dahlonega-Mint-1877.jpg' + CQU, en:'The Dahlonega Mint building in 1877 or 1878.', zh:'1877 或 1878 年的达洛尼加铸币厂大楼。', kind:o('Historic photo','历史照片'), credit:'Unknown', license:PD, page:CP + 'Dahlonega-Mint-1877.jpg' },
+  { src:CU + '5/58/Eli_Whitney%27s_cotton_gin_drawing.jpg' + CQU, en:'Drawing of Eli Whitney’s cotton gin, about 1795.', zh:'伊莱·惠特尼轧棉机图纸，约 1795 年。', kind:DOC, credit:'US Patent Office', license:PD, page:CP + 'Eli_Whitney%27s_cotton_gin_drawing.jpg' },
+  { src:CT + '1/1a/NPS_trail-of-tears-map.gif/960px-NPS_trail-of-tears-map.gif' + CQ, en:'National Park Service map of the Trail of Tears routes.', zh:'美国国家公园管理局绘制的血泪之路路线图。', kind:o('Map','地图'), credit:'US National Park Service', license:PD, page:CP + 'NPS_trail-of-tears-map.gif' }
+];
+LabPhotos.render('#gallery', PHOTOS, { title:o('See the real thing','看看真实的历史'), sub:o('A video from the Cherokee Nation and two from GPB, plus real portraits, documents and places. Click a picture to enlarge it; videos open on YouTube and nothing plays by itself.','一段切罗基族官方视频和两段 GPB 视频，以及真实的肖像、文献和地点。点击图片可放大；视频在 YouTube 打开，不会自动播放。') });
+
+</script>
+<script>
+/* ================= page kit: CSS colours, mission bar, Georgia map ================= */
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmtL = (obj, v) => Lab.L(obj).replace(/\{(\w+)\}/g, (_, k) => v[k]);
+function makeMissions(M, R){
+  const S = {}; M.forEach(m => S[m.id] = 0);
+  function render(){
+    const tot = M.reduce((a, m) => a + S[m.id], 0), max = M.length * 3, r = R[Math.min(R.length - 1, Math.floor(tot / max * (R.length - 1) + 1e-9))];
+    Lab.$('#mbar').innerHTML = M.map(m => `<span class="ms">${Lab.L(m.n)} <span class="st">${'★'.repeat(S[m.id])}${'☆'.repeat(3 - S[m.id])}</span></span>`).join('') +
+      `<span class="rk">${Lab.L(o('Rank: ','级别：'))}${Lab.L(r)} · ${tot}/${max}★</span><div class="bar"><i style="width:${tot / max * 100}%"></i></div>`;
+  }
+  return { star(id, n){ if (n > S[id]){ S[id] = n; render(); } }, render };
+}
+/* Georgia outline (fallback) & rivers: simplified from US Census cartographic boundaries via us-atlas@3.0.1 and Natural Earth 10m rivers (public domain) */
+const GA_OUT=[-85.607,34.984,-83.618,34.987,-83.109,35.001,-83.119,34.939,-83.231,34.880,-83.324,34.790,-83.320,34.759,-83.349,34.737,-83.338,34.682,-83.231,34.611,-83.170,34.605,-83.087,34.516,-83.005,34.472,-82.904,34.486,-82.875,34.476,-82.847,34.421,-82.836,34.366,-82.793,34.340,-82.782,34.297,-82.742,34.252,-82.742,34.209,-82.717,34.150,-82.674,34.130,-82.646,34.072,-82.595,34.031,-82.556,33.944,-82.524,33.943,-82.455,33.881,-82.351,33.837,-82.247,33.752,-82.233,33.700,-82.201,33.665,-82.197,33.630,-82.150,33.598,-82.107,33.596,-82.046,33.564,-81.982,33.484,-81.928,33.462,-81.913,33.441,-81.938,33.404,-81.924,33.371,-81.938,33.343,-81.838,33.273,-81.852,33.247,-81.806,33.211,-81.766,33.215,-81.773,33.180,-81.745,33.142,-81.648,33.094,-81.615,33.095,-81.558,33.045,-81.490,33.008,-81.508,32.951,-81.465,32.896,-81.458,32.854,-81.425,32.841,-81.425,32.768,-81.411,32.740,-81.429,32.702,-81.407,32.695,-81.393,32.654,-81.411,32.618,-81.368,32.577,-81.278,32.555,-81.278,32.535,-81.196,32.466,-81.210,32.436,-81.156,32.346,-81.142,32.350,-81.120,32.284,-81.156,32.246,-81.117,32.189,-81.131,32.167,-81.113,32.113,-81.038,32.084,-80.998,32.099,-80.919,32.038,-80.844,32.024,-80.862,31.969,-80.912,31.944,-80.948,31.957,-80.969,31.916,-80.933,31.909,-80.991,31.857,-81.066,31.877,-81.077,31.829,-81.038,31.819,-81.070,31.769,-81.131,31.722,-81.192,31.734,-81.203,31.720,-81.160,31.691,-81.131,31.696,-81.134,31.624,-81.160,31.570,-81.260,31.548,-81.260,31.529,-81.199,31.538,-81.178,31.517,-81.260,31.405,-81.282,31.326,-81.257,31.315,-81.274,31.289,-81.292,31.206,-81.339,31.187,-81.368,31.137,-81.400,31.134,-81.400,31.073,-81.425,31.014,-81.450,31.015,-81.493,30.978,-81.447,30.957,-81.407,30.978,-81.404,30.908,-81.461,30.770,-81.443,30.710,-81.490,30.726,-81.540,30.713,-81.720,30.745,-81.745,30.766,-81.809,30.790,-81.870,30.793,-81.895,30.821,-81.949,30.827,-81.982,30.777,-82.025,30.783,-82.010,30.763,-82.039,30.749,-82.035,30.707,-82.050,30.655,-82.007,30.577,-82.017,30.475,-82.039,30.435,-82.039,30.370,-82.172,30.359,-82.211,30.424,-82.201,30.485,-82.226,30.508,-82.233,30.557,-82.215,30.569,-83.439,30.642,-84.864,30.711,-84.914,30.753,-84.936,30.817,-84.943,30.888,-84.982,30.933,-85.011,31.053,-85.036,31.108,-85.108,31.186,-85.097,31.233,-85.115,31.277,-85.090,31.295,-85.093,31.362,-85.065,31.431,-85.072,31.468,-85.047,31.517,-85.058,31.620,-85.126,31.695,-85.119,31.733,-85.140,31.839,-85.129,31.878,-85.079,31.940,-85.054,32.014,-85.047,32.088,-85.058,32.136,-85.011,32.180,-84.961,32.198,-84.968,32.219,-84.928,32.219,-84.892,32.264,-84.936,32.298,-85.000,32.322,-84.964,32.423,-84.997,32.453,-85.007,32.524,-85.068,32.583,-85.104,32.645,-85.122,32.773,-85.169,32.812,-85.154,32.843,-85.187,32.870,-85.607,34.984];
+const GA_RIV={
+ alt:[[-82.57,31.99,-82.51,31.95,-82.49,31.95,-82.48,31.97,-82.13,31.89,-82.07,31.84,-81.95,31.77,-81.87,31.69,-81.73,31.60,-81.62,31.48,-81.60,31.42,-81.56,31.38,-81.49,31.37]],
+ cha:[[-83.81,34.36,-83.92,34.32,-83.98,34.22,-84.02,34.21,-84.08,34.17],[-85.07,31.64,-85.11,31.69,-85.14,31.82,-85.12,31.90,-85.06,32.00,-85.06,32.05],[-84.97,30.92,-84.94,30.87,-84.92,30.76,-84.87,30.72],[-83.75,34.72,-83.67,34.70,-83.62,34.55,-83.73,34.40,-83.82,34.36],[-84.08,34.17,-84.10,34.15,-84.11,34.07,-84.27,33.97,-84.36,34.01,-84.44,33.92,-84.46,33.84,-84.68,33.65,-84.77,33.62,-84.81,33.58,-84.84,33.51,-84.95,33.44,-84.98,33.45,-85.04,33.40,-85.10,33.27,-85.08,33.21,-85.05,33.20,-85.06,33.15,-85.10,33.13,-85.12,33.08,-85.18,33.02,-85.20,32.94,-85.17,32.82,-85.13,32.78,-85.10,32.65,-85.00,32.52,-84.97,32.42],[-84.97,32.42,-84.97,32.42],[-84.97,32.42,-84.99,32.34,-84.90,32.27,-84.93,32.25,-84.93,32.22,-84.97,32.22,-84.96,32.20,-85.02,32.18,-85.06,32.05],[-85.07,31.64,-85.04,31.54,-85.11,31.27,-85.10,31.18,-85.02,31.09,-84.99,31.02,-85.01,30.98,-84.97,30.92],[-84.88,30.72,-84.88,30.68,-85.00,30.52,-85.02,30.48,-85.00,30.45,-85.03,30.44,-85.03,30.38,-85.07,30.29]],
+ eto:[[-84.12,34.65,-84.06,34.49],[-84.72,34.17,-84.81,34.12,-84.85,34.15,-84.92,34.15,-84.92,34.18,-85.03,34.24,-85.08,34.22,-85.18,34.26],[-84.06,34.49,-84.06,34.44,-84.03,34.42,-84.06,34.39,-84.12,34.36,-84.22,34.36,-84.24,34.32,-84.28,34.30,-84.34,34.33,-84.37,34.30,-84.40,34.30,-84.45,34.26,-84.56,34.23,-84.57,34.21],[-84.57,34.21,-84.64,34.14,-84.72,34.17]],
+ fli:[[-84.45,33.63,-84.40,33.60,-84.37,33.54,-84.39,33.48,-84.39,33.32],[-84.39,33.32,-84.42,33.28,-84.45,33.21,-84.51,33.15,-84.54,33.02,-84.53,32.92,-84.48,32.87,-84.49,32.86,-84.45,32.83,-84.42,32.83,-84.39,32.78,-84.23,32.73,-84.19,32.68,-84.11,32.67,-84.07,32.64,-84.05,32.57,-84.01,32.54,-84.05,32.21,-83.95,32.03,-83.93,31.92,-83.95,31.84,-84.01,31.80,-83.99,31.77,-84.02,31.72,-84.01,31.66,-84.05,31.63,-84.14,31.60,-84.15,31.42,-84.21,31.36,-84.33,31.31,-84.36,31.25,-84.48,31.16,-84.56,30.92,-84.66,30.82],[-84.66,30.82,-84.68,30.80,-84.81,30.78,-84.89,30.74]],
+ ocm:[[-83.87,33.37,-83.81,33.24,-83.82,33.13,-83.73,33.04,-83.70,32.93,-83.59,32.79,-83.61,32.68,-83.55,32.63,-83.54,32.53,-83.49,32.48,-83.50,32.34,-83.42,32.24,-83.40,32.15,-83.30,32.08,-83.28,31.97,-83.22,31.93,-83.17,31.84,-83.02,31.78,-82.87,31.78,-82.68,31.92,-82.52,31.96]],
+ oco:[[-83.71,34.06,-83.56,34.04,-83.40,33.94,-83.39,33.91,-83.31,33.84,-83.27,33.57,-83.28,33.50,-83.23,33.40,-83.17,33.39,-83.15,33.32,-83.25,33.26,-83.26,33.19,-83.20,33.13,-83.21,33.08,-83.19,33.03,-83.13,33.01,-83.03,32.87,-82.97,32.83,-82.93,32.63,-82.88,32.59,-82.88,32.53,-82.82,32.40,-82.75,32.37,-82.75,32.33,-82.71,32.30,-82.64,32.27,-82.60,32.02,-82.57,31.99],[-83.72,34.37,-83.76,34.35,-83.75,34.31,-83.53,34.21,-83.47,34.11],[-83.47,34.11,-83.36,33.94,-83.36,33.88]],
+ oge:[[-83.08,33.59,-83.01,33.58,-82.90,33.52,-82.83,33.43,-82.80,33.32],[-82.80,33.32,-82.75,33.24,-82.73,33.18,-82.66,33.12,-82.60,33.04,-82.39,32.96,-82.34,32.90,-82.31,32.83,-82.22,32.81,-81.97,32.79,-81.92,32.76,-81.86,32.66,-81.81,32.65,-81.69,32.55,-81.55,32.49,-81.53,32.46,-81.54,32.41,-81.45,32.30,-81.40,32.11,-81.37,32.05,-81.24,31.89,-81.18,31.89,-81.14,31.86]],
+ oos:[[-84.46,34.66,-84.45,34.63,-84.35,34.66,-84.30,34.63,-84.21,34.63],[-84.63,34.91,-84.66,34.97,-84.64,34.99,-84.74,35.01,-84.84,34.91,-84.82,34.88],[-84.91,34.55,-84.95,34.57,-84.96,34.56,-84.96,34.51,-85.01,34.52,-85.00,34.47,-85.10,34.42,-85.09,34.39,-85.13,34.38,-85.14,34.34,-85.13,34.32,-85.18,34.26],[-84.91,34.55,-84.88,34.53,-84.89,34.56,-84.86,34.57,-84.81,34.55,-84.76,34.61,-84.68,34.60,-84.50,34.68,-84.46,34.66],[-84.82,34.88,-84.88,34.78,-84.86,34.72,-84.93,34.71,-84.89,34.67,-84.94,34.68,-84.92,34.64,-84.93,34.59,-84.91,34.55]],
+ sat:[[-83.17,31.70,-83.08,31.46,-83.01,31.43],[-83.01,31.43,-82.97,31.45,-82.88,31.43,-82.79,31.34,-82.72,31.33,-82.64,31.28,-82.53,31.32,-82.41,31.32,-82.32,31.23,-82.20,31.21,-82.16,31.22,-82.11,31.27,-81.88,31.29,-81.86,31.25,-81.87,31.17,-81.86,31.15,-81.93,31.06,-81.91,31.03,-81.91,30.91,-81.84,30.89,-81.82,30.96,-81.77,30.98,-81.68,30.95,-81.63,30.99,-81.52,30.98]],
+ sav:[[-83.17,34.60,-83.02,34.48,-82.90,34.48,-82.86,34.46,-82.82,34.37],[-83.36,34.71,-83.32,34.67,-83.17,34.60],[-83.12,35.08,-83.13,35.04,-83.11,35.00,-83.13,34.94,-83.31,34.82,-83.36,34.71],[-82.59,34.02,-82.56,33.96,-82.52,33.95,-82.47,33.89,-82.27,33.78,-82.21,33.66],[-82.82,34.37,-82.76,34.29,-82.73,34.17,-82.66,34.12,-82.59,34.02],[-82.21,33.66,-82.17,33.62,-82.06,33.57,-81.94,33.48,-81.92,33.42,-81.94,33.41,-81.93,33.36,-81.88,33.31,-81.84,33.31,-81.86,33.30,-81.83,33.28,-81.85,33.26,-81.82,33.22,-81.78,33.22,-81.76,33.16,-81.52,33.04,-81.49,32.99,-81.50,32.93,-81.44,32.85,-81.40,32.74,-81.42,32.70,-81.40,32.67,-81.41,32.62,-81.37,32.59,-81.24,32.53,-81.20,32.48,-81.17,32.35,-81.13,32.32,-81.16,32.19,-81.14,32.14,-81.08,32.09,-81.00,32.09,-80.89,32.03]],
+ stm:[[-81.50,30.71,-81.66,30.73,-81.91,30.82,-81.96,30.82,-81.98,30.78,-82.01,30.78,-82.04,30.74,-82.05,30.65,-82.01,30.58,-82.05,30.38,-82.11,30.37]],
+ suw:[[-82.42,30.86,-82.46,30.77,-82.52,30.72,-82.70,30.59,-82.72,30.52,-82.71,30.48,-82.66,30.44,-82.66,30.39,-82.72,30.33,-82.76,30.33,-82.99,30.43,-83.14,30.43,-83.21,30.35,-83.25,30.25]],
+};
+
+/* Georgia map: outline from us-atlas@3.0.1 (TopoJSON, state FIPS 13); the simplified outline above is the offline fallback.
+   GAMap.create(stage, canvas, { rivers:true, under(g, m), draw(g, m), onClick(x, y), onHover(x, y) }) */
+const GAMap = (() => {
+  const pairs = a => { const r = []; for (let i = 0; i < a.length; i += 2) r.push([a[i], a[i + 1]]); return r; };
+  const FB = pairs(GA_OUT), KX = Math.cos(32.7 * Math.PI / 180), B = { w:-85.75, e:-80.65, n:35.1, s:30.25 };
+  let P = null;
+  function load(){
+    if (P) return P;
+    P = new Promise(res => {
+      const fb = () => res({ outline:[FB], fallback:true });
+      if (!window.topojson) return fb();
+      fetch('https://cdn.jsdelivr.net/npm/us-atlas@3.0.1/states-10m.json').then(r => r.json()).then(t => {
+        const f = topojson.feature(t, t.objects.states).features.find(f => f.id === '13');
+        if (!f) return fb();
+        res({ outline:f.geometry.type === 'Polygon' ? f.geometry.coordinates : f.geometry.coordinates.flat() });
+      }).catch(fb);
+    });
+    return P;
+  }
+  function create(stage, cv, opt = {}){
+    const g = cv.getContext('2d'), V = { data:null };
+    function layout(){
+      const r = stage.getBoundingClientRect(); if (!r.width) return false;
+      const d = Math.min(devicePixelRatio || 1, 2), small = r.width < 560;
+      cv.width = r.width * d; cv.height = r.height * d; Object.assign(V, { W:r.width, H:r.height, d, small });
+      const pt = small ? 100 : 62, pb = small ? 78 : 66, pl = 14, pr = 14, gw = (B.e - B.w) * KX, gh = B.n - B.s;
+      V.k = Math.min((r.width - pl - pr) / gw, (r.height - pt - pb) / gh);
+      V.ox = pl + (r.width - pl - pr - gw * V.k) / 2; V.oy = pt + (r.height - pt - pb - gh * V.k) / 2; return true;
+    }
+    const toS = ([lon, lat]) => [V.ox + (lon - B.w) * KX * V.k, V.oy + (B.n - lat) * V.k];
+    const toLL = (x, y) => [(x - V.ox) / V.k / KX + B.w, B.n - (y - V.oy) / V.k];
+    function shape(rings){ const p = new Path2D(); rings.forEach(r => r.forEach((q, i) => { const [x, y] = toS(q); i ? p.lineTo(x, y) : p.moveTo(x, y); })); p.closePath(); return p; }
+    function poly(pts){ const p = new Path2D(); pts.forEach((q, i) => { const [x, y] = toS(q); i ? p.lineTo(x, y) : p.moveTo(x, y); }); p.closePath(); return p; }
+    function line(pts, c, w = 2, dash){ g.beginPath(); pts.forEach((q, i) => { const [x, y] = toS(q); i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.setLineDash(dash || []); g.strokeStyle = c; g.lineWidth = w; g.lineJoin = g.lineCap = 'round'; g.stroke(); g.setLineDash([]); }
+    function text(t, x, y, s = {}){ g.font = `${s.w || 800} ${s.s || 12.5}px Nunito, "PingFang SC", "Microsoft YaHei", sans-serif`; g.textAlign = s.a || 'center'; g.textBaseline = 'middle';
+      g.lineJoin = 'round'; g.lineWidth = 3.5; g.strokeStyle = css('--surface') || '#fff'; g.strokeText(t, x, y); g.fillStyle = s.c || css('--ink'); g.fillText(t, x, y); }
+    function draw(){
+      if (!layout()) return; g.setTransform(V.d, 0, 0, V.d, 0, 0); g.clearRect(0, 0, V.W, V.H);
+      if (V.data){
+        const p = shape(V.data.outline); api.land = p; g.fillStyle = css('--surface'); g.fill(p); g.globalAlpha = .09; g.fillStyle = css('--brand') || '#c2410c'; g.fill(p); g.globalAlpha = 1;
+        if (opt.under){ g.save(); g.clip(p); opt.under(g, api); g.restore(); }
+        if (opt.rivers){ g.save(); g.clip(p); g.globalAlpha = .6; Object.values(GA_RIV).forEach(ls => ls.forEach(l => line(pairs(l), '#3d8bd0', V.small ? 1.2 : 1.6))); g.restore(); g.globalAlpha = 1; }
+        g.strokeStyle = css('--ink-2'); g.lineWidth = 1.4; g.stroke(p);
+      } else text(Lab.L(o('Loading map…','地图加载中…')), V.W / 2, V.H / 2, { c:css('--ink-2') });
+      opt.draw && opt.draw(g, api);
+    }
+    const api = { V, g, toS, toLL, text, shape, poly, line, pairs, draw, redraw:() => requestAnimationFrame(draw) };
+    load().then(d => { V.data = d; draw(); opt.ready && opt.ready(api); });
+    new ResizeObserver(() => requestAnimationFrame(draw)).observe(stage);
+    addEventListener('labtheme', () => requestAnimationFrame(draw));
+    matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => requestAnimationFrame(draw));
+    const xy = e => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+    cv.addEventListener('click', e => opt.onClick && opt.onClick(...xy(e)));
+    cv.addEventListener('mousemove', e => { if (opt.onHover) cv.style.cursor = opt.onHover(...xy(e)) ? 'pointer' : 'default'; });
+    return api;
+  }
+  return { create, load, pairs };
+})();
+
+/* ===== USMap: small canvas US map (us-atlas@3.0.1 states + d3-geo), inlined in each ushistory lesson =====
+   const M = USMap.create('#stageId', '#canvasId', { lower48:true, top:56, bottom:62,
+     fill: f => '#hex' | null,            // f = { id:'13', ab:'GA', en, zh }   null = plain land
+     overlay: (g, M) => {...},            // draw extras after states (M.xy([lon,lat]) -> [x,y], M.text, M.clipLand, M.poly)
+     click: (f, lonlat, e) => {...}, hover: f => text|null });
+   M.draw() after any state change. Map is schematic (modern state borders). */
+const USMap = (() => {
+  const ST = {'01':['AL','Alabama','亚拉巴马'],'02':['AK','Alaska','阿拉斯加'],'04':['AZ','Arizona','亚利桑那'],'05':['AR','Arkansas','阿肯色'],'06':['CA','California','加利福尼亚'],'08':['CO','Colorado','科罗拉多'],'09':['CT','Connecticut','康涅狄格'],'10':['DE','Delaware','特拉华'],'11':['DC','Washington, D.C.','华盛顿特区'],'12':['FL','Florida','佛罗里达'],'13':['GA','Georgia','佐治亚'],'15':['HI','Hawaii','夏威夷'],'16':['ID','Idaho','爱达荷'],'17':['IL','Illinois','伊利诺伊'],'18':['IN','Indiana','印第安纳'],'19':['IA','Iowa','艾奥瓦'],'20':['KS','Kansas','堪萨斯'],'21':['KY','Kentucky','肯塔基'],'22':['LA','Louisiana','路易斯安那'],'23':['ME','Maine','缅因'],'24':['MD','Maryland','马里兰'],'25':['MA','Massachusetts','马萨诸塞'],'26':['MI','Michigan','密歇根'],'27':['MN','Minnesota','明尼苏达'],'28':['MS','Mississippi','密西西比'],'29':['MO','Missouri','密苏里'],'30':['MT','Montana','蒙大拿'],'31':['NE','Nebraska','内布拉斯加'],'32':['NV','Nevada','内华达'],'33':['NH','New Hampshire','新罕布什尔'],'34':['NJ','New Jersey','新泽西'],'35':['NM','New Mexico','新墨西哥'],'36':['NY','New York','纽约'],'37':['NC','North Carolina','北卡罗来纳'],'38':['ND','North Dakota','北达科他'],'39':['OH','Ohio','俄亥俄'],'40':['OK','Oklahoma','俄克拉何马'],'41':['OR','Oregon','俄勒冈'],'42':['PA','Pennsylvania','宾夕法尼亚'],'44':['RI','Rhode Island','罗得岛'],'45':['SC','South Carolina','南卡罗来纳'],'46':['SD','South Dakota','南达科他'],'47':['TN','Tennessee','田纳西'],'48':['TX','Texas','得克萨斯'],'49':['UT','Utah','犹他'],'50':['VT','Vermont','佛蒙特'],'51':['VA','Virginia','弗吉尼亚'],'53':['WA','Washington','华盛顿州'],'54':['WV','West Virginia','西弗吉尼亚'],'55':['WI','Wisconsin','威斯康星'],'56':['WY','Wyoming','怀俄明']};
+  const AB = {}; Object.keys(ST).forEach(id => AB[ST[id][0]] = id);
+  let P = null;
+  const load = () => P || (P = fetch('https://cdn.jsdelivr.net/npm/us-atlas@3.0.1/states-10m.json').then(r => r.json()).then(t =>
+    topojson.feature(t, t.objects.states).features.filter(f => ST[f.id]).map(f => { const s = ST[f.id]; f.info = { id:f.id, ab:s[0], en:s[1], zh:s[2] }; return f; })));
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  function create(stageSel, cvSel, opt = {}){
+    const stage = document.querySelector(stageSel), cv = document.querySelector(cvSel), g = cv.getContext('2d');
+    const M = { g, opt, feats:null, failed:false, hoverF:null, W:0, H:0, small:false };
+    let proj = null, path = null, landFeats = null;
+    function layout(){
+      const r = stage.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!r.width || !M.feats) return false;
+      cv.width = r.width * d; cv.height = r.height * d; M.W = r.width; M.H = r.height; M.d = d; M.small = r.width < 560;
+      const top = (M.small ? (opt.topS ?? 100) : (opt.top ?? 56)), bot = (M.small ? (opt.bottomS ?? 96) : (opt.bottom ?? 60));
+      landFeats = opt.lower48 ? M.feats.filter(f => f.id !== '02' && f.id !== '15') : M.feats;
+      const fc = { type:'FeatureCollection', features:landFeats };
+      proj = (opt.lower48 ? d3.geoAlbers().parallels([29.5, 45.5]).rotate([96, 0]).center([0, 38.7]) : d3.geoAlbersUsa())
+        .fitExtent([[10, top], [r.width - 10, r.height - bot]], opt.extent ? { type:'MultiPoint', coordinates:opt.extent } : fc);
+      path = d3.geoPath(proj, g); M.proj = proj; M.path = path; return true;
+    }
+    M.xy = ll => proj ? proj(ll) : null;
+    M.inv = (x, y) => proj && proj.invert ? proj.invert([x, y]) : null;
+    M.clipLand = () => { g.beginPath(); landFeats.forEach(f => path(f)); g.clip(); };
+    M.poly = (pts, fill, stroke, lw = 1.5, dash) => { g.beginPath(); path({ type:'Polygon', coordinates:[[...pts, pts[0]]] }); if (fill){ g.fillStyle = fill; g.fill(); } if (stroke){ g.setLineDash(dash || []); g.strokeStyle = stroke; g.lineWidth = lw; g.stroke(); g.setLineDash([]); } };
+    M.line = (pts, stroke, lw = 2, dash) => { const p = pts.map(M.xy).filter(Boolean); if (p.length < 2) return; g.beginPath(); g.moveTo(...p[0]); p.slice(1).forEach(q => g.lineTo(...q)); g.setLineDash(dash || []); g.strokeStyle = stroke; g.lineWidth = lw; g.lineJoin = g.lineCap = 'round'; g.stroke(); g.setLineDash([]); };
+    M.dot = (ll, r, fill, stroke) => { const p = M.xy(ll); if (!p) return; g.beginPath(); g.arc(p[0], p[1], r, 0, 7); g.fillStyle = fill; g.fill(); if (stroke){ g.lineWidth = 2; g.strokeStyle = stroke; g.stroke(); } return p; };
+    M.text = (t, x, y, o = {}) => { g.font = `${o.w || 800} ${o.s || 12}px Nunito, "PingFang SC", "Microsoft YaHei", sans-serif`; g.textAlign = o.a || 'center'; g.textBaseline = 'middle';
+      g.lineWidth = 3.2; g.strokeStyle = o.halo || css('--surface') || '#fff'; g.lineJoin = 'round'; g.strokeText(t, x, y); g.fillStyle = o.c || css('--ink'); g.fillText(t, x, y); };
+    M.centroid = f => path.centroid(f);
+    M.byAb = ab => M.feats && M.feats.find(f => f.id === AB[ab]);
+    M.draw = () => {
+      if (!M.feats){ const r = stage.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); cv.width = r.width * d; cv.height = r.height * d; g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, r.width, r.height);
+        M.W = r.width; M.H = r.height; M.text(Lab.L(M.failed ? {en:'The map needs an internet connection.', zh:'地图需要联网才能加载。'} : {en:'Loading map…', zh:'地图加载中…'}), r.width / 2, r.height / 2, { s:15, c:css('--ink-2') }); return; }
+      if (!proj && !layout()) return;
+      g.setTransform(M.d, 0, 0, M.d, 0, 0); g.clearRect(0, 0, M.W, M.H);
+      const land = css('--surface') || '#fff', ink2 = css('--ink-2') || '#4a5878';
+      g.lineJoin = 'round';
+      landFeats.forEach(f => { g.beginPath(); path(f); g.fillStyle = (opt.fill && opt.fill(f.info)) || land; g.fill(); });
+      g.beginPath(); landFeats.forEach(f => path(f)); g.strokeStyle = ink2; g.lineWidth = .6; g.globalAlpha = .75; g.stroke(); g.globalAlpha = 1;
+      if (M.hoverF){ g.beginPath(); path(M.hoverF); g.strokeStyle = css('--ink'); g.lineWidth = 2; g.stroke(); }
+      if (opt.overlay){ g.save(); opt.overlay(g, M); g.restore(); }
+      M.text(Lab.L({en:'Schematic map · modern state borders', zh:'示意图 · 现代州界'}), 12, M.H - (M.small ? (opt.bottomS ?? 96) : (opt.bottom ?? 60)) + 4, { s:10, a:'left', c:ink2, w:700 });
+    };
+    M.hit = e => { const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, ll = M.inv(x, y); if (!ll || !landFeats) return { x, y };
+      return { x, y, ll, f:landFeats.find(f => d3.geoContains(f, ll)) || null }; };
+    cv.addEventListener('click', e => { if (!M.feats || !opt.click) return; const h = M.hit(e); opt.click(h.f ? h.f.info : null, h, e); });
+    cv.addEventListener('pointermove', e => { if (e.pointerType === 'touch' || !M.feats) return; const h = M.hit(e), f = h.f || null; if (f !== M.hoverF){ M.hoverF = f; M.draw(); }
+      if (opt.hover){ const t = opt.hover(f && f.info, h); cv.title = t || ''; } });
+    cv.addEventListener('pointerleave', () => { if (M.hoverF){ M.hoverF = null; M.draw(); } });
+    new ResizeObserver(() => requestAnimationFrame(() => { proj = null; M.draw(); })).observe(stage);
+    const redraw = () => setTimeout(M.draw, 60);
+    new MutationObserver(redraw).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme', 'lang'] });
+    if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redraw);
+    load().then(f => { M.feats = f; proj = null; M.draw(); if (opt.ready) opt.ready(M); }).catch(err => { console.warn(err); M.failed = true; M.draw(); });
+    M.draw();
+    return M;
+  }
+  return { create, ST, AB, load, css };
+})();
+
+const Missions = makeMissions([ { id:'m1', n:o('Land map','土地地图') }, { id:'m2', n:o('Lottery','抽签') }, { id:'m3', n:o('Syllabary','音节文字') }, { id:'m4', n:o('Detective','史料侦探') } ],
+  [o('Listener','倾听者'), o('Reader','读者'), o('Researcher','研究员'), o('Historian','历史学家'), o('Keeper of the story','历史守护者')]);
+const inPoly = (pt, poly) => { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++){ const [xi, yi] = poly[i], [xj, yj] = poly[j]; if ((yi > pt[1]) !== (yj > pt[1]) && pt[0] < (xj - xi) * (pt[1] - yi) / (yj - yi) + xi) c = !c; } return c; };
+const zoneAt = ll => { let best = null; ZONES.forEach(z => { if (inPoly(ll, z.poly) && (!best || z.y < best.y)) best = z; }); return best; };
+
+/* ================= Mission 1: land cession map ================= */
+const App = { year:1733, sel:'z1', seen:new Set(), timer:null, grid:null };
+(function(){
+  const yr = Lab.$('#yr'), Y0 = 1733, Y1 = 1838, ZD = [...ZONES].sort((a, b) => b.y - a.y);
+  const newest = () => ZONES.filter(z => z.y <= App.year).sort((a, b) => b.y - a.y)[0];
+  const hexA = (h, a) => { const n = parseInt(h.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; };
+  /* sample grid (0.05°) of points inside Georgia → the year each point was ceded */
+  (function(){ const out = GAMap.pairs(GA_OUT), G = []; for (let lon = -85.6; lon < -80.8; lon += .05) for (let lat = 30.36; lat < 35.0; lat += .05){ const p = [lon, lat]; if (!inPoly(p, out)) continue; const z = zoneAt(p); G.push({ y:z ? z.y : 1826, k:inPoly(p, CHEROKEE) }); } App.grid = G; })();
+  const PLACES = [ { n:o('Savannah','萨凡纳'), ll:[-81.09,32.08] }, { n:o('Augusta','奥古斯塔'), ll:[-81.97,33.47] }, { n:o('Milledgeville','米利奇维尔'), ll:[-83.23,33.08], from:1803 }, { n:o('Indian Springs','印第安斯普林斯'), ll:[-83.93,33.24], from:1821 }, { n:o('New Echota','新埃乔塔'), ll:[-84.91,34.54], from:1825 }, { n:o('Dahlonega','达洛尼加'), ll:[-83.99,34.53], from:1829 }, { n:o('Terminus/Atlanta','终点站/亚特兰大'), ll:[-84.39,33.75], from:1837 } ];
+  const M = GAMap.create(Lab.$('#mapStage'), Lab.$('#mapCv'), {
+    rivers:true,
+    under(g, m){
+      g.fillStyle = hexA(NATION.C.c, .30); g.fillRect(0, 0, m.V.W, m.V.H);
+      g.fillStyle = css('--surface'); g.fill(m.poly(CHEROKEE)); g.fillStyle = hexA(NATION.K.c, .32); g.fill(m.poly(CHEROKEE));
+      if (App.year >= 1832 && App.year < 1835){ const p = m.poly(CHEROKEE); g.save(); g.clip(p); g.strokeStyle = hexA(METHOD.l.c, .7); g.lineWidth = 2; for (let x = -m.V.H; x < m.V.W; x += 12){ g.beginPath(); g.moveTo(x, m.V.H); g.lineTo(x + m.V.H, 0); g.stroke(); } g.restore(); }
+      ZD.forEach(z => { if (z.y > App.year) return; const p = m.poly(z.poly); g.fillStyle = css('--surface'); g.fill(p); g.fillStyle = hexA(METHOD[z.m].c, z.m === 'l' ? .26 : .22); g.fill(p); });
+      const nz = newest(); if (nz){ g.setLineDash([7, 5]); g.strokeStyle = css('--ink'); g.lineWidth = 2.4; g.stroke(m.poly(nz.poly)); g.setLineDash([]); }
+      const sz = ZONES.find(z => z.id === App.sel); if (sz && sz !== nz){ g.strokeStyle = css('--ink-2'); g.lineWidth = 1.5; g.stroke(m.poly(sz.poly)); }
+    },
+    draw(g, m){
+      const L = Lab.L, s = m.V.small, nz = newest();
+      if (App.year < 1835){ const [x, y] = m.toS([-84.7, 34.75]); m.text(L(o('CHEROKEE NATION','切罗基族')), x, y, { s:s ? 11 : 13.5, c:NATION.K.c }); }
+      if (App.year < 1826){ const [x, y] = m.toS(App.year < 1821 ? [-84.3, 32.3] : [-84.85, 32.6]); m.text(L(o('CREEK (MUSCOGEE) NATION','克里克（马斯科吉）族')), x, y, { s:s ? 10.5 : 13, c:NATION.C.c }); }
+      PLACES.forEach(p => { if (p.from && App.year < p.from) return; const [x, y] = m.toS(p.ll); g.beginPath(); g.arc(x, y, 4, 0, 7); g.fillStyle = css('--ink'); g.fill(); m.text(L(p.n), x + 7, y - 9, { a:'left', s:s ? 10 : 11.5, w:700 }); });
+      if (nz){ const [x, y] = m.toS(nz.ll); m.text(String(nz.y), x, y, { s:s ? 15 : 19, w:800, c:css('--ink') }); }
+      m.text(L(o('Schematic map · modern state outline · borders simplified','示意图 · 现代州界 · 边界已简化')), m.V.W - 16, s ? 92 : 60, { a:'right', s:11, w:700, c:css('--ink-2') });
+    },
+    onClick(x, y){ const z = zoneAt(M.toLL(x, y)); if (z){ App.sel = z.id; info(); M.redraw(); } },
+    onHover:(x, y) => !!M.V.data && !!zoneAt(M.toLL(x, y))
+  });
+  function info(){
+    const z = ZONES.find(q => q.id === App.sel), L = Lab.L, f = z.facts[Lab.lang] || z.facts.en, done = z.y <= App.year;
+    const how = z.m === 'l' ? fmtL(o('Given out by: land lottery ({y})','分配方式：土地抽签（{y} 年）'), { y:z.lot }) : L(o('Given out by: ','分配方式：')) + L(METHOD[z.m].n);
+    Lab.$('#info').innerHTML = `<span class="tag" style="background:${NATION[z.n].c}22;color:${NATION[z.n].c}">${L(NATION[z.n].n)}</span><h3><span class="dot" style="background:${METHOD[z.m].c}"></span>${L(z.name)}</h3>
+      <div class="job">${done ? L(o('Ceded in ','割让于 ')) + z.y + L(o('','年')) : fmtL(o('Still Native land in {y} — ceded in {c}','{y} 年仍是原住民土地——{c} 年被割让'), { y:App.year, c:z.y })} · ${how}</div>
+      <ul>${f.map(t => `<li>${t}</li>`).join('')}</ul>
+      <div class="memory"><b>${L(o('Memory hint','记忆提示'))}</b>${L(o('The border marched west river by river: Savannah → Ogeechee → Oconee → Ocmulgee → Flint → Chattahoochee. “Some Old Owls Only Fly Courageously.”','边界一条河一条河地向西推进：萨凡纳河 → 奥吉奇河 → 奥科尼河 → 奥克马尔吉河 → 弗林特河 → 查塔胡奇河。'))}</div>
+      <div class="mix"><b>${L(o('⚠️ Don’t mix up:','⚠️ 易错点：'))}</b>${L(o('A cession is land a Native nation gave up by treaty — usually under heavy pressure, and often signed by only a few leaders. It was not a fair sale.','“割让”是原住民民族通过条约让出的土地——通常是在巨大压力下，而且常常只有少数首领签字。这并不是公平的买卖。'))}</div>
+      <button class="speak" id="say">${L(Lab.UI.listen)}</button>
+      <div class="nav"><button id="pPrev">◀</button><button id="pNext">▶</button></div>`;
+    Lab.$('#say').onclick = () => Lab.speak(L(z.name) + '. ' + f.join(' '));
+    const step = d => { const i = ZONES.findIndex(q => q.id === App.sel); App.sel = ZONES[(i + d + ZONES.length) % ZONES.length].id; info(); M.redraw(); };
+    Lab.$('#pPrev').onclick = () => step(-1); Lab.$('#pNext').onclick = () => step(1);
+  }
+  function card(){
+    const L = Lab.L, list = EV.filter(e => e.y === App.year), n = App.grid.length;
+    const cr = App.grid.filter(p => p.y > App.year && !p.k).length / n * 100, ch = App.grid.filter(p => p.y > App.year && p.k).length / n * 100, st = 100 - cr - ch;
+    Lab.$('#yrVal').textContent = App.year; Lab.$('#ycYear').textContent = App.year; yr.value = App.year;
+    Lab.$('#ycNote').textContent = fmtL(o('Native nations still hold about {p}% of today’s Georgia (≈ {a} million acres) · schematic estimate','原住民民族仍拥有今天佐治亚约 {p}% 的土地（约 {a} 百万英亩）· 示意估算'), { p:Math.round(cr + ch), a:Math.round((cr + ch) / 100 * 37) });
+    const seg = (w, c, t) => `<i style="width:${w}%;background:${c}">${w > 12 ? t : ''}</i>`;
+    Lab.$('#landbar').innerHTML = seg(cr, NATION.C.c, L(o('Creek','克里克')) + ' ' + Math.round(cr) + '%') + seg(ch, NATION.K.c, L(o('Cherokee','切罗基')) + ' ' + Math.round(ch) + '%') + seg(st, '#6b7a99', L(o('State of Georgia','佐治亚州')) + ' ' + Math.round(st) + '%');
+    Lab.$('#legend').innerHTML = [[NATION.C.c, NATION.C.n], [NATION.K.c, NATION.K.n], [METHOD.c.c, METHOD.c.n], [METHOD.h.c, METHOD.h.n], [METHOD.l.c, METHOD.l.n]].map(([c, t]) => `<span><i style="background:${c};opacity:.75"></i>${L(t)}</span>`).join('') + `<span><i style="border:2px dashed var(--ink)"></i>${L(o('Newest cession','最新割让'))}</span>`;
+    Lab.$('#ycList').innerHTML = list.length ? list.map(e => `<div class="yc-ev" style="border-color:${e.z ? METHOD[ZONES.find(z => z.id === e.z).m].c : '#b7791f'}"><small style="color:var(--ink-2)">${e.y}</small><h4>${L(e.t)}</h4><p>${L(e.b)}</p></div>`).join('')
+      : `<p class="muted" style="margin:0">${L(o('No major event this year — press “Next ▶” to jump to the next one.','这一年没有重大事件——点“下一件 ▶”跳到下一件。'))}</p>`;
+    if (list.length) App.seen.add(App.year); { const z = list.find(e => e.z), nz = newest(); const id = z ? z.z : nz ? nz.id : 'z1'; if (id !== App.sel){ App.sel = id; info(); } }
+    const k = App.seen.size; Missions.star('m1', k >= EYEARS.length ? 3 : k >= 12 ? 2 : k >= 5 ? 1 : 0);
+    M.redraw();
+  }
+  function go(y){ App.year = Math.max(Y0, Math.min(Y1, y)); card(); }
+  yr.oninput = () => go(+yr.value);
+  const jump = d => { const ys = d > 0 ? EYEARS.filter(y => y > App.year) : EYEARS.filter(y => y < App.year).reverse(); if (ys.length) go(ys[0]); };
+  Lab.$('#evNext').onclick = () => jump(1); Lab.$('#evPrev').onclick = () => jump(-1);
+  const play = Lab.$('#playBtn'), stop = () => { clearInterval(App.timer); App.timer = null; play.textContent = Lab.L(o('▶ Play','▶ 播放')); };
+  play.onclick = () => { if (App.timer) return stop(); if (App.year >= Y1) go(Y0); play.textContent = Lab.L(o('⏸ Pause','⏸ 暂停')); App.timer = setInterval(() => { if (App.year >= Y1) return stop(); jump(1); }, 1100); };
+  Lab.onLang(() => { info(); card(); Missions.render(); });
+})();
+
+/* ================= Mission 2: the 1832 lottery ================= */
+(function(){
+  const S = { who:'bach', tries:0, wins:0, tried:new Set(), spinning:false };
+  const W = () => WHO.find(w => w.k === S.who);
+  const odds = d => 1 - Math.pow(1 - P_DRAW, d);
+  function render(){
+    const L = Lab.L, w = W();
+    Lab.$('#who').innerHTML = WHO.map(x => `<button data-k="${x.k}" class="${x.k === S.who ? 'on' : ''}">${L(x.n)}</button>`).join('');
+    Lab.$$('#who button').forEach(b => b.onclick = () => { S.who = b.dataset.k; Lab.$('#drum').className = 'drum'; Lab.$('#drum').textContent = '🎟️'; render(); });
+    Lab.$('#lDraws').textContent = w.d; Lab.$('#lOdds').textContent = w.d ? Math.round(odds(w.d) * 100) + '%' : '0%';
+    Lab.$('#lTries').textContent = S.tries; Lab.$('#lWins').textContent = S.wins;
+    Lab.$('#whoNote').textContent = w.d ? fmtL(o('Your name goes into the drum {d} time(s). Each draw has about a 1-in-5 chance of matching a lot number (simplified).','你的名字会放进抽签桶 {d} 次。每次大约有五分之一的机会抽中地块编号（简化计算）。'), { d:w.d }) : L(WHYNOT[w.k]);
+    if (!Lab.$('#drum').textContent) Lab.$('#drum').textContent = '🎟️';
+  }
+  function award(){ const ineligible = [...S.tried].some(k => !WHO.find(w => w.k === k).d); Missions.star('m2', S.tried.size >= 3 && ineligible ? 3 : S.tried.size >= 2 ? 2 : 1); }
+  Lab.$('#spin').onclick = () => {
+    if (S.spinning) return; const w = W(), L = Lab.L, drum = Lab.$('#drum'), msg = Lab.$('#lMsg'); S.tried.add(w.k);
+    if (!w.d){ drum.className = 'drum blank'; drum.textContent = L(o('🚫 Not allowed to enter','🚫 不允许参加')); msg.className = 'result bad'; msg.textContent = L(WHYNOT[w.k]); award(); return; }
+    S.spinning = true; drum.className = 'drum'; let n = 0;
+    const t = setInterval(() => { drum.textContent = ['🎟️', '📜', '🎟️', '❔'][n++ % 4]; if (n < 10) return; clearInterval(t); S.spinning = false; S.tries++;
+      let won = false; for (let i = 0; i < w.d; i++) if (Math.random() < P_DRAW) won = true;
+      if (won){ S.wins++; const lot = 1 + Math.floor(Math.random() * 324), dist = 1 + Math.floor(Math.random() * 28);
+        drum.className = 'drum win'; drum.textContent = fmtL(o('🎉 Lot {l}, District {d} — 160 acres','🎉 第 {d} 区第 {l} 号地块——160 英亩'), { l:lot, d:dist });
+        msg.className = 'result good'; msg.textContent = L(o('You won! Pay the $18 fee and the governor signs your grant. But a Cherokee family may still be living on this lot.','你中签了！交 18 美元登记费，州长就会签发地契。可是这块地上也许还住着一户切罗基人家。')); }
+      else { drum.className = 'drum blank'; drum.textContent = L(o('A blank — no land this time','空白票——这次没有土地')); msg.className = 'result'; msg.textContent = L(o('Most drawers got blanks. About 4 out of 5 draws came up empty.','大多数人抽到空白票。大约每 5 次中有 4 次落空。')); }
+      award(); render(); }, 90);
+  };
+  Lab.$('#sim1000').onclick = () => {
+    const w = W(), L = Lab.L, msg = Lab.$('#lMsg'); S.tried.add(w.k); let won = 0;
+    for (let k = 0; k < 1000; k++){ let x = false; for (let i = 0; i < w.d; i++) if (Math.random() < P_DRAW) x = true; if (x) won++; }
+    msg.className = 'result'; msg.textContent = w.d ? fmtL(o('Out of 1,000 drawers like you, {n} won a lot ({p}%).','和你一样的 1000 名抽签者中，有 {n} 人中签（{p}%）。'), { n:won, p:(won / 10).toFixed(1) }) : L(o('Out of 1,000 people like you: 0 could even enter.','和你一样的 1000 人中：一个人也不能参加。'));
+    award();
+  };
+  Lab.onLang(render);
+})();
+
+/* ================= Data figure: population ================= */
+(function(){
+  const cv = Lab.$('#popCv'), box = Lab.$('#popBox'), g = cv.getContext('2d'); let pick = 5, X = [];
+  function draw(){
+    const r = box.getBoundingClientRect(); if (!r.width) return; const d = Math.min(devicePixelRatio || 1, 2), L = Lab.L;
+    cv.width = r.width * d; cv.height = r.height * d; g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, r.width, r.height);
+    const W = r.width, H = r.height, l = 46, rt = 12, t = 18, b = 30, yv = v => H - b - v / 700 * (H - t - b), bw = Math.min(70, (W - l - rt) / POP.length * .6);
+    g.font = '700 11.5px Nunito, sans-serif'; g.strokeStyle = css('--line'); g.lineWidth = 1;
+    [0, 100, 200, 300, 400, 500, 600, 700].forEach(v => { const y = yv(v); g.beginPath(); g.moveTo(l, y); g.lineTo(W - rt, y); g.stroke(); g.fillStyle = css('--ink-2'); g.textAlign = 'right'; g.fillText(v + 'k', l - 6, y + 4); });
+    X = POP.map(([yr, tot, sl], i) => { const x = l + (i + .5) * (W - l - rt) / POP.length - bw / 2;
+      g.globalAlpha = i === pick ? 1 : .6; g.fillStyle = css('--brand'); g.fillRect(x, yv(tot), bw, H - b - yv(tot)); g.fillStyle = '#5b3a1e'; g.fillRect(x, yv(sl), bw, H - b - yv(sl)); g.globalAlpha = 1;
+      g.fillStyle = css('--ink'); g.textAlign = 'center'; g.fillText(yr, x + bw / 2, H - b + 16); g.fillText(tot + 'k', x + bw / 2, yv(tot) - 6); return x + bw / 2; });
+    const [yr, tot, sl] = POP[pick];
+    Lab.$('#popRead').textContent = fmtL(o('{y}: about {t},000 people counted, including about {s},000 enslaved ({p}%).','{y} 年：普查人口约 {t} 千人，其中被奴役者约 {s} 千人（{p}%）。'), { y:yr, t:tot, s:sl, p:Math.round(sl / tot * 100) });
+  }
+  cv.addEventListener('click', e => { const r = cv.getBoundingClientRect(), x = e.clientX - r.left; let bi = 0, bd = 1e9; X.forEach((cx, i) => { if (Math.abs(cx - x) < bd){ bd = Math.abs(cx - x); bi = i; } }); pick = bi; draw(); });
+  new ResizeObserver(() => requestAnimationFrame(draw)).observe(box); addEventListener('labtheme', () => requestAnimationFrame(draw));
+  Lab.onLang(draw);
+})();
+
+/* ================= Mission 3: syllabary ================= */
+(function(){
+  const S = { w:0, pos:0, solved:new Set(), keys:[] }, ch = k => String.fromCodePoint(SYL[k]);
+  function newWord(){ S.pos = 0; S.keys = Lab.shuffle(Object.keys(SYL)); render(); }
+  function render(){
+    const L = Lab.L, W = WORDS[S.w];
+    Lab.$('#sylLabel').textContent = fmtL(o('Spell: {w}','请拼写：{w}'), { w:L(W.n) });
+    Lab.$('#slots').innerHTML = W.s.map((k, i) => `<span class="${i < S.pos ? 'ok' : ''}">${i < S.pos ? ch(k) : ''}</span>`).join('');
+    Lab.$('#keys').innerHTML = S.keys.map(k => `<button data-k="${k}"><b>${ch(k)}</b><small>${k}</small></button>`).join('');
+    Lab.$$('#keys button').forEach(b => b.onclick = () => press(b));
+    const m = Lab.$('#sylMsg');
+    if (S.pos >= W.s.length){ m.className = 'result good'; m.textContent = fmtL(o('✔ {c} = {w}. {n} of {t} words written.','✔ {c} = {w}。已写出 {n}/{t} 个词。'), { c:W.s.map(ch).join(''), w:L(W.n), n:S.solved.size, t:WORDS.length }); }
+    else { m.className = 'result'; m.textContent = fmtL(o('Next syllable: {s}','下一个音节：{s}'), { s:W.s[S.pos] }); }
+  }
+  function press(b){
+    const W = WORDS[S.w]; if (S.pos >= W.s.length) return;
+    if (b.dataset.k === W.s[S.pos]){ S.pos++; if (S.pos >= W.s.length){ S.solved.add(S.w); Missions.star('m3', S.solved.size >= 4 ? 3 : S.solved.size >= 2 ? 2 : 1); } render(); }
+    else { b.classList.remove('bad'); void b.offsetWidth; b.classList.add('bad'); }
+  }
+  Lab.$('#sylSkip').onclick = () => { S.w = (S.w + 1) % WORDS.length; newWord(); };
+  S.keys = Lab.shuffle(Object.keys(SYL)); Lab.onLang(render);
+})();
+
+/* ================= Trail of Tears map ================= */
+(function(){
+  const T = { k:0, yazoo:true, water:true, timer:null };
+  const hav = (a, b) => { const R = 3959, r = Math.PI / 180, dLat = (b[1] - a[1]) * r, dLon = (b[0] - a[0]) * r, s = Math.sin(dLat / 2) ** 2 + Math.cos(a[1] * r) * Math.cos(b[1] * r) * Math.sin(dLon / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(s)); };
+  const miles = i => { let m = 0; for (let j = 1; j <= i; j++) m += hav(ROUTE[j - 1], ROUTE[j]); return Math.round(m / 10) * 10; };
+  const M = USMap.create('#trailStage', '#trailCv', { lower48:true, extent:[[-97.2, 38.4], [-80.8, 30.4]], top:56, bottom:66, topS:100, bottomS:96,
+    fill: f => f.ab === 'GA' ? 'rgba(194,65,12,.20)' : (T.yazoo && (f.ab === 'AL' || f.ab === 'MS')) ? 'rgba(217,164,65,.38)' : f.ab === 'OK' ? 'rgba(124,92,191,.20)' : null,
+    overlay(g, M){
+      const L = Lab.L, s = M.small, st = STOPS[T.k];
+      if (T.yazoo){ const p = M.xy([-88.9, 32.9]); if (p) M.text(L(o('Georgia’s western claim (to 1802) — Yazoo lands','佐治亚的西部主张（至 1802 年）——亚祖土地')), p[0], p[1], { s:s ? 9.5 : 11.5, c:'#8a5a00' }); }
+      const ok = M.xy([-95.9, 35.1]); if (ok) M.text(L(o('Indian Territory','印第安领地')), ok[0], ok[1] + 22, { s:s ? 10 : 12, c:'#7c5cbf' });
+      if (T.water){ M.line(WATER, '#3d8bd0', s ? 2 : 2.6, [7, 6]); const w = M.xy([-90.9, 34.6]); if (w) M.text(L(o('water route (June 1838)','水路（1838 年 6 月）')), w[0], w[1], { s:s ? 9.5 : 11, c:'#3d8bd0' }); }
+      M.line(ROUTE, css('--line'), s ? 3 : 4); M.line(ROUTE.slice(0, st.i + 1), '#8b2f3c', s ? 3 : 4.5);
+      STOPS.forEach((q, k) => { const p = M.dot(ROUTE[q.i], k === T.k ? 8 : 5, k <= T.k ? '#8b2f3c' : css('--surface'), k <= T.k ? css('--surface') : css('--ink-2')); });
+      const p = M.xy(ROUTE[st.i]); if (p){ g.beginPath(); g.arc(p[0], p[1], 14, 0, 7); g.strokeStyle = '#8b2f3c'; g.lineWidth = 2.5; g.stroke(); M.text(L(st.n).split(/[,，（(—]/)[0], p[0], p[1] - 24, { s:s ? 11 : 13 }); }
+    },
+    hover: f => f ? Lab.L({ en:f.en, zh:f.zh }) : null
+  });
+  function info(){
+    const L = Lab.L, st = STOPS[T.k];
+    Lab.$('#tjVal').textContent = (T.k + 1) + '/8'; Lab.$('#tj').value = T.k;
+    Lab.$('#tInfo').innerHTML = `<span class="tag">${L(st.w)}</span><h3><span class="dot" style="background:#8b2f3c"></span>${L(st.n)}</h3>
+      <div class="job">${fmtL(o('About {m} miles from New Echota along this route (straight-line segments — the real roads were longer).','沿这条路线距新埃乔塔约 {m} 英里（按直线分段计算，实际道路更长）。'), { m:miles(st.i) })}</div>
+      <p style="font-size:16px">${L(st.t)}</p>
+      <div class="memory"><b>${L(o('Remember','记住'))}</b>${L(o('About 16,000 people forced out · an estimated 4,000 deaths · roughly 1,000 people per group · most walked.','约 1.6 万人被迫迁移 · 估计约 4000 人死亡 · 每支队伍约 1000 人 · 大多数人步行。'))}</div>
+      <button class="speak" id="tSay">${L(Lab.UI.listen)}</button>
+      <div class="nav"><button id="tPrev">◀</button><button id="tNext">▶</button></div>`;
+    Lab.$('#tSay').onclick = () => Lab.speak(L(st.w) + '. ' + L(st.n) + '. ' + L(st.t));
+    Lab.$('#tPrev').onclick = () => go(T.k - 1); Lab.$('#tNext').onclick = () => go(T.k + 1);
+    M.draw();
+  }
+  function go(k){ T.k = Math.max(0, Math.min(STOPS.length - 1, k)); info(); }
+  Lab.$('#tj').oninput = e => go(+e.target.value);
+  const play = Lab.$('#tjPlay'), stop = () => { clearInterval(T.timer); T.timer = null; play.textContent = Lab.L(o('▶ Play','▶ 播放')); };
+  play.onclick = () => { if (T.timer) return stop(); if (T.k >= STOPS.length - 1) go(0); play.textContent = Lab.L(o('⏸ Pause','⏸ 暂停')); T.timer = setInterval(() => { if (T.k >= STOPS.length - 1) return stop(); go(T.k + 1); }, 2200); };
+  Lab.$('#lyYazoo').onclick = e => { T.yazoo = !T.yazoo; e.currentTarget.classList.toggle('on', T.yazoo); M.draw(); };
+  Lab.$('#lyWater').onclick = e => { T.water = !T.water; e.currentTarget.classList.toggle('on', T.water); M.draw(); };
+  Lab.onLang(info);
+})();
+
+/* ================= Mission 4: source detective ================= */
+(function(){
+  const G = { deck:[], i:0, score:0, streak:0, right:0, done:false, opts:[] };
+  const KEYS = Object.keys(NAMES);
+  function start(){ G.deck = Lab.shuffle(CLUES).slice(0, 10); G.i = 0; G.score = 0; G.streak = 0; G.right = 0; G.done = false; deal(); }
+  function deal(){ const c = G.deck[G.i]; G.opts = Lab.shuffle([c.a, ...Lab.shuffle(KEYS.filter(k => k !== c.a)).slice(0, 3)]); G.picked = null; render(); }
+  function rank(){ return RANKS[Math.min(4, Math.floor(G.right / 2.5))]; }
+  function render(){
+    const L = Lab.L;
+    Lab.$('#hgScore').textContent = G.score; Lab.$('#hgStreak').textContent = G.streak; Lab.$('#hgN').textContent = Math.min(G.i + 1, 10) + '/10'; Lab.$('#hgRank').textContent = L(rank());
+    Lab.$('#hgBar').style.width = (G.i + (G.picked != null ? 1 : 0)) * 10 + '%';
+    if (G.done){
+      const st = G.right >= 10 ? 3 : G.right >= 8 ? 2 : G.right >= 6 ? 1 : 0;
+      Lab.$('#hgYear').textContent = L(o('Case closed','结案'));
+      Lab.$('#hgClue').textContent = fmtL(o('{r}/10 sources identified · {s} points · {st}','认出 {r}/10 份史料 · {s} 分 · {st}'), { r:G.right, s:G.score, st:'★'.repeat(st) + '☆'.repeat(3 - st) });
+      Lab.$('#hgOpts').innerHTML = ''; Lab.$('#hgMsg').textContent = fmtL(o('Your rank: {k}. Play again for a new set of cards.','你的级别：{k}。再玩一次会换一组新卡片。'), { k:L(rank()) }); Lab.$('#hgMsg').className = 'result good';
+      Lab.$('#hgNext').textContent = L(o('Play again','再玩一次')); Lab.$('#hgNext').disabled = false; return;
+    }
+    const c = G.deck[G.i];
+    Lab.$('#hgYear').textContent = L(c.y); Lab.$('#hgClue').textContent = L(c.c);
+    Lab.$('#hgOpts').innerHTML = G.opts.map(k => `<button class="opt" data-k="${k}">${L(NAMES[k])}</button>`).join('');
+    Lab.$$('#hgOpts .opt').forEach(b => b.onclick = () => pick(b.dataset.k));
+    Lab.$('#hgNext').textContent = L(G.i >= 9 ? o('See results ▶','查看结果 ▶') : o('Next card ▶','下一张 ▶'));
+    Lab.$('#hgNext').disabled = G.picked == null;
+    if (G.picked != null) mark(); else { Lab.$('#hgMsg').textContent = ''; Lab.$('#hgMsg').className = 'result'; }
+  }
+  function pick(k){ if (G.picked != null) return; G.picked = k; if (k === G.deck[G.i].a){ G.right++; G.streak++; G.score += 10 + (G.streak >= 3 ? 5 : 0); } else G.streak = 0; render(); }
+  function mark(){
+    const c = G.deck[G.i], ok = G.picked === c.a, L = Lab.L;
+    Lab.$$('#hgOpts .opt').forEach(b => { b.disabled = true; if (b.dataset.k === c.a) b.classList.add('right'); else if (b.dataset.k === G.picked) b.classList.add('wrong'); });
+    Lab.$('#hgMsg').textContent = (ok ? L(o('✔ Correct! ','✔ 正确！')) + (G.streak >= 3 ? L(o('Streak bonus +5. ','连对奖励 +5。')) : '') : L(o('✘ Not quite: ','✘ 不对：'))) + L(c.x);
+    Lab.$('#hgMsg').className = 'result ' + (ok ? 'good' : 'bad');
+  }
+  Lab.$('#hgNext').onclick = () => {
+    if (G.done) return start();
+    if (G.picked == null) return;
+    if (G.i >= 9){ G.done = true; Missions.star('m4', G.right >= 10 ? 3 : G.right >= 8 ? 2 : G.right >= 6 ? 1 : 0); render(); return; }
+    G.i++; deal();
+  };
+  start(); Lab.onLang(render);
+})();
+
+Lab.quiz(Lab.$('#quiz'), QUIZ, { count:12 });
+Lab.sort(Lab.$('#sort'), SORT);
+
+</script>
+</body>
+</html>
