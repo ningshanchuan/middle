@@ -271,9 +271,9 @@ window.LAB_CATALOG = [
    {id:'yw-expository', std:'语文 · 现代文阅读', en:'Reading Expository Texts', zh:'说明文阅读', d:{en:'What is explained, in what order and with which methods.',zh:'说明对象、说明顺序与说明方法。'}},
    {id:'yw-argumentative', std:'语文 · 现代文阅读', en:'Reading Argumentative Essays', zh:'议论文阅读', d:{en:'Thesis, evidence and methods of argument.',zh:'论点、论据与论证方法。'}},
    {id:'yw-rhetoric', std:'语文 · 修辞', en:'Rhetorical Devices', zh:'修辞手法', d:{en:'Metaphor, personification, parallelism, exaggeration and more.',zh:'比喻、拟人、排比、夸张等。'}},
-   {id:'yw-classics', soon:1, std:'语文 · 名著导读', en:'Great Books (名著导读)', zh:'名著导读', d:{en:'Journey to the West, Dawn Blossoms Plucked at Dusk and other set books.',zh:'《西游记》《朝花夕拾》等必读名著。'}},
-   {id:'yw-idioms', soon:1, std:'语文 · 积累与运用', en:'Idioms, Couplets & Traditional Culture', zh:'成语、对联与传统文化', d:{en:'Chengyu stories, couplets and festival customs.',zh:'成语故事、对联与节日习俗。'}},
-   {id:'yw-writing', soon:1, std:'语文 · 写作', en:'Writing in Chinese', zh:'写作', d:{en:'Choosing a topic, details that show, and structure.',zh:'审题立意、细节描写与文章结构。'}}
+   {id:'yw-classics', std:'语文 · 名著导读', en:'Great Books (名著导读)', zh:'名著导读', d:{en:'Journey to the West, Dawn Blossoms Plucked at Dusk and other set books.',zh:'《西游记》《朝花夕拾》等必读名著。'}},
+   {id:'yw-idioms', std:'语文 · 积累与运用', en:'Idioms, Couplets & Traditional Culture', zh:'成语、对联与传统文化', d:{en:'Chengyu stories, couplets and festival customs.',zh:'成语故事、对联与节日习俗。'}},
+   {id:'yw-writing', std:'语文 · 写作', en:'Writing in Chinese', zh:'写作', d:{en:'Choosing a topic, details that show, and structure.',zh:'审题立意、细节描写与文章结构。'}}
  ]},
  { id:'cs', icon:'💻', color:'#0e7490', en:'Computer Science', zh:'计算机科学',
    blurb:{en:'How computers, code, the internet and AI work (Georgia Computer Science, grades 6–8).',zh:'计算机、编程、互联网和人工智能是如何工作的（佐治亚州计算机科学，6–8 年级）。'},
