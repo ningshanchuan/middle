@@ -600,10 +600,12 @@ function recolor(){ for (const c in provs){ const pr = provs[c], col = new THREE
 const labelText = p => App.labelMode === 'short' ? p.short.split('/')[0] : App.labelMode === 'full' ? (Lab.lang === 'zh' ? p.zh : p.en) : App.labelMode === 'seat' ? Lab.L(p.cap) : '';
 function relabel(){ provLabels.forEach(L => L.set(L.text)); applyVis(); }
 
+let selEdgeMat = null;
 function build(geo){
   const feats = geo.features.filter(f => BY[f.properties.adcode]);
   political = colorGraph(feats);
   const edgeMat = new THREE.LineBasicMaterial({ color:0xffffff, transparent:true, opacity:.7 });
+  selEdgeMat = new THREE.LineBasicMaterial({ color:0xffe066 });   // bright outline marks the selected division
   feats.forEach(f => {
     const c = f.properties.adcode, p = BY[c];
     const geom = new THREE.ExtrudeGeometry(ChinaMap.shapes3D(THREE, f, P), { depth:H, bevelEnabled:false, curveSegments:1 });
@@ -614,13 +616,13 @@ function build(geo){
     const grp = new THREE.Group(); grp.add(mesh); scene.add(grp);
     const pts = [];
     ChinaMap.rings(f).forEach(poly => poly.forEach(ring => { for (let i = 0; i < ring.length - 1; i++) pts.push(W(...ring[i], H + .004), W(...ring[i + 1], H + .004)); }));
-    grp.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), edgeMat));
+    const edge = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), edgeMat); edge.userData.mat = edgeMat; grp.add(edge);
     const anchor = new THREE.Object3D(); anchor.position.copy(W(...p.lp, H + .02)); grp.add(anchor);
     const L = ctx.label(() => labelText(p), anchor, { cls:'pl' }); provLabels.push(L);
     const capM = new THREE.Mesh(c === 110000 ? new THREE.OctahedronGeometry(.13) : new THREE.SphereGeometry(.07, 12, 8), new THREE.MeshStandardMaterial({ color:0xc8312e, emissive:0x661111 }));
     capM.position.copy(W(...p.cl, H + .08)); grp.add(capM); capM.userData.bj = c === 110000; capMeshes.push(capM);
     ctx.pickable(mesh, c);
-    provs[c] = { grp, mesh, top, side, s:1 };
+    provs[c] = { grp, mesh, top, side, edge, s:1 };
   });
   // South China Sea dashed boundary line (MultiPolygon of thin dashes in the source data, or MultiLineString)
   const jdMat = new THREE.MeshStandardMaterial({ color:0x8a2c2c, roughness:.6 });
@@ -710,10 +712,12 @@ ctx.onFrame((dt, t) => {
   for (const c in provs){
     const pr = provs[c], code = +c, on = sel === code;
     const glowT = st.flags.tropic && TROPIC.includes(code);
-    const target = on ? 2.3 : glowT ? 1.8 : hov === code ? 1.4 : 1;
+    // small lift only: a big raise makes large provinces (e.g. Xinjiang) look shifted north in the tilted view
+    const target = on ? 1.35 : glowT ? 1.25 : hov === code ? 1.15 : 1;
     pr.s += (target - pr.s) * Math.min(1, dt * 8); pr.grp.scale.y = pr.s;
-    const g = on || glowT ? .25 + .15 * Math.sin(t * 4) : hov === code ? .12 : 0;
+    const g = on || glowT ? .1 + .06 * Math.sin(t * 4) : hov === code ? .07 : 0;   // gentle glow keeps the colour readable
     pr.top.emissive.copy(pr.top.color).multiplyScalar(g);
+    if (pr.edge){ pr.edge.material = on ? selEdgeMat : pr.edge.userData.mat; }
   }
   tropicMat.opacity = st.flags.tropic || sel === 'pos' ? .7 + .3 * Math.sin(t * 5) : .55;
 });
