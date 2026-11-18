@@ -1,4 +1,4 @@
-# 🔬 Science Lab — Interactive 3D Middle-School Science (EN · 中文)
+# 🎓 Genius Classroom 天才课堂 — Interactive Middle-School Lessons for US & China (EN · 中文)
 
 **Live site:** https://shanchuan.org/middle/  
 **Source:** https://github.com/ningshanchuan/middle

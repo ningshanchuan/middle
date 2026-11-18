@@ -1,4 +1,4 @@
-/* Science Lab — shared runtime (classic script, works from file://).
+/* Genius Classroom — shared runtime (classic script, works from file://).
    Bilingual: write English in the element and Chinese in data-zh (text) or data-zh-html (markup).
    Pages: <body data-subject="biology" data-topic="dna"> with <div id="lab-nav"></div> ... <div id="lab-footer"></div>
    API: Lab.lang, Lab.L({en,zh}), Lab.onLang(fn), Lab.ready(fn), Lab.speak(text), Lab.quiz(el, questions, opts),
@@ -31,7 +31,7 @@
   Lab.onLang = fn => { langFns.push(fn); if (isReady) fn(Lab.lang); };
   Lab.ready = fn => { if (isReady) fn(); else readyFns.push(fn); };
   const UI = {
-    home:{en:'Science Lab',zh:'科学实验室'}, all:{en:'All topics',zh:'全部主题'}, prev:{en:'Previous topic',zh:'上一个主题'}, next:{en:'Next topic',zh:'下一个主题'},
+    home:{en:'Genius Classroom',zh:'天才课堂'}, all:{en:'All topics',zh:'全部主题'}, prev:{en:'Previous topic',zh:'上一个主题'}, next:{en:'Next topic',zh:'下一个主题'},
     std:{en:'Georgia standard',zh:'佐治亚州课程标准'}, note:{en:'3D models are simplified and not to scale.',zh:'3D 模型经过简化，比例并不真实。'},
     q:{en:'Question {n} of {t}',zh:'第 {n} 题 / 共 {t} 题'}, right:{en:'✅ Correct!',zh:'✅ 答对了！'}, wrong:{en:'❌ Not quite. Answer: ',zh:'❌ 不对，正确答案：'},
     nextQ:{en:'Next question ▶',zh:'下一题 ▶'}, done:{en:'🎉 Finished! You got {s} of {t} right.',zh:'🎉 完成！你答对了 {s} / {t} 题。'}, again:{en:'Play again ↺',zh:'再来一轮 ↺'},
@@ -60,7 +60,7 @@
     const S = Lab.subject, T = Lab.topic, inSub = !!S;
     const navLinks = $$('[data-nav]').map(s => `<a href="#${s.id}" data-zh="${s.dataset.navZh||s.dataset.nav}">${s.dataset.nav}</a>`).join('');
     host.outerHTML = `<nav class="lab-nav"><div class="wrap">
-      <a class="home" href="${inSub ? '../index.html' : 'index.html'}" data-lab-link>🔬 <span data-zh="${UI.home.zh}">${UI.home.en}</span></a>
+      <a class="home" href="${inSub ? '../index.html' : 'index.html'}" data-lab-link>🎓 <span data-zh="${UI.home.zh}">${UI.home.en}</span></a>
       ${S ? `<div class="crumb">/ <a href="../index.html#${S.id}" data-lab-link>${S.icon} <span data-zh="${S.zh}">${S.en}</span></a>${T ? `<span class="t">/ <span data-zh="${T.zh}">${T.en}</span></span>` : ''}</div>` : ''}
       <div class="links">${navLinks}</div>
       <div class="seg lab-lang ${navLinks ? '' : 'spacer'}"><button data-lang="en">EN</button><button data-lang="zh">中文</button></div>
