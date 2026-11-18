@@ -149,11 +149,11 @@
   const BLOCK = 'p,li,h1,h2,h3,h4,h5,h6,td,th,figcaption,summary,blockquote,dd,dt,button,label,.opt,.chip,.qtext,.explain,.feedback,.lp-cap';
   const css = document.createElement('style');
   css.textContent = `ruby.lpy{ruby-position:over;ruby-align:center}
-ruby.lpy rt{font-size:.62em;font-weight:700;line-height:1.1;color:color-mix(in srgb,var(--ink,#14213d) 70%,var(--brand,#0f9d8a));letter-spacing:0;font-family:Nunito,system-ui,sans-serif;user-select:none}
+ruby.lpy rt{font-size:.7em;font-weight:700;line-height:1.1;color:color-mix(in srgb,var(--ink,#14213d) 70%,var(--brand,#0f9d8a));letter-spacing:0;font-family:Nunito,system-ui,sans-serif;user-select:none}
 ruby.lpy{line-height:2}
-:is(p,li,dd,.explain,.qtext,figcaption):has(ruby.lpy){line-height:2.1}   /* room for the bigger pinyin so lines don't touch */
+:is(p,li,dd,.explain,.qtext,figcaption):has(ruby.lpy){line-height:2.2}   /* room for the bigger pinyin so lines don't touch */
 /* small UI text (chips, labels, captions): keep pinyin from crowding */
-:is(.chip,.tag,.eyebrow,.lab-label3d,.lp-credit,small) ruby.lpy rt{font-size:.56em}
+
 .lab-py{font-weight:800;font-size:15px}.lab-py.off{opacity:.45;text-decoration:line-through}`;
   document.head.appendChild(css);
   const isZh = () => (window.Lab ? Lab.lang === 'zh' : (document.documentElement.lang || '').startsWith('zh'));
