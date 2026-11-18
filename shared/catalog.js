@@ -211,9 +211,9 @@ window.LAB_CATALOG = [
  { id:'georgia', icon:'🍑', color:'#c2410c', en:'Georgia Studies', zh:'佐治亚州研究',
    blurb:{en:'Georgia’s geography, history, government and economy (Georgia Social Studies, grade 8).',zh:'佐治亚州的地理、历史、政府与经济（佐治亚州社会研究，8 年级）。'},
    topics:[
-   {id:'ga-geography', soon:1, std:'SS8G1', en:'Georgia’s Geography & Regions', zh:'佐治亚州的地理与五大地区', d:{en:'Five regions from the mountains to the coast, rivers and the Fall Line.',zh:'从山区到海岸的五大地区、河流与瀑布线。'}},
-   {id:'ga-native', soon:1, std:'SS8H1', en:'Native Americans of Georgia', zh:'佐治亚州的美洲原住民', d:{en:'Paleo to Mississippian cultures, the Creek and the Cherokee.',zh:'从古印第安时期到密西西比文化，克里克人与切罗基人。'}},
-   {id:'ga-colony', soon:1, std:'SS8H1–2', en:'Founding the Georgia Colony', zh:'佐治亚殖民地的建立', d:{en:'Oglethorpe, Savannah 1733, the Trustees and the royal colony.',zh:'奥格尔索普、1733 年萨凡纳、托管人时期与皇家殖民地。'}},
+   {id:'ga-geography', std:'SS8G1', en:'Georgia’s Geography & Regions', zh:'佐治亚州的地理与五大地区', d:{en:'Five regions from the mountains to the coast, rivers and the Fall Line.',zh:'从山区到海岸的五大地区、河流与瀑布线。'}},
+   {id:'ga-native', std:'SS8H1', en:'Native Americans of Georgia', zh:'佐治亚州的美洲原住民', d:{en:'Paleo to Mississippian cultures, the Creek and the Cherokee.',zh:'从古印第安时期到密西西比文化，克里克人与切罗基人。'}},
+   {id:'ga-colony', std:'SS8H1–2', en:'Founding the Georgia Colony', zh:'佐治亚殖民地的建立', d:{en:'Oglethorpe, Savannah 1733, the Trustees and the royal colony.',zh:'奥格尔索普、1733 年萨凡纳、托管人时期与皇家殖民地。'}},
    {id:'ga-revolution', soon:1, std:'SS8H3', en:'Revolution & Early Statehood', zh:'独立战争与早期州政', d:{en:'Georgia in the American Revolution and the new nation.',zh:'独立战争中的佐治亚与新国家的建立。'}},
    {id:'ga-removal', soon:1, std:'SS8H4', en:'Land, Gold & Cherokee Removal', zh:'土地、黄金与切罗基人迁移', d:{en:'Land lotteries, the Dahlonega gold rush and the Trail of Tears.',zh:'土地抽签、达洛尼加淘金热与“血泪之路”。'}},
    {id:'ga-civilwar', soon:1, std:'SS8H5', en:'Georgia in the Civil War', zh:'南北战争中的佐治亚', d:{en:'Secession, Andersonville, Chickamauga and Sherman’s March.',zh:'脱离联邦、安德森维尔、奇克莫加之战与谢尔曼进军。'}},
@@ -226,8 +226,8 @@ window.LAB_CATALOG = [
  { id:'ushistory', icon:'🗽', color:'#1d4ed8', en:'U.S. History', zh:'美国历史',
    blurb:{en:'From the thirteen colonies to today: how the United States was built and changed.',zh:'从十三个殖民地到今天：美国是如何建立和变化的。'},
    topics:[
-   {id:'us-colonies', soon:1, std:'SS4H / SS5H · U.S. History', en:'Colonies & the American Revolution', zh:'殖民地与美国独立战争', d:{en:'Thirteen colonies, taxes, the Declaration of Independence and the war.',zh:'十三个殖民地、税收、《独立宣言》与独立战争。'}},
-   {id:'us-constitution', soon:1, std:'SS4CG · U.S. History', en:'The Constitution & Bill of Rights', zh:'美国宪法与《权利法案》', d:{en:'Three branches, checks and balances and your rights.',zh:'三权分立、制衡与公民权利。'}},
+   {id:'us-colonies', std:'SS3H3 / SS4H1 · U.S. History', en:'Colonies & the American Revolution', zh:'殖民地与美国独立战争', d:{en:'Thirteen colonies, taxes, the Declaration of Independence and the war.',zh:'十三个殖民地、税收、《独立宣言》与独立战争。'}},
+   {id:'us-constitution', std:'SS4H2 / SS4CG1–3 · U.S. History', en:'The Constitution & Bill of Rights', zh:'美国宪法与《权利法案》', d:{en:'Three branches, checks and balances and your rights.',zh:'三权分立、制衡与公民权利。'}},
    {id:'us-expansion', std:'SS4H · U.S. History', en:'Westward Expansion', zh:'西进运动', d:{en:'The Louisiana Purchase, Lewis & Clark, the Oregon Trail and the gold rush.',zh:'路易斯安那购地、刘易斯与克拉克探险、俄勒冈小道与淘金热。'}},
    {id:'us-civilwar', std:'SS5H1 · U.S. History', en:'Civil War & Reconstruction', zh:'南北战争与重建', d:{en:'Slavery, secession, the war, Lincoln and Reconstruction.',zh:'奴隶制、南方脱离联邦、战争、林肯与重建。'}},
    {id:'us-industrial', std:'SS5H2 · U.S. History', en:'Inventions, Industry & Immigration', zh:'发明、工业与移民', d:{en:'Railroads, factories, Edison, the Wright brothers and Ellis Island.',zh:'铁路、工厂、爱迪生、莱特兄弟与埃利斯岛。'}},

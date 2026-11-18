@@ -1,0 +1,786 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Colonies &amp; the American Revolution</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<script src="../shared/catalog.js"></script>
+<script src="../shared/lab.js"></script>
+<script src="../shared/photos.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-array@3.2.4/dist/d3-array.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-geo@3.1.0/dist/d3-geo.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<style>
+#colCv,#warCv{cursor:pointer;touch-action:pan-y}
+#map .explorer,#war .explorer{align-items:start}
+#colStage,#warStage{min-height:620px}
+@media (max-width:560px){#colStage,#warStage{min-height:520px}}
+.info .date{font-family:Fredoka;font-weight:700;font-size:19px;color:var(--brand);margin-top:-8px}
+.info .kh{font-size:13px;letter-spacing:.06em;color:var(--brand);margin-bottom:-6px}
+.yc{padding:18px 20px;margin-top:14px;display:flex;flex-direction:column;gap:12px}
+.yc-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.yc-head b.big{font-family:Fredoka;font-size:40px;line-height:1;color:var(--brand)}
+.yc-ev{border-left:5px solid var(--brand);padding:2px 0 2px 12px}
+.yc-ev h4{margin:0 0 2px;font-size:19px}
+.yc-ev p{margin:0;font-size:15.5px}
+.cn{border-left:5px solid #c0392b;padding:2px 0 2px 12px;font-size:15px}
+.cn small{display:block;font-weight:800;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:#c0392b}
+.readout{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.regions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px}
+.region{padding:14px 16px;border-top:6px solid var(--brand)}
+.region h3{margin:0 0 4px;font-size:19px}
+.region p{margin:4px 0;font-size:14.5px}
+.region .ic{font-size:22px;letter-spacing:3px}
+.bars{display:flex;flex-direction:column;gap:7px;margin-top:6px}
+.bar{display:grid;grid-template-columns:70px minmax(0,1fr) 150px;gap:10px;align-items:center;font-size:14px}
+.bar .bt{height:20px;border-radius:999px;background:var(--surface-2);overflow:hidden;display:flex}
+.bar .bt i{display:block;height:100%}
+.bar .bl{font-weight:800}
+.bar .bv{font-weight:700;color:var(--ink-2);text-align:right}
+.lg{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;font-weight:700;color:var(--ink-2)}
+.lg i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.cap{font-size:12.5px;color:var(--ink-2);margin-top:8px}
+.debt{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:end;height:170px;max-width:360px;margin:8px auto 0}
+.debt div{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:4px;font-weight:800;font-size:14px}
+.debt i{display:block;width:70%;border-radius:10px 10px 0 0;background:#b0413e}
+.np{padding:20px;display:flex;flex-direction:column;gap:14px}
+.np .counters{grid-template-columns:repeat(4,minmax(0,1fr))}
+.side{display:flex;gap:10px;flex-wrap:wrap}
+.side .choice{flex:1 1 220px}
+.choice{text-align:left;border:2px solid var(--line);background:var(--surface-2);border-radius:14px;padding:10px 14px;font-weight:700}
+.choice:hover{border-color:var(--brand)}
+.choice small{display:block;font-weight:600;color:var(--ink-2)}
+.choice.on{border-color:var(--brand);background:color-mix(in srgb,var(--brand) 12%,var(--surface))}
+.event{border:2px solid var(--line);border-radius:16px;padding:14px 16px;background:var(--surface)}
+.event h4{margin:0 0 6px;font-size:21px}
+.event p{margin:0 0 6px}
+.args{display:flex;flex-direction:column;gap:8px}
+.arg{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid var(--line);border-radius:14px;padding:10px 12px;background:var(--surface-2)}
+.arg q{font-style:italic;font-size:15.5px}
+.arg .two{display:flex;gap:6px}
+.arg .two button{border:2px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 10px;font-weight:800;font-size:13.5px}
+.arg .two button.right{border-color:var(--good);background:color-mix(in srgb,var(--good) 16%,var(--surface))}
+.arg .two button.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 12%,var(--surface))}
+.arg .why{grid-column:1/-1;font-size:14px;color:var(--ink-2)}
+.paper{border:2px solid var(--ink);border-radius:6px;padding:14px 18px;background:#fbf6e9;color:#2a2418;font-family:Georgia,"Times New Roman","SimSun",serif}
+.paper .mast{text-align:center;font-size:26px;font-weight:700;letter-spacing:.04em;border-bottom:3px double #2a2418;padding-bottom:4px}
+.paper .dl{display:flex;justify-content:space-between;font-size:12px;border-bottom:1px solid #2a2418;padding:3px 0;margin-bottom:8px}
+.paper h5{font-size:21px;margin:6px 0 8px;line-height:1.25;text-align:center}
+.paper .cols{columns:2 220px;column-gap:18px;font-size:14.5px}
+.paper .cols p{margin:0 0 8px}
+.paper .empty{color:#8a7f66;text-align:center;font-style:italic}
+.stars{font-size:30px;letter-spacing:4px;color:var(--warn)}
+.ranks{display:flex;flex-wrap:wrap;gap:6px}
+.ranks span{border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:13px;font-weight:800;color:var(--ink-2)}
+.ranks span.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.prog{display:flex;gap:6px;flex-wrap:wrap}
+.prog span{border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:13px;font-weight:800;color:var(--ink-2)}
+.prog span.done{border-color:var(--good);color:var(--good)}
+.prog span.cur{border-color:var(--brand);color:var(--brand)}
+.guess{display:flex;gap:8px;flex-wrap:wrap}
+.decl{padding:20px;display:flex;flex-direction:column;gap:12px}
+.decl blockquote{margin:0;border-left:5px solid var(--brand);padding:6px 14px;font-family:Georgia,"Times New Roman",serif;font-size:17px;background:var(--surface-2);border-radius:0 12px 12px 0}
+.gr{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+.gr .row{border:1px solid var(--line);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.gr .row .opts4{display:flex;flex-wrap:wrap;gap:6px}
+.gr .row .opts4 button{border:2px solid var(--line);background:var(--surface-2);border-radius:999px;padding:5px 10px;font-weight:800;font-size:13.5px}
+.gr .row .opts4 button.right{border-color:var(--good);background:color-mix(in srgb,var(--good) 16%,var(--surface))}
+.gr .row .opts4 button.wrong{border-color:var(--bad)}
+.terms{display:flex;flex-wrap:wrap;gap:8px}
+.terms span{border:1px solid var(--line);border-radius:12px;padding:5px 10px;font-size:14px;background:var(--surface)}
+.terms span b{color:var(--brand)}
+@media (max-width:760px){.regions{grid-template-columns:1fr}.np .counters{grid-template-columns:repeat(2,minmax(0,1fr))}.arg{grid-template-columns:1fr}.bar{grid-template-columns:52px minmax(0,1fr) 112px;font-size:13px}.yc-head b.big{font-size:32px}}
+</style>
+</head>
+<body data-subject="ushistory" data-topic="us-colonies">
+<div id="lab-nav"></div>
+
+<header class="hero wrap">
+  <span class="eyebrow" data-zh="美国历史 · 佐治亚州标准 SS3H3 / SS4H1 · 殖民地与独立战争">U.S. History · Georgia GSE SS3H3 / SS4H1 · Colonies &amp; Revolution</span>
+  <h1 data-zh-html="十三个殖民地与<em>美国独立战争</em>">Thirteen colonies and <em>the American Revolution</em></h1>
+  <p class="lead" data-zh-html="1750年代，北美东海岸的十三个英属殖民地大多为自己是“英国人”而自豪。可是不到25年，他们就向世界上最强大的帝国宣战了。到底发生了什么？<br><b>你的任务：</b>拖动年份，看十三个殖民地一个个建立起来；然后当一家殖民地报纸的主编，为每件大事挑出爱国者和效忠派的论点；最后跟着战争一路打到约克镇。">In the 1750s most people in Britain’s thirteen American colonies were proud to be British. Less than 25 years later they declared war on the most powerful empire on Earth. What happened?<br><b>Your mission:</b> drag the years to watch the 13 colonies appear, then run a colonial newspaper — sort Patriot and Loyalist arguments for every crisis — and finally follow the war all the way to Yorktown.</p>
+</header>
+
+<section class="wrap" id="map" data-nav="Colonies map" data-nav-zh="殖民地地图">
+  <div class="sec-head">
+    <h2 data-zh="互动地图：十三个殖民地（1607—1776年）">Interactive map: the thirteen colonies, 1607–1776</h2>
+    <p data-zh="拖动年份或按 ▶ 播放，殖民地会按建立的先后出现。点击任何一个殖民地查看它的故事；用上方按钮切换“地区”“物产”和“印第安部族”图层。">Drag the year or press ▶ — colonies appear in the order they were founded. Click any colony for its story; switch between the “Regions”, “What they made” and “Native nations” layers.</p>
+  </div>
+  <div class="explorer">
+    <div class="stage card" id="colStage">
+      <canvas id="colCv"></canvas>
+      <div class="toolbar">
+        <button class="tbtn on" data-layer="reg" data-zh="🗺 三大地区">🗺 Regions</button>
+        <button class="tbtn" data-layer="prod" data-zh="🌾 物产">🌾 What they made</button>
+        <button class="tbtn" data-layer="nat" data-zh="🪶 印第安部族">🪶 Native nations</button>
+      </div>
+      <div class="bottombar"><div class="tip" id="colTip"></div></div>
+    </div>
+    <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="timebar" style="margin-top:12px"><button id="playBtn" aria-label="Play">▶</button><input id="yr" type="range" min="1600" max="1776" step="1" value="1600" aria-label="Year"><output id="yrOut">1600</output></div>
+  <div class="chips" id="colChips"></div>
+  <div class="card yc" aria-live="polite">
+    <div class="readout">
+      <div class="counter"><b id="roCol">0</b><span data-zh="已建立的殖民地">colonies founded</span></div>
+      <div class="counter"><b id="roPop">–</b><span data-zh="殖民地人口（估计）">colonial population (est.)</span></div>
+      <div class="counter"><b id="roEns">–</b><span data-zh="其中被奴役的非洲裔">of them enslaved Africans</span></div>
+    </div>
+    <div class="yc-head"><b class="big" id="ycYear">1600</b><div class="btnrow" style="margin-left:auto"><button class="btn ghost" id="evPrev" data-zh="◀ 上一件大事">◀ Previous event</button><button class="btn" id="evNext" data-zh="下一件大事 ▶">Next event ▶</button></div></div>
+    <div id="ycList" style="display:flex;flex-direction:column;gap:10px"></div>
+    <div class="cn" id="cnBox"></div>
+  </div>
+  <div class="regions" id="regions"></div>
+  <div class="card yc">
+    <h3 data-zh="📊 数据图：殖民地人口增长（1650—1770年）">📊 Data figure: how fast the colonies grew, 1650–1770</h3>
+    <div class="lg"><span><i style="background:#5f8fc9"></i><span data-zh="欧洲裔及其他居民">European and other colonists</span></span><span><i style="background:#8a5a3c"></i><span data-zh="非洲裔（绝大多数被奴役）">People of African descent (almost all enslaved)</span></span></div>
+    <div class="bars" id="popBars"></div>
+    <p class="cap" data-zh="数据来源：美国人口普查局《美国历史统计》（Historical Statistics of the United States）Z1—Z19 系列，英属北美殖民地人口估计值（四舍五入，不含印第安人）。比一比：1770年整个十三殖民地约215万人，比今天的休斯敦市区（约230万）还少；同一时期清朝人口已超过2.5亿。">Source: U.S. Census Bureau, Historical Statistics of the United States, series Z1–19 (estimates for the British mainland colonies, rounded; Native Americans were not counted). Compare: in 1770 all 13 colonies had about 2.15 million people — fewer than the city of Houston today (about 2.3 million). Qing China at the same time had more than 250 million.</p>
+  </div>
+  <div class="mix" style="margin-top:14px"><b data-zh="⚠️ 易错点：">⚠️ Don’t mix up:</b><span data-zh="“中部殖民地”不是指美国中部，而是纽约、新泽西、宾夕法尼亚、特拉华这四个位于新英格兰和南方之间的殖民地。缅因当时属于马萨诸塞，佛蒙特有争议，都不是十三个殖民地之一。佐治亚（1732年）是最后建立的，弗吉尼亚（1607年）是最早的。">The “Middle colonies” are not in the middle of today’s USA — they are New York, New Jersey, Pennsylvania and Delaware, in the middle of the coast between New England and the South. Maine was part of Massachusetts and Vermont was disputed, so neither is one of the 13. Virginia (1607) came first; Georgia (1732) came last.</span></div>
+</section>
+
+<section class="wrap" id="paper" data-nav="Newspaper" data-nav-zh="报纸任务">
+  <div class="sec-head">
+    <h2 data-zh="主任务：殖民地报纸主编（1765—1776年）">Main mission: editor of a colonial newspaper, 1765–1776</h2>
+    <p data-zh="当时的报纸并不“中立”：有的站在爱国者（Patriots，主张反抗英国）一边，有的站在效忠派（Loyalists，忠于英王）一边。先选好你的报纸，然后为六次大危机各出一期：判断每条论点是谁的说法，再挑一个适合你报纸的标题。">Newspapers back then were not neutral: some sided with the Patriots (who resisted Britain), others with the Loyalists (who stayed loyal to the King). Pick your paper, then put out six editions, one per crisis: decide whose argument each quote is, then choose a headline that fits your paper.</p>
+  </div>
+  <div class="card yc">
+    <h3 data-zh="📊 为什么英国突然要向殖民地收税？">📊 Why did Britain suddenly start taxing the colonies?</h3>
+    <p style="margin:0" data-zh="法国-印第安人战争（1754—1763年，七年战争在北美的部分）中，英国赢得了加拿大和密西西比河以东的土地，可也欠下了巨额债务。英国议会认为：军队是为保护殖民地才打仗的，殖民地应该分担。">In the French and Indian War (1754–1763, the North American part of the Seven Years’ War) Britain won Canada and the land east of the Mississippi — and piled up a huge debt. Parliament’s view: the army fought to protect the colonies, so the colonies should help pay.</p>
+    <div class="debt" id="debt"></div>
+    <p class="cap" data-zh="英国国债（近似值，常见引用数字）：战前约7500万英镑，1763年约1.33亿英镑，几乎翻了一番。另一个常被引用的估计：当时一个英国本土居民每年平均纳税约26先令，而一个殖民地居民只有约1先令。">British national debt (approximate, commonly cited figures): about £75 million before the war, about £133 million in 1763 — nearly double. Another often-quoted estimate: a person in Britain paid about 26 shillings a year in taxes, a colonist about 1 shilling.</p>
+  </div>
+  <div class="card np" style="margin-top:14px">
+    <div class="counters">
+      <div class="counter"><b id="nEd">0/6</b><span data-zh="已出版">editions out</span></div>
+      <div class="counter"><b id="nScore">0</b><span data-zh="得分">score</span></div>
+      <div class="counter"><b id="nStreak">0</b><span data-zh="连对">streak</span></div>
+      <div class="counter"><b id="nBest">0</b><span data-zh="最高分">best</span></div>
+    </div>
+    <div class="prog" id="nProg"></div>
+    <div id="nMain"></div>
+    <div class="result" id="nMsg"></div>
+    <div id="nPaper"></div>
+    <div><b data-zh="头衔：">Rank:</b> <div class="ranks" id="nRanks" style="display:inline-flex"></div></div>
+  </div>
+  <details class="peek" style="margin-top:12px"><summary data-zh="🔎 真实的报纸是什么样的？">🔎 What were the real newspapers like?</summary>
+    <p data-zh="《波士顿公报》（Boston Gazette）是著名的爱国者报纸，塞缪尔·亚当斯等人常在上面发文，保罗·里维尔的“波士顿惨案”版画也登在上面。纽约的詹姆斯·里文顿办的《纽约公报》（Rivington’s New-York Gazetteer）则是有名的效忠派报纸，1775年被爱国者捣毁了印刷机。历史学家估计，白人殖民者中约15%—20%是效忠派，约40%—45%是爱国者，其余保持中立或摇摆不定。">The Boston Gazette was a famous Patriot paper — Samuel Adams wrote for it, and it printed news of Paul Revere’s Boston Massacre engraving. James Rivington’s New-York Gazetteer was a well-known Loyalist paper; Patriots smashed his press in 1775. Historians estimate that about 15–20% of white colonists were Loyalists, about 40–45% Patriots, and the rest neutral or undecided.</p>
+  </details>
+</section>
+
+<section class="wrap" id="war" data-nav="War to Yorktown" data-nav-zh="战争进程">
+  <div class="sec-head">
+    <h2 data-zh="战争地图：从列克星敦到约克镇（1775—1783年）">War map: from Lexington to Yorktown, 1775–1783</h2>
+    <p data-zh="按“下一场战役”，先猜一猜谁赢了，再看答案和这场仗为什么重要。也可以直接拖动日期。">Press “Next battle”, guess who won, then see the answer and why the battle mattered. Or just drag the date.</p>
+  </div>
+  <div class="explorer">
+    <div class="stage card" id="warStage">
+      <canvas id="warCv"></canvas>
+      <div class="bottombar"><div class="tip" id="warTip"></div></div>
+    </div>
+    <aside class="info card" id="warInfo" aria-live="polite"></aside>
+  </div>
+  <div class="timebar" style="margin-top:12px"><button id="wPlay" aria-label="Play">▶</button><input id="wIdx" type="range" min="0" max="17" step="1" value="0" aria-label="Battle"><output id="wOut">1775</output></div>
+  <div class="card yc">
+    <div class="counters" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+      <div class="counter"><b id="wRight">0</b><span data-zh="猜对">correct guesses</span></div>
+      <div class="counter"><b id="wDone">0/18</b><span data-zh="已看过">seen</span></div>
+      <div class="counter"><b id="wStars">☆☆☆</b><span data-zh="星级">stars</span></div>
+    </div>
+    <details class="peek"><summary data-zh="🧭 为什么弱小的大陆军最后赢了？">🧭 Why did the underdog Continental Army win?</summary>
+      <ul>
+        <li data-zh="主场作战：英国军队和补给要横渡约4800千米（3000英里）的大西洋，命令要走一两个月。">Home ground: British troops and supplies had to cross about 3,000 miles (4,800 km) of ocean; orders took one to two months to arrive.</li>
+        <li data-zh="法国的援助：萨拉托加大捷（1777年）后，富兰克林说服法国在1778年结盟，送来了钱、军队和舰队。西班牙和荷兰也与英国为敌。">French help: after Saratoga (1777), Benjamin Franklin won a French alliance (1778) — money, soldiers and a navy. Spain and the Netherlands also fought Britain.</li>
+        <li data-zh="华盛顿的领导：他输掉了很多仗，但始终保住了军队。福吉谷的冬天之后，施托伊本把士兵训练成了正规军。">Washington’s leadership: he lost many battles but never lost the army. After the Valley Forge winter, Baron von Steuben drilled it into a professional force.</li>
+        <li data-zh="为理想而战：很多士兵是为自己的家园和“自由”而战；英国则要靠雇佣的德意志士兵（黑森兵）。">A cause: many soldiers fought for their homes and for “liberty”; Britain hired German soldiers (Hessians).</li>
+      </ul></details>
+    <details class="peek"><summary data-zh="👥 关键人物与群体（SS4H1b）">👥 Key people and groups (SS4H1b)</summary>
+      <ul>
+        <li data-zh="英王乔治三世；乔治·华盛顿（大陆军总司令）；本杰明·富兰克林（外交家，争取到法国援助）；托马斯·杰斐逊（起草《独立宣言》）；约翰·亚当斯；帕特里克·亨利（“不自由，毋宁死！”1775年）；保罗·里维尔（1775年4月18日夜骑马报信）。">King George III; George Washington (commander of the Continental Army); Benjamin Franklin (diplomat who won French help); Thomas Jefferson (wrote the Declaration); John Adams; Patrick Henry (“Give me liberty, or give me death!”, 1775); Paul Revere (midnight ride, 18 April 1775).</li>
+        <li data-zh="本尼迪克特·阿诺德：萨拉托加的英雄，1780年却背叛投敌。拉法耶特侯爵：年轻的法国志愿军将领。">Benedict Arnold: a hero at Saratoga who turned traitor in 1780. The Marquis de Lafayette: a young French volunteer general.</li>
+        <li data-zh="黑人爱国者：约5000名非洲裔美国人在大陆军和民兵中作战，例如邦克山的彼得·塞勒姆、罗得岛第一团（黑人士兵很多的团）、在约克镇当间谍的詹姆斯·阿米斯特德·拉法耶特，以及在佐治亚凯特尔溪作战的奥斯汀·达布尼。另一方面，英国的邓莫尔勋爵1775年宣布：投奔英军的被奴役者可获自由，数千人因此投向英国一方。">Black Patriots: about 5,000 African Americans served with Patriot forces — Peter Salem at Bunker Hill, the 1st Rhode Island Regiment (a regiment with many Black soldiers), James Armistead Lafayette, a spy at Yorktown, and Austin Dabney at Kettle Creek, Georgia. On the other side, Lord Dunmore’s 1775 proclamation promised freedom to enslaved people who joined the British, and thousands did.</li>
+        <li data-zh="佐治亚人：南希·哈特（传说中的女英雄）、以利亚·克拉克（凯特尔溪之战指挥官之一）。">Georgians: Nancy Hart (a legendary Patriot woman) and Elijah Clarke (a commander at Kettle Creek).</li>
+      </ul></details>
+  </div>
+  <div class="card decl" style="margin-top:14px">
+    <h3 data-zh="📜 解读《独立宣言》（1776年7月4日）">📜 Decode the Declaration of Independence (4 July 1776)</h3>
+    <blockquote data-zh="“我们认为下面这些真理是不言而喻的：人人生而平等，造物主赋予他们若干不可剥夺的权利，其中包括生命权、自由权和追求幸福的权利。”">“We hold these truths to be self-evident, that all men are created equal, that they are endowed by their Creator with certain unalienable Rights, that among these are Life, Liberty and the pursuit of Happiness.”</blockquote>
+    <p style="margin:0" data-zh="这就是“天赋权利”（natural rights）：权利不是国王给的，而是人生来就有的；政府的任务是保护这些权利，如果政府破坏它们，人民就有权改变或废除它。《宣言》由托马斯·杰斐逊起草，列出了对英王乔治三世的27条控诉。试一试：每条控诉指的是哪项英国法令或做法？">These are natural rights: rights don’t come from a king, people are born with them; government’s job is to protect them, and if it destroys them the people may change or abolish it. Thomas Jefferson wrote the draft, which lists 27 complaints against King George III. Try it: which British act or action does each complaint point to?</p>
+    <div class="gr" id="grief"></div>
+    <div class="result" id="griefMsg"></div>
+    <div class="mix"><b data-zh="⚠️ 要知道：">⚠️ Worth knowing:</b><span data-zh="“人人生而平等”在1776年并没有包括所有人：约50万被奴役的非洲裔、妇女和印第安人都没有得到这些权利；杰斐逊本人也是奴隶主。但后来的废奴运动、妇女选举权运动和民权运动都引用这句话，要求美国兑现它。">In 1776 “all men are created equal” did not include everyone: about half a million enslaved Africans, women and Native Americans did not get these rights, and Jefferson himself enslaved people. Later abolitionists, suffragists and civil-rights leaders quoted these words to demand that America live up to them.</span></div>
+  </div>
+</section>
+
+<section class="wrap" id="real" data-nav="Real media" data-nav-zh="真实影像">
+  <div id="gallery"></div>
+  <div class="sec-head" style="margin-top:22px"><h2 data-zh="走得更远：官方网站">Go further</h2></div>
+  <div class="linkgrid">
+    <a class="linkcard" href="https://www.archives.gov/founding-docs/declaration" target="_blank" rel="noopener"><b data-zh="国家档案馆：《独立宣言》">National Archives: the Declaration of Independence</b><span data-zh="看原件的高清图、全文和它的故事——原件就保存在华盛顿的国家档案馆。">See the real document up close, read the full text and its story — the original is in the National Archives in Washington.</span><small>archives.gov ↗</small></a>
+    <a class="linkcard" href="https://guides.loc.gov/declaration-of-independence" target="_blank" rel="noopener"><b data-zh="美国国会图书馆：《独立宣言》资料指南">Library of Congress: Declaration of Independence guide</b><span data-zh="找到杰斐逊的“草稿”，看看他改了哪些字句。">Find Jefferson’s “rough draft” and see which words were changed.</span><small>guides.loc.gov ↗</small></a>
+    <a class="linkcard" href="https://www.nps.gov/mima/index.htm" target="_blank" rel="noopener"><b data-zh="民兵国家历史公园（列克星敦与康科德）">Minute Man National Historical Park</b><span data-zh="1775年4月19日战争打响的地方：北桥、“战斗之路”和互动地图。">Where the war began on 19 April 1775: the North Bridge, the Battle Road and maps.</span><small>nps.gov ↗</small></a>
+    <a class="linkcard" href="https://www.nps.gov/colo/index.htm" target="_blank" rel="noopener"><b data-zh="殖民地国家历史公园（詹姆斯敦与约克镇）">Colonial National Historical Park</b><span data-zh="一个公园包含开头和结尾：1607年的詹姆斯敦和1781年的约克镇战场。">The beginning and the end in one park: Jamestown (1607) and the Yorktown battlefield (1781).</span><small>nps.gov ↗</small></a>
+    <a class="linkcard" href="https://www.nps.gov/inde/index.htm" target="_blank" rel="noopener"><b data-zh="独立国家历史公园（费城）">Independence National Historical Park</b><span data-zh="参观《独立宣言》签署的独立厅和自由钟。">Independence Hall, where the Declaration was signed, and the Liberty Bell.</span><small>nps.gov ↗</small></a>
+    <a class="linkcard" href="https://www.georgiaencyclopedia.org/articles/history-archaeology/trustee-georgia-1732-1752/" target="_blank" rel="noopener"><b data-zh="新佐治亚百科：托管时期的佐治亚">New Georgia Encyclopedia: Trustee Georgia</b><span data-zh="奥格尔索普、托莫奇奇和萨凡纳的建立——佐治亚八年级的内容。">Oglethorpe, Tomochichi and the founding of Savannah — Georgia Studies content.</span><small>georgiaencyclopedia.org ↗</small></a>
+    <a class="linkcard" href="https://www.battlefields.org/learn/revolutionary-war" target="_blank" rel="noopener"><b data-zh="美国战场信托：独立战争">American Battlefield Trust: Revolutionary War</b><span data-zh="每场战役的地图、动画和小故事，包括凯特尔溪和约克镇。">Battle maps, animations and short stories for every battle, incl. Kettle Creek and Yorktown.</span><small>battlefields.org ↗</small></a>
+    <a class="linkcard" href="https://www.docsteach.org/" target="_blank" rel="noopener"><b data-zh="DocsTeach（国家档案馆）">DocsTeach (National Archives)</b><span data-zh="搜索“American Revolution”，用真实档案做小活动。">Search “American Revolution” and try activities built on real documents.</span><small>docsteach.org ↗</small></a>
+  </div>
+</section>
+
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
+  <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
+  <div class="card yc" style="margin-bottom:14px">
+    <h3 data-zh="🈶 关键词中英对照">🈶 Key terms in English and Chinese</h3>
+    <div class="terms" id="terms"></div>
+  </div>
+  <div class="games">
+    <div class="game card"><h3 data-zh="🧠 小测验（12题）">🧠 Quiz (12 questions)</h3><p class="sub" data-zh="选出正确答案，看看解析。">Pick the best answer and read the explanation.</p><div id="quiz"></div></div>
+    <div class="game card"><h3 data-zh="🗂️ 分一分：哪个地区？">🗂️ Sort it: which colonial region?</h3><p class="sub" data-zh="把每一项拖到（或先点再点方框）对应的地区。">Drag each item (or tap it, then tap a box) to the right region.</p><div id="sort"></div></div>
+  </div>
+  <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
+    <p data-zh="课程标准（佐治亚州社会科卓越标准 GSE，2016年版，已按 commonplanner.com 上的标准列表核对）：三年级 SS3H3——英属北美殖民地（a. 新英格兰、中部、南部殖民地建立的原因：宗教自由与获利；b. 比较三大地区的日常生活：教育、经济、宗教；c. 大地主、农民、工匠、妇女、儿童、契约仆役、被奴役者和美洲印第安人眼中的殖民地生活）及 SS3G3c（地理如何影响三大地区的经济）；四年级 SS4H1——美国独立战争的原因、经过和结果（a. 法国-印第安人战争、1763年公告、印花税法、波士顿惨案、波士顿倾茶事件等；b. 关键人物和群体，包括黑人部队；c. 主要战役与美国获胜的原因；d. 《独立宣言》的写作与意义）；SS4CG1a（《独立宣言》中的天赋权利）；SS4G2（地理对战争的影响）。八年级佐治亚研究 SS8H2（殖民地时期的佐治亚：奥格尔索普、托莫奇奇、玛丽·马斯格罗夫）和 SS8H3（佐治亚在独立战争中的角色：签署者格威内特、霍尔、沃尔顿，凯特尔溪之战，萨凡纳围城战）——八年级编号凭记忆填写，请核对。目录中的“SS4H / SS5H”建议改为“SS3H3 / SS4H1”（五年级不涉及本课内容）。">Standards (Georgia Standards of Excellence for Social Studies, adopted 2016; checked against the standards list on commonplanner.com): Grade 3 SS3H3 — British Colonial America (a. reasons the New England, Mid-Atlantic and Southern colonies were founded: religious freedom and profit; b. compare daily life in the three regions: education, economy, religion; c. colonial life as experienced by large landowners, farmers, artisans, women, children, indentured servants, enslaved people and American Indians) and SS3G3c (how geography shaped each region’s economy); Grade 4 SS4H1 — causes, events and results of the American Revolution (a. French and Indian War, Proclamation of 1763, Stamp Act, Boston Massacre, Boston Tea Party and more; b. key individuals and groups, incl. Black regiments; c. major events and why the Americans won; d. writing and significance of the Declaration of Independence); SS4CG1a (natural rights in the Declaration); SS4G2 (how geography affected the war). Grade 8 Georgia Studies SS8H2 (colonial Georgia: Oglethorpe, Tomochichi, Mary Musgrove) and SS8H3 (Georgia in the Revolution: signers Gwinnett, Hall and Walton, Kettle Creek, the Siege of Savannah) — grade 8 codes written from memory, please check. The catalog’s “SS4H / SS5H” would be more accurate as “SS3H3 / SS4H1” (Grade 5 does not cover this period).</p>
+    <p data-zh="与中国课程的联系：统编版《世界历史》九年级上册第18课《美国的独立》（北美殖民地的建立与发展、独立战争的爆发、《独立宣言》、萨拉托加大捷、1783年英国承认美国独立）。“同一时期的中国”对应《中国历史》七年级下册第三单元（明清时期：明朝灭亡与清兵入关、郑成功收复台湾、康熙帝与雅克萨之战和《尼布楚条约》、雍正设军机处、乾隆时期“闭关锁国”与广州一口通商、《四库全书》）。可讨论：同是18世纪，北美殖民地在争取“没有代表权就不纳税”，而清朝的君主专制达到顶峰——两种政治制度有什么不同？">China link: the national textbook World History, Grade 9 Vol. 1, Lesson 18 “American Independence” (founding of the colonies, outbreak of the war, the Declaration, the victory at Saratoga, Britain recognising US independence in 1783). The “Meanwhile in China” boxes match Chinese History Grade 7 Vol. 2, Unit 3 (Ming–Qing: fall of the Ming and the Qing entry into Beijing, Zheng Chenggong recovering Taiwan, the Kangxi Emperor, Albazin and the Treaty of Nerchinsk, Yongzheng’s Grand Council, Qianlong’s closed-door policy and the Canton system, the Siku Quanshu). Discussion idea: in the same 18th century, colonists demanded “no taxation without representation” while Qing absolute monarchy reached its peak — how were the two systems different?</p>
+    <p data-zh="说明：地图为示意图，殖民地按现代州界大致着色（缅因并入马萨诸塞着色）；印第安部族名称标在约1600—1700年的大致居住区，实际分布随时间变化很大。1763年公告线为大致走向。人口为《美国历史统计》的估计值；英国国债、人均税负、效忠派比例、黑人士兵约5000人等为常见引用的估计数，各资料略有出入。报纸任务中的论点是根据当时双方的真实观点改写的，不是原文引用；标题是为教学编写的。">Notes: the map is schematic — colonies are coloured on modern state borders (Maine is coloured with Massachusetts). Native nations are placed at approximate homelands around 1600–1700; real territories shifted a great deal. The Proclamation Line is approximate. Population figures are Historical Statistics estimates; the British debt, tax-per-person comparison, Loyalist share and “about 5,000 Black Patriot soldiers” are commonly cited estimates that vary between sources. The newspaper arguments paraphrase real positions of the time (they are not direct quotations), and the headlines were written for this lesson.</p>
+  </details>
+</section>
+
+<div id="lab-footer"></div>
+<script>
+/* ===== USMap: small canvas US map (us-atlas@3.0.1 states + d3-geo), inlined in each ushistory lesson =====
+   const M = USMap.create('#stageId', '#canvasId', { lower48:true, top:56, bottom:62,
+     fill: f => '#hex' | null,            // f = { id:'13', ab:'GA', en, zh }   null = plain land
+     overlay: (g, M) => {...},            // draw extras after states (M.xy([lon,lat]) -> [x,y], M.text, M.clipLand, M.poly)
+     click: (f, lonlat, e) => {...}, hover: f => text|null });
+   M.draw() after any state change. Map is schematic (modern state borders). */
+const USMap = (() => {
+  const ST = {'01':['AL','Alabama','亚拉巴马'],'02':['AK','Alaska','阿拉斯加'],'04':['AZ','Arizona','亚利桑那'],'05':['AR','Arkansas','阿肯色'],'06':['CA','California','加利福尼亚'],'08':['CO','Colorado','科罗拉多'],'09':['CT','Connecticut','康涅狄格'],'10':['DE','Delaware','特拉华'],'11':['DC','Washington, D.C.','华盛顿特区'],'12':['FL','Florida','佛罗里达'],'13':['GA','Georgia','佐治亚'],'15':['HI','Hawaii','夏威夷'],'16':['ID','Idaho','爱达荷'],'17':['IL','Illinois','伊利诺伊'],'18':['IN','Indiana','印第安纳'],'19':['IA','Iowa','艾奥瓦'],'20':['KS','Kansas','堪萨斯'],'21':['KY','Kentucky','肯塔基'],'22':['LA','Louisiana','路易斯安那'],'23':['ME','Maine','缅因'],'24':['MD','Maryland','马里兰'],'25':['MA','Massachusetts','马萨诸塞'],'26':['MI','Michigan','密歇根'],'27':['MN','Minnesota','明尼苏达'],'28':['MS','Mississippi','密西西比'],'29':['MO','Missouri','密苏里'],'30':['MT','Montana','蒙大拿'],'31':['NE','Nebraska','内布拉斯加'],'32':['NV','Nevada','内华达'],'33':['NH','New Hampshire','新罕布什尔'],'34':['NJ','New Jersey','新泽西'],'35':['NM','New Mexico','新墨西哥'],'36':['NY','New York','纽约'],'37':['NC','North Carolina','北卡罗来纳'],'38':['ND','North Dakota','北达科他'],'39':['OH','Ohio','俄亥俄'],'40':['OK','Oklahoma','俄克拉何马'],'41':['OR','Oregon','俄勒冈'],'42':['PA','Pennsylvania','宾夕法尼亚'],'44':['RI','Rhode Island','罗得岛'],'45':['SC','South Carolina','南卡罗来纳'],'46':['SD','South Dakota','南达科他'],'47':['TN','Tennessee','田纳西'],'48':['TX','Texas','得克萨斯'],'49':['UT','Utah','犹他'],'50':['VT','Vermont','佛蒙特'],'51':['VA','Virginia','弗吉尼亚'],'53':['WA','Washington','华盛顿州'],'54':['WV','West Virginia','西弗吉尼亚'],'55':['WI','Wisconsin','威斯康星'],'56':['WY','Wyoming','怀俄明']};
+  const AB = {}; Object.keys(ST).forEach(id => AB[ST[id][0]] = id);
+  let P = null;
+  const load = () => P || (P = fetch('https://cdn.jsdelivr.net/npm/us-atlas@3.0.1/states-10m.json').then(r => r.json()).then(t =>
+    topojson.feature(t, t.objects.states).features.filter(f => ST[f.id]).map(f => { const s = ST[f.id]; f.info = { id:f.id, ab:s[0], en:s[1], zh:s[2] }; return f; })));
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  function create(stageSel, cvSel, opt = {}){
+    const stage = document.querySelector(stageSel), cv = document.querySelector(cvSel), g = cv.getContext('2d');
+    const M = { g, opt, feats:null, failed:false, hoverF:null, W:0, H:0, small:false };
+    let proj = null, path = null, landFeats = null;
+    function layout(){
+      const r = stage.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!r.width || !M.feats) return false;
+      cv.width = r.width * d; cv.height = r.height * d; M.W = r.width; M.H = r.height; M.d = d; M.small = r.width < 560;
+      const top = (M.small ? (opt.topS ?? 100) : (opt.top ?? 56)), bot = (M.small ? (opt.bottomS ?? 96) : (opt.bottom ?? 60));
+      landFeats = opt.lower48 ? M.feats.filter(f => f.id !== '02' && f.id !== '15') : M.feats;
+      const fc = { type:'FeatureCollection', features:landFeats };
+      proj = (opt.lower48 ? d3.geoAlbers().parallels([29.5, 45.5]).rotate([96, 0]).center([0, 38.7]) : d3.geoAlbersUsa())
+        .fitExtent([[10, top], [r.width - 10, r.height - bot]], opt.extent ? { type:'MultiPoint', coordinates:opt.extent } : fc);
+      path = d3.geoPath(proj, g); M.proj = proj; M.path = path; return true;
+    }
+    M.xy = ll => proj ? proj(ll) : null;
+    M.inv = (x, y) => proj && proj.invert ? proj.invert([x, y]) : null;
+    M.clipLand = () => { g.beginPath(); landFeats.forEach(f => path(f)); g.clip(); };
+    M.poly = (pts, fill, stroke, lw = 1.5, dash) => { g.beginPath(); path({ type:'Polygon', coordinates:[[...pts, pts[0]]] }); if (fill){ g.fillStyle = fill; g.fill(); } if (stroke){ g.setLineDash(dash || []); g.strokeStyle = stroke; g.lineWidth = lw; g.stroke(); g.setLineDash([]); } };
+    M.line = (pts, stroke, lw = 2, dash) => { const p = pts.map(M.xy).filter(Boolean); if (p.length < 2) return; g.beginPath(); g.moveTo(...p[0]); p.slice(1).forEach(q => g.lineTo(...q)); g.setLineDash(dash || []); g.strokeStyle = stroke; g.lineWidth = lw; g.lineJoin = g.lineCap = 'round'; g.stroke(); g.setLineDash([]); };
+    M.dot = (ll, r, fill, stroke) => { const p = M.xy(ll); if (!p) return; g.beginPath(); g.arc(p[0], p[1], r, 0, 7); g.fillStyle = fill; g.fill(); if (stroke){ g.lineWidth = 2; g.strokeStyle = stroke; g.stroke(); } return p; };
+    M.text = (t, x, y, o = {}) => { g.font = `${o.w || 800} ${o.s || 12}px Nunito, "PingFang SC", "Microsoft YaHei", sans-serif`; g.textAlign = o.a || 'center'; g.textBaseline = 'middle';
+      g.lineWidth = 3.2; g.strokeStyle = o.halo || css('--surface') || '#fff'; g.lineJoin = 'round'; g.strokeText(t, x, y); g.fillStyle = o.c || css('--ink'); g.fillText(t, x, y); };
+    M.centroid = f => path.centroid(f);
+    M.byAb = ab => M.feats && M.feats.find(f => f.id === AB[ab]);
+    M.draw = () => {
+      if (!M.feats){ const r = stage.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); cv.width = r.width * d; cv.height = r.height * d; g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, r.width, r.height);
+        M.W = r.width; M.H = r.height; M.text(Lab.L(M.failed ? {en:'The map needs an internet connection.', zh:'地图需要联网才能加载。'} : {en:'Loading map…', zh:'地图加载中…'}), r.width / 2, r.height / 2, { s:15, c:css('--ink-2') }); return; }
+      if (!proj && !layout()) return;
+      g.setTransform(M.d, 0, 0, M.d, 0, 0); g.clearRect(0, 0, M.W, M.H);
+      const land = css('--surface') || '#fff', ink2 = css('--ink-2') || '#4a5878';
+      g.lineJoin = 'round';
+      landFeats.forEach(f => { g.beginPath(); path(f); g.fillStyle = (opt.fill && opt.fill(f.info)) || land; g.fill(); });
+      g.beginPath(); landFeats.forEach(f => path(f)); g.strokeStyle = ink2; g.lineWidth = .6; g.globalAlpha = .75; g.stroke(); g.globalAlpha = 1;
+      if (M.hoverF){ g.beginPath(); path(M.hoverF); g.strokeStyle = css('--ink'); g.lineWidth = 2; g.stroke(); }
+      if (opt.overlay){ g.save(); opt.overlay(g, M); g.restore(); }
+      M.text(Lab.L({en:'Schematic map · modern state borders', zh:'示意图 · 现代州界'}), 12, M.H - (M.small ? (opt.bottomS ?? 96) : (opt.bottom ?? 60)) + 4, { s:10, a:'left', c:ink2, w:700 });
+    };
+    M.hit = e => { const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, ll = M.inv(x, y); if (!ll || !landFeats) return { x, y };
+      return { x, y, ll, f:landFeats.find(f => d3.geoContains(f, ll)) || null }; };
+    cv.addEventListener('click', e => { if (!M.feats || !opt.click) return; const h = M.hit(e); opt.click(h.f ? h.f.info : null, h, e); });
+    cv.addEventListener('pointermove', e => { if (e.pointerType === 'touch' || !M.feats) return; const h = M.hit(e), f = h.f || null; if (f !== M.hoverF){ M.hoverF = f; M.draw(); }
+      if (opt.hover){ const t = opt.hover(f && f.info, h); cv.title = t || ''; } });
+    cv.addEventListener('pointerleave', () => { if (M.hoverF){ M.hoverF = null; M.draw(); } });
+    new ResizeObserver(() => requestAnimationFrame(() => { proj = null; M.draw(); })).observe(stage);
+    const redraw = () => setTimeout(M.draw, 60);
+    new MutationObserver(redraw).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme', 'lang'] });
+    if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redraw);
+    load().then(f => { M.feats = f; proj = null; M.draw(); if (opt.ready) opt.ready(M); }).catch(err => { console.warn(err); M.failed = true; M.draw(); });
+    M.draw();
+    return M;
+  }
+  return { create, ST, AB, load, css };
+})();
+
+</script>
+<script>
+const o = (en, zh) => ({en, zh});
+/* ===== Regions ===== */
+const REG = {
+  ne:{ c:'#5f8fc9', n:o('New England','新英格兰殖民地'), ic:'🐟⛵🌲',
+    geo:o('Rocky soil, thick forests, long cold winters, a coast full of harbours.','土壤多石，森林茂密，冬季漫长寒冷，海岸有很多良港。'),
+    made:o('Fishing (cod!), whaling, shipbuilding, lumber, small family farms and trade.','捕鱼（尤其是鳕鱼）、捕鲸、造船、木材、小型家庭农场和海上贸易。'),
+    life:o('Founded mostly for religious reasons (Pilgrims and Puritans). Towns met in town meetings; many children learned to read so they could read the Bible.','建立的原因主要是宗教（清教徒）。城镇通过“镇民大会”议事；为了读《圣经》，很多孩子都识字。') },
+  mid:{ c:'#5fa86a', n:o('Middle colonies','中部殖民地'), ic:'🌾🐄⚙️',
+    geo:o('Fertile soil, milder winters and wide rivers (the Hudson and the Delaware).','土壤肥沃，冬季较温和，有宽阔的河流（哈得孙河、特拉华河）。'),
+    made:o('Wheat, corn and livestock — the “breadbasket colonies”. Flour mills, iron works and busy ports (New York, Philadelphia).','小麦、玉米和牲畜——被称为“面包篮子殖民地”。还有面粉厂、炼铁厂和繁忙的港口（纽约、费城）。'),
+    life:o('The most mixed region: English, Dutch, Swedes, Germans, Scots-Irish; Quakers, Jews, Catholics and many Protestant groups. Pennsylvania allowed freedom of worship.','人口最多样：英格兰人、荷兰人、瑞典人、德意志人、苏格兰-爱尔兰人；贵格会、犹太教、天主教和各种新教教派。宾夕法尼亚允许信仰自由。') },
+  so:{ c:'#d99a4e', n:o('Southern colonies','南部殖民地'), ic:'🌿🍚💙',
+    geo:o('Warm climate, a long growing season and rich, flat coastal land with many rivers.','气候温暖，生长期长，沿海平原土地肥沃、河流众多。'),
+    made:o('Cash crops grown on plantations: tobacco (Virginia, Maryland), rice and indigo (South Carolina, Georgia), plus tar and pitch (“naval stores”) from North Carolina’s pine forests.','在种植园里种植经济作物：烟草（弗吉尼亚、马里兰），水稻和靛蓝（南卡罗来纳、佐治亚），北卡罗来纳的松林还出产焦油、沥青等“船用物资”。'),
+    life:o('Founded mainly for profit. Plantations depended on the forced labour of enslaved Africans; by 1770 about 40% of people in the South were enslaved. Few towns and schools; wealthy children had tutors.','建立的原因主要是获利。种植园依靠被奴役的非洲人的强迫劳动；到1770年，南部约40%的人口是被奴役者。城镇和学校很少，富家子弟请家庭教师。') }
+};
+/* ===== The 13 colonies (keys = modern state abbreviations; ME is coloured with MA) ===== */
+const COL = {
+  VA:{ y:1607, r:'so', n:o('Virginia','弗吉尼亚'), lab:[-78.6,37.55], who:o('Virginia Company of London · Jamestown','伦敦弗吉尼亚公司 · 詹姆斯敦'), why:o('Profit','获利'),
+    made:o('Tobacco','烟草'), nat:o('Powhatan Confederacy','波瓦坦联盟'),
+    facts:{ en:['Jamestown (1607) was the first permanent English settlement. In the “starving time” winter of 1609–10, most settlers died.','John Rolfe’s tobacco (from 1612) made the colony rich — and hungry for land and labour.','1619: the House of Burgesses, the first elected assembly in English America, met; the same year the first recorded enslaved Africans arrived.'], zh:['詹姆斯敦（1607年）是英国在北美第一个永久定居点。1609—1610年的“饥饿时期”，大部分移民死去。','约翰·罗尔夫从1612年起种植烟草，使殖民地富了起来，也越来越渴求土地和劳动力。','1619年，英属北美第一个民选议会——弗吉尼亚议会（House of Burgesses）开会；同一年，有记载的第一批被奴役的非洲人被运到这里。'] },
+    hint:o('V for Very first: Virginia, 1607.','弗吉尼亚：第一个（1607年）。') },
+  MA:{ y:1620, r:'ne', n:o('Massachusetts','马萨诸塞'), lab:[-70.35,42.8], la:'left', who:o('Pilgrims (Plymouth, 1620) · Puritans (Boston, 1630)','清教徒中的“朝圣者”（普利茅斯，1620年）· 清教徒（波士顿，1630年）'), why:o('Religious freedom','宗教自由'),
+    made:o('Fish, ships, lumber, trade','鱼、船、木材、贸易'), nat:o('Wampanoag, Massachusett, Nipmuc','万帕诺亚格人、马萨诸塞人、尼普穆克人'),
+    facts:{ en:['The Pilgrims signed the Mayflower Compact (1620): an agreement to make fair laws together — an early step toward self-government.','The Wampanoag leader Massasoit and Tisquantum (Squanto) helped them survive; in 1621 they shared a harvest feast.','Boston became the biggest port of New England — and later the centre of protest against Britain.'], zh:['“朝圣者”签订了《五月花号公约》（1620年），约定共同制定公正的法律——这是走向自治的早期一步。','万帕诺亚格人首领马萨索伊特和斯匡托帮助他们活了下来；1621年双方一起庆祝丰收。','波士顿成为新英格兰最大的港口，后来又成为反英斗争的中心。'] },
+    hint:o('Mayflower → Massachusetts.','五月花号 → 马萨诸塞。') },
+  NH:{ y:1623, r:'ne', n:o('New Hampshire','新罕布什尔'), lab:[-71.55,43.75], who:o('John Mason and fishing settlers','约翰·梅森和渔民移民'), why:o('Profit (fish and lumber)','获利（鱼和木材）'),
+    made:o('Lumber, ship masts, fish','木材、船桅、鱼'), nat:o('Abenaki, Pennacook','阿贝纳基人、彭纳库克人'),
+    facts:{ en:['Its tall white pines became masts for the Royal Navy.','It was ruled by Massachusetts for years and became a separate royal colony in 1679.'], zh:['这里高大的白松被做成英国皇家海军军舰的桅杆。','它曾长期归马萨诸塞管辖，1679年成为独立的王室殖民地。'] },
+    hint:o('New Hampshire = masts for the navy.','新罕布什尔：给海军做桅杆。') },
+  NY:{ y:1626, r:'mid', n:o('New York','纽约'), lab:[-75.4,43.2], who:o('Dutch West India Company (New Amsterdam) → English in 1664','荷兰西印度公司（新阿姆斯特丹）→ 1664年归英国'), why:o('Profit (fur trade)','获利（毛皮贸易）'),
+    made:o('Furs, wheat, trade through the port','毛皮、小麦、港口贸易'), nat:o('Lenape, Mohican, Haudenosaunee (Iroquois)','莱纳佩人、莫希干人、豪德诺索尼人（易洛魁联盟）'),
+    facts:{ en:['The Dutch founded New Amsterdam on Manhattan in 1626.','In 1664 English warships took it without a fight and renamed it for the Duke of York.','The Haudenosaunee (Iroquois) Confederacy of five (later six) nations was the strongest Native power in the Northeast.'], zh:['1626年，荷兰人在曼哈顿建立新阿姆斯特丹。','1664年英国军舰兵不血刃地占领了它，并以约克公爵的名字改名为纽约。','由五个（后来六个）部族组成的豪德诺索尼（易洛魁）联盟，是东北部最强大的印第安力量。'] },
+    hint:o('New Amsterdam → New York (1664).','新阿姆斯特丹 → 纽约（1664年）。') },
+  MD:{ y:1634, r:'so', n:o('Maryland','马里兰'), lab:[-77.7,39.62], who:o('Lord Baltimore (Cecil Calvert)','巴尔的摩勋爵（塞西尔·卡尔弗特）'), why:o('Religious refuge for Catholics + profit','为天主教徒提供避难所 + 获利'),
+    made:o('Tobacco','烟草'), nat:o('Piscataway, Susquehannock','皮斯卡塔韦人、萨斯奎汉诺克人'),
+    facts:{ en:['A safe place for English Catholics, who faced discrimination at home.','The Maryland Toleration Act (1649) protected the worship of all Christians.'], zh:['为在英国受歧视的天主教徒提供安身之地。','1649年的《马里兰宗教宽容法》保护所有基督徒的信仰自由。'] },
+    hint:o('Maryland = Catholics + tobacco.','马里兰：天主教徒 + 烟草。') },
+  RI:{ y:1636, r:'ne', n:o('Rhode Island','罗得岛'), lab:[-71.0,41.2], la:'left', sh:1, who:o('Roger Williams','罗杰·威廉斯'), why:o('Religious freedom','宗教自由'),
+    made:o('Trade, farms, ships','贸易、农场、船'), nat:o('Narragansett','纳拉甘西特人'),
+    facts:{ en:['Roger Williams was banished from Massachusetts for his ideas. He bought land from the Narragansett and founded Providence.','Rhode Island kept church and state separate and welcomed people of any faith, including Jews and Quakers.'], zh:['罗杰·威廉斯因观点不同被逐出马萨诸塞，他从纳拉甘西特人手里买下土地，建立了普罗维登斯。','罗得岛实行政教分离，欢迎任何信仰的人，包括犹太人和贵格会教徒。'] },
+    hint:o('Rhode Island: Roger’s Refuge.','罗得岛：罗杰的避难所。') },
+  CT:{ y:1636, r:'ne', n:o('Connecticut','康涅狄格'), lab:[-72.75,41.62], sh:1, who:o('Thomas Hooker','托马斯·胡克'), why:o('Religion and better farmland','宗教与更好的农田'),
+    made:o('Farms, trade','农场、贸易'), nat:o('Pequot, Mohegan','佩科特人、莫希干人'),
+    facts:{ en:['The Fundamental Orders of Connecticut (1639) are often called the first written constitution in America.','The Pequot War (1636–38) devastated the Pequot nation.'], zh:['1639年的《康涅狄格基本法》常被称为美洲第一部成文宪法。','佩科特战争（1636—1638年）使佩科特部族遭受毁灭性打击。'] },
+    hint:o('Connecticut = the “Constitution State”.','康涅狄格又叫“宪法之州”。') },
+  DE:{ y:1638, r:'mid', n:o('Delaware','特拉华'), lab:[-74.95,38.75], la:'left', sh:1, who:o('New Sweden → Dutch (1655) → English (1664)','新瑞典 → 荷兰（1655年）→ 英国（1664年）'), why:o('Profit (trade)','获利（贸易）'),
+    made:o('Farms, trade','农场、贸易'), nat:o('Lenape','莱纳佩人'),
+    facts:{ en:['Swedish and Finnish settlers built Fort Christina in 1638 — and probably the first log cabins in America.','It was part of Pennsylvania (“the Lower Counties”) until it got its own assembly in 1704.'], zh:['1638年，瑞典和芬兰移民修建了克里斯蒂娜堡，美洲最早的小木屋可能就是他们建的。','它曾是宾夕法尼亚的“下游诸县”，1704年才有了自己的议会。'] },
+    hint:o('Delaware: Swedes, then Dutch, then English.','特拉华：先瑞典，再荷兰，后英国。') },
+  NC:{ y:1663, r:'so', n:o('North Carolina','北卡罗来纳'), lab:[-79.2,35.55], who:o('Eight Lords Proprietors (Carolina charter, 1663); separate from 1712','八位领主（1663年卡罗来纳特许状）；1712年分出'), why:o('Profit','获利'),
+    made:o('Naval stores (tar, pitch), tobacco','船用物资（焦油、沥青）、烟草'), nat:o('Tuscarora, Catawba, Cherokee','塔斯卡罗拉人、卡托巴人、切罗基人'),
+    facts:{ en:['Most settlers were small farmers who came down from Virginia.','After the Tuscarora War (1711–15) many Tuscarora moved north and joined the Haudenosaunee as its sixth nation.'], zh:['大多数移民是从弗吉尼亚南下的小农。','塔斯卡罗拉战争（1711—1715年）后，很多塔斯卡罗拉人北迁，成为易洛魁联盟的第六个部族。'] },
+    hint:o('North Carolina: tar from the pine trees.','北卡罗来纳：松树里熬出焦油。') },
+  SC:{ y:1663, r:'so', n:o('South Carolina','南卡罗来纳'), lab:[-80.9,33.85], who:o('Lords Proprietors · Charles Town (1670)','领主 · 查尔斯顿（1670年）'), why:o('Profit','获利'),
+    made:o('Rice, indigo (blue dye)','水稻、靛蓝（蓝色染料）'), nat:o('Catawba, Cherokee, Yamasee','卡托巴人、切罗基人、亚马西人'),
+    facts:{ en:['Rice made Charles Town (Charleston) the richest city in the South.','Enslaved West Africans brought rice-growing know-how; by the early 1700s most people in the colony were enslaved.','Eliza Lucas Pinckney, a teenager, developed indigo as a cash crop in the 1740s.'], zh:['水稻让查尔斯顿成为南方最富有的城市。','被奴役的西非人带来了种水稻的技术；18世纪初，这个殖民地的大多数人口是被奴役者。','18世纪40年代，少女伊丽莎·卢卡斯·平克尼把靛蓝培育成了经济作物。'] },
+    hint:o('South Carolina: rice and indigo.','南卡罗来纳：水稻和靛蓝。') },
+  NJ:{ y:1664, r:'mid', n:o('New Jersey','新泽西'), lab:[-73.75,39.85], la:'left', sh:1, who:o('Lord Berkeley and Sir George Carteret','伯克利勋爵和乔治·卡特里特爵士'), why:o('Profit (land)','获利（土地）'),
+    made:o('Wheat, corn, cattle','小麦、玉米、牛'), nat:o('Lenape','莱纳佩人'),
+    facts:{ en:['The Duke of York gave the land between the Hudson and the Delaware to two friends in 1664.','To attract settlers they promised religious freedom and an elected assembly.'], zh:['1664年约克公爵把哈得孙河与特拉华河之间的土地送给了两位朋友。','为吸引移民，他们承诺信仰自由和民选议会。'] },
+    hint:o('New Jersey: between two rivers.','新泽西：夹在两条河中间。') },
+  PA:{ y:1681, r:'mid', n:o('Pennsylvania','宾夕法尼亚'), lab:[-77.6,40.95], who:o('William Penn (a Quaker)','威廉·佩恩（贵格会教徒）'), why:o('Religious freedom (“holy experiment”)','宗教自由（“神圣的实验”）'),
+    made:o('Wheat, flour, iron','小麦、面粉、铁'), nat:o('Lenape, Susquehannock','莱纳佩人、萨斯奎汉诺克人'),
+    facts:{ en:['King Charles II gave Penn the land to pay a debt owed to Penn’s father.','Penn made treaties with the Lenape and planned Philadelphia, the “City of Brotherly Love”.','By 1776 Philadelphia was the largest city in the colonies — where independence was declared.'], zh:['英王查理二世把这片土地赐给佩恩，用来抵还欠佩恩父亲的债。','佩恩与莱纳佩人签订条约，并规划了费城——“兄弟友爱之城”。','到1776年，费城已是殖民地最大的城市，《独立宣言》就在这里通过。'] },
+    hint:o('Penn + sylvania (“woods”) = Penn’s Woods.','宾夕法尼亚＝“佩恩的森林”。') },
+  GA:{ y:1732, r:'so', n:o('Georgia','佐治亚'), lab:[-83.3,32.65], who:o('James Oglethorpe and the Trustees · Savannah (1733)','詹姆斯·奥格尔索普和托管委员会 · 萨凡纳（1733年）'), why:o('A buffer against Spanish Florida, a fresh start for the poor, and profit','抵御西属佛罗里达的缓冲区、给穷人新的开始，以及获利'),
+    made:o('Rice, indigo (silk was tried and failed)','水稻、靛蓝（试养过蚕，失败了）'), nat:o('Muscogee (Creek), Yamacraw, Cherokee','马斯科吉人（克里克人）、亚马克劳人、切罗基人'),
+    facts:{ en:['Named for King George II. Tomochichi, leader of the Yamacraw, welcomed Oglethorpe; Mary Musgrove (Creek and English) translated.','The Trustees banned slavery (1735) and large landholdings; settlers protested, and slavery was allowed from 1751.','Georgia became a royal colony in 1752 — the 13th and last colony.'], zh:['以英王乔治二世的名字命名。亚马克劳人首领托莫奇奇欢迎了奥格尔索普；有克里克人和英国人血统的玛丽·马斯格罗夫当翻译。','托管委员会禁止奴隶制（1735年）和大地产；移民不满，1751年奴隶制被允许。','1752年佐治亚成为王室殖民地——第十三个，也是最后一个殖民地。'] },
+    hint:o('Georgia: last colony, named for George II.','佐治亚：最后一个，以乔治二世命名。') }
+};
+const ORDER = ['VA','MA','NH','NY','MD','RI','CT','DE','NC','SC','NJ','PA','GA'];
+const NATIONS = [
+  [o('Wabanaki (Abenaki)','瓦巴纳基人（阿贝纳基人）'),[-69.6,45.2]],[o('Pennacook','彭纳库克人'),[-71.6,43.3]],[o('Massachusett','马萨诸塞人'),[-71.4,42.45]],[o('Wampanoag','万帕诺亚格人'),[-70.5,41.65]],
+  [o('Narragansett','纳拉甘西特人'),[-71.55,41.25]],[o('Pequot · Mohegan','佩科特人·莫希干人'),[-72.4,41.45]],[o('Mohican','莫希干人'),[-73.75,42.5]],[o('Haudenosaunee (Iroquois)','豪德诺索尼（易洛魁）'),[-76.1,42.95]],
+  [o('Lenape (Delaware)','莱纳佩人（特拉华人）'),[-75.1,40.45]],[o('Susquehannock','萨斯奎汉诺克人'),[-76.6,40.0]],[o('Powhatan','波瓦坦人'),[-77.0,37.3]],[o('Shawnee','肖尼人'),[-81.6,38.9]],
+  [o('Tuscarora','塔斯卡罗拉人'),[-77.5,35.6]],[o('Catawba','卡托巴人'),[-80.9,34.75]],[o('Cherokee','切罗基人'),[-83.9,35.3]],[o('Muscogee (Creek)','马斯科吉人（克里克人）'),[-84.5,32.5]],[o('Yamacraw','亚马克劳人'),[-81.4,31.7]]
+];
+const PLACES = [
+  { ll:[-76.78,37.21], n:o('Jamestown','詹姆斯敦'), y:1607 }, { ll:[-70.66,41.96], n:o('Plymouth','普利茅斯'), y:1620 }, { ll:[-71.06,42.36], n:o('Boston','波士顿'), y:1630 },
+  { ll:[-74.0,40.71], n:y => y < 1664 ? o('New Amsterdam','新阿姆斯特丹') : o('New York','纽约'), y:1626 }, { ll:[-75.16,39.95], n:o('Philadelphia','费城'), y:1682 },
+  { ll:[-79.93,32.78], n:o('Charles Town','查尔斯顿'), y:1670 }, { ll:[-81.09,32.08], n:o('Savannah','萨凡纳'), y:1733 }, { ll:[-81.31,29.9], n:o('St. Augustine (Spain)','圣奥古斯丁（西班牙）'), y:1600 }
+];
+const OTHER = [ // other European claims shown as grey labels
+  { ll:[-71.6,46.85], t:o('New France (Quebec 1608)','新法兰西（1608年建魁北克）'), a:1608, b:1763 }, { ll:[-71.6,46.85], t:o('British Quebec (from 1763)','英属魁北克（1763年起）'), a:1763, b:1777 },
+  { ll:[-84.4,30.2], t:o('Spanish Florida','西属佛罗里达'), a:1600, b:1763 }, { ll:[-84.4,30.2], t:o('British Florida (1763–83)','英属佛罗里达（1763—1783年）'), a:1763, b:1777 },
+  { ll:[-74.6,41.6], t:o('New Netherland (Dutch)','新尼德兰（荷兰）'), a:1614, b:1626 }, { ll:[-75.0,38.9], t:o('New Sweden','新瑞典'), a:1638, b:1655 }
+];
+const PROC = [[-71.2,45.2],[-73.6,44.7],[-75.4,42.5],[-77.9,41.3],[-79.1,39.8],[-80.3,38.3],[-81.6,36.6],[-82.9,35.4],[-83.6,34.6],[-83.9,33.6],[-83.1,31.0]];
+/* ===== Events for the year slider ===== */
+const EV = [
+  { y:1600, t:o('Before the English','英国人到来之前'), b:o('Hundreds of thousands of Native people already live along the Atlantic coast, in towns with farms of corn, beans and squash. Spain holds St. Augustine in Florida (1565).','大西洋沿岸已经生活着几十万印第安人，他们住在村镇里，种植玉米、豆子和南瓜。西班牙已在佛罗里达建立圣奥古斯丁（1565年）。') },
+  { y:1607, k:'VA', t:o('Jamestown, Virginia','弗吉尼亚的詹姆斯敦'), b:o('104 English men and boys land on the James River, hoping for gold. They find hunger, disease and the powerful Powhatan Confederacy.','104名英国男子和少年在詹姆斯河登陆，想找金子；结果遇到的是饥饿、疾病和强大的波瓦坦联盟。') },
+  { y:1619, t:o('A year of firsts','几个“第一次”的一年'), b:o('Virginia’s House of Burgesses meets — the first elected assembly. In August the first recorded enslaved Africans arrive at Point Comfort, Virginia.','弗吉尼亚议会第一次开会——这是第一个民选议会。8月，有记载的第一批被奴役的非洲人被运到弗吉尼亚的康福特角。') },
+  { y:1620, k:'MA', t:o('The Mayflower','五月花号'), b:o('102 passengers, many of them Pilgrims seeking religious freedom, land at Plymouth after 66 days at sea and sign the Mayflower Compact.','102名乘客（很多是寻求宗教自由的“朝圣者”）在海上漂了66天后在普利茅斯登陆，并签订了《五月花号公约》。') },
+  { y:1626, k:'NY', t:o('New Amsterdam','新阿姆斯特丹'), b:o('The Dutch “buy” Manhattan from the Lenape for trade goods. The Lenape probably thought they were agreeing to share the land, not sell it.','荷兰人用一些货物从莱纳佩人手中“买下”曼哈顿。莱纳佩人很可能以为是同意共享土地，而不是卖掉它。') },
+  { y:1630, t:o('Boston','波士顿'), b:o('John Winthrop leads about 1,000 Puritans to found Boston: “we shall be as a city upon a hill.”','约翰·温思罗普带领约1000名清教徒建立波士顿：“我们将成为山巅之城。”') },
+  { y:1636, k:'RI', t:o('Rhode Island and Connecticut','罗得岛和康涅狄格'), b:o('Roger Williams, banished for his beliefs, founds Providence. Thomas Hooker leads settlers to Hartford.','因信仰被驱逐的罗杰·威廉斯建立了普罗维登斯；托马斯·胡克带领移民来到哈特福德。') },
+  { y:1664, k:'NJ', t:o('England takes New Netherland','英国夺取新尼德兰'), b:o('English warships arrive at New Amsterdam; the Dutch surrender. New York and New Jersey become English.','英国军舰开到新阿姆斯特丹，荷兰人投降。纽约和新泽西成为英国的殖民地。') },
+  { y:1675, t:o('King Philip’s War','菲利普王战争'), b:o('Metacom (“King Philip”), leader of the Wampanoag, fights the spread of New England settlers. It is one of the deadliest wars in American history for its size; Native nations of southern New England lose most of their land.','万帕诺亚格人首领梅塔科姆（“菲利普王”）起兵反抗新英格兰移民的扩张。按人口比例，这是美国历史上最惨烈的战争之一；新英格兰南部的印第安部族失去了大部分土地。') },
+  { y:1681, k:'PA', t:o('Penn’s Woods','佩恩的森林'), b:o('William Penn receives Pennsylvania and promises freedom of religion; Philadelphia is laid out in 1682.','威廉·佩恩得到宾夕法尼亚，承诺信仰自由；1682年开始规划费城。') },
+  { y:1732, k:'GA', t:o('Georgia, the 13th colony','第十三个殖民地：佐治亚'), b:o('King George II grants a charter. In February 1733 Oglethorpe and about 114 settlers reach Yamacraw Bluff and found Savannah with Tomochichi’s help.','英王乔治二世颁发特许状。1733年2月，奥格尔索普和约114名移民来到亚马克劳崖，在托莫奇奇的帮助下建立了萨凡纳。') },
+  { y:1754, t:o('The French and Indian War begins','法国-印第安人战争爆发'), b:o('Britain and France fight for the Ohio Valley. A young Virginian officer, George Washington, fires some of the first shots. Franklin’s “Join, or Die” cartoon urges the colonies to unite.','英法争夺俄亥俄河谷。一位年轻的弗吉尼亚军官乔治·华盛顿打响了最早的几枪。富兰克林的漫画《联合，或者死亡》号召殖民地团结起来。') },
+  { y:1763, t:o('Victory — and a line','胜利——和一条线'), b:o('The Treaty of Paris gives Britain Canada and the land to the Mississippi. The Proclamation of 1763 forbids colonists to settle west of the Appalachian Mountains (dashed line). Colonists are furious.','《巴黎和约》把加拿大和密西西比河以东的土地划给英国。《1763年公告》禁止殖民者越过阿巴拉契亚山脉向西定居（见虚线），殖民者非常愤怒。') },
+  { y:1765, t:o('The Stamp Act','《印花税法》'), b:o('Parliament taxes newspapers, legal papers and even playing cards. “No taxation without representation!” The colonies boycott British goods; the act is repealed in 1766.','议会对报纸、法律文件甚至扑克牌征税。“无代表，不纳税！”殖民地抵制英国货，该法1766年被废除。') },
+  { y:1773, t:o('The Boston Tea Party','波士顿倾茶事件'), b:o('On 16 December, Patriots dressed as Mohawks dump 342 chests of East India Company tea into Boston Harbor. The tea had come from China!','12月16日，装扮成莫霍克人的爱国者把东印度公司的342箱茶叶倒进波士顿港。这些茶叶是从中国运来的！') },
+  { y:1775, t:o('The war begins','战争爆发'), b:o('19 April: fighting at Lexington and Concord. The Second Continental Congress makes George Washington commander of the Continental Army.','4月19日，列克星敦和康科德的枪声响起。第二届大陆会议任命乔治·华盛顿为大陆军总司令。') },
+  { y:1776, t:o('Independence!','宣布独立！'), b:o('Thomas Paine’s Common Sense sells in huge numbers. On 2 July Congress votes for independence; on 4 July it adopts the Declaration of Independence. The 13 colonies become 13 states.','托马斯·潘恩的《常识》热卖。7月2日大陆会议投票决定独立，7月4日通过《独立宣言》。十三个殖民地变成了十三个州。') }
+];
+/* ===== Meanwhile in China ===== */
+const CN = [
+  { y:1600, t:o('Ming dynasty, Wanli Emperor. In 1607 Xu Guangqi and the Jesuit Matteo Ricci publish a Chinese translation of Euclid’s geometry — the same year as Jamestown.','明朝万历年间。1607年——就是詹姆斯敦建立的那一年，徐光启和传教士利玛窦合译的《几何原本》（前六卷）刊印。') },
+  { y:1636, t:o('Hong Taiji renames his state Great Qing (1636). In 1644 the Ming falls and Qing armies enter Beijing.','皇太极改国号为“清”（1636年）。1644年明朝灭亡，清兵入关，定都北京。') },
+  { y:1661, t:o('1661: the six-year-old Kangxi Emperor takes the throne (r. 1661–1722). 1662: Zheng Chenggong drives the Dutch out of Taiwan — two years before the English drive the Dutch out of New York!','1661年，8岁（虚岁）的康熙帝即位（1661—1722年在位）。1662年，郑成功从荷兰殖民者手中收复台湾——两年后，英国人把荷兰人赶出了纽约！') },
+  { y:1683, t:o('1683: the Qing unifies Taiwan; in 1684 it sets up Taiwan Prefecture under Fujian. 1689: China and Russia sign the Treaty of Nerchinsk, fixing their eastern border.','1683年清朝统一台湾，1684年设台湾府，隶属福建省。1689年中俄签订《尼布楚条约》，划定东段边界。') },
+  { y:1722, t:o('Yongzheng Emperor (r. 1722–1735) sets up the Grand Council (Junjichu, about 1729), making the emperor’s power stronger than ever.','雍正帝（1722—1735年在位）设立军机处（约1729年），皇权进一步加强。') },
+  { y:1736, t:o('Qianlong Emperor (r. 1736–1795). China is the world’s largest economy. When Georgia is still new, the Qing rules over roughly 150–200 million people.','乾隆帝（1736—1795年在位）。中国是当时世界上最大的经济体。佐治亚刚建立时，清朝统治的人口已有约1.5亿至2亿。') },
+  { y:1757, t:o('1757: Qianlong limits trade with Western merchants to one port, Guangzhou (Canton). The tea that colonists drank — and dumped in 1773 — was bought there by the British East India Company.','1757年，乾隆下令西方商人只能在广州一口通商。殖民地人喝的茶叶（以及1773年被倒进海里的茶叶）就是英国东印度公司在广州买的。') },
+  { y:1773, t:o('1773: the same year as the Boston Tea Party, Qianlong orders the Siku Quanshu, a library of about 3,500 works copied by hand — about 800 million characters.','1773年，也就是波士顿倾茶事件那一年，乾隆下令编纂《四库全书》，收书约3500种，全部手抄，约8亿字。') }
+];
+/* ===== Population estimates (Historical Statistics of the US, series Z1–19, rounded) ===== */
+const POP = [[1650,50400,1600],[1670,111900,4500],[1690,210400,16700],[1710,331700,44900],[1730,629400,91000],[1750,1170800,236400],[1770,2148100,459800]];
+const popAt = y => { if (y < 1607) return [0, 0]; if (y < 1650) return [Math.round(50400 * (y - 1607) / 43), Math.round(1600 * Math.max(0, y - 1619) / 31)];
+  for (let i = 0; i < POP.length - 1; i++){ const a = POP[i], b = POP[i + 1]; if (y <= b[0]){ const t = (y - a[0]) / (b[0] - a[0]); return [Math.round(a[1] + (b[1] - a[1]) * t), Math.round(a[2] + (b[2] - a[2]) * t)]; } }
+  const t = (y - 1770) / 10; return [Math.round(2148100 + (2780400 - 2148100) * t), Math.round(459800 + (575400 - 459800) * t)]; };
+</script>
+<script>
+/* ===== Newspaper mission: six crises. side: 'p' = Patriot, 'l' = Loyalist; headlines: p / l / n (factual) ===== */
+const ED = [
+  { y:1765, t:o('The Stamp Act','《印花税法》'), s:o('Parliament orders that newspapers, legal documents, licences, even playing cards must carry a tax stamp. It is the first tax Parliament has placed directly on the colonists.','英国议会规定：报纸、法律文件、执照甚至扑克牌都必须贴上印花税票。这是英国议会第一次直接向殖民地居民征税。'),
+    args:[
+      { s:'p', q:o('We elect no one to Parliament, so Parliament has no right to tax us. No taxation without representation!','我们在英国议会里没有选出一个代表，议会就无权向我们收税。无代表，不纳税！'), w:o('The Patriots’ key argument — repeated by the Stamp Act Congress of nine colonies.','这是爱国者最核心的论点，九个殖民地参加的“印花税法大会”也这样主张。') },
+      { s:'l', q:o('Britain spent a fortune defending the colonies in the French and Indian War. It is only fair that we help pay.','英国为了保卫殖民地，在法国-印第安人战争中花了一大笔钱。我们分担一点，天经地义。'), w:o('Loyalists (and Parliament) saw the tax as paying for colonists’ own protection.','效忠派（和英国议会）认为，这笔税是为殖民地自己的安全买单。') },
+      { s:'p', q:o('Our own colonial assemblies have always set our taxes. This act breaks that tradition.','一直以来都是由我们自己的殖民地议会决定税收，这项法令破坏了这个传统。'), w:o('Patriots defended the power of their elected assemblies.','爱国者维护自己选举产生的议会的权力。') },
+      { s:'l', q:o('The tax is small — people in Britain pay far heavier taxes than we do.','这点税很少——英国本土的人交的税比我们重得多。'), w:o('True, and a common Loyalist point. Patriots answered that the principle mattered, not the amount.','这是事实，也是效忠派常说的。爱国者回答：重要的是原则，不是税额多少。') } ],
+    h:{ p:o('NO TAXATION WITHOUT REPRESENTATION! Colonies Unite Against the Stamp Act','无代表，不纳税！各殖民地联合反对《印花税法》'), l:o('A Fair Share: Stamp Tax Will Help Pay for Our Defence','公平分担：印花税将用于保卫我们'), n:o('Stamp Act Begins 1 November; Nine Colonies Meet in New York','《印花税法》11月1日生效；九个殖民地代表在纽约开会') },
+    fact:o('The colonists’ boycott of British goods worked: Parliament repealed the Stamp Act in 1766 — but passed the Declaratory Act, saying it could make laws for the colonies “in all cases whatsoever”.','殖民地抵制英国货奏效了：议会在1766年废除了《印花税法》，但同时通过《宣告法》，宣称议会“在任何情况下”都有权为殖民地立法。') },
+  { y:1770, t:o('The Boston Massacre','波士顿惨案'), s:o('5 March 1770: on King Street in Boston, a crowd surrounds a British sentry. Soldiers arrive, shots are fired, and five colonists die — among them Crispus Attucks, a sailor of African and Native descent.','1770年3月5日，波士顿国王街上，一群人围住了一名英国哨兵。士兵赶来后开了枪，五名殖民地居民死亡，其中有非洲裔和印第安血统的水手克里斯珀斯·阿塔克斯。'),
+    args:[
+      { s:'p', q:o('Soldiers fired into a crowd of townspeople and killed five. This is what happens when an army is stationed among free people in peacetime.','士兵向人群开枪，打死了五个人。和平时期让军队驻扎在自由人中间，就会发生这种事。'), w:o('Patriots called it a “massacre” and used it to demand the troops leave Boston.','爱国者称之为“屠杀”，借此要求军队撤出波士顿。') },
+      { s:'l', q:o('The crowd threw snowballs, ice and clubs at the soldiers and dared them to fire.','人群向士兵扔雪球、冰块和木棍，还挑衅他们开枪。'), w:o('This is what the soldiers’ defenders argued at the trial — and witnesses backed it up.','这是士兵的辩护方在审判中的说法，也有证人作证。') },
+      { s:'p', q:o('Paul Revere’s engraving shows the soldiers firing on peaceful citizens in a line — every colony should see it!','保罗·里维尔的版画画的是士兵排成一排向和平的市民开枪——每个殖民地都应该看到它！'), w:o('Revere’s famous print was powerful propaganda: it was not an accurate picture of what happened.','里维尔这幅著名的版画是很有力的宣传品，但并不是对事实的准确描绘。') },
+      { s:'l', q:o('Even John Adams, a Patriot lawyer, agreed to defend the soldiers. They deserve a fair trial.','就连爱国者律师约翰·亚当斯都同意为士兵辩护。他们应该得到公正的审判。'), w:o('Adams did defend them: the captain and six soldiers were acquitted, two were convicted of manslaughter.','亚当斯确实为他们辩护：上尉和六名士兵被判无罪，两名士兵被判过失杀人。') } ],
+    h:{ p:o('BLOODY MASSACRE in King Street! Five Killed by the King’s Troops','国王街血腥屠杀！五人死于英军枪下'), l:o('Mob Attacks Sentry; Soldiers Fire in Self-Defence','暴民袭击哨兵，士兵被迫自卫开枪'), n:o('Five Killed in King Street Clash; Captain Preston and Soldiers to Stand Trial','国王街冲突五人死亡；普雷斯顿上尉和士兵将受审') },
+    fact:o('In the same year Parliament repealed most of the Townshend taxes — but kept the tax on tea.','同一年，议会废除了《汤森税法》的大部分税项，却保留了茶叶税。') },
+  { y:1773, t:o('The Boston Tea Party','波士顿倾茶事件'), s:o('The Tea Act lets the British East India Company sell tea in the colonies cheaply — but still with Parliament’s tax. On 16 December, men dressed as Mohawks board three ships and dump 342 chests of tea into Boston Harbor.','《茶税法》让英国东印度公司在殖民地低价卖茶——但仍要交议会的税。12月16日，一群打扮成莫霍克人的人登上三艘船，把342箱茶叶倒进了波士顿港。'),
+    args:[
+      { s:'p', q:o('If we buy the taxed tea, we admit that Parliament may tax us. And the Company gets a monopoly that hurts our merchants.','如果我们买了这批交过税的茶，就等于承认议会可以向我们收税；而且东印度公司的垄断还会伤害我们的商人。'), w:o('For Patriots the tea was about the principle — and about local merchants (some of whom smuggled Dutch tea).','对爱国者来说，问题在于原则，也关系到本地商人的利益（其中一些人走私荷兰茶叶）。') },
+      { s:'l', q:o('Destroying nearly £10,000 of private property is a crime, whatever the cause.','不管理由是什么，毁掉价值近1万英镑的私人财产就是犯罪。'), w:o('Even some Patriots, like Benjamin Franklin, said Boston should pay for the tea.','就连富兰克林等一些爱国者也说，波士顿应该赔偿茶叶的损失。') },
+      { s:'l', q:o('The Tea Act actually made tea cheaper for us than before.','《茶税法》实际上让我们买到的茶比以前更便宜了。'), w:o('True: even with the tax, the Company’s tea was cheaper than smuggled tea.','这是事实：即使加上税，东印度公司的茶也比走私茶便宜。') },
+      { s:'p', q:o('Only tea was destroyed — no one was hurt, and nothing else on the ships was touched.','只毁了茶叶——没有人受伤，船上别的东西一样没动。'), w:o('Patriots stressed how disciplined the protest was.','爱国者强调这次抗议很有纪律。') } ],
+    h:{ p:o('Boston Says NO to Taxed Tea — the Harbour Becomes a Teapot!','波士顿对征税的茶叶说“不”——港口变成了大茶壶！'), l:o('Lawless Mob Destroys 342 Chests of Private Property','无法无天的暴徒毁掉342箱私人财产'), n:o('Tea from Three Ships Dumped into Boston Harbour','三艘船上的茶叶被倒入波士顿港') },
+    fact:o('China link: the tea was Chinese — grown in Fujian and other provinces and bought by the East India Company in Guangzhou (Canton), the only port Qianlong allowed Western traders to use.','中国链接：这些茶叶来自中国——产于福建等省，由东印度公司在广州购买；当时乾隆只允许西方商人在广州一口通商。') },
+  { y:1774, t:o('The Intolerable Acts','“不可容忍法令”'), s:o('Parliament punishes Boston: the port is closed until the tea is paid for, town meetings are limited, and soldiers can be housed in colonists’ buildings. Colonists call these the “Intolerable Acts”.','议会惩罚波士顿：在赔偿茶叶之前封闭港口，限制镇民大会，还允许把士兵安置在殖民地居民的房屋里。殖民地人称之为“不可容忍法令”。'),
+    args:[
+      { s:'p', q:o('Closing the port punishes a whole city of thousands for what a few people did.','封闭港口，等于因为少数人的行为惩罚全城成千上万的人。'), w:o('Other colonies agreed and sent food to Boston.','其他殖民地也这样认为，纷纷给波士顿送去粮食。') },
+      { s:'l', q:o('Boston only has to pay for the tea, and the port will open again.','波士顿只要赔偿茶叶，港口就会重新开放。'), w:o('This was the official British position.','这是英国官方的立场。') },
+      { s:'p', q:o('If Parliament can take away Massachusetts’s self-government, it can take away any colony’s.','如果议会能剥夺马萨诸塞的自治，它也能剥夺任何一个殖民地的自治。'), w:o('This fear brought 12 colonies to the First Continental Congress (Georgia did not attend).','正是这种担心，让12个殖民地派代表参加了第一届大陆会议（佐治亚没有参加）。') },
+      { s:'l', q:o('Parliament is the highest law-maker of the Empire; colonies cannot choose which laws to obey.','议会是整个帝国最高的立法机构，殖民地不能挑选自己愿意遵守的法律。'), w:o('Loyalists believed in the authority of King-in-Parliament.','效忠派相信“议会中的国王”拥有最高权威。') } ],
+    h:{ p:o('Boston in Chains! Sister Colonies Send Food and Call a Congress','波士顿被套上锁链！兄弟殖民地送来粮食，召开大会'), l:o('Order Restored: Port Closed Until Boston Pays for the Tea','秩序恢复：波士顿赔偿茶叶前港口关闭'), n:o('First Continental Congress Meets in Philadelphia; Twelve Colonies Attend','第一届大陆会议在费城召开，12个殖民地派代表出席') },
+    fact:o('The First Continental Congress (September 1774) agreed to boycott British goods and to meet again if nothing changed.','第一届大陆会议（1774年9月）决定抵制英国货，并约定如果情况不变就再次开会。') },
+  { y:1775, t:o('Lexington and Concord','列克星敦和康科德'), s:o('19 April 1775: about 700 British soldiers march from Boston to seize Patriot weapons at Concord. Warned by Paul Revere and William Dawes, militia meet them at Lexington. Shots ring out.','1775年4月19日，约700名英军从波士顿出发，要去康科德收缴爱国者的武器。保罗·里维尔和威廉·道斯连夜报信，民兵在列克星敦迎击英军，枪声响起。'),
+    args:[
+      { s:'p', q:o('The King’s troops came to take our weapons. Free people have the right to defend their homes.','国王的军队来夺我们的武器。自由的人有权保卫自己的家园。'), w:o('Patriots saw the march as an attack on their liberty.','爱国者把这次行军看作对自由的进攻。') },
+      { s:'l', q:o('Rebels fired on the King’s soldiers, who were only enforcing the law.','叛乱分子向执行法律的国王士兵开枪。'), w:o('Loyalists blamed the militia. In fact, no one knows who fired the first shot at Lexington.','效忠派指责民兵。其实，到今天也没人知道列克星敦的第一枪是谁打的。') },
+      { s:'l', q:o('A war against the strongest army and navy in the world will ruin the colonies.','和世界上最强的陆军、海军打仗，殖民地会被毁掉的。'), w:o('A reasonable fear in 1775: Britain had about three times as many people (around 8 million vs about 2.5 million) and the world’s biggest navy.','这在1775年是合理的担心：英国本土人口约800万，是殖民地（约250万）的三倍左右，还拥有世界上最强大的海军。') },
+      { s:'p', q:o('Militia chased the Redcoats all the way back to Boston. They can be beaten!','民兵一路把“红衫军”追回了波士顿。他们是可以被打败的！'), w:o('About 270 British were killed or wounded on the way back, against about 95 Americans.','英军在撤退途中伤亡约270人，美方约95人。') } ],
+    h:{ p:o('The Shot Heard Round the World: Militia Drive Back the Redcoats!','响彻世界的枪声：民兵击退红衫军！'), l:o('Rebels Fire on the King’s Troops at Lexington','叛军在列克星敦向国王军队开火'), n:o('Fighting at Lexington and Concord; British Return to Boston','列克星敦和康科德发生战斗，英军撤回波士顿') },
+    fact:o('“The shot heard round the world” comes from a poem by Ralph Waldo Emerson, written in 1837 about the fight at Concord’s North Bridge.','“响彻世界的枪声”出自拉尔夫·沃尔多·爱默生1837年写康科德北桥之战的诗。') },
+  { y:1776, t:o('Common Sense and independence','《常识》与独立'), s:o('January 1776: Thomas Paine’s pamphlet Common Sense says, in plain words, that the colonies should break away. It sells in huge numbers. By July, Congress is ready to vote.','1776年1月，托马斯·潘恩的小册子《常识》用通俗的语言主张殖民地脱离英国，销量惊人。到7月，大陆会议准备投票了。'),
+    args:[
+      { s:'p', q:o('It is absurd for a small island to rule a whole continent.','让一个小岛永远统治一整块大陆，是荒唐的。'), w:o('Paine’s famous argument, in his own spirit if not his exact words.','这是潘恩的著名论点（意思如此，不是原话）。') },
+      { s:'l', q:o('We are British subjects. We owe loyalty to the King and should fix problems by petition, not rebellion.','我们是英国臣民，应该效忠国王，通过请愿而不是叛乱来解决问题。'), w:o('Many Loyalists were sincere: they had family, faith and trade ties to Britain.','很多效忠派是真心这样想的：他们和英国有亲情、信仰和贸易上的联系。') },
+      { s:'p', q:o('The King has ignored our petitions and sent armies against us. All people have the right to life, liberty and the pursuit of happiness.','国王对我们的请愿置之不理，还派军队来攻打我们。人人都有生命、自由和追求幸福的权利。'), w:o('These ideas went straight into the Declaration of Independence.','这些思想直接写进了《独立宣言》。') },
+      { s:'l', q:o('Without Britain’s navy, who will protect our ships and trade? Independence will bring chaos.','没有英国海军，谁来保护我们的船只和贸易？独立只会带来混乱。'), w:o('A real worry: the new country had almost no navy.','这是现实的担忧：新国家几乎没有海军。') } ],
+    h:{ p:o('INDEPENDENCE! Congress Declares the Thirteen United States Free','独立了！大陆会议宣布十三个联合的州获得自由'), l:o('Congress Commits Treason Against the King','大陆会议犯下背叛国王的大罪'), n:o('Congress Votes for Independence on 2 July; Declaration Approved 4 July','大陆会议7月2日投票赞成独立，7月4日通过《独立宣言》') },
+    fact:o('Georgia’s three signers were Button Gwinnett, Lyman Hall and George Walton. In all, 56 delegates signed, most of them on 2 August 1776.','佐治亚的三位签署者是巴顿·格威内特、莱曼·霍尔和乔治·沃尔顿。一共有56位代表签名，大多数是在1776年8月2日签的。') }
+];
+const PAPERS = { p:{ n:o('The Liberty Gazette','《自由公报》'), d:o('A Patriot paper, in the spirit of the Boston Gazette','爱国者报纸，类似《波士顿公报》') }, l:{ n:o('The Loyal Courier','《忠诚信使报》'), d:o('A Loyalist paper, in the spirit of Rivington’s Gazetteer','效忠派报纸，类似里文顿的《纽约公报》') } };
+const NRANKS = [ { s:0, n:o('Printer’s devil','印刷学徒') }, { s:120, n:o('Apprentice','见习排字工') }, { s:220, n:o('Journeyman printer','印刷工') }, { s:290, n:o('Editor','主编') }, { s:340, n:o('Publisher','出版人') } ];
+/* ===== Battles ===== */
+const BAT = [
+  { d:'1775-04-19', ll:[-71.3,42.45], w:'a', n:o('Lexington and Concord','列克星敦和康科德'), g:o('Massachusetts','马萨诸塞'), b:o('The first shots of the war. Minutemen push the British back to Boston.','战争的第一枪。民兵把英军逼回波士顿。'), m:o('The war has begun — and colonists learn that the Redcoats can be beaten.','战争开始了——殖民地人发现红衫军是可以打败的。') },
+  { d:'1775-06-17', ll:[-71.06,42.38], w:'b', n:o('Bunker Hill (Breed’s Hill)','邦克山（布里德山）'), g:o('Massachusetts','马萨诸塞'), b:o('The British take the hill on the third charge, but with over 1,000 killed or wounded.','英军冲锋三次才夺下山头，但伤亡超过1000人。'), m:o('A British win at a terrible cost. Black Patriots such as Peter Salem fought here.','英军虽胜，代价惨重。彼得·塞勒姆等黑人爱国者参加了这场战斗。') },
+  { d:'1776-03-17', ll:[-71.0,42.33], w:'a', n:o('Siege of Boston ends','波士顿之围结束'), g:o('Massachusetts','马萨诸塞'), b:o('Henry Knox drags 59 cannons about 300 miles from Fort Ticonderoga. Facing them, the British sail away.','亨利·诺克斯把59门大炮从泰孔德罗加堡拖行约480千米（300英里）运来。英军见状乘船撤走。'), m:o('Boston is free. 17 March is still celebrated there as “Evacuation Day”.','波士顿解放了。直到今天，当地还把3月17日当作“撤离日”来纪念。') },
+  { d:'1776-08-27', ll:[-73.95,40.65], w:'b', n:o('Battle of Long Island','长岛战役'), g:o('New York','纽约'), b:o('The largest battle of the war: the British crush Washington’s army, which escapes across the East River by night in fog.','这是整场战争中规模最大的战役：英军大败华盛顿，美军趁着夜色和大雾渡过东河逃走。'), m:o('New York City stays in British hands until 1783.','纽约市一直被英军占领到1783年。') },
+  { d:'1776-12-26', ll:[-74.76,40.22], w:'a', key:1, n:o('Trenton','特伦顿'), g:o('New Jersey','新泽西'), b:o('On Christmas night Washington crosses the icy Delaware River and surprises about 1,500 Hessian soldiers; about 900 are captured.','圣诞节夜里，华盛顿率军渡过冰冷的特拉华河，突袭约1500名黑森雇佣兵，俘虏约900人。'), m:o('After months of defeats, a victory saves the Revolution’s morale. Princeton follows on 3 January 1777.','在几个月的失败之后，这场胜利挽救了士气。1777年1月3日又取得了普林斯顿之战的胜利。') },
+  { d:'1777-10-17', ll:[-73.64,43.0], w:'a', key:1, n:o('Saratoga','萨拉托加'), g:o('New York','纽约'), b:o('American forces surround General Burgoyne’s army; about 5,900 British and German soldiers surrender.','美军包围了伯戈因将军的部队，约5900名英国和德意志士兵投降。'), m:o('THE TURNING POINT: France signs an alliance with the United States in February 1778.','战争的转折点：1778年2月法国与美国结盟。') },
+  { d:'1777-12-19', ll:[-75.45,40.1], w:'x', n:o('Valley Forge (winter camp)','福吉谷（冬季营地）'), g:o('Pennsylvania','宾夕法尼亚'), b:o('Not a battle: about 12,000 soldiers spend the winter in huts; about 2,000 die of disease.','这不是一场战斗：约12000名士兵在小木屋里过冬，约2000人死于疾病。'), m:o('Baron von Steuben drills the army; it marches out in June 1778 tougher and better trained.','施托伊本男爵训练军队；1778年6月，这支军队走出福吉谷时更坚强、更正规。') },
+  { d:'1778-06-28', ll:[-74.32,40.26], w:'x', n:o('Monmouth','蒙茅斯'), g:o('New Jersey','新泽西'), b:o('A long, hot battle in 100 °F (38 °C) heat; neither side wins clearly.','在约38℃（100℉）的酷热中打了一整天，双方都没有明显取胜。'), m:o('The newly trained Continentals stand toe-to-toe with British regulars. After this the war moves south.','新训练的大陆军已能和英国正规军正面对抗。此后战争重心转向南方。') },
+  { d:'1778-12-29', ll:[-81.09,32.08], w:'b', n:o('Capture of Savannah','萨凡纳失陷'), g:o('Georgia','佐治亚'), b:o('A British force takes Savannah; Georgia’s royal governor returns.','英军攻占萨凡纳，佐治亚的王室总督回来了。'), m:o('Georgia becomes the only colony where British royal government is restored during the war.','佐治亚成为战争期间唯一恢复了英国王室统治的殖民地。') },
+  { d:'1779-02-14', ll:[-82.86,33.68], w:'a', key:1, n:o('Kettle Creek','凯特尔溪'), g:o('Georgia','佐治亚'), b:o('Georgia and Carolina Patriot militia led by Andrew Pickens, John Dooly and Elijah Clarke defeat a larger Loyalist force.','安德鲁·皮肯斯、约翰·杜利和以利亚·克拉克率领的佐治亚和卡罗来纳爱国者民兵击败了人数更多的效忠派。'), m:o('Georgia’s most famous Revolutionary battle; it slows British plans to raise Loyalists in the backcountry.','这是佐治亚最著名的独立战争战役，打乱了英军在内陆招募效忠派的计划。') },
+  { d:'1779-10-09', ll:[-81.1,32.06], w:'b', n:o('Siege of Savannah','萨凡纳围城战'), g:o('Georgia','佐治亚'), b:o('French and American forces attack the British lines and are thrown back with heavy losses. Free Black soldiers from Saint-Domingue (today’s Haiti) fought with the French.','法美联军进攻英军防线，伤亡惨重被击退。来自圣多明各（今海地）的自由黑人士兵随法军作战。'), m:o('One of the bloodiest hours of the war; Savannah stays British until 1782.','这是战争中最血腥的一小时之一；萨凡纳一直被英军占领到1782年。') },
+  { d:'1780-05-12', ll:[-79.93,32.78], w:'b', n:o('Fall of Charleston','查尔斯顿陷落'), g:o('South Carolina','南卡罗来纳'), b:o('After a siege, about 5,000 American soldiers surrender.','经过围城战，约5000名美军投降。'), m:o('The worst American defeat of the war.','这是美国在战争中最惨重的失败。') },
+  { d:'1780-10-07', ll:[-81.38,35.14], w:'a', n:o('Kings Mountain','国王山'), g:o('South Carolina','南卡罗来纳'), b:o('“Overmountain Men” from the backcountry surround and defeat a Loyalist force on a ridge.','来自山区的“翻山人”包围并击败了山脊上的一支效忠派部队。'), m:o('The tide in the South starts to turn.','南方战局开始扭转。') },
+  { d:'1781-01-17', ll:[-81.82,35.13], w:'a', n:o('Cowpens','考彭斯'), g:o('South Carolina','南卡罗来纳'), b:o('Daniel Morgan sets a clever trap: militia fire twice and fall back, then Continentals and cavalry strike.','丹尼尔·摩根设下巧妙的圈套：民兵开两轮枪就后撤，随后大陆军和骑兵发起猛攻。'), m:o('A near-perfect victory; Cornwallis loses his best light troops.','几乎完美的胜利；康华利失去了他最精锐的轻装部队。') },
+  { d:'1781-03-15', ll:[-79.84,36.13], w:'b', n:o('Guilford Courthouse','吉尔福德县府'), g:o('North Carolina','北卡罗来纳'), b:o('Cornwallis holds the field against Nathanael Greene, but loses about a quarter of his army.','康华利在与纳撒内尔·格林的交战中守住了阵地，却损失了约四分之一的兵力。'), m:o('A costly British win; Cornwallis marches north to Virginia — toward Yorktown.','英军的惨胜；康华利北上弗吉尼亚——走向约克镇。') },
+  { d:'1781-09-05', ll:[-75.6,36.9], w:'a', n:o('Battle of the Chesapeake (at sea)','切萨皮克湾海战'), g:o('off Virginia','弗吉尼亚外海'), b:o('Admiral de Grasse’s French fleet drives off a British fleet coming to rescue Cornwallis.','德格拉斯上将率领的法国舰队击退了前来救援康华利的英国舰队。'), m:o('Cornwallis is trapped: the sea is closed behind him.','康华利被困住了：身后的海路被封死。') },
+  { d:'1781-10-19', ll:[-76.51,37.24], w:'a', key:1, n:o('Yorktown','约克镇'), g:o('Virginia','弗吉尼亚'), b:o('About 17,000 American and French troops besiege Yorktown. Cornwallis surrenders about 8,000 men. James Armistead Lafayette, an enslaved spy, had sent key information.','约17000名美法联军包围约克镇，康华利率约8000人投降。被奴役的间谍詹姆斯·阿米斯特德·拉法耶特提供了关键情报。'), m:o('The last major battle. In London, Prime Minister Lord North reportedly cried, “Oh God! It is all over.”','最后一场大战。据说英国首相诺斯勋爵在伦敦惊呼：“天哪！一切都完了。”') },
+  { d:'1783-09-03', ll:null, w:'a', n:o('Treaty of Paris','《巴黎和约》'), g:o('signed in Paris','在巴黎签订'), b:o('Britain recognises the independence of the United States, with land west to the Mississippi River.','英国承认美国独立，美国领土向西到密西西比河。'), m:o('The war is over: 8 years, and roughly 25,000 American military deaths (most from disease).','战争结束了：打了8年，美方军人约25000人死亡（大多死于疾病）。') }
+];
+const WCN = [ [1775, o('Qianlong’s armies are finishing the long, costly second Jinchuan campaign in western Sichuan (1771–1776).','乾隆的军队正在四川西部打第二次金川之战（1771—1776年），耗时长、花费巨大。')], [1778, o('The Siku Quanshu scholars are still copying; Qianlong also bans and burns books he finds “disloyal”.','《四库全书》仍在抄写中；乾隆同时下令禁毁他认为“违碍”的书籍。')], [1781, o('1781: the year of Yorktown, the first complete set of the Siku Quanshu is finished (1782).','约克镇之战那一年前后，第一部完整的《四库全书》抄成（1782年）。')] ];
+/* ===== Declaration grievances ===== */
+const GRIEF = [
+  { q:o('“For imposing Taxes on us without our Consent”','“未经我们同意就向我们征税”'), a:0 },
+  { q:o('“For cutting off our Trade with all parts of the world”','“切断我们同世界各地的贸易”'), a:1 },
+  { q:o('“For quartering large bodies of armed troops among us”','“把大批武装部队驻扎在我们中间”'), a:2 },
+  { q:o('“He has dissolved Representative Houses repeatedly”','“他一再解散各殖民地的议会”'), a:3 }
+];
+const GOPT = [o('Stamp Act & tea tax','印花税法和茶叶税'), o('Trade bans (Boston Port Act, 1775 Restraining Acts)','贸易禁令（《波士顿港口法》、1775年《限制法》）'), o('Quartering Act','《驻营法》'), o('Shutting colonial assemblies','解散殖民地议会')];
+/* ===== Key terms ===== */
+const TERMS = [ ['colony','殖民地'], ['Patriot','爱国者'], ['Loyalist','效忠派'], ['Parliament','（英国）议会'], ['No taxation without representation','无代表，不纳税'], ['boycott','抵制'], ['Stamp Act','《印花税法》'], ['Boston Tea Party','波士顿倾茶事件'], ['Continental Congress','大陆会议'], ['Continental Army','大陆军'], ['militia / minutemen','民兵'], ['Declaration of Independence','《独立宣言》'], ['natural rights','天赋权利'], ['cash crop','经济作物'], ['plantation','种植园'], ['indentured servant','契约仆役'], ['Proclamation of 1763','《1763年公告》'], ['Treaty of Paris (1783)','《巴黎和约》（1783年）'] ];
+</script>
+<script>
+/* ===== Quiz ===== */
+const QUIZ = [
+  {q:o('Which was the first permanent English settlement in North America?','英国在北美的第一个永久定居点是'), options:[o('Jamestown, Virginia (1607)','弗吉尼亚的詹姆斯敦（1607年）'),o('Plymouth, Massachusetts (1620)','马萨诸塞的普利茅斯（1620年）'),o('Savannah, Georgia (1733)','佐治亚的萨凡纳（1733年）'),o('St. Augustine, Florida (1565)','佛罗里达的圣奥古斯丁（1565年）')], answer:0, explain:o('St. Augustine is older but was Spanish.','圣奥古斯丁更早，但它是西班牙建立的。')},
+  {q:o('Why were most New England colonies founded?','新英格兰殖民地建立的主要原因是'), options:[o('Religious freedom','宗教自由'),o('Growing rice','种植水稻'),o('Defending against Spain','抵御西班牙'),o('Finding gold','寻找黄金')], answer:0, explain:o('Pilgrims and Puritans wanted to worship in their own way.','清教徒想按自己的方式信仰上帝。')},
+  {q:o('The Middle colonies were called the “breadbasket colonies” because they grew lots of…','中部殖民地被称为“面包篮子殖民地”，是因为它们大量种植'), options:[o('Wheat and other grains','小麦等粮食'),o('Tobacco','烟草'),o('Cotton','棉花'),o('Rice','水稻')], answer:0, explain:o('Fertile soil and a milder climate were good for grain.','肥沃的土壤和较温和的气候适合种粮食。')},
+  {q:o('Which cash crops made South Carolina and Georgia rich?','让南卡罗来纳和佐治亚致富的经济作物是'), options:[o('Rice and indigo','水稻和靛蓝'),o('Wheat and corn','小麦和玉米'),o('Apples and potatoes','苹果和土豆'),o('Fish and lumber','鱼和木材')], answer:0, explain:o('Both were grown on plantations by enslaved people.','两者都是由被奴役者在种植园里种植的。')},
+  {q:o('Who founded Georgia in 1733, with help from the Yamacraw leader Tomochichi?','1733年，在亚马克劳人首领托莫奇奇的帮助下建立佐治亚的是'), options:[o('James Oglethorpe','詹姆斯·奥格尔索普'),o('William Penn','威廉·佩恩'),o('Roger Williams','罗杰·威廉斯'),o('John Smith','约翰·史密斯')], answer:0, explain:o('Oglethorpe led the Trustees’ settlers to Savannah.','奥格尔索普带领托管委员会的移民来到萨凡纳。')},
+  {q:o('Why did Britain start taxing the colonies after 1763?','1763年以后英国为什么开始向殖民地征税？'), options:[o('To pay debts from the French and Indian War','为了偿还法国-印第安人战争的债务'),o('To pay for the Boston Tea Party','为了赔偿波士顿倾茶事件'),o('To build schools in America','为了在北美建学校'),o('To pay France for Canada','为了向法国购买加拿大')], answer:0, explain:o('Britain’s national debt had nearly doubled.','英国国债几乎翻了一番。')},
+  {q:o('“No taxation without representation” meant…','“无代表，不纳税”的意思是'), options:[o('Only a body the colonists elected should tax them','只有殖民地人自己选出的机构才能向他们征税'),o('Colonists should never pay any tax','殖民地人永远不交任何税'),o('Only the King could tax','只有国王才能征税'),o('Taxes should go to Native nations','税收应该交给印第安部族')], answer:0, explain:o('Colonists had no members in Parliament.','殖民地在英国议会中没有议员。')},
+  {q:o('What did Patriots throw into Boston Harbor on 16 December 1773?','1773年12月16日，爱国者把什么倒进了波士顿港？'), options:[o('342 chests of tea (from China)','342箱茶叶（来自中国）'),o('Stamps','印花税票'),o('British soldiers’ guns','英军的枪'),o('Sugar','糖')], answer:0, explain:o('The East India Company had bought the tea in Guangzhou.','东印度公司是在广州买的这批茶叶。')},
+  {q:o('Which battle is called the turning point of the war, because it brought France in as an ally?','哪一场战役被称为战争的转折点，因为它促使法国与美国结盟？'), options:[o('Saratoga (1777)','萨拉托加（1777年）'),o('Bunker Hill (1775)','邦克山（1775年）'),o('Long Island (1776)','长岛（1776年）'),o('Kettle Creek (1779)','凯特尔溪（1779年）')], answer:0, explain:o('France signed an alliance in February 1778.','1778年2月，法国签订同盟条约。')},
+  {q:o('Who wrote most of the Declaration of Independence?','《独立宣言》主要是谁起草的？'), options:[o('Thomas Jefferson','托马斯·杰斐逊'),o('George Washington','乔治·华盛顿'),o('Thomas Paine','托马斯·潘恩'),o('King George III','英王乔治三世')], answer:0, explain:o('Paine wrote Common Sense; Washington led the army.','潘恩写的是《常识》；华盛顿是军队统帅。')},
+  {q:o('Map reading: on the colonies map at 1763, the dashed line shows…','读图：在1763年的殖民地地图上，那条虚线表示'), options:[o('The Proclamation Line — no settling west of the Appalachians','《1763年公告》线——不许越过阿巴拉契亚山脉向西定居'),o('The border with Mexico','与墨西哥的边界'),o('The route of the Mayflower','五月花号的航线'),o('The Mississippi River','密西西比河')], answer:0, explain:o('Britain wanted to avoid new wars with Native nations.','英国想避免与印第安部族再起战争。')},
+  {q:o('Figure reading: about how many people lived in the colonies in 1770?','读图：1770年殖民地大约有多少人口？'), options:[o('About 2.1 million','约210万'),o('About 210,000','约21万'),o('About 21 million','约2100万'),o('About 300 million','约3亿')], answer:0, explain:o('About 460,000 of them were people of African descent, almost all enslaved. 300 million is closer to Qing China’s population.','其中约46万是非洲裔，几乎全部被奴役。3亿更接近清朝的人口。')},
+  {q:o('Where did the war’s last major battle take place, with Cornwallis surrendering in 1781?','1781年康华利投降的最后一场大战发生在哪里？'), options:[o('Yorktown, Virginia','弗吉尼亚的约克镇'),o('Savannah, Georgia','佐治亚的萨凡纳'),o('Lexington, Massachusetts','马萨诸塞的列克星敦'),o('Trenton, New Jersey','新泽西的特伦顿')], answer:0, explain:o('A French fleet blocked his escape by sea.','法国舰队封锁了他从海上撤退的路。')},
+  {q:o('Meanwhile in China: who was the Qing emperor when the Declaration of Independence was signed?','同一时期的中国：《独立宣言》签署时，清朝的皇帝是'), options:[o('Qianlong','乾隆'),o('Kangxi','康熙'),o('Yongzheng','雍正'),o('Guangxu','光绪')], answer:0, explain:o('Qianlong reigned 1736–1795.','乾隆1736—1795年在位。')}
+];
+const SORT = {
+  bins:[{id:'ne',en:'New England',zh:'新英格兰'},{id:'mid',en:'Middle colonies',zh:'中部殖民地'},{id:'so',en:'Southern colonies',zh:'南部殖民地'}],
+  items:[
+    {en:'Cod fishing and whaling',zh:'捕鳕鱼和捕鲸',bin:'ne'},{en:'Shipbuilding from thick forests',zh:'用茂密的森林造船',bin:'ne'},{en:'Rocky soil, long winters',zh:'土壤多石，冬季漫长',bin:'ne'},{en:'Puritan town meetings',zh:'清教徒的镇民大会',bin:'ne'},
+    {en:'“Breadbasket”: wheat and flour',zh:'“面包篮子”：小麦和面粉',bin:'mid'},{en:'William Penn’s Quaker colony',zh:'威廉·佩恩的贵格会殖民地',bin:'mid'},{en:'Dutch New Amsterdam',zh:'荷兰的新阿姆斯特丹',bin:'mid'},{en:'Most mixed population and religions',zh:'人口和宗教最多样',bin:'mid'},
+    {en:'Tobacco plantations',zh:'烟草种植园',bin:'so'},{en:'Rice and indigo',zh:'水稻和靛蓝',bin:'so'},{en:'Oglethorpe and Tomochichi',zh:'奥格尔索普和托莫奇奇',bin:'so'},{en:'Long growing season',zh:'作物生长期长',bin:'so'}
+  ]
+};
+const mixHex = (a, b, t) => { const h = s => { s = s.replace('#', ''); return [0, 2, 4].map(i => parseInt(s.substr(i, 2), 16)); }; try { const x = h(a), y = h(b); return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join(''); } catch (e) { return a; } };
+const fmt = n => Lab.lang === 'zh' ? (n >= 10000 ? (n / 10000).toFixed(n >= 1e6 ? 0 : 1) + '万' : String(n)) : n.toLocaleString('en-US');
+const PR = { VA:o('Tobacco','烟草'), MA:o('Fish · ships','鱼·船'), NH:o('Masts · lumber','桅杆·木材'), NY:o('Furs · wheat','毛皮·小麦'), MD:o('Tobacco','烟草'), RI:o('Trade','贸易'), CT:o('Farms','农场'), DE:o('Farms','农场'), NC:o('Tar · pitch','焦油·沥青'), SC:o('Rice · indigo','水稻·靛蓝'), NJ:o('Wheat','小麦'), PA:o('Wheat · flour','小麦·面粉'), GA:o('Rice · indigo','水稻·靛蓝') };
+const EXT = [[-85.3,30.0],[-66.9,47.4]];
+
+/* ================= Colonies map + year slider ================= */
+const C = { year:1600, layer:'reg', sel:null, timer:null };
+const founded = ab => COL[ab] && C.year >= COL[ab].y;
+const colOf = ab => ab === 'ME' ? 'MA' : (COL[ab] ? ab : null);
+const CM = USMap.create('#colStage', '#colCv', { lower48:true, extent:EXT,
+  fill: f => { const k = colOf(f.ab); if (!k || !founded(k)) return null; const c = REG[COL[k].r].c; if (C.layer === 'nat') return mixHex(c, USMap.css('--surface') || '#ffffff', .7); return C.sel && C.sel !== k ? mixHex(c, USMap.css('--surface') || '#ffffff', .5) : c; },
+  overlay: (g, M) => {
+    const ink = USMap.css('--ink'), ink2 = USMap.css('--ink-2'), s = M.small, fs = s ? 10 : 12;
+    if (C.year >= 1763){ M.line(PROC, '#b0413e', 2.4, [7, 5]); const p = M.xy([-84.6,37.3]); if (p && !s) M.text(Lab.L(o('Proclamation Line 1763','1763年公告线')), p[0], p[1], { s:11, c:'#b0413e' }); }
+    OTHER.forEach(x => { if (C.year < x.a || C.year >= x.b) return; const p = M.xy(x.ll); if (p) M.text(Lab.L(x.t), p[0], p[1], { s:fs, c:ink2, w:700 }); });
+    if (C.layer === 'nat'){
+      NATIONS.forEach(([n, ll]) => { const p = M.xy(ll); if (p) M.text('🪶 ' + Lab.L(n), p[0], p[1], { s:s ? 9.5 : 11.5, c:'#7a3e1d' }); });
+    } else {
+      ORDER.forEach(k => { if (!founded(k)) return; const a = COL[k], p = M.xy(a.lab); if (!p) return;
+        if (C.layer === 'prod'){ M.text(s ? k : Lab.L(PR[k]), p[0], p[1], { s:s ? 9 : 11, c:ink, a:s ? 'center' : a.la }); }
+        else M.text(s || a.sh ? k + (s ? '' : ' ' + a.y) : Lab.L(a.n) + ' ' + a.y, p[0], p[1], { s:fs, c:ink, a:s ? 'center' : a.la }); });
+      if (C.year >= 1620 && C.layer === 'reg'){ const p = M.xy([-69.3,45.4]); if (p && !s) M.text(Lab.L(o('Maine (part of Massachusetts)','缅因（属马萨诸塞）')), p[0], p[1], { s:11, c:ink2, w:700 }); }
+    }
+    PLACES.forEach(pl => { if (C.year < pl.y) return; const p = M.dot(pl.ll, 3.4, ink, USMap.css('--surface')); const n = typeof pl.n === 'function' ? pl.n(C.year) : pl.n; if (p && !s && C.layer !== 'nat') M.text(Lab.L(n), p[0] + 6, p[1] + 1, { s:10.5, a:'left', c:ink, w:700 }); });
+    const lx = 14, ly = s ? 104 : 62;
+    if (C.layer !== 'nat') Object.values(REG).forEach((r, i) => { g.fillStyle = r.c; g.fillRect(lx, ly + i * 20, 14, 14); g.strokeStyle = ink2; g.strokeRect(lx, ly + i * 20, 14, 14); M.text(Lab.L(r.n), lx + 20, ly + 7 + i * 20, { s:12, a:'left' }); });
+  },
+  click: f => { const k = f && colOf(f.ab); if (k && founded(k)) return select(k); if (k) return tip(o(`${COL[k].n.en} is founded in ${COL[k].y}. Drag the year forward!`, `${COL[k].n.zh}${COL[k].y}年才建立，把年份往后拖！`)); tip(o('That is not one of the 13 colonies.','这里不属于十三个殖民地。')); },
+  hover: f => f ? Lab.L(o(f.en, f.zh)) : ''
+});
+const tip = m => Lab.$('#colTip').textContent = Lab.L(m || (C.layer === 'nat' ? o('Native nations around 1600–1700 (approximate homelands)','约1600—1700年的印第安部族（大致居住区）') : o('Click a coloured colony · drag the year','点击有颜色的殖民地 · 拖动年份')));
+function select(k){ C.sel = k; renderInfo(); renderChips(); CM.draw(); }
+function renderInfo(){
+  const box = Lab.$('#info'), k = C.sel;
+  if (!k){
+    box.innerHTML = `<span class="tag">${Lab.L(o('How to read the map','怎样看这张地图'))}</span><h3>${Lab.L(o('13 colonies, 3 regions','十三个殖民地，三大地区'))}</h3>
+      <p class="muted" style="margin:0">${Lab.L(o('Between 1607 and 1732 England (Britain after 1707) planted 13 colonies along the Atlantic coast — on land where Native nations already lived.','1607—1732年间，英格兰（1707年后为大不列颠）在大西洋沿岸建立了十三个殖民地，而这些土地上早已生活着印第安部族。'))}</p>
+      <ul><li>${Lab.L(o('<b>Blue</b> = New England, <b>green</b> = Middle, <b>orange</b> = Southern.','<b>蓝色</b>＝新英格兰，<b>绿色</b>＝中部，<b>橙色</b>＝南部。'))}</li><li>${Lab.L(o('<b>Grey labels</b> = land claimed by France, Spain, the Netherlands or Sweden.','<b>灰色文字</b>＝法国、西班牙、荷兰或瑞典声称拥有的土地。'))}</li><li>${Lab.L(o('Remember the reasons: <b>religion</b> (north) and <b>profit</b> (south).','记住建立原因：北方多为<b>宗教</b>，南方多为<b>获利</b>。'))}</li></ul>
+      <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(o('New England: “Many Nice Rabbits Can” (MA, NH, RI, CT). Middle: “New Yorkers Never Pass Dessert” (NY, NJ, PA, DE). South: “Very Merry Nights Start Gently” (VA, MD, NC, SC, GA).','北四个：马、新罕、罗得、康涅狄格；中四个：纽约、新泽西、宾州、特拉华；南五个：弗吉尼亚、马里兰、两个卡罗来纳、佐治亚。'))}</div>
+      <div class="nav"><button id="startBtn">${Lab.L(o('Start with Virginia ▶','从弗吉尼亚开始 ▶'))}</button></div>`;
+    Lab.$('#startBtn').onclick = () => { if (C.year < 1607) setYear(1607); select('VA'); }; return;
+  }
+  const a = COL[k], r = REG[a.r], i = ORDER.indexOf(k);
+  box.innerHTML = `<span class="tag">${Lab.L(r.n)} · ${a.y}</span>
+    <h3><span class="dot" style="background:${r.c}"></span>${Lab.L(a.n)}</h3>
+    <div class="date">${Lab.L(a.who)}</div>
+    <div class="job">🎯 ${Lab.L(o('Why: ','原因：'))}${Lab.L(a.why)} · 🧺 ${Lab.L(a.made)}</div>
+    <div class="job">🪶 ${Lab.L(o('Native nations: ','印第安部族：'))}${Lab.L(a.nat)}</div>
+    <b class="kh">${Lab.L(o('📌 KEY FACTS','📌 重要史实'))}</b>
+    <ul>${Lab.L(a.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(a.hint)}</div>
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
+  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(a.n), Lab.L(a.who), Lab.L(a.why), ...Lab.L(a.facts)].join(Lab.lang === 'zh' ? '。' : '. '));
+  const go = j => { const n = ORDER[(j + ORDER.length) % ORDER.length]; if (C.year < COL[n].y) setYear(COL[n].y); select(n); };
+  Lab.$('#pPrev').onclick = () => go(i - 1); Lab.$('#pNext').onclick = () => go(i + 1);
+}
+function renderChips(){
+  Lab.$('#colChips').innerHTML = ORDER.map(k => `<button class="chip ${C.sel === k ? 'on' : ''} ${founded(k) ? '' : 'off'}" data-k="${k}"><i style="background:${REG[COL[k].r].c}"></i>${COL[k].y} ${Lab.L(COL[k].n)}</button>`).join('');
+  Lab.$$('#colChips .chip').forEach(b => b.onclick = () => { const k = b.dataset.k; if (!founded(k)) setYear(COL[k].y); select(k); });
+}
+const EYEARS = [...new Set(EV.map(e => e.y))];
+const curY = () => { let c = EYEARS[0]; EYEARS.forEach(y => { if (y <= C.year) c = y; }); return c; };
+function renderYear(){
+  const y = C.year, c = curY();
+  Lab.$('#yr').value = y; Lab.$('#yrOut').textContent = y; Lab.$('#ycYear').textContent = c;
+  Lab.$('#ycList').innerHTML = EV.filter(e => e.y === c).map(e => `<div class="yc-ev" ${e.k ? `style="border-color:${REG[COL[e.k].r].c}"` : ''}><h4>${Lab.L(e.t)}</h4><p>${Lab.L(e.b)}</p></div>`).join('');
+  const cn = CN.filter(x => x.y <= y).pop() || CN[0];
+  Lab.$('#cnBox').innerHTML = `<small>${Lab.L(o('🇨🇳 Meanwhile in China','🇨🇳 同一时期的中国'))}</small>${Lab.L(cn.t)}`;
+  const [pop, ens] = popAt(y);
+  Lab.$('#roCol').textContent = ORDER.filter(founded).length; Lab.$('#roPop').textContent = y < 1607 ? '0' : '≈ ' + fmt(Math.round(pop / 100) * 100); Lab.$('#roEns').textContent = y < 1619 ? '0' : '≈ ' + fmt(Math.round(ens / 100) * 100);
+  Lab.$('#playBtn').textContent = C.timer ? '⏸' : '▶';
+  renderChips(); CM.draw();
+}
+function setYear(y){ C.year = Math.max(1600, Math.min(1776, y)); renderYear(); }
+function stop(){ if (C.timer){ clearInterval(C.timer); C.timer = null; } }
+const stepY = d => { const c = curY(), i = EYEARS.indexOf(c); return d > 0 ? EYEARS[Math.min(EYEARS.length - 1, i + 1)] : (C.year > c ? c : EYEARS[Math.max(0, i - 1)]); };
+const evGo = y => { stop(); setYear(y); const e = EV.filter(e => e.y === curY() && e.k).pop(); if (e) select(e.k); };
+Lab.$('#yr').oninput = e => { stop(); setYear(+e.target.value); };
+Lab.$('#evPrev').onclick = () => evGo(stepY(-1)); Lab.$('#evNext').onclick = () => evGo(stepY(1));
+Lab.$('#playBtn').onclick = () => { if (C.timer){ stop(); renderYear(); return; } if (C.year >= 1776) setYear(1600);
+  C.timer = setInterval(() => { if (C.year >= 1776){ stop(); renderYear(); } else { const y = stepY(1); setYear(y); const e = EV.filter(e => e.y === y && e.k).pop(); if (e){ C.sel = e.k; renderInfo(); } } }, 2300); renderYear(); };
+Lab.$$('[data-layer]').forEach(b => b.onclick = () => { C.layer = b.dataset.layer; Lab.$$('[data-layer]').forEach(x => x.classList.toggle('on', x === b)); tip(); CM.draw(); });
+function renderRegions(){
+  Lab.$('#regions').innerHTML = Object.values(REG).map(r => `<div class="card region" style="border-top-color:${r.c}"><div class="ic">${r.ic}</div><h3>${Lab.L(r.n)}</h3><p><b>${Lab.L(o('Land & climate: ','土地与气候：'))}</b>${Lab.L(r.geo)}</p><p><b>${Lab.L(o('Made & sold: ','生产与贸易：'))}</b>${Lab.L(r.made)}</p><p><b>${Lab.L(o('Life: ','生活：'))}</b>${Lab.L(r.life)}</p></div>`).join('');
+}
+function renderPop(){
+  const max = 2148100;
+  Lab.$('#popBars').innerHTML = POP.map(([y, t, b]) => `<div class="bar"><span class="bl">${y}</span><div class="bt"><i style="width:${((t - b) / max * 100).toFixed(1)}%;background:#5f8fc9"></i><i style="width:${(b / max * 100).toFixed(1)}%;background:#8a5a3c"></i></div><span class="bv">${fmt(Math.round(t / 1000) * 1000)} · ${Math.round(b / t * 100)}%</span></div>`).join('');
+  Lab.$('#debt').innerHTML = [[o('1756','1756年'), 75], [o('1763','1763年'), 133]].map(([l, v]) => `<div><span>£${v}${Lab.lang === 'zh' ? '百万' : 'M'}</span><i style="height:${v / 133 * 120}px"></i><span>${Lab.L(l)}</span></div>`).join('');
+}
+Lab.onLang(() => { tip(); renderInfo(); renderYear(); renderRegions(); renderPop(); });
+
+/* ================= Newspaper mission ================= */
+const N = { side:null, ed:0, ans:{}, head:null, score:0, streak:0, best:0, done:[], phase:'pick', msg:null };
+function nReset(){ Object.assign(N, { side:null, ed:0, ans:{}, head:null, score:0, streak:0, done:[], phase:'pick', msg:null, order:null }); nRender(); }
+function nPick(side){ N.side = side; N.phase = 'args'; N.msg = null; nRender(); }
+function nAnswer(i, v){ const a = ED[N.ed].args[i]; if (N.ans[i]) return; N.ans[i] = v; const ok = v === a.s;
+  if (ok){ N.score += 10; N.streak++; } else N.streak = 0;
+  N.msg = { c:ok ? 'good' : 'bad', t:ok ? o('✅ Right! +10','✅ 正确！+10') : o('💡 Not quite — read why below.','💡 不对——看看下面的解释。') };
+  if (Object.keys(N.ans).length === 4) N.phase = 'head'; nRender(); }
+function nHead(k){ if (N.head) return; N.head = k; const fit = k === N.side, pts = fit ? 20 : k === 'n' ? 10 : 0; N.score += pts;
+  N.msg = { c:pts ? 'good' : 'bad', t:fit ? o('✅ Perfect fit for your paper! +20','✅ 非常符合你报纸的立场！+20') : k === 'n' ? o('📰 A plain, factual headline: +10. Real papers of the time were rarely this neutral!','📰 一个客观平实的标题：+10。当时真实的报纸很少这么中立！') : o('❌ That headline belongs to the other side’s paper! +0','❌ 这是对方报纸的标题！+0') };
+  N.done.push({ y:ED[N.ed].y, head:k }); N.phase = 'next'; nRender(); }
+function nNext(){ if (N.ed < ED.length - 1){ N.ed++; N.ans = {}; N.head = null; N.order = null; N.phase = 'args'; N.msg = null; } else { N.phase = 'end'; N.best = Math.max(N.best, N.score); } nRender(); }
+function nRender(){
+  const box = Lab.$('#nMain'), m = Lab.$('#nMsg'), e = ED[N.ed];
+  Lab.$('#nEd').textContent = N.done.length + '/6'; Lab.$('#nScore').textContent = N.score; Lab.$('#nStreak').textContent = N.streak; Lab.$('#nBest').textContent = Math.max(N.best, N.phase === 'end' ? N.score : 0);
+  Lab.$('#nProg').innerHTML = ED.map((x, i) => `<span class="${i < N.done.length ? 'done' : i === N.ed && N.phase !== 'pick' && N.phase !== 'end' ? 'cur' : ''}">${x.y} ${Lab.L(x.t)}</span>`).join('');
+  m.textContent = N.msg ? Lab.L(N.msg.t) : ''; m.className = 'result ' + (N.msg ? N.msg.c : '');
+  if (N.phase === 'pick'){
+    box.innerHTML = `<div class="event"><h4>${Lab.L(o('Step 1 · Choose your newspaper','第一步 · 选择你的报纸'))}</h4><p>${Lab.L(o('Both sides were real colonists with real reasons. Your job: know each side’s arguments.','两边都是真实的殖民地人，各有理由。你的任务：弄清每一方的论点。'))}</p>
+      <div class="side">${['p','l'].map(k => `<button class="choice" data-k="${k}">${k === 'p' ? '🗽' : '👑'} ${Lab.L(PAPERS[k].n)}<small>${Lab.L(PAPERS[k].d)}</small></button>`).join('')}</div></div>`;
+    Lab.$$('#nMain .choice').forEach(b => b.onclick = () => nPick(b.dataset.k));
+  } else if (N.phase === 'end'){
+    const max = ED.length * 60, pct = N.score / max, stars = pct >= .9 ? 3 : pct >= .7 ? 2 : 1, rk = NRANKS.filter(x => N.score >= x.s).pop();
+    box.innerHTML = `<div class="event"><h4>🗞️ ${Lab.L(o('Six editions printed!','六期报纸全部出版！'))}</h4><div class="stars">${'★'.repeat(stars)}${'☆'.repeat(3 - stars)}</div>
+      <p>${Lab.L(o(`Score <b>${N.score}</b> of ${max}. Rank: <b>${rk.n.en}</b>.`, `得分<b>${N.score}</b>／${max}。头衔：<b>${rk.n.zh}</b>。`))}</p>
+      <p class="muted">${Lab.L(o('Notice how the same event could be told two ways. Historians read papers from BOTH sides to work out what really happened. ★★★ = 90% or more.','你发现了吗？同一件事可以有两种讲法。历史学家要读双方的报纸，才能弄清真相。★★★＝得分90%以上。'))}</p>
+      <div class="btnrow"><button class="btn" id="nAgain">${Lab.L(o('Play again (try the other paper!)','再玩一次（试试另一份报纸！）'))}</button></div></div>`;
+    Lab.$('#nAgain').onclick = nReset;
+  } else {
+    box.innerHTML = `<div class="event"><h4>📅 ${e.y} · ${Lab.L(e.t)}</h4><p>${Lab.L(e.s)}</p></div>
+      <div class="args">${e.args.map((a, i) => { const v = N.ans[i]; return `<div class="arg"><q>${Lab.L(a.q)}</q><div class="two">${['p','l'].map(s => `<button data-i="${i}" data-v="${s}" class="${v ? (s === a.s ? 'right' : s === v ? 'wrong' : '') : ''}" ${v ? 'disabled' : ''}>${s === 'p' ? Lab.L(o('🗽 Patriot','🗽 爱国者')) : Lab.L(o('👑 Loyalist','👑 效忠派'))}</button>`).join('')}</div>${v ? `<div class="why">${v === a.s ? '✅' : '💡'} ${Lab.L(a.w)}</div>` : ''}</div>`; }).join('')}</div>
+      ${N.phase !== 'args' ? `<div class="event"><h4>${Lab.L(o(`Step 2 · Pick the front-page headline for ${PAPERS[N.side].n.en}`, `第二步 · 为${PAPERS[N.side].n.zh}挑选头版标题`))}</h4><div class="side">${(N.order || (N.order = Lab.shuffle(['p','l','n']))).map(k => `<button class="choice ${N.head === k ? 'on' : ''}" data-h="${k}" ${N.head ? 'disabled' : ''}>${Lab.L(e.h[k])}</button>`).join('')}</div></div>` : ''}
+      ${N.phase === 'next' ? `<p class="muted">💡 ${Lab.L(e.fact)}</p><div class="btnrow"><button class="btn" id="nNext">${N.ed < ED.length - 1 ? Lab.L(o(`Next crisis: ${ED[N.ed + 1].y} ▶`, `下一次危机：${ED[N.ed + 1].y}年 ▶`)) : Lab.L(o('See your final front page ▶','查看最终成绩 ▶'))}</button></div>` : ''}`;
+    Lab.$$('#nMain .two button').forEach(b => b.onclick = () => nAnswer(+b.dataset.i, b.dataset.v));
+    Lab.$$('#nMain [data-h]').forEach(b => b.onclick = () => nHead(b.dataset.h));
+    if (Lab.$('#nNext')) Lab.$('#nNext').onclick = nNext;
+  }
+  const last = N.phase === 'next' || N.phase === 'end' ? (N.phase === 'end' ? ED[ED.length - 1] : e) : null, P = N.side ? PAPERS[N.side] : null;
+  Lab.$('#nPaper').innerHTML = P ? `<div class="paper"><div class="mast">${Lab.L(P.n)}</div><div class="dl"><span>${Lab.L(o('Boston','波士顿'))}</span><span>${last ? last.y : '17—'}</span><span>${Lab.L(o('Price: one penny','售价：一便士'))}</span></div>
+    ${last ? `<h5>${Lab.L(last.h[N.done[N.done.length - 1].head])}</h5><div class="cols">${last.args.filter(a => a.s === N.side).map(a => `<p>${Lab.L(a.q)}</p>`).join('')}</div>` : `<p class="empty">${Lab.L(o('Your front page will appear here.','你的头版会出现在这里。'))}</p>`}</div>` : '';
+  Lab.$('#nRanks').innerHTML = NRANKS.map(x => `<span class="${Math.max(N.best, N.score) >= x.s ? 'on' : ''}">${Lab.L(x.n)}</span>`).join('');
+}
+Lab.onLang(nRender);
+</script>
+<script>
+/* ================= War map: battles to Yorktown ================= */
+const W = { i:0, guess:{}, timer:null, seen:new Set([0]) };
+const WIN = { a:{ c:'#2f6fc0', t:o('Patriot / American win','爱国者（美方）胜') }, b:{ c:'#c0392b', t:o('British win','英军胜') }, x:{ c:'#8a8f98', t:o('No clear winner / not a battle','未分胜负／不是战斗') } };
+const bDate = d => { const [y, m, dd] = d.split('-').map(Number); return Lab.lang === 'zh' ? `${y}年${m}月${dd}日` : new Date(y, m - 1, dd).toLocaleDateString('en-US', { day:'numeric', month:'short', year:'numeric' }); };
+const revealed = i => W.guess[i] !== undefined;
+const WM = USMap.create('#warStage', '#warCv', { lower48:true, extent:EXT,
+  fill: f => { const k = colOf(f.ab); return k ? mixHex(REG[COL[k].r].c, USMap.css('--surface') || '#ffffff', .72) : null; },
+  overlay: (g, M) => {
+    const ink = USMap.css('--ink'), ink2 = USMap.css('--ink-2'), s = M.small;
+    const pts = BAT.slice(0, W.i + 1).filter(b => b.ll);
+    if (pts.length > 1) M.line(pts.map(b => b.ll), ink2, 1.4, [3, 5]);
+    BAT.forEach((b, i) => { if (i > W.i || !b.ll) return; const cur = i === W.i, col = revealed(i) || !cur ? WIN[b.w].c : ink2;
+      const p = M.dot(b.ll, cur ? 9 : 5.5, col, USMap.css('--surface')); if (!p) return;
+      if (cur || (!s && b.key)) M.text(Lab.L(b.n), p[0] + (cur ? 13 : 9), p[1], { s:cur ? 13 : 10.5, a:'left', c:cur ? ink : ink2, w:cur ? 800 : 700 }); });
+    const lx = 14, ly = s ? 104 : 62;
+    Object.values(WIN).forEach((w, i) => { g.beginPath(); g.arc(lx + 7, ly + 7 + i * 20, 6, 0, 7); g.fillStyle = w.c; g.fill(); M.text(Lab.L(w.t), lx + 20, ly + 7 + i * 20, { s:12, a:'left' }); });
+  },
+  click: (f, h) => { if (!h.ll) return; let best = -1, bd = 1e9; BAT.forEach((b, i) => { if (i > W.i || !b.ll) return; const p = WM.xy(b.ll), d = Math.hypot(p[0] - h.x, p[1] - h.y); if (d < bd){ bd = d; best = i; } }); if (best >= 0 && bd < 26){ W.i = best; wRender(); } },
+  hover: f => f ? Lab.L(o(f.en, f.zh)) : ''
+});
+function wGuess(v){ if (revealed(W.i)) return; W.guess[W.i] = v; wRender(); }
+function wRender(){
+  const b = BAT[W.i], box = Lab.$('#warInfo'), r = revealed(W.i);
+  W.seen.add(W.i);
+  Lab.$('#wIdx').value = W.i; Lab.$('#wOut').textContent = b.d.slice(0, 4); Lab.$('#wPlay').textContent = W.timer ? '⏸' : '▶';
+  const right = Object.entries(W.guess).filter(([i, v]) => BAT[i].w === v).length, nG = Object.keys(W.guess).length;
+  Lab.$('#wRight').textContent = `${right}/${nG}`; Lab.$('#wDone').textContent = `${W.seen.size}/${BAT.length}`;
+  const st = nG < BAT.length ? 0 : right >= 15 ? 3 : right >= 11 ? 2 : 1; Lab.$('#wStars').textContent = nG < BAT.length ? `${nG}/${BAT.length}` : '★'.repeat(st) + '☆'.repeat(3 - st);
+  const cn = WCN.filter(x => x[0] <= +b.d.slice(0, 4)).pop();
+  box.innerHTML = `<span class="tag">${bDate(b.d)} · ${Lab.L(b.g)}</span><h3>${r ? `<span class="dot" style="background:${WIN[b.w].c}"></span>` : ''}${Lab.L(b.n)}</h3>
+    <p style="margin:0">${Lab.L(b.b)}</p>
+    ${r ? `<div class="job" style="color:${WIN[b.w].c}">${W.guess[W.i] === b.w ? '✅' : '💡'} ${Lab.L(WIN[b.w].t)}</div><b class="kh">${Lab.L(o('📌 WHY IT MATTERED','📌 意义'))}</b><p style="margin:0">${Lab.L(b.m)}</p>`
+        : `<b class="kh">${Lab.L(o('🤔 YOUR CALL: who won?','🤔 你来判断：谁赢了？'))}</b><div class="guess">${['a','b','x'].map(v => `<button class="tbtn" data-g="${v}">${Lab.L(o({a:'🗽 Patriots',b:'👑 British',x:'⚖️ Neither'}[v], {a:'🗽 爱国者',b:'👑 英军',x:'⚖️ 都不是'}[v]))}</button>`).join('')}</div>`}
+    ${cn ? `<div class="cn" style="margin-top:6px"><small>${Lab.L(o('🇨🇳 Meanwhile in China','🇨🇳 同一时期的中国'))}</small>${Lab.L(cn[1])}</div>` : ''}
+    <button class="speak" id="wSpeak">${Lab.L(Lab.UI.listen)}</button>
+    <div class="nav"><button id="wPrev">${Lab.L(o('◀ Previous','◀ 上一场'))}</button><button id="wNext">${Lab.L(o('Next battle ▶','下一场战役 ▶'))}</button></div>`;
+  Lab.$$('#warInfo [data-g]').forEach(x => x.onclick = () => wGuess(x.dataset.g));
+  Lab.$('#wSpeak').onclick = () => Lab.speak([Lab.L(b.n), bDate(b.d), Lab.L(b.b), r ? Lab.L(b.m) : ''].join(Lab.lang === 'zh' ? '。' : '. '));
+  Lab.$('#wPrev').onclick = () => { wStop(); W.i = Math.max(0, W.i - 1); wRender(); };
+  Lab.$('#wNext').onclick = () => { wStop(); W.i = Math.min(BAT.length - 1, W.i + 1); wRender(); };
+  Lab.$('#warTip').textContent = Lab.L(o('Click a dot to revisit a battle · the dotted line follows the war south','点击圆点可回看战役 · 虚线显示战争一路向南'));
+  WM.draw();
+}
+function wStop(){ if (W.timer){ clearInterval(W.timer); W.timer = null; } }
+Lab.$('#wIdx').oninput = e => { wStop(); W.i = +e.target.value; wRender(); };
+Lab.$('#wPlay').onclick = () => { if (W.timer){ wStop(); wRender(); return; } if (W.i >= BAT.length - 1) W.i = 0;
+  W.timer = setInterval(() => { if (W.i >= BAT.length - 1){ wStop(); wRender(); } else { W.i++; wRender(); } }, 2600); wRender(); };
+Lab.onLang(wRender);
+
+/* ================= Declaration grievances ================= */
+(function(){
+  const S = {};
+  function render(){
+    Lab.$('#grief').innerHTML = GRIEF.map((g, i) => `<div class="row"><b>${Lab.L(g.q)}</b><div class="opts4">${GOPT.map((t, j) => `<button data-i="${i}" data-j="${j}" class="${S[i] !== undefined ? (j === g.a ? 'right' : j === S[i] ? 'wrong' : '') : ''}" ${S[i] !== undefined ? 'disabled' : ''}>${Lab.L(t)}</button>`).join('')}</div></div>`).join('');
+    Lab.$$('#grief button').forEach(b => b.onclick = () => { S[b.dataset.i] = +b.dataset.j; render(); });
+    const n = Object.keys(S).length, ok = Object.entries(S).filter(([i, j]) => GRIEF[i].a === j).length, m = Lab.$('#griefMsg');
+    m.className = 'result ' + (n ? (ok === n ? 'good' : 'bad') : ''); m.textContent = n ? Lab.L(o(`${ok} of ${n} matched.${n === 4 ? ' The Declaration turned years of protest into a list of charges against the King.' : ''}`, `已配对${n}条，正确${ok}条。${n === 4 ? '《宣言》把多年来的抗议变成了一份对国王的“起诉书”。' : ''}`)) : '';
+  }
+  Lab.onLang(render);
+})();
+Lab.onLang(() => { Lab.$('#terms').innerHTML = TERMS.map(([e, z]) => `<span><b>${e}</b> · ${z}</span>`).join(''); });
+
+Lab.quiz(Lab.$('#quiz'), QUIZ, { count:12 });
+Lab.sort(Lab.$('#sort'), SORT);
+const CQ = '?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', CT = 'https://thumb.wikimedia.org/wikipedia/commons/thumb/', CP = 'https://commons.wikimedia.org/wiki/File:';
+const VID = o('Video','视频'), PRINT = o('Historic print','历史版画'), PAINT = o('Painting','油画'), DOC = o('Document','原始文件');
+const PHOTOS = [
+  { src:CT + '9/9c/Benjamin_Franklin_-_Join_or_Die.jpg/960px-Benjamin_Franklin_-_Join_or_Die.jpg' + CQ, en:'“Join, or Die” (1754), the cartoon published by Benjamin Franklin during the French and Indian War: each piece of the snake is a colony. It was used again in the Revolution.', zh:'《联合，或者死亡》（1754年），本杰明·富兰克林在法国-印第安人战争期间发表的漫画：蛇的每一段代表一个殖民地。独立战争时它又被重新使用。', kind:o('Cartoon','漫画'), credit:'Benjamin Franklin', license:'Public domain', page:CP + 'Benjamin_Franklin_-_Join_or_Die.jpg' },
+  { src:CT + 'a/ad/A_view_of_Savannah_as_it_stood_the_29th_of_March_1734._LOC_97683565.jpg/960px-A_view_of_Savannah_as_it_stood_the_29th_of_March_1734._LOC_97683565.jpg' + CQ, en:'“A view of Savannah as it stood the 29th of March 1734” by Peter Gordon (Library of Congress): Georgia’s first town, laid out in squares, one year after it was founded.', zh:'彼得·戈登绘《1734年3月29日的萨凡纳》（美国国会图书馆藏）：佐治亚第一座城镇建立一年后的样子，街区呈方格状。', kind:PRINT, credit:'Peter Gordon', license:'Public domain', page:CP + 'A_view_of_Savannah_as_it_stood_the_29th_of_March_1734._LOC_97683565.jpg' },
+  { src:CT + '1/1c/Tomo-chi-chi_and_other_Yamacraws_Native_Americans.jpg/960px-Tomo-chi-chi_and_other_Yamacraws_Native_Americans.jpg' + CQ, en:'An 18th-century painting by William Verelst said to show James Oglethorpe presenting Tomochichi and other Yamacraw people to the Georgia Trustees in London (1734).', zh:'威廉·韦雷尔斯特的18世纪油画，据说描绘了奥格尔索普在伦敦把托莫奇奇等亚马克劳人介绍给佐治亚托管委员会的情景（1734年）。', kind:PAINT, credit:'William Verelst', license:'Public domain', page:CP + 'Tomo-chi-chi_and_other_Yamacraws_Native_Americans.jpg' },
+  { src:CT + 'a/a6/Proof_sheet_of_one_penny_stamps_Stamp_Act_1765.jpg/960px-Proof_sheet_of_one_penny_stamps_Stamp_Act_1765.jpg' + CQ, en:'A proof sheet of one-penny stamps for the Stamp Act of 1765 — newspapers had to be printed on paper carrying stamps like these.', zh:'1765年《印花税法》一便士印花的样张——报纸必须印在盖有这种印花的纸上。', kind:DOC, credit:'Board of Stamps (engraver unknown)', license:'Public domain', page:CP + 'Proof_sheet_of_one_penny_stamps_Stamp_Act_1765.jpg' },
+  { src:CT + '6/6d/The_Boston_Massacre_MET_DT2086.jpg/960px-The_Boston_Massacre_MET_DT2086.jpg' + CQ, en:'Paul Revere’s print of the Boston Massacre (1770), Metropolitan Museum of Art. A famous piece of Patriot propaganda — compare it with what witnesses said.', zh:'保罗·里维尔的版画《波士顿惨案》（1770年），大都会艺术博物馆藏。这是著名的爱国者宣传品——和证人的说法比一比。', kind:PRINT, credit:'Paul Revere', license:'Public domain', page:CP + 'The_Boston_Massacre_MET_DT2086.jpg' },
+  { src:CT + '5/52/Boston_Tea_Party_Currier_colored.jpg/960px-Boston_Tea_Party_Currier_colored.jpg' + CQ, en:'The Boston Tea Party, as shown in a 19th-century lithograph by Nathaniel Currier, made long after the event.', zh:'纳撒尼尔·柯里尔在19世纪（事件发生很久以后）创作的石版画：波士顿倾茶事件。', kind:PRINT, credit:'Nathaniel Currier', license:'Public domain', page:CP + 'Boston_Tea_Party_Currier_colored.jpg' },
+  { src:CT + '0/06/Battle_of_Lexington_Detail.jpg/960px-Battle_of_Lexington_Detail.jpg' + CQ, en:'“The Battle of Lexington, April 19th 1775”, engraved by Amos Doolittle after Ralph Earl (detail) — made within months of the battle.', zh:'《列克星敦之战，1775年4月19日》（局部），阿莫斯·杜利特尔根据拉尔夫·厄尔的画雕刻——在战斗发生后几个月内就制作出来了。', kind:PRINT, credit:'Amos Doolittle (engraver), Ralph Earl', license:'Public domain', page:CP + 'Battle_of_Lexington_Detail.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/9/9b/Common_sense%3B_addressed_to_the_inhabitants_of_America%2C_on_the_following_interesting_subjects_LCCN2006681076.jpg', en:'Title page of Thomas Paine’s Common Sense (1776), from the Library of Congress.', zh:'托马斯·潘恩《常识》（1776年）的扉页，美国国会图书馆藏。', kind:DOC, credit:'Thomas Paine; Library of Congress', license:'Public domain', page:CP + 'Common_sense;_addressed_to_the_inhabitants_of_America,_on_the_following_interesting_subjects_LCCN2006681076.jpg' },
+  { src:CT + 'f/f9/Declaration_of_Independence_%281819%29%2C_by_John_Trumbull.jpg/960px-Declaration_of_Independence_%281819%29%2C_by_John_Trumbull.jpg' + CQ, en:'“Declaration of Independence” by John Trumbull (1819), in the US Capitol: the committee of five, led by Jefferson, presents its draft to Congress.', zh:'约翰·特朗布尔的油画《独立宣言》（1819年），藏于美国国会大厦：杰斐逊等五人起草委员会向大陆会议提交草案。', kind:PAINT, credit:'John Trumbull', license:'Public domain', page:CP + 'Declaration_of_Independence_(1819),_by_John_Trumbull.jpg' },
+  { src:CT + '8/8f/United_States_Declaration_of_Independence.jpg/960px-United_States_Declaration_of_Independence.jpg' + CQ, en:'The Declaration of Independence, from William Stone’s 1823 copy of the signed parchment (the original, kept at the National Archives, has faded badly).', zh:'《独立宣言》，取自威廉·斯通1823年复制的签名羊皮纸本（国家档案馆收藏的原件已严重褪色）。', kind:DOC, credit:'Second Continental Congress; reproduction: William Stone', license:'Public domain', page:CP + 'United_States_Declaration_of_Independence.jpg' },
+  { src:CT + '9/95/Washington_Crossing_the_Delaware_by_Emanuel_Leutze%2C_MMA-NYC%2C_1851.jpg/960px-Washington_Crossing_the_Delaware_by_Emanuel_Leutze%2C_MMA-NYC%2C_1851.jpg' + CQ, en:'“Washington Crossing the Delaware” by Emanuel Leutze (1851), Metropolitan Museum of Art — the night before Trenton. (Painted 75 years later: the flag shown did not exist yet!)', zh:'埃马纽埃尔·洛伊茨的《华盛顿横渡特拉华河》（1851年），大都会艺术博物馆藏——特伦顿之战的前夜。（这是75年后画的：画里的星条旗当时还没有出现！）', kind:PAINT, credit:'Emanuel Leutze', license:'Public domain', page:CP + 'Washington_Crossing_the_Delaware_by_Emanuel_Leutze,_MMA-NYC,_1851.jpg' },
+  { src:CT + 'b/b8/Surrender_of_Lord_Cornwallis.jpg/960px-Surrender_of_Lord_Cornwallis.jpg' + CQ, en:'“Surrender of Lord Cornwallis” by John Trumbull, US Capitol: the British surrender at Yorktown, 19 October 1781. Cornwallis himself did not attend.', zh:'约翰·特朗布尔的《康华利勋爵投降》，藏于美国国会大厦：1781年10月19日英军在约克镇投降。康华利本人并没有到场。', kind:PAINT, credit:'John Trumbull', license:'Public domain', page:CP + 'Surrender_of_Lord_Cornwallis.jpg' },
+  { src:CT + 'c/cf/Portrait_of_the_Kangxi_Emperor_in_Court_Dress.jpg/960px-Portrait_of_the_Kangxi_Emperor_in_Court_Dress.jpg' + CQ, en:'Meanwhile in China: the Kangxi Emperor in court dress, by a Qing court painter. He reigned 1661–1722, while most of the 13 colonies were being founded.', zh:'同一时期的中国：清宫画师绘《康熙帝朝服像》。他在位61年（1661—1722年），十三个殖民地大多是在这期间建立的。', kind:PAINT, credit:'Qing dynasty court painter', license:'Public domain', page:CP + 'Portrait_of_the_Kangxi_Emperor_in_Court_Dress.jpg' },
+  { type:'youtube', yt:'1cT_Z0KGhP8', en:'TED-Ed: “The story behind the Boston Tea Party” — Ben Labaree (about 4 minutes).', zh:'TED-Ed：《波士顿倾茶事件背后的故事》（本·拉巴里，约4分钟，英文）。', kind:VID, credit:'TED-Ed (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'OYLmlzPFzi0', en:'US National Archives: “What’s Really on the Back of the Declaration of Independence?”', zh:'美国国家档案馆：《〈独立宣言〉的背面到底写了什么？》（英文）', kind:VID, credit:'US National Archives (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'Eytc9ZaNWyc', en:'“Taxes & Smuggling — Prelude to Revolution”, Crash Course US History #6 (about 12 min, for older students).', zh:'《税收与走私——革命的前奏》，Crash Course 美国历史第6集（约12分钟，英文，难度较高）。', kind:VID, credit:'CrashCourse (YouTube)', license:'YouTube' }
+];
+LabPhotos.render('#gallery', PHOTOS, { title:o('See the real thing','看看真实的历史'), sub:o('Real prints, paintings, documents and videos. Click a picture to enlarge it; videos open on YouTube.','真实的版画、油画、档案和视频。点击图片可放大；视频在 YouTube 打开。') });
+</script>
+</body>
+</html>
