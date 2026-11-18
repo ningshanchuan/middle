@@ -1,6 +1,6 @@
 # China history & geography deep dives — shared brief for builders
 
-**Who it's for:** the owner's son, a **12-year-old boy in the US**, learning about China. He has little background in China and loses interest in reading-heavy pages. Write and design so a 12-year-old boy *wants* to keep going:
+**Who it's for:** middle-school students (about 12) in the US learning about China — little background in China, and quickly bored by reading-heavy pages. Write and design so a 12-year-old *wants* to keep going:
 - **Missions, not chapters.** Frame sections as missions/challenges ("Mission 2: hold the pass", "Can you get the grain to the capital before winter?") with scores, stars, ranks (e.g. 士兵 → 将军), streaks and a progress bar.
 - **How it works.** Engineering and mechanisms he can build, load-test, break and fix (arches, locks, dams, crossbow triggers, seismoscopes, bridges, railways).
 - **Strategy & decisions.** Let him choose and see consequences (commander decisions, route planning, trade, disaster response).

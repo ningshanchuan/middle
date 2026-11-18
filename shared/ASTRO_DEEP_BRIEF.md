@@ -1,6 +1,6 @@
 # Astronomy deep dives — shared brief for builders
 
-**Who it's for:** the owner's son (middle school, in the US) *loves* astronomy and wants more depth, more figures, more links, more simulations and more interaction. Write for a curious, capable 12–14-year-old: never dumbed-down, never jargon without explanation. Real numbers, real data, real images. English is the primary text; Chinese (`?lang=zh`) must be complete (full-width punctuation; pinyin is added automatically by `shared/pinyin.js` — add hard astronomy words to its DICT only if you are asked to edit shared/, otherwise list them in your report).
+**Who it's for:** US middle-school students who *love* astronomy and want more depth, more figures, more links, more simulations and more interaction. Write for a curious, capable 12–14-year-old: never dumbed-down, never jargon without explanation. Real numbers, real data, real images. English is the primary text; Chinese (`?lang=zh`) must be complete (full-width punctuation; pinyin is added automatically by `shared/pinyin.js` — add hard astronomy words to its DICT only if you are asked to edit shared/, otherwise list them in your report).
 
 ## Read first
 - `shared/README.md` (framework; especially "Audience & engagement standard", LabPhotos, pinyin)
