@@ -1,14 +1,16 @@
 # Flag catalog topics whose lesson file doesn't exist yet with soon:1 (and unflag built ones).
-# Usage: powershell -File tools/soon.ps1
+# A lesson counts as built only when its file is tracked/staged in git (git add it first), so half-written files never get a live card.
+# Usage: git add <lesson files>; powershell -ExecutionPolicy Bypass -File tools/soon.ps1
 $root = Split-Path $PSScriptRoot
 $f = Join-Path $root 'shared\catalog.js'
 $t = [IO.File]::ReadAllText($f, [Text.Encoding]::UTF8)
+$tracked = @{}; git -C $root ls-files | ForEach-Object { $tracked[$_] = 1 }
 $sid = ''; $soon = 0; $out = New-Object Text.StringBuilder
 foreach ($line in $t -split "`n") {
   if ($line -match "^\s*\{ id:'(\w+)', icon") { $sid = $Matches[1] }
   if ($line -match "^(\s*)\{id:'([\w-]+)', (soon:1, )?(.*)$") {
     $ind = $Matches[1]; $tid = $Matches[2]; $rest = $Matches[4]
-    $exists = Test-Path (Join-Path $root "$sid\$tid.html")
+    $exists = $tracked.ContainsKey("$sid/$tid.html")
     if ($exists) { $line = "$ind{id:'$tid', $rest" } else { $line = "$ind{id:'$tid', soon:1, $rest"; $soon++; "soon: $sid/$tid" }
   }
   [void]$out.Append($line + "`n")
