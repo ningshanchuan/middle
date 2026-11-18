@@ -266,11 +266,11 @@ window.LAB_CATALOG = [
    {id:'yw-tang-poems', std:'语文 · 古诗词', en:'Tang Poems: Images & Feelings', zh:'唐诗鉴赏：意象与意境', d:{en:'Read, hear and picture famous Tang poems.',zh:'诵读、聆听并想象唐诗名篇的画面。'}},
    {id:'yw-song-ci', std:'语文 · 古诗词', en:'Song Ci Poetry & Classical Verse Forms', zh:'宋词与古诗词格律', d:{en:'Ci tunes, tones and rhyme in classical poetry.',zh:'词牌、平仄与押韵。'}},
    {id:'yw-wenyan-basics', std:'语文 · 文言文', en:'Classical Chinese: First Steps', zh:'文言文入门', d:{en:'Key words, translation tricks and 《论语》.',zh:'实词虚词、翻译方法与《论语》。'}},
-   {id:'yw-wenyan-classics', soon:1, std:'语文 · 文言文', en:'Classical Prose Masterpieces', zh:'文言名篇', d:{en:'《桃花源记》《岳阳楼记》《醉翁亭记》 and more.',zh:'《桃花源记》《岳阳楼记》《醉翁亭记》等。'}},
+   {id:'yw-wenyan-classics', std:'语文 · 文言文', en:'Classical Prose Masterpieces', zh:'文言名篇', d:{en:'《桃花源记》《岳阳楼记》《醉翁亭记》 and more.',zh:'《桃花源记》《岳阳楼记》《醉翁亭记》等。'}},
    {id:'yw-narrative', std:'语文 · 现代文阅读', en:'Reading Narratives', zh:'记叙文阅读', d:{en:'Six elements, plot clues, point of view and description.',zh:'六要素、线索、人称与描写方法。'}},
    {id:'yw-expository', std:'语文 · 现代文阅读', en:'Reading Expository Texts', zh:'说明文阅读', d:{en:'What is explained, in what order and with which methods.',zh:'说明对象、说明顺序与说明方法。'}},
    {id:'yw-argumentative', std:'语文 · 现代文阅读', en:'Reading Argumentative Essays', zh:'议论文阅读', d:{en:'Thesis, evidence and methods of argument.',zh:'论点、论据与论证方法。'}},
-   {id:'yw-rhetoric', soon:1, std:'语文 · 修辞', en:'Rhetorical Devices', zh:'修辞手法', d:{en:'Metaphor, personification, parallelism, exaggeration and more.',zh:'比喻、拟人、排比、夸张等。'}},
+   {id:'yw-rhetoric', std:'语文 · 修辞', en:'Rhetorical Devices', zh:'修辞手法', d:{en:'Metaphor, personification, parallelism, exaggeration and more.',zh:'比喻、拟人、排比、夸张等。'}},
    {id:'yw-classics', soon:1, std:'语文 · 名著导读', en:'Great Books (名著导读)', zh:'名著导读', d:{en:'Journey to the West, Dawn Blossoms Plucked at Dusk and other set books.',zh:'《西游记》《朝花夕拾》等必读名著。'}},
    {id:'yw-idioms', soon:1, std:'语文 · 积累与运用', en:'Idioms, Couplets & Traditional Culture', zh:'成语、对联与传统文化', d:{en:'Chengyu stories, couplets and festival customs.',zh:'成语故事、对联与节日习俗。'}},
    {id:'yw-writing', soon:1, std:'语文 · 写作', en:'Writing in Chinese', zh:'写作', d:{en:'Choosing a topic, details that show, and structure.',zh:'审题立意、细节描写与文章结构。'}}
