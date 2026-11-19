@@ -14,11 +14,11 @@ param([string]$Lang = "zh", [switch]$Estimate, [switch]$ManifestOnly, [switch]$P
       [double]$CharsPerSec = 0, [double]$UsdPerMin = 0.015,
       [string]$Endpoint = "https://api.openai.com/v1/audio/speech", [string]$Engine = "openai", [switch]$Replace,
       [int]$WorkerIndex = -1, [string]$Jobs = "", [string]$Root = "", [string]$Work = "")
-# -Engine qwen3 -Endpoint http://10.0.0.31:8000/v1/audio/speech -Voice serena -Model qwen3 : the home TTS server (OpenAI-compatible, no key, no cost).
+# -Engine qwen3 -Endpoint http://<tts-server>:8000/v1/audio/speech -Voice serena -Model qwen3 : the home TTS server (OpenAI-compatible, no key, no cost).
 # -Replace : re-record clips that already exist (e.g. switching to a new voice), in lesson order; finished keys are listed in
 #            <Work>\done_<engine>_<lang>.txt so the run can be stopped and resumed. Masters of other engines go to pcm_<lang>_<engine>.
 $ErrorActionPreference = 'Stop'
-if (-not $Speed) { $Speed = if ($Lang -eq 'zh') { 0.9 } else { 1.0 } }            # zh slower for a heritage learner; en natural pace
+if (-not $Speed) { $Speed = if ($Lang -eq 'zh' -and $Engine -eq 'openai') { 0.9 } else { 1.0 } }   # home server (serena): user chose normal speed for both languages            # zh slower for a heritage learner; en natural pace
 if (-not $CharsPerSec) { $CharsPerSec = if ($Lang -eq 'zh') { 3.0 } else { 14.0 } } # for the cost estimate only
 $ProgressPreference = 'SilentlyContinue'   # Windows PowerShell's progress bar makes Invoke-WebRequest very slow
 . (Join-Path $PSScriptRoot "paths.ps1")
@@ -72,9 +72,11 @@ if ($WorkerIndex -ge 0) {
     [IO.File]::WriteAllBytes($wav, $ms.ToArray())
   }
   $key = if ($isOpenAI) { ([IO.File]::ReadAllText($KeyFile)).Trim() } else { "" }
-  $insFile = Join-Path $PSScriptRoot "instructions_${Lang}_$Engine.txt"; if (-not (Test-Path $insFile)) { $insFile = Join-Path $PSScriptRoot "instructions_$Lang.txt" }
-  $ins = [IO.File]::ReadAllText($insFile, [Text.Encoding]::UTF8).Trim()
+  $insFile = Join-Path $PSScriptRoot "instructions_${Lang}_$Engine.txt"; if ($isOpenAI -and -not (Test-Path $insFile)) { $insFile = Join-Path $PSScriptRoot "instructions_$Lang.txt" }
+  $ins = if (Test-Path $insFile) { [IO.File]::ReadAllText($insFile, [Text.Encoding]::UTF8).Trim() } else { "" }   # serena: style instructions made Chinese sound wrong -> none
   $done = @{}; if ($Replace -and (Test-Path $doneFile)) { foreach ($d in [IO.File]::ReadAllLines($doneFile)) { $done[$d.Trim()] = 1 } }
+  # skip_<engine>_<lang>.txt: keys that hang / crash the home server (recorded separately, one at a time); treated like done here
+  $skipFile = Join-Path $Work "skip_${Engine}_$Lang.txt"; if ($Replace -and (Test-Path $skipFile)) { foreach ($d in [IO.File]::ReadAllLines($skipFile)) { if ($d.Trim()) { $done[$d.Trim()] = 1 } } }
   $lines = [IO.File]::ReadAllLines($Jobs, [Text.Encoding]::UTF8)
   $log = Join-Path $Work ("gen_{0}_w{1}.tsv" -f $Lang, $WorkerIndex)
   for ($i = $WorkerIndex; $i -lt $lines.Count; $i += $Workers) {
@@ -82,15 +84,33 @@ if ($WorkerIndex -ge 0) {
     $out = Join-Path $audioDir "$k.$Format"
     if ($Replace) { if ($done.ContainsKey($k)) { continue } } elseif (Test-Mp3 $out) { continue }
     $wav = Join-Path $pcmDir "$k.wav"; $raw = "$wav.pcm"; $part = Join-Path $audioDir "$k.part.$Format"
-    $req = @{ model = $Model; voice = $Voice; input = $inp; instructions = $ins; response_format = 'pcm'; speed = $Speed }; if (-not $isOpenAI) { $req.language = $Lang }
+    $req = @{ model = $Model; voice = $Voice; input = $inp; response_format = 'pcm'; speed = $Speed }; if ($ins) { $req.instructions = $ins }; if (-not $isOpenAI) { $req.language = $Lang }
     $body = $req | ConvertTo-Json -Compress
     $hdrs = if ($isOpenAI) { @{ Authorization = "Bearer $key" } } else { @{} }
     $ok = $false
     for ($a = 1; $a -le 5 -and -not $ok; $a++) {
+      # home server: while it is down or its GPU guard is paused, wait here (do not burn the tries and skip the clip)
+      if (-not $isOpenAI) { $hu = $Endpoint -replace '/v1/.*$', '/health'; $waited = 0; while ($true) { try { $h = Invoke-RestMethod $hu -TimeoutSec 15; if ($h.gpu_guard.ok) { break } } catch {}; if (-not $waited) { "WAIT server down or GPU paused" }; $waited++; Start-Sleep 60 } }
+      # home server: some very short texts (e.g. the single word "mitochondria.") make the model never stop. Retries send the same
+      # words written slightly differently (capital first letter / no final full stop / both); the clip keeps the original key.
+      $send = $inp
+      if (-not $isOpenAI -and $a -ge 2 -and $Lang -eq 'en' -and $inp.Length -lt 40) {
+        $cap = $inp.Substring(0, 1).ToUpper() + $inp.Substring(1); $nod = $inp.TrimEnd('.', ' ')
+        $send = @($inp, $inp, $cap, $nod, ($cap.TrimEnd('.', ' ') + '!'), $cap)[$a]
+        $body = ($req.Clone() | ForEach-Object { $_.input = $send; $_ } | ConvertTo-Json -Compress)
+      }
+      $tmo = if (-not $isOpenAI -and $inp.Length -lt 40) { 75 } else { [int](180 + 8 * $inp.Length / $(if ($Lang -eq 'zh') { 4 } else { 14 })) }   # long texts (600+ chars, ~50 s of speech) need more than 3 min; a short one that takes 75 s is stuck
       try {
         if (-not (Test-Path $wav)) {     # a master from an earlier run is re-used (no second API call)
-          Invoke-WebRequest -Uri $Endpoint -Method Post -Headers $hdrs -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($body)) -OutFile $raw -UseBasicParsing -TimeoutSec 180
+          # home server crashes easily: one machine-wide lock makes every worker (en and zh) take turns = a serial queue
+          $mx = $null; if (-not $isOpenAI) { $mx = New-Object Threading.Mutex($false, 'Global\SerenaTTSQueue'); try { [void]$mx.WaitOne() } catch [Threading.AbandonedMutexException] {} }
+          try { Invoke-WebRequest -Uri $Endpoint -Method Post -Headers $hdrs -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($body)) -OutFile $raw -UseBasicParsing -TimeoutSec $tmo }
+          finally { if ($mx) { $mx.ReleaseMutex(); $mx.Dispose() } }
           if ((Get-Item $raw).Length -lt 4800) { throw "audio too short" }
+          # sanity check: a clip far too long (garbled / stretched) or too short (cut off) for its text is generated again
+          $rs = ((Get-Item $raw).Length / 48000.0); $cps = $inp.Length / [Math]::Max(0.1, $rs)
+          $lo, $hi = if ($Lang -eq 'zh') { 2.8, 9 } else { 7, 22 }
+          if (-not $isOpenAI -and $inp.Length -ge 8 -and ($cps -lt $lo -or $cps -gt $hi) -and $a -lt 4) { Remove-Item $raw -Force; throw ("odd length {0:N1}s for {1} chars ({2:N1}/s)" -f $rs, $inp.Length, $cps) }
           Write-Wav $raw $wav; Remove-Item $raw -Force
         }
         $sec = [Math]::Round(((Get-Item $wav).Length - 44) / 48000.0, 2)
@@ -106,6 +126,8 @@ if ($WorkerIndex -ge 0) {
         Remove-Item $raw, $part -Force -ErrorAction SilentlyContinue
         "ERR $k try=$a status=$code $($_.Exception.Message)"
         if ($code -eq 400 -or $code -eq 401 -or $code -eq 403) { break }      # bad request / key problem: do not hammer
+        # home server: 502/503/504 = its speech engine is down even if /health says ok: wait (do not use up the tries and skip the clip)
+        if (-not $isOpenAI -and ($code -eq 502 -or $code -eq 503 -or $code -eq 504)) { if ($a -gt 1) { "WAIT speech engine down ($code)" }; $a--; Start-Sleep 120; continue }
         Start-Sleep -Seconds $(if ($code -eq 429) { 15 * $a } else { 4 * $a })
       }
     }
@@ -220,8 +242,22 @@ function Prep([string]$t, [string]$raw = "") {
     $t = $t -replace '([.!?])\s*\.(?=\s|$)', '$1'
     $t = $t -replace '([.!?;:])\s*\.(\s+|$)', '$1$2'                       # "!. " left by .join('. ')
   }
+  if (-not $isOpenAI) {   # home server: symbols it may choke on (a 6-min hang + GPU crash on a text with & % CO2 and a minus sign) -> the words a reader says
+    $sub = (& $c 0x2080) + '-' + (& $c 0x2089)
+    $t = [regex]::Replace($t, '[' + $sub + ']', { param($m) [string]([int][char]$m.Value[0] - 0x2080) })   # CO2 subscript -> CO2
+    if ($Lang -eq 'zh') {
+      $t = $t -replace '\s*&\s*', (& $c 0x548C) -replace ('\s*' + (& $c 0x2212) + '\s*'), (& $c 0x51CF)
+      $t = $t -replace '(\d+(?:\.\d+)?)\s*%', ((& $c 0x767E) + (& $c 0x5206) + (& $c 0x4E4B) + '$1') -replace '%', ((& $c 0x767E) + (& $c 0x5206) + (& $c 0x6BD4))
+    } else {
+      $t = $t -replace '\s*&\s*', ' and ' -replace ('\s*' + (& $c 0x2212) + '\s*'), ' minus ' -replace '(\d)\s*%', '$1 percent' -replace '%', 'percent'
+    }
+  }
   $t = ($t -replace '\s+', ' ').Trim()
-  if ($Lang -eq 'zh') { $t = Fix-Poly $t }
+  if ($Lang -eq 'zh'){   # pinyin.js ruby text glued after a word (e.g. a word followed by its tone-marked pinyin) must not be read aloud
+    $tone = ((0x101,0xE1,0x1CE,0xE0,0x113,0xE9,0x11B,0xE8,0x12B,0xED,0x1D0,0xEC,0x14D,0xF3,0x1D2,0xF2,0x16B,0xFA,0x1D4,0xF9,0x1D6,0x1D8,0x1DA,0x1DC,0xFC) | ForEach-Object { & $c $_ }) -join ''
+    $t = $t -replace ('(?<=[' + $cjk + '])[A-Za-z' + $tone + ']*[' + $tone + '][A-Za-z' + $tone + ']*'), ''
+    if ($Engine -eq 'openai') { $t = Fix-Poly $t }   # homophone swaps were for OpenAI; serena reads 多音字 correctly as written
+  }
   return $t
 }
 $items = [ordered]@{}; $raws = @{}; $first = @{}
@@ -232,7 +268,7 @@ if (Test-Path $tf) {
     if (-not $l.Trim()) { continue }
     $o = $l | ConvertFrom-Json
     if ($chk -lt 300) { $chk++; if ((Get-Key $o.text $Lang) -ne $o.key) { $bad++ } }
-    $items[$o.key] = $o.text; if ($o.lessons) { $first[$o.key] = @($o.lessons)[0] }
+    $items[$o.key] = $o.text; if ($o.lessons) { $first[$o.key] = @($o.lessons) }
     if ($o.raw) { $raws[$o.key] = [string]$o.raw }
   }
   if ($bad) { "WARNING: $bad of $chk keys differ between the browser and this script (normalisation mismatch)" }
@@ -249,7 +285,7 @@ $todo = New-Object Collections.Generic.List[string]; $have = 0; $chars = 0
 # lesson by lesson: texts of the first catalog lesson first (so a whole lesson switches voice together); extras (place book etc.) last
 $order = @{}; $ci = 0; $sid = $null
 foreach ($m in [regex]::Matches([IO.File]::ReadAllText((Join-Path $Root "shared\catalog.js"), [Text.Encoding]::UTF8), "\{\s*id\s*:\s*'([\w-]+)'\s*,\s*(icon|std|soon)\s*:")) { if ($m.Groups[2].Value -eq 'icon') { $sid = $m.Groups[1].Value } elseif ($sid) { $order["$sid/$($m.Groups[1].Value)"] = $ci++ } }
-$keys = @($items.Keys | Sort-Object { $l = $first[$_]; if ($l -and $order.ContainsKey($l)) { $order[$l] } else { 99999 } })
+$keys = @($items.Keys | Sort-Object { $m = 99999; foreach ($l in @($first[$_])) { if ($l -and $order.ContainsKey($l) -and $order[$l] -lt $m) { $m = $order[$l] } }; $m })   # a text shared by several lessons goes with the earliest one
 $done = @{}; if ($Replace -and (Test-Path $doneFile)) { foreach ($d in [IO.File]::ReadAllLines($doneFile)) { $done[$d.Trim()] = 1 } }
 foreach ($k in $keys) {
   $out = Join-Path $audioDir "$k.$Format"
@@ -273,23 +309,23 @@ if ($isOpenAI -and -not (Test-Path $KeyFile)) { "no key file at $KeyFile"; exit 
 if ($todo.Count) {
   $jobs = Join-Path $Work "gen_jobs_$Lang.txt"
   [IO.File]::WriteAllLines($jobs, [string[]]$todo, $utf8)
-  Remove-Item (Join-Path $Work "gen_w*.log"), (Join-Path $Work "gen_w*.err") -ErrorAction SilentlyContinue
+  Remove-Item (Join-Path $Work "gen_${Lang}_w*.log"), (Join-Path $Work "gen_${Lang}_w*.err") -ErrorAction SilentlyContinue
   $n = [Math]::Max(1, [Math]::Min($Workers, $todo.Count)); $procs = @()
   for ($w = 0; $w -lt $n; $w++) {
     $a2 = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $PSScriptRoot 'gen.ps1'), '-Lang', $Lang, '-WorkerIndex', $w, '-Workers', $n, '-Jobs', $jobs, '-Voice', $Voice, '-Speed', $Speed, '-Model', $Model, '-Format', $Format, '-Kbps', $Kbps, '-Root', $Root, '-Work', $Work, '-Endpoint', $Endpoint, '-Engine', $Engine) + $(if ($Replace) { @('-Replace') } else { @() })
-    $procs += Start-Process powershell -ArgumentList $a2 -RedirectStandardOutput (Join-Path $Work "gen_w$w.log") -RedirectStandardError (Join-Path $Work "gen_w$w.err") -WindowStyle Hidden -PassThru
+    $procs += Start-Process powershell -ArgumentList $a2 -RedirectStandardOutput (Join-Path $Work "gen_${Lang}_w$w.log") -RedirectStandardError (Join-Path $Work "gen_${Lang}_w$w.err") -WindowStyle Hidden -PassThru
   }
-  "started $n generator workers; logs: $Work\gen_w*.log"
+  "started $n generator workers; logs: $Work\gen_${Lang}_w*.log"
   $t0 = Get-Date
   while (@($procs | Where-Object { -not $_.HasExited }).Count) {
     Start-Sleep -Seconds 30
-    $okN = (Get-ChildItem (Join-Path $Work "gen_w*.log") | ForEach-Object { Get-Content $_.FullName } | Where-Object { $_ -like 'OK *' }).Count
+    $okN = (Get-ChildItem (Join-Path $Work "gen_${Lang}_w*.log") | ForEach-Object { Get-Content $_.FullName } | Where-Object { $_ -like 'OK *' }).Count
     "  {0:N0}s  {1}/{2} clips" -f ((Get-Date) - $t0).TotalSeconds, $okN, $todo.Count
   }
   # gather the worker logs into one table
   $all = Join-Path $Work "gen_$Lang.tsv"
   foreach ($f in Get-ChildItem $Work -Filter "gen_${Lang}_w*.tsv") { [IO.File]::AppendAllText($all, [IO.File]::ReadAllText($f.FullName, [Text.Encoding]::UTF8), $utf8); Remove-Item $f.FullName }
-  $errs = @(Get-ChildItem (Join-Path $Work "gen_w*.log") | ForEach-Object { Get-Content $_.FullName } | Where-Object { $_ -like 'ERR *' })
+  $errs = @(Get-ChildItem (Join-Path $Work "gen_${Lang}_w*.log") | ForEach-Object { Get-Content $_.FullName } | Where-Object { $_ -like 'ERR *' })
   if ($errs.Count) { "errors: $($errs.Count) (first few below; re-run to retry the missing ones)"; $errs | Select-Object -First 8 }
 }
 Write-Manifest
