@@ -55,6 +55,7 @@
   <div class="ma-explore">
     <div class="ma-stage explore-stage" id="gStage" data-fs></div>
     <div class="card ctl">
+      <div class="lab-mode" style="align-self:flex-start"></div>
       <div class="seg" id="gMode"><button data-m="plot" class="on" data-zh="描点">Plot it</button><button data-m="name" data-zh="读点">Name it</button></div>
       <div class="ma-big" id="gPrompt"></div>
       <div class="namebox" id="gName" hidden>( <input id="nx" type="number" step="1" aria-label="x"> , <input id="ny" type="number" step="1" aria-label="y"> )</div>
@@ -62,6 +63,17 @@
       <div class="result" id="gMsg"></div>
       <div class="score"><div><b id="gHit">0</b><span data-zh="答对">correct</span></div><div><b id="gTry">0</b><span data-zh="尝试次数">tries</span></div></div>
       <div class="btnrow"><button class="btn ghost" id="gNew" data-zh="换一个点">New point</button><button class="btn ghost" id="gHelp" data-zh="隐藏辅助线">Hide helper lines</button></div>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:10px">
+        <b data-zh="进阶：半格点、象限、距离和长方形">Advanced: half steps, quadrants, distances and rectangles</b>
+        <label style="font-weight:700;font-size:14px"><input type="checkbox" id="gHalf"> <span data-zh="半格点（像 (2.5, −1.5) 这样的点）">Half steps (points like (2.5, −1.5))</span></label>
+        <div id="gInfo" style="font-size:14px;font-weight:700;line-height:1.5;min-height:42px"></div>
+        <div style="border-top:1px solid var(--line);padding-top:8px">
+          <b data-zh="🎯 挑战：长方形的第四个顶点">🎯 Challenge: the 4th corner of a rectangle</b>
+          <p class="muted" style="margin:4px 0;font-size:14px" data-zh="图上给出长方形的三个顶点 A、B、C。在网格上点出第四个顶点 D，再看看边长、周长和面积是怎样用坐标算出来的。">Three corners A, B, C of a rectangle are shown. Tap the grid to plot the 4th corner D, then see how the side lengths, perimeter and area come from the coordinates.</p>
+          <div class="btnrow"><button class="btn" id="gChBtn" data-zh="开始 / 换一个长方形">Start / new rectangle</button></div>
+          <div class="result" id="gChMsg" style="font-size:14px"></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -307,15 +319,22 @@ const snap = p => [Math.max(-EX, Math.min(EX, Math.round(p[0]))), Math.max(-EY, 
   const G = MathAnim.scene('#gStage', VIEW);
   const g = { mode:'plot', target:[3, 2], marks:[], hover:null, hit:0, tries:0, help:true, solved:false, burst:1, msg:null };
   const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+  g.half = false; g.ch = null;                     // Advanced: half-step points; rectangle challenge
+  const halfOn = () => g.half && Lab.adv();
+  const snapG = p => halfOn() ? [Math.max(-EX, Math.min(EX, Math.round(p[0] * 2) / 2)), Math.max(-EY, Math.min(EY, Math.round(p[1] * 2) / 2))] : snap(p);
   function newTarget(){
     let t;
-    do { t = [rnd(-EX, EX), rnd(-EY, EY)]; }       // mostly off the axes, never the origin or the same point twice
+    if (halfOn()) do { t = [rnd(-2 * EX, 2 * EX) / 2, rnd(-2 * EY, 2 * EY) / 2]; } while (Number.isInteger(t[0]) && Number.isInteger(t[1]));
+    else do { t = [rnd(-EX, EX), rnd(-EY, EY)]; }       // mostly off the axes, never the origin or the same point twice
     while ((t[0] === g.target[0] && t[1] === g.target[1]) || (t[0] === 0 && t[1] === 0) || ((t[0] === 0 || t[1] === 0) && Math.random() < .85));
     g.target = t; g.marks = []; g.solved = false; g.msg = null; Lab.$('#nx').value = ''; Lab.$('#ny').value = ''; render();
   }
   G.custom((ctx, S) => {
     drawPlane(ctx, S);
     const T = g.target;
+    if (Lab.adv() && g.ch){ drawCh(ctx, S); return; }
+    if (halfOn()){ ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(138,147,166,.22)'; ctx.setLineDash([2, 4]);
+      for (let v = -EX + .5; v < EX; v++) seg(ctx, S, v, -EY, v, EY); for (let v = -EY + .5; v < EY; v++) seg(ctx, S, -EX, v, EX, v); ctx.setLineDash([]); }
     if (g.mode === 'name'){ if (g.help) guides(ctx, S, T); dotAt(ctx, S, T, 10, PC, '#fff'); }
     else if (g.hover && !g.solved){ if (g.help) guides(ctx, S, g.hover); dotAt(ctx, S, g.hover, 9, 'rgba(255,255,255,.18)', '#fff'); }
     ctx.font = `800 ${Math.max(11, S.px(.34))}px Nunito, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -349,20 +368,78 @@ const snap = p => [Math.max(-EX, Math.min(EX, Math.round(p[0]))), Math.max(-EY, 
     P.innerHTML = g.mode === 'plot' ? Lab.L({ en:'Plot ', zh:'描出点 ' }) + pairHTML(g.target[0], g.target[1]) : Lab.L({ en:'Name the yellow point', zh:'写出黄色点的坐标' });
     Lab.$('#gName').hidden = Lab.$('#gNameBtns').hidden = g.mode !== 'name';
     Lab.$('#gHelp').textContent = Lab.L(g.help ? { en:'Hide helper lines', zh:'隐藏辅助线' } : { en:'Show helper lines', zh:'显示辅助线' });
-    renderMsg(); counters();
+    renderMsg(); counters(); advRender();
   }
+  /* ---- Advanced: quadrant + distance read-out, rectangle challenge ---- */
+  const o = (en, zh) => ({ en, zh });
+  const where = p => p[0] === 0 && p[1] === 0 ? o('the origin', '原点') : p[1] === 0 ? o('on the x-axis (no quadrant)', '在 x 轴上（不属于任何象限）') : p[0] === 0 ? o('on the y-axis (no quadrant)', '在 y 轴上（不属于任何象限）')
+    : [null, o('Quadrant I (x > 0, y > 0)', '第一象限（x > 0，y > 0）'), o('Quadrant II (x < 0, y > 0)', '第二象限（x < 0，y > 0）'), o('Quadrant III (x < 0, y < 0)', '第三象限（x < 0，y < 0）'), o('Quadrant IV (x > 0, y < 0)', '第四象限（x > 0，y < 0）')][p[0] > 0 ? (p[1] > 0 ? 1 : 4) : (p[1] > 0 ? 2 : 3)];
+  const sub = (a, b) => `${fmtN(a)} − ${b < 0 ? '(' + fmtN(b) + ')' : fmtN(b)}`;
+  function advRender(){
+    if (!Lab.adv()) return;
+    const info = Lab.$('#gInfo');
+    if (g.ch){ info.textContent = ''; Lab.$('#gPrompt').innerHTML = Lab.L(o('🎯 Plot the 4th corner D', '🎯 描出第四个顶点 D')); return; }
+    const last = g.marks.length ? g.marks[g.marks.length - 1].p : null, p = g.mode === 'name' ? g.target : (g.hover || last);
+    if (!p){ info.textContent = Lab.L(o('Point at the grid to see its quadrant and distances.', '把鼠标移到网格上，看看它在哪个象限、离目标多远。')); return; }
+    let s = `(${fmtN(p[0])}, ${fmtN(p[1])}): ${Lab.L(where(p))}`;
+    if (g.mode === 'plot' && !g.solved){
+      const dx = Math.abs(g.target[0] - p[0]), dy = Math.abs(g.target[1] - p[1]);
+      if (dx || dy) s += '<br>' + Lab.L(o(`To the target: ${dx} across + ${dy} up/down = ${dx + dy} units along the grid lines; straight line ≈ ${+Math.hypot(dx, dy).toFixed(2)} (Pythagoras, grade 8)`,
+                                           `到目标：横向 ${dx} + 纵向 ${dy} = 沿网格线走 ${dx + dy} 个单位；直线距离 ≈ ${+Math.hypot(dx, dy).toFixed(2)}（勾股定理，八年级）`));
+    }
+    info.innerHTML = s;
+  }
+  function newCh(){
+    let x1, x2, y1, y2;
+    do { x1 = rnd(-5, 3); x2 = rnd(x1 + 2, 5); y1 = rnd(-4, 2); y2 = rnd(y1 + 2, 4); } while (x1 >= 0 || y2 <= 0);   // the rectangle crosses an axis, so signs matter
+    const c = [[x1, y1], [x2, y1], [x2, y2], [x1, y2]], mi = rnd(0, 3);
+    g.ch = { pts:[c[(mi + 1) % 4], c[(mi + 2) % 4], c[(mi + 3) % 4]], D:c[mi], x1, x2, y1, y2, solved:false, miss:[] };
+    g.mode = 'plot'; Lab.$$('#gMode button').forEach(x => x.classList.toggle('on', x.dataset.m === 'plot'));
+    Lab.$('#gChMsg').textContent = ''; Lab.$('#gChMsg').className = 'result'; render();
+  }
+  function drawCh(ctx, S){
+    const c = g.ch, all = c.solved ? [c.pts[0], c.pts[1], c.pts[2], c.D] : c.pts;
+    ctx.lineWidth = 3; ctx.strokeStyle = C.pink;
+    for (let i = 0; i < all.length - 1; i++) seg(ctx, S, all[i][0], all[i][1], all[i + 1][0], all[i + 1][1]);
+    if (c.solved){ seg(ctx, S, c.D[0], c.D[1], all[0][0], all[0][1]); ctx.fillStyle = 'rgba(246,127,179,.15)'; ctx.fillRect(S.sx(c.x1), S.sy(c.y2), S.px(c.x2 - c.x1), S.px(c.y2 - c.y1)); }
+    if (g.hover && !c.solved){ if (g.help) guides(ctx, S, g.hover); dotAt(ctx, S, g.hover, 9, 'rgba(255,255,255,.18)', '#fff'); }
+    ctx.font = `800 ${Math.max(11, S.px(.34))}px Nunito, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    c.miss.forEach(p => dotAt(ctx, S, p, 8, C.red, '#fff'));
+    all.forEach((p, i) => { dotAt(ctx, S, p, 9, i === 3 ? C.green : C.pink, '#fff'); ctx.fillStyle = C.white;
+      ctx.fillText(`${'ABCD'[i]}(${fmtN(p[0])}, ${fmtN(p[1])})`, S.sx(p[0]), S.sy(p[1] + (p[1] === c.y2 ? .5 : -.5))); });
+  }
+  function judgeCh(p){
+    const c = g.ch, m = Lab.$('#gChMsg'); if (c.solved) return;
+    if (p[0] === c.D[0] && p[1] === c.D[1]){
+      c.solved = true; const w = c.x2 - c.x1, h = c.y2 - c.y1;
+      m.innerHTML = Lab.L(o(`🎉 D = (${fmtN(c.D[0])}, ${fmtN(c.D[1])})! Width = ${sub(c.x2, c.x1)} = ${w}, height = ${sub(c.y2, c.y1)} = ${h}.<br>Perimeter = 2 × (${w} + ${h}) = ${2 * (w + h)}, area = ${w} × ${h} = ${w * h} square units.`,
+                            `🎉 D = (${fmtN(c.D[0])}, ${fmtN(c.D[1])})！长 = ${sub(c.x2, c.x1)} = ${w}，宽 = ${sub(c.y2, c.y1)} = ${h}。<br>周长 = 2 × (${w} + ${h}) = ${2 * (w + h)}，面积 = ${w} × ${h} = ${w * h} 平方单位。`));
+      m.className = 'result good';
+    } else {
+      c.miss.push(p);
+      m.textContent = Lab.L(o('Not there. D must share its x with one neighbour corner and its y with the other.', '不对。D 的横坐标要和一个相邻顶点相同，纵坐标要和另一个相邻顶点相同。'));
+      m.className = 'result bad';
+    }
+  }
+  Lab.$('#gChBtn').onclick = newCh;
+  Lab.$('#gHalf').onchange = e => { g.half = e.target.checked; Lab.$('#nx').step = Lab.$('#ny').step = g.half ? '0.5' : '1'; g.ch = null; newTarget(); };
+  Lab.onMode(adv => {
+    if (!adv){ const wasHalf = g.half; g.half = false; Lab.$('#gHalf').checked = false; Lab.$('#nx').step = Lab.$('#ny').step = '1';
+      if (g.ch || wasHalf){ g.ch = null; newTarget(); return; } }
+    render();
+  });
   const cv = G.cv;
-  cv.addEventListener('pointermove', e => { g.hover = snap(pointerWorld(G, e)); });
+  cv.addEventListener('pointermove', e => { g.hover = snapG(pointerWorld(G, e)); advRender(); });
   cv.addEventListener('pointerleave', () => { g.hover = null; });
-  cv.addEventListener('pointerdown', e => { g.hover = snap(pointerWorld(G, e)); if (g.mode === 'plot') judge(g.hover); });
-  Lab.$$('#gMode button').forEach(b => b.onclick = () => { g.mode = b.dataset.m; Lab.$$('#gMode button').forEach(x => x.classList.toggle('on', x === b)); newTarget(); });
-  Lab.$('#gNew').onclick = newTarget;
+  cv.addEventListener('pointerdown', e => { g.hover = snapG(pointerWorld(G, e)); if (Lab.adv() && g.ch) judgeCh(g.hover); else if (g.mode === 'plot') judge(g.hover); advRender(); });
+  Lab.$$('#gMode button').forEach(b => b.onclick = () => { g.mode = b.dataset.m; g.ch = null; Lab.$$('#gMode button').forEach(x => x.classList.toggle('on', x === b)); newTarget(); });
+  Lab.$('#gNew').onclick = () => { g.ch = null; newTarget(); };
   Lab.$('#gHelp').removeAttribute('data-zh');
   Lab.$('#gHelp').onclick = () => { g.help = !g.help; render(); };
   Lab.$('#gCheck').onclick = () => {
     const x = Lab.$('#nx').value, y = Lab.$('#ny').value;
     if (x === '' || y === ''){ say({ en:'Fill in both boxes: x first, then y.', zh:'两个空都要填：先填 x，再填 y。' }); return; }
-    judge([Math.round(+x), Math.round(+y)]);
+    judge(halfOn() ? [Math.round(+x * 2) / 2, Math.round(+y * 2) / 2] : [Math.round(+x), Math.round(+y)]);
   };
   [Lab.$('#nx'), Lab.$('#ny')].forEach(inp => inp.addEventListener('keydown', e => { if (e.key === 'Enter') Lab.$('#gCheck').click(); }));
   Lab.onLang(render); newTarget();
@@ -438,6 +515,7 @@ Lab.sort(Lab.$('#sort'), {
 /* ================= Where you see this: real photos (Wikimedia Commons, freely licensed) ================= */
 (function(){
 const o = (en, zh) => ({ en, zh });
+const VID = o('Video', '视频');
 const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cc/Empty_wooden_chessboard.jpg/960px-Empty_wooden_chessboard.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'Chess players name every square with a letter and a number, like e4. How is that like an ordered pair?',
@@ -449,14 +527,27 @@ const PHOTOS = [
     credit:'Daniel Capilla', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Chessboards_in_the_West_Park_01.jpg' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/da/U.S._Navy_Capt._plays_the_board_game_Battleship_with_a_patient_at_Children%E2%80%99s_Hospital._%2830116294906%29.jpg/960px-U.S._Navy_Capt._plays_the_board_game_Battleship_with_a_patient_at_Children%E2%80%99s_Hospital._%2830116294906%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'A Navy captain plays Battleship with a young hospital patient. Calling a shot like “B-4” names one exact square: a letter for the column, a number for the row.',
-    zh:'ä¸ä½æµ·åä¸æ ¡å¨å¿ç«¥å»é¢åå°çäººç©âæµ·ææ£âãååºâB-4âå°±éå®äºå¯ä¸ä¸ä¸ªæ ¼å­ï¼å­æ¯è¡¨ç¤ºåï¼æ°å­è¡¨ç¤ºè¡ã',
+    zh:'一位海军上校在儿童医院和小病人玩“海战棋”。喊出“B-4”就锁定了唯一一个格子：字母表示列，数字表示行。',
     credit:'Official U.S. Navy Page from United States of America Sgt. Abbey Perria/1st Marine Logisti...', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:U.S._Navy_Capt._plays_the_board_game_Battleship_with_a_patient_at_Children%E2%80%99s_Hospital._(30116294906).jpg' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8f/Manhattan_NYC_OpenStreetMap_2023-08-21.png/960px-Manhattan_NYC_OpenStreetMap_2023-08-21.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'A street map of Manhattan, New York City. Its numbered streets and avenues form a grid. How would you give directions with just two numbers?',
-    zh:'çº½çº¦æ¼åé¡¿çè¡éå°å¾ãç¼å·çè¡éåå¤§éç»æç½æ ¼ãææ ·åªç¨ä¸¤ä¸ªæ°ç»äººæè·¯ï¼',
-    credit:'OpenStreetMap', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Manhattan_NYC_OpenStreetMap_2023-08-21.png' }
+    zh:'纽约曼哈顿的街道地图。编号的街道和大道组成网格。怎样只用两个数给人指路？',
+    credit:'OpenStreetMap', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Manhattan_NYC_OpenStreetMap_2023-08-21.png' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/7/73/Frans_Hals_-_Portret_van_Ren%C3%A9_Descartes.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled',
+    en:'René Descartes, the French thinker who in 1637 showed how to name every point with two numbers (x, y). That is why they are called “Cartesian” coordinates.',
+    zh:'法国思想家勒内·笛卡儿。1637 年，他展示了怎样用两个数 (x, y) 表示每一个点。所以这种坐标叫“笛卡儿坐标”。',
+    kind:o('Math history','数学史'), credit:'After Frans Hals', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Frans_Hals_-_Portret_van_Ren%C3%A9_Descartes.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2a/FloorGoban.JPG/960px-FloorGoban.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A board for Go (围棋 wéiqí) has 19 lines each way, so 19 × 19 = 361 crossing points. Players record a game by writing each move as a pair, like (4, 16).',
+    zh:'围棋棋盘横竖各 19 条线，一共 19 × 19 = 361 个交叉点。记录棋谱时，每一步都写成一对数，比如 (4, 16)。',
+    credit:'Goban1', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:FloorGoban.JPG' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b2/Mercator_1569.png/960px-Mercator_1569.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'Gerardus Mercator’s world map of 1569. Lines of latitude and longitude make a grid, so any place on Earth gets two numbers. Which line acts like the x-axis?',
+    zh:'墨卡托 1569 年绘制的世界地图。纬线和经线组成网格，地球上的每个地方都能用两个数表示。哪条线就像 x 轴？',
+    kind:o('Old map','古地图'), credit:'Gerardus Mercator', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Mercator_1569.png' },
+  { type:'youtube', yt:'9Uc62CuQjc4', en:'Video: “Graphing on the Coordinate Plane” — the x-axis, y-axis, the four quadrants and plotting ordered pairs.', zh:'视频：《在坐标平面上画点》——x 轴、y 轴、四个象限，以及怎样描出有序数对（英文）。', kind:VID, credit:'Math Antics (YouTube)', license:'YouTube' }
 ];
-LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos. Each one comes with a question this lesson helps you answer. Click a picture to enlarge it.','真实照片。每张都带着一个这节课能帮你回答的问题。点击图片可放大。') });
+LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos and short videos. Each photo comes with a question this lesson helps you answer. Click a picture to enlarge it or to play a video.','真实照片和短视频。每张照片都带着一个这节课能帮你回答的问题。点击图片可放大，点击视频可播放。') });
 })();
 </script>
 <!-- /real-world gallery script -->

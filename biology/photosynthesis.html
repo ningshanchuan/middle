@@ -38,6 +38,15 @@
 .meter{height:10px;border-radius:999px;background:var(--surface-2);overflow:hidden;margin-top:4px}
 .meter div{height:100%;border-radius:999px;transition:width .2s}
 .counters.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+#psAdv{margin-top:16px;padding-right:38px;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1.1fr);gap:18px;align-items:start}
+.psctl{display:flex;flex-direction:column;gap:10px;align-items:stretch}
+.psf{font-family:Fredoka,sans-serif;font-size:15.5px;line-height:1.55;margin:8px 0}
+.pschal{font-size:14px;font-weight:700;margin:10px 0 6px}
+.pschk{display:flex;gap:8px;flex-wrap:wrap;font-weight:800;font-size:14px}
+.pschk span{border:1px solid var(--line);border-radius:999px;padding:3px 10px;background:var(--surface)}
+.pschk span.ok{background:color-mix(in srgb,var(--good) 18%,var(--surface));border-color:var(--good)}
+#psCurve{display:block;width:100%;height:220px}
+@media (max-width:900px){#psAdv{grid-template-columns:1fr}}
 @media (max-width:980px){.eqs{grid-template-columns:1fr}.cycle{grid-template-columns:1fr}.cycle .mid div{transform:rotate(90deg)}}
 @media (max-width:560px){.hud{display:none}.counters.three{grid-template-columns:1fr 1fr}}
 </style>
@@ -110,6 +119,7 @@
   <div class="sim">
     <div class="simbox card" id="jarBox"><canvas id="jarCv"></canvas></div>
     <div class="card simside">
+      <div class="lab-mode"></div>
       <div class="jar-ctl">
         <button class="toggle on" id="tPlant" data-zh="🌿 水草">🌿 Plant</button>
         <button class="toggle on" id="tSnail" data-zh="🐌 蜗牛">🐌 Snail</button>
@@ -130,6 +140,22 @@
       <div class="btnrow"><button class="btn" id="jarRun" data-zh="⏸ 暂停">⏸ Pause</button><button class="btn ghost" id="jarReset" data-zh="↺ 重新开始">↺ Restart</button></div>
       <div class="memory"><b data-zh="💡 试一试">💡 Try this</b><span data-zh="只留蜗牛会怎样？只留水草并一直开灯又会怎样？哪种组合能让瓶子长期保持平衡？">What happens with only the snail? With only the plant and the light always on? Which combination keeps the jar balanced for days?</span></div>
     </div>
+  </div>
+  <div class="adv adv-box" id="psAdv">
+    <div>
+      <b data-zh="限制因素：光照、二氧化碳和温度（人教版拓展 / 高中预习）">Limiting factors: light, CO₂ and temperature (high-school preview)</b>
+      <p class="psf" id="psNet"></p>
+      <div class="result" id="psLim"></div>
+      <p class="pschal" data-zh="🎯 挑战：依次让光照、二氧化碳、温度各当一次限制因素（看上面的 🔎）。提示：调暗灯；只留水草并开灯一段时间；把温度调到很低或很高。">🎯 Challenge: make light, then CO₂, then temperature the limiting factor (watch the 🔎 line). Hints: dim the lamp; keep only the plant in the light for a while; make it very cold or very hot.</p>
+      <div class="pschk" id="psChk"></div>
+    </div>
+    <div class="psctl">
+      <label class="ctl"><span><span data-zh="💡 灯的亮度">💡 Lamp brightness</span>: <b id="vI"></b></span><input id="sI" type="range" min="0" max="100" value="100"></label>
+      <label class="ctl"><span><span data-zh="🌡 水温">🌡 Water temperature</span>: <b id="vT"></b></span><input id="sT" type="range" min="5" max="45" value="25"></label>
+      <button class="btn ghost" id="psSoda" data-zh="🧂 加小苏打（碳酸氢钠，+CO₂）">🧂 Add baking soda (NaHCO₃, +CO₂)</button>
+      <p class="muted" style="margin:0;font-size:13px" data-zh="小苏打在水中会释放二氧化碳，课堂上常用它给水草“加二氧化碳”。">Baking soda releases CO₂ into the water. Classroom elodea experiments use it to add CO₂.</p>
+    </div>
+    <div><canvas id="psCurve"></canvas></div>
   </div>
 </section>
 
@@ -161,7 +187,12 @@ const P = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/09/Tomato_leaf_stomate_1-color.jpg/960px-Tomato_leaf_stomate_1-color.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A stoma (pore) on a tomato leaf. CO₂ goes in and O₂ comes out through tiny “mouths” like this. Colors added by computer.', zh:'番茄叶片上的一个气孔。二氧化碳从这样的“小嘴”进入，氧气从这里出去。颜色是用电脑加上去的。', kind:{en:'Electron micrograph',zh:'电子显微镜照片'}, credit:'Photohound', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Tomato_leaf_stomate_1-color.jpg' },
   { src:'https://upload.wikimedia.org/wikipedia/commons/3/38/Stomata_open_close.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Stomata of the plant Arabidopsis: an opening stoma (top) and a closed one (bottom).', zh:'拟南芥的气孔：上面是正在张开的气孔，下面是关闭的气孔。', kind:{en:'Light micrograph',zh:'光学显微镜照片'}, credit:'KuriPop', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Stomata_open_close.jpg' },
   { src:'https://upload.wikimedia.org/wikipedia/commons/0/0c/Mitochondria%2C_mammalian_lung_-_TEM.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Two mitochondria (from mammal lung tissue). This is where cellular respiration releases the energy stored in sugar.', zh:'两个线粒体（来自哺乳动物的肺组织）。细胞呼吸就在这里把糖里储存的能量释放出来。', kind:{en:'Electron micrograph (TEM)',zh:'透射电镜照片'}, credit:'Louisa Howard', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Mitochondria,_mammalian_lung_-_TEM.jpg' },
-  { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/d/dd/Video-_cytoplasmic_streaming_in_Egeria_densa.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dd/Video-_cytoplasmic_streaming_in_Egeria_densa.webm/960px--Video-_cytoplasmic_streaming_in_Egeria_densa.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dd/Video-_cytoplasmic_streaming_in_Egeria_densa.webm/960px--Video-_cytoplasmic_streaming_in_Egeria_densa.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Video: chloroplasts on the move inside living leaf cells of the water plant Egeria densa, carried along by the flowing cytoplasm.', zh:'视频：水生植物水蕴草（Egeria densa）活的叶片细胞里，叶绿体随着流动的细胞质不停地移动。', kind:{en:'Microscope video',zh:'显微镜视频'}, scale:{en:'magnified 300 times',zh:'放大 300 倍'}, credit:'Berkshire Community College Bioscience Image Library', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Video-_cytoplasmic_streaming_in_Egeria_densa.webm' }
+  { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/d/dd/Video-_cytoplasmic_streaming_in_Egeria_densa.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dd/Video-_cytoplasmic_streaming_in_Egeria_densa.webm/960px--Video-_cytoplasmic_streaming_in_Egeria_densa.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dd/Video-_cytoplasmic_streaming_in_Egeria_densa.webm/960px--Video-_cytoplasmic_streaming_in_Egeria_densa.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Video: chloroplasts on the move inside living leaf cells of the water plant Egeria densa, carried along by the flowing cytoplasm.', zh:'视频：水生植物水蕴草（Egeria densa）活的叶片细胞里，叶绿体随着流动的细胞质不停地移动。', kind:{en:'Microscope video',zh:'显微镜视频'}, scale:{en:'magnified 300 times',zh:'放大 300 倍'}, credit:'Berkshire Community College Bioscience Image Library', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Video-_cytoplasmic_streaming_in_Egeria_densa.webm' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/7/76/Chromatography_of_chlorophyll_results.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'A leaf is not just one green! In this chromatography experiment, a leaf extract has split into labeled bands of different pigments: chlorophyll a and chlorophyll b (greens) plus yellow pigments that help catch light.', zh:'叶子里不只有一种绿色！在这个层析实验中，叶片提取液分成了几条标好名字的色素带：叶绿素 a 和叶绿素 b（绿色），还有帮助吸收光的黄色色素。', kind:{en:'Classroom experiment',zh:'课堂实验'}, credit:'Flo (Wikimedia Commons)', license:'CC BY-SA 2.5', page:'https://commons.wikimedia.org/wiki/File:Chromatography_of_chlorophyll_results.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cf/Jan_Ingenhousz.jpg/960px-Jan_Ingenhousz.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Jan Ingenhousz (1730–1799), a Dutch scientist. In 1779 he showed that plants give off oxygen (“good air”) only from their green parts and only in light: an early discovery of photosynthesis.', zh:'扬·英根豪斯（1730—1799），荷兰科学家。1779 年，他证明植物只有绿色部分、而且只有在光照下才会放出氧气（当时叫“好空气”），这是光合作用的早期发现。', kind:{en:'Historical portrait',zh:'历史肖像'}, credit:'Unknown artist', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Jan_Ingenhousz.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/91/NASA_satellite_view_of_Southern_Ocean_phytoplankton_bloom.jpg/960px-NASA_satellite_view_of_Southern_Ocean_phytoplankton_bloom.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Photosynthesis seen from space: green swirls of tiny ocean algae (phytoplankton) in the Southern Ocean, January 2016. Phytoplankton make roughly half of the oxygen on Earth.', zh:'从太空看到的光合作用：2016 年 1 月南大洋里由微小海洋藻类（浮游植物）形成的绿色漩涡。地球上大约一半的氧气是浮游植物制造的。', kind:{en:'Satellite image',zh:'卫星图像'}, credit:'NASA', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:NASA_satellite_view_of_Southern_Ocean_phytoplankton_bloom.jpg' },
+  { type:'youtube', yt:'CMiPYHNNg28', kind:{en:'Video',zh:'视频'}, en:'Amoeba Sisters: photosynthesis. How plants use light, water and carbon dioxide to make sugar and release oxygen.', zh:'Amoeba Sisters（阿米巴姐妹）：光合作用。植物怎样利用光、水和二氧化碳制造糖，并放出氧气。', credit:'Amoeba Sisters (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'eJ9Zjc-jdys', kind:{en:'Video',zh:'视频'}, en:'Amoeba Sisters: cellular respiration. How cells (including plant cells) break down sugar with oxygen to make ATP, the energy they use.', zh:'Amoeba Sisters（阿米巴姐妹）：细胞呼吸。细胞（包括植物细胞）怎样用氧气分解糖，产生它们能直接使用的能量 ATP。', credit:'Amoeba Sisters (YouTube)', license:'YouTube' }
 ];
 window.REALFIG = { chlorophyll:P[3], chloroplast:P[2], co2:P[4], mito:P[6] };
 if (window.LabPhotos) LabPhotos.render('#gallery', P.filter(p => !p._x), { title:{en:'See the real thing',zh:'看看真实的样子'}, sub:{en:'Where photosynthesis and respiration really happen: real leaves, real chloroplasts and real mitochondria. Click any picture to enlarge it; the video plays only when you press play.',zh:'光合作用和呼吸作用真正发生的地方：真实的叶片、叶绿体和线粒体。点击图片可以放大；视频要按下播放键才会播放。'} });
@@ -237,6 +268,9 @@ function renderInfo(){
       <p class="muted" style="margin:0">${Lab.L(o('The green chloroplast captures light and builds glucose. The orange mitochondrion breaks glucose down to release energy. Watch the molecules flow between them, and click anything to learn more.','绿色的叶绿体捕获光能、合成葡萄糖；橙色的线粒体分解葡萄糖、释放能量。观察分子在它们之间流动，点击任何东西了解更多。'))}</p>
       <div class="formula">${chip('co2')}<span class="op">+</span>${chip('h2o')}<span class="arrow">⇄</span>${chip('glucose')}<span class="op">+</span>${chip('o2')}</div>
       <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(o('Photosynthesis stores energy; respiration releases it. The atoms just go round and round.','光合作用储存能量，呼吸作用释放能量；而原子在两者之间不断循环。'))}</div>
+      <div class="adv adv-box"><b>${Lab.L(o('Zoom deeper: the balanced equations','深入一层：配平的化学方程式'))}</b>
+        <p style="margin:6px 0;font-family:Fredoka,sans-serif">6CO₂ + 6H₂O → C₆H₁₂O₆ + 6O₂<br>C₆H₁₂O₆ + 6O₂ → 6CO₂ + 6H₂O + ${Lab.L(o('energy','能量'))}</p>
+        <ul style="margin:0;padding-left:18px">${Lab.L(o(['Every O₂ the plant gives off comes from splitting WATER, not CO₂ (shown with heavy-oxygen tracers in 1941).','Light reactions happen on the thylakoid membranes; the carbon is fixed into sugar in the stroma (the Calvin cycle).','Respiring one glucose makes about 30–32 ATP. A leaf cell can hold about 20–100 chloroplasts.'],['植物放出的氧气全部来自水的分解，而不是二氧化碳（1941 年用氧的同位素标记证明）。','光反应在类囊体薄膜上进行；碳在叶绿体基质中被固定成糖（卡尔文循环）。','分解一分子葡萄糖约产生 30～32 个 ATP。一个叶肉细胞里约有 20～100 个叶绿体。'])).map(f => `<li>${f}</li>`).join('')}</ul></div>
       <div class="nav"><button id="startBtn">${Lab.L(o('Start with sunlight ▶','从阳光开始 ▶'))}</button></div>`;
     Lab.$('#startBtn').onclick = () => App.select('light');
     return;
@@ -301,14 +335,22 @@ Lab.onLang(() => { renderInfo(); renderChips(); renderEq(); });
     if (mode === 'off') return 0;
     const h = hour(); return h > 6 && h < 18 ? Math.min(1, Math.sin(Math.PI * (h - 6) / 12) * 1.4) : 0;
   }
+  /* 🚀 Advanced: lamp brightness (light saturates), water temperature (enzymes), baking soda (+CO₂). Basic keeps the original formulas. */
+  const AV = { I:1, T:25, found:{} };
+  const sat = x => x * 1.35 / (x + .35);                                   // light-response curve (= 1 at full light)
+  const fTP = T => T < 25 ? Math.max(0, 1 - Math.pow((25 - T) / 20, 2)) : T <= 32 ? 1 : Math.max(0, 1 - Math.pow((T - 32) / 12, 2));   // photosynthesis enzymes
+  const fTR = T => Math.pow(2, (T - 25) / 10);                              // respiration about doubles every +10 °C
+  const rates = (L, co2, o2, adv) => {                                      // gross photosynthesis and respiration (O₂ units per hour)
+    const plantAlive = S.plant && S.ph > 0, snailAlive = S.snail && S.sh > 0, fr = adv ? fTR(AV.T) : 1;
+    const P = plantAlive ? 16 * (adv ? sat(L) * fTP(AV.T) : L) * co2 / (co2 + 10) * (.3 + .7 * S.ph) : 0;
+    return { P, Rp: plantAlive ? 1.2 * o2 / (o2 + 2) * fr : 0, Rs: snailAlive ? 2.5 * o2 / (o2 + 4) * fr : 0 };
+  };
   function step(dh){
-    const L = lightLevel(), plantAlive = S.plant && S.ph > 0, snailAlive = S.snail && S.sh > 0;
-    const P = plantAlive ? 16 * L * S.co2 / (S.co2 + 10) * (.3 + .7 * S.ph) : 0;
-    const Rp = plantAlive ? 1.2 * S.o2 / (S.o2 + 2) : 0;
-    const Rs = snailAlive ? 2.5 * S.o2 / (S.o2 + 4) : 0;
+    const adv = Lab.adv(), L = lightLevel() * (adv ? AV.I : 1), plantAlive = S.plant && S.ph > 0, snailAlive = S.snail && S.sh > 0;
+    const { P, Rp, Rs } = rates(L, S.co2, S.o2, adv);
     let d = (P - Rp - Rs) * dh;
     d = Math.max(-S.o2, Math.min(S.co2, d));          // can't use more than is there
-    S.o2 += d; S.co2 -= d; S.t += dh; S.P = P; S.L = L;
+    S.o2 += d; S.co2 -= d; S.t += dh; S.P = P; S.L = L; S.Rp = Rp; S.Rs = Rs;
     if (snailAlive){ S.sh += (S.o2 < 12 ? -.07 * (12 - S.o2) / 12 : .03) * dh; if (S.co2 > 70) S.sh -= .02 * dh; S.sh = Math.max(0, Math.min(1, S.sh)); }
     if (plantAlive){ S.ph += (S.o2 < 3 ? -.04 : .02) * dh; S.ph = Math.max(0, Math.min(1, S.ph)); }
     S.acc += P * dh * .35;                              // bubbles released
@@ -410,6 +452,51 @@ Lab.onLang(() => { renderInfo(); renderChips(); renderEq(); });
     const [m, good] = message(), el = Lab.$('#jarMsg'), txt = Lab.L(m);
     if (txt !== lastMsg){ el.textContent = txt; el.className = 'result ' + (good === true ? 'good' : good === false ? 'bad' : ''); lastMsg = txt; }
   }
+  /* ===== 🚀 Advanced panel: net O₂ = photosynthesis − respiration, limiting factor, light-response curve ===== */
+  let advT = 0;
+  function limiting(){
+    if (!(S.plant && S.ph > 0)) return null;
+    const fl = Lab.adv() ? sat(S.L ?? 0) : S.L, fc = Math.min(1, S.co2 / (S.co2 + 10) / .75), ft = fTP(AV.T);
+    const m = Math.min(fl, fc, ft); if (m > .9) return 'none';
+    return m === fl ? 'light' : m === fc ? 'co2' : 'temp';
+  }
+  const LIM = { light:o('💡 light','💡 光照'), co2:o('🫧 CO₂','🫧 二氧化碳'), temp:o('🌡 temperature','🌡 温度') };
+  function advUI(now){
+    if (!Lab.adv() || now - advT < 250) return; advT = now;
+    const L = Lab.L, f1 = v => v.toFixed(1), P = S.P || 0, Rp = S.Rp || 0, Rs = S.Rs || 0, net = P - Rp - Rs;
+    Lab.$('#vI').textContent = Math.round(AV.I * 100) + '%'; Lab.$('#vT').textContent = AV.T + ' °C';
+    Lab.$('#psNet').innerHTML = `${L(o('net O₂ change','氧气净变化'))} = ${L(o('photosynthesis','光合作用'))} − ${L(o('respiration','呼吸作用'))}<br>= ${f1(P)} − (${f1(Rp)} 🌿 + ${f1(Rs)} 🐌) = <b>${net >= 0 ? '+' : '−'}${f1(Math.abs(net))}</b> ${L(o('units per hour','单位/小时'))}<br><small>${L(o('Respiration speeds up about 2× for every +10 °C; photosynthesis enzymes work best at about 25–32 °C.','温度每升高 10 °C，呼吸作用约加快 1 倍；光合作用的酶在约 25～32 °C 时效率最高。'))}</small>`;
+    const lim = limiting(), el = Lab.$('#psLim');
+    el.textContent = '🔎 ' + (lim === null ? L(o('No living plant: no photosynthesis.','没有活的水草：不进行光合作用。')) : lim === 'none' ? L(o('Nothing is limiting much: photosynthesis is near its maximum.','几乎没有限制：光合作用接近最大速率。')) : L(o('Limiting factor now: ','现在的限制因素：')) + L(LIM[lim]));
+    if (lim && LIM[lim]) AV.found[lim] = true;
+    const all = ['light', 'co2', 'temp'].every(k => AV.found[k]);
+    Lab.$('#psChk').innerHTML = ['light', 'co2', 'temp'].map(k => `<span class="${AV.found[k] ? 'ok' : ''}">${AV.found[k] ? '✓' : '○'} ${L(LIM[k])}</span>`).join('') + (all ? `<span class="ok">🎉 ${L(o('All three found! The slowest factor always sets the speed, like the narrowest part of a funnel.','三个都找到了！最慢的因素决定整体速度，就像漏斗最窄的地方。'))}</span>` : '');
+    drawCurve();
+  }
+  function drawCurve(){
+    const c = Lab.$('#psCurve'); if (!c.getBoundingClientRect().width) return;
+    const [x, W, H] = fit(c), pl = 34, pr = 10, pt = 18, pb = 30, w = W - pl - pr, h = H - pt - pb;
+    x.clearRect(0, 0, W, H);
+    const curve = (co2, I) => { const r = rates(I, co2, S.o2, true); return r.P - r.Rp - r.Rs; };
+    const top = 18, bot = -8, X = v => pl + v * w, Y = v => pt + (top - v) / (top - bot) * h;
+    x.strokeStyle = css('--line'); x.lineWidth = 1; x.strokeRect(pl, pt, w, h);
+    x.beginPath(); x.moveTo(pl, Y(0)); x.lineTo(pl + w, Y(0)); x.stroke();
+    x.font = '700 11px Nunito, sans-serif'; x.fillStyle = css('--ink-2'); x.textAlign = 'right'; x.fillText('0', pl - 4, Y(0) + 4); x.fillText('+' + top, pl - 4, pt + 8); x.fillText(String(bot), pl - 4, pt + h);
+    x.textAlign = 'center'; x.fillText(Lab.L(o('light intensity →','光照强度 →')), pl + w / 2, H - 8);
+    x.textAlign = 'left'; x.fillText(Lab.L(o('net O₂ per hour (whole jar)','每小时氧气净变化（整个瓶子）')), pl + 4, pt - 5);
+    const plot = (co2, col, dash) => { x.strokeStyle = col; x.lineWidth = 2.5; x.setLineDash(dash); x.beginPath(); for (let i = 0; i <= 50; i++){ const I = i / 50, v = curve(co2, I); i ? x.lineTo(X(I), Y(Math.max(bot, Math.min(top, v)))) : x.moveTo(X(I), Y(v)); } x.stroke(); x.setLineDash([]); };
+    if (!(S.plant && S.ph > 0)) { x.fillStyle = css('--ink-2'); x.textAlign = 'center'; x.fillText(Lab.L(o('Add the plant to see its light curve','放入水草才能看到光照曲线')), pl + w / 2, pt + h / 2); return; }
+    plot(Math.min(80, S.co2 + 25), '#8a7bd8', [5, 4]); plot(S.co2, '#2f9e44', []);
+    // compensation point: where net O₂ = 0
+    let comp = null; for (let i = 1; i <= 200; i++){ if (curve(S.co2, i / 200) >= 0){ comp = i / 200; break; } }
+    if (comp != null && comp < 1){ x.fillStyle = css('--ink'); x.beginPath(); x.arc(X(comp), Y(0), 4, 0, 7); x.fill(); x.textAlign = 'left'; x.fillText(Lab.L(o('compensation point','光补偿点')), X(comp) + 6, Y(0) + 14); }
+    const cur = S.L ?? 0; x.fillStyle = '#2f9e44'; x.beginPath(); x.arc(X(cur), Y(Math.max(bot, Math.min(top, curve(S.co2, cur)))), 6, 0, 7); x.fill();
+    x.textAlign = 'left'; x.fillStyle = '#8a7bd8'; x.fillText('- - ' + Lab.L(o('with more CO₂','二氧化碳更多时')), pl + 6, pt + 14);
+    x.fillStyle = '#2f9e44'; x.fillText('— ' + Lab.L(o('now','现在')), pl + 6, pt + 28);
+  }
+  Lab.$('#sI').oninput = e => { AV.I = e.target.value / 100; advT = 0; };
+  Lab.$('#sT').oninput = e => { AV.T = +e.target.value; advT = 0; };
+  Lab.$('#psSoda').onclick = () => { S.co2 = Math.min(80, S.co2 + 15); advT = 0; };
   let last = performance.now(), histAcc = 0;
   function loop(now){
     requestAnimationFrame(loop);
@@ -421,7 +508,7 @@ Lab.onLang(() => { renderInfo(); renderChips(); renderEq(); });
       bubbles.forEach(q => q.y -= q.v * dt * 2); bubbles = bubbles.filter(q => q.y > .02);
     }
     if (S.L === undefined) S.L = lightLevel();
-    drawJar(now / 1000); drawGraph(); ui();
+    drawJar(now / 1000); drawGraph(); ui(); advUI(now);
   }
   Lab.$('#tPlant').onclick = e => { const on = e.currentTarget.classList.toggle('on'); S.plant = on; if (on) S.ph = 1; };
   Lab.$('#tSnail').onclick = e => { const on = e.currentTarget.classList.toggle('on'); S.snail = on; if (on) S.sh = 1; };

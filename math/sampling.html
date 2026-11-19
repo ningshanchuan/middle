@@ -44,6 +44,7 @@
   <div class="ma-explore">
     <div class="ma-stage" id="jStage" data-fs></div>
     <div class="card ctl">
+      <div class="lab-mode" style="align-self:flex-start"></div>
       <div class="seg" id="method"><button data-m="rand" class="on" data-zh="随机抽样">Random</button><button data-m="top" data-zh="从顶部抓">Scoop from top</button></div>
       <label class="ctl"><span><span data-zh="样本容量 n = ">Sample size n = </span><b id="nVal">20</b></span><input id="nIn" type="range" min="5" max="100" step="5" value="20"></label>
       <div class="btnrow">
@@ -61,6 +62,18 @@
         <button class="btn ghost" id="reveal" data-zh="揭晓真实比例">Reveal the truth</button>
       </div>
       <div class="verdict" id="jMsg"></div>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:8px">
+        <b data-zh="进阶：误差范围（1/√n）、普查与抽样">Advanced: margin of error (1/√n), census vs sample</b>
+        <p class="muted" style="margin:0;font-size:14px" data-zh="样本容量现在可以调到 400——整罐珠子，也就是“普查”。图上黄色区间 = 最近一个样本的比例 ± 误差范围。">The sample size now goes up to 400 — the whole jar, a census. The yellow bar on the plot = the last sample’s percentage ± the margin of error.</p>
+        <div id="sMoe" style="text-align:center;font-size:17px;overflow-x:auto;overflow-y:hidden;padding:2px 0"></div>
+        <div id="sInfo" style="font-size:14px;font-weight:700"></div>
+        <div id="sTab" style="text-align:center;overflow-x:auto;overflow-y:hidden;font-size:14px"></div>
+        <div style="border-top:1px solid var(--line);padding-top:8px">
+          <b data-zh="🎯 挑战">🎯 Challenge</b> <span data-zh="不揭晓答案，估计神秘罐里红珠的百分比，误差不超过 5 个百分点。看的珠子越少越厉害！">Without revealing, estimate the mystery jar’s % red to within 5 points. The fewer beads you look at, the better!</span>
+          <div class="btnrow" style="margin-top:6px;align-items:center"><input id="sChIn" type="number" min="0" max="100" inputmode="decimal" style="width:90px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;font:inherit;font-weight:800;background:var(--surface);color:var(--ink)"> %<button class="btn" id="sChCheck" data-zh="检查">Check</button><button class="btn ghost" id="sChNew" data-zh="换一个神秘罐">New mystery jar</button></div>
+          <div class="result" id="sChMsg"></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -291,6 +304,8 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
   const NB = 400, beads = [];
   for (let r = 0; r < 20; r++) for (let c = 0; c < 20; c++) beads.push({ x:-7.25 + c * .238 + (Math.random() - .5) * .04, y:-3.7 + r * .3 + (Math.random() - .5) * .04, row:r, red:false });
   let pct = 30, hidden = true, method = 'rand', n = 20, samples = [], last = null, ringA = 0;
+  let used = 0;                                                     // beads looked at for the current jar (Advanced challenge)
+  const moe = () => n >= NB ? 0 : 100 / Math.sqrt(n);                // margin of error in percentage points (≈ 95%)
   function newJar(p){
     pct = p; const R = Math.round(p / 100 * NB);
     const keys = beads.map((b, i) => ({ i, k:Math.pow(Math.random(), 1 / Math.exp(2.2 * b.row / 19)) }));   // weighted: red beads tend to sit near the top
@@ -300,7 +315,7 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     let idx;
     if (method === 'rand') idx = shuffled(beads.map((_, i) => i), Math.random).slice(0, n);
     else idx = beads.map((b, i) => ({ i, h:b.y + Math.random() * .7 })).sort((a, b) => b.h - a.h).slice(0, n).map(o => o.i);
-    last = idx; ringA = 1;
+    last = idx; ringA = 1; used += n;
     samples.push({ v:100 * idx.filter(i => beads[i].red).length / n, m:method });
   }
   J.onFrame(dt => { ringA = Math.max(0, ringA - dt * .45); });
@@ -322,6 +337,16 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
       ctx.fillStyle = C.yellow; ctx.beginPath(); ctx.moveTo(S.sx(X(mean)), S.sy(plot.y - .02)); ctx.lineTo(S.sx(X(mean) - .14), S.sy(plot.y - .3)); ctx.lineTo(S.sx(X(mean) + .14), S.sy(plot.y - .3)); ctx.fill(); }
     if (!hidden){ ctx.strokeStyle = TRUE; ctx.lineWidth = 2.5; ctx.setLineDash([8, 6]); ctx.beginPath(); ctx.moveTo(S.sx(X(pct)), S.sy(plot.y)); ctx.lineTo(S.sx(X(pct)), S.sy(3.6)); ctx.stroke(); ctx.setLineDash([]);
       ctx.fillStyle = TRUE; ctx.fillText(Lab.L(o2(`truth ${pct}%`, `真实 ${pct}%`)), S.sx(X(pct)), S.sy(3.95)); }
+    if (Lab.adv() && samples.length){   // Advanced: last sample's estimate ± margin of error (1/√n)
+      const v = samples[samples.length - 1].v, e = moe(), a = X(Math.max(0, v - e)), b = X(Math.min(100, v + e)), yb = 3.25;
+      ctx.strokeStyle = C.yellow; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(S.sx(a), S.sy(yb)); ctx.lineTo(S.sx(b), S.sy(yb));
+      [a, b].forEach(x => { ctx.moveTo(S.sx(x), S.sy(yb - .15)); ctx.lineTo(S.sx(x), S.sy(yb + .15)); }); ctx.stroke();
+      ctx.fillStyle = C.yellow; ctx.beginPath(); ctx.arc(S.sx(X(v)), S.sy(yb), 5, 0, 7); ctx.fill();
+      ctx.font = `700 ${S.px(.26)}px Nunito, "Microsoft YaHei", sans-serif`; ctx.textAlign = 'center';
+      const lab = e ? `${Math.round(v)}% ± ${Math.round(e * 10) / 10}%` : Lab.L(o2('census: exact', '普查：完全准确')), tw = ctx.measureText(lab).width;
+      ctx.fillStyle = 'rgba(15,20,32,.85)'; ctx.fillRect(S.sx(X(v)) - tw / 2 - 4, S.sy(yb - .4) - S.px(.18), tw + 8, S.px(.36));
+      ctx.fillStyle = C.yellow; ctx.textBaseline = 'middle'; ctx.fillText(lab, S.sx(X(v)), S.sy(yb - .4));
+    }
     ctx.fillStyle = C.grey; ctx.textAlign = 'right'; ctx.font = `700 ${S.px(.28)}px Nunito, "Microsoft YaHei", sans-serif`;
     ctx.fillText(Lab.L(o2(`sample % red  (n = ${n}, ${samples.length} samples)`, `样本红珠百分比(n = ${n},共 ${samples.length} 个样本)`)), S.sx(plot.x1), S.sy(-4.25));
   });
@@ -340,14 +365,50 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
       else t = o2(`Your best estimate: about ${Math.round(mean)}% red. Spread of the samples: ${Math.round(spread)} points.`, `你的最佳估计:红珠约 ${Math.round(mean)}%。样本比例的波动范围:${Math.round(spread)} 个百分点。`);
     } else t = o2('Draw at least 10 samples to see the pattern.', '至少抽 10 次，才能看出规律。');
     m.textContent = Lab.L(t); m.style.color = color;
+    advUpdate();
   }
+  /* ---------- Advanced mode: margin of error 1/√n, census, estimate challenge ---------- */
+  function advUpdate(){
+    if (!Lab.adv()) return;
+    const e = moe(), r1 = v => Math.round(v * 10) / 10, vs = samples.map(s => s.v);
+    Lab.$('#sMoe').innerHTML = n >= NB
+      ? MathAnim.tex(`n = ${NB} = \\text{${Lab.L(o2('the whole jar', '整罐'))}} \\Rightarrow \\text{${Lab.L(o2('error', '误差'))}} = 0`)
+      : MathAnim.tex(`\\text{${Lab.L(o2('margin of error', '误差范围'))}} \\approx \\frac{1}{\\sqrt{n}} = \\frac{1}{\\sqrt{${n}}} \\approx ${(1 / Math.sqrt(n)).toFixed(3)} = ${r1(e)}\\%`);
+    let info = '';
+    if (vs.length){ const v = vs[vs.length - 1]; info = Lab.L(o2(`Last sample: ${r1(v)}% red, so the jar is probably between ${r1(Math.max(0, v - e))}% and ${r1(Math.min(100, v + e))}%.`, `最近一个样本：红珠 ${r1(v)}%，所以整罐的红珠比例很可能在 ${r1(Math.max(0, v - e))}% 到 ${r1(Math.min(100, v + e))}% 之间。`)); }
+    if (vs.length >= 2){ const mu = vs.reduce((a, b) => a + b, 0) / vs.length, sd = Math.sqrt(vs.reduce((a, b) => a + (b - mu) * (b - mu), 0) / vs.length);
+      info += '<br>' + Lab.L(o2(`Spread of your samples: standard deviation ≈ ${r1(sd)} points.`, `你的样本比例的波动：标准差 ≈ ${r1(sd)} 个百分点。`)); }
+    const rs = samples.filter(s => s.m === 'rand');
+    if (!hidden && rs.length && method === 'rand'){ const k = rs.filter(s => Math.abs(s.v - pct) <= e + 1e-9).length;
+      info += '<br>' + Lab.L(o2(`${k} of ${rs.length} random samples (${Math.round(100 * k / rs.length)}%) landed within ±${r1(e)}% of the truth.`, `${rs.length} 个随机样本中有 ${k} 个（${Math.round(100 * k / rs.length)}%）落在真实值 ±${r1(e)}% 以内。`)); }
+    info += '<br><span class="muted">' + Lab.L(o2(`Beads looked at for this jar: ${used}`, `这个罐子你一共看了 ${used} 颗珠子`)) + '</span>';
+    Lab.$('#sInfo').innerHTML = info;
+    Lab.$('#sTab').innerHTML = MathAnim.tex(`\\begin{array}{c|cccc} n & 25 & 100 & 1000 & 2500 \\\\ \\hline \\frac{1}{\\sqrt n} & 20\\% & 10\\% & \\approx 3.2\\% & 2\\% \\end{array}`)
+      + '<div class="muted" style="font-size:13px">' + Lab.L(o2('For a huge population (millions of players): 4× the sample → half the error, so a poll of 1,000 people is good to about ±3%.', '对于很大的总体（比如几百万玩家）：样本容量变成 4 倍 → 误差减半；所以调查 1000 人，误差约 ±3%。')) + '</div>';
+  }
+  Lab.$('#sChCheck').onclick = () => {
+    const v = parseFloat(Lab.$('#sChIn').value), m = Lab.$('#sChMsg');
+    if (isNaN(v)){ m.textContent = Lab.L(o2('Type your estimate first.', '请先输入你的估计。')); m.className = 'result bad'; return; }
+    if (!hidden){ m.textContent = Lab.L(o2('You already revealed this jar — press “New mystery jar” for a fair try.', '这个罐子已经揭晓了——点“换一个神秘罐”再公平地试一次。')); m.className = 'result bad'; return; }
+    const err = Math.abs(v - pct), ok = err <= 5;
+    hidden = false;
+    m.textContent = Lab.L(ok ? o2(`🎉 Within 5 points! The jar is ${pct}% red (you were off by ${Math.round(err * 10) / 10}). You looked at ${used} beads${used > NB ? ` — more than the ${NB} in the jar! One census would have been cheaper.` : '.'}`, `🎉 误差不超过 5 个百分点！这罐红珠占 ${pct}%（你差了 ${Math.round(err * 10) / 10}）。你一共看了 ${used} 颗珠子${used > NB ? `，比罐里的 ${NB} 颗还多！直接普查一次反而更省事。` : '。'}`)
+      : o2(`The jar is ${pct}% red — off by ${Math.round(err * 10) / 10} points. ${method === 'top' ? 'Scooping from the top is biased!' : 'Try more or bigger random samples.'}`, `这罐红珠占 ${pct}%，你差了 ${Math.round(err * 10) / 10} 个百分点。${method === 'top' ? '从顶部抓是有偏差的！' : '试试抽更多次，或把样本容量调大。'}`));
+    m.className = 'result ' + (ok ? 'good' : 'bad');
+    update();
+  };
+  Lab.$('#sChNew').onclick = () => { Lab.$('#mystery').click(); Lab.$('#sChIn').value = ''; const m = Lab.$('#sChMsg'); m.textContent = ''; m.className = 'result'; };
+  Lab.onMode(adv => {
+    const inp = Lab.$('#nIn'); inp.max = adv ? NB : 100;
+    if (!adv && n > 100){ n = 100; inp.value = 100; reset(); } else advUpdate();
+  });
   function reset(){ samples = []; last = null; update(); }
   Lab.$('#draw1').onclick = () => { drawOne(); update(); };
   Lab.$('#draw50').onclick = () => { let k = 0; const id = setInterval(() => { drawOne(); update(); if (++k >= 50) clearInterval(id); }, 30); };
   Lab.$('#clear').onclick = reset;
   Lab.$('#nIn').oninput = e => { n = +e.target.value; reset(); };
   Lab.$$('#method button').forEach(b => b.onclick = () => { method = b.dataset.m; Lab.$$('#method button').forEach(x => x.classList.toggle('on', x === b)); reset(); });
-  Lab.$('#mystery').onclick = () => { newJar(15 + Math.floor(Math.random() * 56)); hidden = true; reset(); };
+  Lab.$('#mystery').onclick = () => { newJar(15 + Math.floor(Math.random() * 56)); hidden = true; used = 0; reset(); };
   Lab.$('#reveal').onclick = () => { hidden = false; update(); };
   newJar(15 + Math.floor(Math.random() * 56)); Lab.onLang(update); update();
 })();
@@ -423,6 +484,7 @@ Lab.sort(Lab.$('#sort'), {
 /* ================= Where you see this: real photos (Wikimedia Commons, freely licensed) ================= */
 (function(){
 const o = (en, zh) => ({ en, zh });
+const VID = o('Video', '视频');
 const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/40/Vintage_Gumball_Machine_%282552026699%29.jpg/960px-Vintage_Gumball_Machine_%282552026699%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'A gumball machine full of colors. Without counting them all, how could a few gumballs tell you roughly what fraction are red?',
@@ -430,14 +492,28 @@ const PHOTOS = [
     credit:'Julie Alexander from U.S.', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Vintage_Gumball_Machine_(2552026699).jpg' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/ba/Exit_poll_Tokyo_2014.JPG/960px-Exit_poll_Tokyo_2014.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'An exit poll in Tokyo: an interviewer (with an armband) asks two voters who just left the polling place. Why can TV networks predict a winner from only a sample of voters?',
-    zh:'ä¸äº¬çåºå£æ°è°ï¼æ´èç« çè°æ¥åè¯¢é®ä¸¤ä½åæå®ç¥¨çéæ°ãä¸ºä»ä¹çµè§å°åªé®ä¸é¨åéæ°å°±è½é¢æµè°ä¼èµ¢ï¼',
+    zh:'东京的出口民调：戴着臂章的调查员在询问两位刚投完票的选民。为什么电视台只问一部分选民就能预测谁会赢？',
     credit:'Whym', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Exit_poll_Tokyo_2014.JPG' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c3/U_S_Fish_and_Wildlife_Service_biologist_snorkel_survey_%2847975075401%29.jpg/960px-U_S_Fish_and_Wildlife_Service_biologist_snorkel_survey_%2847975075401%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'Fish biologists on a snorkel survey of Clear Creek, California. They count fish in sections of the creek. How can a sample estimate the whole creek?',
-    zh:'é±¼ç±»çç©å­¦å®¶å¨ç¾å½å å·æ¸æºªåæµ®æ½è°æ¥ï¼ä¸æ®µä¸æ®µå°æ°é±¼ãææ ·ç¨æ ·æ¬ä¼°è®¡æ´æ¡æºªéçé±¼ï¼',
-    credit:'USFWS Pacific Southwest Region', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:U_S_Fish_and_Wildlife_Service_biologist_snorkel_survey_(47975075401).jpg' }
+    zh:'鱼类生物学家在美国加州克利尔溪做浮潜调查，一段一段地数鱼。怎样用样本估计整条溪里的鱼？',
+    credit:'USFWS Pacific Southwest Region', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:U_S_Fish_and_Wildlife_Service_biologist_snorkel_survey_(47975075401).jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c8/1940_Census_Enumeration_%285020520332%29.jpg/960px-1940_Census_Enumeration_%285020520332%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A census taker interviews a farmer for the 1940 US Census. A census asks everyone (the whole population), not just a sample. Why is that so much harder and slower?',
+    zh:'1940 年美国人口普查，普查员正在询问一位农民。普查要问到每一个人（整个总体），而不只是一个样本。为什么这要难得多、慢得多？',
+    credit:'US Census Bureau', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:1940_Census_Enumeration_(5020520332).jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3f/Elwha_River_Fish_Tagging_Work_%2854140605274%29.jpg/960px-Elwha_River_Fish_Tagging_Work_%2854140605274%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'Biologists check fish tags on the Elwha River, Washington. Tag 100 fish, release them, then catch 50 later: if 5 have tags, about how many fish live in the river?',
+    zh:'美国华盛顿州埃尔瓦河，生物学家在检查鱼身上的标签。先给 100 条鱼做标记再放回，过几天捕 50 条，其中 5 条有标记：河里大约有多少条鱼？',
+    credit:'USFWS Pacific', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Elwha_River_Fish_Tagging_Work_(54140605274).jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/45/USFWS_biologist_tagging_a_monarch_%2836653945925%29.jpg/960px-USFWS_biologist_tagging_a_monarch_%2836653945925%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A biologist puts a tiny tag on a monarch butterfly. Nobody can follow millions of monarchs, but tagged ones that are found again tell scientists about the whole migration.',
+    zh:'生物学家给一只帝王蝶贴上小小的标签。没有人能跟踪几百万只帝王蝶，但被重新发现的带标签蝴蝶能让科学家了解整个迁徙。',
+    credit:'Brett Billings / USFWS', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:USFWS_biologist_tagging_a_monarch_(36653945925).jpg' },
+  { type:'youtube', yt:'VPM84_yfx5Q', en:'Video: “Identifying a sample and population” — who is the whole group, and who did we actually ask?', zh:'视频：《区分样本和总体》——整个群体是谁？我们实际调查的又是谁？（英文）', kind:VID, credit:'Khan Academy (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'-ge8Ewzk-m8', en:'Video: “How to use the capture-recapture method to estimate population size” — the tag-and-recatch math in 3 minutes.', zh:'视频：《用“捕获—再捕获”法估计种群数量》——3 分钟讲清标记重捕法的计算（英文）。', kind:VID, credit:'The Maths Studio (YouTube)', license:'YouTube' }
 ];
-LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos. Each one comes with a question this lesson helps you answer. Click a picture to enlarge it.','真实照片。每张都带着一个这节课能帮你回答的问题。点击图片可放大。') });
+LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos and short videos. Each photo comes with a question this lesson helps you answer. Click a picture to enlarge it or to play a video.','真实照片和短视频。每张照片都带着一个这节课能帮你回答的问题。点击图片可放大，点击视频可播放。') });
 })();
 </script>
 <!-- /real-world gallery script -->

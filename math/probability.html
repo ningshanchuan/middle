@@ -43,9 +43,10 @@
   <div class="ma-explore">
     <div class="ma-stage explore-stage" id="exStage" data-fs></div>
     <div class="card ctl">
+      <div class="lab-mode" style="align-self:flex-start"></div>
       <div class="btnrow modebtns" id="modeBtns"><button class="btn ghost" data-m="coin" data-zh="🪙 硬币">🪙 Coin</button><button class="btn ghost" data-m="die" data-zh="🎲 骰子">🎲 Die</button><button class="btn ghost" data-m="spin" data-zh="🎯 转盘">🎯 Spinner</button></div>
       <label class="ctl"><span><span data-zh="🎯 转盘上红色占：">🎯 Spinner: red takes up </span><b id="redVal">50%</b></span><input id="redIn" type="range" min="10" max="90" step="5" value="50"></label>
-      <div class="btnrow"><button class="btn" data-run="1">×1</button><button class="btn" data-run="10">×10</button><button class="btn" data-run="100">×100</button><button class="btn" data-run="1000">×1000</button><button class="btn ghost" id="simReset" data-zh="重来">Reset</button></div>
+      <div class="btnrow"><button class="btn" data-run="1">×1</button><button class="btn" data-run="10">×10</button><button class="btn" data-run="100">×100</button><button class="btn" data-run="1000">×1000</button><button class="btn adv" data-run="10000">×10000</button><button class="btn ghost" id="simReset" data-zh="重来">Reset</button></div>
       <div class="counters">
         <div class="counter"><b id="cN">0</b><span data-zh="实验次数">trials</span></div>
         <div class="counter"><b id="cK">0</b><span id="cKl"></span></div>
@@ -53,6 +54,17 @@
         <div class="counter"><b id="cT" style="color:#d9468a">½</b><span data-zh="理论概率">theoretical</span></div>
       </div>
       <div class="ma-big" id="simOut"></div>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:8px">
+        <b data-zh="进阶：期望次数、误差有多大、大数定律">Advanced: expected counts, how big the error is, the law of large numbers</b>
+        <div id="pTab" style="text-align:center;overflow-x:auto;overflow-y:hidden;font-size:13px"></div>
+        <div id="pErr" style="text-align:center;font-size:17px;overflow-x:auto;overflow-y:hidden;padding:2px 0"></div>
+        <p class="muted" style="margin:0;font-size:14px" data-zh="图中粉色漏斗 = 理论概率 ± 2√(p(1−p)/n)：大约 95% 的时候，频率落在漏斗里。试验次数变成 100 倍，漏斗只窄到 1/10——误差大约按 1/√n 缩小。">Pink funnel on the graph = theoretical p ± 2√(p(1−p)/n): about 95% of the time the experimental probability stays inside it. 100× more trials makes the funnel only 10× narrower: the error shrinks like 1/√n.</p>
+        <div style="border-top:1px solid var(--line);padding-top:8px">
+          <b data-zh="🎯 挑战：先预测，再实验">🎯 Challenge: predict, then test</b> <span id="pChTxt"></span>
+          <div class="btnrow" style="margin-top:6px;align-items:center"><input id="pChIn" type="number" inputmode="numeric" style="width:96px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;font:inherit;font-weight:800;background:var(--surface);color:var(--ink)"><button class="btn" id="pChCheck" data-zh="检查">Check</button><button class="btn ghost" id="pChTry" data-zh="▶ 做这个实验">▶ Run it</button><button class="btn ghost" id="pChNew" data-zh="换一题">New challenge</button></div>
+          <div class="result" id="pChMsg"></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -369,6 +381,13 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     seg(rx0, ry0, rx1, ry0, C.grey, 2); seg(rx0, ry0, rx0, ry0 + rh, C.grey, 2);
     ctx.fillStyle = C.grey; ctx.textAlign = 'right'; [0, .5, 1].forEach(p => ctx.fillText(String(p), S.sx(rx0 - .12), S.sy(Yp(p))));
     const th = M.out[M.track].p; ctx.strokeStyle = C.pink; ctx.lineWidth = 2; ctx.setLineDash([8, 6]); ctx.beginPath(); ctx.moveTo(S.sx(rx0), S.sy(Yp(th))); ctx.lineTo(S.sx(rx1), S.sy(Yp(th))); ctx.stroke(); ctx.setLineDash([]);
+    if (Lab.adv() && run.length > 1){   // Advanced: 95% funnel p ± 2√(p(1−p)/n) around the theoretical probability
+      const L = run.length - 1, K = 160, band = (i, sg) => Math.max(0, Math.min(1, th + sg * 2 * Math.sqrt(th * (1 - th) / (i + 1))));
+      ctx.beginPath();
+      for (let j = 0; j <= K; j++){ const i = Math.round(L * j / K); ctx.lineTo(S.sx(rx0 + (rx1 - rx0) * i / L), S.sy(Yp(band(i, 1)))); }
+      for (let j = K; j >= 0; j--){ const i = Math.round(L * j / K); ctx.lineTo(S.sx(rx0 + (rx1 - rx0) * i / L), S.sy(Yp(band(i, -1)))); }
+      ctx.closePath(); ctx.fillStyle = 'rgba(246,127,179,.30)'; ctx.fill(); ctx.strokeStyle = 'rgba(246,127,179,.7)'; ctx.lineWidth = 1.2; ctx.stroke();
+    }
     if (run.length > 1){ ctx.strokeStyle = C.orange; ctx.lineWidth = 2.5; ctx.lineJoin = 'round'; ctx.beginPath();
       const step = Math.ceil(run.length / 900), L = run.length - 1;
       for (let i = 0; i <= L; i = i < L && i + step > L ? L : i + step){ const X = S.sx(rx0 + (rx1 - rx0) * i / L), Y = S.sy(Yp(run[i])); i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); } ctx.stroke(); }
@@ -382,7 +401,59 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     Lab.$('#cE').textContent = n ? (kk / n).toFixed(3) : '–'; Lab.$('#cT').innerHTML = MathAnim.tex(M.frac) + ' ≈ ' + M.out[M.track].p.toFixed(3);
     Lab.$('#simOut').innerHTML = n ? MathAnim.tex(`\\frac{${kk}}{${n}} \\approx ${(kk / n).toFixed(3)} \\quad\\text{vs}\\quad ${M.frac}`) : `<span class="muted" style="font-size:17px">${Lab.L({ en:'Press a ×1 … ×1000 button to start.', zh:'按 ×1 … ×1000 按钮开始实验。' })}</span>`;
     Lab.$$('#modeBtns [data-m]').forEach(b => b.classList.toggle('on', b.dataset.m === mode));
+    advUpdate();
   }
+  /* ---------- Advanced mode: expected counts table, error vs 1/√n, prediction challenge ---------- */
+  const f3 = v => v.toFixed(4), f1 = v => String(Math.round(v * 10) / 10);
+  const CH = [   // expected count = trials × probability of the tracked outcome
+    { mode:'coin', n:10000, en:'Flip a coin 10,000 times. How many heads do you expect?', zh:'抛一枚硬币 10000 次，预计正面朝上多少次？' },
+    { mode:'die', n:600, en:'Roll a die 600 times. How many sixes do you expect?', zh:'掷骰子 600 次，预计掷出几次 6？' },
+    { mode:'spin', red:30, n:1000, en:'A spinner is 30% red. Spin it 1,000 times. How many reds do you expect?', zh:'转盘上红色占 30%，转 1000 次，预计转到红色多少次？' },
+    { mode:'spin', red:75, n:400, en:'A spinner is 75% red. Spin it 400 times. How many reds do you expect?', zh:'转盘上红色占 75%，转 400 次，预计转到红色多少次？' },
+    { mode:'die', n:1200, en:'Roll a die 1,200 times. How many sixes do you expect?', zh:'掷骰子 1200 次，预计掷出几次 6？' },
+    { mode:'spin', red:40, n:500, en:'A spinner is 40% red. Spin it 500 times. How many reds do you expect?', zh:'转盘上红色占 40%，转 500 次，预计转到红色多少次？' },
+    { mode:'coin', n:250, en:'Flip a coin 250 times. How many heads do you expect?', zh:'抛一枚硬币 250 次，预计正面朝上多少次？' }
+  ];
+  let chI = 0;
+  const chP = ch => ch.mode === 'coin' ? .5 : ch.mode === 'die' ? 1 / 6 : ch.red / 100;
+  const chFrac = ch => ch.mode === 'coin' ? '½' : ch.mode === 'die' ? '⅙' : ch.red + '%';
+  function advUpdate(){
+    if (!Lab.adv()) return;
+    const M = MODES[mode], th = M.out[M.track].p;
+    const head = M.out.map((o, i) => i === M.track ? `\\textcolor{#d9468a}{\\textbf{${Lab.L(o)}}}` : `\\text{${Lab.L(o)}}`).join(' & ');
+    const row = (lab, f) => lab + ' & ' + M.out.map(f).join(' & ');
+    Lab.$('#pTab').innerHTML = MathAnim.tex(`\\begin{array}{r|${'c'.repeat(M.out.length)}} & ${head} \\\\ \\hline `
+      + row(`\\text{${Lab.L({ en:'count', zh:'次数' })}}`, (o, i) => counts[i]) + ' \\\\ '
+      + row(`\\text{${Lab.L({ en:'expected', zh:'期望' })}}\\; np`, o => f1(n * o.p)) + ' \\\\ '
+      + row(`\\text{${Lab.L({ en:'frequency', zh:'频率' })}}`, (o, i) => n ? (counts[i] / n).toFixed(2) : '–') + ' \\end{array}');
+    const sd2 = n ? 2 * Math.sqrt(th * (1 - th) / n) : 0, f = n ? counts[M.track] / n : 0;
+    Lab.$('#pErr').innerHTML = n
+      ? '<div>' + MathAnim.tex(`\\text{${Lab.L({ en:'error', zh:'误差' })}} = |${f3(f)} - ${f3(th)}| = ${f3(Math.abs(f - th))}`) + '</div><div>'
+        + MathAnim.tex(`\\text{${Lab.L({ en:'funnel', zh:'漏斗' })}} = 2\\sqrt{\\tfrac{${f3(th)}\\,(1-${f3(th)})}{${n}}} \\approx ${f3(sd2)}`) + '</div>'
+        + '<div class="muted" style="font-size:14px">' + Lab.L(Math.abs(f - th) <= sd2
+          ? { en:'✅ The error is inside the 95% funnel, as expected.', zh:'✅ 误差在 95% 漏斗之内，符合预期。' }
+          : { en:'⚠️ Outside the funnel: rare (about 1 time in 20), but it happens. Keep going!', zh:'⚠️ 跑出了漏斗：这种情况少见（约 20 次里 1 次），但会发生。继续试验！' }) + '</div>'
+      : MathAnim.tex(`\\text{${Lab.L({ en:'error', zh:'误差' })}} = |\\text{${Lab.L({ en:'experimental', zh:'频率' })}} - p| \\lesssim 2\\sqrt{\\tfrac{p(1-p)}{n}}`);
+    Lab.$('#pChTxt').textContent = Lab.L(CH[chI]);
+  }
+  Lab.$('#pChNew').onclick = () => { chI = (chI + 1) % CH.length; Lab.$('#pChIn').value = ''; const m = Lab.$('#pChMsg'); m.textContent = ''; m.className = 'result'; advUpdate(); };
+  Lab.$('#pChCheck').onclick = () => {
+    const ch = CH[chI], ex = ch.n * chP(ch), v = parseFloat(Lab.$('#pChIn').value), m = Lab.$('#pChMsg'), ok = Math.abs(v - ex) < .5;
+    m.textContent = Lab.L(isNaN(v) ? { en:'Type a number first.', zh:'请先输入一个数。' }
+      : ok ? { en:`🎉 Yes: n × p = ${ch.n} × ${chFrac(ch)} = ${Math.round(ex)}. Now press ▶ Run it — real results land close, but rarely exactly.`, zh:`🎉 对了：n × p = ${ch.n} × ${chFrac(ch)} = ${Math.round(ex)}。点“▶ 做这个实验”——真实结果会很接近，但很少正好相等。` }
+      : { en:'Not quite. Expected count = number of trials × probability.', zh:'不对。期望次数 = 试验次数 × 概率。' });
+    m.className = 'result ' + (ok ? 'good' : 'bad');
+  };
+  Lab.$('#pChTry').onclick = () => {
+    const ch = CH[chI], ex = ch.n * chP(ch);
+    if (ch.mode === 'spin'){ Lab.$('#redIn').value = ch.red; setRed(ch.red); Lab.$('#redVal').textContent = ch.red + '%'; }
+    mode = ch.mode; reset(); go(ch.n);
+    const k = counts[MODES[mode].track], tol = Math.round(2 * Math.sqrt(ch.n * chP(ch) * (1 - chP(ch)))), m = Lab.$('#pChMsg');
+    m.textContent = Lab.L({ en:`This run: ${k} — that is ${Math.abs(k - Math.round(ex))} away from the expected ${Math.round(ex)} (about 95% of runs land within ±${tol}).`,
+                            zh:`这次实验：${k} 次，与期望的 ${Math.round(ex)} 次相差 ${Math.abs(k - Math.round(ex))}（约 95% 的实验会落在 ±${tol} 以内）。` });
+    m.className = 'result';
+  };
+  Lab.onMode(advUpdate);
   Lab.$$('#modeBtns [data-m]').forEach(b => b.onclick = () => { mode = b.dataset.m; reset(); update(); });
   Lab.$$('[data-run]').forEach(b => b.onclick = () => go(+b.dataset.run));
   Lab.$('#simReset').onclick = () => { reset(); update(); };
@@ -454,6 +525,7 @@ Lab.sort(Lab.$('#sort'), {
 /* ================= Where you see this: real photos (Wikimedia Commons, freely licensed) ================= */
 (function(){
 const o = (en, zh) => ({ en, zh });
+const VID = o('Video', '视频');
 const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/61/W%C3%BCrfel_--_2021_--_5959.jpg/960px-W%C3%BCrfel_--_2021_--_5959.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'Falling dice. With two dice, why does a total of 7 come up more often than 2 or 12?',
@@ -466,9 +538,27 @@ const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7f/Cards_-Deck_Playing.jpg/960px-Cards_-Deck_Playing.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'A deck of playing cards. What is the chance of drawing a heart? An ace?',
     zh:'一副扑克牌。抽到红桃的概率是多少？抽到 A 呢？',
-    credit:'tookapic on Pixabay', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Cards_-Deck_Playing.jpg' }
+    credit:'tookapic on Pixabay', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Cards_-Deck_Playing.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c1/Galton_box.jpg/960px-Galton_box.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A Galton board in a math museum in São Paulo, Brazil. Each bead bounces left or right at random, yet most land in the middle. Why are the edges so rare?',
+    zh:'巴西圣保罗一座数学博物馆里的高尔顿板。每颗珠子随机往左或往右弹，可大多数都落在中间。为什么两边那么少？',
+    credit:'Estes Objethos Atelier; photo Rodrigo.Argenton', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Galton_box.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/17/Punnett_square_mendel_flowers.svg/960px-Punnett_square_mendel_flowers.svg.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A Punnett square from biology lists all 4 equally likely gene pairs for a pea plant’s flower color. What is the chance of a white flower?',
+    zh:'生物课上的庞氏表（棋盘格）列出豌豆花色 4 种等可能的基因组合。开白花的概率是多少？',
+    kind:o('Diagram','图解'), credit:'Madprime', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Punnett_square_mendel_flowers.svg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/e/ea/Yanghui_triangle.gif?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled',
+    en:'“杨辉三角” (Yang Hui’s triangle), printed in China in 1303 by Zhu Shijie, centuries before Pascal. Row 3 (1, 3, 3, 1) counts the ways to get 0–3 heads in 3 coin flips.',
+    zh:'“杨辉三角”，1303 年由中国数学家朱世杰刊印，比帕斯卡早几百年。第 3 行（1, 3, 3, 1）正好数出抛 3 次硬币得到 0–3 次正面的方法数。',
+    kind:o('Math history','数学史'), credit:'Zhu Shijie, 四元玉鉴 (1303)', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Yanghui_triangle.gif' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/98/Blaise_Pascal_Versailles.JPG/960px-Blaise_Pascal_Versailles.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'Blaise Pascal of France. In 1654 he and Pierre de Fermat exchanged letters about a dice-game puzzle, and modern probability was born.',
+    zh:'法国数学家布莱兹·帕斯卡。1654 年，他和费马通信讨论一道掷骰子游戏的难题，现代概率论由此诞生。',
+    kind:o('Math history','数学史'), credit:'after François II Quesnel', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Blaise_Pascal_Versailles.JPG' },
+  { type:'youtube', yt:'KzfWUEJjG18', en:'Video: “Basic Probability” — chance as a fraction: favorable outcomes ÷ all possible outcomes.', zh:'视频：《基础概率》——用分数表示可能性：有利结果数 ÷ 所有可能结果数（英文）。', kind:VID, credit:'Math Antics (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'XMriWTvPXHI', en:'Video: “The mathematical secrets of Pascal’s triangle” — a TED-Ed lesson, including how it predicts coin flips.', zh:'视频：《帕斯卡三角（杨辉三角）的数学秘密》——TED-Ed 课程，包括它怎样预测抛硬币的结果（英文）。', kind:VID, credit:'TED-Ed (YouTube)', license:'YouTube' }
 ];
-LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos. Each one comes with a question this lesson helps you answer. Click a picture to enlarge it.','真实照片。每张都带着一个这节课能帮你回答的问题。点击图片可放大。') });
+LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos and short videos. Each photo comes with a question this lesson helps you answer. Click a picture to enlarge it or to play a video.','真实照片和短视频。每张照片都带着一个这节课能帮你回答的问题。点击图片可放大，点击视频可播放。') });
 })();
 </script>
 <!-- /real-world gallery script -->

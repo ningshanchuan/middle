@@ -29,6 +29,12 @@
 .gasbar div{height:100%}
 .ctlrow{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .wind-ind{font-family:Fredoka;font-size:22px;font-weight:700}
+.agrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-top:10px}
+.al{display:flex;flex-direction:column;gap:10px}
+.al .counter b{font-size:20px}
+.aplot{position:relative;min-height:260px;background:var(--surface-2);border-radius:12px}
+.aplot canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+@media (max-width:760px){.agrid{grid-template-columns:1fr}}
 @media (max-width:980px){.probe{grid-template-columns:1fr}}
 </style>
 </head>
@@ -64,6 +70,7 @@
   <div class="probe">
     <div class="card gbox"><canvas id="tgraph" aria-label="Temperature vs altitude graph"></canvas></div>
     <div class="card readout">
+      <div class="lab-mode"></div>
       <h3 data-zh="📡 探测器读数">📡 Probe readings</h3>
       <div class="big" id="rAlt">0 km</div>
       <div class="layer" id="rLayer"></div>
@@ -74,6 +81,20 @@
       <div class="meter" title="pressure"><div id="rBar"></div></div>
       <p class="here" id="rHere"></p>
     </div>
+  </div>
+  <div class="adv adv-box" id="atmAdvBox" style="margin-top:12px">
+    <b data-zh="🚀 气压与高度：用数字算一算">🚀 Pressure and altitude by the numbers</b>
+    <div class="agrid">
+      <div class="al">
+        <label class="ctl"><span><span data-zh="🎈 精确高度">🎈 Exact altitude</span>: <b id="aAltVal">0 km</b></span><input id="aAlt" type="range" min="0" max="50" step="0.1" value="0"></label>
+        <div class="counters" id="aNums"></div>
+        <p class="muted" id="aFormula" style="margin:0;font-size:13.5px;line-height:1.55"></p>
+      </div>
+      <div class="aplot" data-nofs><canvas id="aPlot"></canvas></div>
+    </div>
+    <div style="margin-top:12px;font-size:14.5px;line-height:1.5"><span data-zh-html="&lt;b&gt;🎯 挑战：&lt;/b&gt;气象气球在地面时直径约 2 米。上升时外面的气压变小，气球就会胀大；当它胀到原来的 4 倍宽（体积是 64 倍）时就会破裂。把探测器升到气球破裂的高度（误差 1 千米以内），然后点“检查”。"><b>🎯 Challenge:</b> A weather balloon is about 2 m wide at launch. As outside pressure drops, it swells. It bursts when it is 4 times as wide (64 times the volume). Raise the probe to the height where it bursts (within 1 km), then press Check.</span>
+      <button class="btn" id="aCheck" style="margin-left:6px" data-zh="检查">Check</button>
+      <div class="result" id="aMsg"></div></div>
   </div>
   <div class="mix" style="margin-top:16px"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="“越高越冷”只在对流层和中间层成立。在平流层（臭氧吸收紫外线）和热层（稀薄气体吸收太阳的高能辐射），温度反而随高度升高。看看上面的温度曲线是怎样“之”字形弯折的！">“Higher means colder” is only true in the troposphere and mesosphere. In the stratosphere (ozone absorbs UV) and the thermosphere (thin gas absorbs high-energy sunlight), temperature actually rises with height. Look how the graph above zig-zags!</span></div>
 </section>
@@ -263,7 +284,49 @@ function renderProbe(){
   let here = HERE[0][1]; for (const [a, txt] of HERE) if (h >= a) here = txt;
   Lab.$('#rHere').textContent = Lab.L(here);
   drawGraph(h);
+  if (Lab.adv()) atmAdv(h);
 }
+/* 🚀 Advanced: pressure in hPa, density, boiling point, balloon (combined gas law) */
+function hPa(h){ return 1013.25 * Math.exp(-h / 7.9); }
+function balloonRatio(h){ return (1013.25 / hPa(h)) * ((temp(h) + 273.15) / 288.15); }   // V ÷ V₀
+function burstAlt(){ let a = 0, b = 50; for (let i = 0; i < 40; i++){ const m = (a + b) / 2; balloonRatio(m) < 64 ? a = m : b = m; } return (a + b) / 2; }
+function atmAdv(h){
+  const P = hPa(h), TK = temp(h) + 273.15, rho = P * 100 / (287.05 * TK), boil = 1730.63 / (8.07131 - Math.log10(P * 0.750062)) - 233.426 /* Antoine equation for water (mmHg) */, V = balloonRatio(h), zh = Lab.lang === 'zh';
+  const fP = P >= 100 ? Math.round(P) : P >= 1 ? P.toFixed(1) : P.toFixed(3), f1 = n => n.toFixed(1);
+  Lab.$('#aAltVal').textContent = App.fmtAlt(h);
+  const s = Lab.$('#aAlt'); if (document.activeElement !== s) s.value = Math.min(50, h);
+  const N = [[o('Air pressure','气压'), fP + ' hPa'], [o('Air density','空气密度'), (rho >= .01 ? rho.toFixed(3) : rho.toExponential(1)) + ' kg/m³'],
+    [o('Water boils at about','水的沸点约为'), P >= 6.2 ? Math.round(boil) + ' °C' : Lab.L(o('– (no liquid water)','–（不能有液态水）'))], [o('🎈 Balloon: volume / width','🎈 气球：体积 / 宽度'), (V >= 100 ? Math.round(V) : f1(V)) + '× / ' + f1(Math.cbrt(V)) + '×']];
+  Lab.$('#aNums').innerHTML = N.map(([n, v]) => `<div class="counter"><b>${v}</b><span>${Lab.L(n)}</span></div>`).join('');
+  Lab.$('#aFormula').innerHTML = zh
+    ? `气压 P ≈ 1013 hPa × e<sup>−h ÷ 7.9 千米</sup> = 1013 × e<sup>−${f1(h)} ÷ 7.9</sup> ≈ ${fP} hPa（大约每升高 5.5 千米减半）<br>气球体积 V = V<sub>0</sub> ×（P<sub>0</sub> ÷ P）×（T ÷ T<sub>0</sub>）= 1013 ÷ ${fP} × ${Math.round(TK)} K ÷ 288 K ≈ ${V >= 100 ? Math.round(V) : f1(V)} 倍<br>气压越低，水的沸点越低，所以在高山上煮饭要用高压锅。`
+    : `Pressure P ≈ 1013 hPa × e<sup>−h ÷ 7.9 km</sup> = 1013 × e<sup>−${f1(h)} ÷ 7.9</sup> ≈ ${fP} hPa (it halves about every 5.5 km)<br>Balloon volume V = V<sub>0</sub> × (P<sub>0</sub> ÷ P) × (T ÷ T<sub>0</sub>) = 1013 ÷ ${fP} × ${Math.round(TK)} K ÷ 288 K ≈ ${V >= 100 ? Math.round(V) : f1(V)}×<br>Lower pressure also means water boils at a lower temperature, so mountain cooks use pressure cookers.`;
+  atmPlot(h);
+}
+function atmPlot(h){
+  const cv = Lab.$('#aPlot'); if (!cv.getBoundingClientRect().width) return;
+  const [g, W, H] = fit(cv), L = 46, R = W - 14, Tp = 14, B = H - 32, X = p => L + p / 1013.25 * (R - L), Y = a => B - a / 50 * (B - Tp), ink2 = css('--ink-2'), line = css('--line');
+  g.clearRect(0, 0, W, H); g.font = '700 11px Nunito, sans-serif'; g.strokeStyle = line; g.lineWidth = 1;
+  for (let a = 0; a <= 50; a += 10){ g.beginPath(); g.moveTo(L, Y(a)); g.lineTo(R, Y(a)); g.stroke(); g.fillStyle = ink2; g.textAlign = 'right'; g.fillText(a, L - 5, Y(a) + 4); }
+  for (let p = 0; p <= 1000; p += 250){ g.beginPath(); g.moveTo(X(p), Tp); g.lineTo(X(p), B); g.stroke(); g.textAlign = 'center'; g.fillText(p, X(p), B + 13); }
+  g.fillText(Lab.L(o('Air pressure (hPa)','气压（hPa）')), (L + R) / 2, H - 3);
+  g.save(); g.translate(12, (Tp + B) / 2); g.rotate(-Math.PI / 2); g.fillText(Lab.L(o('Altitude (km)','高度（千米）')), 0, 0); g.restore();
+  g.strokeStyle = '#8b5cf6'; g.lineWidth = 3; g.beginPath(); for (let a = 0; a <= 50; a += .25){ a === 0 ? g.moveTo(X(hPa(a)), Y(a)) : g.lineTo(X(hPa(a)), Y(a)); } g.stroke();
+  g.font = '800 11px Nunito, sans-serif'; g.textAlign = 'left';
+  [[5.5, o('½ of sea-level pressure','海平面气压的 ½')], [8.85, o('Mt. Everest','珠穆朗玛峰')], [11, o('airliner','客机')]].forEach(([a, n]) => { g.fillStyle = ink2; g.beginPath(); g.arc(X(hPa(a)), Y(a), 3, 0, 7); g.fill(); g.fillText(Lab.L(n) + ' · ' + Math.round(hPa(a)) + ' hPa', X(hPa(a)) + 8, Y(a) + (a === 8.85 ? 0 : a === 11 ? -6 : 4)); });
+  if (h <= 50){ g.setLineDash([5, 4]); g.strokeStyle = '#ffb703'; g.lineWidth = 2; g.beginPath(); g.moveTo(L, Y(h)); g.lineTo(X(hPa(h)), Y(h)); g.stroke(); g.setLineDash([]);
+    g.fillStyle = '#ffb703'; g.beginPath(); g.arc(X(hPa(h)), Y(h), 7, 0, 7); g.fill(); g.strokeStyle = css('--ink'); g.lineWidth = 2; g.stroke(); }
+  else { g.fillStyle = '#ffb703'; g.textAlign = 'right'; g.fillText('▲ ' + App.fmtAlt(h), R - 4, Tp + 14); }
+}
+Lab.$('#aAlt').oninput = e => { if (App.three) App.three.stopStory(); App.setU(App.toU(+e.target.value)); };
+Lab.$('#aCheck').onclick = () => {
+  const h = App.toAlt(App.u), b = burstAlt(), m = Lab.$('#aMsg'), ok = Math.abs(h - b) <= 1;
+  m.className = 'result ' + (ok ? 'good' : 'bad');
+  m.textContent = ok ? Lab.L(o('✅ Yes! It bursts at about ' + b.toFixed(1) + ' km, where the pressure is only about ' + hPa(b).toFixed(0) + ' hPa. Real weather balloons burst at about 30–35 km.', '✅ 对了！它大约在 ' + b.toFixed(1) + ' 千米处破裂，那里的气压只有约 ' + hPa(b).toFixed(0) + ' hPa。真实的气象气球大约在 30–35 千米高处破裂。'))
+    : h < b ? Lab.L(o('❌ Not yet: here it is only ' + Math.cbrt(balloonRatio(h)).toFixed(1) + '× as wide. Go higher.', '❌ 还没到：这里它只有原来的 ' + Math.cbrt(balloonRatio(h)).toFixed(1) + ' 倍宽。再升高一些。'))
+    : Lab.L(o('❌ Too high: it would already have burst lower down. Go lower.', '❌ 太高了：它在更低的地方就已经破了。降低一些。'));
+};
+Lab.onMode(adv => requestAnimationFrame(() => { renderProbe(); }));
 function drawGraph(h){
   const cv = Lab.$('#tgraph'), [g, W, H] = fit(cv), ink = css('--ink'), ink2 = css('--ink-2'), line = css('--line');
   const P = { l:52, r:16, t:18, b:40 }, X = t => P.l + (t + 100) / 145 * (W - P.l - P.r), Y = a => H - P.b - a / 120 * (H - P.t - P.b);
@@ -456,7 +519,14 @@ const PHOTOS = [
   { part:'mesosphere', kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0a/Noctilucent_clouds_over_Slovakia_in_21st_of_June%2C_2019_%281%29.jpg/960px-Noctilucent_clouds_over_Slovakia_in_21st_of_June%2C_2019_%281%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Noctilucent (“night-shining”) clouds over Slovakia. These are the highest clouds on Earth, far up in the mesosphere, so they still catch sunlight after dark.', zh:'斯洛伐克上空的夜光云。它是地球上最高的云，远在中间层，所以天黑以后还能被阳光照亮。', scale:{en:'about 80 km (50 miles) high',zh:'高度约 80 千米'}, credit:'Chmee2', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Noctilucent_clouds_over_Slovakia_in_21st_of_June,_2019_(1).jpg' },
   { part:'thermosphere', kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d3/Aurora_borealis_over_Eielson_Air_Force_Base%2C_Alaska.jpg/960px-Aurora_borealis_over_Eielson_Air_Force_Base%2C_Alaska.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The northern lights (aurora borealis) over Bear Lake, Alaska. Particles from the Sun make the thin gas of the thermosphere glow.', zh:'美国阿拉斯加州贝尔湖上空的北极光。来自太阳的粒子让热层里稀薄的气体发出了光。', scale:{en:'Alaska, USA',zh:'美国阿拉斯加州'}, credit:'U.S. Air Force, Senior Airman Joshua Strang', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Aurora_borealis_over_Eielson_Air_Force_Base,_Alaska.jpg' },
   { kind:{en:'Astronaut photo',zh:'宇航员拍摄'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/31/Aurora_Seen_From_Space_by_NASA.jpg/960px-Aurora_Seen_From_Space_by_NASA.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A green and red aurora seen from the International Space Station. From up here you can see that auroras glow far above the clouds and the weather.', zh:'从国际空间站看到的绿色和红色极光。从这里能看出，极光发光的地方远在云层和天气现象的上方。', credit:'NASA', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Aurora_Seen_From_Space_by_NASA.jpg' },
-  { type:'video', kind:{en:'Video',zh:'影片'}, media:'https://upload.wikimedia.org/wikipedia/commons/b/b7/Weather_balloon_launch.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b7/Weather_balloon_launch.webm/500px--Weather_balloon_launch.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b7/Weather_balloon_launch.webm/500px--Weather_balloon_launch.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Watch: a weather balloon is launched in Kyiv, Ukraine. As it climbs, the air pressure outside drops, so the balloon swells until it finally bursts.', zh:'看一看：在乌克兰基辅放飞探空气球。气球越升越高，外面的气压越来越低，它就越胀越大，最后会胀破。', credit:'Alex long', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Weather_balloon_launch.webm' }
+  { type:'video', kind:{en:'Video',zh:'影片'}, media:'https://upload.wikimedia.org/wikipedia/commons/b/b7/Weather_balloon_launch.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b7/Weather_balloon_launch.webm/500px--Weather_balloon_launch.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b7/Weather_balloon_launch.webm/500px--Weather_balloon_launch.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Watch: a weather balloon is launched in Kyiv, Ukraine. As it climbs, the air pressure outside drops, so the balloon swells until it finally bursts.', zh:'看一看：在乌克兰基辅放飞探空气球。气球越升越高，外面的气压越来越低，它就越胀越大，最后会胀破。', credit:'Alex long', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Weather_balloon_launch.webm' },
+  { kind:{en:'Astronaut photo',zh:'宇航员拍摄'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/07/ISS-20_Thunderstorms_on_the_Brazilian_Horizon.jpg/960px-ISS-20_Thunderstorms_on_the_Brazilian_Horizon.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A line of thunderstorms over Brazil, photographed from the International Space Station. The tallest storm clouds rise until they hit the top of the troposphere, then spread out flat.', zh:'从国际空间站拍摄的巴西上空的一排雷暴云。最高的雷暴云一直向上长，碰到对流层顶后就向四周摊平。', scale:{en:'over Brazil · 2009',zh:'巴西上空 · 2009 年'}, credit:'NASA Expedition 20 crew', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:ISS-20_Thunderstorms_on_the_Brazilian_Horizon.jpg' },
+  { kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3b/Jayanthi_Kuru_Utumpala_waving_the_Sri_Lankan_flag_on_the_summit_of_Mount_Everest_on_21st_May_2016.jpg/960px-Jayanthi_Kuru_Utumpala_waving_the_Sri_Lankan_flag_on_the_summit_of_Mount_Everest_on_21st_May_2016.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A climber on the summit of Mount Everest (Qomolangma), 8,849 m high, in 2016. Up here the air pressure is only about one-third of that at sea level, so most climbers breathe bottled oxygen through a mask.', zh:'2016 年，一位登山者站在海拔 8849 米的珠穆朗玛峰峰顶。这里的气压只有海平面的三分之一左右，所以大多数登山者要戴面罩吸瓶装氧气。', scale:{en:'about 8.8 km up, still in the troposphere',zh:'高约 8.8 千米，仍在对流层里'}, credit:'Jayeverest', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Jayanthi_Kuru_Utumpala_waving_the_Sri_Lankan_flag_on_the_summit_of_Mount_Everest_on_21st_May_2016.jpg' },
+  { kind:{en:'Air-to-air photo',zh:'空中拍摄'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d8/Douglas_DC-8_producing_contrails_at_a_biofuel_test.jpg/960px-Douglas_DC-8_producing_contrails_at_a_biofuel_test.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'NASA’s DC-8 flying laboratory leaves white contrails during a fuel test. Jets cruise about 10–12 km high, near the top of the troposphere, where the air is so cold that the water vapour in the engine exhaust freezes into ice clouds.', zh:'美国国家航空航天局的 DC-8 空中实验室在一次燃料测试中拖出白色的航迹云。喷气式飞机一般在约 10～12 千米的高度巡航，接近对流层顶；那里的空气极冷，发动机尾气里的水汽会冻成冰晶云。', credit:'NASA / Eddie Winstead', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Douglas_DC-8_producing_contrails_at_a_biofuel_test.jpg' },
+  { kind:{en:'Night-sky photo',zh:'夜空照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1f/2016_Meteor.jpg/960px-2016_Meteor.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A “shooting star” during the Perseid meteor shower. It is really a grain of space dust burning up as it rushes into the mesosphere, roughly 80–100 km above the ground.', zh:'英仙座流星雨中的一颗“流星”。它其实是一粒太空尘埃，冲进中间层时燃烧发光，离地面大约 80～100 千米。', scale:{en:'look for the thin streak near the top',zh:'找一找上方那道细细的亮线'}, credit:'Jacek Halicki', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:2016_Meteor.jpg' },
+  { kind:{en:'Astronaut photo',zh:'宇航员拍摄'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/04/International_Space_Station_after_undocking_of_STS-132.jpg/960px-International_Space_Station_after_undocking_of_STS-132.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The International Space Station, photographed from a departing Space Shuttle in 2010. It orbits about 400 km up, inside the thermosphere, where the air is so thin that the sky is black even in daytime.', zh:'2010 年从离开的航天飞机上拍摄的国际空间站。它在约 400 千米的高空绕地球飞行，位于热层之中；那里的空气极其稀薄，即使是白天，天空也是黑色的。', scale:{en:'about 109 m (357 ft) across',zh:'宽约 109 米'}, credit:'NASA / STS-132 crew', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:International_Space_Station_after_undocking_of_STS-132.jpg' },
+  { type:'youtube', yt:'UXh_7wbnS3A', kind:{en:'Video',zh:'视频'}, en:'Crash Course Kids: the hydrosphere and the atmosphere. What is the air around Earth made of, and why do living things need it?', zh:'Crash Course Kids：水圈和大气圈。包围地球的空气由什么组成？生物为什么离不开它？', credit:'Crash Course Kids (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'phbvQenRgLw', kind:{en:'NASA video',zh:'NASA 视频'}, en:'NASA: satellite data show the ozone layer in the stratosphere slowly healing, after countries agreed to stop using the chemicals that damaged it.', zh:'美国国家航空航天局：卫星数据显示，在各国约定停用破坏臭氧的化学品之后，平流层里的臭氧层正在慢慢恢复。', credit:'NASA Video (YouTube)', license:'YouTube' }
 ];
 PHOTOS.forEach(it => { if (it.part && PARTS[it.part]) PARTS[it.part].photo = it; });
 LabPhotos.render(Lab.$('#gallery'), PHOTOS);

@@ -36,6 +36,15 @@ button.nt:hover{outline:2px solid var(--ink);outline-offset:1px}
 .wheelbox canvas{position:absolute;inset:0;width:100%;height:100%;cursor:pointer}
 .protcmp{font-family:Fredoka;font-size:18px;background:var(--surface-2);border-radius:12px;padding:10px 12px;line-height:1.5}
 .protcmp span.d{color:var(--bad);text-decoration:underline}
+.seqin{width:100%;font:600 17px/1.3 Fredoka,monospace;letter-spacing:.08em;padding:9px 12px;border-radius:12px;border:2px solid var(--line);background:var(--surface);color:var(--ink);text-transform:uppercase}
+.seqout{display:flex;flex-wrap:wrap;gap:6px}
+.seqout .cx{display:flex;flex-direction:column;align-items:center;gap:2px;border:1px solid var(--line);border-radius:10px;padding:4px 6px;background:var(--surface);font-size:12px;font-weight:800;color:var(--ink-2);min-width:48px}
+.seqout .cx b{font-family:Fredoka;font-size:15px;letter-spacing:.06em;color:var(--ink)}
+.seqout .cx i{font-style:normal;color:#fff;border-radius:6px;padding:0 6px;font-size:13px}
+.seqout .cx.out{opacity:.45}
+.advf{font-size:14px;color:var(--ink-2);line-height:1.5}
+.advf b{color:var(--ink)}
+.info .adv-box{font-size:14.5px;display:flex;flex-direction:column;gap:6px}
 @media (max-width:980px){.flow{grid-template-columns:1fr}}
 @media (max-width:560px){.pill input#prog{width:120px}.nt{width:26px;height:32px;font-size:16px}.aa{min-width:76px}}
 </style>
@@ -53,6 +62,7 @@ button.nt:hover{outline:2px solid var(--ink);outline-offset:1px}
   <div class="explorer">
     <div class="stage card" id="stage" data-3d>
       <div class="toolbar">
+        <div class="lab-mode"></div>
         <button class="tbtn" id="storyBtn" data-zh="🎬 从基因到蛋白质（故事）">🎬 Gene to protein (story)</button>
         <button class="tbtn" id="playBtn" data-zh="▶ 播放">▶ Play</button>
         <button class="tbtn" id="labelBtn" data-zh="🏷 标签">🏷 Labels</button>
@@ -95,12 +105,23 @@ button.nt:hover{outline:2px solid var(--ink);outline-offset:1px}
   </div>
   <div class="sim">
     <div class="card simside">
+      <div class="lab-mode"></div>
       <div class="seqrow" id="dnaRow"></div>
       <div class="seqrow" id="rnaRow"></div>
       <div class="seqrow" id="aaRow"></div>
       <div class="btnrow"><button class="btn" id="mSub" data-zh="🔁 替换一个碱基">🔁 Substitution</button><button class="btn alt" id="mIns" data-zh="➕ 插入一个碱基">➕ Insertion</button><button class="btn alt" id="mDel" data-zh="➖ 缺失一个碱基">➖ Deletion</button><button class="btn ghost" id="mReset" data-zh="↺ 恢复原样">↺ Original</button></div>
       <div class="protcmp" id="protCmp"></div>
       <div class="result" id="mutMsg"></div>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:8px">
+        <b data-zh="✍️ 写一个你自己的基因">✍️ Write your own gene</b>
+        <label class="ctl"><span data-zh="DNA 编码链（5′ → 3′），只用 A、T、G、C：">DNA coding strand (5′ → 3′), letters A, T, G, C only:</span>
+          <input id="seqIn" class="seqin" type="text" spellcheck="false" autocomplete="off" maxlength="72" value="GCAATGGCTGGCATTTGCTAACGT"></label>
+        <div class="btnrow" style="gap:6px"><button class="btn ghost" id="seqMagic" data-zh="MAGIC 基因">MAGIC gene</button><button class="btn ghost" id="seqRand" data-zh="🎲 随机 DNA">🎲 Random DNA</button></div>
+        <div id="seqOut" class="seqout"></div>
+        <div id="seqNums" class="advf"></div>
+        <div class="advf"><b data-zh="🎯 挑战：">🎯 Challenge:</b> <span data-zh="写一个基因，让它的蛋白质拼出 M-Y-D-N-A（“我的 DNA”），然后终止。提示：先找起始密码子，再用密码子轮盘反查。">Write a gene whose protein spells M-Y-D-N-A (“my DNA”) and then stops. Hint: start with a START codon, then use the codon wheel backwards.</span></div>
+        <div class="result" id="seqCh"></div>
+      </div>
     </div>
     <div class="card simside">
       <h3 data-zh="密码子轮盘">Codon wheel</h3>
@@ -140,10 +161,15 @@ const P = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/43/Varbuss.jpg/960px-Varbuss.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Living worms (C. elegans) whose nerve cells glow green: they were given the gene for green fluorescent protein (GFP), and their cells make the protein.', zh:'活的秀丽隐杆线虫，它们的神经细胞发出绿光：科学家给了它们绿色荧光蛋白（GFP）的基因，它们的细胞就把这种蛋白质造了出来。', kind:{en:'Fluorescence micrograph',zh:'荧光显微镜照片'}, credit:'Heiti Paves', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Varbuss.jpg' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a1/Sickle_cells.jpg/960px-Sickle_cells.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Protein shape matters. In sickle-cell disease, a genetic blood disorder, red blood cells take on an abnormal, stiff sickle shape.', zh:'蛋白质的形状很重要。镰状细胞贫血是一种遗传性血液病，患者的红细胞会变成不正常的、僵硬的镰刀形。', kind:{en:'Light micrograph',zh:'光学显微镜照片'}, credit:'Dr Graham Beards', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Sickle_cells.jpg' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/ca/DNA_Under_electron_microscope_Image_3576B-PH.jpg/960px-DNA_Under_electron_microscope_Image_3576B-PH.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The recipe book: real DNA under an electron microscope.', zh:'“配方书”：电子显微镜下真实的 DNA。', kind:{en:'Electron micrograph',zh:'电子显微镜照片'}, credit:'Photographer unknown (image ID 3576)', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:DNA_Under_electron_microscope_Image_3576B-PH.jpg' },
-  { src:'https://upload.wikimedia.org/wikipedia/commons/6/6c/HeLa_cells_stained_with_Hoechst_33258.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Where transcription happens: the blue areas are the nuclei of human (HeLa) cells, stained with a dye that sticks to DNA.', zh:'转录发生的地方：蓝色的区域是人类（HeLa）细胞的细胞核，用一种能与 DNA 结合的染料染过。', kind:{en:'Fluorescence micrograph',zh:'荧光显微镜照片'}, credit:'TenOfAllTrades (English Wikipedia)', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:HeLa_cells_stained_with_Hoechst_33258.jpg' }
+  { src:'https://upload.wikimedia.org/wikipedia/commons/6/6c/HeLa_cells_stained_with_Hoechst_33258.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Where transcription happens: the blue areas are the nuclei of human (HeLa) cells, stained with a dye that sticks to DNA.', zh:'转录发生的地方：蓝色的区域是人类（HeLa）细胞的细胞核，用一种能与 DNA 结合的染料染过。', kind:{en:'Fluorescence micrograph',zh:'荧光显微镜照片'}, credit:'TenOfAllTrades (English Wikipedia)', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:HeLa_cells_stained_with_Hoechst_33258.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/7/76/Mammalian_pancreatic_tissue%2C_nuclear_pores_and_rough_endoplasmic_reticulum.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'The protein factory floor: part of a pancreas cell. Messenger RNA leaves the nucleus through tiny nuclear pores, and ribosomes stuck on the rough endoplasmic reticulum (the lined membranes) build the proteins.', zh:'蛋白质工厂的“车间”：一个胰腺细胞的局部。信使 RNA 通过细小的核孔离开细胞核，附着在粗面内质网（一层层的膜）上的核糖体再把蛋白质造出来。', kind:{en:'Electron micrograph (TEM)',zh:'透射电镜照片'}, credit:'Louisa Howard', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Mammalian_pancreatic_tissue,_nuclear_pores_and_rough_endoplasmic_reticulum.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4b/Spider_Silk_-_PMG.jpg/960px-Spider_Silk_-_PMG.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Spider silk under a microscope. Silk is a protein: the spider’s cells follow genes to build it, amino acid by amino acid, and it is tougher than steel of the same weight.', zh:'显微镜下的蜘蛛丝。蛛丝是一种蛋白质：蜘蛛的细胞按照基因的指令，把氨基酸一个个连起来造出它。同样重量下，蛛丝比钢还要坚韧。', kind:{en:'Light micrograph',zh:'光学显微镜照片'}, credit:'ConformationXII', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Spider_Silk_-_PMG.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/aa/Spider_silk_cape.jpg/960px-Spider_silk_cape.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A golden cape woven from the silk of more than a million golden orb spiders from Madagascar, shown at the Victoria and Albert Museum in London. Every thread is protein!', zh:'一件用一百多万只马达加斯加金色圆网蛛的蛛丝织成的金色披肩，在伦敦维多利亚与艾伯特博物馆展出。每一根丝都是蛋白质！', kind:{en:'Museum photo',zh:'博物馆照片'}, credit:'Cmglee', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Spider_silk_cape.jpg' },
+  { type:'youtube', yt:'oefAI2x2CQM', kind:{en:'Video',zh:'视频'}, en:'Amoeba Sisters: protein synthesis. Transcription (DNA to mRNA in the nucleus) and translation (mRNA to protein at the ribosome), just like on this page.', zh:'Amoeba Sisters（阿米巴姐妹）：蛋白质合成。转录（在细胞核里由 DNA 到 mRNA）和翻译（在核糖体上由 mRNA 到蛋白质），和本页演示的一样。', credit:'Amoeba Sisters (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'JQByjprj_mA', kind:{en:'Video',zh:'视频'}, en:'Amoeba Sisters: DNA versus RNA. How the two molecules differ, and the jobs of mRNA, tRNA and rRNA.', zh:'Amoeba Sisters（阿米巴姐妹）：DNA 和 RNA 有什么不同？还有 mRNA、tRNA 和 rRNA 各自的工作。', credit:'Amoeba Sisters (YouTube)', license:'YouTube' }
 ];
 window.REALFIG = { amino:P[4], dna:P[5], nucleus:P[6], protein:P[0] };
-if (window.LabPhotos) LabPhotos.render('#gallery', P.filter(p => !p._x), { title:{en:'See the real thing',zh:'看看真实的样子'}, sub:{en:'Ribosomes are too small to photograph easily, but the proteins they build are everywhere. Here are real proteins and the real DNA recipe. Click any picture to enlarge it.',zh:'核糖体小得很难拍到，但它们造出的蛋白质无处不在。这里有真实的蛋白质，还有真实的 DNA“配方”。点击图片可以放大。'} });
+if (window.LabPhotos) LabPhotos.render('#gallery', P.filter(p => !p._x), { title:{en:'See the real thing',zh:'看看真实的样子'}, sub:{en:'Ribosomes are too small to photograph easily, but the proteins they build are everywhere. Here are real proteins and the real DNA recipe. Click any picture to enlarge it; the videos play only when you press play.',zh:'核糖体小得很难拍到，但它们造出的蛋白质无处不在。这里有真实的蛋白质，还有真实的 DNA“配方”。点击图片可以放大；视频要按下播放键才会播放。'} });
 })();
 </script>
 <!--/REAL-PHOTOS-->
@@ -158,7 +184,7 @@ function makeExplorer(cfg){
     if (!k){
       box.innerHTML = `<span class="tag">${Lab.L(I.tag)}</span><h3>${Lab.L(I.title)}</h3>
         <p class="muted" style="margin:0">${Lab.L(I.text)}</p>
-        <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(I.big)}</div>
+        <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(I.big)}</div>${cfg.deep ? cfg.deep('intro') : ''}
         <div class="nav"><button data-a="start">${Lab.L(I.start)}</button></div>`;
       box.querySelector('[data-a=start]').onclick = () => E.select(cfg.order[0]);
     } else {
@@ -169,7 +195,7 @@ function makeExplorer(cfg){
         <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>${window.REALFIG && REALFIG[k] ? LabPhotos.figure(REALFIG[k]) : ''}
         <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(p.hint)}</div>
         ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
-        <button class="speak" data-a="speak">${Lab.L(Lab.UI.listen)}</button>
+        <button class="speak" data-a="speak">${Lab.L(Lab.UI.listen)}</button>${cfg.deep ? cfg.deep(k) : ''}
         <div class="nav"><button data-a="prev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button data-a="next">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
       box.querySelector('[data-a=speak]').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. ').replace(/<[^>]+>/g, ''));
       box.querySelector('[data-a=prev]').onclick = () => E.select(cfg.order[(i - 1 + n) % n]);
@@ -243,7 +269,21 @@ const STORY = [
   {en:'7 · Codon by codon, tRNAs deliver amino acids and peptide bonds join them: M-A-G-I…', zh:'7 · 一个密码子接一个密码子，tRNA 运来氨基酸，肽键把它们连起来：M-A-G-I……', p:10.2, k:'amino', cam:'rib'},
   {en:'8 · STOP codon UAA: the chain is released and folds into a protein. M-A-G-I-C!', zh:'8 · 终止密码子 UAA：肽链被释放，折叠成蛋白质。M-A-G-I-C!', p:12, k:'protein', cam:'rib'}
 ];
+/* ===== Advanced: zoom deeper — real sizes, speeds and numbers for each part (info panel, Advanced mode only) ===== */
+const DEEP = {
+  intro:o('4 kinds of bases → 4 × 4 × 4 = <b>64 codons</b>: 61 code for the 20 amino acids and 3 mean STOP. Why not 2-letter words? 4 × 4 = 16 is too few for 20 amino acids.','4 种碱基 → 4 × 4 × 4 = <b>64 个密码子</b>：61 个编码 20 种氨基酸，3 个是终止信号。为什么不用 2 个碱基一组？4 × 4 = 16，不够 20 种氨基酸用。'),
+  nucleus:o('A human nucleus is only about <b>6 µm</b> across, yet it holds about <b>2 m</b> of DNA: about 6.4 billion base pairs in 46 molecules, wound around proteins.','人的细胞核直径只有约 <b>6 微米</b>，却装着约 <b>2 米</b>长的 DNA：46 个 DNA 分子，约 64 亿个碱基对，缠绕在蛋白质上。'),
+  dna:o('Humans have about <b>20,000</b> protein-coding genes, but they make up only about <b>1–2%</b> of all our DNA.','人类约有 <b>2 万</b>个编码蛋白质的基因，但它们只占全部 DNA 的约 <b>1%–2%</b>。'),
+  rnapol:o('Human RNA polymerase copies about <b>20–70 bases per second</b>. A very long gene can take hours to copy!','人的 RNA 聚合酶每秒大约合成 <b>20–70 个</b>核苷酸。很长的基因要转录好几个小时！'),
+  mrna:o('Before a human mRNA leaves the nucleus, pieces called <b>introns</b> are cut out (splicing) and a cap and a tail are added. A typical finished human mRNA is a few thousand bases long.','人的 mRNA 离开细胞核之前，要切掉叫<b>内含子</b>的片段（剪接），再加上“帽子”和“尾巴”。一条加工好的 mRNA 通常有几千个碱基。'),
+  pore:o('Each nuclear pore is a huge machine made of about <b>30 kinds</b> of proteins; a nucleus has a few <b>thousand</b> pores.','每个核孔都是由约 <b>30 种</b>蛋白质组成的“大机器”；一个细胞核上有几<b>千</b>个核孔。'),
+  ribosome:o('A human ribosome adds about <b>5 amino acids per second</b> (bacteria: about 15–20). A busy cell can have about <b>10 million</b> ribosomes.','人的核糖体每秒大约连接 <b>5 个</b>氨基酸（细菌约 15–20 个）。一个旺盛工作的细胞约有 <b>1000 万</b>个核糖体。'),
+  trna:o('There are 61 amino-acid codons but fewer kinds of tRNA: the 3rd base can “wobble”, so one tRNA can read several codons.','编码氨基酸的密码子有 61 个，但 tRNA 的种类更少：密码子第 3 个碱基的配对可以“摆动”，一种 tRNA 能识别几个密码子。'),
+  amino:o('Each amino acid adds about <b>110 daltons</b> (Da) of mass. A protein of 400 amino acids weighs about 400 × 110 ≈ <b>44,000 Da</b> (44 kDa).','每个氨基酸大约贡献 <b>110 道尔顿</b>（Da）的质量。一个含 400 个氨基酸的蛋白质约重 400 × 110 ≈ <b>44000 Da</b>（44 kDa）。'),
+  protein:o('A typical human protein has a few hundred amino acids. The biggest, <b>titin</b> (in muscle), has about <b>34,000</b>: at 5 per second that takes about 2 hours to build!','人的蛋白质一般有几百个氨基酸。最大的<b>肌联蛋白</b>（在肌肉里）约有 <b>34000</b> 个：按每秒 5 个计算，要合成约 2 小时！')
+};
 const EX = makeExplorer({ info:'#info', chips:'#chips', parts:PARTS, order:ORDER, tag:o('Protein synthesis','蛋白质合成'),
+  deep:k => DEEP[k] ? `<div class="adv adv-box"><b>${Lab.L(o('🔬 Zoom deeper','🔬 再深入一点'))}</b><span>${Lab.L(DEEP[k])}</span></div>` : '',
   intro:{ tag:o('Central dogma','中心法则'), title:o('From gene to protein','从基因到蛋白质'),
     text:o('On the right is the nucleus with a DNA molecule; on the left a ribosome waits in the cytoplasm. Press the story button or drag the Progress slider.','右边是含有 DNA 的细胞核，左边的细胞质中有一个核糖体在等待。点“故事”按钮或拖动“进程”滑块。'),
     big:o('DNA → (transcription) → mRNA → (translation) → protein. The order of bases decides the order of amino acids.','DNA →（转录）→ mRNA →（翻译）→ 蛋白质。碱基的顺序决定氨基酸的顺序。'),
@@ -327,6 +367,41 @@ const EX = makeExplorer({ info:'#info', chips:'#chips', parts:PARTS, order:ORDER
   new ResizeObserver(() => drawWheel(lastSel)).observe(cv);
   window.addEventListener('labtheme', () => drawWheel(lastSel));
   Lab.onLang(render);
+})();
+/* ===== Advanced: write your own gene (any DNA → mRNA → codons from the first AUG → protein) ===== */
+(function(){
+  const inp = Lab.$('#seqIn'), PAIR = { A:'U', U:'A', G:'C', C:'G' }, COMP = { A:'T', T:'A', G:'C', C:'G' };
+  let won = false;
+  function render(){
+    if (!Lab.adv()) return;
+    const zh = Lab.lang === 'zh', raw = inp.value.toUpperCase(), dna = raw.replace(/U/g, 'T').replace(/[^ATGC]/g, ''), bad = raw.replace(/[\sATGCU]/g, '').length;
+    const mrna = dna.replace(/T/g, 'U'), st = mrna.indexOf('AUG'), gc = dna.length ? Math.round(dna.replace(/[AT]/g, '').length / dna.length * 100) : 0;
+    let html = '', prot = '', stopped = false;
+    if (st >= 0){
+      for (let i = st; i + 3 <= mrna.length; i += 3){ const c = mrna.slice(i, i + 3), a = codonAA(c), info = AA[a];
+        html += `<span class="cx"><b>${c}</b><span title="tRNA">${c.split('').map(b => PAIR[b]).join('')}</span><i style="background:${AACOL(a)}">${info[0]}</i></span>`;
+        if (a === '*'){ stopped = true; break; } prot += a; }
+      const rest = mrna.length - st - (stopped ? prot.length * 3 + 3 : Math.floor((mrna.length - st) / 3) * 3);
+      if (st > 0) html = `<span class="cx out"><b>${mrna.slice(0, st)}</b>${zh ? '起始前（不翻译）' : 'before START (not read)'}</span>` + html;
+      if (rest > 0) html += `<span class="cx out"><b>${mrna.slice(mrna.length - rest)}</b>${zh ? (stopped ? '终止后（不翻译）' : '不足 3 个碱基') : (stopped ? 'after STOP (not read)' : 'leftover bases')}</span>`;
+    }
+    Lab.$('#seqOut').innerHTML = st < 0 ? `<span class="advf">${zh ? '⚠️ 没有起始密码子（DNA 上的 ATG = mRNA 上的 AUG），核糖体无法开始翻译。' : '⚠️ No START codon (ATG in the DNA = AUG in the mRNA), so the ribosome cannot begin.'}</span>` : html;
+    const L = prot.length, kda = (L * 110 + 18) / 1000;
+    Lab.$('#seqNums').innerHTML = (zh
+      ? `每格：<b>mRNA 密码子</b> / tRNA 反密码子 / 氨基酸。DNA 长 <b>${dna.length}</b> 个碱基，GC 含量 <b>${gc}%</b>。模板链（3′→5′）：<b>${dna.split('').map(b => COMP[b]).join('')}</b><br>蛋白质：<b>${L ? prot.split('').join('-') : '—'}</b>（${L} 个氨基酸，约 ${L} × 110 Da ≈ ${kda.toFixed(2)} kDa）${st >= 0 && !stopped ? ' ⚠️ 没有终止密码子' : ''}`
+      : `Each box: <b>mRNA codon</b> / tRNA anticodon / amino acid. DNA length <b>${dna.length}</b> bases, GC content <b>${gc}%</b>. Template strand (3′→5′): <b>${dna.split('').map(b => COMP[b]).join('')}</b><br>Protein: <b>${L ? prot.split('').join('-') : '—'}</b> (${L} amino acids, about ${L} × 110 Da ≈ ${kda.toFixed(2)} kDa)${st >= 0 && !stopped ? ' ⚠️ no STOP codon' : ''}`)
+      + (bad ? (zh ? `<br>（已忽略 ${bad} 个不是 A/T/G/C 的字符）` : `<br>(${bad} character(s) that are not A/T/G/C were ignored)`) : '');
+    const ok = prot === 'MYDNA' && stopped; if (ok) won = true;
+    const c = Lab.$('#seqCh');
+    c.textContent = ok ? (zh ? '✅ 成功！M-Y-D-N-A + 终止。因为密码子有简并性，能做出这条蛋白质的基因一共有 1 × 2 × 2 × 2 × 4 × 3 = 96 种写法！' : '✅ You did it! M-Y-D-N-A + STOP. Because several codons can code for the same amino acid, there are 1 × 2 × 2 × 2 × 4 × 3 = 96 different genes that make exactly this protein!')
+      : won ? (zh ? '✅ 挑战已完成。继续自由实验吧！' : '✅ Challenge done. Keep experimenting!')
+      : (zh ? `现在的蛋白质：${prot ? prot.split('').join('-') : '—'}${stopped ? ' + 终止' : ''}。目标：M-Y-D-N-A + 终止。` : `Your protein now: ${prot ? prot.split('').join('-') : '—'}${stopped ? ' + STOP' : ''}. Target: M-Y-D-N-A + STOP.`);
+    c.className = 'result ' + (ok || won ? 'good' : '');
+  }
+  inp.addEventListener('input', render);
+  Lab.$('#seqMagic').onclick = () => { inp.value = 'GCAATGGCTGGCATTTGCTAACGT'; render(); };
+  Lab.$('#seqRand').onclick = () => { let s = 'GC' + 'ATG'; for (let i = 0; i < 33; i++) s += 'ATGC'[Math.random() * 4 | 0]; inp.value = s; render(); };
+  Lab.onLang(render); Lab.onMode(render);
 })();
 /* ===== Quiz ===== */
 Lab.quiz(Lab.$('#quiz'), [

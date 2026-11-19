@@ -45,11 +45,24 @@ table.pt td.r.same{color:var(--good)} table.pt td.r.diff{color:var(--bad)}
   <div class="ma-explore">
     <div class="ma-stage explore-stage" id="exStage" data-fs></div>
     <div class="card ctl">
+      <div class="lab-mode" style="align-self:flex-start"></div>
       <label class="ctl"><span><span data-zh="比例系数 k = ">Constant k = </span><b id="kVal">3</b></span><input id="kIn" type="range" min="0.5" max="6" step="0.5" value="3"></label>
       <label class="ctl"><span><span data-zh="起始量 b = ">Starting amount b = </span><b id="bVal">0</b></span><input id="bIn" type="range" min="0" max="6" step="1" value="0"></label>
       <div class="ma-big" id="eqOut"></div>
       <table class="pt"><thead><tr><th>x</th><th>y</th><th>y / x</th></tr></thead><tbody id="ptBody"></tbody></table>
       <div class="result" id="exMsg"></div>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:10px">
+        <b data-zh="进阶：反比例关系 y = c / x（紫色曲线）">Advanced: inverse variation y = c / x (purple curve)</b>
+        <p class="muted" style="margin:0;font-size:14px" data-zh="正比例：y 和 x 的比值 y/x 不变。反比例：乘积 x·y 不变——x 变成 2 倍，y 就变成原来的一半。">Direct variation keeps the ratio y/x fixed. Inverse variation keeps the product x·y fixed: double x and y is cut in half.</p>
+        <label class="ctl"><span><span data-zh="乘积 c = x·y = ">Product c = x·y = </span><b id="cVal">12</b></span><input id="cIn" type="range" min="1" max="36" step="1" value="12"></label>
+        <div id="invEq" style="text-align:center;font-size:18px"></div>
+        <div id="invBody" style="text-align:center;font-size:17px;overflow-x:auto;overflow-y:hidden"></div>
+        <div style="border-top:1px solid var(--line);padding-top:8px">
+          <b data-zh="🎯 挑战">🎯 Challenge</b> <span id="chTxt"></span>
+          <div class="btnrow" style="margin-top:6px"><button class="btn" id="chCheck" data-zh="检查">Check</button><button class="btn ghost" id="chNew" data-zh="换一题">New challenge</button></div>
+          <div class="result" id="chMsg"></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -334,7 +347,43 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     // draggable handle at x = 2 on the proportional part
     const hx = 2, hy = k * hx + b;
     if (hy <= 24){ ctx.beginPath(); ctx.arc(S.sx(gx(hx)), S.sy(gy(hy)), S.px(.24) + (drag ? 3 : 0), 0, 7); ctx.fillStyle = C.orange; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke(); }
+    if (!Lab.adv()) return;
+    /* ---- Advanced: inverse-variation curve y = c / x and the challenge point ---- */
+    ctx.strokeStyle = C.purple; ctx.lineWidth = 3.5; ctx.beginPath();
+    for (let i = 0; i <= 120; i++){ const x = c / 24 + (8 - c / 24) * i / 120, y = c / x; i ? ctx.lineTo(S.sx(gx(x)), S.sy(gy(y))) : ctx.moveTo(S.sx(gx(x)), S.sy(gy(y))); }
+    ctx.stroke();
+    for (let x = 1; x <= 5; x++){ ctx.beginPath(); ctx.arc(S.sx(gx(x)), S.sy(gy(c / x)), S.px(.11), 0, 7); ctx.fillStyle = C.purple; ctx.fill(); }
+    ctx.font = `800 ${Math.max(10, S.px(.3))}px Nunito, sans-serif`; ctx.textAlign = 'right'; ctx.textBaseline = 'bottom'; ctx.fillStyle = C.purple;
+    ctx.fillText(`y = ${fmt(c)} / x`, S.sx(gx(8)), S.sy(gy(c / 8) + .2));
+    if (ch){ ctx.beginPath(); ctx.arc(S.sx(gx(ch.x)), S.sy(gy(ch.y)), S.px(.3), 0, 7); ctx.lineWidth = 3; ctx.strokeStyle = C.yellow; ctx.stroke();
+      ctx.fillStyle = C.yellow; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(`P(${ch.x}, ${ch.y})`, S.sx(gx(ch.x) + .38), S.sy(gy(ch.y) + .1)); }
   });
+  /* ---- Advanced mode data ---- */
+  let c = 12, ch = null;
+  function newCh(){
+    let t;
+    do { const x = 1 + Math.floor(Math.random() * 4), kk = 1 + Math.floor(Math.random() * 11) / 2; t = { x, y:kk * x, k:kk }; }
+    while (!Number.isInteger(t.y) || t.y > 20 || t.x * t.y > 36 || (ch && ch.x === t.x && ch.y === t.y));
+    ch = t; const m = Lab.$('#chMsg'); m.textContent = ''; m.className = 'result'; advUpdate();
+  }
+  function advUpdate(){
+    if (!Lab.adv() || !ch) return;
+    c = +Lab.$('#cIn').value; Lab.$('#cVal').textContent = c;
+    Lab.$('#invEq').innerHTML = MathAnim.tex(`\\textcolor{#9a6be0}{y = \\dfrac{${c}}{x}} \\qquad x = 3:\\; y = \\dfrac{${c}}{3} ${Number.isInteger(c / 3) ? '=' : '\\approx'} ${fmt(c / 3)}`);
+    const xs = [1, 2, 3, 4, 6];
+    Lab.$('#invBody').innerHTML = MathAnim.tex(`\\begin{array}{c|ccccc} \\textcolor{#2f9fc0}{x} & ${xs.join(' & ')} \\\\ \\hline \\textcolor{#9a6be0}{y} & ${xs.map(x => (Number.isInteger(c * 100 / x) ? '' : '\\approx ') + fmt(c / x)).join(' & ')} \\\\ \\textcolor{#5aa84a}{x \\cdot y} & ${xs.map(() => '\\textcolor{#5aa84a}{' + c + '}').join(' & ')} \\end{array}`);
+    Lab.$('#chTxt').textContent = Lab.L(T(`Make BOTH the line y = kx (b = 0) and the purple curve y = c/x pass through the yellow point P(${ch.x}, ${ch.y}).`, `让直线 y = kx（b = 0）和紫色曲线 y = c/x 都经过黄色的点 P(${ch.x}, ${ch.y})。`));
+  }
+  Lab.$('#cIn').oninput = advUpdate;
+  Lab.$('#chNew').onclick = newCh;
+  Lab.$('#chCheck').onclick = () => {
+    const okL = b === 0 && Math.abs(k * ch.x - ch.y) < 1e-9, okC = c === ch.x * ch.y, m = Lab.$('#chMsg');
+    m.textContent = Lab.L(okL && okC ? T(`🎉 Yes! k = ${ch.y} ÷ ${ch.x} = ${fmt(ch.k)} (a quotient), c = ${ch.x} × ${ch.y} = ${c} (a product).`, `🎉 对了！k = ${ch.y} ÷ ${ch.x} = ${fmt(ch.k)}（商），c = ${ch.x} × ${ch.y} = ${c}（积）。`)
+      : okL ? T('The line is right. For the curve, c is the PRODUCT x · y of the point.', '直线对了。曲线的 c 是这个点的 x 与 y 的乘积。')
+      : okC ? T('The curve is right. For the line, b must be 0 and k = y ÷ x.', '曲线对了。直线要 b = 0，且 k = y ÷ x。')
+      : T('Not yet. Line: k = y ÷ x (with b = 0). Curve: c = x × y.', '还不对。直线：k = y ÷ x（b = 0）；曲线：c = x × y。'));
+    m.className = 'result ' + (okL && okC ? 'good' : 'bad');
+  };
   const cv = E.cv, toW = e => { const r = cv.getBoundingClientRect(); return [E.wx(e.clientX - r.left), E.wy(e.clientY - r.top)]; };
   cv.style.touchAction = 'none'; cv.style.cursor = 'grab';
   cv.addEventListener('pointerdown', e => { const [x, y] = toW(e); if (Math.hypot(x - gx(2), y - gy(2 * k + b)) < .6){ drag = true; cv.setPointerCapture(e.pointerId); } });
@@ -350,7 +399,9 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     const m = Lab.$('#exMsg');
     if (same){ m.className = 'result good'; m.textContent = Lab.L(T(`✅ Proportional: y/x is always ${fmt(k)}, and the line passes through (0, 0).`, `✅ 成正比例:y/x 始终等于 ${fmt(k)},直线经过 (0, 0)。`)); }
     else { m.className = 'result bad'; m.textContent = Lab.L(T(`❌ Not proportional: y/x keeps changing, and the line starts at (0, ${b}) instead of the origin.`, `❌ 不成正比例:y/x 一直在变,直线从 (0, ${b}) 出发,不经过原点。`)); }
+    advUpdate();
   }
+  newCh(); Lab.onMode(advUpdate);
   Lab.$('#kIn').oninput = update; Lab.$('#bIn').oninput = update;
   Lab.onLang(update); update();
 })();
@@ -427,6 +478,7 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
 /* ================= Where you see this: real photos (Wikimedia Commons, freely licensed) ================= */
 (function(){
 const o = (en, zh) => ({ en, zh });
+const VID = o('Video', '视频');
 const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f9/Gas_prices_at_pump.JPG/960px-Gas_prices_at_pump.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'A gas pump shows gallons and price side by side. Does doubling the gallons double the price?',
@@ -435,9 +487,27 @@ const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/87/Vietnamese_Taxi_Meter.JPG/960px-Vietnamese_Taxi_Meter.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'A taxi meter in Vietnam. Taxis often add a starting fee. Is the fare then still proportional to distance?',
     zh:'越南的出租车计价器。出租车常常有起步价。这样车费还和路程成正比吗？',
-    credit:'Ominae', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Vietnamese_Taxi_Meter.JPG' }
+    credit:'Ominae', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Vietnamese_Taxi_Meter.JPG' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6b/Spring_scale.jpg/960px-Spring_scale.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A spring scale. Inside, the spring stretches in proportion to the weight: twice the mass, twice the stretch. That is why its dial marks are evenly spaced.',
+    zh:'弹簧秤。里面的弹簧伸长的长度和物体的重量成正比：质量翻倍，伸长也翻倍。所以表盘上的刻度是均匀的。',
+    credit:'Stephanie cheks', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Spring_scale.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/ce/Speedometer.jpg/960px-Speedometer.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A car speedometer. At a steady 60 miles per hour, distance = 60 × hours. What is the constant of proportionality, and how far do you go in 2½ hours?',
+    zh:'汽车的速度表。以每小时 60 英里匀速行驶，路程 = 60 × 小时数。比例常数是多少？2½ 小时走多远？',
+    credit:'Greg L. Wright (SnapJag)', license:'CC BY 2.5', page:'https://commons.wikimedia.org/wiki/File:Speedometer.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e3/Kheops-Pyramid.jpg/960px-Kheops-Pyramid.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'The Great Pyramid of Giza. The Greek thinker Thales is said to have found its height from shadows: at the hour when a stick’s shadow equals its height, the pyramid’s shadow equals its height too.',
+    zh:'埃及吉萨大金字塔。相传古希腊的泰勒斯用影子测出了它的高度：当木棍的影长等于木棍的高度时，金字塔的影长也等于金字塔的高度。',
+    kind:o('Math history','数学史'), credit:'Nina', license:'CC BY 2.5', page:'https://commons.wikimedia.org/wiki/File:Kheops-Pyramid.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/94/Exchange_rates_sign.jpg/960px-Exchange_rates_sign.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A board of currency exchange rates. Money you get back is proportional to money you change: the rate is the constant. If 1 US dollar buys 7 yuan, what do 20 dollars buy?',
+    zh:'外币兑换牌价。换到的钱和你拿去换的钱成正比，汇率就是比例常数。如果 1 美元换 7 元人民币，20 美元能换多少？',
+    credit:'Dvortygirl', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Exchange_rates_sign.jpg' },
+  { type:'youtube', yt:'l-HtxhClZ-0', en:'Video: “Introduction to proportional relationships” — checking whether the ratio y ÷ x stays the same.', zh:'视频：《比例关系入门》——检查 y ÷ x 的比值是否保持不变（英文）。', kind:VID, credit:'Khan Academy (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'USmit5zUGas', en:'Video: “Proportions” — setting two equal ratios side by side and solving for the missing number.', zh:'视频：《比例》——把两个相等的比并排写出来，求出缺少的数（英文）。', kind:VID, credit:'Math Antics (YouTube)', license:'YouTube' }
 ];
-LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos. Each one comes with a question this lesson helps you answer. Click a picture to enlarge it.','真实照片。每张都带着一个这节课能帮你回答的问题。点击图片可放大。') });
+LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos and short videos. Each photo comes with a question this lesson helps you answer. Click a picture to enlarge it or to play a video.','真实照片和短视频。每张照片都带着一个这节课能帮你回答的问题。点击图片可放大，点击视频可播放。') });
 })();
 </script>
 <!-- /real-world gallery script -->

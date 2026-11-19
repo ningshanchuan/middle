@@ -32,6 +32,12 @@
 .difbox{min-height:340px}
 .graphbox{position:relative;height:170px;margin-top:14px}
 .graphbox canvas{position:absolute;inset:0;width:100%;height:100%}
+.advt{width:100%;border-collapse:collapse;font-size:14px}
+.advt td{padding:3px 4px;border-bottom:1px solid var(--line)}
+.advt td:last-child{text-align:right;font-family:Fredoka;font-weight:600;color:var(--ink);white-space:nowrap}
+.advf{font-size:14px;color:var(--ink-2);line-height:1.45}
+.advf b{color:var(--ink)}
+.info .adv-box{font-size:14.5px;display:flex;flex-direction:column;gap:6px}
 @media (max-width:980px){.tonic{grid-template-columns:1fr}}
 @media (max-width:560px){.predict .ans{grid-template-columns:1fr}}
 </style>
@@ -49,6 +55,7 @@
   <div class="explorer">
     <div class="stage card" id="stage" data-3d>
       <div class="toolbar">
+        <div class="lab-mode"></div>
         <button class="tbtn view on" data-view="rbc" data-zh="🔴 红细胞">🔴 Red blood cell</button>
         <button class="tbtn view" data-view="plant" data-zh="🌿 植物细胞">🌿 Plant cell</button>
         <button class="tbtn view" data-view="mem" data-zh="🧱 细胞膜特写">🧱 Membrane close-up</button>
@@ -95,6 +102,7 @@
       <div class="card graphbox"><canvas id="graphCv" aria-label="Concentration graph"></canvas></div>
     </div>
     <div class="card simside">
+      <div class="lab-mode"></div>
       <h3 data-zh="控制面板">Controls</h3>
       <div class="btnrow"><button class="btn" id="dropBtn" data-zh="💧 滴入染料">💧 Drop dye</button><button class="btn alt" id="starchBtn" data-zh="🔵 加入淀粉（大分子）">🔵 Add starch (big)</button><button class="btn ghost" id="difReset" data-zh="↺ 重置">↺ Reset</button></div>
       <label class="ctl"><span><span data-zh="温度">Temperature</span>: <b id="tVal">25 °C</b></span><input id="temp" type="range" min="0" max="80" value="25"></label>
@@ -106,6 +114,13 @@
         <div class="counter"><b id="cStarch">—</b><span data-zh="淀粉穿过膜">starch that crossed</span></div>
       </div>
       <div class="result" id="difMsg"></div>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:8px">
+        <label class="ctl"><span><span data-zh="每滴染料的粒子数（起始浓度）">Dye particles per drop (starting concentration)</span>: <b id="doseVal">260</b></span><input id="dose" type="range" min="60" max="600" step="20" value="260"></label>
+        <table class="advt" id="difNums"></table>
+        <div class="advf" id="difFick"></div>
+        <div class="advf"><b data-zh="🎯 挑战：">🎯 Challenge:</b> <span data-zh="让净扩散速率达到每秒 5 个粒子以上！菲克定律里的三样东西你都可以调。">Push the net diffusion rate to 5 particles per second or more! You can change all three things in Fick’s law.</span></div>
+        <div class="result" id="difCh"></div>
+      </div>
       <div class="legend"><span><i style="background:#9b5de5"></i><span data-zh="染料（小分子）">dye (small)</span></span><span><i style="background:#3f7ee8"></i><span data-zh="淀粉（大分子）">starch (big)</span></span></div>
       <div class="mix"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="达到平衡后，粒子并没有停止运动！它们仍在两侧之间来回穿梭，只是进出的数量相等。">At equilibrium the particles do NOT stop moving! They keep crossing both ways; the numbers going each way are just equal.</span></div>
     </div>
@@ -139,7 +154,14 @@ const P = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/df/%D0%9F%D0%BB%D0%B0%D0%B7%D0%BC%D0%BE%D0%BB%D0%B8%D0%B7_%D0%BA%D1%80%D0%B0%D1%81%D0%BD%D0%BE%D0%B3%D0%BE_%D0%BB%D1%83%D0%BA%D0%B0.jpg/960px-%D0%9F%D0%BB%D0%B0%D0%B7%D0%BC%D0%BE%D0%BB%D0%B8%D0%B7_%D0%BA%D1%80%D0%B0%D1%81%D0%BD%D0%BE%D0%B3%D0%BE_%D0%BB%D1%83%D0%BA%D0%B0.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Plasmolysis in red onion cells. Can you see where the colored cell contents have pulled away from the cell wall?', zh:'紫洋葱细胞的质壁分离。你能看出带颜色的细胞内容物从哪里离开了细胞壁吗？', kind:{en:'Light micrograph',zh:'光学显微镜照片'}, credit:'Suchkova', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:%D0%9F%D0%BB%D0%B0%D0%B7%D0%BC%D0%BE%D0%BB%D0%B8%D0%B7_%D0%BA%D1%80%D0%B0%D1%81%D0%BD%D0%BE%D0%B3%D0%BE_%D0%BB%D1%83%D0%BA%D0%B0.jpg' },
   { src:'https://upload.wikimedia.org/wikipedia/commons/2/24/Red_White_Blood_cells.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Real blood cells, colored by computer. From left to right: a red blood cell (like the one in the beaker above), a platelet and a white blood cell.', zh:'真实的血细胞（颜色是电脑加上去的）。从左到右：红细胞（就像上面烧杯里的那个）、血小板和白细胞。', kind:{en:'Electron micrograph (SEM)',zh:'扫描电镜照片'}, credit:'Electron Microscopy Facility, National Cancer Institute at Frederick', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Red_White_Blood_cells.jpg' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f2/Neutrophil_with_anthrax_copy.jpg/960px-Neutrophil_with_anthrax_copy.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Too big for any channel or pump! This white blood cell (a neutrophil, yellow) is wrapping its membrane around anthrax bacteria (orange) to swallow them whole.', zh:'太大了，任何通道和泵都运不进去！这个白细胞（中性粒细胞，黄色）正用细胞膜把炭疽杆菌（橙色）整个包起来“吞”进去。', kind:{en:'Electron micrograph (SEM)',zh:'扫描电镜照片'}, scale:{en:'scale bar = 5 µm',zh:'比例尺 = 5 微米'}, credit:'Volker Brinkmann', license:'CC BY 2.5', page:'https://commons.wikimedia.org/wiki/File:Neutrophil_with_anthrax_copy.jpg' },
-  { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/f/fc/%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D0%B0_%D1%81%D0%BE%D0%BA%D1%80%D0%B0%D1%82%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE%D0%B9_%D0%B2%D0%B0%D0%BA%D1%83%D0%BE%D0%BB%D0%B8_%D0%B8%D0%BD%D1%84%D1%83%D0%B7%D0%BE%D1%80%D0%B8%D0%B8_%D1%82%D1%83%D1%84%D0%B5%D0%BB%D1%8C%D0%BA%D0%B8.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fc/%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D0%B0_%D1%81%D0%BE%D0%BA%D1%80%D0%B0%D1%82%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE%D0%B9_%D0%B2%D0%B0%D0%BA%D1%83%D0%BE%D0%BB%D0%B8_%D0%B8%D0%BD%D1%84%D1%83%D0%B7%D0%BE%D1%80%D0%B8%D0%B8_%D1%82%D1%83%D1%84%D0%B5%D0%BB%D1%8C%D0%BA%D0%B8.webm/960px--%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D0%B0_%D1%81%D0%BE%D0%BA%D1%80%D0%B0%D1%82%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE%D0%B9_%D0%B2%D0%B0%D0%BA%D1%83%D0%BE%D0%BB%D0%B8_%D0%B8%D0%BD%D1%84%D1%83%D0%B7%D0%BE%D1%80%D0%B8%D0%B8_%D1%82%D1%83%D1%84%D0%B5%D0%BB%D1%8C%D0%BA%D0%B8.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fc/%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D0%B0_%D1%81%D0%BE%D0%BA%D1%80%D0%B0%D1%82%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE%D0%B9_%D0%B2%D0%B0%D0%BA%D1%83%D0%BE%D0%BB%D0%B8_%D0%B8%D0%BD%D1%84%D1%83%D0%B7%D0%BE%D1%80%D0%B8%D0%B8_%D1%82%D1%83%D1%84%D0%B5%D0%BB%D1%8C%D0%BA%D0%B8.webm/960px--%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D0%B0_%D1%81%D0%BE%D0%BA%D1%80%D0%B0%D1%82%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE%D0%B9_%D0%B2%D0%B0%D0%BA%D1%83%D0%BE%D0%BB%D0%B8_%D0%B8%D0%BD%D1%84%D1%83%D0%B7%D0%BE%D1%80%D0%B8%D0%B8_%D1%82%D1%83%D1%84%D0%B5%D0%BB%D1%8C%D0%BA%D0%B8.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Video: the contractile vacuole of a Paramecium at work. Water keeps entering this pond-dwelling cell by osmosis, so the vacuole keeps pumping it out.', zh:'视频：草履虫的伸缩泡在工作。草履虫生活在池塘的淡水里，水不断通过渗透作用进入细胞，伸缩泡就不停地把水排出去。', kind:{en:'Microscope video',zh:'显微镜视频'}, credit:'Andrei Savitsky', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D0%B0_%D1%81%D0%BE%D0%BA%D1%80%D0%B0%D1%82%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE%D0%B9_%D0%B2%D0%B0%D0%BA%D1%83%D0%BE%D0%BB%D0%B8_%D0%B8%D0%BD%D1%84%D1%83%D0%B7%D0%BE%D1%80%D0%B8%D0%B8_%D1%82%D1%83%D1%84%D0%B5%D0%BB%D1%8C%D0%BA%D0%B8.webm' }
+  { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/f/fc/%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D0%B0_%D1%81%D0%BE%D0%BA%D1%80%D0%B0%D1%82%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE%D0%B9_%D0%B2%D0%B0%D0%BA%D1%83%D0%BE%D0%BB%D0%B8_%D0%B8%D0%BD%D1%84%D1%83%D0%B7%D0%BE%D1%80%D0%B8%D0%B8_%D1%82%D1%83%D1%84%D0%B5%D0%BB%D1%8C%D0%BA%D0%B8.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fc/%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D0%B0_%D1%81%D0%BE%D0%BA%D1%80%D0%B0%D1%82%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE%D0%B9_%D0%B2%D0%B0%D0%BA%D1%83%D0%BE%D0%BB%D0%B8_%D0%B8%D0%BD%D1%84%D1%83%D0%B7%D0%BE%D1%80%D0%B8%D0%B8_%D1%82%D1%83%D1%84%D0%B5%D0%BB%D1%8C%D0%BA%D0%B8.webm/960px--%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D0%B0_%D1%81%D0%BE%D0%BA%D1%80%D0%B0%D1%82%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE%D0%B9_%D0%B2%D0%B0%D0%BA%D1%83%D0%BE%D0%BB%D0%B8_%D0%B8%D0%BD%D1%84%D1%83%D0%B7%D0%BE%D1%80%D0%B8%D0%B8_%D1%82%D1%83%D1%84%D0%B5%D0%BB%D1%8C%D0%BA%D0%B8.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fc/%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D0%B0_%D1%81%D0%BE%D0%BA%D1%80%D0%B0%D1%82%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE%D0%B9_%D0%B2%D0%B0%D0%BA%D1%83%D0%BE%D0%BB%D0%B8_%D0%B8%D0%BD%D1%84%D1%83%D0%B7%D0%BE%D1%80%D0%B8%D0%B8_%D1%82%D1%83%D1%84%D0%B5%D0%BB%D1%8C%D0%BA%D0%B8.webm/960px--%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D0%B0_%D1%81%D0%BE%D0%BA%D1%80%D0%B0%D1%82%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE%D0%B9_%D0%B2%D0%B0%D0%BA%D1%83%D0%BE%D0%BB%D0%B8_%D0%B8%D0%BD%D1%84%D1%83%D0%B7%D0%BE%D1%80%D0%B8%D0%B8_%D1%82%D1%83%D1%84%D0%B5%D0%BB%D1%8C%D0%BA%D0%B8.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Video: the contractile vacuole of a Paramecium at work. Water keeps entering this pond-dwelling cell by osmosis, so the vacuole keeps pumping it out.', zh:'视频：草履虫的伸缩泡在工作。草履虫生活在池塘的淡水里，水不断通过渗透作用进入细胞，伸缩泡就不停地把水排出去。', kind:{en:'Microscope video',zh:'显微镜视频'}, credit:'Andrei Savitsky', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D0%B0_%D1%81%D0%BE%D0%BA%D1%80%D0%B0%D1%82%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE%D0%B9_%D0%B2%D0%B0%D0%BA%D1%83%D0%BE%D0%BB%D0%B8_%D0%B8%D0%BD%D1%84%D1%83%D0%B7%D0%BE%D1%80%D0%B8%D0%B8_%D1%82%D1%83%D1%84%D0%B5%D0%BB%D1%8C%D0%BA%D0%B8.webm' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/62/Human_Erythrocytes_OsmoticPressure_PhaseContrast_Plain.svg/960px-Human_Erythrocytes_OsmoticPressure_PhaseContrast_Plain.svg.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Real red blood cells in three kinds of salt water. Left (hypertonic, too salty): water leaves and the cells shrivel. Middle (isotonic): normal disc shapes. Right (hypotonic, too little salt): water rushes in and the cells swell up round.', zh:'放进三种盐水里的真实红细胞。左（高渗，太咸）：水流出，细胞皱缩；中（等渗）：正常的圆盘形；右（低渗，盐太少）：水涌进来，细胞胀成圆球。', kind:{en:'Light micrograph',zh:'光学显微镜照片'}, scale:{en:'scale bar = 20 µm',zh:'比例尺 = 20 微米'}, credit:'Zephyris', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Human_Erythrocytes_OsmoticPressure_PhaseContrast_Plain.svg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/90/Egg_osmosis_experiment_%282%29_%284782569782%29.jpg/960px-Egg_osmosis_experiment_%282%29_%284782569782%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A classroom experiment: eggs whose shells were dissolved away in vinegar sit in 5% and 10% salt or sugar solutions. The egg’s thin membrane lets water through, so the egg swells or shrinks depending on the solution.', zh:'课堂实验：先用醋把蛋壳溶掉，再把鸡蛋泡进 5% 和 10% 的溶液里。鸡蛋的薄膜能让水通过，所以鸡蛋会随溶液浓度变大或变小。', kind:{en:'Classroom experiment',zh:'课堂实验'}, credit:'brittgow', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Egg_osmosis_experiment_(2)_(4782569782).jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2c/Egg_osmosis_experiment_%284781928289%29.jpg/960px-Egg_osmosis_experiment_%284781928289%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Weighing a shell-less egg (about 94 g here). Students weigh it before and after soaking: a heavier egg gained water by osmosis, a lighter one lost water.', zh:'称一称去壳的鸡蛋（这里约 94 克）。学生在浸泡前后各称一次：变重说明它通过渗透作用吸了水，变轻说明它失了水。', kind:{en:'Classroom experiment',zh:'课堂实验'}, credit:'brittgow', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Egg_osmosis_experiment_(4781928289).jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/9/92/Demonstration_of_osmosis_using_a_potato_osmometer.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'A potato osmometer: a hollow in a potato is filled with sugar solution and the potato stands in plain water. Over time water moves through the potato cells into the sugar solution, and the level inside rises.', zh:'马铃薯渗透计：在马铃薯上挖一个小坑，倒进糖溶液，再把马铃薯放进清水里。过一段时间，水穿过马铃薯细胞进入糖溶液，坑里的液面就升高了。', kind:{en:'Classroom experiment',zh:'课堂实验'}, credit:'Knowledge genome', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Demonstration_of_osmosis_using_a_potato_osmometer.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c3/Roses_wilted_after_heat_wave_at_Gamla_Strandgatan_11%2C_Gamlestan%2C_Lysekil.jpg/960px-Roses_wilted_after_heat_wave_at_Gamla_Strandgatan_11%2C_Gamlestan%2C_Lysekil.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Roses wilted after a week-long heat wave in Sweden. When a plant loses more water than it takes in, its cells lose water by osmosis, the vacuoles shrink and the soft parts droop.', zh:'瑞典一场持续约一周的热浪过后，玫瑰蔫了。植物失去的水比吸收的多时，细胞会通过渗透作用失水，液泡缩小，柔软的部分就耷拉下来。', kind:{en:'Photo',zh:'照片'}, credit:'W.carter', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Roses_wilted_after_heat_wave_at_Gamla_Strandgatan_11,_Gamlestan,_Lysekil.jpg' },
+  { type:'youtube', yt:'Ptmlvtei8hw', kind:{en:'Video',zh:'视频'}, en:'Amoeba Sisters: cell transport. Passive transport (diffusion and osmosis, no energy needed) versus active transport (pumps that use energy), plus how cells swallow big things.', zh:'Amoeba Sisters（阿米巴姐妹）：细胞的物质运输。被动运输（扩散和渗透，不耗能量）和主动运输（耗能量的“泵”）有什么不同？细胞又是怎样“吞”下大东西的？', credit:'Amoeba Sisters (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'L-osEc07vMs', kind:{en:'Video',zh:'视频'}, en:'Amoeba Sisters: osmosis explained with real-life examples. Which way will the water move?', zh:'Amoeba Sisters（阿米巴姐妹）：用生活中的例子讲解渗透作用。水会往哪边流？', credit:'Amoeba Sisters (YouTube)', license:'YouTube' }
 ];
 window.REALFIG = { vacuole:P[0], wall:P[1] };
 if (window.LabPhotos) LabPhotos.render('#gallery', P.filter(p => !p._x), { title:{en:'See the real thing',zh:'看看真实的样子'}, sub:{en:'Real cells gaining and losing water, and real cells doing transport work. Click any picture to enlarge it; the video plays only when you press play.',zh:'真实的细胞在吸水和失水，也在忙着运输物质。点击图片可以放大；视频要按下播放键才会播放。'} });
@@ -157,7 +179,7 @@ function makeExplorer(cfg){
     if (!k){
       box.innerHTML = `<span class="tag">${Lab.L(I.tag)}</span><h3>${Lab.L(I.title)}</h3>
         <p class="muted" style="margin:0">${Lab.L(I.text)}</p>
-        <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(I.big)}</div>
+        <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(I.big)}</div>${cfg.adv || ''}
         <div class="nav"><button data-a="start">${Lab.L(I.start)}</button></div>`;
       box.querySelector('[data-a=start]').onclick = () => E.select(cfg.order[0]);
     } else {
@@ -168,7 +190,7 @@ function makeExplorer(cfg){
         <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>${window.REALFIG && REALFIG[k] ? LabPhotos.figure(REALFIG[k]) : ''}
         <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(p.hint)}</div>
         ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
-        <button class="speak" data-a="speak">${Lab.L(Lab.UI.listen)}</button>
+        <button class="speak" data-a="speak">${Lab.L(Lab.UI.listen)}</button>${cfg.adv || ''}
         <div class="nav"><button data-a="prev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button data-a="next">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
       box.querySelector('[data-a=speak]').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. ').replace(/<[^>]+>/g, ''));
       box.querySelector('[data-a=prev]').onclick = () => E.select(cfg.order[(i - 1 + n) % n]);
@@ -176,6 +198,7 @@ function makeExplorer(cfg){
     }
     Lab.$(cfg.chips).innerHTML = cfg.order.map(c => `<button class="chip ${E.sel === c ? 'on' : ''}" data-k="${c}"><i style="background:${cfg.parts[c].color}"></i>${Lab.L(cfg.parts[c].name)}</button>`).join('');
     Lab.$$(cfg.chips + ' .chip').forEach(c => c.onclick = () => E.select(c.dataset.k));
+    cfg.afterRender && cfg.afterRender();
   }
   E.render = render;
   Lab.onLang(render);
@@ -239,6 +262,7 @@ const STORY = [
 ];
 const APP = window.APP = { view:'rbc', setView:null };
 const EX = makeExplorer({ info:'#info', chips:'#chips', parts:PARTS, order:ORDER, tag:o('Cell transport','物质运输'),
+  adv:'<div class="adv adv-box" id="osmAdv"></div>', afterRender:() => APP.advTick && APP.advTick(),
   intro:{ tag:o('Osmosis lab','渗透实验'), title:o('A cell in a beaker','烧杯里的细胞'),
     text:o('This red blood cell floats in salt water. Drag the Salt slider: below 0.9% the water outside is “fresher” than inside; above 0.9% it is saltier. Blue dots are water molecules crossing the membrane.','这个红细胞浮在盐水中。拖动“外界盐浓度”滑块：低于 0.9%，外面的水比细胞内“淡”；高于 0.9%，外面更“咸”。蓝色小点是正在穿过细胞膜的水分子。'),
     big:o('Passive transport (diffusion, osmosis) moves things from high to low concentration for free. Active transport moves things from low to high and costs energy.','被动运输（扩散、渗透）从高浓度到低浓度，不耗能；主动运输从低浓度到高浓度，需要消耗能量。'),
@@ -301,7 +325,8 @@ Lab.onLang(renderTonic);
 /* ===== Diffusion lab (2D canvas + graph) ===== */
 (function(){
   const cv = Lab.$('#difCv'), host = Lab.$('#difBox'), g = cv.getContext('2d'), gc = Lab.$('#graphCv'), gg = gc.getContext('2d');
-  const ui = { temp:Lab.$('#temp'), perm:Lab.$('#perm') };
+  const ui = { temp:Lab.$('#temp'), perm:Lab.$('#perm'), dose:Lab.$('#dose') };
+  let xLR = 0, xRL = 0, rLR = 0, rRL = 0, rT = 0, best = 0;   // Advanced: dye crossings per second each way, best net rate
   const H = 340, NP = 12; let W = 600, P = [], t = 0, hist = [], histT = 0, eqT = null, starchCross = 0, vis = false, last = performance.now();
   const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
   const gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) * 1.15;
@@ -311,9 +336,10 @@ Lab.onLang(renderTonic);
     const gb = gc.getBoundingClientRect(); if (gb.width && gc.width !== Math.round(gb.width * d)){ gc.width = Math.round(gb.width * d); gc.height = Math.round(gb.height * d); } }
   function add(n, big){ for (let i = 0; i < n; i++){ const x = big ? 20 + Math.random() * (W / 2 - 40) : W * .2 + gauss() * 14, y = big ? 20 + Math.random() * (H - 40) : H * .5 + gauss() * 14;
     P.push({ x:Math.max(8, Math.min(W / 2 - 8, x)), y:Math.max(8, Math.min(H - 8, y)), a:Math.random() * 6.283, s:.6 + Math.random() * .8, big }); } eqT = null; }
-  Lab.$('#dropBtn').onclick = () => add(260, false);
+  Lab.$('#dropBtn').onclick = () => add(Lab.adv() ? +ui.dose.value : 260, false);
+  ui.dose.oninput = () => { Lab.$('#doseVal').textContent = ui.dose.value; };
   Lab.$('#starchBtn').onclick = () => add(36, true);
-  Lab.$('#difReset').onclick = () => { P = []; t = 0; hist = []; histT = 0; eqT = null; starchCross = 0; status(); };
+  Lab.$('#difReset').onclick = () => { P = []; t = 0; hist = []; histT = 0; eqT = null; starchCross = 0; xLR = xRL = rLR = rRL = rT = 0; status(); advStatus(); };
   ui.temp.oninput = () => { Lab.$('#tVal').textContent = ui.temp.value + ' °C'; };
   ui.perm.oninput = () => { Lab.$('#pVal').textContent = ui.perm.value + '%'; eqT = null; };
   function step(dt){
@@ -329,7 +355,29 @@ Lab.onLang(renderTonic);
         if (!ok && Math.abs(p.x - mid) < r + 3){ p.x = ox < mid ? mid - r - 3 : mid + r + 3; p.a = Math.PI - p.a; }
         else if (ok && p.big) starchCross++;
       }
+      if (!p.big && (ox < mid) !== (p.x < mid)){ if (ox < mid) xLR++; else xRL++; }
     }
+  }
+  const speedX = T => Math.sqrt((T + 273) / 298) * (.35 + T / 60) / (.35 + 25 / 60);   // model particle speed compared with 25 °C
+  function advStatus(){
+    if (!Lab.adv()) return;
+    const dye = P.filter(p => !p.big), nL = dye.filter(p => p.x < W / 2).length, nR = dye.length - nL, dC = nL - nR;
+    const pores = poreArr().filter(Boolean).length, net = rLR - rRL, T = +ui.temp.value, zh = Lab.lang === 'zh';
+    const row = (a, b) => `<tr><td>${a}</td><td>${b}</td></tr>`;
+    Lab.$('#difNums').innerHTML = row(zh ? '左侧 / 右侧的染料粒子' : 'Dye particles left / right', `${nL} / ${nR}`)
+      + row(zh ? '浓度差 ΔC（左 − 右）' : 'Concentration difference ΔC (left − right)', `${dC}`)
+      + row(zh ? '穿过膜：向右 → / 向左 ←' : 'Crossing: → right / ← left', `${rLR.toFixed(0)} /s · ${rRL.toFixed(0)} /s`)
+      + row(zh ? '净扩散速率' : 'Net diffusion rate', `${net >= 0 ? '→' : '←'} ${Math.abs(net).toFixed(0)} /s`)
+      + row(zh ? '开着的小孔 · 粒子速度（与 25 °C 比）' : 'Open pores · particle speed (vs 25 °C)', `${pores}/${NP} · ×${speedX(T).toFixed(2)}`);
+    const k = pores && Math.abs(dC) > 20 && Math.abs(net) > 0.5 ? net / (pores * dC) : null;
+    Lab.$('#difFick').innerHTML = zh
+      ? `<b>菲克扩散定律：</b>净扩散速率 ≈ k × 小孔数 × ΔC。现在：${net.toFixed(0)} /s ≈ k × ${pores} × ${dC}${k != null ? `，所以 k ≈ ${k.toFixed(4)}` : ''}。温度越高，粒子越快，k 越大；ΔC 变小，净速率也随之变小。`
+      : `<b>Fick’s law:</b> net rate ≈ k × open pores × ΔC. Now: ${net.toFixed(0)} /s ≈ k × ${pores} × ${dC}${k != null ? `, so k ≈ ${k.toFixed(4)}` : ''}. Warmer → faster particles → bigger k. As ΔC shrinks, the net rate shrinks too.`;
+    if (dye.length && net > best) best = net;
+    let msg = o('Press Reset, choose your settings, then drop the dye.', '先按“重置”，调好设置，再滴入染料。'), cls = '';
+    if (best >= 5){ msg = o(`✅ Done! Net rate reached ${best.toFixed(1)} /s. A big ΔC, many open pores and warm, fast particles all speed up diffusion. (Then watch: as ΔC falls, the rate falls too.)`, `✅ 成功！净扩散速率达到了每秒 ${best.toFixed(1)} 个。浓度差大、小孔多、温度高（粒子快），扩散都会加快。（再看：ΔC 变小时，速率也跟着变小。）`); cls = 'good'; }
+    else if (dye.length) msg = o(`Best net rate so far: ${best.toFixed(1)} /s. Hint: try changing more than one thing, then Reset and drop again.`, `目前最高净速率：每秒 ${best.toFixed(1)} 个。提示：多改变几个条件，再重置、重新滴入染料。`);
+    const c = Lab.$('#difCh'); c.textContent = Lab.L(msg); c.className = 'result ' + cls;
   }
   const frac = big => { const s = P.filter(p => p.big === big); return s.length ? s.filter(p => p.x < W / 2).length / s.length : null; };
   function status(){
@@ -381,10 +429,12 @@ Lab.onLang(renderTonic);
     size();
     if (P.length){ step(dt); t += dt; histT += dt;
       if (histT > .25){ histT = 0; hist.push({ t, L:frac(false), S:frac(true) }); if (hist.length > 1200) hist.shift(); }
-      const L = frac(false); if (eqT == null && L != null && Math.abs(L - .5) < .05 && t > 1) eqT = t; }
-    draw(); acc += dt; if (acc > .2){ acc = 0; graph(); status(); }
+      const L = frac(false); if (eqT == null && L != null && Math.abs(L - .5) < .05 && t > 1) eqT = t;
+      rT += dt; if (rT >= 1){ rLR += (xLR / rT - rLR) * .5; rRL += (xRL / rT - rRL) * .5; xLR = xRL = 0; rT = 0; } }
+    draw(); acc += dt; if (acc > .2){ acc = 0; graph(); status(); advStatus(); }
   })();
-  Lab.onLang(() => { status(); });
+  Lab.onLang(() => { status(); advStatus(); });
+  Lab.onMode(() => advStatus());
 })();
 /* ===== Quiz ===== */
 Lab.quiz(Lab.$('#quiz'), [
@@ -577,6 +627,30 @@ function readout(){
   const pin = pIn(), dir = Math.abs(pin - .5) < .04 ? o('in = out ⇄','进 = 出 ⇄') : pin > .5 ? o('net IN ➜','净流入 ➜') : o('net OUT ➜','净流出 ➜');
   el.textContent = `${Lab.L(tonicName())} · 💧 ${Lab.L(dir)} (${Math.round(S.inR)}↘ ${Math.round(S.outR)}↗)`;
 }
+/* ===== Advanced: zoom deeper (osmolarity, osmotic pressure, cell volume, pump numbers) in the info panel ===== */
+let chDone = false;
+APP.advTick = () => {
+  const box = Lab.$('#osmAdv'); if (!box || !Lab.adv()) return;
+  const zh = Lab.lang === 'zh', row = (a, b) => `<tr><td>${a}</td><td>${b}</td></tr>`;
+  if (S.view === 'mem'){
+    box.innerHTML = `<b>${zh ? '🔬 再深入一点：钠钾泵' : '🔬 Zoom deeper: the sodium–potassium pump'}</b>
+      <table class="advt">${row(zh ? '模型中已用掉的 ATP' : 'ATP used in this model', S.atpUsed)}${row(zh ? '真实的泵：每个 ATP 搬运' : 'Real pump: each ATP moves', zh ? '3 个 Na⁺ 出，2 个 K⁺ 进' : '3 Na⁺ out, 2 K⁺ in')}${row(zh ? '每个泵每秒大约转' : 'Cycles per pump, about', zh ? '约 100 次' : '≈ 100 per second')}${row(zh ? '神经细胞内外 K⁺ 浓度' : 'K⁺ inside vs outside a nerve cell', zh ? '约 140 : 5 mmol/L' : 'about 140 : 5 mmol/L')}</table>
+      <span class="advf">${zh ? '人体静息时，大约 1/5 以上的 ATP 都用在钠钾泵上（在神经细胞里更多）。关掉 ATP，泵就停了，浓度差会慢慢“漏”平。' : 'At rest, roughly a fifth or more of your body’s ATP goes to sodium–potassium pumps (even more in nerve cells). Switch ATP off: the pump stops and the gradient slowly leaks away.'}</span>`;
+    return;
+  }
+  const out = S.salt * 342, inn = 308, dOsm = out - inn, dPi = Math.abs(dOsm) / 1000 * 0.0821 * 310;   // NaCl: 1% = 10 g/L ÷ 58.4 g/mol × 2 ions ≈ 342 mOsm/L
+  const vol = out > 1 ? 0.43 + 0.57 * inn / out : Infinity;   // Boyle–van ’t Hoff: about 43% of a red blood cell is not water that can leave
+  const dir = Math.abs(dOsm) < 15 ? (zh ? '几乎没有净流动' : 'almost no net flow') : dOsm < 0 ? (zh ? '把水压进细胞' : 'pushes water INTO the cell') : (zh ? '把水拉出细胞' : 'pulls water OUT of the cell');
+  const volTxt = S.view === 'plant' ? (zh ? '细胞壁限制膨胀（膨压）' : 'the wall stops swelling (turgor)') : vol > 3 ? (zh ? '会胀破' : 'would burst') : `≈ ${vol.toFixed(2)} ×`;
+  const ok = S.view === 'rbc' && vol >= 1.4 && vol <= 1.65;
+  if (ok) chDone = true;
+  box.innerHTML = `<b>${zh ? '🔬 再深入一点：渗透压' : '🔬 Zoom deeper: osmotic pressure'}</b>
+    <table class="advt">${row(zh ? '细胞外溶质浓度' : 'Solute outside', `≈ ${Math.round(out)} mOsm/L`)}${row(zh ? '细胞内溶质浓度' : 'Solute inside', `≈ ${inn} mOsm/L`)}${row(zh ? '渗透压差 Δπ' : 'Osmotic pressure difference Δπ', `≈ ${dPi.toFixed(1)} atm`)}${row(zh ? (S.view === 'plant' ? '植物细胞' : '真实红细胞的体积') : (S.view === 'plant' ? 'Plant cell' : 'Real red-cell volume'), volTxt)}</table>
+    <span class="advf">${zh ? `<b>Δπ = Δc × R × T</b> = ${(Math.abs(dOsm) / 1000).toFixed(3)} mol/L × 0.0821 × 310 K。这个压力${dir}。（0.9% 盐水约含 308 mOsm/L 溶质；1 atm ≈ 一个大气压。）` : `<b>Δπ = Δc × R × T</b> = ${(Math.abs(dOsm) / 1000).toFixed(3)} mol/L × 0.0821 × 310 K. This pressure ${dir}. (0.9% salt water holds about 308 mOsm/L of particles; 1 atm = the air pressure around you.)`}</span>
+    <span class="advf"><b>${zh ? '🎯 挑战：' : '🎯 Challenge:'}</b> ${zh ? '在红细胞视图里，真实的红细胞胀到正常体积的约 1.5 倍就会破裂。找出让它胀到约 1.5 倍的盐浓度。' : 'In the red-blood-cell view: a real red blood cell bursts when it swells to about 1.5× its normal volume. Find the salt % that swells it to about 1.5×.'}</span>
+    <div class="result ${ok ? 'good' : ''}">${ok ? (zh ? `✅ 找到了！约 ${S.salt.toFixed(2)}% 的盐水。所以输液用的是 0.9% 生理盐水，绝不能用清水。` : `✅ Found it: about ${S.salt.toFixed(2)}% salt. That is why IV drips use 0.9% saline, never plain water.`) : chDone ? (zh ? '✅ 已完成。' : '✅ Done.') : (zh ? '慢慢拖动盐浓度滑块，看“体积”一栏。' : 'Drag the salt slider slowly and watch the volume row.')}</div>`;
+};
+Lab.onMode(() => APP.advTick());
 
 /* =================== animation =================== */
 const wv = new V(), wv2 = new V();
@@ -667,7 +741,7 @@ ctx.onFrame((dt, t) => {
   }
   /* --- labels, readout, highlight --- */
   for (const { L, view } of lbl) L.visible = labelsOn && (view === S.view || (view === 'cell' && S.view !== 'mem'));
-  readT += dt; if (readT > .3){ readT = 0; readout(); }
+  readT += dt; if (readT > .3){ readT = 0; readout(); APP.advTick(); }
   const sel = EX.sel;
   for (const k in MATS) for (const m of MATS[k]){
     const on = sel === k, dim = sel && !on;

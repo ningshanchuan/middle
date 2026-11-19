@@ -42,6 +42,15 @@
 .wlist span{margin-left:auto;color:var(--ink-2)}
 .wlist button.drill span::after{content:" ▶"}
 @media (max-width:760px){.budget{grid-template-columns:repeat(3,minmax(0,1fr))}}
+/* Advanced mode: evaporation energy */
+.wca{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:14px;margin-top:10px}
+.wca-c{grid-template-columns:repeat(2,minmax(0,1fr))}
+.wca-c .counter b{font-size:21px}
+.wca-bars{display:flex;flex-direction:column;gap:5px;margin-top:8px;font-size:13.5px;font-weight:700}
+.wca-bars div{display:grid;grid-template-columns:200px 1fr 92px;gap:8px;align-items:center}
+.wca-bars i{display:block;height:12px;border-radius:6px;min-width:3px}
+.wca-bars span:last-child{text-align:right}
+@media (max-width:760px){.wca{grid-template-columns:1fr}.wca-bars div{grid-template-columns:120px 1fr 80px}}
 </style>
 </head>
 <body data-subject="earth" data-topic="water-cycle">
@@ -54,6 +63,7 @@
 </header>
 
 <section class="wrap" id="explore" data-nav="3D Water Cycle" data-nav-zh="3D 水循环">
+  <div class="lab-mode" style="margin-bottom:10px"></div>
   <div class="explorer">
     <div class="stage card" id="stage" data-3d>
       <div class="toolbar">
@@ -72,6 +82,26 @@
   </div>
   <div class="budget" id="budget"></div>
   <div class="chips" id="chips"></div>
+  <div class="adv adv-box" id="wcAdv" style="margin-top:14px">
+    <b data-zh="🚀 进阶：蒸发要消耗多少能量？">🚀 Advanced: how much energy does evaporation take?</b>
+    <div class="wca">
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <label class="ctl"><span><span data-zh="☀️ 海面吸收的阳光">☀️ Sunlight absorbed by the sea</span>: <b id="aSunV"></b></span><input id="aSun" type="range" min="0" max="320" step="10" value="160"></label>
+        <label class="ctl"><span><span data-zh="💧 其中用于蒸发的比例">💧 Share of it used for evaporation</span>: <b id="aFrV"></b></span><input id="aFr" type="range" min="10" max="90" step="5" value="50"></label>
+        <p class="muted" style="margin:0;font-size:13.5px" data-zh="🌡 水温用上方 3D 场景里的气温滑块调节。阳光滑块也会改变 3D 模型中的蒸发速度。">🌡 Water temperature = the Temperature slider on the 3D stage. The sunlight slider also changes how fast the 3D ocean evaporates.</p>
+      </div>
+      <div class="counters wca-c">
+        <div class="counter"><b id="aMmD">—</b><span data-zh="蒸发量（毫米/天）">evaporation (mm per day)</span></div>
+        <div class="counter"><b id="aMY">—</b><span data-zh="一年蒸发掉的水层">water layer lost per year</span></div>
+        <div class="counter"><b id="aL">—</b><span data-zh="汽化热 L（此温度下）">latent heat L (at this temperature)</span></div>
+        <div class="counter"><b id="a3D">—</b><span data-zh="3D 模型蒸发速度">3D evaporation speed</span></div>
+      </div>
+    </div>
+    <div id="aForm" style="font-size:14.5px;margin-top:10px;line-height:1.6"></div>
+    <div id="aBars" class="wca-bars"></div>
+    <div class="btnrow" style="align-items:center;margin-top:10px"><span id="aGoal" style="font-weight:700;font-size:14.5px;flex:1 1 260px"></span><button class="btn ghost" id="aCheck" data-zh="🎯 检查">🎯 Check</button></div>
+    <div class="result" id="aMsg" style="margin-top:6px"></div>
+  </div>
 </section>
 
 <section class="wrap" id="droplet" data-nav="Droplet journey" data-nav-zh="水滴旅行">
@@ -243,6 +273,47 @@ function renderBudget(){ Lab.$('#budget').innerHTML = BUDGET.map(b => `<div clas
 App.setBudget = (v, total) => BUDGET.forEach(b => { const el = document.getElementById('bud-' + b.k); if (!el) return; el.textContent = v[b.k]; document.getElementById('budbar-' + b.k).style.width = (v[b.k] / total * 100) + '%'; });
 Lab.onLang(() => { renderInfo(); renderChips(); renderBudget(); });
 
+/* ===== 🚀 Advanced mode: energy for evaporation (E = P·f ÷ L) ===== */
+App.advSun = 1; App.sunOn = true;
+(function(){
+  const $ = id => document.getElementById(id), fmt = (x, d) => x.toLocaleString(Lab.lang === 'zh' ? 'zh-CN' : 'en-US', { minimumFractionDigits:d, maximumFractionDigits:d });
+  const Lh = T => 2501 - 2.37 * T;   // latent heat of vaporization, J per gram (about 2,465 J/g at 15 °C, 2,260 J/g at 100 °C)
+  let lastRes = null;
+  function calc(){
+    const P = +$('aSun').value, f = +$('aFr').value / 100, T = +$('temp').value, L = Lh(T), Pe = App.sunOn ? P : 0;
+    const gs = Pe * f / L, mmDay = gs * 86400 / 1000, mYear = mmDay * 365 / 1000;   // 1 kg of water per m² = a 1 mm layer
+    return { P, f, T, L, Pe, gs, mmDay, mYear };
+  }
+  function render(){
+    const r = calc(), zh = Lab.lang === 'zh';
+    App.advSun = Lab.adv() ? r.P / 160 : 1;
+    $('aSunV').textContent = r.P + ' W/m²'; $('aFrV').textContent = Math.round(r.f * 100) + '%';
+    $('aMmD').textContent = fmt(r.mmDay, 1) + (zh ? ' 毫米' : ' mm'); $('aMY').textContent = fmt(r.mYear, 2) + (zh ? ' 米' : ' m');
+    $('aL').textContent = fmt(Math.round(r.L), 0) + ' J/g'; $('a3D').textContent = App.sunOn ? '×' + fmt(r.P / 160, 2) : Lab.L({en:'☀️ off',zh:'☀️ 已关'});
+    $('aForm').innerHTML = (App.sunOn ? '' : `<div style="color:var(--bad);font-weight:800">${Lab.L({en:'The Sun is switched off, so almost no energy reaches the sea and evaporation nearly stops.',zh:'太阳已关闭，几乎没有能量到达海面，蒸发几乎停止。'})}</div>`) +
+      `<div>📐 ${Lab.L({en:'Evaporation rate',zh:'蒸发速率'})} = (P × f) ÷ L = (${r.Pe} W/m² × ${Math.round(r.f * 100)}%) ÷ ${fmt(Math.round(r.L), 0)} J/g ≈ <b>${fmt(r.gs, 3)} ${zh ? '克/(米²·秒)' : 'g per m² each second'}</b> ≈ <b>${fmt(r.mmDay, 1)} ${zh ? '毫米/天' : 'mm/day'}</b></div>` +
+      `<div>🔋 ${zh ? '蒸发 1 千克（1 升）水：' : 'To evaporate 1 kg (1 L) of water: '}Q = m × L = 1000 g × ${fmt(Math.round(r.L), 0)} J/g ≈ <b>${fmt(r.L / 1000, 1)} ${zh ? '百万焦耳' : 'million J'}</b>${zh ? '，足够让一盏 10 瓦的 LED 灯亮大约 ' : ', enough to run a 10 W LED bulb for about '}${fmt(r.L * 1000 / 10 / 3600, 0)}${zh ? ' 小时。水蒸气在云中凝结时，又会放出同样多的热量，这正是雷暴和台风的能量来源。' : ' hours. The same energy is released when the vapor condenses in a cloud: it powers thunderstorms and hurricanes.'}</div>`;
+    const rows = [[{en:'Warm 1 g of water by 1 °C',zh:'1 克水升温 1 °C'}, 4.2, '#e58b4a'], [{en:'Melt 1 g of ice (0 °C)',zh:'1 克冰熔化（0 °C）'}, 334, '#a9d4ee'], [{en:'Evaporate 1 g of water',zh:'1 克水汽化（蒸发）'}, r.L, '#2f86d6']];
+    $('aBars').innerHTML = `<span class="muted">${Lab.L({en:'Energy needed (J), same scale:',zh:'所需能量（焦耳），同一比例：'})}</span>` + rows.map(([n, v, c]) => `<div><span>${Lab.L(n)}</span><i style="width:${v / 2600 * 100}%;background:${c}"></i><span>${v < 10 ? fmt(v, 1) : fmt(Math.round(v), 0)} J</span></div>`).join('');
+    $('aGoal').textContent = Lab.L({en:'🎯 Challenge: a warm tropical sea loses about 2 m of water a year. Set the temperature to 25 °C or more, then find sunlight and share values that give 1.9 to 2.1 m per year.',zh:'🎯 挑战：温暖的热带海洋每年大约蒸发掉 2 米厚的水。把气温调到 25 °C 或更高，再调节阳光和比例，使一年的蒸发量在 1.9~2.1 米之间。'});
+    if (lastRes) check(true);
+  }
+  function check(quiet){
+    const r = calc(), m = $('aMsg'); lastRes = true;
+    let ok = false, t;
+    if (!App.sunOn) t = {en:'Switch the Sun back on first!',zh:'先把太阳打开！'};
+    else if (r.T < 25) t = {en:'Warm the water to 25 °C or more with the Temperature slider on the 3D stage.',zh:'先用 3D 场景里的气温滑块把温度调到 25 °C 或更高。'};
+    else if (r.mYear < 1.9) t = {en:`Only ${fmt(r.mYear, 2)} m per year: give the evaporation more energy (more sunlight or a bigger share).`,zh:`每年只有 ${fmt(r.mYear, 2)} 米：给蒸发更多能量（更强的阳光或更大的比例）。`};
+    else if (r.mYear > 2.1) t = {en:`${fmt(r.mYear, 2)} m per year is too much: use a little less energy.`,zh:`每年 ${fmt(r.mYear, 2)} 米太多了，稍微减少一点能量。`};
+    else { ok = true; t = {en:`🎉 About ${fmt(r.mYear, 2)} m per year! That needs about ${Math.round(r.Pe * r.f)} W on every square meter, all day and night. Real tropical seas use roughly 150 to 200 W/m² for evaporation.`,zh:`🎉 每年约 ${fmt(r.mYear, 2)} 米！这需要每平方米昼夜不停地提供约 ${Math.round(r.Pe * r.f)} 瓦的能量。真实的热带海洋用于蒸发的能量大约是每平方米 150~200 瓦。`}; }
+    m.textContent = Lab.L(t); m.className = 'result ' + (ok ? 'good' : 'bad');
+  }
+  App.onSim = render;
+  ['aSun', 'aFr', 'temp'].forEach(id => $(id).addEventListener('input', render));
+  $('aCheck').onclick = () => check(false);
+  Lab.onLang(render); Lab.onMode(render);
+})();
+
 /* ===== Follow-a-droplet game ===== */
 (function(){
   const PL = {
@@ -330,7 +401,8 @@ const PHOTOS = [
   { part:'ground', kind:{en:'Photo · spring',zh:'实地照片 · 泉'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/64/Baotuspring_3outlets_2008_09_14.jpg/960px-Baotuspring_3outlets_2008_09_14.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Water gushing up from the three outlets of Baotu Spring in Jinan, Shandong, China. This is groundwater: rain soaked into the limestone hills south of the city, flowed underground, and comes back up to the surface here.', zh:'中国山东济南趵突泉的三个泉眼正向上喷涌。这是地下水：雨水渗入济南城南的石灰岩山地，在地下流动，再从这里涌出地面。', scale:{en:'Jinan, Shandong, China',zh:'中国山东济南'}, credit:'Rolfmueller', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Baotuspring_3outlets_2008_09_14.jpg' },
   { kind:{en:'Photo · river',zh:'实地照片 · 河流'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c8/The_Yellow_River_at_Lanzhou_-_%E5%85%B0%E5%B7%9E%E9%BB%84%E6%B2%B3%E8%BE%B9%E4%B8%8A_%2817331114205%29.jpg/960px-The_Yellow_River_at_Lanzhou_-_%E5%85%B0%E5%B7%9E%E9%BB%84%E6%B2%B3%E8%BE%B9%E4%B8%8A_%2817331114205%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The Yellow River at Lanzhou, Gansu, China. Runoff washes fine yellow soil off the Loess Plateau into the river, which is how the Yellow River got its name and its muddy color.', zh:'中国甘肃兰州的黄河。地表径流把黄土高原上细细的黄土冲进河里，黄河因此水色浑黄，也因此得名。', scale:{en:'Lanzhou, Gansu, China',zh:'中国甘肃兰州'}, credit:'Caitriana Nicholson', license:'CC BY-SA 2.0', page:'https://commons.wikimedia.org/wiki/File:The_Yellow_River_at_Lanzhou_-_%E5%85%B0%E5%B7%9E%E9%BB%84%E6%B2%B3%E8%BE%B9%E4%B8%8A_(17331114205).jpg' },
   { type:'youtube', yt:'K6ojzoXL2_g', kind:{en:'Video',zh:'视频'}, en:'South China Morning Post: Poyang Lake, China’s largest freshwater lake, facing its earliest dry season on record. When little rain falls, lakes and rivers shrink.', zh:'《南华早报》：中国最大的淡水湖鄱阳湖迎来有记录以来最早的枯水期。降水少时，湖泊和河流都会缩小。', credit:'South China Morning Post (YouTube)', license:'YouTube' },
-  { type:'video', kind:{en:'Time-lapse video · 6 MB',zh:'延时影片 · 6 MB'}, media:'https://upload.wikimedia.org/wikipedia/commons/0/08/Grand_Canyon_Clouds_time_lapse_VP8.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/08/Grand_Canyon_Clouds_time_lapse_VP8.webm/960px--Grand_Canyon_Clouds_time_lapse_VP8.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/08/Grand_Canyon_Clouds_time_lapse_VP8.webm/960px--Grand_Canyon_Clouds_time_lapse_VP8.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Watch: a sped-up film of clouds and their shadows drifting across the Grand Canyon. Clouds keep forming, moving and fading as water changes state.', zh:'看一看：云和云影飘过科罗拉多大峡谷的快放影片。随着水不断变换状态，云也在不停地生成、移动和消散。', credit:'John Kees', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Grand_Canyon_Clouds_time_lapse_VP8.webm' }
+  { type:'video', kind:{en:'Time-lapse video · 6 MB',zh:'延时影片 · 6 MB'}, media:'https://upload.wikimedia.org/wikipedia/commons/0/08/Grand_Canyon_Clouds_time_lapse_VP8.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/08/Grand_Canyon_Clouds_time_lapse_VP8.webm/960px--Grand_Canyon_Clouds_time_lapse_VP8.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/08/Grand_Canyon_Clouds_time_lapse_VP8.webm/960px--Grand_Canyon_Clouds_time_lapse_VP8.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Watch: a sped-up film of clouds and their shadows drifting across the Grand Canyon. Clouds keep forming, moving and fading as water changes state.', zh:'看一看：云和云影飘过科罗拉多大峡谷的快放影片。随着水不断变换状态，云也在不停地生成、移动和消散。', credit:'John Kees', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Grand_Canyon_Clouds_time_lapse_VP8.webm' },
+  { type:'youtube', yt:'z5G4NCwWUxY', kind:{en:'Video',zh:'视频'}, en:'Crash Course Kids: “The Great Aqua Adventure”. Follow water around the planet through evaporation, condensation and precipitation.', zh:'Crash Course Kids：《水的大冒险》。跟着水走遍地球：蒸发、凝结、降水。', credit:'Crash Course Kids (YouTube)', license:'YouTube' }
 ];
 PHOTOS.forEach(it => { if (it.part && PARTS[it.part]) PARTS[it.part].photo = it; });
 LabPhotos.render(Lab.$('#gallery'), PHOTOS);
@@ -539,10 +611,10 @@ Lab.$('#labelBtn').onclick = () => setLabels(!labelsOn);
 
 /* ---------- controls ---------- */
 const tempEl = Lab.$('#temp');
-const setTemp = v => { T = +v; tempEl.value = T; Lab.$('#tempVal').textContent = T + ' °C'; };
+const setTemp = v => { T = +v; tempEl.value = T; Lab.$('#tempVal').textContent = T + ' °C'; if (App.onSim) App.onSim(); };
 tempEl.oninput = () => setTemp(tempEl.value);
 function setSun(on){
-  sunOn = on; Lab.$('#sunBtn').classList.toggle('on', on);
+  sunOn = on; App.sunOn = on; Lab.$('#sunBtn').classList.toggle('on', on); if (App.onSim) App.onSim();
   sunM.color.set(on ? '#ffd34d' : '#5b6170'); glow.visible = on; sunLight.intensity = on ? 1.1 : 0;
   baseLights.forEach(([l, i]) => l.intensity = i * (on ? 1 : .45));
   renderer.setClearColor(on ? 0x000000 : 0x0a1530, on ? 0 : .55);
@@ -575,7 +647,7 @@ ctx.onFrame((dt, t) => {
   const oa = oGeo.attributes.position;
   for (let i = 0; i < oa.count; i++){ const x = oBase[i * 3], z = oBase[i * 3 + 2]; oa.array[i * 3 + 1] = .045 * Math.sin(2 * x + t * 1.6) + .03 * Math.sin(1.7 * z + t * 1.1); }
   oa.needsUpdate = true; rivTex.offset.y -= dt * .35;
-  const sunF = sunOn ? 1 : .08;
+  const sunF = sunOn ? App.advSun : .08;   // App.advSun = 1 in Basic mode; set by the 🚀 sunlight slider in Advanced
   // evaporation (ocean) + transpiration (plants, from groundwater)
   evAcc += sunF * (3 + .55 * (T + 10)) * dt;
   while (evAcc >= 1){ evAcc--; const p = grab(ST.OCEAN); if (!p) break; p.s = ST.VAPOR; p.x = rnd(X0 + .3, COAST - .6); p.z = rnd(Z0 + .3, Z1 - .3); p.y = .05; }

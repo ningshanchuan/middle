@@ -101,3 +101,26 @@ In Chinese mode, words listed in the `DICT` at the top of `pinyin.js` get small 
 - **`Lab.onLang(fn)` runs `fn` immediately** if Lab is already ready: don't let `fn` touch `let`/`const` variables declared later in the script (temporal-dead-zone error).
 ## Modern names for ancient places (`shared/placenames.js`, auto-loaded on China pages)
 In HTML text, ancient place names get the modern name once per paragraph: 长安（今陕西西安） / Chang’an (today: Xi’an). It skips names already followed by 今… / today…, skips buttons, headings and 3D labels, and puts the note after a whole proper name (赵州桥（今河北赵县）). Canvas/SVG map labels can't be reached — write modern names there by hand. Add names to `ZH` / `EN` in the file; add false-friend guards to `NOT_AFTER` / `NOT_BEFORE` (e.g. 华北平原 contains 北平; 长安街 is modern Beijing).
+
+## Basic / 🚀 Advanced mode (STEM simulations) — shared/lab.js + lab.css
+- Put `<div class="lab-mode"></div>` at the top of a simulation card → a "🙂 Basic | 🚀 Advanced" switch (remembered across lessons; `?adv=1` forces it).
+- Elements with class `adv` show only in Advanced; `basic-only` only in Basic; `adv-box` = framed 🚀 panel.
+- JS: `Lab.adv()` → true/false; `Lab.onMode(adv => …)` runs at start-up and on every change; `Lab.modes()` after inserting new switches.
+- Advanced = more to control and more to learn: extra sliders/variables (friction, air resistance, mass, angle…), live numbers with units,
+  the formula with the current numbers plugged in, a small graph or data table, one "🎯 Challenge" task. Basic stays exactly as simple as before.
+
+## Maps — shared/labmap.js (LabMap) and the place book — shared/places.js (LabGaz)
+- `LabMap.create('#el', { base:'world'|'us'|'china', extent, pins, regions, routes, legend, timeline, quiz, … })` — see the header of labmap.js.
+  Tap → info card with 🔊 · big zoom buttons · drag to pan · optional timeline slider and 🎯 Find-it game. Loads d3-geo/topojson/ChinaMap itself.
+  China is always drawn from chinamap.js (mainland standard map, 台湾省, 南海诸岛).
+- Place book: shared/places/*.js (`LabGaz.add({ id:{ en, zh, names, ll:[lon,lat], today, kind, era, info, photos, subjects } })`).
+  In history / geography / social-studies / 语文 lessons (body data-subject in places.js SUBJECTS) the first mention of each known place per
+  paragraph becomes a dotted 📍 link → place card (mini map, then/today name, real photo, 🔊). No markup needed in the lesson text.
+- Lesson map: `<div class="lab-atlas" data-places="id1,id2,…"></div>` (ids in the order the lesson meets them) → one map with all those places,
+  "Names then / Names today" switch and the Find-it game. Without data-places it uses the places linked on the page.
+
+## Our own narrated animations — shared/labmovie.js (LabMovie)
+- `LabMovie.create('#el', { title, scenes:[{ dur, cap:{en,zh}, draw:(g, p, W, H, M) => … }] })` → a 16:9 canvas "video" with ▶/⏸, a tappable
+  scene timeline, captions and narration (each caption is read with Lab.speak, so it uses the pre-recorded OpenAI voice). Nothing autoplays.
+- Use it where no real video explains the idea well: 6–10 scenes, 50–100 s, one or two short sentences per scene, zoom from body → organ → cell.
+- The TTS collector records the captions automatically (window.__cap hook), so re-run tools/tts after adding a movie.

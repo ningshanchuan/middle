@@ -38,6 +38,15 @@
 @media (max-width:980px){.ladder{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:560px){.ladder{grid-template-columns:repeat(2,minmax(0,1fr))}.meter{grid-template-columns:78px minmax(0,1fr)}}
 .ccstatus{background:var(--surface-2);border-radius:14px;padding:10px 12px;font-weight:700;font-size:15px;min-height:48px}
+#ccAdv{margin-top:16px;padding-right:38px;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start}
+#ccAdv .ccstatus{min-height:0;font-size:14px}
+.ccctl{display:flex;flex-direction:column;gap:10px}
+#ccMini{display:block;width:100%;height:170px}
+.ccf{font-family:Fredoka,sans-serif;font-size:16px;line-height:1.5;margin:8px 0}
+.ccchal{font-size:14px;font-weight:700;margin:0 0 8px}
+@media (max-width:900px){#ccAdv{grid-template-columns:1fr}}
+.deep{margin-top:4px}
+.deep .meter{margin:6px 0}
 </style>
 </head>
 <body data-subject="biology" data-topic="ecosystems">
@@ -103,6 +112,7 @@
   <div class="sim">
     <div class="simbox card"><canvas id="ccCanvas"></canvas></div>
     <div class="card simside">
+      <div class="lab-mode"></div>
       <h3 data-zh="岛屿控制台">Island controls</h3>
       <div class="counters">
         <div class="counter"><b id="ccN">0</b><span data-zh="🦌 鹿的数量">🦌 deer</span></div>
@@ -122,6 +132,20 @@
       <div class="ccstatus" id="ccStatus"></div>
       <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="环境容纳量 = 环境“能装下”的最大种群数量。食物、水、空间、天敌和疾病都是限制因素。">Carrying capacity = the most individuals an environment can “carry”. Food, water, space, predators and disease are all limiting factors.</span></div>
     </div>
+  </div>
+  <div class="adv adv-box" id="ccAdv">
+    <div>
+      <b data-zh="逻辑斯谛增长（“S”形增长的公式，高中生物预习）">Logistic growth: the formula behind the S-curve (high-school preview)</b>
+      <p class="ccf" id="ccF"></p>
+      <p class="ccchal" data-zh="🎯 挑战：把出生率 r 调到 1.8 以上（进阶模式最高 2.8），不要干旱、疾病和狼。你能让鹿群永远稳定不下来，一会儿冲到 K 之上、一会儿跌到 K 之下吗？">🎯 Challenge: push the birth rate r above 1.8 (Advanced goes up to 2.8), with no drought, disease or wolves. Can you make the herd never settle, booming above K and crashing below it year after year?</p>
+      <div class="ccstatus" id="ccChal"></div>
+    </div>
+    <div class="ccctl">
+      <label class="ctl"><span><span data-zh="🦌 起始鹿数 N₀（点“重来”生效）">🦌 Starting herd N₀ (used on Reset)</span> <b id="vN0"></b></span><input id="sN0" type="range" min="2" max="200" step="1" value="10"></label>
+      <label class="ctl"><span><span data-zh="🐺 狼的捕食强度">🐺 Wolf hunting strength</span> <b id="vWolf"></b></span><input id="sWolf" type="range" min="0" max="40" step="1" value="14"></label>
+      <label class="ctl"><span><span data-zh="🌦️ 随机天气波动">🌦️ Random weather</span> <b id="vNoise"></b></span><input id="sNoise" type="range" min="0" max="30" step="1" value="6"></label>
+    </div>
+    <canvas id="ccMini"></canvas>
   </div>
 </section>
 
@@ -158,10 +182,16 @@ const P = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e5/Amphiprion_ocellaris_%28Clown_anemonefish%29_in_Heteractis_magnifica_%28Sea_anemone%29.jpg/960px-Amphiprion_ocellaris_%28Clown_anemonefish%29_in_Heteractis_magnifica_%28Sea_anemone%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A relationship where both win (mutualism): a clown anemonefish sheltering among the stinging tentacles of a sea anemone.', zh:'双方都受益的关系（互利共生）：一条小丑鱼躲在海葵带刺的触手之间。', kind:{en:'Photo',zh:'照片'}, credit:'Nick Hobgood', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Amphiprion_ocellaris_(Clown_anemonefish)_in_Heteractis_magnifica_(Sea_anemone).jpg' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6c/Zebras%2C_Serengeti_savana_plains%2C_Tanzania.jpg/960px-Zebras%2C_Serengeti_savana_plains%2C_Tanzania.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', _x:1, en:'Savanna: zebras on the grassy plains of Tanzania, East Africa.', zh:'热带稀树草原：东非坦桑尼亚草原上的斑马。', kind:{en:'Photo',zh:'照片'}, credit:'Gary', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Zebras,_Serengeti_savana_plains,_Tanzania.jpg' },
   { src:'https://upload.wikimedia.org/wikipedia/commons/e/e3/Okefenokee_Swamp.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', _x:1, en:'Freshwater: the Okefenokee Swamp in southern Georgia.', zh:'淡水生态系统：美国佐治亚州南部的奥克弗诺基沼泽。', kind:{en:'Photo',zh:'照片'}, credit:'Mistercontributer', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Okefenokee_Swamp.jpg' },
-  { type:'audio', media:'https://upload.wikimedia.org/wikipedia/commons/6/60/Night_Chorus_of_Frogs_and_Toads_in_Niger_Delta.ogg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', en:'Listen to an ecosystem: frogs and toads calling at night in the wetlands of the Niger Delta, Nigeria. Every voice is a living (biotic) part of this place.', zh:'听一听生态系统的声音：尼日利亚尼日尔河三角洲湿地的夜晚，青蛙和蟾蜍在合唱。每一种叫声都来自这里的一个生物因素。', kind:{en:'Audio',zh:'音频'}, credit:'ElemePodcast', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Night_Chorus_of_Frogs_and_Toads_in_Niger_Delta.ogg' }
+  { type:'audio', media:'https://upload.wikimedia.org/wikipedia/commons/6/60/Night_Chorus_of_Frogs_and_Toads_in_Niger_Delta.ogg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', en:'Listen to an ecosystem: frogs and toads calling at night in the wetlands of the Niger Delta, Nigeria. Every voice is a living (biotic) part of this place.', zh:'听一听生态系统的声音：尼日利亚尼日尔河三角洲湿地的夜晚，青蛙和蟾蜍在合唱。每一种叫声都来自这里的一个生物因素。', kind:{en:'Audio',zh:'音频'}, credit:'ElemePodcast', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Night_Chorus_of_Frogs_and_Toads_in_Niger_Delta.ogg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b0/Kelp_forest_Cojo_Anchorage.PNG/960px-Kelp_forest_Cojo_Anchorage.PNG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Marine: a kelp forest near Point Conception, California. Giant kelp (a large brown alga) grows toward the sunlight and gives food and shelter to fish, otters and many other animals.', zh:'海洋：美国加州康塞普申角附近的海藻林。巨藻（一种大型褐藻）向着阳光生长，为鱼、海獭和许多其他动物提供食物和藏身之处。', kind:{en:'Underwater photo',zh:'水下照片'}, credit:'Robert Schwemmer / NOAA', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Kelp_forest_Cojo_Anchorage.PNG' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/aa/Mangrove_roots_in_the_Laguna_de_La_Restinga.jpg/960px-Mangrove_roots_in_the_Laguna_de_La_Restinga.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Where land meets sea: the stilt-like prop roots of red mangroves in a lagoon in Venezuela. Young fish hide among the roots, which also protect the coast from waves.', zh:'陆地与海洋交界的地方：委内瑞拉一处潟湖里红树像高跷一样的支柱根。小鱼躲在根之间，这些根还能保护海岸、挡住海浪。', kind:{en:'Photo',zh:'照片'}, credit:'Wilfredor', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Mangrove_roots_in_the_Laguna_de_La_Restinga.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b4/Lichen_on_rock.jpg/960px-Lichen_on_rock.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Lichen on a rock in southern Illinois. Lichens are pioneer species: they can grow on bare rock, slowly break it down and start making soil, so that other plants can follow (ecological succession).', zh:'美国伊利诺伊州南部一块岩石上的地衣。地衣是先锋物种：它们能长在光秃秃的岩石上，慢慢把岩石分解，开始形成土壤，其他植物才能随后长起来（生态演替）。', kind:{en:'Photo',zh:'照片'}, credit:'Daniel Schwen', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Lichen_on_rock.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1f/ISS052-E-8512_lrg_%28Mount_St._Helens%29.jpg/960px-ISS052-E-8512_lrg_%28Mount_St._Helens%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Mount St. Helens in Washington State, photographed from the International Space Station in 2017. Its 1980 eruption wiped out the forest nearby; since then plants and animals have been moving back step by step.', zh:'2017 年从国际空间站拍摄的美国华盛顿州圣海伦斯火山。1980 年的火山喷发毁掉了附近的森林；从那以后，植物和动物一步步地重新回到了这里。', kind:{en:'Photo from space',zh:'太空照片'}, credit:'NASA (ISS crew)', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:ISS052-E-8512_lrg_(Mount_St._Helens).jpg' },
+  { type:'youtube', yt:'uqEUzgVAF6g', kind:{en:'Video',zh:'视频'}, en:'Amoeba Sisters: ecological succession. How life returns to bare rock (primary succession) or to land after a fire (secondary succession).', zh:'Amoeba Sisters（阿米巴姐妹）：生态演替。生命怎样回到光秃秃的岩石上（初生演替），又怎样回到火灾后的土地上（次生演替）。', credit:'Amoeba Sisters (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'rNjPI84sApQ', kind:{en:'Video',zh:'视频'}, en:'Amoeba Sisters: ecological relationships, such as predation, competition, mutualism, commensalism and parasitism.', zh:'Amoeba Sisters（阿米巴姐妹）：生物之间的关系，比如捕食、竞争、互利共生、偏利共生和寄生。', credit:'Amoeba Sisters (YouTube)', license:'YouTube' }
 ];
 window.REALFIG = { desert:P[3], estuary:P[5], freshwater:P[9], grassland:P[2], marine:P[6], rainforest:P[4], savanna:P[8], taiga:P[1], tundra:P[0] };
-if (window.LabPhotos) LabPhotos.render('#gallery', P.filter(p => !p._x), { title:{en:'See the real thing',zh:'看看真实的样子'}, sub:{en:'The 3D dioramas are tiny models. This is what the real biomes look like. Click any picture to enlarge it; the sound plays only when you press play.',zh:'3D 场景只是小小的模型。真实的生物群系是这个样子的。点击图片可以放大；声音要按下播放键才会播放。'} });
+if (window.LabPhotos) LabPhotos.render('#gallery', P.filter(p => !p._x), { title:{en:'See the real thing',zh:'看看真实的样子'}, sub:{en:'The 3D dioramas are tiny models. This is what the real biomes look like. Click any picture to enlarge it; videos and sounds play only when you press play.',zh:'3D 场景只是小小的模型。真实的生物群系是这个样子的。点击图片可以放大；视频和声音要按下播放键才会播放。'} });
 })();
 </script>
 <!--/REAL-PHOTOS-->
@@ -315,6 +345,26 @@ function climate(b){
   else m.push(meter(L(o('🌧️ Rain / year','🌧️ 年降水量')), b.rain[0], b.rain[1], 0, 450, `${b.rain[0]} ~ ${b.rain[1]} ${L(o('cm','厘米'))}`, 'linear-gradient(90deg,#bfe3ff,#3f8ff0)'));
   return m.join('');
 }
+/* 🚀 Advanced "zoom deeper": net primary productivity (new plant matter, about, g dry mass per m² per year; after Whittaker & Likens) + one deeper fact */
+const DEEP = {
+  tundra:{npp:140, f:o('Only about 50–60 days a year are warm enough for plants to grow. The permafrost stores about twice as much carbon as the whole atmosphere, so thawing permafrost can speed up climate change.','一年中只有大约 50～60 天暖和到能让植物生长。永久冻土储存的碳大约是整个大气的两倍，所以冻土融化会加快气候变化。')},
+  taiga:{npp:800, f:o('Taiga holds about one-third of all the forest area on Earth. Needles have a waxy coat and stay on all winter, so photosynthesis can start the moment spring arrives.','北方针叶林大约占地球森林面积的三分之一。针叶外面有蜡质层，冬天也不脱落，所以春天一到就能马上进行光合作用。')},
+  temperate:{npp:1200, f:o('In autumn the green chlorophyll breaks down, so the yellow carotenoids that were hidden show through; the reds are new pigments (anthocyanins). Dropping leaves saves water when the ground freezes.','秋天绿色的叶绿素分解，原本被遮住的黄色类胡萝卜素就显露出来；红色是新合成的花青素。冬天土壤冻结，落叶可以减少水分散失。')},
+  grassland:{npp:600, f:o('More than half of a prairie’s plant mass is underground. Roots can reach over 2 m deep, so grasses grow back quickly after fire, drought or grazing.','草原上一半以上的植物生物量在地下，根可以扎到 2 米以下，所以火灾、干旱或啃食后草能很快重新长出来。')},
+  savanna:{npp:900, f:o('A long dry season and frequent fires (often every few years) keep trees few and far apart. Many large grazers migrate to follow the rains.','漫长的旱季和频繁的火灾（常常每隔几年一次）让树木稀疏分散。很多大型食草动物随着雨季迁徙。')},
+  desert:{npp:90, f:o('A desert is defined by rain, not heat: less than about 25 cm a year. Cacti use CAM photosynthesis: they open their stomata only at night, when it is cool, to save water.','荒漠是按降水来定义的，而不是按温度：每年降水少于约 25 厘米。仙人掌进行一种特殊的光合作用（CAM）：只在凉爽的夜里打开气孔，以减少水分散失。')},
+  rainforest:{npp:2200, f:o('Rainforests cover only about 6% of Earth’s land but are home to about half of all land species. The soil is poor: most nutrients are stored in the living plants and recycled fast.','热带雨林只占地球陆地面积的约 6%，却生活着大约一半的陆地物种。这里的土壤很贫瘠：大部分养分储存在活的植物体内，并且循环得很快。')},
+  freshwater:{npp:250, f:o('Lakes and rivers hold only about 0.01% of Earth’s water, yet about 10% of all known animal species live in fresh water.','湖泊和河流里的水只占地球总水量的约 0.01%，但大约 10% 的已知动物物种生活在淡水中。')},
+  estuary:{npp:1500, f:o('Estuaries are among the most productive places on Earth: rivers bring nutrients and tides mix them in. Georgia has about one-third of all the salt marsh on the US East Coast.','河口是地球上生产力最高的地方之一：河流带来养分，潮汐把它们搅匀。佐治亚州拥有美国东海岸约三分之一的盐沼。')},
+  marine:{npp:125, f:o('Per square meter the open ocean makes little new plant matter (about like a desert) because nutrients are scarce. But it is so huge that ocean phytoplankton make about half of Earth’s oxygen.','开阔大洋每平方米产生的新植物质很少（和荒漠差不多），因为养分稀缺。但大洋面积巨大，海洋浮游植物产生了地球上大约一半的氧气。')}
+};
+function deepBox(id){
+  const d = DEEP[id], L = Lab.L; if (!d) return '';
+  return `<div class="adv adv-box deep"><b>${L(o('Zoom deeper','深入一层'))}</b>
+    ${meter(L(o('🌱 New plant matter','🌱 净初级生产量')), 0, d.npp, 0, 2500, `≈ ${d.npp} g/m²/${L(o('yr','年'))}`, 'linear-gradient(90deg,#b6e39a,#2fb36d)')}
+    <p class="kv" style="font-size:14px">${L(d.f)}</p>
+    <p class="muted" style="margin:0;font-size:12.5px">${L(o('About values: grams of dry plant matter made per square meter per year (net primary productivity). Compare biomes with ◀ ▶.','数值为约数：每平方米每年新产生的植物干物质克数（净初级生产量）。用 ◀ ▶ 比较不同的生物群系。'))}</p></div>`;
+}
 function renderInfo(){
   const box = Lab.$('#info'), b = B(), k = App.sel, L = Lab.L;
   const keys = Object.keys(b.parts), bi = BORDER.indexOf(App.biome);
@@ -328,6 +378,7 @@ function renderInfo(){
       <p class="kv"><b>${L(o('📍 Where:','📍 分布：'))}</b> ${L(b.where)}</p>
       <div class="memory"><b>${L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${L(b.hint)}</div>
       ${b.mix ? `<div class="mix"><b>${L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${L(b.mix)}</span></div>` : ''}
+      ${deepBox(App.biome)}
       <button class="speak" id="speakBtn">${L(Lab.UI.listen)}</button>
       <div class="nav"><button id="pPrev">${L(o('◀ Biome','◀ 上一个'))}</button><button id="pNext">${L(o('Its parts ▶','认识组成 ▶'))}</button></div>`;
     Lab.$('#speakBtn').onclick = () => Lab.speak([L(b.name), L(b.about), L(b.plants), L(b.animals)].join('. '));
@@ -367,14 +418,54 @@ Lab.$('#level').addEventListener('input', e => { App.level = +e.target.value; re
 (function(){
   const cv = Lab.$('#ccCanvas'), g = cv.getContext('2d');
   const S = { res:500, r:.5 };
-  let N, yr, hist, ev, drought, wolves, run = true, acc = 0, last = 0;
+  const A = { n0:10, wolf:.14, noise:.06 }, adv = () => Lab.adv();   // Advanced-mode extras; Basic always uses the fixed defaults
+  let N, yr, hist, ev, drought, wolves, run = true, acc = 0, last = 0, chal = 0;
   const Keff = () => S.res * (drought > 0 ? .5 : 1);
-  function reset(){ N = 10; yr = 0; drought = 0; wolves = false; hist = [{y:0, N, K:Keff()}]; ev = []; last = 0; wolfLbl(); }
+  function reset(){ N = adv() ? A.n0 : 10; yr = 0; chal = 0; drought = 0; wolves = false; hist = [{y:0, N, K:Keff()}]; ev = []; last = 0; wolfLbl(); }
   function step(){
-    const K = Keff(), grow = S.r * N * (1 - N / K), eat = wolves ? .14 * N * (N / (N + 60)) : 0, noise = N * (Math.random() - .5) * .06;
+    const K = Keff(), grow = S.r * N * (1 - N / K), eat = wolves ? (adv() ? A.wolf : .14) * N * (N / (N + 60)) : 0, noise = N * (Math.random() - .5) * (adv() ? A.noise : .06);
     const before = N; N = Math.max(0, N + grow - eat + noise); if (N < 2) N = 0;
     last = N - before; yr++; if (drought > 0) drought--;
-    hist.push({y:yr, N, K:Keff()}); if (hist.length > 61) hist.shift();
+    hist.push({y:yr, N, K:Keff(), ok: drought === 0 && !wolves}); if (hist.length > 61) hist.shift();
+    if (adv()) checkChal();
+  }
+  /* 🎯 challenge: a herd that never settles (boom-and-bust cycles appear in this model when r > about 2) */
+  function checkChal(){
+    if (chal === 2) return;
+    const t = hist.slice(-10), dev = t.map(p => (p.N - p.K) / p.K);
+    if (t.length < 10 || t.some(p => !p.ok)) return;
+    let flips = 0; for (let i = 1; i < dev.length; i++) if (dev[i] * dev[i - 1] < 0) flips++;
+    const big = dev.every(d => Math.abs(d) > .06), steady = Math.abs(dev[9]) + Math.abs(dev[8]) > .8 * (Math.abs(dev[0]) + Math.abs(dev[1]));
+    if (flips >= 8 && big && steady) chal = 2; else if (S.r > 1.8) chal = 1;
+  }
+  function advText(){
+    if (!adv()) return;
+    const K = Keff(), n = Math.round(N), g1 = S.r * N * (1 - N / K), eat = wolves ? A.wolf * N * (N / (N + 60)) : 0, sg = v => (v >= 0 ? '+' : '−') + Math.abs(Math.round(v));
+    Lab.$('#ccF').innerHTML = `ΔN = r · N · (1 − N/K)${wolves ? ' − ' + Lab.L(o('wolves','狼吃掉的')) : ''}<br>= ${S.r.toFixed(2)} × ${n} × (1 − ${n}/${Math.round(K)})${wolves ? ' − ' + Math.round(eat) : ''} ≈ <b>${sg(g1 - eat)}</b> ${Lab.L(o('deer/year','只/年'))}<br><small>${Lab.L(o('Growth per deer','每只鹿的增长'))} ≈ ${(S.r * (1 - N / K) * 100).toFixed(0)}% ${Lab.L(o('per year','每年'))} · N/K ≈ ${(N / K * 100).toFixed(0)}%</small>`;
+    const c = Lab.$('#ccChal');
+    c.textContent = Lab.L(chal === 2 ? o('🎉 You found it! When r is above about 2, each year the herd overshoots K so far that it crashes below K the next year, again and again. Real animals with booming numbers (like some insects or lemmings) can do this too.','🎉 你找到了！当 r 大于约 2 时，鹿群每年都会大大超过 K，第二年又跌到 K 以下，循环往复。现实中一些数量暴涨暴跌的动物（比如某些昆虫、旅鼠）也会这样。')
+      : chal === 1 ? o('Keep watching… is it still bouncing after 10 years, or does it calm down? If it calms down, try a bigger r.','继续观察……10 年后它还在上下跳吗，还是稳定下来了？如果稳定了，就把 r 再调大一些。')
+      : o('Tip: the small graph shows the growth ΔN for every herd size. Fastest growth is at N = K/2, not at N = K!','提示：小图显示不同种群数量时的增长量 ΔN。增长最快是在 N = K/2，而不是 N = K！'));
+  }
+  function drawMini(){
+    if (!adv()) return;
+    const cm = Lab.$('#ccMini'), gm = cm.getContext('2d'), b = cm.getBoundingClientRect(), dpr = Math.min(devicePixelRatio, 2);
+    if (!b.width) return;
+    if (cm.width !== Math.round(b.width * dpr) || cm.height !== Math.round(b.height * dpr)){ cm.width = Math.round(b.width * dpr); cm.height = Math.round(b.height * dpr); }
+    const W = b.width, H = b.height, K = Keff(), pl = 34, pr = 8, pt = 16, pb = 22, w = W - pl - pr, h = H - pt - pb;
+    gm.setTransform(dpr, 0, 0, dpr, 0, 0); gm.clearRect(0, 0, W, H);
+    const ink2 = css('--ink-2'), line = css('--line'), CN = '#c0782f', CK = '#2fb36d';
+    const xMax = 1.3 * K, top = Math.max(1, S.r * K / 4) * 1.15, bot = -top * .7;
+    const X = v => pl + v / xMax * w, Y = v => pt + (top - v) / (top - bot) * h;
+    gm.strokeStyle = line; gm.lineWidth = 1; gm.beginPath(); gm.moveTo(pl, Y(0)); gm.lineTo(pl + w, Y(0)); gm.moveTo(pl, pt); gm.lineTo(pl, pt + h); gm.stroke();
+    gm.strokeStyle = CK; gm.setLineDash([4, 4]); gm.beginPath(); gm.moveTo(X(K), pt); gm.lineTo(X(K), pt + h); gm.moveTo(X(K / 2), pt); gm.lineTo(X(K / 2), pt + h); gm.stroke(); gm.setLineDash([]);
+    gm.strokeStyle = CN; gm.lineWidth = 2.5; gm.beginPath();
+    for (let i = 0; i <= 60; i++){ const n = xMax * i / 60, v = S.r * n * (1 - n / K); i ? gm.lineTo(X(n), Y(Math.max(bot, v))) : gm.moveTo(X(n), Y(v)); } gm.stroke();
+    const nn = Math.min(N, xMax), vv = S.r * nn * (1 - nn / K); gm.fillStyle = CN; gm.beginPath(); gm.arc(X(nn), Y(Math.max(bot, vv)), 5, 0, 7); gm.fill();
+    gm.font = '700 11px Nunito, sans-serif'; gm.fillStyle = ink2; gm.textAlign = 'center';
+    gm.fillText('K', X(K), pt + h + 14); gm.fillText('K/2', X(K / 2), pt + h + 14); gm.fillText('0', pl, pt + h + 14);
+    gm.textAlign = 'left'; gm.fillText(Lab.L(o('ΔN per year vs. herd size N','每年增长量 ΔN 与种群数量 N')), pl + 4, 11);
+    gm.textAlign = 'right'; gm.fillText('+', pl - 6, pt + 8); gm.fillText('−', pl - 6, pt + h);
   }
   const nice = v => { const p = Math.pow(10, Math.floor(Math.log10(v))); return Math.ceil(v / p * 2) / 2 * p; };
   const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -416,12 +507,21 @@ Lab.$('#level').addEventListener('input', e => { App.level = +e.target.value; re
     Lab.$('#ccStatus').textContent = s;
     Lab.$('#ccN').textContent = Math.round(N); Lab.$('#ccK').textContent = Math.round(K); Lab.$('#ccY').textContent = yr;
     Lab.$('#ccG').textContent = (last >= 0 ? '+' : '') + Math.round(last);
+    advText();
   }
   function setTxt(el, en, zh){ el.dataset.en = en; el.dataset.zh = zh; el.textContent = Lab.lang === 'zh' ? zh : en; }
   function wolfLbl(){ setTxt(Lab.$('#ccWolf'), wolves ? '🐺 Remove wolves' : '🐺 Add wolves', wolves ? '🐺 移走狼' : '🐺 引入狼'); }
-  function labels(){ Lab.$('#vRes').textContent = S.res; Lab.$('#vR').textContent = S.r.toFixed(2); setTxt(Lab.$('#ccPlay'), run ? '⏸ Pause' : '▶ Play', run ? '⏸ 暂停' : '▶ 继续'); wolfLbl(); }
+  function labels(){ Lab.$('#vRes').textContent = S.res; Lab.$('#vR').textContent = S.r.toFixed(2); setTxt(Lab.$('#ccPlay'), run ? '⏸ Pause' : '▶ Play', run ? '⏸ 暂停' : '▶ 继续'); wolfLbl();
+    Lab.$('#vN0').textContent = A.n0; Lab.$('#vWolf').textContent = Math.round(A.wolf * 100) + '%'; Lab.$('#vNoise').textContent = '±' + Math.round(A.noise * 50) + '%'; advText(); }
   Lab.$('#sRes').addEventListener('input', e => { S.res = +e.target.value; labels(); });
-  Lab.$('#sR').addEventListener('input', e => { S.r = e.target.value / 100; labels(); });
+  Lab.$('#sR').addEventListener('input', e => { S.r = e.target.value / 100; if (chal !== 2) chal = 0; labels(); });
+  Lab.$('#sN0').addEventListener('input', e => { A.n0 = +e.target.value; labels(); });
+  Lab.$('#sWolf').addEventListener('input', e => { A.wolf = e.target.value / 100; labels(); });
+  Lab.$('#sNoise').addEventListener('input', e => { A.noise = e.target.value / 100; labels(); });
+  Lab.onMode(on => {   // Advanced lets r go up to 2.8 (boom-and-bust); Basic keeps the old 0.1–1.8 range
+    const sr = Lab.$('#sR'); sr.max = on ? 280 : 180; if (!on && S.r > 1.8){ S.r = 1.8; sr.value = 180; }
+    labels();
+  });
   Lab.$('#ccPlay').onclick = () => { run = !run; labels(); };
   Lab.$('#ccDrought').onclick = () => { drought = 8; ev.push({y:yr, i:'☀️'}); };
   Lab.$('#ccSick').onclick = () => { N *= .6; ev.push({y:yr, i:'🦠'}); };
@@ -431,7 +531,7 @@ Lab.$('#level').addEventListener('input', e => { App.level = +e.target.value; re
   function loop(now){
     const dt = Math.min(.1, (now - prev) / 1000); prev = now;
     if (run && (acc += dt) > .3){ acc = 0; step(); status(); }
-    draw(); requestAnimationFrame(loop);
+    draw(); drawMini(); requestAnimationFrame(loop);
   }
   reset(); labels(); Lab.onLang(() => { labels(); status(); }); status();
   requestAnimationFrame(loop);

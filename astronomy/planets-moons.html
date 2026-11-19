@@ -62,6 +62,13 @@ table.wt .dot{display:inline-block;width:10px;height:10px;border-radius:50%;marg
 .gamehead{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
 .score{font-family:Fredoka;font-size:22px;color:var(--brand)}
 @media (max-width:560px){ #spinPill{display:none} }
+/* 🚀 Advanced panel */
+.advgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:16px;align-items:start;margin-top:10px}
+.advcol{display:flex;flex-direction:column;gap:10px}
+.fml{font-family:ui-monospace,Consolas,monospace;font-size:13px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;line-height:1.55;overflow-wrap:anywhere}
+.mdbox{position:relative;height:320px;background:var(--surface);border-radius:12px;border:1px solid var(--line)}
+.mdbox canvas{position:absolute;inset:0;width:100%;height:100%}
+@media (max-width:760px){ .advgrid{grid-template-columns:1fr} }
 @media (max-width:560px){ .moonread{grid-template-columns:1fr 1fr} .wopts{grid-template-columns:1fr} #mStage,#cStage{min-height:460px} }
 </style>
 </head>
@@ -81,6 +88,7 @@ table.wt .dot{display:inline-block;width:10px;height:10px;border-radius:50%;marg
     <h2 data-zh="并排比一比：真实比例的两个世界">Side by side: two worlds at true scale</h2>
     <p data-zh="任选两个世界（8 颗行星、冥王星、月球和 5 颗著名卫星），按真实大小并排比较。它们按真实的相对速度自转，自转轴也按真实角度倾斜。">Pick any two worlds (8 planets, Pluto, our Moon and 5 famous moons) and see them side by side at their true relative sizes. They spin at their true relative speeds and tilt at their real angles.</p>
   </div>
+  <div class="lab-mode" style="margin-bottom:10px"></div>
   <div class="explorer">
     <div class="stage card space" id="cStage" data-3d>
       <div class="toolbar">
@@ -102,6 +110,25 @@ table.wt .dot{display:inline-block;width:10px;height:10px;border-radius:50%;marg
     <div class="result good" id="cmpMsg"></div>
     <div class="table-wrap"><table class="lab cmp" id="cmpTbl"></table></div>
     <p class="cap" data-zh="数据：NASA 行星数据表及 NASA/JPL 卫星数据（取整）。“一天”指日出到下一次日出（太阳日）。巨行星没有固体表面，引力和温度按云顶（1 个大气压处）计算。">Data: NASA Planetary Fact Sheet and NASA/JPL moon data (rounded). “Day” = sunrise to sunrise (solar day). Giant planets have no solid surface: gravity and temperature are given at the cloud tops (1 bar level).</p>
+  </div>
+  <div class="adv adv-box" id="pmAdv" style="margin-top:14px">
+    <b data-zh="🚀 进阶：引力从哪里来？g = GM/R²、密度和逃逸速度">🚀 Advanced: where does gravity come from? g = GM/R², density and escape velocity</b>
+    <div class="fml" id="aAB" style="margin-top:10px"></div>
+    <div class="advgrid">
+      <div class="advcol">
+        <b data-zh="🛠️ 自己造一个世界">🛠️ Build your own world</b>
+        <label class="ctl"><span><span data-zh="质量 M">Mass M</span>: <b id="aMv"></b></span><input id="aM" type="range" min="-5" max="3" step="0.01" value="0" aria-label="mass in Earth masses (log scale)"></label>
+        <label class="ctl"><span><span data-zh="直径 D">Diameter D</span>: <b id="aDv"></b></span><input id="aD" type="range" min="-1.5" max="1.1" step="0.005" value="0" aria-label="diameter in Earth diameters (log scale)"></label>
+        <div class="btnrow"><button class="btn ghost sm" id="aUseA" data-zh="载入世界 A 的数据">Load World A’s numbers</button><button class="btn ghost sm" id="aUseE" data-zh="恢复成地球">Back to Earth</button></div>
+        <div class="fml" id="aMine"></div>
+        <div><b data-zh="🎯 挑战">🎯 Challenge</b> <span id="aChQ"></span> <button class="btn ghost sm" id="aChNew" data-zh="换一个 ↻">New ↻</button></div>
+        <div class="result" id="aCh"></div>
+      </div>
+      <div>
+        <div class="mdbox" data-nofs><canvas id="mdCv" aria-label="Density against diameter of 15 worlds"></canvas></div>
+        <small class="muted" data-zh="密度–直径图：密度能告诉你一个世界是由什么组成的。岩石和铁组成的世界在上方，冰和气体组成的世界在下方。圆圈 = 世界 A 和 B，绿点 = 你造的世界。数据：NASA 平均密度。">Density against diameter: the density tells you what a world is made of. Rock-and-iron worlds sit high, ice and gas worlds low. Rings = Worlds A and B, green dot = your world. Data: NASA mean densities.</small>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -419,6 +446,95 @@ function renderCompare(){
 Lab.onLang(() => { fillSelects(); renderCompare(); });
 </script>
 <script>
+/* ===== 🚀 Advanced: g = GM/R², density, escape velocity for Worlds A & B, and a build-your-own world ===== */
+(function(){
+  const $ = Lab.$, G = 6.674e-11, ME = 5.97e24, DE = 12756;
+  const AV = { ch:null };
+  const phys = (m24, dkm, rotH) => {   // m in 10^24 kg, diameter in km
+    const M = m24 * 1e24, R = dkm / 2 * 1000, g0 = G * M / (R * R), rho = M / (4 / 3 * Math.PI * R ** 3) / 1000, ve = Math.sqrt(2 * G * M / R) / 1000;
+    const spin = rotH ? (2 * Math.PI / (Math.abs(rotH) * 3600)) ** 2 * R : 0;
+    return { M, R, g0, rho, ve, spin };
+  };
+  const e = x => { const p = Math.floor(Math.log10(x)), m = x / 10 ** p; return `${m.toFixed(2)}×10${SUP(p)}`; };
+  function abLine(k){
+    const w = W[k], p = phys(w.m, w.d, w.rot);
+    let s = `<b>${wName(k)}</b>: g = GM/R² = 6.674×10⁻¹¹ × ${e(p.M)} ÷ (${e(p.R)} m)² = <b>${sig(p.g0, 3)} m/s²</b>`;
+    if (p.spin > .05 * p.g0 / 10) s += zh() ? `；自转在赤道把你往外甩 −ω²R = −${sig(p.spin, 2)}，剩 ≈ ${sig(p.g0 - p.spin, 3)}（表中 ${w.g}）` : `; its spin flings you outward at the equator: −ω²R = −${sig(p.spin, 2)}, leaving ≈ ${sig(p.g0 - p.spin, 3)} (table: ${w.g})`;
+    s += `<br>&nbsp;&nbsp;${zh() ? '密度' : 'density'} ρ = M ÷ (4/3·π·R³) = <b>${sig(p.rho, 2)} g/cm³</b>${Math.abs(p.rho / RHO[k] - 1) > .05 ? (zh() ? `（用的是赤道半径；它被自转压扁了，真实平均密度 ${RHO[k]}）` : ` (equator radius; spin squashes it, true average ${RHO[k]})`) : ''} · ${zh() ? '逃逸速度' : 'escape velocity'} v = √(2GM/R) = <b>${sig(p.ve, 3)} km/s</b>`;
+    return s;
+  }
+  function pair(){ if (!Lab.adv()) return; $('#aAB').innerHTML = abLine(PM.a) + '<br>' + (PM.b !== PM.a ? abLine(PM.b) : ''); draw(); }
+  const mine = () => ({ mE:10 ** +$('#aM').value, dE:10 ** +$('#aD').value });
+  function stuff(rho){ return rho < 1.8 ? o('mostly gas or ice (like Saturn, Titan, Europa’s shell)','主要是气体或冰（像土星、土卫六）') : rho < 3.8 ? o('a mix of ice and rock (like Io or our Moon)','冰和岩石混合（像木卫一或月球）') : rho < 8 ? o('rock with an iron core (like Earth)','岩石加铁核（像地球）') : o('denser than iron: only possible if crushed by huge gravity (very rare)','比铁还密：除非被巨大引力压缩，否则几乎不可能'); }
+  function nearest(m24, d){ let best = null, bd = 1e9; WK.forEach(k => { const dd = Math.hypot(Math.log10(W[k].m / m24), Math.log10(W[k].d / d)); if (dd < bd){ bd = dd; best = k; } }); return best; }
+  function myWorld(){
+    if (!Lab.adv()) return;
+    const { mE, dE } = mine(), p = phys(mE * 5.97, dE * DE), gE = p.g0 / 9.82;
+    $('#aMv').textContent = zh() ? `地球的 ${sig(mE, 3)} 倍（${e(p.M)} 千克）` : `${sig(mE, 3)} × Earth (${e(p.M)} kg)`;
+    $('#aDv').textContent = zh() ? `地球的 ${sig(dE, 3)} 倍（${num(dE * DE)} 千米）` : `${sig(dE, 3)} × Earth (${num(dE * DE)} km)`;
+    const nk = nearest(mE * 5.97, dE * DE);
+    $('#aMine').innerHTML = (zh() ? `g ∝ M ÷ D²：${sig(mE, 3)} ÷ ${sig(dE, 3)}² = 地球的 <b>${sig(gE, 3)} 倍</b>（${sig(p.g0, 3)} 米/秒²）` : `g ∝ M ÷ D²: ${sig(mE, 3)} ÷ ${sig(dE, 3)}² = <b>${sig(gE, 3)} × Earth</b> (${sig(p.g0, 3)} m/s²)`) +
+      `<br>${zh() ? '密度' : 'density'} = <b>${sig(p.rho, 2)} g/cm³</b> → ${Lab.L(stuff(p.rho))}` +
+      `<br>${zh() ? '逃逸速度' : 'escape velocity'} = <b>${sig(p.ve, 3)} km/s</b> ${zh() ? `（地球 11.2）· 地球上 45 千克的人在这里重 ${sig(45 * gE, 3)} 千克` : `(Earth: 11.2) · a 45 kg (100 lb) person would weigh ${sig(45 * gE, 3)} kg (${sig(100 * gE, 3)} lb)`}` +
+      `<br>${zh() ? '最像它的真实世界' : 'Closest real world'}: ${wName(nk)}`;
+    check(); draw();
+  }
+  /* 🎯 challenge: build a world with a target size and gravity */
+  const CH = [ {d:2, g:1}, {d:1, g:.38}, {d:.5, g:.2}, {d:1.5, g:2}, {d:3, g:1.5}, {d:.25, g:.1} ];
+  function newCh(){ let c; do { c = CH[Math.random() * CH.length | 0]; } while (c === AV.ch); AV.ch = c; chText(); check(); }
+  function chText(){ const c = AV.ch; $('#aChQ').textContent = zh() ? `造一个直径是地球 ${c.d} 倍、表面引力是地球 ${c.g} 倍的世界（误差 5% 以内）。需要多大的质量？` : `Build a world ${c.d} × as wide as Earth with ${c.g} × Earth’s gravity (within 5%). How much mass does it need?`; }
+  function check(){
+    const c = AV.ch; if (!c) return; const { mE, dE } = mine(), g = mE / dE ** 2, el = $('#aCh');
+    const okD = Math.abs(dE / c.d - 1) <= .05, okG = Math.abs(g / c.g - 1) <= .05;
+    if (okD && okG){ el.className = 'result good'; el.textContent = zh() ? `✅ 成功！M = g × D² = ${c.g} × ${c.d}² = 地球的 ${sig(c.g * c.d * c.d, 3)} 倍质量。` : `✅ Done! M = g × D² = ${c.g} × ${c.d}² = ${sig(c.g * c.d * c.d, 3)} Earth masses.`; return; }
+    el.className = 'result';
+    el.textContent = !okD ? (zh() ? `先把直径调到地球的 ${c.d} 倍（现在 ${sig(dE, 3)}）。` : `First set the diameter to ${c.d} × Earth (now ${sig(dE, 3)}).`)
+      : (zh() ? `直径对了！现在引力是 ${sig(g, 3)} 倍：${g < c.g ? '加点质量' : '减点质量'}。提示：g ∝ M ÷ D²。` : `Diameter is right! Gravity is now ${sig(g, 3)} ×: ${g < c.g ? 'add mass' : 'remove mass'}. Hint: g ∝ M ÷ D².`);
+  }
+  /* density–diameter chart (NASA mean densities, g/cm³) */
+  const RHO = { mercury:5.43, venus:5.24, earth:5.51, moon:3.34, mars:3.93, jupiter:1.33, saturn:.69, uranus:1.27, neptune:1.64, pluto:1.85, io:3.53, europa:3.01, ganymede:1.94, titan:1.88, enceladus:1.61 };
+  AV.RHO = RHO;
+  function draw(){
+    if (!Lab.adv()) return;
+    const cv = $('#mdCv'); if (!cv.parentNode.clientWidth || typeof fitCv !== 'function') return;
+    const { g, w, h } = fitCv(cv); g.clearRect(0, 0, w, h);
+    const ink = css('--ink') || '#222', ink2 = css('--ink-2') || '#666', line = css('--line') || '#ccc';
+    const L = 40, R = w - 12, T = 12, B = h - 34, x0 = 2.5, x1 = 5.3, y0 = 0, y1 = 7;   // x: log10 diameter (km), y: density g/cm³
+    const X = ld => L + (ld - x0) / (x1 - x0) * (R - L), Y = r => B - (Math.min(r, y1) - y0) / (y1 - y0) * (B - T);
+    // bands: what a world of that density is made of
+    [[0, 1.8, 'rgba(75,159,224,.12)', o('gas / ice','气体 / 冰'), .5], [1.8, 3.8, 'rgba(176,138,90,.13)', o('ice + rock','冰 + 岩石'), 2.5], [3.8, 7, 'rgba(208,96,58,.12)', o('rock + iron','岩石 + 铁'), 5.5]].forEach(([a, b, c, t, ly]) => {
+      g.fillStyle = c; g.fillRect(L, Y(b), R - L, Y(a) - Y(b)); g.fillStyle = ink2; g.font = FONT(11, 800); g.textAlign = 'left'; g.fillText(Lab.L(t), L + 6, Y(ly) + 4); });
+    g.strokeStyle = line; g.lineWidth = 1;
+    for (let x = 3; x <= 5; x++){ g.beginPath(); g.moveTo(X(x), T); g.lineTo(X(x), B); g.stroke(); }
+    for (let y = y0; y <= y1; y++){ g.beginPath(); g.moveTo(L, Y(y)); g.lineTo(R, Y(y)); g.stroke(); }
+    const LEFT = { venus:1, uranus:1, mercury:1, europa:1, titan:1 };
+    WK.forEach(k => { const x = X(Math.log10(W[k].d)), y = Y(RHO[k]), on = k === PM.a || k === PM.b;
+      g.fillStyle = W[k].color; g.beginPath(); g.arc(x, y, on ? 6 : 4.5, 0, 7); g.fill(); g.strokeStyle = 'rgba(0,0,0,.35)'; g.lineWidth = 1; g.stroke();
+      if (on){ g.strokeStyle = ink; g.lineWidth = 2; g.beginPath(); g.arc(x, y, 10, 0, 7); g.stroke(); }
+      if (on || PLAN.includes(k)){ const lf = LEFT[k] || x > R - 60; g.fillStyle = ink; g.font = FONT(on ? 12 : 10.5, on ? 800 : 700); g.textAlign = lf ? 'right' : 'left'; g.fillText(wName(k).replace(/（.*）/, ''), lf ? x - 9 : x + 9, y + 4); } });
+    const { mE, dE } = mine(), p = phys(mE * 5.97, dE * DE), mx = X(Math.log10(dE * DE)), my = Y(p.rho);
+    g.fillStyle = '#2fbf71'; g.beginPath(); g.arc(mx, my, 7, 0, 7); g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 2; g.stroke();
+    if (p.rho > y1){ g.fillStyle = '#2fbf71'; g.font = FONT(11); g.textAlign = 'center'; g.fillText('↑ ' + sig(p.rho, 2), mx, my + 20); }
+    g.fillStyle = ink2; g.font = FONT(11, 700); g.textAlign = 'center';
+    for (let x = 3; x <= 5; x++) g.fillText(num(10 ** x), X(x), B + 14);
+    g.fillText(Lab.L(o('diameter (km, log scale)','直径（千米，对数刻度）')), (L + R) / 2, h - 4);
+    g.textAlign = 'right'; for (let y = y0; y <= y1; y++) g.fillText(String(y), L - 5, Y(y) + 4);
+    g.save(); g.translate(11, (T + B) / 2); g.rotate(-Math.PI / 2); g.textAlign = 'center'; g.fillText(Lab.L(o('density (g/cm³)','密度（克/厘米³）')), 0, 0); g.restore();
+  }
+  const setMine = (m24, d) => { $('#aM').value = Math.log10(m24 / 5.97); $('#aD').value = Math.log10(d / DE); myWorld(); };
+  $('#aM').oninput = myWorld; $('#aD').oninput = myWorld;
+  $('#aUseA').onclick = () => setMine(W[PM.a].m, W[PM.a].d);
+  $('#aUseE').onclick = () => setMine(5.97, DE);
+  $('#aChNew').onclick = newCh;
+  const rc = renderCompare; renderCompare = function(){ rc(); pair(); };
+  new ResizeObserver(draw).observe($('#mdCv').parentNode);
+  addEventListener('labtheme', draw);
+  Lab.onLang(() => { if (AV.ch) chText(); pair(); myWorld(); });
+  Lab.onMode(adv => { if (!adv) return; if (!AV.ch) newCh(); pair(); myWorld(); requestAnimationFrame(draw); });
+  window.PMAdv = { setMine, state:AV };
+})();
+</script>
+<script>
 /* ===== canvas helper ===== */
 function fitCv(cv){ const b = cv.parentNode, dpr = Math.min(devicePixelRatio || 1, 2), w = b.clientWidth, h = b.clientHeight;
   if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)){ cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
@@ -721,6 +837,18 @@ const RP = {
     en:'Standing on Mars: the rim of Jezero Crater in the first 360° panorama from the Perseverance rover’s Mastcam-Z camera.', zh:'站在火星上：“毅力号”火星车 Mastcam-Z 相机拍的第一张 360° 全景图中的耶泽罗撞击坑边缘。', scale:o('Jezero Crater: about 45 km across','耶泽罗撞击坑：直径约 45 千米') },
   junoVid:{ type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/6/6c/Juno%27s_Perijove-06_Jupiter_Flyby%2C_Reconstructed_in_125-Fold_Time-Lapse.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6c/Juno%27s_Perijove-06_Jupiter_Flyby%2C_Reconstructed_in_125-Fold_Time-Lapse.webm/960px--Juno%27s_Perijove-06_Jupiter_Flyby%2C_Reconstructed_in_125-Fold_Time-Lapse.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', license:'CC BY 3.0', page:'https://commons.wikimedia.org/wiki/File:Juno%27s_Perijove-06_Jupiter_Flyby,_Reconstructed_in_125-Fold_Time-Lapse.webm', credit:'NASA / JPL / SwRI / MSSS / Gerald Eichstädt', kind:K.vid,
     en:'Ride along with Juno: its flyby of Jupiter on May 19, 2017, rebuilt from JunoCam images and sped up 125 times.', zh:'跟着“朱诺号”飞：2017 年 5 月 19 日它飞掠木星的过程，用 JunoCam 图像重建，加速 125 倍播放。' },
+  callisto:{ src:'https://upload.wikimedia.org/wikipedia/commons/e/e9/Callisto.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Callisto.jpg', credit:'NASA/JPL/DLR', kind:K.craft,
+    en:'Callisto, Jupiter’s second-largest moon, photographed by the Galileo spacecraft. It is covered in craters: one of the most cratered places in the solar system, because its old surface has hardly changed in billions of years.', zh:'“伽利略号”拍到的木卫四（卡利斯托），木星第二大的卫星。它布满了陨石坑，是太阳系里陨石坑最多的地方之一，因为它古老的表面几十亿年来几乎没有变过。', scale:o('4,821 km across','直径 4,821 千米') },
+  mimas:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bc/Mimas_Cassini.jpg/960px-Mimas_Cassini.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Mimas_Cassini.jpg', credit:'NASA/JPL-Caltech/Space Science Institute', kind:K.craft,
+    en:'Saturn’s small moon Mimas, photographed by Cassini in 2010. The giant crater Herschel is about one third as wide as the whole moon, so Mimas looks a bit like the “Death Star” from Star Wars.', zh:'“卡西尼号”2010 年拍到的土卫一（弥玛斯）。巨大的赫歇尔陨石坑宽度约为整个卫星的三分之一，让它看起来有点像《星球大战》里的“死星”。', scale:o('396 km across','直径 396 千米') },
+  phobos:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/Phobos_colour_2008.jpg/960px-Phobos_colour_2008.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Phobos_colour_2008.jpg', credit:'NASA/JPL-Caltech/University of Arizona', kind:K.proc,
+    en:'Phobos, the larger of Mars’s two tiny moons, photographed by the Mars Reconnaissance Orbiter in 2008. It is not round: it is shaped like a lumpy potato, with the big crater Stickney on the right.', zh:'火星两颗小卫星中较大的火卫一（福波斯），由“火星勘测轨道飞行器”在 2008 年拍摄。它不是圆的，而是像个坑坑洼洼的土豆，右边是巨大的斯蒂克尼陨石坑。', scale:o('About 27 km long','长约 27 千米') },
+  charon:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2e/Charon_in_True_Color_-_High-Res.jpg/960px-Charon_in_True_Color_-_High-Res.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Charon_in_True_Color_-_High-Res.jpg', credit:'NASA/JHUAPL/SwRI', kind:K.craft,
+    en:'Charon, Pluto’s biggest moon, photographed by New Horizons in 2015. It is about half as wide as Pluto, and its north pole is stained reddish-brown.', zh:'“新视野号”2015 年拍到的冥卫一（卡戎），冥王星最大的卫星。它的宽度约为冥王星的一半，北极被染成了红褐色。', scale:o('1,212 km across','直径 1,212 千米') },
+  ringsback:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/ba/Saturn_eclipse.jpg/960px-Saturn_eclipse.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Saturn_eclipse.jpg', credit:'NASA/JPL/Space Science Institute', kind:K.proc,
+    en:'Saturn hiding the Sun, seen by Cassini from inside Saturn’s shadow (2006). With the Sun behind, the thin, dusty outer rings light up and become easy to see.', zh:'“卡西尼号”从土星的影子里看到的“土星遮住太阳”（2006 年）。太阳在背后照过来，外围稀薄、多尘的光环被照亮，变得清清楚楚。' },
+  ytcassini:{ type:'youtube', yt:'xrGAQCq9BMU', en:'NASA JPL: Cassini’s Grand Finale. In 2017, after 13 years at Saturn, Cassini dived between the planet and its rings, then plunged into Saturn.', zh:'美国航天局喷气推进实验室：“卡西尼号”的壮丽谢幕。2017 年，在土星工作 13 年后，它钻进土星和光环之间的缝隙，最后冲进了土星。', kind:K.vid, credit:'NASA JPL (YouTube)', license:'YouTube' },
+  ytsaturn:{ type:'youtube', yt:'E8GNde5nCSg', en:'Crash Course Astronomy #18: Saturn, its rings and its strange moons.', zh:'Crash Course 天文学第 18 集：土星、它的光环和奇特的卫星。', kind:o('Video','视频'), credit:'CrashCourse (YouTube)', license:'YouTube' },
   /* info-panel pictures for the other worlds (same files as the Solar System lesson) */
   mercury:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d9/Mercury_in_color_-_Prockter07-edit1.jpg/960px-Mercury_in_color_-_Prockter07-edit1.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Mercury_in_color_-_Prockter07-edit1.jpg', credit:'NASA/Johns Hopkins University Applied Physics Laboratory', kind:K.proc,
     en:'Mercury, photographed by the MESSENGER spacecraft. Colours are boosted to show different kinds of rock.', zh:'“信使号”探测器拍到的水星。颜色经过增强，用来区分不同的岩石。', scale:o('4,879 km across','直径 4,879 千米') },
@@ -738,8 +866,8 @@ const RP = {
     en:'Pluto in true colour, photographed by New Horizons on July 14, 2015 from 35,445 km away.', zh:'“新视野号”2015 年 7 月 14 日从 35,445 千米外拍到的真彩色冥王星。', scale:o('2,376 km across','直径 2,376 千米') }
 };
 const RP_FOR = { mercury:'mercury', venus:'venus', earth:'earth', moon:'moon', mars:'jezero', jupiter:'juno', saturn:'saturn', uranus:'uranus', neptune:'neptune', pluto:'pluto', io:'io', europa:'europa', ganymede:'ganymede', titan:'titan', enceladus:'enceladus' };
-LabPhotos.render('#gallery', ['juno','io','europa','ganymede','saturn','titan','enceladus','uranus','triton','jezero','junoVid'].map(k => RP[k]), { title:o('See the real thing','看看真实的样子'),
-  sub:o('Real pictures sent back by Juno, Galileo, Cassini, Voyager 2 and Perseverance. Click a picture to enlarge it; the video plays only when you press play.','“朱诺号”“伽利略号”“卡西尼号”“旅行者 2 号”和“毅力号”传回的真实照片。点击图片可以放大；视频要你按下播放键才会播放。') });
+LabPhotos.render('#gallery', ['juno','io','europa','ganymede','callisto','saturn','ringsback','titan','enceladus','mimas','uranus','triton','charon','jezero','phobos','junoVid','ytcassini','ytsaturn'].map(k => RP[k]), { title:o('See the real thing','看看真实的样子'),
+  sub:o('Real pictures sent back by Juno, Galileo, Cassini, Voyager 2, New Horizons, Mars Reconnaissance Orbiter and Perseverance. Click a picture to enlarge it; videos play only when you press play.','“朱诺号”“伽利略号”“卡西尼号”“旅行者 2 号”“新视野号”“火星勘测轨道飞行器”和“毅力号”传回的真实照片。点击图片可以放大；视频要你按下播放键才会播放。') });
 
 /* ===== Go further (all links checked: HTTP 200) ===== */
 const LINKS = [

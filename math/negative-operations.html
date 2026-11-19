@@ -65,12 +65,24 @@
   <div class="ma-explore">
     <div class="ma-stage explore-stage" id="walkStage" data-fs></div>
     <div class="card ctl">
+      <div class="lab-mode" style="align-self:flex-start"></div>
       <label class="ctl"><span><span data-zh="a = ">a = </span><b id="waVal">-3</b></span><input id="waIn" type="range" min="-8" max="8" step="1" value="-3"></label>
-      <div class="opseg" id="wOp"><button data-op="+">+</button><button data-op="-" class="on">−</button><button data-op="x">×</button></div>
+      <div class="opseg" id="wOp"><button data-op="+">+</button><button data-op="-" class="on">−</button><button data-op="x">×</button><button data-op="/" class="adv">÷</button></div>
       <label class="ctl"><span><span data-zh="b = ">b = </span><b id="wbVal">-5</b></span><input id="wbIn" type="range" min="-8" max="8" step="1" value="-5"></label>
       <div class="ma-big" id="walkOut"></div>
       <p class="muted" id="walkMsg" style="margin:0"></p>
       <button class="btn ghost" id="wReplay" data-zh="↺ 再走一次">↺ Walk again</button>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:10px">
+        <b data-zh="进阶：除法（÷ 按钮）、用逆运算检验、乘法规律表">Advanced: division (the ÷ button), checking with the inverse, the pattern table</b>
+        <div id="wCheck" style="text-align:center;font-size:18px"></div>
+        <div id="wTab" style="text-align:center;overflow-x:auto;overflow-y:hidden;padding:2px 0"></div>
+        <div id="wFacts" class="muted" style="font-size:14px"></div>
+        <div style="border-top:1px solid var(--line);padding-top:8px">
+          <b data-zh="🎯 挑战">🎯 Challenge</b> <span id="wChTxt"></span>
+          <div class="btnrow" style="margin-top:6px"><button class="btn" id="wChCheck" data-zh="检查">Check</button><button class="btn ghost" id="wChNew" data-zh="换一题">New challenge</button></div>
+          <div class="result" id="wChMsg"></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -427,6 +439,11 @@ const colNum = v => v > 0 ? `\\textcolor{#d49a1c}{${v}}` : v < 0 ? `\\textcolor{
       res = a * b; const n = Math.abs(a);
       for (let i = 0; i < n; i++) segs.push({ x1:i * b, x2:(i + 1) * b, y:LY + .55 + (i % 2) * .4, col:b >= 0 ? C.yellow : C.red, dash:a < 0 });
       if (a < 0 && b !== 0) segs.push({ x1:0, x2:res, y:LY + 1.75, col:res >= 0 ? C.yellow : C.red, flip:true });
+    } else if (op === '/'){       // Advanced: a ÷ b = q, drawn as q × b = a (|q| jumps of b, flipped if q < 0)
+      if (b === 0) return { R, X, segs, res:null };
+      res = a / b; const aq = Math.abs(res), n = Math.ceil(aq - 1e-9);
+      for (let i = 0; i < n; i++) segs.push({ x1:i * b, x2:Math.min(i + 1, aq) * b, y:LY + .55 + (i % 2) * .4, col:b >= 0 ? C.yellow : C.red, dash:res < 0 });
+      if (res < 0) segs.push({ x1:0, x2:a, y:LY + 1.75, col:a >= 0 ? C.yellow : C.red, flip:true });
     } else {
       const bb = op === '+' ? b : -b; res = a + bb;
       if (a !== 0) segs.push({ x1:0, x2:a, y:LY + .5, col:C.grey, thin:true });
@@ -457,14 +474,14 @@ const colNum = v => v > 0 ? `\\textcolor{#d49a1c}{${v}}` : v < 0 ? `\\textcolor{
         ctx.fillStyle = s.col; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(hx - dir * h, hy - h * .6); ctx.lineTo(hx - dir * h, hy + h * .6); ctx.closePath(); ctx.fill(); }
       if (!s.thin && !s.dash) head = [X(xe), s.y];
       if (q >= 1 && !s.thin && !s.flip){ ctx.font = `800 ${Math.max(10, S.px(.28))}px Nunito, sans-serif`; ctx.fillStyle = s.col; ctx.textBaseline = 'bottom'; ctx.textAlign = 'center';
-        const d = s.x2 - s.x1; ctx.fillText((d > 0 ? '+' : '') + d, S.sx(X((s.x1 + s.x2) / 2)), S.sy(s.y + .12)); }
+        const d = rd(s.x2 - s.x1); ctx.fillText((d > 0 ? '+' : '') + d, S.sx(X((s.x1 + s.x2) / 2)), S.sy(s.y + .12)); }
       if (s.flip && q >= 1){ ctx.font = `800 ${Math.max(10, S.px(.28))}px Nunito, sans-serif`; ctx.fillStyle = C.white; ctx.textBaseline = 'bottom'; ctx.textAlign = 'center';
         ctx.fillText(Lab.L({ en:'flip × (−1)', zh:'翻转 × (−1)' }), S.sx(X(0)), S.sy(s.y + .75)); }
     });
     if (head && p < 1){ ctx.beginPath(); ctx.arc(S.sx(head[0]), S.sy(head[1] + .25), S.px(.16), 0, 7); ctx.fillStyle = C.orange; ctx.fill(); }
-    if (p >= 1){ ctx.beginPath(); ctx.arc(S.sx(X(res)), S.sy(LY), S.px(.2), 0, 7); ctx.fillStyle = C.teal; ctx.fill();
+    if (p >= 1 && res != null){ ctx.beginPath(); ctx.arc(S.sx(X(res)), S.sy(LY), S.px(.2), 0, 7); ctx.fillStyle = C.teal; ctx.fill();
       ctx.font = `800 ${Math.max(14, S.px(.55))}px Nunito, sans-serif`; ctx.fillStyle = C.teal; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-      ctx.fillText('= ' + res, S.sx(Math.max(-5, Math.min(5, X(res)))), S.sy(LY - .75)); }
+      ctx.fillText((rd(res) === res ? '= ' : '≈ ') + rd(res), S.sx(Math.max(-5, Math.min(5, X(res)))), S.sy(LY - .75)); }
   });
   const T = (en, zh) => ({ en, zh });
   function update(replay){
@@ -473,9 +490,13 @@ const colNum = v => v > 0 ? `\\textcolor{#d49a1c}{${v}}` : v < 0 ? `\\textcolor{
     const r = plan().res, dirB = v => Lab.L(v > 0 ? T('right', '向右') : T('left', '向左'));
     Lab.$('#walkOut').innerHTML = MathAnim.tex(op === '+' ? `${colNum(a)} + ${colNum(b)} = \\textcolor{#2aa98a}{${r}}`
       : op === '-' ? `${colNum(a)} - ${colNum(b)} = ${colNum(a)} + ${colNum(-b)} = \\textcolor{#2aa98a}{${r}}`
+      : op === '/' ? `${colNum(a)} \\div ${colNum(b)} = \\textcolor{#2aa98a}{${r == null ? '?' : qTex(a, b)}}`
       : `${colNum(a)} \\times ${colNum(b)} = \\textcolor{#2aa98a}{${r}}`);
     let msg;
-    if (op === 'x') msg = a === 0 || b === 0 ? T('Anything times 0 is 0.', '任何数乘 0 都得 0。')
+    if (op === '/') msg = b === 0 ? T('Dividing by 0 is undefined: no number of jumps of size 0 can ever reach a (and for 0 ÷ 0 every number would work).', '除数不能为 0：每次跳 0，跳多少次也到不了 a（0 ÷ 0 则任何数都行），所以没有意义。')
+      : (() => { const ex = rd(r) === r, rs = ex ? String(r) : '≈ ' + rd(r), qs = ex ? paren(r) : `(${a}/${paren(b)})`;
+          return T(`a ÷ b asks: how many jumps of ${b} make ${a}? Answer ${rs}, because ${qs} × ${paren(b)} = ${a}.`, `a ÷ b 问的是：几个 ${b} 合起来是 ${a}？答案是 ${rs}，因为 ${qs} × ${paren(b)} = ${a}。`); })();
+    else if (op === 'x') msg = a === 0 || b === 0 ? T('Anything times 0 is 0.', '任何数乘 0 都得 0。')
       : a > 0 ? T(`From 0, make ${a} jumps of ${b}.`, `从 0 出发,跳 ${a} 次,每次跳 ${b}。`)
       : T(`${Math.abs(a)} jumps of ${b} would reach ${Math.abs(a) * b}; the negative sign of a flips it to ${r}.`, `跳 ${Math.abs(a)} 次 ${b} 会到 ${Math.abs(a) * b};a 的负号把它翻到 0 的另一侧:${r}。`);
     else { const bb = op === '+' ? b : -b;
@@ -484,7 +505,54 @@ const colNum = v => v > 0 ? `\\textcolor{#d49a1c}{${v}}` : v < 0 ? `\\textcolor{
             `${op === '-' ? `减去 ${b} 就是加上 ${-b}。` : ''}从 ${a} 出发,${dirB(bb)}走 ${Math.abs(bb)} 格。`); }
     Lab.$('#walkMsg').textContent = Lab.L(msg);
     if (replay) p = 0;
+    advUpdate();
   }
+  /* ---------- Advanced mode: ÷, inverse check, pattern table, challenge ---------- */
+  function rd(v){ return Math.round(v * 100) / 100; }
+  function qTex(n, d){          // n ÷ d as an integer, or a fraction in lowest terms ≈ decimal
+    const g = (x, y) => y ? g(y, x % y) : Math.abs(x) || 1, k = g(n, d), N = n / k * Math.sign(d), D = Math.abs(d / k);
+    if (D === 1) return String(N);
+    const fr = `${N < 0 ? '-' : ''}\\frac{${Math.abs(N)}}{${D}}`, v = N / D;
+    return fr + (rd(v) === v ? ' = ' : ' \\approx ') + rd(v);
+  }
+  let chI = 0;
+  const CH = [
+    { en:'Use × with two NEGATIVE numbers to get 12.', zh:'用 ×，两个数都取负数，使结果等于 12。', ok:r => op === 'x' && a < 0 && b < 0 && r === 12 },
+    { en:'Subtract a negative number and land exactly on 0.', zh:'减去一个负数，结果正好是 0。', ok:r => op === '-' && b < 0 && r === 0 },
+    { en:'Use ÷ with a negative a to get −3.', zh:'用 ÷，a 取负数，使结果等于 −3。', ok:r => op === '/' && a < 0 && r === -3 },
+    { en:'Find a subtraction a − b whose answer is GREATER than a.', zh:'找一个减法 a − b，使结果比 a 还大。', ok:r => op === '-' && r > a },
+    { en:'Divide two negative numbers to get 4.', zh:'用两个负数相除，使结果等于 4。', ok:r => op === '/' && a < 0 && b < 0 && r === 4 },
+    { en:'Make a × b = −8 with a < b.', zh:'让 a × b = −8，并且 a < b。', ok:r => op === 'x' && r === -8 && a < b }
+  ];
+  function advUpdate(){
+    if (!Lab.adv()) return;
+    const r = plan().res;
+    let chk = '';
+    if (op === '+') chk = `\\text{${Lab.L(T('check', '验算'))}: } ${paren(r)} - ${paren(b)} = ${a}`;
+    else if (op === '-') chk = `\\text{${Lab.L(T('check', '验算'))}: } ${paren(r)} + ${paren(b)} = ${a}`;
+    else if (op === 'x') chk = a ? `\\text{${Lab.L(T('check', '验算'))}: } ${paren(r)} \\div ${paren(a)} = ${b}` : '';
+    else if (r != null) chk = `\\text{${Lab.L(T('check', '验算'))}: } ${Number.isInteger(r) ? paren(r) : '(' + qTex(a, b).split(' ')[0] + ')'} \\times ${paren(b)} = ${a}`;
+    Lab.$('#wCheck').innerHTML = chk ? MathAnim.tex(chk) : '';
+    const tab = op === 'x' || op === '/';
+    if (tab){        // the pattern that forces “negative × negative = positive”: each row down, the product changes by −b
+      const as = [3, 2, 1, 0, -1, -2, -3];
+      Lab.$('#wTab').innerHTML = MathAnim.tex(`\\begin{array}{c|ccccccc} a & ${as.join(' & ')} \\\\ \\hline a \\times ${paren(b)} & ${as.map(x => { const v = x * b; return v > 0 ? `\\textcolor{#d49a1c}{${v}}` : v < 0 ? `\\textcolor{#e0475b}{${v}}` : '0'; }).join(' & ')} \\end{array}`);
+    } else Lab.$('#wTab').innerHTML = '';
+    const sgn = { en:'Sign rules: same signs → positive, different signs → negative (for × and ÷ alike).', zh:'符号法则：同号得正，异号得负（乘法和除法都一样）。' };
+    Lab.$('#wFacts').innerHTML = tab ? Lab.L(b === 0 ? T('With b = 0 every product is 0.', 'b = 0 时，每个积都是 0。')
+        : T(`Each time a goes down by 1, the product goes down by ${b}${b < 0 ? `, i.e. UP by ${-b}` : ''}. Keep the pattern going past 0 and you get the sign rules.`,
+            `a 每减少 1，积就减少 ${b}${b < 0 ? `，也就是增加 ${-b}` : ''}。让这个规律越过 0 继续下去，就得到了符号法则。`)) + '<br>' + Lab.L(sgn)
+      : Lab.L(T('Every subtraction is an addition of the opposite: a − b = a + (−b). Addition and subtraction undo each other.', '减去一个数，等于加上它的相反数：a − b = a + (−b)。加法和减法互为逆运算。'));
+    Lab.$('#wChTxt').textContent = Lab.L(CH[chI]);
+  }
+  Lab.$('#wChNew').onclick = () => { chI = (chI + 1) % CH.length; Lab.$('#wChMsg').textContent = ''; Lab.$('#wChMsg').className = 'result'; advUpdate(); };
+  Lab.$('#wChCheck').onclick = () => {
+    const r = plan().res, ok = r != null && CH[chI].ok(r), msg = Lab.$('#wChMsg'), sym = { '+':'+', '-':'−', x:'×', '/':'÷' }[op];
+    msg.textContent = Lab.L(ok ? T(`🎉 Yes! ${a} ${sym} ${paren(b)} = ${rd(r)}`, `🎉 对了！${a} ${sym} ${paren(b)} = ${rd(r)}`)
+                              : T('Not yet. Check the operation button and both signs, then try again.', '还不对。看看运算按钮和两个数的正负号，再试一次。'));
+    msg.className = 'result ' + (ok ? 'good' : 'bad');
+  };
+  Lab.onMode(adv => { if (!adv && op === '/') Lab.$('#wOp button[data-op="-"]').click(); advUpdate(); });
   Lab.$('#waIn').oninput = () => update(true); Lab.$('#wbIn').oninput = () => update(true);
   Lab.$$('#wOp button').forEach(btn => btn.onclick = () => { op = btn.dataset.op; Lab.$$('#wOp button').forEach(x => x.classList.toggle('on', x === btn)); update(true); });
   Lab.$('#wReplay').onclick = () => update(true);
@@ -521,6 +589,7 @@ const colNum = v => v > 0 ? `\\textcolor{#d49a1c}{${v}}` : v < 0 ? `\\textcolor{
 /* ================= Where you see this: real photos (Wikimedia Commons, freely licensed) ================= */
 (function(){
 const o = (en, zh) => ({ en, zh });
+const VID = o('Video', '视频');
 const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/31/The_Masters_Leaderboard_%2817256389242%29.jpg/960px-The_Masters_Leaderboard_%2817256389242%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'The leaderboard at the 2015 Masters golf tournament. In golf, scores under par are negative. How far apart are −6 and +2?',
@@ -533,9 +602,23 @@ const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f7/Line_of_Scrimmage%2C_Cornell_Big_Red_at_Columbia_Lions_football_game.jpg/960px-Line_of_Scrimmage%2C_Cornell_Big_Red_at_Columbia_Lions_football_game.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'Football teams at the line of scrimmage. A loss of 4 yards, then another loss of 3: where does the ball end up?',
     zh:'橄榄球比赛的争球线。先丢 4 码，再丢 3 码，球最后在哪里？',
-    credit:'Kenneth C. Zirkel', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Line_of_Scrimmage,_Cornell_Big_Red_at_Columbia_Lions_football_game.jpg' }
+    credit:'Kenneth C. Zirkel', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Line_of_Scrimmage,_Cornell_Big_Red_at_Columbia_Lions_football_game.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d1/Mount_Everest_as_seen_from_Drukair2_PLW_edit.jpg/960px-Mount_Everest_as_seen_from_Drukair2_PLW_edit.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'Mount Everest (珠穆朗玛峰) rises to +8,849 m. The shore of the Dead Sea is about −430 m. How far is it from the lowest to the highest? Work out 8,849 − (−430).',
+    zh:'珠穆朗玛峰海拔 +8,849 米，死海岸边大约是 −430 米。从最低处到最高处相差多少？算一算 8,849 − (−430)。',
+    credit:'shrimpo1967 (edit by PLW)', license:'CC BY-SA 2.0', page:'https://commons.wikimedia.org/wiki/File:Mount_Everest_as_seen_from_Drukair2_PLW_edit.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dc/Caution_sign_-_Dead_Sea_shores_-_Earth%27s_lowest_elevation_on_land_%2811664196206%29.jpg/960px-Caution_sign_-_Dead_Sea_shores_-_Earth%27s_lowest_elevation_on_land_%2811664196206%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A sign on the Dead Sea shore, the lowest land on Earth (about −430 m). A bus drives from there up to Jerusalem at about +750 m. How many meters does it climb?',
+    zh:'死海岸边的告示牌，这里是地球陆地的最低处（约 −430 米）。一辆大巴从这里开到海拔约 +750 米的耶路撒冷，一共爬升了多少米？',
+    credit:'Jorge Láscar', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Caution_sign_-_Dead_Sea_shores_-_Earth%27s_lowest_elevation_on_land_(11664196206).jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/91/Electronic_stock_board_in_Yaesu%2C_Tokyo_2007.jpg/960px-Electronic_stock_board_in_Yaesu%2C_Tokyo_2007.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A stock board in Tokyo shows each price change as + or −. A stock that changes −3, then +5, then −4: what is the total change? (Fun fact: in China, rising prices are shown in red and falling in green!)',
+    zh:'东京街头的股票行情板，用 + 或 − 显示价格变化。一只股票先变 −3，再 +5，再 −4，总共变化多少？（有趣的是：在中国，涨用红色、跌用绿色！）',
+    credit:'nappa', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Electronic_stock_board_in_Yaesu,_Tokyo_2007.jpg' },
+  { type:'youtube', yt:'_BgblvF90UE', en:'Video: “Adding & Subtracting Integers” — moving along the number line, and why subtracting a negative means adding.', zh:'视频：《整数的加减法》——在数轴上移动，以及为什么减去负数等于加上正数（英文）。', kind:VID, credit:'Math Antics (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'K_tPbVPfHgk', en:'Video: “Integer Multiplication & Division” — the sign rules: why a negative times a negative is positive.', zh:'视频：《整数的乘除法》——符号法则：为什么负负得正（英文）。', kind:VID, credit:'Math Antics (YouTube)', license:'YouTube' }
 ];
-LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos. Each one comes with a question this lesson helps you answer. Click a picture to enlarge it.','真实照片。每张都带着一个这节课能帮你回答的问题。点击图片可放大。') });
+LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos and short videos. Each photo comes with a question this lesson helps you answer. Click a picture to enlarge it or to play a video.','真实照片和短视频。每张照片都带着一个这节课能帮你回答的问题。点击图片可放大，点击视频可播放。') });
 })();
 </script>
 <!-- /real-world gallery script -->

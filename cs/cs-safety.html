@@ -83,6 +83,7 @@
   </div>
   <div class="sim">
     <div class="card" style="padding:20px;display:flex;flex-direction:column;gap:12px">
+      <div class="lab-mode"></div>
       <h3 data-zh="🔑 密码强度计">🔑 Strength meter</h3>
       <div class="pwin"><input id="pw" type="password" autocomplete="off" spellcheck="false" data-zh-placeholder="输入一个练习密码" placeholder="Type a practice password" aria-label="practice password"><button class="btn ghost" id="pwShow" data-zh="👁 显示">👁 Show</button></div>
       <span class="local" data-zh="🔒 只在这个网页里计算：你输入的内容不会被发送，也不会被保存。">🔒 Calculated only on this page: nothing you type is sent anywhere or saved.</span>
@@ -99,6 +100,26 @@
       <div class="phrase" id="gPhrase">—</div>
       <div class="btnrow"><button class="btn" id="gGo" data-zh="🎲 生成">🎲 Generate</button><button class="btn ghost" id="gTest" data-zh="放进强度计测一测">Test it in the meter</button></div>
       <div class="counter"><b id="gBits" style="font-size:22px">—</b><span id="gMath"></span></div>
+    </div>
+  </div>
+  <div class="adv adv-box" id="pwAdv" style="margin-top:16px;display:flex;flex-direction:column;gap:12px">
+    <b data-zh="进阶：熵的公式、攻击者的速度和破解时间">Advanced: the entropy formula, the attacker’s speed and time to crack</b>
+    <div class="grid2">
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <label class="ctl"><span><span data-zh="攻击者每秒猜 ">Attacker guesses per second: </span><b id="rateOut">10¹⁰</b></span><input type="range" id="rateS" min="0" max="13" step="1" value="10"></label>
+        <div class="muted" id="rateWho" style="font-size:13.5px;margin-top:-4px"></div>
+        <div id="pwMath" style="font-size:14.5px;line-height:1.6"></div>
+        <div id="pwTable" style="overflow-x:auto"></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div id="pwGraph" data-nofs></div>
+        <div class="muted" style="font-size:13px" data-zh="线 = 完全随机的密码：熵 = 长度 × log₂(字符种类数)。虚线 = 在当前速度下平均要猜 100 年所需的比特数。大圆点 = 你的练习密码（强度计的估计值）。">Lines = fully random passwords: entropy = length × log₂(number of symbols). Dashed line = bits needed for an average crack time of 100 years at the current speed. Big dot = your practice password (the meter’s estimate).</div>
+      </div>
+    </div>
+    <div style="border-top:1px solid var(--line);padding-top:8px">
+      <b data-zh="🎯 挑战">🎯 Challenge</b> <span data-zh="攻击者有一个每秒猜 1 万亿（10¹²）次的大型破解集群。在上面的强度计里造一个不超过 16 个字符的练习密码，让它平均要猜至少 1000 年。">The attacker has a huge cracking cluster: 1 trillion (10¹²) guesses a second. In the meter above, build a practice password of at most 16 characters that takes at least 1,000 years on average.</span>
+      <div class="btnrow" style="margin-top:6px"><button class="btn" id="pwChCheck" data-zh="检查">Check</button></div>
+      <div class="result" id="pwChMsg"></div>
     </div>
   </div>
   <div class="grid2" style="margin-top:16px">
@@ -230,8 +251,8 @@ function estimate(pw){
   if (N.word && /[A-Z]/.test(pw)) bits += 1;
   return { bits, cs, N };
 }
-const fmtTime = bits => {
-  const s = Math.pow(2, bits - 1) / 1e10, Y = 31557600;
+const fmtTime = (bits, rate = 1e10) => {
+  const s = Math.pow(2, bits - 1) / rate, Y = 31557600;
   const n = (v, d = 0) => Number(v.toFixed(d)).toLocaleString('en-US');
   if (s < 1) return o('instantly', '瞬间');
   if (s < 60) return o(`${n(s)} seconds`, `${n(s)} 秒`);
@@ -258,7 +279,70 @@ function renderPw(){
     (e.N.word ? `<li class="nb">${Lab.L(o(`📖 ${e.N.word} dictionary word(s) found — fine in a long passphrase, weak on their own.`, `📖 发现 ${e.N.word} 个字典单词——放在长口令短语里没问题，单独用就很弱。`))}</li>` : '') +
     (e.N.run ? ck(false, 'Has a run like abc, 123, qwerty or aaa — crackers try those first', '含有 abc、123、qwerty、aaa 这样的连续字符——破解程序最先试这些') : '') +
     (e.N.year ? ck(false, 'Has a year (like a birthday) — easy to guess', '含有年份（比如生日）——很容易猜') : '');
+  renderAdvPw();
 }
+/* ===== Advanced mode: entropy formula, attacker speed, graph, challenge ===== */
+const SUP = n => String(n).replace(/\d/g, d => '⁰¹²³⁴⁵⁶⁷⁸⁹'[d]).replace('-', '⁻');
+const sci = x => { if (x < 1e6) return Math.round(x).toLocaleString('en-US'); const p = Math.floor(Math.log10(x)), m = x / Math.pow(10, p); return `${m.toFixed(1)} × 10${SUP(p)}`; };
+const RATE_NAMES = [
+  [0, o('a person typing guesses by hand (about 1 a second)', '一个人用手输入猜测（大约每秒 1 次）')],
+  [1, o('an online login page that slows guessers down (about 10 a second at most)', '会限制尝试次数的网站登录页面（最多大约每秒 10 次）')],
+  [3, o('online guessing with no limit at all (a badly built website)', '完全不限制次数的在线猜测（设计很差的网站）')],
+  [4, o('a stolen password file protected by a slow hash such as bcrypt — about 10,000 a second per graphics card', '被盗的密码文件，用 bcrypt 这类“慢哈希”保护——每块显卡大约每秒 1 万次')],
+  [8, o('a stolen file, a medium-speed hash, a few computers', '被盗的密码文件、中等速度的哈希、几台电脑')],
+  [10, o('a stolen file with a fast hash, one powerful graphics card (GPU) — about 10 billion a second; the meter above assumes this', '被盗的密码文件、快速哈希、一块强大的显卡（GPU）——大约每秒 100 亿次；上面的强度计就按这个算')],
+  [11, o('a big cluster of graphics cards (about 100 billion to 10 trillion a second)', '大型显卡集群（大约每秒 1000 亿到 10 万亿次）')]
+];
+const YEAR = 31557600, NEED = Math.log2(1e12 * 1000 * YEAR) + 1;   // bits for 1,000 years at 10^12 guesses/s ≈ 75.7
+const tAdv = (bits, rate) => { const s = Math.pow(2, bits - 1) / rate; return s >= 1 ? fmtTime(bits, rate) : s < 1e-3 ? o('less than a thousandth of a second', '不到千分之一秒') : o(`${s.toPrecision(2)} seconds`, `${s.toPrecision(2)} 秒`); };
+function renderAdvPw(){
+  if (!Lab.adv()) return;
+  const R = +Lab.$('#rateS').value, rate = Math.pow(10, R), pw = Lab.$('#pw').value, e = estimate(pw);
+  Lab.$('#rateOut').textContent = '10' + SUP(R) + Lab.L(o(` (${R < 6 ? rate.toLocaleString('en-US') : R < 9 ? Math.pow(10, R - 6) + ' million' : R < 12 ? Math.pow(10, R - 9) + ' billion' : Math.pow(10, R - 12) + ' trillion'})`, ` 次（${R >= 8 ? (R >= 12 ? Math.pow(10, R - 12) + ' 万亿' : Math.pow(10, R - 8) + ' 亿') : R >= 4 ? Math.pow(10, R - 4) + ' 万' : rate}）`));
+  Lab.$('#rateWho').textContent = '≈ ' + Lab.L(RATE_NAMES.filter(x => x[0] <= R).pop()[1]);
+  let m = '';
+  if (!e) m = Lab.L(o('Type a practice password in the meter to see the numbers.', '在强度计里输入一个练习密码，就能看到这些数字。'));
+  else {
+    const L = pw.length, per = Math.log2(e.cs), rnd = L * per, b = e.bits, g = Math.pow(2, b - 1);
+    m = `<b>${Lab.L(o('1 · If every character were random:', '1 · 如果每个字符都是随机的：'))}</b> ${Lab.L(o('entropy = length × log₂(symbols)', '熵 = 长度 × log₂(字符种类数)'))} = ${L} × log₂(${e.cs}) = ${L} × ${per.toFixed(2)} ≈ <b>${rnd.toFixed(1)}</b> ${Lab.L(o('bits', '比特'))}`
+      + `<br><b>${Lab.L(o('2 · The meter’s estimate', '2 · 强度计的估计'))}</b> ${Lab.L(o('(after taking off for common passwords, words, runs and years):', '（扣掉常见密码、单词、连续字符和年份之后）：'))} <b>${b.toFixed(1)}</b> ${Lab.L(o('bits', '比特'))}`
+      + `<br><b>${Lab.L(o('3 · Average guesses', '3 · 平均要猜的次数'))}</b> = 2<sup>${Lab.L(o('bits', '比特'))} − 1</sup> = 2<sup>${(b - 1).toFixed(1)}</sup> ≈ <b>${sci(g)}</b> ${Lab.L(o('(half of all possibilities)', '（全部可能的一半）'))}`
+      + `<br><b>${Lab.L(o('4 · Time', '4 · 时间'))}</b> = ${Lab.L(o('guesses ÷ speed', '次数 ÷ 速度'))} = ${sci(g)} ÷ 10${SUP(R)} ≈ <b>${Lab.L(tAdv(b, rate))}</b>`
+      + `<br><span class="muted">${Lab.L(o(`+1 random character from ${e.cs} symbols adds about ${per.toFixed(1)} bits → about ${e.cs}× longer to crack.`, `多 1 个随机字符（${e.cs} 种可能）大约多 ${per.toFixed(1)} 比特 → 破解时间大约变成 ${e.cs} 倍。`))}</span>`;
+  }
+  Lab.$('#pwMath').innerHTML = m;
+  /* time at four attacker speeds */
+  const RS = [[1, o('online, rate-limited', '在线，限制次数')], [4, o('stolen file, slow hash', '被盗文件，慢哈希')], [10, o('stolen file, fast hash, 1 GPU', '被盗文件，快哈希，1 块显卡')], [12, o('huge GPU cluster', '超大显卡集群')]];
+  Lab.$('#pwTable').innerHTML = !e ? '' : `<table style="border-collapse:collapse;font-size:14px;width:100%"><tr><th style="text-align:left;padding:4px 8px 4px 0">${Lab.L(o('attacker', '攻击者'))}</th><th style="text-align:left;padding:4px 8px">${Lab.L(o('guesses/s', '每秒猜'))}</th><th style="text-align:left;padding:4px 0">${Lab.L(o('average time', '平均破解时间'))}</th></tr>`
+    + RS.map(([r, n]) => `<tr style="border-top:1px solid var(--line);${r === R ? 'background:color-mix(in srgb,var(--brand) 14%,transparent);font-weight:800' : ''}"><td style="padding:4px 8px 4px 0">${Lab.L(n)}</td><td style="padding:4px 8px">10${SUP(r)}</td><td style="padding:4px 0">${Lab.L(tAdv(e.bits, Math.pow(10, r)))}</td></tr>`).join('') + '</table>';
+  /* graph: bits vs length for random passwords */
+  const W = 380, H = 240, Lm = 36, Rm = 70, T = 24, B = 30, maxL = 24, maxB = 160;
+  const X = l => Lm + l / maxL * (W - Lm - Rm), Y = v => T + (1 - Math.min(v, maxB) / maxB) * (H - T - B);
+  const SETS = [[10, o('digits 0–9', '只有数字')], [26, o('a–z', '小写字母')], [62, o('a–z A–Z 0–9', '大小写+数字')], [95, o('all 95 keys', '全部 95 种')]];
+  const cols = ['#9aa5b1', '#e0a21b', css('--brand') || '#0f9d8a', css('--accent') || '#ff7a59'];
+  let s = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:460px;display:block;margin:0 auto" role="img" aria-label="${Lab.L(o('Entropy in bits against password length', '密码长度与熵（比特）的关系图'))}">`;
+  [0, 40, 80, 120, 160].forEach(v => s += `<line x1="${Lm}" x2="${W - Rm}" y1="${Y(v)}" y2="${Y(v)}" style="stroke:var(--line)"/><text x="${Lm - 4}" y="${Y(v) + 4}" text-anchor="end" font-size="10" style="fill:var(--ink-2)">${v}</text>`);
+  [0, 4, 8, 12, 16, 20, 24].forEach(l => s += `<text x="${X(l)}" y="${H - 14}" text-anchor="middle" font-size="10" style="fill:var(--ink-2)">${l}</text>`);
+  s += `<text x="${W - Rm}" y="${H - 2}" text-anchor="end" font-size="10" style="fill:var(--ink-2)">${Lab.L(o('length (characters) →', '长度（字符数）→'))}</text><text x="${Lm - 30}" y="10" font-size="10" style="fill:var(--ink-2)">${Lab.L(o('bits', '比特'))}</text>`;
+  SETS.forEach(([n, lab], i) => { const lEnd = Math.min(maxL, maxB / Math.log2(n)); s += `<line x1="${X(0)}" y1="${Y(0)}" x2="${X(lEnd)}" y2="${Y(lEnd * Math.log2(n))}" stroke="${cols[i]}" stroke-width="2.5"/><text x="${X(lEnd) + 4}" y="${Y(lEnd * Math.log2(n)) + 4 + (lEnd < maxL ? 0 : 0)}" font-size="10" font-weight="800" fill="${cols[i]}">${Lab.L(lab)}</text>`; });
+  const need = Math.log2(rate * 100 * YEAR) + 1;
+  s += `<line x1="${Lm}" x2="${W - Rm}" y1="${Y(need)}" y2="${Y(need)}" style="stroke:var(--ink)" stroke-dasharray="6 4" stroke-width="1.5"/><text x="${Lm + 4}" y="${Y(need) - 5}" font-size="10" font-weight="800" style="fill:var(--ink)">${Lab.L(o(`100 years at 10${SUP(R)}/s ≈ ${need.toFixed(0)} bits`, `每秒 10${SUP(R)} 次猜 100 年 ≈ ${need.toFixed(0)} 比特`))}</text>`;
+  if (e) s += `<circle cx="${X(Math.min(pw.length, maxL))}" cy="${Y(e.bits)}" r="7" style="fill:var(--ink);stroke:var(--surface);stroke-width:2.5"/>`;
+  Lab.$('#pwGraph').innerHTML = s + '</svg>';
+}
+Lab.$('#rateS').oninput = renderAdvPw;
+Lab.onMode(() => renderAdvPw());
+Lab.$('#pwChCheck').onclick = () => {
+  const pw = Lab.$('#pw').value, e = estimate(pw), el = Lab.$('#pwChMsg'), bad = t => { el.className = 'result bad'; el.textContent = Lab.L(t); };
+  if (!e) return bad(o('Type a practice password in the strength meter first.', '先在强度计里输入一个练习密码。'));
+  if (pw.length > 16) return bad(o(`${pw.length} characters — the limit is 16. (Long passphrases are great in real life, but this challenge wants short and strong.)`, `${pw.length} 个字符——上限是 16 个。（现实中长口令短语很好，但这个挑战要求“又短又强”。）`));
+  if (e.N.common) return bad(o('That one is on the common-password list — cracked instantly.', '它在常见密码名单上——瞬间就被破解。'));
+  if (e.bits < NEED) return bad(o(`${e.bits.toFixed(1)} bits → average crack time at 10¹² guesses/s: ${fmtTime(e.bits, 1e12).en}. You need about ${NEED.toFixed(1)} bits. Hint: mix a–z, A–Z, 0–9 and symbols (95 kinds ≈ 6.6 bits per character) and avoid words, runs and years.`,
+    `${e.bits.toFixed(1)} 比特 → 每秒 10¹² 次时，平均破解时间：${fmtTime(e.bits, 1e12).zh}。你需要大约 ${NEED.toFixed(1)} 比特。提示：混用小写、大写、数字和符号（95 种 ≈ 每个字符 6.6 比特），避开单词、连续字符和年份。`));
+  el.className = 'result good';
+  el.textContent = Lab.L(o(`🎉 ${pw.length} characters, ${e.bits.toFixed(1)} bits: about ${fmtTime(e.bits, 1e12).en} even at 1 trillion guesses a second. Short random passwords are strong but hard to remember — that is why people use password managers or long passphrases.`,
+    `🎉 ${pw.length} 个字符，${e.bits.toFixed(1)} 比特：即使每秒猜 1 万亿次，也大约要 ${fmtTime(e.bits, 1e12).zh}。短而随机的密码很强，但很难记——所以人们会用密码管理器或长口令短语。`));
+};
 Lab.$('#pw').oninput = renderPw;
 Lab.$('#pwShow').onclick = () => { const i = Lab.$('#pw'); i.type = i.type === 'password' ? 'text' : 'password'; };
 Lab.$$('[data-try]').forEach(b => b.onclick = () => { Lab.$('#pw').value = b.dataset.try; Lab.$('#pw').type = 'text'; renderPw(); });
@@ -480,10 +564,14 @@ const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f9/Georgia_Guardsman_trains_for_cyber_security_%2814213839498%29.jpg/960px-Georgia_Guardsman_trains_for_cyber_security_%2814213839498%29.jpg', en:'Cyber-security training at Fort Gordon (today Fort Eisenhower) in Augusta, Georgia (2014), home of the U.S. Army’s Cyber Center of Excellence. Cyber defence is a real job — right here in Georgia.', zh:'2014年，美国佐治亚州奥古斯塔戈登堡（今艾森豪威尔堡）的网络安全训练。这里是美国陆军网络卓越中心所在地。网络防御是真实的职业——就在佐治亚州。', kind:o('Photo · Georgia','照片 · 佐治亚州'), credit:'Georgia National Guard', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Georgia_Guardsman_trains_for_cyber_security_(14213839498).jpg' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/31/RCC-K_Hosts_Humphreys_High_School_Students_for_Inaugural_Cyber_Operations_Tour_%2810048361%29.jpg/960px-RCC-K_Hosts_Humphreys_High_School_Students_for_Inaugural_Cyber_Operations_Tour_%2810048361%29.jpg', en:'High-school students get a security briefing on a tour of a U.S. Army regional cyber center in Korea.', zh:'高中生参观美军驻韩国的一个地区网络中心，听取安全介绍。', kind:o('Photo','照片'), credit:'U.S. Army photo by Staff Sgt. Nicholas Goodman', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:RCC-K_Hosts_Humphreys_High_School_Students_for_Inaugural_Cyber_Operations_Tour_(10048361).jpg' },
   { src:'https://upload.wikimedia.org/wikipedia/commons/b/b6/Morris_Worm.jpg', en:'The Morris Internet Worm exhibit at the Museum of Science in Boston. In 1988 this program copied itself from computer to computer and slowed down much of the early internet.', zh:'美国波士顿科学博物馆展出的“莫里斯蠕虫”。1988年，这个程序在计算机之间自我复制，让早期互联网的很大一部分变得非常缓慢。', kind:o('Museum exhibit','博物馆展品'), credit:'Go Card USA (Boston)', license:'CC BY-SA 2.0', page:'https://commons.wikimedia.org/wiki/File:Morris_Worm.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/4/44/Padlock.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'A padlock on a door at Eastern Market in Washington, D.C. A password is a lock for your account — and like a lock, it only works if nobody else has the key.', zh:'美国华盛顿东方市场一扇门上的挂锁。密码就是你账号的锁——和锁一样，只有别人拿不到钥匙时才管用。', kind:o('Photo','照片'), credit:'Alyson Hurt from Alexandria, Va., USA', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Padlock.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3c/Fingerprint_detail_on_male_finger_in_T%C5%99eb%C3%AD%C4%8D%2C_T%C5%99eb%C3%AD%C4%8D_District.jpg/960px-Fingerprint_detail_on_male_finger_in_T%C5%99eb%C3%AD%C4%8D%2C_T%C5%99eb%C3%AD%C4%8D_District.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The ridges of a fingertip, close up. No two people have the same pattern, so phones can use your fingerprint as “something you are” to unlock.', zh:'指尖纹路的特写。每个人的指纹图案都不一样，所以手机可以把指纹当作“你本人的特征”来解锁。', kind:o('Close-up','特写'), credit:'Frettie', license:'CC BY 3.0', page:'https://commons.wikimedia.org/wiki/File:Fingerprint_detail_on_male_finger_in_T%C5%99eb%C3%AD%C4%8D,_T%C5%99eb%C3%AD%C4%8D_District.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c5/Tape_over_laptop_webcam.jpg/960px-Tape_over_laptop_webcam.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A piece of tape over a laptop’s webcam: a simple, real privacy habit. Many laptops now come with a built-in sliding cover.', zh:'贴在笔记本电脑摄像头上的一小块胶带：一个简单又实用的隐私保护习惯。现在很多笔记本电脑自带滑动遮挡盖。', kind:o('Photo','照片'), credit:'Santeri Viinamäki', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Tape_over_laptop_webcam.jpg' },
 
   { type:'youtube', yt:'AuYNXgO_f3Y', en:'Video: “The Internet: Cybersecurity & Crime” — from Code.org’s How the Internet Works series.', zh:'视频：《互联网：网络安全与犯罪》——Code.org“互联网如何工作”系列（英文）。', kind:{en:'Video',zh:'视频'}, credit:'Code.org — CodeAI channel (YouTube)', license:'YouTube' },
   { type:'youtube', yt:'BX3y_an89PQ', en:'Video: “Tip 4: Avoid Scams” — Google.', zh:'视频：《第 4 条建议：避开骗局》——谷歌（英文）。', kind:{en:'Video',zh:'视频'}, credit:'Google (YouTube)', license:'YouTube' },
-  { type:'youtube', yt:'3NjQ9b3pgIg', en:'Video: “How to Choose a Password” — Computerphile.', zh:'视频：《怎样选择密码》——Computerphile（英文）。', kind:{en:'Video',zh:'视频'}, credit:'Computerphile (YouTube)', license:'YouTube' }
+  { type:'youtube', yt:'3NjQ9b3pgIg', en:'Video: “How to Choose a Password” — Computerphile.', zh:'视频：《怎样选择密码》——Computerphile（英文）。', kind:{en:'Video',zh:'视频'}, credit:'Computerphile (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'bPVaOlJ6ln0', en:'Video: “Cybersecurity” — Crash Course Computer Science #31: authentication, access control and encryption.', zh:'视频：《网络安全》——Crash Course计算机科学第31集：身份验证、访问控制和加密（英文）。', kind:{en:'Video',zh:'视频'}, credit:'CrashCourse (YouTube)', license:'YouTube' }
 
 ];
 LabPhotos.render('#gallery', PHOTOS, { title:o('See the real thing', '看一看真实的样子'), sub:o('Real security tools and examples, plus short videos. Click a picture to enlarge it.', '真实的安全工具和例子，以及短视频。点击图片可放大。') });

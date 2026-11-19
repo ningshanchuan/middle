@@ -37,6 +37,19 @@
 .chk input{width:18px;height:18px;accent-color:var(--brand)}
 .evkey{font-size:14px;color:var(--ink-2);display:grid;grid-template-columns:1fr 1fr;gap:4px 12px}
 @media (max-width:980px){.bcards{grid-template-columns:1fr}}
+/* 🚀 Advanced mode */
+.advrow{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px;margin:8px 0}
+.advrow input{flex:1;min-width:0}
+.advrow b{min-width:86px;text-align:right}
+.advf{font-family:ui-monospace,Consolas,monospace;font-size:13.5px;background:var(--surface-2);border-radius:10px;padding:8px 10px;margin:6px 0;overflow-wrap:anywhere;line-height:1.5}
+.advnote{font-size:14px;margin:4px 0;color:var(--ink-2)}
+#ptAdv .chips{margin:4px 0;gap:6px}
+#ptAdv .chip{padding:4px 10px;font-size:13px}
+#ptAdv h4{margin:0 0 4px;font-size:17px}
+.epi{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,330px);gap:12px}
+@media (max-width:560px){.epi{grid-template-columns:1fr}}
+.epi canvas{width:100%;height:220px;display:block;border-radius:12px;background:var(--surface-2);touch-action:none}
+#epiMap{cursor:crosshair}
 </style>
 </head>
 <body data-subject="earth" data-topic="plate-tectonics">
@@ -71,6 +84,29 @@
     <aside class="info card" id="info" aria-live="polite"></aside>
   </div>
   <div class="chips" id="chips"></div>
+  <div class="adv adv-box" id="ptAdv" style="margin-top:12px">
+    <div class="grid2" style="align-items:start">
+      <div>
+        <h4 data-zh="🚀 板块速度与移动距离">🚀 Plate speed &amp; distance</h4>
+        <label class="advrow"><span data-zh="速度 v">Speed v</span><input id="aV" type="range" min="0.5" max="15" step="0.5" value="2.5"><b id="aVo"></b></label>
+        <label class="advrow" id="aTrow"><span data-zh="时间 t">Time t</span><input id="aT" type="range" min="0" max="250" step="5" value="180"><b id="aTo"></b></label>
+        <div class="chips" id="aReal"></div>
+        <div class="advf" id="aDist"></div>
+        <p class="advnote" id="aNote"></p>
+      </div>
+      <div>
+        <h4 data-zh="🚀 震级与能量">🚀 Earthquake magnitude &amp; energy</h4>
+        <label class="advrow"><span data-zh="震级 M">Magnitude M</span><input id="aM" type="range" min="2" max="9.5" step="0.1" value="6"><b id="aMo"></b></label>
+        <div class="advf" id="aE"></div>
+        <p class="advnote" id="aEff"></p>
+      </div>
+    </div>
+    <h4 style="margin-top:12px" data-zh="🎯 挑战：找到震中">🎯 Challenge: find the epicenter</h4>
+    <p class="advnote" data-zh-html="三个地震台记录到同一次地震。纵波（P 波，约 6 千米/秒）先到，横波（S 波，约 3.5 千米/秒）后到。用两者的时间差算出各台的震中距：<b>d ≈ 8.4 × (S–P 时间差，秒)</b> 千米，再在地图上点出震中的位置。">Three seismograph stations recorded the same earthquake. P waves (about 6 km/s) arrive first, S waves (about 3.5 km/s) later. Use the gap to get each station’s distance: <b>d ≈ 8.4 × (S–P gap in s)</b> km, then tap the map where the quake happened.</p>
+    <div class="epi" data-nofs style="margin-top:8px"><canvas id="epiSeis" aria-label="Seismograms"></canvas><canvas id="epiMap" aria-label="Map: tap the epicenter"></canvas></div>
+    <div class="btnrow" style="margin-top:8px"><button class="btn" id="epiCheck" data-zh="✔ 检查">✔ Check</button><button class="btn ghost" id="epiNew" data-zh="🔄 换一次地震">🔄 New earthquake</button></div>
+    <div class="result" id="epiMsg"></div>
+  </div>
 </section>
 
 <section class="wrap" id="cheat" data-nav="Boundary types" data-nav-zh="边界类型">
@@ -257,31 +293,31 @@ const STORY = [
 const App = window.PT = { mode:'div', sel:null, feature:null, three:null, u:0 };
 App.select = (k, from3D, feature) => { App.sel = k; App.feature = feature || null; renderInfo(); renderChips(); if (!from3D && App.three) App.three.focus(k); };
 App.setMode = m => {
-  App.mode = m; App.sel = null; App.feature = null;
+  App.mode = m; App.sel = null; App.feature = null; if (App.advReset) App.advReset();
   Lab.$$('#modebar .mode').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
   Lab.$('#timePill').style.display = m === 'globe' ? 'none' : '';
   renderInfo(); renderChips(); renderTime();
   if (App.three) App.three.setMode(m);
 };
 function renderTime(){
-  const M = MODES[App.mode]; if (!M.span) return;
+  const M = MODES[App.mode]; if (App.advUpd) App.advUpd(); if (!M.span) return;
   const v = App.u * M.span, zh = Lab.lang === 'zh';
-  Lab.$('#tLbl').textContent = M.unit === 'yr' ? (zh ? `⏳ ${Math.round(v)} 年` : `⏳ ${Math.round(v)} years`) : (zh ? `⏳ ${Math.round(v * 100)} 万年` : `⏳ ${v.toFixed(v < 10 ? 1 : 0)} million yr`);
+  Lab.$('#tLbl').textContent = (M.unit === 'yr' ? (zh ? `⏳ ${Math.round(v)} 年` : `⏳ ${Math.round(v)} years`) : (zh ? `⏳ ${Math.round(v * 100)} 万年` : `⏳ ${v.toFixed(v < 10 ? 1 : 0)} million yr`)) + (Lab.adv() && App.advKm ? ' · ' + App.advKm() : '');
 }
 App.renderTime = renderTime;
 function renderInfo(){
   const box = Lab.$('#info'), k = App.sel, M = MODES[App.mode];
   if (!k){
-    box.innerHTML = `<span class="tag">${Lab.L(o('Plate boundary','板块边界'))}</span>
+    box.innerHTML = `<div class="lab-mode"></div><span class="tag">${Lab.L(o('Plate boundary','板块边界'))}</span>
       <h3>${Lab.L(M.name)}</h3>
       <p class="muted" style="margin:0">${Lab.L(M.intro)}</p>
       <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(o('Most earthquakes, volcanoes and mountains happen where plates meet. How the plates move (apart, together or sideways) decides what forms.','大多数地震、火山和山脉都出现在板块交界处。板块怎样运动（分离、靠近还是错动）决定了会形成什么。'))}</div>
       <div class="nav"><button id="startBtn">${Lab.L(o('Explore the parts ▶','认识各部分 ▶'))}</button></div>`;
     Lab.$('#startBtn').onclick = () => App.select(M.parts[0]);
-    return;
+    Lab.modes(box); return;
   }
   const p = PARTS[k], list = M.parts, i = list.indexOf(k);
-  box.innerHTML = `<span class="tag">${Lab.L(M.name)}</span>
+  box.innerHTML = `<div class="lab-mode"></div><span class="tag">${Lab.L(M.name)}</span>
     <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
     ${App.feature ? `<div class="feature">📍 ${Lab.L(App.feature)}</div>` : ''}
     <div class="job">${Lab.L(p.job)}</div>
@@ -294,6 +330,7 @@ function renderInfo(){
   Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. '));
   Lab.$('#pPrev').onclick = () => App.select(list[(i - 1 + list.length) % list.length]);
   Lab.$('#pNext').onclick = () => App.select(list[(i + 1) % list.length]);
+  Lab.modes(box);
 }
 function renderChips(){
   Lab.$('#chips').innerHTML = MODES[App.mode].parts.map(k => `<button class="chip ${App.sel===k?'on':''}" data-k="${k}"><i style="background:${PARTS[k].color}"></i>${Lab.L(PARTS[k].name)}</button>`).join('');
@@ -301,6 +338,129 @@ function renderChips(){
 }
 Lab.$$('#modebar .mode').forEach(b => b.onclick = () => App.setMode(b.dataset.mode));
 Lab.onLang(() => { renderInfo(); renderChips(); renderTime(); });
+
+/* ===== 🚀 Advanced: plate speed × time, magnitude & energy, locate the epicenter ===== */
+(function(){
+  const $ = Lab.$, zh = () => Lab.lang === 'zh';
+  const nf = (x, d = 0) => x.toLocaleString('en-US', { minimumFractionDigits:d, maximumFractionDigits:d, useGrouping:Lab.lang !== 'zh' });
+  const wan = x => x >= 1e4 ? nf(x / 1e4, x % 1e4 ? 1 : 0) + ' 亿' : nf(x, x < 100 && x % 1 ? 1 : 0) + ' 万';   // x is in units of 万
+  const big = x => x < 1e4 ? nf(x, x < 10 ? 1 : 0) : Lab.lang === 'zh' ? wan(+(x / 1e4).toPrecision(2)) : nf(+x.toPrecision(2));
+  const SPEED0 = { div:2.5, oc:7, cc:5, tf:3.5, globe:2.5 };
+  const REAL = [
+    { v:2.5, n:o('Mid-Atlantic Ridge','大西洋中脊') }, { v:15, n:o('East Pacific Rise (fastest)','东太平洋海隆（最快）') },
+    { v:7, n:o('Nazca → South America','纳斯卡板块 → 南美洲') }, { v:5, n:o('India → Asia','印度板块 → 亚欧板块') },
+    { v:3.5, n:o('San Andreas Fault','圣安德烈斯断层') }, { v:3.5, n:o('🖐 your fingernails','🖐 你的指甲') } ];
+  const CTX = {
+    div:o('The ocean between the plates widens by d (each side moves away from the ridge by half of it).','两板块之间的大洋变宽了 d（两侧各离开洋中脊一半）。'),
+    oc:o('The ocean plate slides d under the continent: that much seafloor sinks back into the mantle.','大洋板块向大陆下方俯冲了 d：这么长的洋底沉回了地幔。'),
+    cc:o('The two continents squeeze d closer, so the crust thickens and the mountains rise.','两块大陆又靠近了 d，地壳增厚，山脉升高。'),
+    tf:o('The road across the fault is offset by d.','横跨断层的道路被错开了 d。'),
+    globe:o('The Atlantic began to open about 180 million years ago. At 2.5 cm/yr that gives about 4,500 km, the same size as the real ocean (several thousand km).','大西洋大约在 1.8 亿年前开始张开。按每年 2.5 厘米计算约 4500 千米，和真实大西洋的宽度（几千千米）相当。')
+  };
+  const A = { v:2.5, tg:180, M:6, epi:null, guess:null, checked:false };
+  const tNow = () => { const M = MODES[App.mode]; return M.span ? { t:App.u * M.span, unit:M.unit } : { t:A.tg, unit:'myr' }; };
+  App.advKm = () => { const { t, unit } = tNow(); return unit === 'yr' ? (zh() ? nf(A.v * t / 100, 1) + ' 米' : nf(A.v * t / 100, 1) + ' m') : (zh() ? nf(A.v * t * 10) + ' 千米' : nf(A.v * t * 10) + ' km'); };
+  function upd(){
+    $('#aVo').textContent = zh() ? A.v + ' 厘米/年' : A.v + ' cm/yr';
+    $('#aTrow').style.display = App.mode === 'globe' ? '' : 'none';
+    $('#aTo').textContent = zh() ? wan(A.tg * 100) + '年' : A.tg + ' million yr';
+    const { t, unit } = tNow();
+    let f;
+    if (unit === 'yr') f = zh() ? `d = v × t = ${A.v} 厘米/年 × ${nf(t)} 年 = ${nf(A.v * t)} 厘米 ≈ ${nf(A.v * t / 100, 1)} 米`
+                                : `d = v × t = ${A.v} cm/yr × ${nf(t)} yr = ${nf(A.v * t)} cm ≈ ${nf(A.v * t / 100, 1)} m`;
+    else f = zh() ? `d = v × t = ${A.v} 厘米/年 × ${wan(t * 100)}年 = ${wan(A.v * t * 100)}厘米 ≈ ${nf(A.v * t * 10)} 千米`
+                  : `d = v × t = ${A.v} cm/yr × ${nf(t, 1)} million yr = ${nf(A.v * t * 1e6)} cm ≈ ${nf(A.v * t * 10)} km`;
+    $('#aDist').textContent = f;
+    $('#aNote').textContent = Lab.L(CTX[App.mode]) + ' ' + Lab.L(App.mode === 'globe' ? o('Shortcut: 1 cm/yr for 1 million years = 10 km.','速算：每年 1 厘米 × 100 万年 = 10 千米。') : o('Shortcut: 1 cm/yr for 1 million years = 10 km. Drag the ⏳ time slider in the 3D view.','速算：每年 1 厘米 × 100 万年 = 10 千米。拖动 3D 场景里的 ⏳ 时间滑块试试。'));
+    $$chips();
+  }
+  function $$chips(){ Lab.$$('#aReal .chip').forEach((c, i) => c.classList.toggle('on', REAL[i].v === A.v)); }
+  function quake(){
+    const M = A.M, lg = 1.5 * M + 4.8, E = Math.pow(10, lg), tnt = E / 4.184e9, r = Math.pow(10, 1.5 * (M - 5)), amp = Math.pow(10, M - 5);
+    const sci = x => { const e = Math.floor(Math.log10(x)), m = x / Math.pow(10, e); return `${m.toFixed(1)} × 10<sup>${e}</sup>`; };
+    const tn = zh() ? (tnt >= 1e8 ? nf(tnt / 1e8, 1) + ' 亿吨' : tnt >= 1e4 ? nf(tnt / 1e4, tnt < 1e5 ? 1 : 0) + ' 万吨' : nf(tnt, tnt < 10 ? 1 : 0) + ' 吨')
+                    : (tnt >= 1e6 ? nf(tnt / 1e6, 1) + ' million t' : big(tnt) + ' t');
+    const rr = x => x >= 1 ? '× ' + big(x) : '÷ ' + big(1 / x);
+    $('#aMo').textContent = 'M ' + M.toFixed(1);
+    $('#aE').innerHTML = zh()
+      ? `lg E ≈ 1.5M + 4.8 = ${lg.toFixed(2)} → E ≈ ${sci(E)} 焦<br>≈ ${tn} TNT 炸药<br>与 5.0 级相比：能量 ${rr(r)}，地震仪振幅 ${rr(amp)}`
+      : `log₁₀E ≈ 1.5M + 4.8 = ${lg.toFixed(2)} → E ≈ ${sci(E)} J<br>≈ ${tn} of TNT<br>vs. M 5.0: energy ${rr(r)}, seismograph swing ${rr(amp)}`;
+    const EFF = [[3, o('Usually not felt by people.','人一般感觉不到。'), o('about 1 million','约 100 多万次')], [4, o('Felt by people nearby; rarely damage.','附近的人能感觉到，很少造成破坏。'), o('about 130,000','约 13 万次')],
+      [5, o('Shakes things indoors; little damage.','室内物品晃动，破坏很小。'), o('about 13,000','约 1.3 万次')], [6, o('Can damage weak buildings.','可能损坏不牢固的房屋。'), o('about 1,300','约 1300 次')],
+      [7, o('Strong: can destroy buildings in a city.','强烈：可能摧毁城市中的建筑。'), o('about 130','约 130 次')], [8, o('Major: serious damage over large areas (Wenchuan 2008: M 7.9).','大地震：大范围严重破坏（2008 年汶川地震：7.9 级）。'), o('about 15','约 15 次')],
+      [9, o('Great: can wreck whole regions and cause tsunamis.','巨大地震：可毁坏整个地区并引发海啸。'), o('about 1','约 1 次')], [99, o('Giant: Japan 2011 (M 9.1), Chile 1960 (M 9.5, the largest ever recorded).','特大地震：2011 年日本（9.1 级），1960 年智利（9.5 级，有记录以来最大）。'), o('one every few decades','几十年才一次')]];
+    const ef = EFF.find(x => M < x[0]);
+    $('#aEff').textContent = Lab.L(ef[1]) + ' ' + Lab.fmt(o('Earthquakes this size (same whole number): {n} per year worldwide. Each +1 in magnitude ≈ 32 × the energy (10^1.5 ≈ 31.6) and 10 × the seismograph swing.','全世界这一级别（整数部分相同）的地震：每年{n}。震级每增加 1 级，能量约增加到 32 倍（10^1.5 ≈ 31.6），地震仪记录的振幅增加到 10 倍。'), { n:Lab.L(ef[2]) });
+  }
+  /* --- epicenter challenge: map 600 × 400 km, stations A B C --- */
+  const K = 21 / 2.5;   // 1 / (1/3.5 − 1/6) = 8.4 km per second of S–P gap
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  function newQuake(){
+    A.st = [[rnd(60, 200), rnd(50, 150)], [rnd(400, 540), rnd(50, 170)], [rnd(220, 380), rnd(290, 360)]];
+    do { A.epi = [rnd(80, 520), rnd(60, 340)]; } while (A.st.some(s => Math.hypot(s[0] - A.epi[0], s[1] - A.epi[1]) < 50));
+    A.d = A.st.map(s => Math.hypot(s[0] - A.epi[0], s[1] - A.epi[1]));
+    A.lag = A.d.map(d => Math.round(d / K * 10) / 10);
+    A.noise = A.st.map(() => Array.from({ length:400 }, () => Math.random() - .5));
+    A.guess = null; A.checked = false; $('#epiMsg').textContent = ''; $('#epiMsg').className = 'result';
+    draw();
+  }
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || '#888';
+  function fit(cv){ const w = cv.clientWidth, h = cv.clientHeight; if (!w) return null; const r = devicePixelRatio || 1; if (cv.width !== Math.round(w * r)){ cv.width = Math.round(w * r); cv.height = Math.round(h * r); } const c = cv.getContext('2d'); c.setTransform(r, 0, 0, r, 0, 0); c.clearRect(0, 0, w, h); return { c, w, h }; }
+  const NAMES = ['A', 'B', 'C'], COL = ['#3b6fd8', '#e07a2f', '#2fb36d'];
+  function draw(){
+    if (!Lab.adv() || !A.epi) return;
+    const ink = css('--ink'), ink2 = css('--ink-2'), line = css('--line');
+    let g = fit($('#epiSeis'));
+    if (g){ const { c, w, h } = g, tMax = Math.max(...A.d) / 3.5 + 20, x0 = 26, sx = (w - x0 - 8) / tMax, rowH = (h - 26) / 3;
+      c.font = '700 12px Nunito,sans-serif'; c.strokeStyle = line; c.fillStyle = ink2; c.lineWidth = 1;
+      for (let t = 0; t <= tMax; t += 20){ const x = x0 + t * sx; c.beginPath(); c.moveTo(x, 4); c.lineTo(x, h - 20); c.stroke(); c.fillText(t + (zh() ? '秒' : ' s'), x - 6, h - 6); }
+      A.st.forEach((s, i) => { const y = 8 + rowH * (i + .5), tp = A.d[i] / 6, ts = tp + A.lag[i];
+        c.fillStyle = COL[i]; c.font = '800 14px Nunito,sans-serif'; c.fillText(NAMES[i], 6, y + 5);
+        c.strokeStyle = ink; c.lineWidth = 1.2; c.beginPath();
+        for (let px = 0; px <= w - x0 - 8; px++){ const t = px / sx; let a = A.noise[i][px % 400] * 1.2;
+          if (t > tp) a += Math.sin((t - tp) * 9) * 7 * Math.exp(-(t - tp) / 6);
+          if (t > ts) a += Math.sin((t - ts) * 5.5) * rowH * .38 * Math.exp(-(t - ts) / 9);
+          px ? c.lineTo(x0 + px, y + a) : c.moveTo(x0 + px, y + a); }
+        c.stroke();
+        c.font = '800 11px Nunito,sans-serif';
+        c.fillStyle = '#3b6fd8'; c.fillRect(x0 + tp * sx - 1, y - rowH * .45, 2, rowH * .9); c.fillText('P', x0 + tp * sx + 3, y - rowH * .3);
+        c.fillStyle = '#e5484d'; c.fillRect(x0 + ts * sx - 1, y - rowH * .45, 2, rowH * .9); c.fillText('S', x0 + ts * sx + 3, y - rowH * .3);
+        const lt = `S–P = ${A.lag[i].toFixed(1)} ${zh() ? '秒' : 's'}`; c.font = '800 12px Nunito,sans-serif'; const lw = c.measureText(lt).width;
+        c.fillStyle = css('--surface'); c.globalAlpha = .85; c.fillRect(w - lw - 14, y + rowH * .12, lw + 8, 17); c.globalAlpha = 1; c.fillStyle = ink; c.fillText(lt, w - lw - 10, y + rowH * .12 + 13);
+      });
+    }
+    g = fit($('#epiMap'));
+    if (g){ const { c, w, h } = g, s = Math.min(w / 600, h / 400), ox = (w - 600 * s) / 2, X = x => ox + x * s, Y = y => y * s, R = r => r * s;
+      c.strokeStyle = line; c.lineWidth = 1; for (let k = 0; k <= 600; k += 100){ c.beginPath(); c.moveTo(X(k), 0); c.lineTo(X(k), Y(400)); c.stroke(); } for (let k = 100; k < 400; k += 100){ c.beginPath(); c.moveTo(X(0), Y(k)); c.lineTo(X(600), Y(k)); c.stroke(); }
+      c.fillStyle = ink2; c.font = '700 11px Nunito,sans-serif'; c.fillText(zh() ? '每格 100 千米' : 'grid: 100 km', X(0) + 6, h - 6);
+      if (A.checked) A.st.forEach((p, i) => { c.strokeStyle = COL[i]; c.lineWidth = 2; c.setLineDash([6, 4]); c.beginPath(); c.arc(X(p[0]), Y(p[1]), R(A.lag[i] * K), 0, 7); c.stroke(); c.setLineDash([]); });
+      A.st.forEach((p, i) => { c.fillStyle = COL[i]; c.beginPath(); c.moveTo(X(p[0]), Y(p[1]) - 9); c.lineTo(X(p[0]) - 8, Y(p[1]) + 6); c.lineTo(X(p[0]) + 8, Y(p[1]) + 6); c.closePath(); c.fill(); c.fillStyle = ink; c.font = '800 13px Nunito,sans-serif'; c.fillText(NAMES[i], X(p[0]) + 10, Y(p[1]) + 5); });
+      if (A.guess){ c.strokeStyle = ink; c.lineWidth = 3; const [gx, gy] = [X(A.guess[0]), Y(A.guess[1])]; c.beginPath(); c.moveTo(gx - 7, gy - 7); c.lineTo(gx + 7, gy + 7); c.moveTo(gx + 7, gy - 7); c.lineTo(gx - 7, gy + 7); c.stroke(); }
+      if (A.checked){ c.fillStyle = '#e5484d'; c.font = '20px sans-serif'; c.textAlign = 'center'; c.fillText('★', X(A.epi[0]), Y(A.epi[1]) + 7); c.textAlign = 'left'; }
+    }
+  }
+  const later = () => requestAnimationFrame(draw);
+  $('#epiMap').addEventListener('pointerdown', e => { const cv = e.currentTarget, r = cv.getBoundingClientRect(), s = Math.min(r.width / 600, r.height / 400), ox = (r.width - 600 * s) / 2;
+    A.guess = [(e.clientX - r.left - ox) / s, (e.clientY - r.top) / s]; A.checked = false; $('#epiMsg').textContent = ''; draw(); });
+  $('#epiCheck').onclick = () => { const m = $('#epiMsg');
+    if (!A.guess){ m.textContent = Lab.L(o('First tap the map where you think the epicenter is.','先在地图上点出你认为的震中位置。')); m.className = 'result bad'; return; }
+    const err = Math.hypot(A.guess[0] - A.epi[0], A.guess[1] - A.epi[1]); A.checked = true; draw();
+    const ds = A.lag.map((l, i) => `${NAMES[i]} ≈ ${nf(l * K)}`).join(zh() ? '，' : ', ');
+    if (err <= 35){ m.textContent = Lab.fmt(o('🎉 Found it! You were only about {e} km off. Distances: {d} km. The three circles cross at the epicenter (★): this is how seismologists locate earthquakes.','🎉 找到了！只差约 {e} 千米。震中距：{d} 千米。三个圆的交点就是震中（★），地震学家就是这样给地震定位的。'), { e:nf(err), d:ds }); m.className = 'result good'; }
+    else { m.textContent = Lab.fmt(o('Off by about {e} km. Distances: {d} km. Look at the circles: the epicenter (★) is where all three cross. Try a new earthquake!','差了约 {e} 千米。震中距：{d} 千米。看看这三个圆：三圆相交处就是震中（★）。再换一次地震试试！'), { e:nf(err), d:ds }); m.className = 'result bad'; }
+  };
+  $('#epiNew').onclick = newQuake;
+  $('#aV').oninput = e => { A.v = +e.target.value; renderTime(); };
+  $('#aT').oninput = e => { A.tg = +e.target.value; upd(); };
+  $('#aM').oninput = e => { A.M = +e.target.value; quake(); };
+  function chips(){ $('#aReal').innerHTML = REAL.map((r, i) => `<button class="chip" data-i="${i}">${Lab.L(r.n)} · ${r.v}</button>`).join('');
+    Lab.$$('#aReal .chip').forEach(b => b.onclick = () => { A.v = REAL[+b.dataset.i].v; $('#aV').value = A.v; renderTime(); }); }
+  App.advUpd = upd; App.advState = A;
+  App.advReset = () => { A.v = SPEED0[App.mode]; $('#aV').value = A.v; };
+  addEventListener('resize', later); addEventListener('labtheme', later);
+  Lab.onLang(() => { chips(); upd(); quake(); draw(); });
+  Lab.onMode(adv => { renderTime(); if (adv){ if (!A.epi) requestAnimationFrame(newQuake); else later(); } });
+})();
 
 /* ===== Pangaea puzzle (SVG, drag pieces back into place) ===== */
 (function(){
@@ -393,7 +553,8 @@ const PHOTOS = [
   { kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/18/Great_Rift_Valley_in_Kenya_by_Renvoy_%281%29.jpg/960px-Great_Rift_Valley_in_Kenya_by_Renvoy_%281%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The Great Rift Valley seen from Kiambu County, Kenya. Here the African Plate is slowly splitting in two: a divergent boundary on land.', zh:'从肯尼亚基安布县看东非大裂谷。非洲板块正在这里慢慢裂成两块：这是陆地上的离散型板块边界。', credit:'Renvoy', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Great_Rift_Valley_in_Kenya_by_Renvoy_(1).jpg' },
   { kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/66/Mount_Fuji_at_sunset%2C_March_2025.jpg/960px-Mount_Fuji_at_sunset%2C_March_2025.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Mount Fuji, Japan, at sunset (March 2025): a cone-shaped volcano near where ocean plates sink beneath Japan at subduction zones.', zh:'夕阳下的日本富士山（2025 年 3 月）：一座锥形火山，附近的大洋板块正沿着俯冲带俯冲到日本下方。', credit:'Romain Guy from San Francisco, USA', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Mount_Fuji_at_sunset,_March_2025.jpg' },
   { type:'youtube', yt:'VKTP2PEN3II', en:'CGTN: China Media Group reporters film the scenery of Mount Qomolangma (Everest), the highest peak of the Himalaya, which rose where India collides with Asia.', zh:'CGTN：中央广播电视总台记者拍摄的珠穆朗玛峰风光。珠峰是喜马拉雅山脉的最高峰，这些山脉是在印度板块与亚欧板块相撞的地方隆起的。', kind:{en:'Video',zh:'视频'}, credit:'CGTN (YouTube)', license:'YouTube' },
-  { type:'video', kind:{en:'Video · 14 MB',zh:'影片 · 14 MB'}, media:'https://upload.wikimedia.org/wikipedia/commons/f/f1/Helicopter_overflight_of_a_fast-moving_lava_flow_emerging_from_fissure_20_on_....webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f1/Helicopter_overflight_of_a_fast-moving_lava_flow_emerging_from_fissure_20_on_....webm/960px--Helicopter_overflight_of_a_fast-moving_lava_flow_emerging_from_fissure_20_on_....webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f1/Helicopter_overflight_of_a_fast-moving_lava_flow_emerging_from_fissure_20_on_....webm/960px--Helicopter_overflight_of_a_fast-moving_lava_flow_emerging_from_fissure_20_on_....webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Watch: a helicopter flies over a fast-moving river of lava pouring out of a crack in the ground (fissure 20). Filmed by USGS volcano scientists.', zh:'看一看：直升机飞过一条从地面裂缝（20 号裂隙）涌出的、快速流动的熔岩河。由美国地质调查局的火山学家拍摄。', credit:'USGS Volcanoes', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Helicopter_overflight_of_a_fast-moving_lava_flow_emerging_from_fissure_20_on_....webm' }
+  { type:'video', kind:{en:'Video · 14 MB',zh:'影片 · 14 MB'}, media:'https://upload.wikimedia.org/wikipedia/commons/f/f1/Helicopter_overflight_of_a_fast-moving_lava_flow_emerging_from_fissure_20_on_....webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f1/Helicopter_overflight_of_a_fast-moving_lava_flow_emerging_from_fissure_20_on_....webm/960px--Helicopter_overflight_of_a_fast-moving_lava_flow_emerging_from_fissure_20_on_....webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f1/Helicopter_overflight_of_a_fast-moving_lava_flow_emerging_from_fissure_20_on_....webm/960px--Helicopter_overflight_of_a_fast-moving_lava_flow_emerging_from_fissure_20_on_....webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Watch: a helicopter flies over a fast-moving river of lava pouring out of a crack in the ground (fissure 20). Filmed by USGS volcano scientists.', zh:'看一看：直升机飞过一条从地面裂缝（20 号裂隙）涌出的、快速流动的熔岩河。由美国地质调查局的火山学家拍摄。', credit:'USGS Volcanoes', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Helicopter_overflight_of_a_fast-moving_lava_flow_emerging_from_fissure_20_on_....webm' },
+  { type:'youtube', yt:'krXXSCb_P9Y', kind:{en:'Video',zh:'视频'}, en:'Crash Course Geology (for older students): what is plate tectonics? How moving plates build mountains, open oceans and cause earthquakes and volcanoes.', zh:'Crash Course 地质学（适合稍大一些的学生）：什么是板块构造？移动的板块怎样造出高山、拉开海洋，又怎样引发地震和火山。', credit:'CrashCourse (YouTube)', license:'YouTube' }
 ];
 PHOTOS.forEach(it => { if (it.part && PARTS[it.part]) PARTS[it.part].photo = it; });
 LabPhotos.render(Lab.$('#gallery'), PHOTOS);

@@ -36,6 +36,14 @@
 .wcard{background:var(--surface-2);border-radius:14px;padding:12px 14px;font-weight:700}
 .wcard b{font-family:Fredoka;font-size:22px;display:block}
 #baryTbl th,#baryTbl td{padding:8px 10px;font-size:14px} #baryTbl td:nth-child(2){white-space:nowrap}
+/* 🚀 Advanced panel */
+.advgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:16px;align-items:start;margin-top:10px}
+.advcol{display:flex;flex-direction:column;gap:10px}
+.fml{font-family:ui-monospace,Consolas,monospace;font-size:13px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;line-height:1.55;overflow-wrap:anywhere}
+.vgr{position:relative;height:300px;background:var(--surface);border-radius:12px;border:1px solid var(--line)}
+.vgr canvas{position:absolute;inset:0;width:100%;height:100%}
+.advcnt .counter b{font-size:18px}
+@media (max-width:760px){ .advgrid{grid-template-columns:1fr} }
 @media (max-width:560px){ .pill input[type=range]{width:84px} .wrow{grid-template-columns:72px minmax(0,1fr) 92px;gap:6px} #spdBox{height:280px} }
 </style>
 </head>
@@ -49,6 +57,7 @@
 </header>
 
 <section class="wrap" id="explore" data-nav="3D orbit sandbox" data-nav-zh="3D 轨道实验">
+  <div class="lab-mode" style="margin-bottom:10px"></div>
   <div class="explorer">
     <div class="stage card space" id="stage" data-3d>
       <div class="toolbar">
@@ -69,6 +78,27 @@
     <aside class="info card" id="info" aria-live="polite"></aside>
   </div>
   <div class="chips" id="chips"></div>
+  <div class="adv adv-box" id="goAdv" style="margin-top:14px">
+    <b data-zh="🚀 进阶：发射角、轨道形状和逃逸速度">🚀 Advanced: launch angle, orbit shape and escape speed</b>
+    <div class="advgrid">
+      <div class="advcol">
+        <label class="ctl"><span><span data-zh="📐 发射角（高于水平方向）">📐 Launch angle (above horizontal)</span>: <b id="gaAngV">0°</b></span><input id="gaAng" type="range" min="0" max="60" step="1" value="0" aria-label="launch angle"></label>
+        <div class="counters advcnt">
+          <div class="counter"><b id="gaOut">—</b><span data-zh="预测结果（按“发射”来验证）">prediction (press Launch to test it)</span></div>
+          <div class="counter"><b id="gaE">—</b><span data-zh="偏心率 e（0 = 正圆）">eccentricity e (0 = circle)</span></div>
+          <div class="counter"><b id="gaPA">—</b><span data-zh="最低点 · 最高点离地面的高度">lowest · highest point above the ground</span></div>
+          <div class="counter"><b id="gaT">—</b><span data-zh="绕一圈的时间（周期）">time for one orbit (period)</span></div>
+        </div>
+        <div class="fml" id="gaF"></div>
+        <div><b data-zh="🎯 挑战">🎯 Challenge</b> <span id="gaChQ"></span> <button class="btn ghost sm" id="gaChNew" data-zh="换一个 ↻">New ↻</button></div>
+        <div class="result" id="gaCh"></div>
+      </div>
+      <div>
+        <div class="vgr" data-nofs><canvas id="gaCv" aria-label="Circular-orbit speed and escape speed against height above the planet, with real satellites"></canvas></div>
+        <small class="muted" data-zh="横轴：离地面的高度；纵轴：速度。蓝线 = 圆轨道速度 √(GM/r)，紫线 = 逃逸速度 √(2GM/r)，两条线都跟着“行星质量”滑块变。橙点 = 你的发射（高度约 1,115 千米）。灰点是绕真实地球运行的卫星。月球在约 384,400 千米外，速度只有约 1.0 千米/秒（在图外）。数据：NASA。">Across: height above the ground; up: speed. Blue = circular-orbit speed √(GM/r); purple = escape speed √(2GM/r); both follow the planet-mass slider. Orange dot = your launch (about 1,115 km up). Grey dots are real satellites around the real Earth. The Moon is about 384,400 km away and moves at only about 1.0 km/s (off the chart). Data: NASA.</small>
+      </div>
+    </div>
+  </div>
 </section>
 
 <section class="wrap" id="law" data-nav="Mass & distance" data-nav-zh="质量与距离">
@@ -213,7 +243,7 @@
 <script>
 const o = (en, zh) => ({en, zh});
 /* ===== Real photos (Wikimedia Commons, free licences; rendered by shared/photos.js) ===== */
-const RP_KIND = { earth:o('Photo from Earth','从地球上拍的照片'), crew:o('Astronaut photo','宇航员拍摄的照片'), vid:o('Astronaut time-lapse','宇航员拍的延时视频') };
+const RP_KIND = { earth:o('Photo from Earth','从地球上拍的照片'), crew:o('Astronaut photo','宇航员拍摄的照片'), vid:o('Astronaut time-lapse','宇航员拍的延时视频'), yt:o('Video','视频'), port:o('Historical portrait','历史肖像'), craft:o('Spacecraft photo','航天器照片'), photo:o('Photo','照片') };
 const RP = {
   iss:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/04/International_Space_Station_after_undocking_of_STS-132.jpg/960px-International_Space_Station_after_undocking_of_STS-132.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:International_Space_Station_after_undocking_of_STS-132.jpg', credit:'NASA/Crew of STS-132', kind:RP_KIND.crew,
     en:'The International Space Station, photographed from Space Shuttle Atlantis. It is a real “Newton’s cannonball”: it falls toward Earth all the time, but moves sideways so fast that it keeps missing.', zh:'从“亚特兰蒂斯号”航天飞机上拍到的国际空间站。它就是真正的“牛顿炮弹”：一直在朝地球下落，但横向速度太快，总是“掉不到”地面上。',
@@ -229,12 +259,27 @@ const RP = {
   jmoons:{ src:'https://upload.wikimedia.org/wikipedia/commons/7/7d/Jupiter-moons.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', license:'Attribution', page:'https://commons.wikimedia.org/wiki/File:Jupiter-moons.jpg', credit:'Jan Sandberg', kind:RP_KIND.earth,
     en:'Jupiter and its moons through a backyard-size telescope. In 1610 Galileo saw these moons circling Jupiter: proof that not everything orbits Earth.', zh:'用业余天文望远镜看到的木星和它的卫星。1610 年伽利略看到这些卫星绕着木星转，证明了并不是所有天体都绕地球转。' },
   video:{ type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/5/53/Five_Minutes_in_Orbit_%28154728%29.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/53/Five_Minutes_in_Orbit_%28154728%29.webm/960px--Five_Minutes_in_Orbit_%28154728%29.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Five_Minutes_in_Orbit_(154728).webm', credit:'NASA (ISS astronaut photographs)', kind:RP_KIND.vid,
-    en:'Five minutes in orbit, made from photos taken by astronauts on the space station. Moving at about 8 km (5 miles) per second, the station goes all the way around Earth in about 90 minutes.', zh:'用空间站宇航员拍的照片做成的“轨道上的五分钟”。空间站以每秒约 8 千米（5 英里）的速度飞行，大约 90 分钟就绕地球一圈。' }
+    en:'Five minutes in orbit, made from photos taken by astronauts on the space station. Moving at about 8 km (5 miles) per second, the station goes all the way around Earth in about 90 minutes.', zh:'用空间站宇航员拍的照片做成的“轨道上的五分钟”。空间站以每秒约 8 千米（5 英里）的速度飞行，大约 90 分钟就绕地球一圈。' },
+  newton:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/39/GodfreyKneller-IsaacNewton-1689.jpg/960px-GodfreyKneller-IsaacNewton-1689.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:GodfreyKneller-IsaacNewton-1689.jpg', credit:'Godfrey Kneller', kind:RP_KIND.port,
+    en:'Isaac Newton, painted in 1689. Two years earlier his book “Principia” explained that the same gravity that pulls an apple down also keeps the Moon in its orbit.', zh:'艾萨克·牛顿，1689 年的画像。两年前，他在《自然哲学的数学原理》中解释了：让苹果落地的引力，也让月球保持在轨道上。' },
+  hubble:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/10/View_of_Hubble_after_Being_Released_from_the_Shuttle_Atlantis_%2828223588012%29.jpg/960px-View_of_Hubble_after_Being_Released_from_the_Shuttle_Atlantis_%2828223588012%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:View_of_Hubble_after_Being_Released_from_the_Shuttle_Atlantis_(28223588012).jpg', credit:'NASA', kind:RP_KIND.crew,
+    en:'The Hubble Space Telescope drifting away from the Space Shuttle Atlantis in 2009. Like the Moon, it is always falling toward Earth, but it moves sideways fast enough to keep missing it.', zh:'2009 年，哈勃空间望远镜从“亚特兰蒂斯号”航天飞机旁慢慢飘开。和月球一样，它一直在朝地球“掉落”，但它横向飞得足够快，所以总是“掉不到”地面上。',
+    scale:o('About 550 km up · one orbit about every 95 minutes','高度约 550 千米 · 约 95 分钟绕地球一圈') },
+  moonx:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/aa/Dark_side_of_the_Moon.png/960px-Dark_side_of_the_Moon.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Dark_side_of_the_Moon.png', credit:'NASA/NOAA DSCOVR EPIC', kind:RP_KIND.craft,
+    en:'The Moon passing in front of Earth, seen in 2015 by the DSCOVR spacecraft about 1.5 million km away. We are looking at the Moon’s far side, the side we never see from Earth.', zh:'2015 年，距地球约 150 万千米的 DSCOVR 探测器拍到月球从地球前面经过。我们看到的是月球背面，也就是在地球上永远看不到的那一面。' },
+  float:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6e/Guion_Bluford_Experiences_Weightlessness_on_the_KC-135_-_GPN-2002-000148.jpg/960px-Guion_Bluford_Experiences_Weightlessness_on_the_KC-135_-_GPN-2002-000148.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Guion_Bluford_Experiences_Weightlessness_on_the_KC-135_-_GPN-2002-000148.jpg', credit:'NASA', kind:RP_KIND.photo,
+    en:'Astronaut Guion Bluford floating inside NASA’s KC-135 training plane. The plane flies in a big arc so that, for about 25 seconds, it falls freely, just like a spacecraft in orbit, and everyone inside floats.', zh:'宇航员盖恩·布鲁福德在 NASA 的 KC-135 训练飞机里飘浮。飞机沿一条大弧线飞行，大约有 25 秒在自由下落，就像轨道上的航天器一样，机舱里的人都飘了起来。' },
+  ytFeather:{ type:'youtube', yt:'Oo8TaPVsn9Y', kind:RP_KIND.yt, credit:'Science News (YouTube)', license:'YouTube',
+    en:'Apollo 15, 1971: astronaut David Scott drops a hammer and a falcon feather on the Moon. With no air to slow the feather, both hit the ground at the same moment, just as Galileo predicted.', zh:'1971 年阿波罗 15 号：宇航员大卫·斯科特在月球上同时丢下一把锤子和一根猎鹰羽毛。月球上没有空气阻挡羽毛，两样东西同时落地，正如伽利略预言的那样。' },
+  ytVacuum:{ type:'youtube', yt:'E43-CfukEgs', kind:RP_KIND.yt, credit:'BBC (YouTube)', license:'YouTube',
+    en:'BBC Human Universe: Brian Cox drops a bowling ball and feathers inside the world’s biggest vacuum chamber. Without air, gravity makes them fall exactly together.', zh:'BBC《人类宇宙》：布莱恩·考克斯在世界上最大的真空室里同时丢下保龄球和羽毛。没有空气时，引力让它们完全同步下落。' },
+  ytWater:{ type:'youtube', yt:'o8TssbmY-GM', kind:RP_KIND.yt, credit:'Canadian Space Agency (YouTube)', license:'YouTube',
+    en:'Astronaut Chris Hadfield wrings out a wet washcloth on the space station. Everything in orbit is falling together around Earth, so the water floats and clings to his hands.', zh:'宇航员克里斯·哈德菲尔德在空间站里拧湿毛巾。轨道上的一切都在一起绕地球“下落”，所以水飘了起来，粘在他的手上。' }
 };
 const RP_PANEL = { ball:'iss', orbit:'iss', inertia:'eva', gravity:'jump' };
 const realFig = k => RP[RP_PANEL[k]] ? LabPhotos.figure(RP[RP_PANEL[k]]) : '';
-LabPhotos.render('#gallery', ['iss','eva','drink','jump','rise','jmoons','video'].map(k => RP[k]), { title:o('See the real thing','看看真实的样子'),
-  sub:o('Real photos of gravity and orbits at work, from the space station to the Moon. Click a picture to enlarge it; the video plays only when you press play.','引力和轨道在真实世界中的样子：从空间站到月球。点击图片可以放大；视频要你按下播放键才会播放。') });
+LabPhotos.render('#gallery', ['newton','iss','hubble','eva','drink','float','jump','rise','moonx','jmoons','video','ytFeather','ytVacuum','ytWater'].map(k => RP[k]), { title:o('See the real thing','看看真实的样子'),
+  sub:o('Real photos of gravity and orbits at work, from the space station to the Moon. Click a picture to enlarge it; videos play only when you press play.','引力和轨道在真实世界中的样子：从空间站到月球。点击图片可以放大；视频要你按下播放键才会播放。') });
 const zh = () => Lab.lang === 'zh';
 const TAU = Math.PI * 2;
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -631,6 +676,116 @@ renderInfo(); renderChips(); sandboxOutputs(); lawUpdate(); kepNote(); renderWei
   addEventListener('labtheme', draw);
 })();
 /*/deep*/</script>
+<script>
+/* ===== 🚀 Advanced mode: launch angle, orbital elements from the launch state, escape speed graph, challenge ===== */
+(function(){
+  const o = (en, zh) => ({en, zh}), $ = Lab.$, isZh = () => Lab.lang === 'zh', App = window.GRAV;
+  const cssv = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const RE = 6371, R0 = 1.175, VS = 7.905, GME = VS * VS * RE;   // sandbox units: planet radii and km/s; GM of an Earth-mass planet ≈ 3.98 × 10⁵ km³/s²
+  const A = { ch:null };
+  const ang = () => Lab.adv() ? +$('#gaAng').value : 0;
+  App.launchAngle = ang;
+  const km = x => `${Math.round(x).toLocaleString('en-US')} ${isZh() ? '千米' : 'km'}`;
+  const ks = x => `${x.toFixed(2)} ${isZh() ? '千米/秒' : 'km/s'}`;
+  const tm = s => s < 7200 ? (isZh() ? `${Math.round(s / 60)} 分钟` : `${Math.round(s / 60)} min`) : s < 172800 ? (isZh() ? `${(s / 3600).toFixed(2)} 小时` : `${(s / 3600).toFixed(2)} h`) : (isZh() ? `${(s / 86400).toFixed(1)} 天` : `${(s / 86400).toFixed(1)} days`);
+  /* orbit from the launch state (two-body problem: energy E and angular momentum h fix the conic) */
+  function pred(){
+    const v = +$('#spd').value, deg = ang(), m = +$('#mass').value, mu = m * VS * VS, th = deg * Math.PI / 180;
+    const E = v * v / 2 - mu / R0, h = R0 * v * Math.cos(th), e = Math.sqrt(Math.max(0, 1 + 2 * E * h * h / (mu * mu)));
+    const P = { v, deg, m, mu, E, h, e, vc:Math.sqrt(mu / R0), ve:Math.sqrt(2 * mu / R0) };
+    if (v < .05){ P.k = 'fall'; return P; }
+    if (E < 0){ P.a = -mu / (2 * E); P.rp = P.a * (1 - e); P.ra = P.a * (1 + e); P.T = 2 * Math.PI * Math.sqrt(P.a ** 3 / mu) * RE; P.k = P.rp < 1 ? 'fall' : 'orbit'; }
+    else { P.rp = h * h / (mu * (1 + e)); P.ra = Infinity; P.k = 'escape'; }
+    return P;
+  }
+  const outName = P => P.k === 'fall' ? o('Falls back 💥','落回地面 💥') : P.k === 'escape' ? o('Escapes 🚀','逃逸 🚀') : P.e < .02 ? o('Circular orbit ⭕','圆轨道 ⭕') : o('Elliptical orbit','椭圆轨道');
+  function live(){
+    if (!Lab.adv()) return;
+    const P = pred();
+    $('#gaAngV').textContent = P.deg + '°';
+    $('#gaOut').textContent = Lab.L(outName(P));
+    $('#gaE').textContent = P.v < .05 ? '—' : P.e.toFixed(3) + (P.e >= 1 ? (isZh() ? '（≥ 1：不闭合）' : ' (≥ 1: open path)') : '');
+    $('#gaPA').textContent = P.v < .05 ? '—' : P.k === 'fall' ? (isZh() ? `撞地 · ${km((P.ra - 1) * RE)}` : `hits ground · ${km((P.ra - 1) * RE)}`) : `${km((P.rp - 1) * RE)} · ${P.ra === Infinity ? '∞' : km((P.ra - 1) * RE)}`;
+    $('#gaT').textContent = P.k === 'orbit' ? tm(P.T) : P.k === 'escape' ? (isZh() ? `不会回来（剩余速度 ${ks(Math.sqrt(2 * P.E))}）` : `never returns (speed left: ${ks(Math.sqrt(2 * P.E))})`) : '—';
+    const gm = P.m * GME, r = R0 * RE, Ek = P.v * P.v / 2, Ep = P.mu / R0;
+    const L = [
+      `GM = ${P.m} × 3.98 × 10⁵ km³/s² = ${Math.round(gm).toLocaleString('en-US')} km³/s² · r = 6,371 + 1,115 = ${Math.round(r).toLocaleString('en-US')} km`,
+      (isZh() ? '圆轨道速度 ' : 'circular speed ') + `v<sub>c</sub> = √(GM/r) = ${ks(P.vc)} · ` + (isZh() ? '逃逸速度 ' : 'escape speed ') + `v<sub>esc</sub> = √(2GM/r) = √2 × v<sub>c</sub> = ${ks(P.ve)}`,
+      (isZh() ? `你的速度 v = ${ks(P.v)} = ${(P.v / P.vc).toFixed(2)} × v<sub>c</sub>` : `your speed v = ${ks(P.v)} = ${(P.v / P.vc).toFixed(2)} × v<sub>c</sub>`),
+      (isZh() ? '每千克的能量 ' : 'energy per kg ') + `E = v²/2 − GM/r = ${Ek.toFixed(1)} − ${Ep.toFixed(1)} = <b>${P.E.toFixed(1)} MJ/kg</b> → ` + Lab.L(P.E < 0 ? o('negative: gravity always brings it back','负数：引力总会把它拉回来') : o('zero or more: it escapes','零或正数：它会逃逸')),
+      P.E < 0 ? (isZh() ? '半长轴 ' : 'semi-major axis ') + `a = −GM/(2E) = ${km(P.a * RE)} → T = 2π√(a³/GM) = ${tm(P.T)}` + (isZh() ? '（开普勒第三定律）' : ' (Kepler’s third law)') : '',
+      `e = √(1 + 2E·h²/(GM)²), h = r·v·cos ${P.deg}° = ${Math.round(P.h * RE).toLocaleString('en-US')} km²/s → e = ${P.e.toFixed(3)}`
+    ].filter(Boolean);
+    $('#gaF').innerHTML = L.join('<br>');
+    graph(P);
+  }
+  /* 🎯 challenges (judged when you press Launch) */
+  const CH = [
+    { q:o('Make a near-circular orbit: eccentricity under 0.02.','做出几乎是正圆的轨道：偏心率小于 0.02。'),
+      ok:P => P.k === 'orbit' && P.e < .02, good:o('A circle needs a flat launch (0°) at exactly v = √(GM/r).','正圆需要水平发射（0°），速度正好是 v = √(GM/r)。'),
+      hint:P => P.k !== 'orbit' ? o('First it has to stay in orbit.','先要让它留在轨道上。') : P.deg ? o('A tilted launch can never give a circle: set the angle to 0°.','斜着发射永远得不到正圆：把角度调到 0°。') : o(`e = ${P.e.toFixed(3)}: get closer to the circular speed shown below.`, `e = ${P.e.toFixed(3)}：再靠近下面算出的圆轨道速度。`) },
+    { q:o('Make an orbit that takes 3 hours (±5 minutes).','做出周期为 3 小时（误差 ±5 分钟）的轨道。'),
+      ok:P => P.k === 'orbit' && Math.abs(P.T - 10800) <= 300, good:o('Bigger orbits take longer: T² ∝ a³ (Kepler’s third law).','轨道越大，周期越长：T² ∝ a³（开普勒第三定律）。'),
+      hint:P => P.k !== 'orbit' ? o('First it has to stay in orbit.','先要让它留在轨道上。') : P.T < 10800 ? o(`T = ${tm(P.T)}: too short. A bigger orbit takes longer, so launch a bit faster.`, `T = ${tm(P.T)}：太短。轨道越大周期越长，发射得快一点。`) : o(`T = ${tm(P.T)}: too long. Launch a bit slower.`, `T = ${tm(P.T)}：太长。发射得慢一点。`) },
+    { q:o('Reach GPS height: make the highest point 19,000–21,000 km above the ground, and stay in orbit.','到达 GPS 卫星的高度：让最高点离地面 19,000–21,000 千米，并且留在轨道上。'),
+      ok:P => P.k === 'orbit' && Math.abs((P.ra - 1) * RE - 20000) <= 1000, good:o('Real GPS satellites circle at about 20,200 km and take about 12 hours per orbit.','真实的 GPS 卫星在约 20,200 千米高处绕行，大约 12 小时绕一圈。'),
+      hint:P => P.k !== 'orbit' ? o('First it has to stay in orbit.','先要让它留在轨道上。') : (P.ra - 1) * RE < 20000 ? o('Not high enough yet: launch faster.','还不够高：发射得快一点。') : o('Too high: launch a little slower.','太高了：发射得慢一点。') },
+    { q:o('Launch at exactly 20° above horizontal and still go all the way around without crashing.','以正好高于水平 20° 的角度发射，并且绕完一整圈不撞地。'),
+      ok:P => P.deg === 20 && P.k === 'orbit', good:o('Steeper than about 23° it can never orbit from this mountain: the lowest point of the ellipse always dips under the ground. That’s why rockets turn sideways soon after launch.','从这座山上，发射角陡于约 23° 就永远绕不成：椭圆的最低点总会钻到地面以下。所以火箭升空后很快就要转向水平飞行。'),
+      hint:P => P.deg !== 20 ? o('Set the launch angle to 20° first.','先把发射角设为 20°。') : P.k === 'fall' ? o('Its lowest point is under the ground. Go faster, but stay below escape speed.','它的最低点在地面以下。再快一些，但不要超过逃逸速度。') : o('Too fast: it escaped. Slow down a little.','太快了，它逃逸了。慢一点。') },
+    { q:o('Set the planet mass to 1.5 × Earth and escape with the slowest launch you can: no more than 0.3 km/s above escape speed.','把行星质量设为地球的 1.5 倍，用尽量慢的速度逃逸：最多比逃逸速度快 0.3 千米/秒。'),
+      ok:P => P.m === 1.5 && P.k === 'escape' && P.v - P.ve <= .3, good:o('Escape speed grows with √M: 1.5 × the mass needs √1.5 ≈ 1.22 × the speed.','逃逸速度随 √M 增大：质量变成 1.5 倍，速度要变成 √1.5 ≈ 1.22 倍。'),
+      hint:P => P.m !== 1.5 ? o('Set the planet mass to 1.5 × Earth first.','先把行星质量设为地球的 1.5 倍。') : P.k !== 'escape' ? o(`Not fast enough: escape speed here is ${ks(P.ve)}.`, `还不够快：这里的逃逸速度是 ${ks(P.ve)}。`) : o('It escaped, but you used more speed than needed. Go slower.','逃逸了，但速度比需要的多。再慢一点。') }
+  ];
+  function newCh(){ let i; do { i = Math.random() * CH.length | 0; } while (i === A.ch && CH.length > 1); A.ch = i; chText(); const el = $('#gaCh'); el.className = 'result'; el.textContent = Lab.L(o('Set it up, then press 🚀 Launch.','设置好后，按“🚀 发射”。')); }
+  function chText(){ $('#gaChQ').textContent = Lab.L(CH[A.ch].q); }
+  function judge(){
+    if (!Lab.adv() || A.ch == null) return;
+    const P = pred(), c = CH[A.ch], el = $('#gaCh'), ok = c.ok(P);
+    el.className = 'result ' + (ok ? 'good' : 'bad');
+    el.textContent = ok ? Lab.L(o('✅ Done! ','✅ 成功！')) + Lab.L(c.good) : '❌ ' + Lab.L(c.hint(P));
+  }
+  App.onLaunch = () => judge();
+  /* graph: circular and escape speed against height */
+  function graph(P){
+    if (!Lab.adv()) return;
+    P = P || pred();
+    const cv = $('#gaCv'), box = cv.parentElement, W = box.clientWidth, H = box.clientHeight; if (!W || !H) return;
+    const dpr = Math.min(devicePixelRatio || 1, 2); cv.width = W * dpr; cv.height = H * dpr;
+    const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+    const ink = cssv('--ink') || '#222', ink2 = cssv('--ink-2') || '#666', line = cssv('--line') || '#ccc';
+    const gm = P.m * GME, vc = h => Math.sqrt(gm / (RE + h)), yMax = Math.max(12, Math.ceil(Math.sqrt(2 * gm / RE)) + 1);
+    const Lx = 40, Rx = W - 12, Ty = 12, By = H - 32, xMax = 40000;
+    const X = h => Lx + h / xMax * (Rx - Lx), Y = v => By - Math.min(v, yMax) / yMax * (By - Ty);
+    g.strokeStyle = line; g.lineWidth = 1; g.fillStyle = ink2; g.font = '700 11px Nunito'; g.textAlign = 'center';
+    for (let h = 0; h <= xMax; h += 10000){ g.beginPath(); g.moveTo(X(h), Ty); g.lineTo(X(h), By); g.stroke(); g.textAlign = h === xMax ? 'right' : 'center'; g.fillText(h.toLocaleString('en-US'), X(h) + (h === xMax ? 4 : 0), By + 14); }
+    g.textAlign = 'right';
+    for (let v = 0; v <= yMax; v += yMax > 14 ? 4 : 2){ g.beginPath(); g.moveTo(Lx, Y(v)); g.lineTo(Rx, Y(v)); g.stroke(); g.fillText(v, Lx - 5, Y(v) + 4); }
+    g.textAlign = 'center'; g.fillText(Lab.L(o('height above the ground (km)','离地面的高度（千米）')), (Lx + Rx) / 2, H - 4);
+    g.save(); g.translate(11, (Ty + By) / 2); g.rotate(-Math.PI / 2); g.fillText(Lab.L(o('speed (km/s)','速度（千米/秒）')), 0, 0); g.restore();
+    const curve = (f, col, lab) => { g.strokeStyle = col; g.lineWidth = 2.5; g.beginPath(); for (let i = 0; i <= 120; i++){ const h = i / 120 * xMax; i ? g.lineTo(X(h), Y(f(h))) : g.moveTo(X(h), Y(f(h))); } g.stroke();
+      g.fillStyle = col; g.font = '800 11px Nunito'; g.textAlign = 'center'; g.fillText(lab, X(xMax * .62), Y(f(xMax * .62)) - 7); };
+    curve(h => vc(h) * Math.SQRT2, '#a46bff', Lab.L(o('escape speed','逃逸速度')));
+    curve(vc, '#3f8cff', Lab.L(o('circular-orbit speed','圆轨道速度')));
+    // real satellites around the real Earth
+    const SATS = [[420, 7.66, o('ISS · Hubble','国际空间站 · 哈勃')], [540, 7.59, null], [20200, 3.87, o('GPS','GPS')], [35786, 3.07, o('geostationary','地球静止轨道')]];
+    SATS.forEach(([h, v, n], i) => { g.fillStyle = '#9aa3b5'; g.beginPath(); g.arc(X(h), Y(v), 4.5, 0, 7); g.fill();
+      if (n){ g.fillStyle = ink2; g.font = '700 11px Nunito'; g.textAlign = i ? 'center' : 'left'; g.fillText(Lab.L(n), X(h) + (i ? 0 : 4), Y(v) + (i ? 17 : 30)); } });
+    // your launch
+    const hx = X((R0 - 1) * RE), vy = Y(P.v);
+    g.strokeStyle = '#ff9f43'; g.setLineDash([3, 3]); g.beginPath(); g.moveTo(hx, By); g.lineTo(hx, vy); g.stroke(); g.setLineDash([]);
+    g.fillStyle = '#ff9f43'; g.beginPath(); g.arc(hx, vy, 6.5, 0, 7); g.fill(); g.strokeStyle = ink; g.lineWidth = 1.5; g.stroke();
+    g.fillStyle = ink; g.font = '800 11px Nunito'; g.textAlign = 'left'; g.fillText(Lab.L(o('you','你')) + ' · ' + Lab.L(outName(P)), hx + 10, vy + (P.v > yMax - 1 ? 16 : -10));
+  }
+  ['#spd', '#mass', '#gaAng'].forEach(s => $(s).addEventListener('input', live));
+  $('#gaChNew').onclick = newCh;
+  new ResizeObserver(() => graph()).observe($('#gaCv').parentElement);
+  addEventListener('labtheme', () => graph());
+  Lab.onLang(() => { if (A.ch != null) chText(); live(); });
+  Lab.onMode(adv => { if (adv){ if (A.ch == null) newCh(); live(); requestAnimationFrame(() => graph()); } });
+  window.GOAdv = { pred, judge, state:A, set:(v, deg, m) => { if (v != null) $('#spd').value = v; if (deg != null) $('#gaAng').value = deg; if (m != null) $('#mass').value = m; ['#spd', '#gaAng'].forEach(s => $(s).dispatchEvent(new Event('input'))); } };
+})();
+</script>
 <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
 <script type="module">
 import * as THREE from 'three';
@@ -708,11 +863,13 @@ const labels = {
 const S = { on:false, x:0, y:R0, vx:0, vy:0, swept:0, ang:Math.PI / 2, rmax:R0, trail:null, orbited:false, escaped:false };
 const GM = () => +massEl.value * 7.905 * 7.905, RATE = .165, H = .0012;
 function launch(v = +spdEl.value){
-  Object.assign(S, { on:true, x:0, y:R0, vx:v, vy:0, swept:0, ang:Math.PI / 2, rmax:R0, orbited:false, escaped:false });
+  const la = App.launchAngle ? App.launchAngle() * Math.PI / 180 : 0;   // 🚀 Advanced: launch angle (always 0 in Basic)
+  Object.assign(S, { on:true, x:0, y:R0, vx:v * Math.cos(la), vy:v * Math.sin(la), swept:0, ang:Math.PI / 2, rmax:R0, orbited:false, escaped:false });
   S.trail = newTrail(); pushTrail(S.trail, 0, R0);
   App.result = null; App.landKm = null; App.flying = { alt:(R0 - 1) * 6371, v };
   if (v < .05){ finish('fall'); S.on = false; }
   if (App.sel && !['planet', 'cannon', 'ball', 'gravity', 'inertia'].includes(App.sel)) App.select(null, true); else updateLive();
+  if (App.onLaunch) App.onLaunch(v);
 }
 function finish(k){ App.result = k; if (k === 'fall'){ App.landKm = Math.abs(S.swept) * 6371; App.flying = null; } App.select(k, true); }
 function step(h){
@@ -780,7 +937,8 @@ ctx.onFrame((dt, t) => {
   ball.position.set(S.on || S.trail ? S.x : 0, S.on || S.trail ? S.y : R0, 0);
   const r = ball.position.length(), mu = GM();
   /* velocity: real velocity in flight, the chosen launch speed when waiting */
-  const vx = S.on ? S.vx : +spdEl.value, vy = S.on ? S.vy : 0, sp = Math.hypot(vx, vy);
+  const la0 = App.launchAngle ? App.launchAngle() * Math.PI / 180 : 0;
+  const vx = S.on ? S.vx : +spdEl.value * Math.cos(la0), vy = S.on ? S.vy : +spdEl.value * Math.sin(la0), sp = Math.hypot(vx, vy);
   const showV = forcesOn && (S.on || resting) && sp > .05;
   vArrow.visible = ghost.visible = showV;
   if (showV){ dirV.set(vx, vy, 0).normalize(); const len = .15 + sp * .07; vArrow.position.copy(ball.position); vArrow.setDirection(dirV); vArrow.setLength(len, .1, .06);

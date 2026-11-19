@@ -42,6 +42,20 @@
 .sci .face{font-size:54px;line-height:1}
 .sci h3{font-size:24px}
 .sci .tn{display:inline-block;margin-top:8px;font-weight:800;font-size:13px;padding:4px 10px;border-radius:999px;background:color-mix(in srgb,var(--good) 16%,transparent);color:var(--good)}
+/* 🚀 Advanced mode */
+.info .toprow{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.info .toprow .lab-mode button{padding:5px 11px;font-size:13px}
+.deep{font-size:14.5px}
+.deep b.h{display:block;color:var(--brand);font-size:13px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px}
+.deep dl{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;margin:0}
+.deep dt{font-weight:800;color:var(--ink-2)}
+.deep dd{margin:0}
+.chopts{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chopts button{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 14px;font-weight:800;cursor:pointer}
+.chopts button.right{border-color:var(--good);background:color-mix(in srgb,var(--good) 16%,var(--surface))}
+.chopts button.wrong{border-color:var(--bad)}
+.estrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px}
+.estrow input{width:110px;padding:7px 10px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit}
 @media (max-width:980px){.ladder{grid-template-columns:repeat(2,minmax(0,1fr))}.ladder .box::after{display:none}}
 @media (max-width:560px){.timeline{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:16px}.timeline::before{display:none}.sci{grid-template-columns:1fr}.readout{min-width:0}}
 </style>
@@ -75,6 +89,8 @@
     <aside class="info card" id="info" aria-live="polite"></aside>
   </div>
   <div class="chips" id="chips"></div>
+  <div class="adv adv-box" id="zoomCh" style="margin-top:14px"></div>
+
 
   <div class="sec-head" style="margin-top:34px">
     <h2 data-zh="生命的结构层次">Levels of organization</h2>
@@ -120,10 +136,13 @@
   <div class="sim">
     <div class="card simbox scopebox" id="scopeBox"><canvas id="scopeCv" aria-label="Microscope view"></canvas></div>
     <div class="card simside">
+      <div class="lab-mode"></div>
       <h3 data-zh="玻片标本">Slide</h3>
       <div class="ctlrow" id="specRow"></div>
       <h3 data-zh="物镜">Objective lens</h3>
       <div class="ctlrow" id="objRow"></div>
+      <div class="adv"><h3 data-zh="目镜" style="margin-bottom:8px">Eyepiece</h3><div class="ctlrow" id="eyeRow"></div></div>
+
       <label class="ctl"><span data-zh="粗准焦螺旋（大幅升降）">Coarse focus (big moves)</span><input id="coarse" type="range" min="0" max="100" value="12"></label>
       <label class="ctl"><span data-zh="细准焦螺旋（微调）">Fine focus (small moves)</span><input id="fine" type="range" min="0" max="100" value="50"></label>
       <label class="ctl"><span data-zh="光圈（亮度）">Diaphragm (brightness)</span><input id="bright" type="range" min="0" max="100" value="55"></label>
@@ -134,6 +153,8 @@
       </div>
       <div class="result" id="scopeMsg"></div>
       <div class="see" id="seeBox"></div>
+      <div class="adv adv-box" id="scopeAdv"></div>
+
     </div>
   </div>
   <div class="memory" style="margin-top:16px"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="放大倍数 = 目镜倍数 × 物镜倍数。倍数越大，看到的范围越小、细胞越大、视野越暗。">Total magnification = eyepiece × objective. More magnification → smaller field of view, bigger cells, dimmer view.</span></div>
@@ -182,7 +203,14 @@ const P = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/58/Onion_cells_under_the_light_microscope.jpg/960px-Onion_cells_under_the_light_microscope.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Onion cells through a light microscope: a slide you can make yourself in class.', zh:'光学显微镜下的洋葱细胞：这是你在课堂上就能自己做的玻片标本。', kind:{en:'Light micrograph',zh:'光学显微镜照片'}, credit:'Kateryna Kot', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Onion_cells_under_the_light_microscope.jpg' },
   { src:'https://upload.wikimedia.org/wikipedia/commons/d/d5/414c_Cardiacmuscle.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Tissue level: cardiac muscle tissue, which is found only in the heart. Many similar cells work together as one tissue.', zh:'组织层次：心肌组织，只有心脏里才有。许多相似的细胞在一起工作，就组成了一种组织。', kind:{en:'Light micrograph',zh:'光学显微镜照片'}, scale:{en:'magnified 1,600 times',zh:'放大 1,600 倍'}, credit:'OpenStax College', license:'CC BY 3.0', page:'https://commons.wikimedia.org/wiki/File:414c_Cardiacmuscle.jpg' },
   { src:'https://upload.wikimedia.org/wikipedia/commons/0/0c/Mitochondria%2C_mammalian_lung_-_TEM.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Organelle level: two mitochondria, the “power plants”, inside a mammal’s lung cell.', zh:'细胞器层次：哺乳动物肺细胞里的两个线粒体，它们是细胞的“能量工厂”。', kind:{en:'Electron micrograph (TEM)',zh:'透射电镜照片'}, credit:'Louisa Howard', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Mitochondria,_mammalian_lung_-_TEM.jpg' },
-  { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/1/1b/Cf_Difflugia_DSC_1306.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1b/Cf_Difflugia_DSC_1306.webm/960px--Cf_Difflugia_DSC_1306.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1b/Cf_Difflugia_DSC_1306.webm/960px--Cf_Difflugia_DSC_1306.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'One cell can be a whole living thing! Watch a shelled amoeba crawl across a microscope slide by stretching out its “false feet” (pseudopods).', zh:'一个细胞也可以是一个完整的生物！看这只有壳的变形虫怎样伸出“伪足”，在显微镜玻片上爬行。', kind:{en:'Microscope video',zh:'显微镜视频'}, credit:'Brandon Seah', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Cf_Difflugia_DSC_1306.webm' }
+  { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/1/1b/Cf_Difflugia_DSC_1306.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1b/Cf_Difflugia_DSC_1306.webm/960px--Cf_Difflugia_DSC_1306.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1b/Cf_Difflugia_DSC_1306.webm/960px--Cf_Difflugia_DSC_1306.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'One cell can be a whole living thing! Watch a shelled amoeba crawl across a microscope slide by stretching out its “false feet” (pseudopods).', zh:'一个细胞也可以是一个完整的生物！看这只有壳的变形虫怎样伸出“伪足”，在显微镜玻片上爬行。', kind:{en:'Microscope video',zh:'显微镜视频'}, credit:'Brandon Seah', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Cf_Difflugia_DSC_1306.webm' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/94/Jan_Verkolje_-_Antonie_van_Leeuwenhoek.jpg/960px-Jan_Verkolje_-_Antonie_van_Leeuwenhoek.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Antonie van Leeuwenhoek, a Dutch cloth merchant who ground his own lenses. In the 1670s he became the first person to see bacteria and other single-celled “animalcules”.', zh:'安东尼·范·列文虎克，一位自己磨制镜片的荷兰布商。17 世纪 70 年代，他成为第一个看到细菌和其他单细胞“微小动物”的人。', kind:{en:'Painting (about 1680)',zh:'油画（约 1680 年）'}, credit:'Jan Verkolje', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Jan_Verkolje_-_Antonie_van_Leeuwenhoek.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/a/ab/Matthias_Jacob_Schleiden.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Matthias Schleiden, a German botanist. In 1838 he proposed that all plants are made of cells: the first part of cell theory.', zh:'马蒂亚斯·施莱登，德国植物学家。1838 年，他提出所有植物都是由细胞构成的，这是细胞学说的第一部分。', kind:{en:'Historical portrait',zh:'历史肖像'}, credit:'Carl Wilhelm Traugott Schenk', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Matthias_Jacob_Schleiden.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a5/Theodor_Schwann_Litho.jpg/960px-Theodor_Schwann_Litho.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Theodor Schwann, a German physiologist. In 1839 he showed that animals are made of cells too, so cells are the basic unit of all living things.', zh:'特奥多尔·施旺，德国生理学家。1839 年，他证明动物也是由细胞构成的，所以细胞是一切生物的基本单位。', kind:{en:'Historical portrait',zh:'历史肖像'}, credit:'Rudolph Hoffmann', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Theodor_Schwann_Litho.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/25/Rudolf_Virchow_NLM2.jpg/960px-Rudolf_Virchow_NLM2.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Rudolf Virchow, a German doctor. In 1855 he made famous the idea that every cell comes from another cell: the third part of cell theory.', zh:'鲁道夫·菲尔绍，德国医生。1855 年，他让“所有细胞都来自已有的细胞”这一观点广为人知，这是细胞学说的第三部分。', kind:{en:'Historical photo',zh:'历史照片'}, credit:'Unknown photographer (U.S. National Library of Medicine)', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Rudolf_Virchow_NLM2.jpg' },
+  { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/1/1d/Human_Cheek_Epithelial_Cells_-_How_to_Prepare_a_Wet_Mount_Microscope_Slide.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1d/Human_Cheek_Epithelial_Cells_-_How_to_Prepare_a_Wet_Mount_Microscope_Slide.webm/330px--Human_Cheek_Epithelial_Cells_-_How_to_Prepare_a_Wet_Mount_Microscope_Slide.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1d/Human_Cheek_Epithelial_Cells_-_How_to_Prepare_a_Wet_Mount_Microscope_Slide.webm/330px--Human_Cheek_Epithelial_Cells_-_How_to_Prepare_a_Wet_Mount_Microscope_Slide.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Video (in English): how to make a slide of your own cheek cells with a cotton swab, a drop of stain and a cover slip, and what the cells look like under the microscope.', zh:'视频（英语讲解）：怎样用棉签、一滴染液和盖玻片，把你自己的口腔上皮细胞做成玻片，以及它们在显微镜下的样子。', kind:{en:'Lab video',zh:'实验视频'}, credit:'ScienceProfOnline', license:'CC BY 3.0', page:'https://commons.wikimedia.org/wiki/File:Human_Cheek_Epithelial_Cells_-_How_to_Prepare_a_Wet_Mount_Microscope_Slide.webm' },
+  { type:'youtube', yt:'4OpBylwH9DU', kind:{en:'Video',zh:'视频'}, en:'TED-Ed: the wacky history of cell theory. From Hooke’s cork to Leeuwenhoek’s “animalcules” to Schleiden, Schwann and Virchow.', zh:'TED-Ed：细胞学说的奇妙历史。从胡克的软木，到列文虎克的“微小动物”，再到施莱登、施旺和菲尔绍。', credit:'TED-Ed (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'Pxujitlv8wc', kind:{en:'Video',zh:'视频'}, en:'Amoeba Sisters: prokaryotic versus eukaryotic cells. Which cells have a nucleus, and what do all cells have in common?', zh:'Amoeba Sisters（阿米巴姐妹）：原核细胞和真核细胞。哪些细胞有细胞核？所有细胞又有哪些共同点？', credit:'Amoeba Sisters (YouTube)', license:'YouTube' }
 ];
 window.REALFIG = { organelle:P[5], tissue:P[4] };
 if (window.LabPhotos) LabPhotos.render('#gallery', P.filter(p => !p._x), { title:{en:'See the real thing',zh:'看看真实的样子'}, sub:{en:'How people first saw cells, and what real cells and tissues look like through a microscope. Click any picture to enlarge it; the video plays only when you press play.',zh:'人们最早是怎样看到细胞的？真实的细胞和组织在显微镜下又是什么样子？点击图片可以放大；视频要按下播放键才会播放。'} });
@@ -197,18 +225,21 @@ function makeExplorer(cfg){
   E.select = (k, from3D) => { E.sel = k; render(); cfg.onSelect && cfg.onSelect(k, from3D); if (!from3D && E.focus) E.focus(k); };
   function render(){
     const box = Lab.$(cfg.info), k = E.sel, I = cfg.intro;
+    const top = tag => cfg.mode ? `<div class="toprow"><span class="tag">${tag}</span><div class="lab-mode"></div></div>` : `<span class="tag">${tag}</span>`;   // 🚀 Basic/Advanced switch
     if (!k){
-      box.innerHTML = `<span class="tag">${Lab.L(I.tag)}</span><h3>${Lab.L(I.title)}</h3>
+      box.innerHTML = `${top(Lab.L(I.tag))}<h3>${Lab.L(I.title)}</h3>
         <p class="muted" style="margin:0">${Lab.L(I.text)}</p>
         <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(I.big)}</div>
         <div class="nav"><button data-a="start">${Lab.L(I.start)}</button></div>`;
       box.querySelector('[data-a=start]').onclick = () => E.select(cfg.order[0]);
     } else {
       const p = cfg.parts[k], i = cfg.order.indexOf(k), n = cfg.order.length;
-      box.innerHTML = `<span class="tag">${Lab.L(p.tag || cfg.tag)}</span>
+      const d = cfg.deep && Lab.adv() && cfg.deep[k];
+      box.innerHTML = `${top(Lab.L(p.tag || cfg.tag))}
         <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
         <div class="job">${Lab.L(p.job)}</div>
-        <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>${window.REALFIG && REALFIG[k] ? LabPhotos.figure(REALFIG[k]) : ''}
+        <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>${d ? `<div class="adv adv-box deep"><b class="h">${Lab.L(o('🔬 Zoom deeper','🔬 再放大一层'))}</b><dl>
+          <dt>${Lab.L(o('Real size','真实大小'))}</dt><dd>${Lab.L(d.size)}</dd><dt>${Lab.L(o('Made of','组成'))}</dt><dd>${Lab.L(d.parts)}</dd></dl><p style="margin:8px 0 0">${Lab.L(d.fact)}</p></div>` : ''}${window.REALFIG && REALFIG[k] ? LabPhotos.figure(REALFIG[k]) : ''}
         <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(p.hint)}</div>
         ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
         <button class="speak" data-a="speak">${Lab.L(Lab.UI.listen)}</button>
@@ -219,9 +250,11 @@ function makeExplorer(cfg){
     }
     Lab.$(cfg.chips).innerHTML = cfg.order.map(c => `<button class="chip ${E.sel === c ? 'on' : ''}" data-k="${c}"><i style="background:${cfg.parts[c].color}"></i>${Lab.L(cfg.parts[c].name)}</button>`).join('');
     Lab.$$(cfg.chips + ' .chip').forEach(c => c.onclick = () => E.select(c.dataset.k));
+    if (cfg.mode) Lab.modes();
   }
   E.render = render;
   Lab.onLang(render);
+  if (cfg.mode) Lab.onMode(render);
   return E;
 }
 
@@ -273,7 +306,22 @@ const ZOOM_STEPS = [
   {en:'5 · Cell: one heart muscle cell, the basic unit of structure and function.', zh:'5 · 细胞：一个心肌细胞，是结构和功能的基本单位。'},
   {en:'6 · Organelle: a mitochondrion inside the cell releases energy so the heart can keep beating.', zh:'6 · 细胞器：细胞里的线粒体释放能量，让心脏不停跳动。'}
 ];
-const ZOOM = makeExplorer({ info:'#info', chips:'#chips', parts:LEVELS, order:LORDER, tag:o('Level of organization','结构层次'),
+/* 🚀 Advanced: real sizes (powers of ten) and numbers for each level */
+const LDEEP = {
+  organism:{size:o('about 1.7 m = 1.7 × 10⁰ m','约 1.7 米 = 1.7 × 10⁰ 米'), parts:o('about 37 trillion cells (3.7 × 10¹³) of more than 200 kinds','约 37 万亿个细胞（3.7 × 10¹³），200 多种'),
+    fact:o('About 70–85% of your cells are tiny red blood cells. You also carry roughly as many bacteria as human cells, mostly in your gut.','你的细胞中约 70%–85% 是小小的红细胞。你身上携带的细菌数量和人体细胞差不多，大多在肠道里。')},
+  system:{size:o('blood vessels laid end to end: about 100,000 km, about 2½ times around the Earth','血管首尾相连约 10 万千米，大约能绕地球 2.5 圈'), parts:o('the heart + blood vessels + about 5 L of blood','心脏 + 血管 + 约 5 升血液'),
+    fact:o('Biologists count about 8–11 human organ systems; the Chinese textbook lists 8 (movement, digestive, respiratory, circulatory, urinary, nervous, endocrine, reproductive). Blood goes all the way round your body in about 1 minute.','人体的系统一般分为 8–11 个；人教版教材列出八大系统：运动、消化、呼吸、循环、泌尿、神经、内分泌、生殖系统。血液在全身循环一周大约只要 1 分钟。')},
+  organ:{size:o('about 12 cm = 1.2 × 10⁻¹ m, about 300 g','约 12 厘米 = 1.2 × 10⁻¹ 米，约 300 克'), parts:o('about 2–3 billion heart muscle cells, plus nervous, connective and epithelial tissue','约 20–30 亿个心肌细胞，再加上神经组织、结缔组织和上皮组织'),
+    fact:o('Each beat pushes out about 70 mL of blood: 70 mL × 70 beats per minute ≈ 5 L per minute, about 7,000 L per day.','每跳一次约泵出 70 毫升血液：70 毫升 × 每分钟 70 次 ≈ 每分钟 5 升，每天约 7000 升。')},
+  tissue:{size:o('a 1 mm patch = 1 × 10⁻³ m','1 毫米的一小块 = 1 × 10⁻³ 米'), parts:o('one cubic millimetre holds tens of thousands of heart muscle cells','1 立方毫米里有几万个心肌细胞'),
+    fact:o('Heart muscle cells are joined end to end by intercalated discs with tiny pores, so an electrical signal spreads from cell to cell and they all contract together.','心肌细胞之间由“闰盘”首尾相连，闰盘上有微小的通道，电信号能从一个细胞传到下一个，所以它们能一起收缩。')},
+  cell:{size:o('about 100 µm long, 10–25 µm wide = 1 × 10⁻⁴ m','长约 100 微米，宽 10–25 微米 = 1 × 10⁻⁴ 米'), parts:o('1–2 nuclei; thousands of mitochondria filling about 30% of the cell','1–2 个细胞核；几千个线粒体，约占细胞体积的 30%'),
+    fact:o('Most heart muscle cells last a lifetime: in adults only about 1% or fewer are replaced each year. One heart cell may beat more than 2 billion times!','大多数心肌细胞会陪伴人一生：成年人每年更新的心肌细胞约 1% 或更少。一个心肌细胞一生可能跳动 20 多亿次！')},
+  organelle:{size:o('about 2 µm = 2 × 10⁻⁶ m','约 2 微米 = 2 × 10⁻⁶ 米'), parts:o('two membranes; the folded inner membrane (cristae); its own small DNA','两层膜，内膜折叠成“嵴”；还有自己的少量 DNA'),
+    fact:o('glucose + oxygen → carbon dioxide + water + energy (ATP). The heart uses up its whole ATP supply in about 10 seconds, so its mitochondria can never stop.','有机物（葡萄糖）+ 氧 → 二氧化碳 + 水 + 能量（ATP）。心脏大约 10 秒就会把储存的 ATP 用完一遍，所以它的线粒体一刻也不能停。')}
+};
+const ZOOM = makeExplorer({ info:'#info', chips:'#chips', parts:LEVELS, order:LORDER, tag:o('Level of organization','结构层次'), mode:true, deep:LDEEP,
   intro:{ tag:o('Zoom ladder','缩放阶梯'), title:o('From a body to a cell','从人体到细胞'),
     text:o('Drag the Level slider (or use Zoom in ▶) to dive from a whole person into the heart, then heart muscle tissue, one cell and finally an organelle. Click any part to learn about it.','拖动“层次”滑块（或点“放大 ▶”），从整个人体潜入心脏，再到心肌组织、一个细胞，最后到细胞器。点击任意部分了解它。'),
     big:o('Every level is built from the level below it: cells make tissues, tissues make organs, organs make systems, and systems make an organism.','每一层都由下一层构成：细胞构成组织，组织构成器官，器官构成系统，系统构成生物体。'),
@@ -284,6 +332,20 @@ function renderLadder(){
   Lab.$$('#ladder .box').forEach(b => b.onclick = () => { ZOOM.select(b.dataset.k); Lab.$('#explore').scrollIntoView({behavior:'smooth'}); });
 }
 Lab.onLang(renderLadder);
+/* 🚀 Advanced: size ratios between levels + a calculation challenge */
+const ZCH = { pick:null };
+function renderZoomCh(){
+  const opts = [12, 120, 1200, 12000], ans = 1200, f = n => n.toLocaleString();
+  Lab.$('#zoomCh').innerHTML = `<b>${Lab.L(o('📏 How much bigger is each level?','📏 每一层比下一层大多少？'))}</b>
+    <p style="margin:6px 0 10px;font-size:15px">${Lab.L(o('Size ratio = bigger size ÷ smaller size. Organism ÷ heart ≈ 1.7 m ÷ 0.12 m ≈ 14× · heart ÷ tissue patch ≈ 120 mm ÷ 1 mm = 120× · tissue ÷ cell ≈ 1 mm ÷ 0.1 mm = 10× · cell ÷ mitochondrion ≈ 100 µm ÷ 2 µm = 50×.','大小之比 = 大的长度 ÷ 小的长度。人体 ÷ 心脏 ≈ 1.7 米 ÷ 0.12 米 ≈ 14 倍 · 心脏 ÷ 组织小块 ≈ 120 毫米 ÷ 1 毫米 = 120 倍 · 组织 ÷ 细胞 ≈ 1 毫米 ÷ 0.1 毫米 = 10 倍 · 细胞 ÷ 线粒体 ≈ 100 微米 ÷ 2 微米 = 50 倍。'))}</p>
+    <b>${Lab.L(o('🎯 Challenge: about how many heart muscle cells (about 0.1 mm long) would line up end to end across the whole heart (about 12 cm)?','🎯 挑战：心肌细胞长约 0.1 毫米，大约要多少个首尾相连，才能排满整颗心脏（约 12 厘米）？'))}</b>
+    <div class="chopts">${opts.map(n => `<button data-n="${n}" class="${ZCH.pick === n ? (n === ans ? 'right' : 'wrong') : ''}">${f(n)}</button>`).join('')}</div>
+    <div class="result ${ZCH.pick == null ? '' : ZCH.pick === ans ? 'good' : 'bad'}" id="zchFb">${ZCH.pick == null ? '' : ZCH.pick === ans
+      ? Lab.L(o('✅ Yes! 12 cm = 120 mm, and 120 mm ÷ 0.1 mm = 1,200 cells.','✅ 对了！12 厘米 = 120 毫米，120 毫米 ÷ 0.1 毫米 = 1200 个细胞。'))
+      : Lab.L(o('❌ Not quite. Hint: first change 12 cm into mm (× 10), then divide by 0.1 mm.','❌ 不对哦。提示：先把 12 厘米换算成毫米（× 10），再除以 0.1 毫米。'))}</div>`;
+  Lab.$$('#zoomCh .chopts button').forEach(b => b.onclick = () => { ZCH.pick = +b.dataset.n; renderZoomCh(); });
+}
+Lab.onLang(renderZoomCh);
 
 /* ===== Microscope parts ===== */
 const MPARTS = {
@@ -434,7 +496,8 @@ Lab.onLang(renderSci);
         c.fillStyle = '#f7ecd6'; c.beginPath(); for (const e of cork) if (inView(e.x, e.y, e.w, e.h, R)) c.rect(e.x + 2.5, e.y + 2.5, e.w - 5, e.h - 5); c.fill(); }}
   };
   const SORDER = ['onion','cheek','elodea','para','cork'], K = [.35, .7, 1.4], OFFS = [0, 1.5, 3], LIGHT = [1, .8, .6];
-  const st = { spec:'onion', obj:0, fz:48 };
+  const st = { spec:'onion', obj:0, fz:48, eye:10 };
+  const EYES = [10, 16, 20], eyeNow = () => Lab.adv() ? st.eye : 10, fovNow = () => Lab.adv() ? OBJ[st.obj].fov * 10 / st.eye : OBJ[st.obj].fov;   // 🚀 Advanced: choose the eyepiece; field of view ≈ 180 mm ÷ total magnification
   let dirty = true, vis = false, last = performance.now();
   const ui = { coarse:Lab.$('#coarse'), fine:Lab.$('#fine'), bright:Lab.$('#bright') };
   const focusErr = () => Math.abs(+ui.coarse.value + (+ui.fine.value - 50) / 10 - (st.fz + OFFS[st.obj]));
@@ -444,13 +507,16 @@ Lab.onLang(renderSci);
     Lab.$('#specRow').innerHTML = SORDER.map(k => `<button class="chip ${st.spec === k ? 'on' : ''}" data-s="${k}">${Lab.L(SPEC[k].name)}</button>`).join('');
     Lab.$$('#specRow .chip').forEach(b => b.onclick = () => { st.spec = b.dataset.s; st.fz = 38 + Math.random() * 24; dirty = true; renderButtons(); status(); });
     Lab.$('#objRow').innerHTML = OBJ.map((ob, i) => `<button class="chip ${st.obj === i ? 'on' : ''}" data-o="${i}"><i style="background:${ob.c}"></i>${ob.x}×</button>`).join('');
+    Lab.$('#eyeRow').innerHTML = EYES.map(e => `<button class="chip ${st.eye === e ? 'on' : ''}" data-e="${e}">${e}×</button>`).join('');
+    Lab.$$('#eyeRow .chip').forEach(b => b.onclick = () => { st.eye = +b.dataset.e; dirty = true; renderButtons(); status(); });
     Lab.$$('#objRow .chip').forEach(b => b.onclick = () => SCOPE.setObj(+b.dataset.o, 'sim'));
   }
   function status(){
-    const ob = OBJ[st.obj], total = ob.x * 10, sharp = Math.max(0, Math.round(100 - blurAmt() * 12)), L = lightAmt();
+    const ob = OBJ[st.obj], eye = eyeNow(), total = ob.x * eye, sharp = Math.max(0, Math.round(100 - blurAmt() * 12)), L = lightAmt();
     ui.coarse.disabled = st.obj === 2;
-    Lab.$('#formula').innerHTML = Lab.lang === 'zh' ? `目镜 10× × 物镜 ${ob.x}× = <b>${total}×</b>` : `10× eyepiece × ${ob.x}× objective = <b>${total}×</b>`;
+    Lab.$('#formula').innerHTML = Lab.lang === 'zh' ? `目镜 ${eye}× × 物镜 ${ob.x}× = <b>${total}×</b>` : `${eye}× eyepiece × ${ob.x}× objective = <b>${total}×</b>`;
     Lab.$('#cFov').textContent = `${ob.fov} mm`;
+    if (Lab.adv()){ const fv = fovNow(), el = Lab.$('#scFov'); Lab.$('#cFov').textContent = (+fv.toFixed(2)) + ' mm'; if (el) el.innerHTML = Lab.lang === 'zh' ? `视野直径 ≈ 180 毫米 ÷ ${total} = <b>${(+fv.toFixed(2))} 毫米</b>（≈ ${Math.round(fv * 1000).toLocaleString()} 微米）` : `Field of view ≈ 180 mm ÷ ${total} = <b>${(+fv.toFixed(2))} mm</b> (≈ ${Math.round(fv * 1000).toLocaleString()} µm)`; }
     Lab.$('#cSharp').textContent = sharp + '%';
     const S = SPEC[st.spec]; let msg, good = null;
     if (L < .22){ msg = o('🌑 Too dark. Open the diaphragm (more light).','🌑 视野太暗，把光圈开大一些。'); good = false; }
@@ -471,7 +537,7 @@ Lab.onLang(renderSci);
   }
   function draw(t){
     const d = size(), w = cv.width, h = cv.height; if (!w || !h) return;
-    const S = SPEC[st.spec], cx = w / 2, cy = h / 2, Rc = Math.min(w, h) * .46, ob = OBJ[st.obj], ppu = 2 * Rc / (ob.fov * 1000);
+    const S = SPEC[st.spec], cx = w / 2, cy = h / 2, Rc = Math.min(w, h) * .46, ob = OBJ[st.obj], ppu = 2 * Rc / (fovNow() * 1000);
     og.setTransform(1, 0, 0, 1, 0, 0); og.clearRect(0, 0, w, h);
     og.save(); og.beginPath(); og.arc(cx, cy, Rc, 0, 6.283); og.clip(); og.fillStyle = S.bg; og.fillRect(0, 0, w, h);
     og.translate(cx, cy); og.scale(ppu, ppu); S.draw(og, Rc / ppu, ppu, t); og.restore();
@@ -490,14 +556,37 @@ Lab.onLang(renderSci);
     g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(cx - bl / 2 - 8 * d, by - 18 * d, bl + 16 * d, 26 * d);
     g.fillStyle = '#fff'; g.fillRect(cx - bl / 2, by, bl, 3 * d);
     g.font = `800 ${12 * d}px Nunito, sans-serif`; g.textAlign = 'center'; g.fillText(bar + ' µm', cx, by - 5 * d);
-    g.textAlign = 'left'; g.font = `700 ${18 * d}px Fredoka, sans-serif`; g.fillText(ob.x * 10 + '×', 14 * d, 28 * d);
+    g.textAlign = 'left'; g.font = `700 ${18 * d}px Fredoka, sans-serif`; g.fillText(ob.x * eyeNow() + '×', 14 * d, 28 * d);
     g.font = `700 ${13 * d}px Nunito, sans-serif`; g.fillStyle = '#a6b3cf'; g.fillText(Lab.L(SPEC[st.spec].name), 14 * d, 48 * d);
     dirty = false;
   }
   new IntersectionObserver(es => es.forEach(e => vis = e.isIntersecting)).observe(host);
   const t0 = performance.now();
   (function loop(){ requestAnimationFrame(loop); if (vis && (dirty || SPEC[st.spec].anim)) draw((performance.now() - t0) / 1000); })();
+  /* 🚀 Advanced panel: field-of-view formula, resolution limit and an estimate-the-cell-size challenge */
+  const EST = { v:'', fb:null };
+  function renderAdv(){
+    const box = Lab.$('#scopeAdv');
+    box.innerHTML = `<div id="scFov" style="font-size:15px"></div>
+      <p style="margin:6px 0 0;font-size:14px;color:var(--ink-2)">${Lab.L(o('For this microscope, field of view × total magnification ≈ 180 mm: double the magnification and you see half as far across. A light microscope cannot show details smaller than about 0.2 µm (light waves are too wide), so going past about 1,000–1,500× only makes a blurrier picture bigger.','对这台显微镜来说，视野直径 × 放大倍数 ≈ 180 毫米：放大倍数翻一倍，视野直径就缩小一半。光学显微镜看不清小于约 0.2 微米的细节（光波太“粗”了），所以放大到约 1000–1500 倍以上，只会把模糊的物像变得更大。'))}</p>
+      <b style="display:block;margin-top:10px">${Lab.L(o('🎯 Challenge: measure an onion cell','🎯 挑战：测一测洋葱表皮细胞有多长'))}</b>
+      <p style="margin:4px 0 0;font-size:14px">${Lab.L(o('Look at the onion slide. Count how many cells fit end to end across the field of view, then: cell length ≈ field of view ÷ number of cells. (You may also use the scale bar.)','观察洋葱表皮玻片。数一数视野直径上首尾相连排了几个细胞，然后：细胞长度 ≈ 视野直径 ÷ 细胞个数。（也可以借助比例尺。）'))}</p>
+      <div class="estrow"><input id="estIn" type="number" min="1" step="any" inputmode="decimal" value="${EST.v}" aria-label="µm"><span>${Lab.L(o('µm','微米'))}</span><button class="btn" id="estBtn">${Lab.L(o('Check','检查'))}</button></div>
+      <div class="result" id="estFb"></div>`;
+    Lab.$('#estIn').oninput = e => EST.v = e.target.value;
+    Lab.$('#estBtn').onclick = () => { const v = +Lab.$('#estIn').value; EST.fb = !v ? null : v < 180 ? 'low' : v > 340 ? 'high' : 'ok'; showEst(); };
+    showEst(); status();
+  }
+  function showEst(){
+    const fb = Lab.$('#estFb'); if (!fb) return;
+    const M = { ok:o('✅ Great estimate! The onion cells on this slide are about 200–310 µm long (about 0.25 mm). Real onion skin cells are about 0.2–0.4 mm long.','✅ 估得很好！这张玻片上的洋葱表皮细胞长约 200–310 微米（约 0.25 毫米）。真实的洋葱表皮细胞长约 0.2–0.4 毫米。'),
+      low:o('❌ Too small. Did you change mm into µm (1 mm = 1,000 µm)? Count the cells across the WHOLE field of view.','❌ 太小了。你把毫米换算成微米了吗（1 毫米 = 1000 微米）？要数整个视野直径上的细胞。'),
+      high:o('❌ Too big. Try 100× and count carefully: cell length = field of view ÷ number of cells.','❌ 太大了。换到 100× 再仔细数一数：细胞长度 = 视野直径 ÷ 细胞个数。') };
+    fb.textContent = EST.fb ? Lab.L(M[EST.fb]) : ''; fb.className = 'result ' + (EST.fb === 'ok' ? 'good' : EST.fb ? 'bad' : '');
+  }
   Lab.onLang(() => { renderButtons(); status(); dirty = true; });
+  Lab.onLang(renderAdv);
+  Lab.onMode(() => { renderButtons(); status(); dirty = true; });
 })();
 /* ===== Quiz ===== */
 Lab.quiz(Lab.$('#quiz'), [

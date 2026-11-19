@@ -40,6 +40,14 @@
 #zoTbl td,#zoTbl th{padding:7px 12px;font-size:15px}
 .grid3>details.peek.peek{margin-top:0}
 @media (max-width:560px){ #zoBox{min-height:460px} }
+/* 🚀 Advanced panel */
+.advgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:16px;align-items:start;margin-top:10px}
+.advcol{display:flex;flex-direction:column;gap:10px}
+.fml{font-family:ui-monospace,Consolas,monospace;font-size:13px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;line-height:1.55;overflow-wrap:anywhere}
+.altg{position:relative;height:260px;background:var(--surface);border-radius:12px;border:1px solid var(--line)}
+.altg canvas{position:absolute;inset:0;width:100%;height:100%}
+#nsStar{border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:10px;padding:6px 10px;font:inherit;font-weight:700}
+@media (max-width:760px){ .advgrid{grid-template-columns:1fr} }
 </style>
 </head>
 <body data-subject="astronomy" data-topic="night-sky">
@@ -52,6 +60,7 @@
 </header>
 
 <section class="wrap" id="explore" data-nav="3D Sky" data-nav-zh="3D 星空">
+  <div class="lab-mode" style="margin-bottom:10px"></div>
   <div class="explorer">
     <div class="stage card space" id="stage" data-3d>
       <div class="toolbar">
@@ -70,7 +79,7 @@
       <div class="bottombar">
         <div class="pill"><span data-zh="🕘 时间">🕘 Time</span><input id="timeSl" type="range" min="0" max="720" step="5" value="180"><span class="tval" id="timeVal">21:00</span></div>
         <div class="pill"><span data-zh="📅">📅</span><select id="monthSel"></select></div>
-        <div class="pill"><span data-zh="📍">📍</span><select id="locSel"></select></div>
+        <div class="pill basic-only"><span data-zh="📍">📍</span><select id="locSel"></select></div>
       </div>
     </div>
     <aside class="info card" id="info" aria-live="polite"></aside>
@@ -83,6 +92,27 @@
     <div class="counter"><b id="rVis">–</b><span data-zh="地平线以上的星座">constellations above the horizon</span></div>
   </div>
   <div class="vislist" id="visList"></div>
+  <div class="adv adv-box" id="nsAdv" style="margin-top:14px">
+    <b data-zh="🚀 进阶：赤经赤纬、任意纬度和星等">🚀 Advanced: right ascension &amp; declination, any latitude, and magnitudes</b>
+    <div class="advgrid">
+      <div class="advcol">
+        <label class="ctl"><span><span data-zh="🌍 你的纬度（3D 星空会跟着变）">🌍 Your latitude (the 3D sky follows)</span>: <b id="nsLatV">33.7° N</b></span><input id="nsLat" type="range" min="-90" max="90" step="0.1" value="33.7" aria-label="latitude"></label>
+        <div class="btnrow" id="nsLocs"></div>
+        <label class="ctl" style="flex-direction:row;align-items:center;gap:8px"><span data-zh="⭐ 选一颗星：">⭐ Pick a star:</span><select id="nsStar"></select></label>
+        <div class="counters">
+          <div class="counter"><b id="nsRD">—</b><span data-zh="赤经 RA · 赤纬 Dec（星星在天球上的“经纬度”）">right ascension RA · declination Dec (the star’s “longitude and latitude” on the sky)</span></div>
+          <div class="counter"><b id="nsAlt">—</b><span data-zh="此刻的高度 · 方位">height now · direction</span></div>
+        </div>
+        <div class="fml" id="nsF"></div>
+        <div><b data-zh="🎯 挑战">🎯 Challenge</b> <span id="nsChQ"></span> <button class="btn ghost sm" id="nsChNew" data-zh="换一个 ↻">New ↻</button> <button class="btn sm" id="nsChk" data-zh="检查">Check</button></div>
+        <div class="result" id="nsCh"></div>
+      </div>
+      <div>
+        <div class="altg" data-nofs><canvas id="nsCv" aria-label="Height of the chosen star above the horizon through one night and day"></canvas></div>
+        <small class="muted" data-zh="所选恒星 24 小时内的高度（从傍晚 6 点开始）。地平线以下 = 看不见；竖线 = 现在。恒星位置为 J2000 历元，取整（约值）。">Height of the chosen star over 24 hours, starting at 6 PM. Below the horizon = not visible; vertical line = now. Star positions are J2000, rounded (approximate).</small>
+      </div>
+    </div>
+  </div>
 </section>
 
 <section class="wrap" id="connect" data-nav="Connect the stars" data-nav-zh="连星成座">
@@ -196,7 +226,7 @@
 <script>
 const o = (en, zh) => ({en, zh});
 /* ===== Real photos (Wikimedia Commons, free licences; rendered by shared/photos.js) ===== */
-const RP_KIND = { earth:o('Photo from Earth','从地球上拍的照片'), tele:o('Space telescope photo','空间望远镜照片'), vid:o('Time-lapse video','延时视频') };
+const RP_KIND = { earth:o('Photo from Earth','从地球上拍的照片'), tele:o('Space telescope photo','空间望远镜照片'), vid:o('Time-lapse video','延时视频'), yt:o('Video lesson','视频课') };
 const RP = {
   orion:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/47/Orion_Head_to_Toe.jpg/960px-Orion_Head_to_Toe.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Orion_Head_to_Toe.jpg', credit:'Rogelio Bernal Andreo', kind:RP_KIND.earth,
     en:'The constellation Orion in a long-exposure photo (October 2010). The camera also catches glowing clouds of gas around it that our eyes cannot see.', zh:'长时间曝光拍下的猎户座（2010 年 10 月）。相机还拍到了周围肉眼看不到的发光气体云。' },
@@ -215,12 +245,24 @@ const RP = {
   pollution:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2c/Light_pollution_It%27s_not_pretty.jpg/960px-Light_pollution_It%27s_not_pretty.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Light_pollution_It%27s_not_pretty.jpg', credit:'Jeremy Stanley', kind:RP_KIND.earth,
     en:'Orion from a dark sky (left) and from the city of Orem, Utah (right). City lights wash out the fainter stars.', zh:'左边是在黑暗的地方拍的猎户座，右边是在美国犹他州奥勒姆市拍的。城市灯光把较暗的星星都“淹没”了。' },
   video:{ type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/a/a1/Starry_sky_with_North_Star_circled.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a1/Starry_sky_with_North_Star_circled.webm/960px--Starry_sky_with_North_Star_circled.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', license:'CC BY 3.0', page:'https://commons.wikimedia.org/wiki/File:Starry_sky_with_North_Star_circled.webm', credit:'Thomas Bresson', kind:RP_KIND.vid,
-    en:'Time-lapse of the night sky in France. All the stars turn around the North Star (circled), just like in the 3D sky.', zh:'在法国拍的夜空延时视频。所有星星都绕着北极星（圆圈处）转，和 3D 星空里一样。' }
+    en:'Time-lapse of the night sky in France. All the stars turn around the North Star (circled), just like in the 3D sky.', zh:'在法国拍的夜空延时视频。所有星星都绕着北极星（圆圈处）转，和 3D 星空里一样。' },
+  ytEye:{ type:'youtube', yt:'L-Wtlev6suc', kind:RP_KIND.yt, credit:'CrashCourse (YouTube)', license:'YouTube',
+    en:'Crash Course Astronomy: naked-eye observations. What you can see with no telescope at all: constellations, the stars turning around the pole, and the planets.', zh:'Crash Course 天文课：肉眼观测。不用望远镜也能看到什么：星座、绕天极转动的星星，还有行星。' },
+  ytCycles:{ type:'youtube', yt:'01QWC-rZcfE', kind:RP_KIND.yt, credit:'CrashCourse (YouTube)', license:'YouTube',
+    en:'Crash Course Astronomy: cycles in the sky. Why the sky turns every night and why different constellations appear in different seasons.', zh:'Crash Course 天文课：天空的周期。为什么星空每晚都在转动，为什么不同季节能看到不同的星座。' },
+  cas:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/70/2012-08-11_23-56-28-Cassiopeia-2c-27f-28d.jpg/960px-2012-08-11_23-56-28-Cassiopeia-2c-27f-28d.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'CC BY 3.0', page:'https://commons.wikimedia.org/wiki/File:2012-08-11_23-56-28-Cassiopeia-2c-27f-28d.jpg', credit:'Thomas Bresson', kind:RP_KIND.earth,
+    en:'The constellation Cassiopeia, with its bright stars making a “W” shape. It sits on the opposite side of Polaris from the Big Dipper, so when one is low the other is high.', zh:'仙后座，几颗亮星排成一个“W”形。它和北斗七星分别在北极星的两边，一个低的时候，另一个就高。' },
+  scross:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/70/Under_the_Southern_Cross_%2843166631954%29.jpg/960px-Under_the_Southern_Cross_%2843166631954%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Under_the_Southern_Cross_(43166631954).jpg', credit:'ESO', kind:RP_KIND.earth,
+    en:'The Southern Cross and the Milky Way, photographed in Chile by the European Southern Observatory. People in the Southern Hemisphere cannot see Polaris; they use the Southern Cross to find south instead.', zh:'欧洲南方天文台在智利拍到的南十字座和银河。南半球的人看不到北极星，他们用南十字座来找南方。' },
+  dunhuang:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/42/Dunhuang_star_map.jpg/960px-Dunhuang_star_map.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Dunhuang_star_map.jpg', credit:'Unknown Tang-dynasty astronomer (British Library)', kind:o('Ancient star map','古代星图'),
+    en:'Part of the Dunhuang Star Chart from China, drawn around 700 AD (Tang dynasty). It is one of the oldest star maps in the world, drawing the stars in the groups (star officials) that Chinese astronomers used.', zh:'中国敦煌星图的一部分，约绘于公元 700 年（唐代），是世界上最古老的星图之一。图上的星星按照中国古代天文学家划分的“星官”排列。' },
+  planet:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b0/Geministar_III_at_Cosmo_Planetarium_Shibuya_2.jpg/960px-Geministar_III_at_Cosmo_Planetarium_Shibuya_2.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Geministar_III_at_Cosmo_Planetarium_Shibuya_2.jpg', credit:'Syced', kind:o('Planetarium photo','天文馆照片'),
+    en:'A star projector in a planetarium in Tokyo, Japan. It shines thousands of points of light onto the dome, so you can see a dark, starry sky even in the middle of a bright city.', zh:'日本东京一座天文馆里的星空投影仪。它把成千上万个光点投到圆顶上，即使在明亮的大城市中心，也能看到漆黑的星空。' }
 };
 const RP_PANEL = { polaris:'polaris', uma:'dippers', ori:'orion', tau:'pleiades' };
 const realFig = k => RP[RP_PANEL[k]] ? LabPhotos.figure(RP[RP_PANEL[k]]) : '';
-LabPhotos.render('#gallery', ['orion','dippers','trails','pleiades','milky','pollution','video'].map(k => RP[k]), { title:o('See the real thing','看看真实的样子'),
-  sub:o('Real photos of the night sky and a time-lapse of the stars turning around Polaris. Click a picture to enlarge it; the video plays only when you press play.','真实的夜空照片，还有一段星星绕北极星转动的延时视频。点击图片可以放大；视频要你按下播放键才会播放。') });
+LabPhotos.render('#gallery', ['orion','dippers','cas','trails','pleiades','scross','milky','pollution','dunhuang','planet','video','ytEye','ytCycles'].map(k => RP[k]), { title:o('See the real thing','看看真实的样子'),
+  sub:o('Real photos of the night sky, a time-lapse of the stars turning around Polaris, and two video lessons. Click a picture to enlarge it; videos play only when you press play.','真实的夜空照片、一段星星绕北极星转动的延时视频，还有两段视频课。点击图片可以放大；视频要你按下播放键才会播放。') });
 /* ===== Real bright stars: id: [RA hours, Dec degrees, magnitude, spectral colour] (J2000) ===== */
 const STARS = {
   polaris:[2.530,89.26,1.98,'F'], kochab:[14.845,74.16,2.08,'K'], pherkad:[15.346,71.83,3.05,'A'], yildun:[17.537,86.59,4.35,'A'], epsUMi:[16.766,82.04,4.2,'G'], zetUMi:[15.734,77.79,4.3,'A'], etaUMi:[16.292,75.75,4.95,'F'],
@@ -332,6 +374,7 @@ const DOY = [15,46,74,105,135,166,196,227,258,288,319,349];
 const LOCS = [ {lat:33.7, n:o('Atlanta, Georgia (34° N)','亚特兰大（北纬 34°）')}, {lat:39.9, n:o('Beijing (40° N)','北京（北纬 40°）')}, {lat:90, n:o('North Pole (90° N)','北极（北纬 90°）')}, {lat:0, n:o('Equator (0°)','赤道（0°）')}, {lat:-33.9, n:o('Sydney (34° S)','悉尼（南纬 34°）')} ];
 /* sky state shared by UI and 3D */
 const SKY = window.SKY = { min:180, month:new Date().getMonth(), loc:0, sel:null, three:null };
+SKY.lat = () => (SKY.latAdv != null && Lab.adv()) ? SKY.latAdv : LOCS[SKY.loc].lat;   // 🚀 Advanced: any latitude
 SKY.solarHour = () => 18 + SKY.min / 60;
 SKY.lst = () => { const raSun = ((DOY[SKY.month] - 80) / 365.25 * 24 + 48) % 24; return ((raSun + SKY.solarHour() - 12) % 24 + 24) % 24; };
 SKY.sunDec = () => 23.44 * Math.sin(2 * Math.PI * (DOY[SKY.month] - 80) / 365.25);
@@ -710,6 +753,94 @@ if (dp && AST) dp.innerHTML = dp.dataset.deeper.split(',').map(id => { const t =
 Lab.onLang(() => { render(); renderTable(); });
 })();
 </script>
+<script>
+/* ===== 🚀 Advanced mode: any latitude, RA/Dec, altitude & azimuth from spherical trig, circumpolar test, magnitude ratios, challenge ===== */
+(function(){
+  const o = (en, zh) => ({en, zh}), $ = Lab.$, isZh = () => Lab.lang === 'zh', R = Math.PI / 180;
+  const cssv = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const LIST = Object.keys(STAR_NAMES).filter(k => STARS[k]);
+  const A = { star:'sirius', ch:null, lastSel:null, key:'' };
+  const latStr = p => `${Math.abs(p).toFixed(1)}° ${p >= 0 ? (isZh() ? '北' : 'N') : (isZh() ? '南' : 'S')}`;
+  const raStr = h => { const hh = Math.floor(h), mm = Math.round((h - hh) * 60); return `${hh}h ${String(mm).padStart(2, '0')}m`; };
+  const decStr = d => { const s = d < 0 ? '−' : '+', a = Math.abs(d), dd = Math.floor(a), mm = Math.round((a - dd) * 60); return `${s}${dd}°${String(mm).padStart(2, '0')}′`; };
+  const DIRS = { en:['N','NE','E','SE','S','SW','W','NW'], zh:['北','东北','东','东南','南','西南','西','西北'] };
+  const lstAt = min => (((SKY.sunRA() + 18 + min / 60 - 12) % 24) + 24) % 24;
+  function altAz(k, lst, phi){ const [ra, dec] = STARS[k], H = (lst - ra) * 15 * R, d = dec * R, f = phi * R;
+    const sa = Math.sin(f) * Math.sin(d) + Math.cos(f) * Math.cos(d) * Math.cos(H), alt = Math.asin(Math.max(-1, Math.min(1, sa)));
+    const az = Math.atan2(-Math.cos(d) * Math.sin(H), Math.sin(d) * Math.cos(f) - Math.cos(d) * Math.cos(H) * Math.sin(f));
+    return { alt:alt / R, az:((az / R) + 360) % 360, H:(((lst - ra) % 24) + 36) % 24 - 12 }; }
+  const sig1 = x => x >= 100 ? Math.round(x).toLocaleString('en-US') : x >= 10 ? x.toFixed(0) : x.toFixed(1);
+  const kind = (dec, phi) => { const hi = 90 - Math.abs(phi - dec), lo = Math.abs(phi + dec) - 90; return { hi, lo, k:lo > 0 ? 'circ' : hi < 0 ? 'never' : 'rise' }; };
+  function locs(){ $('#nsLocs').innerHTML = LOCS.map((l, i) => `<button class="btn ghost sm" data-i="${i}" style="padding:5px 10px;font-size:13px">${Lab.L(l.n)}</button>`).join('');
+    Lab.$$('#nsLocs button').forEach(b => b.onclick = () => { SKY.loc = +b.dataset.i; $('#locSel').value = SKY.loc; SKY.latAdv = LOCS[SKY.loc].lat; $('#nsLat').value = SKY.latAdv; if (SKY.three) SKY.three.refresh(); live(true); }); }
+  function sel(){ $('#nsStar').innerHTML = LIST.map(k => `<option value="${k}" ${k === A.star ? 'selected' : ''}>${Lab.L(STAR_NAMES[k])} (${STARS[k][2] >= 0 ? '' : '−'}${Math.abs(STARS[k][2]).toFixed(2)})</option>`).join(''); }
+  function live(force){
+    if (!Lab.adv()) return;
+    if (SKY.sel !== A.lastSel){ A.lastSel = SKY.sel; if (SKY.sel && CONS[SKY.sel]){ const b = brightestOf(CONS[SKY.sel]); if (LIST.includes(b)){ A.star = b; $('#nsStar').value = b; } } }
+    const phi = SKY.lat(), lst = SKY.lst(), key = [A.star, phi, lst, Lab.lang].join('|'); if (!force && key === A.key) return; A.key = key;
+    const [ra, dec, mag] = STARS[A.star], p = altAz(A.star, lst, phi), K = kind(dec, phi);
+    $('#nsLatV').textContent = latStr(phi);
+    $('#nsRD').textContent = `${raStr(ra)} · ${decStr(dec)}`;
+    $('#nsAlt').textContent = p.alt > 0 ? `${p.alt.toFixed(0)}° · ${DIRS[isZh() ? 'zh' : 'en'][Math.round(p.az / 45) % 8]}` : (isZh() ? `${p.alt.toFixed(0)}°（在地平线以下）` : `${p.alt.toFixed(0)}° (below the horizon)`);
+    const ratioP = Math.pow(10, .4 * (STARS.polaris[2] - mag)), ratio6 = Math.pow(10, .4 * (6 - mag));
+    $('#nsF').innerHTML = [
+      (isZh() ? '时角 ' : 'hour angle ') + `H = LST − RA = ${lst.toFixed(2)}h − ${ra.toFixed(2)}h = ${p.H.toFixed(2)}h × 15 = ${(p.H * 15).toFixed(1)}°`,
+      `sin(alt) = sin φ·sin δ + cos φ·cos δ·cos H = sin ${phi.toFixed(1)}°·sin ${dec.toFixed(1)}° + cos ${phi.toFixed(1)}°·cos ${dec.toFixed(1)}°·cos ${(p.H * 15).toFixed(1)}° → <b>alt = ${p.alt.toFixed(1)}°</b>`,
+      (isZh() ? '最高 ' : 'highest ') + `= 90° − |φ − δ| = ${K.hi.toFixed(1)}° · ` + (isZh() ? '最低 ' : 'lowest ') + `= |φ + δ| − 90° = ${K.lo.toFixed(1)}° → <b>${Lab.L(K.k === 'circ' ? o('circumpolar: never sets','拱极星：永不落下') : K.k === 'never' ? o('never rises here','在这里永远不会升起') : o('rises and sets','东升西落'))}</b>`,
+      (isZh() ? '星等 ' : 'magnitude ') + `m = ${mag} → ${isZh() ? '比北极星' : 'vs Polaris'} (${STARS.polaris[2]}): 2.512<sup>${(STARS.polaris[2] - mag).toFixed(2)}</sup> = ${ratioP >= 1 ? sig1(ratioP) + (isZh() ? ' 倍亮' : '× brighter') : sig1(1 / ratioP) + (isZh() ? ' 倍暗' : '× fainter')} · ${isZh() ? '比肉眼极限 6 等星亮' : 'vs the faintest naked-eye star (6)'} ${sig1(ratio6)}×` + (isZh() ? '（5 个星等 = 100 倍）' : ' (5 magnitudes = ×100)'),
+      isZh() ? `北极星的高度 ≈ 纬度：这里约 ${Math.max(0, phi).toFixed(0)}°` : `Polaris’s height ≈ your latitude: here about ${Math.max(0, phi).toFixed(0)}°`
+    ].join('<br>');
+    graph(phi);
+  }
+  function graph(phi){
+    const cv = $('#nsCv'), box = cv.parentElement, W = box.clientWidth, H = box.clientHeight; if (!W || !H) return;
+    const dpr = Math.min(devicePixelRatio || 1, 2); cv.width = W * dpr; cv.height = H * dpr;
+    const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+    const ink = cssv('--ink') || '#222', ink2 = cssv('--ink-2') || '#666', line = cssv('--line') || '#ccc', brand = cssv('--brand') || '#7a5cff';
+    const Lx = 38, Rx = W - 10, Ty = 12, By = H - 28, X = m => Lx + m / 1440 * (Rx - Lx), Y = a => Ty + (90 - a) / 180 * (By - Ty);
+    g.fillStyle = 'rgba(120,130,150,.12)'; g.fillRect(Lx, Y(0), Rx - Lx, By - Y(0));
+    g.strokeStyle = line; g.lineWidth = 1; g.font = '700 11px Nunito'; g.fillStyle = ink2; g.textAlign = 'center';
+    for (let m = 0; m <= 1440; m += 180){ g.beginPath(); g.moveTo(X(m), Ty); g.lineTo(X(m), By); g.stroke(); g.textAlign = m === 1440 ? 'right' : 'center'; g.fillText(`${String((18 + m / 60) % 24).padStart(2, '0')}:00`, X(m), By + 14); }
+    g.textAlign = 'right'; [-90, -45, 0, 45, 90].forEach(a => { g.beginPath(); g.moveTo(Lx, Y(a)); g.lineTo(Rx, Y(a)); g.stroke(); g.fillText(a + '°', Lx - 4, Y(a) + 4); });
+    g.strokeStyle = ink2; g.lineWidth = 1.5; g.beginPath(); g.moveTo(Lx, Y(0)); g.lineTo(Rx, Y(0)); g.stroke();
+    g.fillStyle = ink2; g.textAlign = 'left'; g.fillText(Lab.L(o('horizon','地平线')), Lx + 4, Y(0) + 13);
+    g.strokeStyle = brand; g.lineWidth = 3; g.beginPath();
+    for (let m = 0; m <= 1440; m += 10){ const a = altAz(A.star, lstAt(m), phi).alt; m ? g.lineTo(X(m), Y(a)) : g.moveTo(X(m), Y(a)); } g.stroke();
+    const mNow = SKY.min, aNow = altAz(A.star, lstAt(mNow), phi).alt;
+    g.strokeStyle = '#ff9f43'; g.setLineDash([3, 3]); g.beginPath(); g.moveTo(X(mNow), Ty); g.lineTo(X(mNow), By); g.stroke(); g.setLineDash([]);
+    g.fillStyle = '#ff9f43'; g.beginPath(); g.arc(X(mNow), Y(aNow), 6, 0, 7); g.fill();
+    g.fillStyle = ink; g.font = '800 12px Nunito'; g.textAlign = 'left'; g.fillText(Lab.L(STAR_NAMES[A.star]), Lx + 6, Ty + 14);
+  }
+  /* 🎯 challenges: find special latitudes */
+  const POOL = { never:['sirius','antares','rigel','spica'], circ:['vega','capella','deneb','dubhe'], zen:['betelgeuse','arcturus','altair','aldebaran','regulus'] };
+  function newCh(){
+    const types = Object.keys(POOL).filter(t => POOL[t].some(k => STARS[k])); let t, k;
+    do { t = types[Math.random() * types.length | 0]; const p = POOL[t].filter(x => STARS[x]); k = p[Math.random() * p.length | 0]; } while (A.ch && A.ch.k === k);
+    A.ch = { t, k }; A.star = k; sel(); chText(); $('#nsCh').className = 'result'; $('#nsCh').textContent = ''; live(true);
+  }
+  function chText(){ const c = A.ch, n = Lab.L(STAR_NAMES[c.k]);
+    $('#nsChQ').textContent = c.t === 'never' ? (isZh() ? `找出${n}永远不会升起的、最靠近赤道的北半球纬度（误差 1° 以内）。` : `Find the northern latitude closest to the equator where ${n} NEVER rises (within 1°).`)
+      : c.t === 'circ' ? (isZh() ? `找出${n}永不落下（拱极）的最低北纬（误差 1° 以内）。` : `Find the lowest northern latitude where ${n} never sets: it becomes circumpolar (within 1°).`)
+      : (isZh() ? `把纬度调到让${n}正好从头顶（90°）经过（误差 1° 以内）。` : `Set the latitude so ${n} passes straight overhead, 90° up (within 1°).`); }
+  $('#nsChk').onclick = () => {
+    const c = A.ch, dec = STARS[c.k][1], phi = SKY.lat(), K = kind(dec, phi), el = $('#nsCh'), ans = c.t === 'never' ? 90 + dec : c.t === 'circ' ? 90 - dec : dec;
+    const ok = Math.abs(phi - ans) <= 1 && (c.t !== 'never' || K.k === 'never' || Math.abs(phi - ans) < .2) && (c.t !== 'circ' || K.k === 'circ' || Math.abs(phi - ans) < .2);
+    el.className = 'result ' + (ok ? 'good' : 'bad');
+    el.textContent = ok ? (isZh() ? `✅ 对了！答案是 ${c.t === 'never' ? '90° + δ' : c.t === 'circ' ? '90° − δ' : 'φ = δ'} = ${ans.toFixed(1)}°（δ = ${dec.toFixed(1)}°）。` : `✅ Right! The answer is ${c.t === 'never' ? '90° + δ' : c.t === 'circ' ? '90° − δ' : 'φ = δ'} = ${ans.toFixed(1)}° (δ = ${dec.toFixed(1)}°).`)
+      : (isZh() ? `❌ 现在纬度 ${phi.toFixed(1)}°。看公式框里的“最高”和“最低”高度：${c.t === 'zen' ? '最高要等于 90°。' : c.t === 'circ' ? '最低刚好等于 0°。' : '最高刚好等于 0°。'}` : `❌ Latitude now ${phi.toFixed(1)}°. Watch the “highest” and “lowest” heights in the formula box: ${c.t === 'zen' ? 'highest must reach 90°.' : c.t === 'circ' ? 'lowest should be just 0°.' : 'highest should be just 0°.'}`);
+  };
+  $('#nsChNew').onclick = newCh;
+  $('#nsLat').addEventListener('input', e => { SKY.latAdv = +e.target.value; if (SKY.three) SKY.three.refresh(); live(true); });
+  $('#locSel').addEventListener('change', () => { if (!Lab.adv()) return; SKY.latAdv = LOCS[SKY.loc].lat; $('#nsLat').value = SKY.latAdv; if (SKY.three) SKY.three.refresh(); live(true); });
+  $('#nsStar').addEventListener('change', e => { A.star = e.target.value; live(true); });
+  setInterval(() => live(), 300);
+  new ResizeObserver(() => live(true)).observe($('#nsCv').parentElement);
+  addEventListener('labtheme', () => live(true));
+  Lab.onLang(() => { sel(); locs(); if (A.ch) chText(); live(true); });
+  Lab.onMode(adv => { if (adv){ if (SKY.latAdv == null){ SKY.latAdv = LOCS[SKY.loc].lat; $('#nsLat').value = SKY.latAdv; } sel(); locs(); if (!A.ch) newCh(); live(true); } if (SKY.three) SKY.three.refresh(); });
+  window.NSAdv = { state:A, altAz, live };
+})();
+</script>
 <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
 <script type="module">
 import * as THREE from 'three';
@@ -814,7 +945,7 @@ const altOfObj = obj => { obj.getWorldPosition(tmp); return Math.asin(Math.max(-
 SKY.altOf = k => altOfObj(CO[k].anchor);
 let dirty = true, readT = 0, lastDay = null;
 function applySky(){
-  tilt.rotation.x = -(90 - LOCS[SKY.loc].lat) * D2R;
+  tilt.rotation.x = -(90 - SKY.lat()) * D2R;
   inner.rotation.y = -SKY.lst() * 15 * D2R;
   sun.position.copy(skyPos(SKY.sunRA(), SKY.sunDec(), R * .97));
   scene.updateMatrixWorld(true);

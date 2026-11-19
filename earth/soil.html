@@ -42,6 +42,9 @@
 #stage .pill input[type=range]{width:105px}
 #stage .tip{max-width:170px}
 @media (max-width:760px){.comp{grid-template-columns:1fr;justify-items:center}.protect{grid-template-columns:1fr}}
+.txwrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.txcol{display:flex;flex-direction:column;gap:8px}
+@media (max-width:760px){.txwrap{grid-template-columns:1fr}}
 </style>
 </head>
 <body data-subject="earth" data-topic="soil">
@@ -126,6 +129,7 @@
   <div class="sim">
     <div class="card simbox" id="percBox"><canvas id="percCv"></canvas></div>
     <div class="card simside">
+      <div class="lab-mode"></div>
       <h3 data-zh="控制台">Controls</h3>
       <label class="ctl"><span><span data-zh="每次倒水量">Water per pour</span>: <b id="volVal">100 mL</b></span><input id="vol" type="range" min="40" max="200" step="10" value="100"></label>
       <label class="toggle"><input type="checkbox" id="compact"><span data-zh="🚜 土壤被重型机械压实">🚜 Soil compacted by heavy machines</span></label>
@@ -134,6 +138,25 @@
       <table class="ptable"><thead><tr><th data-zh="土壤">Soil</th><th data-zh="首次滴水">First drip</th><th data-zh="流出">Drained</th><th data-zh="保留">Held</th></tr></thead><tbody id="ptbody"></tbody></table>
       <div class="result" id="percMsg"></div>
       <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="透水性 = 水“透过”土壤的能力。颗粒越大，孔隙越大，透水越快。">Permeability = how easily water “permeates” (passes through). Bigger grains → bigger pores → faster flow.</span></div>
+    </div>
+  </div>
+  <div class="adv adv-box txwrap" style="margin-top:18px">
+    <div class="txcol">
+      <b data-zh="🚀 进阶：自己配土壤（土壤质地三角图）">🚀 Advanced: mix your own soil (soil texture triangle)</b>
+      <p class="muted" style="margin:0;font-size:14px" data-zh="调砂粒和黏粒的比例（剩下的是粉粒），或者直接点三角图。你的土会出现在实验里的第 5 支管子中。">Set the sand and clay percentages (the rest is silt), or tap the triangle. Your soil appears as a 5th tube in the lab above.</p>
+      <label class="ctl"><span><span data-zh="砂粒 = ">Sand = </span><b id="txS">70%</b></span><input id="txSIn" type="range" min="0" max="100" value="70"></label>
+      <label class="ctl"><span><span data-zh="黏粒 = ">Clay = </span><b id="txC">10%</b></span><input id="txCIn" type="range" min="0" max="100" value="10"></label>
+      <label class="ctl"><span><span data-zh="暴雨强度 = ">Rainstorm = </span><b id="txR">25 mm/h</b></span><input id="txRIn" type="range" min="5" max="80" step="5" value="25"></label>
+      <div id="txF" style="font-size:15px;overflow-x:auto"></div>
+      <div style="border-top:1px solid var(--line);padding-top:8px">
+        <b data-zh="🎯 挑战">🎯 Challenge</b> <span data-zh="配一种菜园土：每小时至少能渗入 10 mm 雨水，同时至少能保住 25% 的水。">Design a garden soil that soaks up at least 10 mm of rain per hour AND holds at least 25% water.</span>
+        <div class="btnrow" style="margin-top:6px"><button class="btn" id="txCheck" data-zh="检查">Check</button></div>
+        <div class="result" id="txMsg"></div>
+      </div>
+    </div>
+    <div class="txcol">
+      <div id="txBox" data-nofs style="position:relative;height:360px;border-radius:12px;background:var(--surface-2);cursor:crosshair"><canvas id="txCv" style="position:absolute;inset:0;width:100%;height:100%"></canvas></div>
+      <p class="muted" style="margin:0;font-size:13px" data-zh="美国农业部土壤质地三角图：按砂粒、粉粒、黏粒的百分比把土壤分成 12 类。渗水速度和保水量是各类土壤的典型值（近似）。">USDA soil texture triangle: 12 soil classes by their percentages of sand, silt and clay. Infiltration and water-holding numbers are typical values for each class (approximate).</p>
     </div>
   </div>
 </section>
@@ -280,20 +303,23 @@ Lab.onLang(() => { renderInfo(); renderChips(); });
   ];
   let W = 0, H = 0, simT = 0, running = false, reported = true;
   SOILS.forEach(s => { s.pts = []; s.grains.forEach(([n, r0, r1, c]) => { for (let i = 0; i < n; i++) s.pts.push([Math.random(), Math.random(), r0 + Math.random() * (r1 - r0), c]); }); s.drops = []; });
-  function reset(){ SOILS.forEach(s => { s.pond = 0; s.soil = 0; s.out = 0; s.first = null; s.t0 = null; s.drops = []; }); simT = 0; reported = true; msg(''); table(); }
+  // 🚀 Advanced: a 5th tube with the student’s own mix (set from the texture triangle below)
+  const MIX = { k:'mix', name:{en:'Your mix',zh:'自配土'}, rate:13, hold:28, col:'#c9a873', dot:'#a88458', pts:[], drops:[], pond:0, soil:0, out:0, first:null, t0:null };
+  const list = () => Lab.adv() ? SOILS.concat([MIX]) : SOILS;
+  function reset(){ SOILS.concat([MIX]).forEach(s => { s.pond = 0; s.soil = 0; s.out = 0; s.first = null; s.t0 = null; s.drops = []; }); simT = 0; reported = true; msg(''); table(); }
   const msg = (t, good) => { const m = Lab.$('#percMsg'); m.textContent = t; m.className = 'result ' + (good ? 'good' : ''); };
   function table(){
-    Lab.$('#ptbody').innerHTML = SOILS.map(s => `<tr><td><i style="background:${s.col}"></i>${Lab.L(s.name)}</td><td>${s.first == null ? '—' : s.first.toFixed(1) + (Lab.lang==='zh'?' 秒':' s')}</td><td>${Math.round(s.out)} mL</td><td>${Math.round(s.soil)} mL</td></tr>`).join('');
+    Lab.$('#ptbody').innerHTML = list().map(s => `<tr><td><i style="background:${s.col}"></i>${Lab.L(s.name)}</td><td>${s.first == null ? '—' : s.first.toFixed(1) + (Lab.lang==='zh'?' 秒':' s')}</td><td>${Math.round(s.out)} mL</td><td>${Math.round(s.soil)} mL</td></tr>`).join('');
   }
   function resize(){ const b = box.getBoundingClientRect(), d = Math.min(devicePixelRatio, 2); W = b.width; H = b.height; cv.width = W * d; cv.height = H * d; g.setTransform(d, 0, 0, d, 0, 0); }
   new ResizeObserver(resize).observe(box); resize();
   Lab.$('#vol').oninput = e => Lab.$('#volVal').textContent = e.target.value + ' mL';
-  Lab.$('#pour').onclick = () => { const v = +Lab.$('#vol').value; SOILS.forEach(s => { s.pond += v; if (s.t0 == null) s.t0 = simT; }); reported = false; msg(''); };
+  Lab.$('#pour').onclick = () => { const v = +Lab.$('#vol').value; list().forEach(s => { s.pond += v; if (s.t0 == null) s.t0 = simT; }); reported = false; msg(''); };
   Lab.$('#percReset').onclick = reset;
   function step(dt){
     const k = Lab.$('#compact').checked ? .3 : 1;
     let busy = false;
-    SOILS.forEach(s => {
+    list().forEach(s => {
       const rate = s.rate * k, inflow = Math.min(s.pond, rate * dt); s.pond -= inflow; s.soil += inflow;
       const extra = s.soil - s.hold;
       if (extra > 0){ const o = Math.min(extra, rate * 1.3 * dt); s.soil -= o; s.out += o; if (s.first == null && s.out > .3) s.first = simT - s.t0;
@@ -310,9 +336,9 @@ Lab.onLang(() => { renderInfo(); renderChips(); });
   function draw(){
     const css = getComputedStyle(document.documentElement), ink = css.getPropertyValue('--ink').trim(), ink2 = css.getPropertyValue('--ink-2').trim(), line = css.getPropertyValue('--line').trim(), surf2 = css.getPropertyValue('--surface-2').trim();
     g.clearRect(0, 0, W, H);
-    const n = SOILS.length, cw = Math.min(92, W / n * .62), top = H * .2, sh = H * .3, by = H * .7, bh = H * .2;
+    const LS = list(), n = LS.length, cw = Math.min(92, W / n * .62), top = H * .2, sh = H * .3, by = H * .7, bh = H * .2;
     g.textAlign = 'center'; g.font = '800 14px Nunito, sans-serif';
-    SOILS.forEach((s, i) => {
+    LS.forEach((s, i) => {
       const cx = W / n * (i + .5), x0 = cx - cw / 2;
       g.fillStyle = ink; g.fillText(Lab.L(s.name), cx, 22);
       // tube walls (water space above soil)
@@ -346,13 +372,95 @@ Lab.onLang(() => { renderInfo(); renderChips(); });
   }
   let last = performance.now(), acc = 0;
   function loop(now){
-    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    const dt = Math.max(0, Math.min(.05, (now - last) / 1000)); last = now;   // never negative (the first rAF time can be earlier than performance.now())
     const sp = Lab.$('#ff').checked ? 4 : 1;
     for (let k = 0; k < sp; k++){ simT += dt; step(dt); }
     acc += dt; if (acc > .12){ acc = 0; table(); }
     draw(); requestAnimationFrame(loop);
   }
+  /* 🚀 Advanced: USDA soil texture triangle (12 classes). Ks = typical saturated infiltration (mm/h), FC = water held after draining (field capacity, fraction of volume); approximate textbook values. */
+  const TX = {
+    sand:{n:{en:'Sand',zh:'砂土'}, ks:210, fc:.09, c:'#f1dca0'}, lsand:{n:{en:'Loamy sand',zh:'壤质砂土'}, ks:61, fc:.125, c:'#e6cf8c'},
+    slo:{n:{en:'Sandy loam',zh:'砂质壤土'}, ks:26, fc:.21, c:'#d9c27c'}, loam:{n:{en:'Loam',zh:'壤土'}, ks:13, fc:.27, c:'#a8c27a'},
+    siltlo:{n:{en:'Silt loam',zh:'粉砂壤土'}, ks:6.8, fc:.33, c:'#c7d6a0'}, silt:{n:{en:'Silt',zh:'粉砂土'}, ks:5, fc:.33, c:'#dfe6c2'},
+    scl:{n:{en:'Sandy clay loam',zh:'砂质黏壤土'}, ks:4.3, fc:.255, c:'#e2b07c'}, cl:{n:{en:'Clay loam',zh:'黏壤土'}, ks:2.3, fc:.32, c:'#d7a07a'},
+    sicl:{n:{en:'Silty clay loam',zh:'粉砂质黏壤土'}, ks:1.5, fc:.365, c:'#cdb092'}, sc:{n:{en:'Sandy clay',zh:'砂质黏土'}, ks:1.2, fc:.34, c:'#d98f68'},
+    sic:{n:{en:'Silty clay',zh:'粉砂质黏土'}, ks:.9, fc:.385, c:'#c99a86'}, clay:{n:{en:'Clay',zh:'黏土'}, ks:.6, fc:.395, c:'#c97b5c'}
+  };
+  function txClass(S, Si, C){
+    if (Si + 1.5 * C < 15) return 'sand';
+    if (Si + 2 * C < 30) return 'lsand';
+    if (C >= 40 && Si >= 40) return 'sic';
+    if (C >= 40 && S <= 45) return 'clay';
+    if (C >= 35 && S > 45) return 'sc';
+    if (C >= 27 && C < 40 && S <= 20) return 'sicl';
+    if (C >= 27 && C < 40 && S <= 45) return 'cl';
+    if (C >= 20 && C < 35 && Si < 28 && S > 45) return 'scl';
+    if (Si >= 80 && C < 12) return 'silt';
+    if (Si >= 50 && C < 27) return 'siltlo';
+    if (C >= 7 && C < 27 && Si >= 28 && Si < 50 && S <= 52) return 'loam';
+    return 'slo';
+  }
+  const tc = Lab.$('#txCv'), tg = tc.getContext('2d'), tbox = Lab.$('#txBox'); let TW = 0, TH = 0, txS = 70, txC = 10;
+  const ANC = [[.6, 2.2], [5, 8], [13, 13], [210, 38]];   // match the 4 lab soils: Ks (mm/h) → tube flow rate
+  const tubeRate = ks => { const L = Math.log; if (ks <= ANC[0][0]) return ANC[0][1]; for (let i = 1; i < ANC.length; i++) if (ks <= ANC[i][0]){ const [a, ra] = ANC[i - 1], [b, rb] = ANC[i], u = (L(ks) - L(a)) / (L(b) - L(a)); return Math.exp(L(ra) + u * (L(rb) - L(ra))); } return ANC[3][1]; };
+  const mixHex = (S, Si, C) => { const p = [[0xe2, 0xc4, 0x8a], [0xb8, 0xa2, 0x83], [0xb5, 0x60, 0x3a]], w = [S, Si, C]; return '#' + [0, 1, 2].map(j => Math.round((p[0][j] * w[0] + p[1][j] * w[1] + p[2][j] * w[2]) / 100).toString(16).padStart(2, '0')).join(''); };
+  function geo(){ const pad = 26, side = Math.min(TW - 2 * pad, (TH - 44) / .866), x0 = (TW - side) / 2, yb = TH - 30; return { side, x0, yb, P:(S, C) => { const Si = 100 - S - C; return [x0 + side * (Si + C / 2) / 100, yb - side * .866 * C / 100]; } }; }
+  function txUpdate(){
+    const S = txS, C = txC, Si = 100 - S - C, k = txClass(S, Si, C), T = TX[k], comp = Lab.$('#compact').checked, ks = T.ks * (comp ? .3 : 1), R = +Lab.$('#txRIn').value, zh = Lab.lang === 'zh';
+    const soak = Math.min(R, ks), run = Math.max(0, R - ks), f1 = v => +v.toFixed(1);
+    Lab.$('#txS').textContent = S + '%'; Lab.$('#txC').textContent = C + '%'; Lab.$('#txR').textContent = R + ' mm/h';
+    Lab.$('#txF').innerHTML = `<div>${zh ? '砂粒' : 'Sand'} ${S}% + ${zh ? '粉粒' : 'silt'} ${Si}% + ${zh ? '黏粒' : 'clay'} ${C}% = 100% → <b>${Lab.L(T.n)}</b></div>
+      <div style="margin-top:4px">${zh ? '渗水速度约' : 'Infiltration rate ≈'} <b>${f1(ks)} mm/h</b>${comp ? (zh ? '（被压实：× 0.3）' : ' (compacted: × 0.3)') : ''} · ${zh ? '排水后保住的水约占土壤体积的' : 'water held after draining ≈'} <b>${Math.round(T.fc * 100)}%</b></div>
+      <div style="margin-top:4px">${zh ? `暴雨 1 小时下 ${R} mm：渗入 ${f1(soak)} mm，地表径流 = ${R} − ${f1(Math.min(R, ks))} = <b>${f1(run)} mm</b>（${Math.round(run / R * 100)}%）` : `A 1-hour storm drops ${R} mm: ${f1(soak)} mm soaks in; runoff = ${R} − ${f1(Math.min(R, ks))} = <b>${f1(run)} mm</b> (${Math.round(run / R * 100)}%)`}</div>`;
+    MIX.col = mixHex(S, Si, C); MIX.rate = tubeRate(T.ks); MIX.hold = 115 * T.fc;
+    MIX.pts = []; [[S / 100 * 110, 3.2, 5.5], [Si / 100 * 420, 1.5, 2.4], [C / 100 * 900, .8, 1.3]].forEach(([n, r0, r1], j) => { for (let i = 0; i < Math.round(n); i++) MIX.pts.push([Math.random(), Math.random(), r0 + Math.random() * (r1 - r0), ['#c9a265', '#8f7b5f', '#8d4325'][j]]); });
+    txDraw(); table();
+  }
+  function txDraw(){
+    if (!TW) return;
+    const css = getComputedStyle(document.documentElement), ink = css.getPropertyValue('--ink').trim(), ink2 = css.getPropertyValue('--ink-2').trim();
+    tg.clearRect(0, 0, TW, TH);
+    const { side, x0, yb, P } = geo(), step = 2, sums = {};
+    for (let C = 0; C <= 100; C += step) for (let S = 0; S <= 100 - C; S += step){   // colour the triangle cell by cell
+      const Si = 100 - S - C, k = txClass(S, Si, C), [x, y] = P(S, C), q = side * step / 100;
+      tg.fillStyle = TX[k].c; tg.fillRect(x - q * .55, y - q * .5, q * 1.1, q * .95);
+      const s = sums[k] || (sums[k] = [0, 0, 0]); s[0] += x; s[1] += y; s[2]++;
+    }
+    // clip the edges back to a clean triangle
+    tg.save(); tg.globalCompositeOperation = 'destination-in'; tg.beginPath(); tg.moveTo(...P(100, 0)); tg.lineTo(...P(0, 0)); tg.lineTo(...P(0, 100)); tg.closePath(); tg.fill(); tg.restore();
+    tg.strokeStyle = ink2; tg.lineWidth = 1.5; tg.beginPath(); tg.moveTo(...P(100, 0)); tg.lineTo(...P(0, 0)); tg.lineTo(...P(0, 100)); tg.closePath(); tg.stroke();
+    tg.font = '700 9.5px Nunito, sans-serif'; tg.textAlign = 'center'; tg.fillStyle = 'rgba(30,30,30,.85)';
+    for (const k in sums){ const [sx, sy, n] = sums[k]; if (n < 6) continue; tg.fillText(Lab.L(TX[k].n), sx / n, sy / n + 3); }
+    tg.fillStyle = ink2; tg.font = '800 11.5px Nunito, sans-serif';
+    tg.textAlign = 'left'; tg.fillText(Lab.L({en:'100% sand',zh:'100% 砂粒'}), P(100, 0)[0] - 18, yb + 16);
+    tg.textAlign = 'right'; tg.fillText(Lab.L({en:'100% silt',zh:'100% 粉粒'}), P(0, 0)[0] + 18, yb + 16);
+    tg.textAlign = 'center'; tg.fillText(Lab.L({en:'100% clay',zh:'100% 黏粒'}), P(0, 100)[0], P(0, 100)[1] - 6);
+    const [mx, my] = P(txS, txC); tg.fillStyle = ink; tg.beginPath(); tg.arc(mx, my, 6.5, 0, 6.283); tg.fill(); tg.strokeStyle = '#fff'; tg.lineWidth = 2.5; tg.stroke();
+  }
+  function txSize(){ const b = tbox.getBoundingClientRect(), d = Math.min(devicePixelRatio, 2); TW = b.width; TH = b.height; if (!TW) return; tc.width = TW * d; tc.height = TH * d; tg.setTransform(d, 0, 0, d, 0, 0); txDraw(); }
+  const setMix = (S, C) => { txS = Math.max(0, Math.min(100, S)); txC = Math.max(0, Math.min(100 - txS, C)); Lab.$('#txSIn').value = txS; Lab.$('#txCIn').value = txC; MIX.pond = 0; MIX.soil = 0; MIX.out = 0; MIX.first = null; MIX.t0 = null; MIX.drops = []; txUpdate(); };
+  Lab.$('#txSIn').oninput = e => setMix(+e.target.value, Math.min(txC, 100 - +e.target.value));
+  Lab.$('#txCIn').oninput = e => { const C = +e.target.value; setMix(Math.min(txS, 100 - C), C); };
+  Lab.$('#txRIn').oninput = txUpdate;
+  Lab.$('#compact').addEventListener('change', txUpdate);
+  tc.addEventListener('click', ev => {
+    const b = tc.getBoundingClientRect(), { side, x0, yb } = geo(), x = ev.clientX - b.left, y = ev.clientY - b.top;
+    const C = Math.round((yb - y) / (side * .866) * 100), Si = Math.round(((x - x0) / side * 100) - C / 2), S = 100 - Si - C;
+    if (C < 0 || Si < 0 || S < 0) return; setMix(S, C);
+  });
+  Lab.$('#txCheck').onclick = () => {
+    const k = txClass(txS, 100 - txS - txC, txC), T = TX[k], comp = Lab.$('#compact').checked, ks = T.ks * (comp ? .3 : 1), m = Lab.$('#txMsg'), zh = Lab.lang === 'zh';
+    let t, ok = false;
+    if (ks < 10) t = comp && T.ks >= 10 ? (zh ? '❌ 土被压实了，水渗得太慢。先取消“压实”。' : '❌ The soil is compacted, so water soaks in too slowly. Untick “compacted” first.') : (zh ? `❌ ${Lab.L(T.n)}渗水太慢（约 ${T.ks} mm/h）：多加点砂粒。` : `❌ ${Lab.L(T.n)} lets water in too slowly (about ${T.ks} mm/h): add more sand.`);
+    else if (T.fc < .25) t = zh ? `❌ ${Lab.L(T.n)}保水太少（约 ${Math.round(T.fc * 100)}%）：多加点粉粒或黏粒。` : `❌ ${Lab.L(T.n)} holds too little water (about ${Math.round(T.fc * 100)}%): add more silt or clay.`;
+    else { ok = true; t = zh ? `✅ ${Lab.L(T.n)}！渗水约 ${T.ks} mm/h，保水约 ${Math.round(T.fc * 100)}%。既能排水又能保水，所以园丁最喜欢壤土。倒水试试第 5 支管子吧！` : `✅ ${Lab.L(T.n)}! About ${T.ks} mm/h and ${Math.round(T.fc * 100)}% water held: it drains AND holds water, which is why gardeners love loam. Pour water to test your tube!`; }
+    m.textContent = t; m.className = 'result ' + (ok ? 'good' : 'bad');
+  };
+  new ResizeObserver(() => requestAnimationFrame(txSize)).observe(tbox); window.addEventListener('labtheme', txDraw);
   reset(); Lab.onLang(table); requestAnimationFrame(loop);
+  txUpdate(); Lab.onLang(txUpdate);
+  Lab.onMode(adv => { table(); if (adv) requestAnimationFrame(txSize); });
 })();
 
 /* ===== Quiz ===== */
@@ -366,7 +474,13 @@ const PHOTOS = [
   { part:'pores', kind:{en:'Lab image',zh:'实验室图像'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/14/Earthworm_burrows_in_a_soil_column.jpg/960px-Earthworm_burrows_in_a_soil_column.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Earthworm burrows in a column of soil after 28 days. These tunnels are pathways for air and water.', zh:'一段土柱里的蚯蚓洞穴（28 天后）。这些孔道是空气和水的通道。', credit:'W. M. Heinze, D. M. Mitrano, E. Lahive, J. Koestel, G. Cornelis', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Earthworm_burrows_in_a_soil_column.jpg' },
   { kind:{en:'Close-up photo',zh:'特写照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bb/Polygonal_cracks_in_drought-dried_soil_near_La_Guardia%2C_Margarita_Island%2C_Venezuela.jpg/960px-Polygonal_cracks_in_drought-dried_soil_near_La_Guardia%2C_Margarita_Island%2C_Venezuela.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Clay soil dried out by drought. Clay shrinks as it loses water, so it cracks into polygons and curls up.', zh:'被干旱晒干的黏土。黏土失水会收缩，于是裂成一块块多边形，边缘还翘了起来。', scale:{en:'Margarita Island, Venezuela',zh:'委内瑞拉玛格丽塔岛'}, credit:'Wilfredor', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Polygonal_cracks_in_drought-dried_soil_near_La_Guardia,_Margarita_Island,_Venezuela.jpg' },
   { kind:{en:'Photo · 1935',zh:'照片 · 1935 年'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d2/Dust_storm_approaching_Stratford%2C_Texas.jpg/960px-Dust_storm_approaching_Stratford%2C_Texas.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A dust storm rolls toward Stratford, Texas, in 1935, during the Dust Bowl. Plowed, dried-out topsoil with no plants to hold it simply blew away.', zh:'1935 年“黑色风暴”时期，沙尘暴扑向美国得克萨斯州的斯特拉特福德。翻耕过又干透的表土没有植物固定，就被风刮走了。', scale:{en:'Stratford, Texas, USA',zh:'美国得克萨斯州斯特拉特福德'}, credit:'George Everett Marsh Jr.', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Dust_storm_approaching_Stratford,_Texas.jpg' },
-  { kind:{en:'Aerial photo',zh:'航拍照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/52/NRCSIA99359_-_Iowa_%283411%29%28NRCS_Photo_Gallery%29.jpg/960px-NRCSIA99359_-_Iowa_%283411%29%28NRCS_Photo_Gallery%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Protecting soil today: strips of alfalfa and corn planted along the curves of the hills in Iowa, so rain cannot wash the topsoil straight downhill.', zh:'今天怎样保护土壤：美国艾奥瓦州的农田沿着山坡的等高线，一条苜蓿、一条玉米地间隔种植，雨水就不能把表土直接冲下坡。', scale:{en:'northeast Iowa, USA',zh:'美国艾奥瓦州东北部'}, credit:'Tim McCabe, USDA NRCS', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:NRCSIA99359_-_Iowa_(3411)(NRCS_Photo_Gallery).jpg' }
+  { kind:{en:'Aerial photo',zh:'航拍照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/52/NRCSIA99359_-_Iowa_%283411%29%28NRCS_Photo_Gallery%29.jpg/960px-NRCSIA99359_-_Iowa_%283411%29%28NRCS_Photo_Gallery%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Protecting soil today: strips of alfalfa and corn planted along the curves of the hills in Iowa, so rain cannot wash the topsoil straight downhill.', zh:'今天怎样保护土壤：美国艾奥瓦州的农田沿着山坡的等高线，一条苜蓿、一条玉米地间隔种植，雨水就不能把表土直接冲下坡。', scale:{en:'northeast Iowa, USA',zh:'美国艾奥瓦州东北部'}, credit:'Tim McCabe, USDA NRCS', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:NRCSIA99359_-_Iowa_(3411)(NRCS_Photo_Gallery).jpg' },
+  { kind:{en:'Close-up photo',zh:'特写照片'}, src:'https://upload.wikimedia.org/wikipedia/commons/f/f5/Compost.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'A handful of finished compost. Worms, fungi and bacteria broke down old leaves and food scraps into dark, crumbly organic matter, like the humus that makes topsoil rich.', zh:'一捧腐熟的堆肥。蚯蚓、真菌和细菌把落叶和厨余分解成了深色、松散的有机质，就像让表土变得肥沃的腐殖质一样。', credit:'English Wikipedia contributor', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Compost.jpg' },
+  { kind:{en:'Close-up photo',zh:'特写照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fd/CSIRO_ScienceImage_458_Springtail_a_Member_of_the_Neanuridae_Family.jpg/960px-CSIRO_ScienceImage_458_Springtail_a_Member_of_the_Neanuridae_Family.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A springtail crawling between grains of sand, greatly magnified. Springtails are among the most common animals in soil: a single handful can hold many of them, nibbling fungi and rotting plant bits.', zh:'放大很多倍的跳虫，正在沙粒之间爬行。跳虫是土壤里最常见的小动物之一：一把土里就可能有许多只，它们啃食真菌和腐烂的植物碎屑。', scale:{en:'only a few millimetres long',zh:'只有几毫米长'}, credit:'CSIRO', license:'CC BY 3.0', page:'https://commons.wikimedia.org/wiki/File:CSIRO_ScienceImage_458_Springtail_a_Member_of_the_Neanuridae_Family.jpg' },
+  { part:'roots', kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c1/CSIRO_ScienceImage_4387_Tree_stump_with_exposed_roots_as_a_result_of_dryland_salinity_and_gully_erosion_near_Charters_Towers_QLD.jpg/960px-CSIRO_ScienceImage_4387_Tree_stump_with_exposed_roots_as_a_result_of_dryland_salinity_and_gully_erosion_near_Charters_Towers_QLD.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Roots hold soil in place. Around this old tree stump the bare soil has been washed away, but the soil gripped by its roots still stands up like a little table.', zh:'根能把土壤固定住。这截老树桩周围裸露的土壤已经被冲走了，被树根抓住的那一块土却还立在那里，像一张小桌子。', scale:{en:'near Charters Towers, Queensland, Australia',zh:'澳大利亚昆士兰州查特斯堡附近'}, credit:'Willem van Aken, CSIRO', license:'CC BY 3.0', page:'https://commons.wikimedia.org/wiki/File:CSIRO_ScienceImage_4387_Tree_stump_with_exposed_roots_as_a_result_of_dryland_salinity_and_gully_erosion_near_Charters_Towers_QLD.jpg' },
+  { type:'youtube', yt:'5b9o7yM7YGE', kind:{en:'Video',zh:'视频'}, en:'SciShow Kids: where does soil come from? Rock that is slowly broken down, mixed with bits of dead plants and animals, and a lot of time.', zh:'SciShow Kids：土壤是从哪里来的？慢慢碎裂的岩石，混进枯死的动植物残体，再加上很长很长的时间。', credit:'SciShow Kids (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'Q-J2FErZHuA', kind:{en:'Video',zh:'视频'}, en:'SciShow Kids: soil is alive! Meet the worms, insects, fungi and tiny microbes that live in a handful of dirt and keep it healthy.', zh:'SciShow Kids：土壤是活的！认识一把泥土里住着的蚯蚓、昆虫、真菌和微小的微生物，正是它们让土壤保持健康。', credit:'SciShow Kids (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'udseIcrUxvA', kind:{en:'Video',zh:'视频'}, en:'Crash Course Geography (for older students): what is soil, how do its horizons form, and why does it matter so much for farming and for life?', zh:'Crash Course 地理（适合稍大一些的学生）：什么是土壤？土层是怎样形成的？为什么土壤对农业和生命如此重要？', credit:'CrashCourse (YouTube)', license:'YouTube' }
 ];
 PHOTOS.forEach(it => { if (it.part && PARTS[it.part]) PARTS[it.part].photo = it; });
 LabPhotos.render(Lab.$('#gallery'), PHOTOS);

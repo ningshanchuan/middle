@@ -118,6 +118,7 @@ textarea.tin{min-height:70px;resize:vertical}
   </div>
   <div class="explorer">
     <div class="stage card" id="wheelStage">
+      <div class="lab-mode"></div>
       <div class="btnrow" id="cTabs"></div>
       <svg id="wheel" viewBox="-200 -200 400 400" role="img" aria-label="Caesar cipher wheel"></svg>
       <label class="ctl" id="shiftCtl"><span data-zh="密钥（移位数）">Key (shift)</span> <b id="shiftOut">3</b><input type="range" id="shift" min="0" max="25" value="3"></label>
@@ -126,6 +127,35 @@ textarea.tin{min-height:70px;resize:vertical}
       <textarea class="tin" id="cIn" spellcheck="false" aria-label="Input">ATTACK AT DAWN</textarea>
       <div class="out" id="cOut"></div>
       <div class="keyrow" id="keyRow"></div>
+      <div class="adv adv-box" id="advC" style="display:flex;flex-direction:column;gap:10px">
+        <b data-zh="进阶：密码背后的数学、字母“指纹”、迷你公钥和哈希">Advanced: the maths, letter fingerprints, a tiny public key and a hash</b>
+        <div class="mono" id="aFormula" style="font-size:14.5px;font-weight:700;line-height:1.6"></div>
+        <div id="aKeys" style="font-size:14px"></div>
+        <div id="aFreq" data-nofs></div>
+        <div class="legendrow" id="aFreqLeg"></div>
+        <div id="aIC" style="font-size:14px"></div>
+        <div class="btnrow"><button class="btn ghost" id="aLong" data-zh="📜 换成一段长英文">📜 Use a long English text</button></div>
+        <details class="peek" id="aBruteBox"><summary data-zh="🔨 暴力破解：把25个密钥全试一遍">🔨 Brute force: try all 25 keys</summary><div class="mono" id="aBrute" style="font-size:13px;line-height:1.5;max-height:220px;overflow:auto"></div></details>
+        <div style="border-top:1px solid var(--line);padding-top:8px;display:flex;flex-direction:column;gap:8px">
+          <b data-zh="🔐 迷你公钥加密（RSA，用很小的质数）">🔐 A tiny public-key cipher (RSA with small primes)</b>
+          <div class="btnrow" style="align-items:center;font-weight:800;font-size:14px">
+            <label>p <select id="rP" class="tin" style="width:auto;padding:4px 8px;font-size:15px"></select></label>
+            <label>q <select id="rQ" class="tin" style="width:auto;padding:4px 8px;font-size:15px"></select></label>
+            <label>e <select id="rE" class="tin" style="width:auto;padding:4px 8px;font-size:15px"></select></label>
+          </div>
+          <label class="ctl"><span data-zh="要加密的数（消息 m）">Number to encrypt (message m)</span> <b id="rMOut">4</b><input type="range" id="rM" min="2" max="32" value="4"></label>
+          <div class="mono" id="rOut" style="font-size:14px;font-weight:700;line-height:1.6"></div>
+        </div>
+        <div style="border-top:1px solid var(--line);padding-top:8px">
+          <b data-zh="#️⃣ 哈希：数据的“指纹”">#️⃣ Hashing: a fingerprint of the data</b>
+          <div id="hOut" style="font-size:14px;margin-top:4px"></div>
+        </div>
+        <div style="border-top:1px solid var(--line);padding-top:8px">
+          <b data-zh="🎯 挑战">🎯 Challenge</b> <span id="aChTxt"></span>
+          <div class="btnrow" style="margin-top:6px;align-items:center"><input class="tin" id="aChIn" style="width:160px;padding:6px 10px" spellcheck="false" aria-label="Answer"><button class="btn" id="aChCheck" data-zh="检查">Check</button><button class="btn ghost" id="aChNew" data-zh="换一题">New challenge</button></div>
+          <div class="result" id="aChMsg"></div>
+        </div>
+      </div>
     </div>
     <aside class="info card" id="info" aria-live="polite"></aside>
   </div>
@@ -342,10 +372,119 @@ function renderCipher(){
     Lab.$('#keyRow').innerHTML = `${Lab.L(o('Key letter above each letter (A=+0, B=+1 … Z=+25):', '每个字母对应的密钥字母（A=+0，B=+1……Z=+25）：'))}<br>${row}`; }
   else Lab.$('#keyRow').textContent = Lab.L(o(`With key ${k}: A→${ABC[k % 26]}, B→${ABC[(1 + k) % 26]}, Z→${ABC[(25 + k) % 26]}. Only 25 keys to try!`, `密钥为${k}时：A→${ABC[k % 26]}，B→${ABC[(1 + k) % 26]}，Z→${ABC[(25 + k) % 26]}。总共只有25个密钥可试！`));
   drawWheel();
+  advCipher();
 }
 Lab.$('#shift').oninput = renderCipher; Lab.$('#cIn').oninput = renderCipher; Lab.$('#vkey').oninput = renderCipher;
 Lab.$('#modeEnc').onclick = () => { if (!CW.enc){ CW.enc = true; Lab.$('#cIn').value = Lab.$('#cOut').textContent.replace(/^\S+ /, ''); } renderCipher(); };
 Lab.$('#modeDec').onclick = () => { if (CW.enc){ CW.enc = false; Lab.$('#cIn').value = Lab.$('#cOut').textContent.replace(/^\S+ /, ''); } renderCipher(); };
+/* ---------- 🚀 Advanced mode for Sim 2: formulas, key space, frequency fingerprint, brute force, tiny RSA, hashing ---------- */
+const LONG_TXT = 'CODEBREAKERS LOVE LONG MESSAGES BECAUSE EVERY LANGUAGE HAS A FINGERPRINT. IN ENGLISH THE LETTER E TURNS UP MORE OFTEN THAN ANY OTHER LETTER, FOLLOWED BY T, A AND O. A CAESAR CIPHER MOVES THE WHOLE FINGERPRINT SIDEWAYS, SO THE TALLEST BAR IS STILL EASY TO SPOT. A VIGENERE CIPHER USES SEVERAL SHIFTS AT ONCE, WHICH SMEARS THE BARS OUT UNTIL THEY LOOK ALMOST FLAT. THAT IS WHY IT WAS CALLED THE INDECIPHERABLE CIPHER FOR SO LONG.';
+const AC = { ch:0, lastTxt:null, lastHash:0, flips:null };
+const SUP = { '0':'⁰', '1':'¹', '2':'²', '3':'³', '4':'⁴', '5':'⁵', '6':'⁶', '7':'⁷', '8':'⁸', '9':'⁹', '-':'⁻' };
+const sup = n => String(n).split('').map(c => SUP[c] || c).join('');
+const big = x => x < 1e12 ? Math.round(x).toLocaleString('en-US') : (() => { const e = Math.floor(Math.log10(x)); return (x / 10 ** e).toFixed(1) + ' × 10' + sup(e); })();
+function dur(s){
+  if (s < 1e-3) return o('less than a millisecond', '不到1毫秒');
+  if (s < 60) return o(`about ${s.toFixed(s < 1 ? 3 : 0)} seconds`, `约${s.toFixed(s < 1 ? 3 : 0)}秒`);
+  if (s < 3600) return o(`about ${Math.round(s / 60)} minutes`, `约${Math.round(s / 60)}分钟`);
+  if (s < 86400) return o(`about ${Math.round(s / 3600)} hours`, `约${Math.round(s / 3600)}小时`);
+  if (s < 3.156e7) return o(`about ${Math.round(s / 86400)} days`, `约${Math.round(s / 86400)}天`);
+  const y = s / 3.156e7; return o(`about ${big(y)} years`, `约${big(y)}年`);
+}
+const freqOf = t => { const c = new Array(26).fill(0); let n = 0; for (const ch of t.toUpperCase()){ const i = ABC.indexOf(ch); if (i >= 0){ c[i]++; n++; } } return { c, n }; };
+const icOf = f => f.n < 2 ? null : f.c.reduce((s, x) => s + x * (x - 1), 0) / (f.n * (f.n - 1));
+const engScore = t => [...t].reduce((s, c) => s + (EN_FREQ[c] || 0), 0);
+const fnv = t => { let h = 0x811c9dc5; for (const b of enc.encode(t)){ h ^= b; h = Math.imul(h, 0x01000193) >>> 0; } h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b); h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35); h ^= h >>> 16; return h >>> 0; };   /* FNV-1a + a final mixing step */
+const popcnt = x => { let k = 0; while (x){ k += x & 1; x >>>= 1; } return k; };
+const modPow = (b, e, m) => { let r = 1; b %= m; while (e > 0){ if (e & 1) r = r * b % m; b = b * b % m; e = Math.floor(e / 2); } return r; };
+const gcd = (a, b) => b ? gcd(b, a % b) : a;
+const modInv = (e, m) => { for (let d = 1; d < m; d++) if (e * d % m === 1) return d; return null; };
+const PRIMES = [3, 5, 7, 11, 13, 17, 19, 23], ECAND = [3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47];
+Lab.$('#rP').innerHTML = PRIMES.map(p => `<option${p === 5 ? ' selected' : ''}>${p}</option>`).join('');
+Lab.$('#rQ').innerHTML = PRIMES.map(p => `<option${p === 11 ? ' selected' : ''}>${p}</option>`).join('');
+const ACH = [
+  { q:o('RSA: with p = 5, q = 11 and e = 3, what is the private key d?', 'RSA：当 p = 5、q = 11、e = 3 时，私钥 d 是多少？'), a:String(modInv(3, 40)),
+    hint:o('φ = 4 × 10 = 40. Find d so that 3 × d leaves remainder 1 when divided by 40. (Set p, q, e above to check.)', 'φ = 4 × 10 = 40。找一个 d，使 3 × d 除以 40 余 1。（可以在上面设好 p、q、e 来验证。）') },
+  { q:o('RSA: the public key is (n = 33, e = 7). Encrypt the message m = 4. What is c?', 'RSA：公钥是（n = 33，e = 7）。加密消息 m = 4，密文 c 是多少？'), a:String(modPow(4, 7, 33)),
+    hint:o('c = 4⁷ mod 33. 33 = 3 × 11 — set p = 3, q = 11, e = 7 and m = 4 above.', 'c = 4⁷ mod 33。33 = 3 × 11——在上面设 p = 3、q = 11、e = 7、m = 4。') },
+  { q:o(`Vigenère: decrypt “${vig('SECRET', 'KEY', 1)}” with the key word KEY.`, `维吉尼亚密码：用密钥单词 KEY 解密“${vig('SECRET', 'KEY', 1)}”。`), a:'SECRET',
+    hint:o('Choose the Vigenère tab, type the cipher text, key word KEY, and press 🔓 Decrypt.', '选“维吉尼亚密码”，输入密文和密钥 KEY，再点 🔓 解密。') },
+  { q:o(`Caesar: “${caesar('MEET ME AT NOON', 11)}” was encrypted with an unknown key. What is the key?`, `凯撒密码：“${caesar('MEET ME AT NOON', 11)}”用了一个未知的密钥。密钥是多少？`), a:'11',
+    hint:o('Paste it into the box, choose 🔓 Decrypt and open “Brute force” — look for the line that is real English.', '把它粘贴到输入框，选 🔓 解密，打开“暴力破解”——找出读得通的那一行。') },
+  { q:o('How many different Vigenère key words have exactly 3 letters?', '恰好3个字母的维吉尼亚密钥单词一共有多少种？'), a:String(26 ** 3),
+    hint:o('Each of the 3 letters can be any of 26 → 26 × 26 × 26.', '每个字母都有26种选择 → 26 × 26 × 26。') }
+];
+function advCipher(){
+  if (!Lab.adv()) return;
+  const k = +Lab.$('#shift').value, t = Lab.$('#cIn').value, up = t.toUpperCase(), key = Lab.$('#vkey').value.toUpperCase().replace(/[^A-Z]/g, '') || 'A', sgn = CW.enc ? 1 : -1, caes = CW.mode === 'caesar';
+  const out = caes ? caesar(t, sgn * k) : vig(t, key, sgn);
+  /* rule with the current numbers */
+  const ex = []; let j = 0;
+  for (const c of up){ const i = ABC.indexOf(c); if (i < 0) continue; const kk = caes ? k : ABC.indexOf(key[j % key.length]), raw = i + sgn * kk, r = ((raw % 26) + 26) % 26; j++;
+    ex.push(`${c}(${i}) ${CW.enc ? '+' : '−'} ${kk}${caes ? '' : ' [' + key[(j - 1) % key.length] + ']'} = ${raw < 0 ? '−' + -raw : raw}${raw !== r ? ` → mod 26 = ${r}` : ''} → ${ABC[r]}`); if (ex.length >= 3) break; }
+  const rule = caes ? (CW.enc ? 'C = (P + k) mod 26' : 'P = (C − k) mod 26') : (CW.enc ? 'Cᵢ = (Pᵢ + Kᵢ) mod 26' : 'Pᵢ = (Cᵢ − Kᵢ) mod 26');
+  Lab.$('#aFormula').innerHTML = `${Lab.L(o('Letters as numbers: A = 0, B = 1 … Z = 25.', '把字母看成数：A = 0，B = 1……Z = 25。'))}<br><b style="color:var(--brand)">${rule}</b>${caes ? '' : ' ' + Lab.L(o('(Kᵢ = key letter above letter i)', '（Kᵢ 是第 i 个字母对应的密钥字母）'))}<br>${ex.map(esc).join('<br>') || '—'}`;
+  /* key space */
+  const L = key.length, nk = 26 ** L;
+  Lab.$('#aKeys').innerHTML = caes
+    ? Lab.L(o('<b>Key space:</b> only 25 useful keys. A computer trying 1 billion keys per second checks them all in less than a millisecond.', '<b>密钥空间：</b>只有25个有用的密钥。每秒能试10亿个密钥的计算机，不到1毫秒就全试完了。'))
+    : Lab.L(o(`<b>Key space:</b> a ${L}-letter key word → 26${sup(L)} = ${big(nk)} keys. Trying them all at 1 billion keys per second: ${dur(nk / 1e9).en}. But codebreakers don’t need to: once they guess the key length ${L}, every ${L === 1 ? '' : ordEn(L) + ' '}letter is just a Caesar cipher. Modern 128-bit keys: 2¹²⁸ ≈ 3.4 × 10³⁸.`,
+                       `<b>密钥空间：</b>${L}个字母的密钥单词 → 26${sup(L)} = ${big(nk)} 种密钥。每秒试10亿个，全部试完需要${dur(nk / 1e9).zh}。但破译者不必全试：只要猜出密钥长度${L}，每隔${L}个字母取一个，就是一个普通的凯撒密码。现代128位密钥：2¹²⁸ ≈ 3.4 × 10³⁸。`));
+  /* frequency fingerprint: input vs output */
+  const fi = freqOf(up), fo = freqOf(out), W = 520, H = 130, Lm = 26, B = 18, T = 6, cw = (W - Lm - 4) / 26;
+  const pi = fi.c.map(x => fi.n ? x / fi.n * 100 : 0), po = fo.c.map(x => fo.n ? x / fo.n * 100 : 0), mx = Math.max(15, ...pi, ...po), y = v => T + (mx - v) / mx * (H - T - B);
+  let s = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img" aria-label="${Lab.L(o('Letter frequencies before and after', '加密前后的字母频率'))}">`;
+  [0, 10, 20, 30, 40].filter(v => v <= mx).forEach(v => { s += `<line x1="${Lm}" x2="${W - 4}" y1="${y(v)}" y2="${y(v)}" style="stroke:var(--line)"/><text x="${Lm - 3}" y="${y(v) + 3}" text-anchor="end" font-size="9" style="fill:var(--ink-2)">${v}%</text>`; });
+  ABC.split('').forEach((l, i) => { const x = Lm + i * cw;
+    s += `<rect x="${x + cw * .08}" y="${y(pi[i])}" width="${cw * .4}" height="${y(0) - y(pi[i])}" rx="1.5" style="fill:var(--ink-2);opacity:.5"/><rect x="${x + cw * .5}" y="${y(po[i])}" width="${cw * .42}" height="${y(0) - y(po[i])}" rx="1.5" style="fill:var(--brand)"/>`;
+    s += `<text x="${x + cw / 2}" y="${H - 5}" text-anchor="middle" font-size="10" font-weight="800" style="fill:var(--ink)">${l}</text>`; });
+  Lab.$('#aFreq').innerHTML = s + '</svg>';
+  Lab.$('#aFreqLeg').innerHTML = `<span><i style="background:var(--ink-2);opacity:.5"></i>${Lab.L(o('input letters', '输入的字母'))}</span><span><i style="background:var(--brand)"></i>${Lab.L(o('output letters', '输出的字母'))}</span>`;
+  const ii = icOf(fi), io = icOf(fo), f3 = v => v === null ? '—' : v.toFixed(3);
+  Lab.$('#aIC').innerHTML = Lab.L(o(`<b>Index of coincidence</b> (how “bumpy” the bars are) = Σ n(n−1) ÷ (N(N−1)): input <b>${f3(ii)}</b> → output <b>${f3(io)}</b>. Normal English ≈ 0.066, random letters ≈ 0.038. A Caesar shift never changes it; a long, varied Vigenère key pushes it toward 0.038.`,
+    `<b>重合指数</b>（柱子有多“高低不平”）= Σ n(n−1) ÷ (N(N−1))：输入 <b>${f3(ii)}</b> → 输出 <b>${f3(io)}</b>。正常英语约为0.066，随机字母约为0.038。凯撒移位永远不会改变它；又长又多变的维吉尼亚密钥会让它接近0.038。`))
+    + (fi.n < 100 ? ' <span class="muted">' + Lab.L(o(`(Only ${fi.n} letters — the numbers are rough. Try the long text.)`, `（只有${fi.n}个字母——数值只是粗略的。试试那段长文字。）`)) + '</span>' : '');
+  /* brute force (Caesar only) */
+  Lab.$('#aBruteBox').hidden = !caes;
+  if (caes){ const ctx = (CW.enc ? out : up).replace(/[^A-Z ]/g, '').slice(0, 44), rows = [];
+    for (let kk = 1; kk < 26; kk++) rows.push({ kk, p:caesar(ctx, -kk) });
+    const best = rows.reduce((a, b) => engScore(b.p) > engScore(a.p) ? b : a);
+    Lab.$('#aBrute').innerHTML = `<div class="muted" style="font-family:Nunito,sans-serif">${Lab.L(o(`Attacking the ${CW.enc ? 'output' : 'input'}. ⭐ = most English-looking line (letter-frequency score).`, `攻击${CW.enc ? '输出' : '输入'}的密文。⭐ = 最像英语的一行（按字母频率打分）。`))}</div>` + rows.map(r => `<div${r === best ? ' style="color:var(--good);font-weight:800"' : ''}>k=${String(r.kk).padStart(2, ' ')}: ${esc(r.p)}${r === best ? ' ⭐' : ''}</div>`).join(''); }
+  /* tiny RSA */
+  const p = +Lab.$('#rP').value, q = +Lab.$('#rQ').value, n = p * q, phi = (p - 1) * (q - 1);
+  if (p === q){ Lab.$('#rOut').innerHTML = `<span style="color:var(--bad)">${Lab.L(o('p and q must be two different primes.', 'p 和 q 必须是两个不同的质数。'))}</span>`; }
+  else {
+    const es = ECAND.filter(e => e < phi && gcd(e, phi) === 1), ePrev = +Lab.$('#rE').value;
+    Lab.$('#rE').innerHTML = es.map(e => `<option${e === ePrev ? ' selected' : ''}>${e}</option>`).join('');
+    const e = +Lab.$('#rE').value, d = modInv(e, phi), mi = Lab.$('#rM'); mi.max = n - 1; if (+mi.value > n - 1) mi.value = n - 1;
+    const m = +mi.value, c = modPow(m, e, n), back = modPow(c, d, n), me = m ** e; Lab.$('#rMOut').textContent = m;
+    Lab.$('#rOut').innerHTML = `n = p × q = ${p} × ${q} = <b>${n}</b> <span class="muted">(${Lab.L(o('public', '公开'))})</span><br>φ = (p−1)(q−1) = ${p - 1} × ${q - 1} = ${phi} <span class="muted">(${Lab.L(o('secret', '保密'))})</span><br>`
+      + `${Lab.L(o('public key', '公钥'))} (n, e) = (${n}, ${e}) · ${Lab.L(o('private key', '私钥'))} d = <b>${d}</b>, ${Lab.L(o('because', '因为'))} e × d = ${e * d} = ${Math.floor(e * d / phi)} × ${phi} + 1<br>`
+      + `🔒 c = mᵉ mod n = ${m}${sup(e)} mod ${n}${me < 1e15 ? ' = ' + me.toLocaleString('en-US') + ' mod ' + n : ''} = <b style="color:var(--brand)">${c}</b><br>`
+      + `🔓 m = cᵈ mod n = ${c}${sup(d)} mod ${n} = <b style="color:var(--good)">${back}</b> ${back === m ? '✅' : ''}<br>`
+      + `<span style="font-family:Nunito,sans-serif;font-weight:600">${Lab.L(o(`Anyone may lock with (n, e); only d unlocks. To find d you must split n back into p × q — easy for ${n}, but real HTTPS keys use an n of about 617 digits (2048 bits), which nobody can split in practice.`, `任何人都可以用（n, e）“上锁”，只有 d 能“开锁”。要算出 d，必须把 n 分解回 p × q——${n} 很容易分解，但真实的 HTTPS 密钥中 n 约有617位数字（2048位二进制），实际上没人能分解。`))}</span>`;
+  }
+  /* hashing */
+  const h = fnv(t), hx = h.toString(16).padStart(8, '0').toUpperCase();
+  if (AC.lastTxt !== null && AC.lastTxt !== t) AC.flips = popcnt((h ^ AC.lastHash) >>> 0);
+  AC.lastTxt = t; AC.lastHash = h;
+  Lab.$('#hOut').innerHTML = Lab.L(o(`Hash of the text in the box (a small 32-bit hash): <b class="mono" style="color:var(--brand)">${hx}</b>`, `输入框中文字的哈希值（一个32位的小哈希）：<b class="mono" style="color:var(--brand)">${hx}</b>`))
+    + (AC.flips !== null ? '<br>' + Lab.L(o(`Your last edit flipped <b>${AC.flips} of 32</b> bits. A good hash flips about half (≈ 16), even for a one-letter change — the “avalanche effect”.`, `你上一次修改翻转了 <b>32位中的${AC.flips}位</b>。好的哈希哪怕只改一个字母，也会翻转约一半（约16位）——这叫“雪崩效应”。`)) : '<br>' + Lab.L(o('Change just one letter and watch the whole hash change.', '只改一个字母，看看整个哈希值怎样变。')))
+    + '<br><span class="muted">' + Lab.L(o('A hash only works one way: you can’t turn it back into the text. Websites store a hash of your password, not the password. Real systems use much stronger hashes such as SHA-256 (256 bits); this small one is only for learning.', '哈希是单向的：无法从哈希值还原出原文。网站保存的是密码的哈希值，而不是密码本身。真实系统使用强得多的哈希算法，例如 SHA-256（256位）；这个小哈希只用来学习。')) + '</span>';
+  Lab.$('#aChTxt').textContent = Lab.L(ACH[AC.ch].q);
+}
+const ordEn = n => n + (n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2 && n % 100 !== 12 ? 'nd' : n % 10 === 3 && n % 100 !== 13 ? 'rd' : 'th');
+['#rP', '#rQ', '#rE'].forEach(id => Lab.$(id).onchange = advCipher);
+Lab.$('#rM').oninput = advCipher;
+Lab.$('#aLong').onclick = () => { Lab.$('#cIn').value = LONG_TXT; CW.enc = true; renderCipher(); };
+Lab.$('#aChNew').onclick = () => { AC.ch = (AC.ch + 1) % ACH.length; Lab.$('#aChIn').value = ''; Lab.$('#aChMsg').textContent = ''; Lab.$('#aChMsg').className = 'result'; advCipher(); };
+Lab.$('#aChCheck').onclick = () => {
+  const C = ACH[AC.ch], v = Lab.$('#aChIn').value.toUpperCase().replace(/[^A-Z0-9]/g, ''), ok = v === C.a.replace(/[^A-Z0-9]/g, ''), el = Lab.$('#aChMsg');
+  el.className = 'result ' + (ok ? 'good' : 'bad');
+  el.textContent = Lab.L(ok ? o(`🎉 Correct: ${C.a}!`, `🎉 正确：${C.a}！`) : o(`Not yet. 💡 ${C.hint.en}`, `还不对。💡 ${C.hint.zh}`));
+};
+Lab.$('#aChIn').addEventListener('keydown', e => { if (e.key === 'Enter') Lab.$('#aChCheck').click(); });
+Lab.onMode(adv => { if (adv) advCipher(); });
 /* info panel */
 function select(k){ CW.sel = k; renderInfo(); }
 function renderInfo(){
@@ -494,8 +633,15 @@ const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/26/Punched_card_program_deck.agr.jpg/960px-Punched_card_program_deck.agr.jpg', en:'A computer program on punched cards, made around 1969: each hole (or no hole) was a piece of data. One card held one line of code.', zh:'约1969年制作的一叠穿孔卡片程序：有孔、无孔就是数据。一张卡片存一行代码。', kind:o('Photo','照片'), credit:'ArnoldReinhold', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Punched_card_program_deck.agr.jpg' },
   { src:'https://upload.wikimedia.org/wikipedia/commons/0/09/Subpixel_photo_e.jpg', en:'A letter “e” on an LCD screen seen through a microscope: every pixel is really three tiny red, green and blue bars.', zh:'用显微镜看液晶屏上的字母“e”：每个像素其实是红、绿、蓝三根小条。', kind:o('Microscope photo','显微照片'), credit:'Jonsmirl (English Wikipedia)', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Subpixel_photo_e.jpg' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a5/QR_Code_Structure_Example_2.svg/960px-QR_Code_Structure_Example_2.svg.png', en:'A QR code with its parts highlighted. Each black or white square is one bit; the big corner squares help the camera find the code.', zh:'标出各部分的二维码。每个黑色或白色的小方块就是一个比特；三个角上的大方块帮助相机找到二维码。', kind:o('Diagram','示意图'), credit:'Zephyris', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:QR_Code_Structure_Example_2.svg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b5/CipherDisk2000.jpg/960px-CipherDisk2000.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A cipher disk: turn the inner ring to line up letters, and every letter is swapped for another one. Set it to shift by 3 and you have Julius Caesar’s cipher.', zh:'密码转盘：转动内圈让字母对齐，每个字母就被换成另一个字母。把它设成移动3位，就是凯撒密码。', kind:o('Cipher tool','加密工具'), credit:'Hubert Berberich (HubiB)', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:CipherDisk2000.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4d/Lorenz-SZ42-2.jpg/960px-Lorenz-SZ42-2.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A Lorenz SZ42 cipher machine with its covers off. German high command used it in World War II; British codebreakers built the Colossus computer to help crack it.', zh:'拆下外壳的洛伦兹SZ42密码机。第二次世界大战中德军最高统帅部使用它；英国破译人员为破解它造出了“巨人”计算机。', kind:o('Museum object','博物馆藏品'), credit:'Unknown (public domain)', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Lorenz-SZ42-2.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/23/Rosetta_Stone.JPG/960px-Rosetta_Stone.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The Rosetta Stone (196 BCE) in the British Museum. The same message is written in three scripts, which let scholars finally decode Egyptian hieroglyphs in 1822.', zh:'大英博物馆里的罗塞塔石碑（公元前196年）。同一段话用三种文字刻在上面，学者们靠它在1822年终于破解了古埃及象形文字。', kind:o('Museum object','博物馆藏品'), credit:'Hans Hillewaert', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Rosetta_Stone.JPG' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f8/Laptop-hard-drive-exposed.jpg/960px-Laptop-hard-drive-exposed.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Inside a laptop hard drive: a shiny spinning disk (platter) and an arm that reads and writes tiny magnetic spots — each spot is one bit.', zh:'笔记本电脑硬盘的内部：一张闪亮的高速旋转盘片，还有一根读写臂，在上面读写极小的磁点——每个磁点就是一个比特。', kind:o('Storage','存储'), credit:'Evan-Amos', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Laptop-hard-drive-exposed.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/82/Huffman_tree_2.svg/960px-Huffman_tree_2.svg.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A Huffman tree for the sentence “this is an example of a huffman tree”. Common letters get short codes and rare letters get long ones, so the whole message takes fewer bits — that is compression.', zh:'为句子“this is an example of a huffman tree”生成的哈夫曼树。常见字母用短编码，少见字母用长编码，整条信息就用更少的比特——这就是压缩。', kind:o('Diagram','示意图'), credit:'Meteficha', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Huffman_tree_2.svg' },
   { type:'youtube', yt:'ZghMPWGXexs', en:'Video: “The Internet: Encryption & Public Keys” — from Code.org’s “How the Internet Works” series.', zh:'视频：《互联网：加密与公钥》——Code.org“互联网是怎样工作的”系列（英文）。', kind:{en:'Video',zh:'视频'}, credit:'CodeAI / Code.org (YouTube)', license:'YouTube' },
-  { type:'youtube', yt:'jhXCTbFnK8o', en:'Video: “Cryptography: Crash Course Computer Science #33”.', zh:'视频：《密码学：计算机科学速成课 第33集》（英文）。', kind:{en:'Video',zh:'视频'}, credit:'CrashCourse (YouTube)', license:'YouTube' }
+  { type:'youtube', yt:'jhXCTbFnK8o', en:'Video: “Cryptography: Crash Course Computer Science #33”.', zh:'视频：《密码学：计算机科学速成课 第33集》（英文）。', kind:{en:'Video',zh:'视频'}, credit:'CrashCourse (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'1GSjbWt0c9M', en:'Video: “Representing Numbers and Letters with Binary” — Crash Course Computer Science #4.', zh:'视频：《用二进制表示数字和字母》——计算机科学速成课 第4集（英文）。', kind:{en:'Video',zh:'视频'}, credit:'CrashCourse (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'OtDxDvCpPL4', en:'Video: “Compression” — Crash Course Computer Science #21: how files are made smaller.', zh:'视频：《压缩》——计算机科学速成课 第21集：文件是怎样被变小的（英文）。', kind:{en:'Video',zh:'视频'}, credit:'CrashCourse (YouTube)', license:'YouTube' }
 ];
 LabPhotos.render('#gallery', PHOTOS, { title:o('See the real thing', '看一看真实的密码与数据'), sub:o('Real machines and real codebreakers, plus what pixels look like up close. Click a picture to enlarge it.', '真实的密码机和真实的破译者，还有像素放大后的样子。点击图片可以放大。') });
 function renderLinks(){ Lab.$('#links').innerHTML = LINKS.map(l => `<a class="linkcard" href="${l.u}" target="_blank" rel="noopener"><b>${Lab.L(l.t)}</b><span>${Lab.L(l.d)}</span><small>${l.s} ↗</small></a>`).join(''); }

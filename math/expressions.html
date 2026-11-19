@@ -45,6 +45,7 @@
   <div class="ma-explore">
     <div class="ma-stage explore-stage" id="exStage" data-fs></div>
     <div class="card ctl">
+      <div class="lab-mode" style="align-self:flex-start"></div>
       <label class="ctl"><span><span data-zh="行数 a = ">Rows a = </span><b id="aVal">3</b></span><input id="aIn" type="range" min="1" max="5" step="1" value="3"></label>
       <label class="ctl"><span><span data-zh="每行 x 长条数 = ">x-bars per row = </span><b id="bVal">1</b></span><input id="bIn" type="range" min="0" max="3" step="1" value="1"></label>
       <label class="ctl"><span><span data-zh="每行小方块数 = ">Unit squares per row = </span><b id="cVal">2</b></span><input id="cIn" type="range" min="0" max="6" step="1" value="2"></label>
@@ -52,6 +53,17 @@
       <label class="ctl"><span><span data-zh="代入检验：x = ">Check with x = </span><b id="xVal">4</b></span><input id="xIn" type="range" min="1" max="10" step="1" value="4"></label>
       <div class="check" id="chk"></div>
       <div class="btnrow"><button class="btn" id="splitBtn"></button></div>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:10px">
+        <b data-zh="进阶：高也含有 x——多项式乘多项式（面积模型）">Advanced: let the height contain x too — multiplying two binomials (area model)</b>
+        <label class="ctl"><span><span data-zh="高里的 x 条数 d = ">x-bands in the height d = </span><b id="dVal">0</b> <span data-zh="（紫色 = x² 方块）">(purple = x² tiles)</span></span><input id="dIn" type="range" min="0" max="2" step="1" value="0"></label>
+        <div id="eFoil" style="text-align:center;font-size:17px;overflow-x:auto;overflow-y:hidden;padding:2px 0"></div>
+        <div id="eFacts" class="muted" style="font-size:14px"></div>
+        <div style="border-top:1px solid var(--line);padding-top:8px">
+          <b data-zh="🎯 挑战">🎯 Challenge</b> <span id="chTxt"></span>
+          <div class="btnrow" style="margin-top:6px"><button class="btn" id="chCheck" data-zh="检查">Check</button><button class="btn ghost" id="chNew" data-zh="换一题">New challenge</button></div>
+          <div class="result" id="chMsg"></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -302,25 +314,39 @@ const polyTex = (p, q) => { const t = []; if (p) t.push(tx(xTerm(p))); if (q) t.
   const E = MathAnim.scene('#exStage', { x:[-6, 6], y:[-4.5, 4.5] });
   const s = { a:3, b:1, c:2, x:4, split:0 };
   E.custom((ctx, S) => {
-    const XLe = 2.0, Ue = .7, gap0 = (s.b && s.c) ? .6 * s.split : 0;
-    const W0 = s.b * XLe + s.c * Ue, H0 = s.a * Ue;
+    const dd = Lab.adv() ? s.d : 0;          // Advanced: d bands of height x on top (d = 0 → exactly the Basic picture)
+    const XLe = 2.0, Ue = .7, gap0 = (s.b && s.c) ? .6 * s.split : 0, gapY0 = dd ? .6 * s.split : 0;
+    const W0 = s.b * XLe + s.c * Ue, H0 = s.a * Ue + dd * XLe + gapY0;
     const k = Math.min(1.4, 9.4 / Math.max(W0 + gap0, .01), 6.2 / H0);
-    const xl = XLe * k, u = Ue * k, gap = gap0 * k, W = W0 * k + gap, H = H0 * k;
+    const xl = XLe * k, u = Ue * k, gap = gap0 * k, W = W0 * k + gap, H = H0 * k, Hu = s.a * u, gy = gapY0 * k;
     const x0 = -W / 2 + .35, y0 = -H / 2 - .45;
     for (let r = 0; r < s.a; r++){
       for (let i = 0; i < s.b; i++) drawTile(ctx, S, x0 + i * xl, y0 + r * u, xl, u, true);
       for (let j = 0; j < s.c; j++) drawTile(ctx, S, x0 + s.b * xl + gap + j * u, y0 + r * u, u, u, false);
     }
+    for (let t = 0; t < dd; t++){
+      const yb = y0 + Hu + gy + t * xl;
+      for (let i = 0; i < s.b; i++){        // x² tiles (purple)
+        const px = S.sx(x0 + i * xl), py = S.sy(yb + xl), Wp = S.px(xl);
+        ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(px + 1, py + 1, Wp - 2, Wp - 2, 5); else ctx.rect(px + 1, py + 1, Wp - 2, Wp - 2);
+        ctx.fillStyle = 'rgba(180,142,240,.32)'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = C.purple; ctx.stroke();
+        label(ctx, S, 'x²', x0 + (i + .5) * xl, yb + xl / 2, C.white, .42, true);
+      }
+      for (let j = 0; j < s.c; j++) drawTile(ctx, S, x0 + s.b * xl + gap + j * u, yb, u, xl, true);   // standing x-bars
+    }
     ctx.lineWidth = 3; ctx.strokeStyle = C.white;
     if (W0 > 0){ ctx.strokeRect(S.sx(x0), S.sy(y0 + H), S.px(W), S.px(H)); }
-    label(ctx, S, String(s.a), x0 - .45, y0 + H / 2, KC, .5);
+    label(ctx, S, String(s.a), x0 - .45, y0 + Hu / 2, KC, .5);
+    if (dd) label(ctx, S, xTerm(dd), x0 - .5, y0 + Hu + gy + dd * xl / 2, XC, .5, true);
     if (s.b) label(ctx, S, xTerm(s.b), x0 + s.b * xl / 2, y0 + H + .45, XC, .5, true);
     if (s.c) label(ctx, S, String(s.c), x0 + s.b * xl + gap + s.c * u / 2, y0 + H + .45, UC, .5);
     if (s.split > .5){
       ctx.globalAlpha = (s.split - .5) * 2;
       const pill = (t, x, y, col, it) => { ctx.fillStyle = 'rgba(15,20,32,.85)'; ctx.beginPath(); ctx.arc(S.sx(x), S.sy(y), S.px(.48), 0, 7); ctx.fill(); label(ctx, S, t, x, y, col, .4, it); };
-      if (s.b) pill(xTerm(s.a * s.b), x0 + s.b * xl / 2, y0 + H / 2, XC, true);
-      if (s.c) pill(String(s.a * s.c), x0 + s.b * xl + gap + s.c * u / 2, y0 + H / 2, UC);
+      if (s.b) pill(xTerm(s.a * s.b), x0 + s.b * xl / 2, y0 + Hu / 2, XC, true);
+      if (s.c) pill(String(s.a * s.c), x0 + s.b * xl + gap + s.c * u / 2, y0 + Hu / 2, UC);
+      if (dd && s.b) pill((dd * s.b === 1 ? '' : dd * s.b) + 'x²', x0 + s.b * xl / 2, y0 + Hu + gy + dd * xl / 2, C.purple, true);
+      if (dd && s.c) pill(xTerm(dd * s.c), x0 + s.b * xl + gap + s.c * u / 2, y0 + Hu + gy + dd * xl / 2, XC, true);
       ctx.globalAlpha = 1;
     }
     if (!W0) label(ctx, S, Lab.L({ en:'Add some tiles!', zh:'加一些方块吧！' }), 0, 0, C.grey, .45);
@@ -328,11 +354,66 @@ const polyTex = (p, q) => { const t = []; if (p) t.push(tx(xTerm(p))); if (q) t.
   function update(){
     s.a = +Lab.$('#aIn').value; s.b = +Lab.$('#bIn').value; s.c = +Lab.$('#cIn').value; s.x = +Lab.$('#xIn').value;
     ['a', 'b', 'c', 'x'].forEach(k => Lab.$('#' + k + 'Val').textContent = s[k]);
+    s.d = +Lab.$('#dIn').value; Lab.$('#dVal').textContent = s.d;
+    const dd = Lab.adv() ? s.d : 0;
+    if (dd){        // Advanced: (dx + a)(bx + c) = db·x² + (dc + ab)x + ac
+      const P2 = dd * s.b, P1 = dd * s.c + s.a * s.b, P0 = s.a * s.c;
+      Lab.$('#eqOut').innerHTML = MathAnim.tex(`(${tx(xTerm(dd))} + ${tk(s.a)})(${polyTex(s.b, s.c)}) = ${quadTex(P2, P1, P0)}`);
+      const L = (dd * s.x + s.a) * (s.b * s.x + s.c), R = P2 * s.x * s.x + P1 * s.x + P0;
+      Lab.$('#chk').innerHTML = MathAnim.tex(`(${dd}\\cdot${s.x} + ${s.a})(${s.b}\\cdot${s.x} + ${s.c}) = ${L}`) + ' &nbsp;&nbsp; ' + MathAnim.tex(`${P2}\\cdot${s.x}^2 + ${P1}\\cdot${s.x} + ${P0} = ${R}`) + (L === R ? ' <span style="color:var(--good)">✓</span>' : '');
+    } else {
     Lab.$('#eqOut').innerHTML = MathAnim.tex(`${tk(s.a)}(${polyTex(s.b, s.c)}) = ${polyTex(s.a * s.b, s.a * s.c)}`);
     const L = s.a * (s.b * s.x + s.c), R = s.a * s.b * s.x + s.a * s.c;
     Lab.$('#chk').innerHTML = MathAnim.tex(`${s.a}(${s.b}\\cdot${s.x} + ${s.c}) = ${L}`) + ' &nbsp;&nbsp; ' + MathAnim.tex(`${s.a * s.b}\\cdot${s.x} + ${s.a * s.c} = ${R}`) + (L === R ? ' <span style="color:var(--good)">✓</span>' : '');
+    }
     Lab.$('#splitBtn').textContent = Lab.L(s.mode ? { en:'Join into one rectangle', zh:'合成一个长方形' } : { en:'Split into the two parts', zh:'拆成两部分' });
+    advUpdate();
   }
+  /* ---------- Advanced mode: (dx + a)(bx + c), the four partial products, challenge ---------- */
+  function quadTex(p2, p1, p0){
+    const t = [];
+    if (p2) t.push(`\\textcolor{${C.purple}}{${p2 === 1 ? '' : p2}x^2}`);
+    if (p1) t.push(tx(xTerm(p1)));
+    if (p0) t.push(tu(p0));
+    return t.join(' + ') || '0';
+  }
+  let chI = 0;
+  const CH = [   // target coefficients of P2·x² + P1·x + P0 (any arrangement of the tiles that gives them is right)
+    { en:'Build a rectangle whose area is x² + 5x + 6.', zh:'拼一个面积为 x² + 5x + 6 的长方形。', t:[1, 5, 6] },
+    { en:'Build a rectangle whose area is x² + 4x + 4. What shape do you get?', zh:'拼一个面积为 x² + 4x + 4 的长方形。拼出来是什么形状？', t:[1, 4, 4] },
+    { en:'Build a rectangle whose area is 2x² + 7x + 3.', zh:'拼一个面积为 2x² + 7x + 3 的长方形。', t:[2, 7, 3] },
+    { en:'Build a rectangle whose area is 3x² + 5x + 2.', zh:'拼一个面积为 3x² + 5x + 2 的长方形。', t:[3, 5, 2] },
+    { en:'Factor 6x + 9 with the MOST rows possible (d = 0).', zh:'把 6x + 9 提取公因式，行数尽量多（d = 0）。', t:[0, 6, 9], rule:() => s.a === 3 },
+    { en:'Build a rectangle whose area is x² + 7x + 10.', zh:'拼一个面积为 x² + 7x + 10 的长方形。', t:[1, 7, 10] }
+  ];
+  function advUpdate(){
+    if (!Lab.adv()) return;
+    const d = s.d, P2 = d * s.b, P1 = d * s.c + s.a * s.b, P0 = s.a * s.c, xb = xTerm(s.b);
+    const parts = [];
+    if (d && s.b) parts.push(`\\textcolor{${C.purple}}{${xTerm(d)}\\cdot ${xb}}`);
+    if (d && s.c) parts.push(tx(`${xTerm(d)}\\cdot ${s.c}`));
+    if (s.b) parts.push(tx(`${s.a}\\cdot ${xb}`));
+    if (s.c) parts.push(tu(`${s.a}\\cdot ${s.c}`));
+    Lab.$('#eFoil').innerHTML = MathAnim.tex(`${d ? `(${xTerm(d)} + ${s.a})` : s.a}(${s.b ? xb : ''}${s.b && s.c ? ' + ' : ''}${s.c || (s.b ? '' : '0')}) = ${parts.join(' + ') || '0'} = ${quadTex(P2, P1, P0).replace(/\\textcolor\{[^}]*\}/g, '')}`);
+    Lab.$('#eFacts').innerHTML = Lab.L(d ? { en:`Every term in the first bracket multiplies every term in the second: ${(d && s.b ? 1 : 0) + (d && s.c ? 1 : 0) + (s.b ? 1 : 0) + (s.c ? 1 : 0)} tile groups = ${(d && s.b ? 1 : 0) + (d && s.c ? 1 : 0) + (s.b ? 1 : 0) + (s.c ? 1 : 0)} partial products. The two blue groups are like terms, so they combine: ${xTerm(d * s.c || 1).replace(/^1x$/, 'x')}${d * s.c ? '' : ''} + … = ${xTerm(P1 || 1)}.`,
+                                                zh:`第一个括号里的每一项都要乘第二个括号里的每一项：几组方块就是几个部分积。两组蓝色的是同类项，可以合并成 ${P1 ? xTerm(P1) : '0'}。（多项式乘多项式）` }
+                                            : { en:'Slide d to 1 or 2: the height becomes x + a, and purple x² tiles appear (x · x = x²).', zh:'把 d 调到 1 或 2：高变成 x + a，出现紫色的 x² 方块（x · x = x²）。' });
+    Lab.$('#chTxt').textContent = Lab.L(CH[chI]);
+  }
+  Lab.$('#dIn').oninput = update;
+  Lab.$('#chNew').onclick = () => { chI = (chI + 1) % CH.length; Lab.$('#chMsg').textContent = ''; Lab.$('#chMsg').className = 'result'; advUpdate(); };
+  Lab.$('#chCheck').onclick = () => {
+    const ch = CH[chI], d = s.d, got = [d * s.b, d * s.c + s.a * s.b, s.a * s.c], msg = Lab.$('#chMsg');
+    const same = got.every((v, i) => v === ch.t[i]), ok = same && (!ch.rule || ch.rule());
+    const f = d ? `(${d === 1 ? '' : d}x + ${s.a})(${s.b ? xTerm(s.b) : ''}${s.b && s.c ? ' + ' : ''}${s.c || ''})` : `${s.a}(${s.b ? xTerm(s.b) : ''}${s.b && s.c ? ' + ' : ''}${s.c || ''})`;
+    msg.textContent = Lab.L(ok ? { en:`🎉 Yes! ${f}${ch.t[0] === 1 && ch.t[1] === 4 ? ' — a square: (x + 2)²!' : ''}`, zh:`🎉 对了！${f}${ch.t[0] === 1 && ch.t[1] === 4 ? '——是正方形：(x + 2)²！' : ''}` }
+      : same ? { en:'Right area, but you can make more rows.', zh:'面积对了，但还可以排更多行。' }
+      : got[0] !== ch.t[0] ? { en:`Count the x² tiles first: you need ${ch.t[0]}, you have ${got[0]} (d × x-bars).`, zh:`先数 x² 方块：需要 ${ch.t[0]} 个，你有 ${got[0]} 个（d × x 长条数）。` }
+      : got[2] !== ch.t[2] ? { en:`The x² tiles are right. Now the unit squares: you need ${ch.t[2]}, you have ${got[2]} (a × c).`, zh:`x² 方块对了。再看小方块：需要 ${ch.t[2]} 个，你有 ${got[2]} 个（a × c）。` }
+      : { en:'Almost: the number of x-bars is not right yet. Try swapping a and c.', zh:'快了：x 长条的数量还不对。试试交换 a 和 c。' });
+    msg.className = 'result ' + (ok ? 'good' : 'bad');
+  };
+  Lab.onMode(update);
   ['#aIn', '#bIn', '#cIn', '#xIn'].forEach(id => Lab.$(id).oninput = update);
   Lab.$('#splitBtn').onclick = () => { s.mode = !s.mode; E.to(s, { split:s.mode ? 1 : 0 }, .7).catch(() => {}); update(); };
   Lab.onLang(update); update();
@@ -416,6 +497,7 @@ Lab.sort(Lab.$('#sort'), {
 /* ================= Where you see this: real photos (Wikimedia Commons, freely licensed) ================= */
 (function(){
 const o = (en, zh) => ({ en, zh });
+const VID = o('Video', '视频');
 const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/56/Second-floor_concession_counter_at_AMC_Kips_Bay_15.jpg/960px-Second-floor_concession_counter_at_AMC_Kips_Bay_15.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'A movie-theater snack counter in New York. How would you write the cost of 3 popcorns and 3 drinks?',
@@ -428,9 +510,23 @@ const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/92/Shelf_with_4_varieties_of_Tyrells_potatoe_chips.jpg/960px-Shelf_with_4_varieties_of_Tyrells_potatoe_chips.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'A shelf of potato-chip bags. Buying 2 bags of one kind and 3 of another: how can you write the total with letters?',
     zh:'货架上的几种薯片。一种买 2 袋，另一种买 3 袋，怎样用字母写出总价？',
-    credit:'Pittigrilli', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Shelf_with_4_varieties_of_Tyrells_potatoe_chips.jpg' }
+    credit:'Pittigrilli', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Shelf_with_4_varieties_of_Tyrells_potatoe_chips.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fa/Drone_aerial_view_of_the_soccer_stadium_%28Unsplash%29.jpg/960px-Drone_aerial_view_of_the_soccer_stadium_%28Unsplash%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'Running once around a soccer field of length l and width w: is it l + w + l + w, or 2(l + w)? Why are those the same?',
+    zh:'绕一个长 l、宽 w 的足球场跑一圈：是 l + w + l + w，还是 2(l + w)？为什么两个式子相等？',
+    credit:'Liane Metzler', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Drone_aerial_view_of_the_soccer_stadium_(Unsplash).jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2a/Francois_Viete.jpg/960px-Francois_Viete.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'François Viète of France (1540–1603) was one of the first to use letters for numbers in math, both for unknowns and for given amounts. Every expression like 3x + 2 owes him a thank-you!',
+    zh:'法国数学家弗朗索瓦·韦达（1540–1603）是最早在数学中系统地用字母代表数的人之一，未知数和已知数都用字母表示。像 3x + 2 这样的式子都要感谢他！',
+    kind:o('Math history','数学史'), credit:'unknown artist', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Francois_Viete.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/2/2b/Recorde_-_The_Whetstone_of_Witte_-_equals.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled',
+    en:'The very first equals sign, in Robert Recorde’s book “The Whetstone of Witte” (1557). He chose two parallel lines “because no two things can be more equal”. Can you spot his long “=”?',
+    zh:'史上第一个等号，出自罗伯特·雷科德 1557 年的书《砺智石》。他选两条平行线，“因为没有什么比它们更相等了”。你能找到他画的长长的“=”吗？',
+    kind:o('Math history','数学史'), credit:'Robert Recorde', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Recorde_-_The_Whetstone_of_Witte_-_equals.jpg' },
+  { type:'youtube', yt:'v-6MShC82ow', en:'Video: “The Distributive Property” — why a(b + c) = ab + ac, with variables.', zh:'视频：《乘法分配律》——为什么 a(b + c) = ab + ac（含字母）（英文）。', kind:VID, credit:'Math Antics (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'eVm063xmnow', en:'Video: “Where do math symbols come from?” — a TED-Ed lesson on how letters like x and signs like + and = were invented.', zh:'视频：《数学符号从哪里来？》——TED-Ed 课程：x 这样的字母和 +、= 这样的符号是怎样发明的（英文）。', kind:VID, credit:'TED-Ed (YouTube)', license:'YouTube' }
 ];
-LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos. Each one comes with a question this lesson helps you answer. Click a picture to enlarge it.','真实照片。每张都带着一个这节课能帮你回答的问题。点击图片可放大。') });
+LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos and short videos. Each photo comes with a question this lesson helps you answer. Click a picture to enlarge it or to play a video.','真实照片和短视频。每张照片都带着一个这节课能帮你回答的问题。点击图片可放大，点击视频可播放。') });
 })();
 </script>
 <!-- /real-world gallery script -->

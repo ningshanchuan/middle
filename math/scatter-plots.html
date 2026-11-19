@@ -50,6 +50,7 @@
   <div class="ma-explore">
     <div class="ma-stage explore-stage" id="fitStage" data-fs></div>
     <div class="card ctl">
+      <div class="lab-mode" style="align-self:flex-start"></div>
       <div class="sets" id="sets"></div>
       <div class="assoc" id="assoc"></div>
       <div class="ma-big" id="eq"></div>
@@ -61,6 +62,21 @@
       <div class="btnrow"><button class="btn ghost" id="bestBtn" data-zh="显示最佳直线">Show best line</button><button class="btn ghost" id="snapBtn" data-zh="移到最佳位置">Snap to best</button><button class="btn ghost" id="resetBtn" data-zh="重置数据">Reset data</button></div>
       <label class="ctl"><span><span data-zh="用你的直线预测：x = ">Predict with your line: x = </span><b id="pxVal"></b></span><input id="pxIn" type="range"></label>
       <div class="pred" id="pred"></div>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:10px">
+        <b data-zh="进阶：最小二乘法与相关系数 r">Advanced: least squares and the correlation r</b>
+        <div class="stats">
+          <div><b id="rVal"></b><span data-zh="相关系数 r · r²">correlation r · r²</span></div>
+          <div><b id="sse"></b><span data-zh="残差平方和：你的 / 最佳">sum of squared misses: yours / best</span></div>
+        </div>
+        <label class="chk"><input type="checkbox" id="sqChk" checked> <span data-zh="把每个偏差画成正方形（面积 = 偏差²）">Draw each miss as a square (area = miss²)</span></label>
+        <div id="lsq" style="text-align:center;font-size:15px;overflow-x:auto"></div>
+        <p class="small muted" data-zh="最佳直线让所有正方形的总面积最小（最小二乘法），而且一定经过平均点 (x̄, ȳ)（白色 ✚）。r 在 −1 和 1 之间：|r| 越接近 1，点越紧贴一条直线；r 只衡量“直线型”的相关。">The best line makes the total area of the squares as small as possible (least squares), and it always passes through the mean point (x̄, ȳ) (white ✚). r is between −1 and 1: the closer |r| is to 1, the tighter the points hug a straight line. r only measures straight-line association.</p>
+        <div style="border-top:1px solid var(--line);padding-top:8px">
+          <b data-zh="🎯 挑战">🎯 Challenge</b> <span id="chTxt"></span>
+          <div class="btnrow" style="margin-top:6px"><button class="btn" id="chCheck" data-zh="检查">Check</button><button class="btn ghost" id="chNew" data-zh="换一题">New challenge</button></div>
+          <div class="result" id="chMsg"></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -287,13 +303,14 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
   const wx = x => PL + (x - set.xr[0]) / (set.xr[1] - set.xr[0]) * (PR - PL), wy = y => PB + (y - set.yr[0]) / (set.yr[1] - set.yr[0]) * (PT - PB);
   const dx = X => set.xr[0] + (X - PL) / (PR - PL) * (set.xr[1] - set.xr[0]), dy = Yw => set.yr[0] + (Yw - PB) / (PT - PB) * (set.yr[1] - set.yr[0]);
   const lineMB = () => { const m = (ly[1] - ly[0]) / (hx[1] - hx[0]); return [m, ly[0] - m * hx[0]]; };
-  function stats(){
-    const n = pts.length; if (n < 2) return null;
-    const mx = pts.reduce((s, p) => s + p[0], 0) / n, my = pts.reduce((s, p) => s + p[1], 0) / n;
-    let sxx = 0, sxy = 0, syy = 0; pts.forEach(([x, y]) => { sxx += (x - mx) ** 2; sxy += (x - mx) * (y - my); syy += (y - my) ** 2; });
+  function stats(P = pts){
+    const n = P.length; if (n < 2) return null;
+    const mx = P.reduce((s, p) => s + p[0], 0) / n, my = P.reduce((s, p) => s + p[1], 0) / n;
+    let sxx = 0, sxy = 0, syy = 0; P.forEach(([x, y]) => { sxx += (x - mx) ** 2; sxy += (x - mx) * (y - my); syy += (y - my) ** 2; });
     if (sxx < 1e-9) return null;
-    const m = sxy / sxx; return { m, b:my - m * mx, r:syy > 1e-9 ? sxy / Math.sqrt(sxx * syy) : 0, my };
+    const m = sxy / sxx; return { m, b:my - m * mx, r:syy > 1e-9 ? sxy / Math.sqrt(sxx * syy) : 0, my, mx, sxx, sxy, syy, n };
   }
+  const sse = (m, b) => pts.reduce((s, [x, y]) => s + (y - (m * x + b)) ** 2, 0);   // sum of squared residuals (Advanced)
   const avgMiss = (m, b) => pts.reduce((s, [x, y]) => s + Math.abs(y - (m * x + b)), 0) / pts.length;
   function load(i){
     set = SETS[i]; pts = set.pts.map(p => p.slice()); showBest = false; snapAnim = null;
@@ -318,6 +335,11 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     ctx.fillStyle = KC.y; ctx.textAlign = 'left'; ctx.fillText(Lab.L(set.yl), S.sx(PL + .1), S.sy(4.22));
     const [m, b] = lineMB(), bs = stats();
     ctx.save(); ctx.beginPath(); ctx.rect(S.sx(PL), S.sy(PT), S.px(PR - PL), S.px(PT - PB)); ctx.clip();
+    if (Lab.adv() && Lab.$('#sqChk').checked){            // Advanced: each residual drawn as a square, area = residual²
+      ctx.fillStyle = 'rgba(246,127,179,.16)'; ctx.strokeStyle = 'rgba(246,127,179,.6)'; ctx.lineWidth = 1;
+      pts.forEach(([x, y]) => { const X = S.sx(wx(x)), Y1 = S.sy(wy(y)), Y2 = S.sy(wy(m * x + b)), s = Math.abs(Y1 - Y2), dir = X + s > S.sx(PR) ? -1 : 1;
+        ctx.beginPath(); ctx.rect(dir > 0 ? X : X - s, Math.min(Y1, Y2), s, s); ctx.fill(); ctx.stroke(); });
+    }
     if (Lab.$('#resChk').checked){ ctx.strokeStyle = KC.res; ctx.lineWidth = 2; pts.forEach(([x, y]) => ln(wx(x), wy(y), wx(x), wy(m * x + b))); }
     if (showBest && bs){ ctx.strokeStyle = 'rgba(236,230,226,.75)'; ctx.lineWidth = 2.5; ctx.setLineDash([8, 7]); ln(wx(x0), wy(bs.m * x0 + bs.b), wx(x1), wy(bs.m * x1 + bs.b)); ctx.setLineDash([]); }
     ctx.strokeStyle = KC.line; ctx.lineWidth = 4; ln(wx(x0), wy(m * x0 + b), wx(x1), wy(m * x1 + b));
@@ -327,13 +349,17 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     pts.forEach(([x, y]) => { ctx.beginPath(); ctx.arc(S.sx(wx(x)), S.sy(wy(y)), r, 0, 7); ctx.fillStyle = KC.pt; ctx.fill(); });
     if (py >= y0 && py <= y1){ ctx.beginPath(); ctx.arc(S.sx(wx(px)), S.sy(wy(py)), r + 1, 0, 7); ctx.fillStyle = KC.pred; ctx.fill(); }
     hx.forEach((h, i) => { ctx.beginPath(); ctx.arc(S.sx(wx(h)), S.sy(wy(ly[i])), drag === i ? 12 : 10, 0, 7); ctx.fillStyle = KC.line; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = '#fff'; ctx.stroke(); });
+    if (Lab.adv() && bs){                                  // Advanced: the mean point (x̄, ȳ) as a white ✚
+      const X = S.sx(wx(bs.mx)), Y = S.sy(wy(bs.my)), k = 9; ctx.strokeStyle = C.white; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(X - k, Y); ctx.lineTo(X + k, Y); ctx.moveTo(X, Y - k); ctx.lineTo(X, Y + k); ctx.stroke();
+    }
   });
   const cv = E.cv, toW = e => { const b = cv.getBoundingClientRect(); return [E.wx(e.clientX - b.left), E.wy(e.clientY - b.top)]; };
   cv.style.cursor = 'crosshair'; cv.style.touchAction = 'none';
   cv.addEventListener('pointerdown', e => {
     const [x, y] = toW(e);
     drag = hx.findIndex((h, i) => Math.hypot(wx(h) - x, wy(ly[i]) - y) < .5);
-    if (drag >= 0){ snapAnim = null; cv.setPointerCapture(e.pointerId); return; }
+    if (drag >= 0){ snapAnim = null; usedSnap = false; cv.setPointerCapture(e.pointerId); return; }
     down = [x, y];
   });
   cv.addEventListener('pointermove', e => {
@@ -377,14 +403,61 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     Lab.$('#pred').innerHTML = MathAnim.tex(`${cl(KC.y, 'y')} \\approx ${f(m, 3)}(${cl(KC.x, f(px))}) ${sgn} ${f(Math.abs(b), 1)} \\approx ${cl(KC.pred, f(py, 1))}`) + unit(set.yu) +
       (inRange ? '' : `<br><span style="color:var(--bad);font-size:14px">${L({ en:'⚠️ Outside the data: this prediction may not be reliable.', zh:'⚠️ 超出了已有数据的范围：这个预测可能不可靠。' })}</span>`);
     Lab.$('#bestBtn').textContent = L(showBest ? { en:'Hide best line', zh:'隐藏最佳直线' } : { en:'Show best line', zh:'显示最佳直线' });
+    advUpdate();
   }
+  /* ---------- Advanced: least squares, r, residual squares, challenge ---------- */
+  let chI = 0, usedSnap = false;
+  const isOrig = p => set.pts.some(q => q[0] === p[0] && q[1] === p[1]);
+  const CH = [
+    { en:'Fit by hand: drag the orange handles (no “Snap”!) until your sum of squared misses is at most 5% more than the best line’s.', zh:'手动拟合：拖动橙色圆点（不许用“移到最佳位置”！），让你的残差平方和最多比最佳直线的大 5%。',
+      check:bs => { if (!bs) return [false, { en:'You need at least 2 points.', zh:'至少需要 2 个点。' }];
+        if (usedSnap) return [false, { en:'That was “Snap”. Drag a handle and do it by hand!', zh:'这是“移到最佳位置”做的。拖动圆点，自己动手！' }];
+        const [m, b] = lineMB(), a = sse(m, b), best = sse(bs.m, bs.b), pct = best > 1e-9 ? (a / best - 1) * 100 : 0;
+        return pct <= 5 ? [true, { en:`🎉 Only ${f(pct, 1)}% more than the best: a great fit by eye!`, zh:`🎉 只比最佳直线多 ${f(pct, 1)}%：凭眼睛拟合得很好！` }]
+                        : [false, { en:`Yours is ${f(pct, 0)}% more than the best. Shrink the pink squares (the big ones first).`, zh:`你的比最佳直线多 ${f(pct, 0)}%。让粉色正方形变小（先管最大的）。` }]; } },
+    { en:'Outlier power: add exactly ONE point that lowers |r| by at least 0.2 (press “Reset data” first).', zh:'异常值的威力：只添加一个点，让 |r| 至少下降 0.2（先点“重置数据”）。',
+      check:bs => { const r0 = stats(set.pts).r, added = pts.filter(p => !isOrig(p)).length;
+        if (pts.length !== set.pts.length + 1 || added !== 1) return [false, { en:'Start from the original data (Reset data) and add exactly one point.', zh:'从原始数据开始（重置数据），只添加一个点。' }];
+        const drop = Math.abs(r0) - Math.abs(bs ? bs.r : 0);
+        return drop >= .2 ? [true, { en:`🎉 One point moved r from ${f(r0)} to ${f(bs.r)}. Outliers can change r a lot!`, zh:`🎉 一个点就把 r 从 ${f(r0)} 变成了 ${f(bs.r)}。异常值对 r 的影响很大！` }]
+                          : [false, { en:`|r| only dropped by ${f(drop)}. Put the point far from the trend, near one end.`, zh:`|r| 只下降了 ${f(drop)}。把点放在远离趋势的地方，靠近一端。` }]; } },
+    { en:'On “Shoe size vs math score” (no association), add or remove points until r ≥ 0.5.', zh:'在“鞋码与数学成绩”（没有相关关系）中，添加或删除点，使 r ≥ 0.5。',
+      check:bs => set.id !== 'shoe' ? [false, { en:'First pick the “Shoe size vs math score” data.', zh:'先选择“鞋码与数学成绩”这组数据。' }]
+        : bs && bs.r >= .5 ? [true, { en:`🎉 r = ${f(bs.r)}. But changing the data does not make big feet cause good grades: correlation ≠ causation.`, zh:`🎉 r = ${f(bs.r)}。不过，改数据并不会让大脚“导致”好成绩：相关不等于因果。` }]
+        : [false, { en:`r = ${bs ? f(bs.r) : '–'}. Remove points that go against an upward trend, or add points along one.`, zh:`r = ${bs ? f(bs.r) : '–'}。删掉不符合上升趋势的点，或者沿上升趋势添加点。` }] },
+    { en:'“Car age vs price” bends. Only REMOVE points (keep at least 6) until r ≤ −0.99.', zh:'“车龄与价格”的点有点弯。只许删除点（至少留 6 个），使 r ≤ −0.99。',
+      check:bs => set.id !== 'car' ? [false, { en:'First pick the “Car age vs price” data.', zh:'先选择“车龄与价格”这组数据。' }]
+        : !pts.every(isOrig) || pts.length < 6 ? [false, { en:'Only remove original points, and keep at least 6.', zh:'只能删除原来的点，并且至少留 6 个。' }]
+        : bs && bs.r <= -.99 ? [true, { en:`🎉 r = ${f(bs.r, 3)}. The remaining points lie almost on a line: the curve was hiding at one end.`, zh:`🎉 r = ${f(bs.r, 3)}。剩下的点几乎在一条直线上：弯曲主要出在一端。` }]
+        : [false, { en:`r = ${bs ? f(bs.r, 3) : '–'}. Which end of the cloud bends away from a straight line?`, zh:`r = ${bs ? f(bs.r, 3) : '–'}。这团点的哪一端偏离了直线？` }] }
+  ];
+  function advUpdate(){
+    if (!set || !Lab.adv()) return;
+    const bs = stats(), L = Lab.L, [m, b] = lineMB(), par = (v, d) => v < 0 ? `(${f(v, d)})` : f(v, d), big = v => f(v, v >= 100 ? 0 : 1);
+    Lab.$('#rVal').textContent = bs ? f(bs.r) + ' · ' + f(bs.r * bs.r) : '–';
+    Lab.$('#sse').textContent = pts.length ? big(sse(m, b)) + ' / ' + (bs ? big(sse(bs.m, bs.b)) : '–') : '–';
+    Lab.$('#lsq').innerHTML = bs ? MathAnim.tex(`\\begin{aligned}
+      \\bar x &= ${f(bs.mx)},\\quad \\bar y = ${f(bs.my)} \\quad (n = ${bs.n}) \\\\
+      S_{xy} &= \\textstyle\\sum (x-\\bar x)(y-\\bar y) = ${f(bs.sxy, 1)} \\\\
+      S_{xx} &= \\textstyle\\sum (x-\\bar x)^2 = ${f(bs.sxx, 1)} \\\\
+      S_{yy} &=\\textstyle\\sum (y-\\bar y)^2 = ${f(bs.syy, 1)} \\\\
+      m &= \\frac{S_{xy}}{S_{xx}} = \\frac{${f(bs.sxy, 1)}}{${f(bs.sxx, 1)}} \\approx ${f(bs.m, 3)} \\\\
+      b &= \\bar y - m\\bar x = ${f(bs.my)} - ${par(bs.m, 3)}\\cdot ${par(bs.mx, 2)} \\approx ${f(bs.b, 2)} \\\\
+      r &= \\frac{S_{xy}}{\\sqrt{S_{xx} S_{yy}}} = \\frac{${f(bs.sxy, 1)}}{\\sqrt{${f(bs.sxx, 1)} \\times ${f(bs.syy, 1)}}} \\approx ${f(bs.r, 3)}
+      \\end{aligned}`) : L({ en:'Add at least 2 points with different x-values.', zh:'至少需要 2 个 x 值不同的点。' });
+    Lab.$('#chTxt').textContent = L(CH[chI]);
+  }
+  Lab.$('#sqChk').onchange = advUpdate;
+  Lab.$('#chNew').onclick = () => { chI = (chI + 1) % CH.length; Lab.$('#chMsg').textContent = ''; Lab.$('#chMsg').className = 'result'; advUpdate(); };
+  Lab.$('#chCheck').onclick = () => { const [ok, msg] = CH[chI].check(stats()), el = Lab.$('#chMsg'); el.textContent = Lab.L(msg); el.className = 'result ' + (ok ? 'good' : 'bad'); };
+  Lab.onMode(advUpdate);
   Lab.$('#sets').innerHTML = SETS.map((s, i) => `<button class="btn ghost" data-i="${i}" data-zh="${s.zh}">${s.en}</button>`).join('');
   Lab.translate(Lab.$('#sets'));
   Lab.$$('#sets button').forEach(b => b.onclick = () => load(+b.dataset.i));
   Lab.$('#pxIn').oninput = e => { px = +e.target.value; update(); };
   Lab.$('#resChk').onchange = update;
   Lab.$('#bestBtn').onclick = () => { showBest = !showBest; update(); };
-  Lab.$('#snapBtn').onclick = () => { const bs = stats(); if (bs) snapAnim = { t:0, from:ly.slice(), to:hx.map(h => bs.m * h + bs.b) }; };
+  Lab.$('#snapBtn').onclick = () => { const bs = stats(); usedSnap = true; if (bs) snapAnim = { t:0, from:ly.slice(), to:hx.map(h => bs.m * h + bs.b) }; };
   Lab.$('#resetBtn').onclick = () => load(SETS.indexOf(set));
   load(0); Lab.onLang(update);
 })();
@@ -422,6 +495,7 @@ Lab.sort(Lab.$('#sort'), {
 /* ================= Where you see this: real photos (Wikimedia Commons, freely licensed) ================= */
 (function(){
 const o = (en, zh) => ({ en, zh });
+const VID = o('Video', '视频');
 const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9b/Yellowstone_National_Park_%28WY%2C_USA%29%2C_Old_Faithful_Geyser_--_2022_--_2592.jpg/960px-Yellowstone_National_Park_%28WY%2C_USA%29%2C_Old_Faithful_Geyser_--_2022_--_2592.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'Old Faithful erupting in Yellowstone. Scientists plot eruption length against the wait for the next one. Do longer eruptions mean longer waits?',
@@ -430,9 +504,27 @@ const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d0/US_Navy_110426-N-00332-103_Sailors_measure_the_height_and_body_weight_of_fourth_and_fifth_grade_students_from_Lindenwood_Elementary_School.jpg/960px-US_Navy_110426-N-00332-103_Sailors_measure_the_height_and_body_weight_of_fourth_and_fifth_grade_students_from_Lindenwood_Elementary_School.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'Sailors measure the height and weight of 4th and 5th graders. Plot each student as one point: do taller students tend to weigh more?',
     zh:'海军志愿者为四、五年级学生测量身高和体重。把每个学生画成一个点：个子越高，体重也越重吗？',
-    credit:'U.S. Navy photo by Mass Communication Specialist Seaman Cory C. Asato', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:US_Navy_110426-N-00332-103_Sailors_measure_the_height_and_body_weight_of_fourth_and_fifth_grade_students_from_Lindenwood_Elementary_School.jpg' }
+    credit:'U.S. Navy photo by Mass Communication Specialist Seaman Cory C. Asato', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:US_Navy_110426-N-00332-103_Sailors_measure_the_height_and_body_weight_of_fourth_and_fifth_grade_students_from_Lindenwood_Elementary_School.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/6/6b/HRDiagram.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled',
+    en:'Astronomers’ most famous scatter plot, the Hertzsprung–Russell diagram: each dot is a star, placed by its temperature (x) and brightness (y). Most stars fall along one band. Can you spot it?',
+    zh:'天文学家最有名的散点图——赫罗图：每个点是一颗恒星，横坐标是温度，纵坐标是亮度。大多数恒星落在一条带子上。你能找到它吗？',
+    kind:o('Real data','真实数据'), credit:'Richard Powell', license:'CC BY-SA 2.5', page:'https://commons.wikimedia.org/wiki/File:HRDiagram.png' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/5/53/Snowytreecricket.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled',
+    en:'A snowy tree cricket chirps faster when it is warmer. In 1897 Amos Dolbear found that chirps and temperature follow a nearly straight-line trend: count chirps in 15 seconds, add 40, and you get about the °F!',
+    zh:'雪树蟋（一种蟋蟀）天越热叫得越快。1897 年，多尔贝尔发现叫声次数和气温几乎呈直线关系：数 15 秒内叫几声，再加 40，差不多就是华氏温度！',
+    kind:o('Real data','真实数据'), credit:'Calibas (English Wikipedia)', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Snowytreecricket.JPG' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/Francis_Galton_1850s.jpg/960px-Francis_Galton_1850s.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'Francis Galton of England plotted the heights of parents against the heights of their grown children in the 1880s. From such scatter plots came the idea of a line of best fit and of correlation.',
+    zh:'英国的弗朗西斯·高尔顿在 19 世纪 80 年代把父母的身高和成年子女的身高画成散点图。“最佳拟合线”和“相关”的想法就是从这样的图里来的。',
+    kind:o('Math history','数学史'), credit:'unknown photographer', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Francis_Galton_1850s.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a5/Davis_Instruments_weather_station.jpg/960px-Davis_Instruments_weather_station.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A weather station logs the temperature every day. Pair each day’s high with the number of ice creams a shop sold and plot the points. Would you expect a positive trend, a negative trend, or none?',
+    zh:'气象站每天记录气温。把每天的最高气温和冰淇淋店当天卖出的数量配成一对，画成点。你预计会是正相关、负相关，还是没有关系？',
+    credit:'Cjp24', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Davis_Instruments_weather_station.jpg' },
+  { type:'youtube', yt:'sHbX58y5D4U', en:'Video: “Constructing a scatter plot” — turning a table of data into points on a graph.', zh:'视频：《画散点图》——把数据表变成图上的点（英文）。', kind:VID, credit:'Khan Academy (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'8HLtFv_KqoE', en:'Video: “Can you outsmart the fallacy that fooled a generation of doctors?” — TED-Ed on why a trend (correlation) doesn’t prove cause.', zh:'视频：《你能识破骗过一代医生的谬误吗？》——TED-Ed：为什么相关的趋势不能证明因果（英文）。', kind:VID, credit:'TED-Ed (YouTube)', license:'YouTube' }
 ];
-LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos. Each one comes with a question this lesson helps you answer. Click a picture to enlarge it.','真实照片。每张都带着一个这节课能帮你回答的问题。点击图片可放大。') });
+LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos and short videos. Each photo comes with a question this lesson helps you answer. Click a picture to enlarge it or to play a video.','真实照片和短视频。每张照片都带着一个这节课能帮你回答的问题。点击图片可放大，点击视频可播放。') });
 })();
 </script>
 <!-- /real-world gallery script -->

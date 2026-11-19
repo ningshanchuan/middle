@@ -51,6 +51,8 @@ function Eval($js, [int]$timeoutMs = 30000) {
 function Start-Browser1 {
   Stop-Browser
   $script:starts++; $script:udd = "${uddBase}_$($script:starts)"
+$__ct = 'F:\Shanchuan\Biology_study\.labtmp\chrometmp'; New-Item -ItemType Directory -Force $__ct | Out-Null; $env:TEMP = $__ct; $env:TMP = $__ct   # headless Chrome leaves scoped_dir* temp folders when it is killed: keep them off the nearly-full C: drive
+Get-ChildItem $__ct -Directory -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -lt (Get-Date).AddHours(-1) } | ForEach-Object { try { [IO.Directory]::Delete($_.FullName, $true) } catch {} }
   $script:proc = Start-Process -FilePath $chrome -ArgumentList "--headless=new","--use-angle=swiftshader","--enable-unsafe-swiftshader","--mute-audio","--autoplay-policy=no-user-gesture-required","--disable-extensions","--no-first-run","--user-data-dir=$($script:udd)","--window-size=1300,900","--remote-debugging-port=$Port","about:blank" -PassThru
   $tabs = $null
   for ($k = 0; $k -lt 40 -and -not $tabs; $k++) { Start-Sleep -Milliseconds 500; try { $tabs = Invoke-RestMethod "http://127.0.0.1:$Port/json" -TimeoutSec 2; $tabs = @($tabs | ForEach-Object { $_ } | Where-Object { $_.type -eq "page" }); if (-not $tabs.Count) { $tabs = $null } } catch {} }

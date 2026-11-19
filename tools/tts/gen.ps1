@@ -12,7 +12,11 @@
 param([string]$Lang = "zh", [switch]$Estimate, [switch]$ManifestOnly, [switch]$Prune, [int]$Workers = 6, [int]$Limit = 0, [double]$MaxUSD = 25,
       [string]$Voice = "marin", [double]$Speed = 0, [string]$Model = "gpt-4o-mini-tts", [string]$Format = "mp3", [int]$Kbps = 32,
       [double]$CharsPerSec = 0, [double]$UsdPerMin = 0.015,
+      [string]$Endpoint = "https://api.openai.com/v1/audio/speech", [string]$Engine = "openai", [switch]$Replace,
       [int]$WorkerIndex = -1, [string]$Jobs = "", [string]$Root = "", [string]$Work = "")
+# -Engine qwen3 -Endpoint http://10.0.0.31:8000/v1/audio/speech -Voice serena -Model qwen3 : the home TTS server (OpenAI-compatible, no key, no cost).
+# -Replace : re-record clips that already exist (e.g. switching to a new voice), in lesson order; finished keys are listed in
+#            <Work>\done_<engine>_<lang>.txt so the run can be stopped and resumed. Masters of other engines go to pcm_<lang>_<engine>.
 $ErrorActionPreference = 'Stop'
 if (-not $Speed) { $Speed = if ($Lang -eq 'zh') { 0.9 } else { 1.0 } }            # zh slower for a heritage learner; en natural pace
 if (-not $CharsPerSec) { $CharsPerSec = if ($Lang -eq 'zh') { 3.0 } else { 14.0 } } # for the cost estimate only
@@ -20,7 +24,9 @@ $ProgressPreference = 'SilentlyContinue'   # Windows PowerShell's progress bar m
 . (Join-Path $PSScriptRoot "paths.ps1")
 $utf8 = New-Object Text.UTF8Encoding($false)
 $audioDir = Join-Path $Root "audio\$Lang"; New-Item -ItemType Directory -Force $audioDir | Out-Null
-$pcmDir = Join-Path $Work "pcm_$Lang"; New-Item -ItemType Directory -Force $pcmDir | Out-Null
+$pcmDir = Join-Path $Work $(if ($Engine -eq "openai") { "pcm_$Lang" } else { "pcm_${Lang}_$Engine" }); New-Item -ItemType Directory -Force $pcmDir | Out-Null
+$isOpenAI = $Endpoint -like "*api.openai.com*"
+$doneFile = Join-Path $Work "done_${Engine}_$Lang.txt"
 
 function Test-Mp3([string]$path) {   # true when the file starts with an MP3 frame (after an optional ID3 tag)
   if (-not (Test-Path $path) -or (Get-Item $path).Length -lt 400) { return $false }
@@ -65,21 +71,25 @@ if ($WorkerIndex -ge 0) {
     $w.Write([Text.Encoding]::ASCII.GetBytes('data')); $w.Write([int]$d.Length); $w.Write($d); $w.Flush()
     [IO.File]::WriteAllBytes($wav, $ms.ToArray())
   }
-  $key = ([IO.File]::ReadAllText($KeyFile)).Trim()
-  $ins = [IO.File]::ReadAllText((Join-Path $PSScriptRoot "instructions_$Lang.txt"), [Text.Encoding]::UTF8).Trim()
+  $key = if ($isOpenAI) { ([IO.File]::ReadAllText($KeyFile)).Trim() } else { "" }
+  $insFile = Join-Path $PSScriptRoot "instructions_${Lang}_$Engine.txt"; if (-not (Test-Path $insFile)) { $insFile = Join-Path $PSScriptRoot "instructions_$Lang.txt" }
+  $ins = [IO.File]::ReadAllText($insFile, [Text.Encoding]::UTF8).Trim()
+  $done = @{}; if ($Replace -and (Test-Path $doneFile)) { foreach ($d in [IO.File]::ReadAllLines($doneFile)) { $done[$d.Trim()] = 1 } }
   $lines = [IO.File]::ReadAllLines($Jobs, [Text.Encoding]::UTF8)
   $log = Join-Path $Work ("gen_{0}_w{1}.tsv" -f $Lang, $WorkerIndex)
   for ($i = $WorkerIndex; $i -lt $lines.Count; $i += $Workers) {
     $k, $inp = $lines[$i] -split "`t", 2
     $out = Join-Path $audioDir "$k.$Format"
-    if (Test-Mp3 $out) { continue }
+    if ($Replace) { if ($done.ContainsKey($k)) { continue } } elseif (Test-Mp3 $out) { continue }
     $wav = Join-Path $pcmDir "$k.wav"; $raw = "$wav.pcm"; $part = Join-Path $audioDir "$k.part.$Format"
-    $body = @{ model = $Model; voice = $Voice; input = $inp; instructions = $ins; response_format = 'pcm'; speed = $Speed } | ConvertTo-Json -Compress
+    $req = @{ model = $Model; voice = $Voice; input = $inp; instructions = $ins; response_format = 'pcm'; speed = $Speed }; if (-not $isOpenAI) { $req.language = $Lang }
+    $body = $req | ConvertTo-Json -Compress
+    $hdrs = if ($isOpenAI) { @{ Authorization = "Bearer $key" } } else { @{} }
     $ok = $false
     for ($a = 1; $a -le 5 -and -not $ok; $a++) {
       try {
         if (-not (Test-Path $wav)) {     # a master from an earlier run is re-used (no second API call)
-          Invoke-WebRequest -Uri "https://api.openai.com/v1/audio/speech" -Method Post -Headers @{ Authorization = "Bearer $key" } -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($body)) -OutFile $raw -UseBasicParsing -TimeoutSec 180
+          Invoke-WebRequest -Uri $Endpoint -Method Post -Headers $hdrs -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($body)) -OutFile $raw -UseBasicParsing -TimeoutSec 180
           if ((Get-Item $raw).Length -lt 4800) { throw "audio too short" }
           Write-Wav $raw $wav; Remove-Item $raw -Force
         }
@@ -89,6 +99,7 @@ if ($WorkerIndex -ge 0) {
         if (-not (Test-Mp3 $part)) { throw "encoder produced no MP3" }
         Move-Item $part $out -Force; $ok = $true
         [IO.File]::AppendAllText($log, ("{0}`t{1}`t{2}`t{3}`t{4}`n" -f $k, $inp.Length, (Get-Item $out).Length, $sec, $inp), $utf8)
+        if ($Replace) { [IO.File]::AppendAllText($doneFile, "$k`n", $utf8) }
         "OK $k chars=$($inp.Length) sec=$sec"
       } catch {
         $code = 0; try { $code = [int]$_.Exception.Response.StatusCode } catch {}
@@ -213,7 +224,7 @@ function Prep([string]$t, [string]$raw = "") {
   if ($Lang -eq 'zh') { $t = Fix-Poly $t }
   return $t
 }
-$items = [ordered]@{}; $raws = @{}
+$items = [ordered]@{}; $raws = @{}; $first = @{}
 $tf = Join-Path $Work "texts_$Lang.jsonl"
 if (Test-Path $tf) {
   $bad = 0; $chk = 0
@@ -221,7 +232,7 @@ if (Test-Path $tf) {
     if (-not $l.Trim()) { continue }
     $o = $l | ConvertFrom-Json
     if ($chk -lt 300) { $chk++; if ((Get-Key $o.text $Lang) -ne $o.key) { $bad++ } }
-    $items[$o.key] = $o.text
+    $items[$o.key] = $o.text; if ($o.lessons) { $first[$o.key] = @($o.lessons)[0] }
     if ($o.raw) { $raws[$o.key] = [string]$o.raw }
   }
   if ($bad) { "WARNING: $bad of $chk keys differ between the browser and this script (normalisation mismatch)" }
@@ -235,9 +246,14 @@ if ($Prune) {   # remove clips whose text no longer appears in any lesson (old v
   Write-Manifest; exit 0
 }
 $todo = New-Object Collections.Generic.List[string]; $have = 0; $chars = 0
-foreach ($k in $items.Keys) {
+# lesson by lesson: texts of the first catalog lesson first (so a whole lesson switches voice together); extras (place book etc.) last
+$order = @{}; $ci = 0; $sid = $null
+foreach ($m in [regex]::Matches([IO.File]::ReadAllText((Join-Path $Root "shared\catalog.js"), [Text.Encoding]::UTF8), "\{\s*id\s*:\s*'([\w-]+)'\s*,\s*(icon|std|soon)\s*:")) { if ($m.Groups[2].Value -eq 'icon') { $sid = $m.Groups[1].Value } elseif ($sid) { $order["$sid/$($m.Groups[1].Value)"] = $ci++ } }
+$keys = @($items.Keys | Sort-Object { $l = $first[$_]; if ($l -and $order.ContainsKey($l)) { $order[$l] } else { 99999 } })
+$done = @{}; if ($Replace -and (Test-Path $doneFile)) { foreach ($d in [IO.File]::ReadAllLines($doneFile)) { $done[$d.Trim()] = 1 } }
+foreach ($k in $keys) {
   $out = Join-Path $audioDir "$k.$Format"
-  if (Test-Mp3 $out) { $have++; continue }
+  if ($Replace) { if ($done.ContainsKey($k)) { $have++; continue } } elseif (Test-Mp3 $out) { $have++; continue }
   $inp = Prep $items[$k] $raws[$k]
   if (-not $inp -or $inp -notmatch '[\p{L}\p{N}]') { continue }
   if ($inp.Length -gt 1800) { "SKIP (too long for one request, $($inp.Length) chars): $k"; continue }
@@ -252,15 +268,15 @@ if ($Estimate) {
   "preview of what would be sent (key, TTS input, original): $Work\gen_preview_$Lang.tsv"
   exit 0
 }
-if ($usd -gt $MaxUSD) { "estimated cost is above the cap of US`$$MaxUSD - not generating (raise -MaxUSD to go ahead)"; exit 2 }
-if (-not (Test-Path $KeyFile)) { "no key file at $KeyFile"; exit 1 }
+if ($isOpenAI -and $usd -gt $MaxUSD) { "estimated cost is above the cap of US`$$MaxUSD - not generating (raise -MaxUSD to go ahead)"; exit 2 }
+if ($isOpenAI -and -not (Test-Path $KeyFile)) { "no key file at $KeyFile"; exit 1 }
 if ($todo.Count) {
   $jobs = Join-Path $Work "gen_jobs_$Lang.txt"
   [IO.File]::WriteAllLines($jobs, [string[]]$todo, $utf8)
   Remove-Item (Join-Path $Work "gen_w*.log"), (Join-Path $Work "gen_w*.err") -ErrorAction SilentlyContinue
   $n = [Math]::Max(1, [Math]::Min($Workers, $todo.Count)); $procs = @()
   for ($w = 0; $w -lt $n; $w++) {
-    $a2 = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $PSScriptRoot 'gen.ps1'), '-Lang', $Lang, '-WorkerIndex', $w, '-Workers', $n, '-Jobs', $jobs, '-Voice', $Voice, '-Speed', $Speed, '-Model', $Model, '-Format', $Format, '-Kbps', $Kbps, '-Root', $Root, '-Work', $Work)
+    $a2 = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $PSScriptRoot 'gen.ps1'), '-Lang', $Lang, '-WorkerIndex', $w, '-Workers', $n, '-Jobs', $jobs, '-Voice', $Voice, '-Speed', $Speed, '-Model', $Model, '-Format', $Format, '-Kbps', $Kbps, '-Root', $Root, '-Work', $Work, '-Endpoint', $Endpoint, '-Engine', $Engine) + $(if ($Replace) { @('-Replace') } else { @() })
     $procs += Start-Process powershell -ArgumentList $a2 -RedirectStandardOutput (Join-Path $Work "gen_w$w.log") -RedirectStandardError (Join-Path $Work "gen_w$w.err") -WindowStyle Hidden -PassThru
   }
   "started $n generator workers; logs: $Work\gen_w*.log"

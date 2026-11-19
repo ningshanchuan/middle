@@ -56,6 +56,7 @@
   <div class="ma-explore">
     <div class="ma-stage explore-stage" id="exStage" data-fs></div>
     <div class="card ctl">
+      <div class="lab-mode" style="align-self:flex-start"></div>
       <label class="ctl"><span><span data-zh="长 l = ">Length l = </span><b id="lVal">4</b></span><input id="lIn" type="range" min="0.5" max="6" step="0.5" value="4"></label>
       <label class="ctl"><span><span data-zh="宽 w = ">Width w = </span><b id="wVal">3</b></span><input id="wIn" type="range" min="0.5" max="6" step="0.5" value="3"></label>
       <label class="ctl"><span><span data-zh="高 h = ">Height h = </span><b id="hVal">2</b></span><input id="hIn" type="range" min="0.5" max="6" step="0.5" value="2"></label>
@@ -63,6 +64,18 @@
       <div class="ma-big" id="vOut"></div>
       <div class="ma-big" id="saOut"></div>
       <div class="result" id="exMsg"></div>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:10px">
+        <b data-zh="进阶：无盖盒子、按比例放大、最省料的盒子">Advanced: open boxes, scaling up, the best box</b>
+        <label style="font-weight:700;font-size:14px"><input type="checkbox" id="openIn"> <span data-zh="无盖盒子（去掉一个 l × w 的面，展开图里变成虚线）">Open box, no lid (one l × w face removed, dashed in the net)</span></label>
+        <div id="ratioOut" class="muted" style="font-size:14px"></div>
+        <div id="scaleTab" style="text-align:center;overflow-x:auto;font-size:13px"></div>
+        <div id="scaleTxt" class="muted" style="font-size:14px"></div>
+        <div style="border-top:1px solid var(--line);padding-top:8px">
+          <b data-zh="🎯 挑战">🎯 Challenge</b> <span id="chTxt"></span>
+          <div class="btnrow" style="margin-top:6px"><button class="btn" id="chCheck" data-zh="检查">Check</button><button class="btn ghost" id="chNew" data-zh="换一题">New challenge</button></div>
+          <div class="result" id="chMsg"></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -374,8 +387,13 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     const R = [ ['lh', x0, y0, l, h], ['lw', x0, y0 + h * s, l, w], ['lw', x0, y0 - w * s, l, w],
                 ['wh', x0 + l * s, y0, w, h], ['lh', x0 + (l + w) * s, y0, l, h], ['wh', x0 - w * s, y0, w, h] ];
     const col = { lw:C.purple, lh:C.pink, wh:C.red };
-    R.forEach(([k, x, y, a, b]) => {
+    R.forEach(([k, x, y, a, b], i) => {
       const X = S.sx(x), Y = S.sy(y + b * s), Wd = S.px(a * s), Hd = S.px(b * s);
+      if (i === 1 && open && Lab.adv()){            // Advanced: open box → the lid is missing
+        ctx.setLineDash([6, 6]); ctx.strokeStyle = col[k] + '99'; ctx.lineWidth = 2; ctx.strokeRect(X, Y, Wd, Hd); ctx.setLineDash([]);
+        if (Math.min(a, b) * s > .38){ ctx.font = `800 ${Math.max(11, S.px(.3))}px Nunito, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = C.grey; ctx.fillText(Lab.L({ en:'no lid', zh:'无盖' }), X + Wd / 2, Y + Hd / 2); }
+        return;
+      }
       ctx.fillStyle = col[k] + '40'; ctx.fillRect(X, Y, Wd, Hd);
       ctx.strokeStyle = 'rgba(236,230,226,.28)'; ctx.lineWidth = 1; ctx.beginPath();
       for (let i = 1; i < a; i++){ ctx.moveTo(X + S.px(i * s), Y); ctx.lineTo(X + S.px(i * s), Y + Hd); }
@@ -399,13 +417,55 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     Lab.$('#vOut').innerHTML = MathAnim.tex(`V = ${cl(fmt(l))} \\times ${cw(fmt(w))} \\times ${ch(fmt(h))} = \\textcolor{#d49a1c}{${fmt(V)}}`);
     Lab.$('#saOut').innerHTML = MathAnim.tex(`SA = 2(\\textcolor{#b48ef0}{${fmt(A)}} + \\textcolor{#f67fb3}{${fmt(B)}} + \\textcolor{#fc6255}{${fmt(D)}}) = ${fmt(SA)}`);
     const m = Lab.$('#exMsg');
-    if (Math.abs(V - 24) < 1e-9){
+    if (Lab.adv() && open){
+      Lab.$('#saOut').innerHTML = MathAnim.tex(`SA = \\textcolor{#b48ef0}{${fmt(A)}} + 2(\\textcolor{#f67fb3}{${fmt(B)}} + \\textcolor{#fc6255}{${fmt(D)}}) = ${fmt(SA - A)}`);
+      m.className = 'result'; m.textContent = '';
+    } else if (Math.abs(V - 24) < 1e-9){
       if (Math.abs(SA - 52) < 1e-9){ m.className = 'result good'; m.textContent = Lab.L({ en:'🎉 V = 24 with SA = 52, the smallest possible here (2 × 3 × 4). The most cube-like box needs the least wrapping!', zh:'🎉 V = 24,SA = 52，这是这里能做到的最小值（2 × 3 × 4）。越接近正方体，包装纸用得越少！' }); }
       else { m.className = 'result'; m.textContent = Lab.L({ en:`V = 24 ✓  but SA = ${fmt(SA)}. Same volume, more wrapping. Can you go lower?`, zh:`V = 24 ✓ 但 SA = ${fmt(SA)}。体积一样,包装纸却更多。还能更小吗?` }); }
     } else { m.className = 'result'; m.textContent = ''; }
+    advUpdate();
   }
+  /* ---- Advanced mode: open box, scale factor table, best-box challenge ---- */
+  let open = false, chI = 0;
+  const o2 = (en, zh) => ({ en, zh });
+  const sa = (L, W, H, op) => 2 * (L * W + L * H + W * H) - (op ? L * W : 0);
+  const CH = [ { V:27, open:false }, { V:32, open:true }, { V:36, open:false }, { V:4, open:true }, { V:64, open:false }, { V:108, open:true } ];
+  const best = ch => {                         // smallest SA reachable with the sliders (½-unit steps, 0.5 … 6)
+    let b = null;
+    for (let i = 1; i <= 12; i++) for (let j = 1; j <= 12; j++) for (let k = 1; k <= 12; k++){
+      const L = i / 2, W = j / 2, H = k / 2;
+      if (Math.abs(L * W * H - ch.V) < 1e-9){ const A = sa(L, W, H, ch.open); if (!b || A < b.A - 1e-9) b = { A, L, W, H }; }
+    }
+    return b;
+  };
+  function advUpdate(){
+    if (!Lab.adv()) return;
+    const V = l * w * h, A = sa(l, w, h, open);
+    Lab.$('#ratioOut').innerHTML = Lab.L(o2(`SA ÷ V = ${fmt(A)} ÷ ${fmt(V)} ≈ <b>${fmt(A / V)}</b> units² of surface per unit³. Smaller boxes have more surface for their size (that is why crushed ice melts fast).`,
+                                            `SA ÷ V = ${fmt(A)} ÷ ${fmt(V)} ≈ <b>${fmt(A / V)}</b>：每 1 立方单位的体积对应这么多平方单位的表面积。物体越小，相对于体积的表面积越大（所以碎冰化得快）。`));
+    const ks = [.5, 1, 2, 3];
+    Lab.$('#scaleTab').innerHTML = MathAnim.tex(`\\begin{array}{c|cccc} k & ${ks.map(fmt).join(' & ')} \\\\ \\hline \\text{${Lab.L(o2('box', '尺寸'))}} & ${ks.map(k => `${fmt(k * l)}{\\times}${fmt(k * w)}{\\times}${fmt(k * h)}`).join(' & ')} \\\\ SA & ${ks.map(k => fmt(sa(k * l, k * w, k * h, open))).join(' & ')} \\\\ V & ${ks.map(k => fmt(k ** 3 * V)).join(' & ')} \\end{array}`);
+    Lab.$('#scaleTxt').textContent = Lab.L(o2('Scale every edge by k: the surface area is multiplied by k² and the volume by k³ (double the edges → 4 × the paper, 8 × the space).',
+                                              '每条棱都扩大到原来的 k 倍：表面积变为原来的 k² 倍，体积变为原来的 k³ 倍（棱长 ×2 → 用纸 ×4，空间 ×8）。'));
+    const ch = CH[chI];
+    Lab.$('#chTxt').textContent = Lab.L(ch.open ? o2(`Build an OPEN box (tick “no lid”) with volume ${ch.V} that uses the least cardboard.`, `做一个体积为 ${ch.V} 的无盖盒子（勾选“无盖”），使用的纸板最少。`)
+                                                : o2(`Build a closed box with volume ${ch.V} that uses the least cardboard.`, `做一个体积为 ${ch.V} 的有盖盒子，使用的纸板最少。`));
+  }
+  Lab.$('#openIn').onchange = () => { open = Lab.$('#openIn').checked; update(); };
+  Lab.$('#chNew').onclick = () => { chI = (chI + 1) % CH.length; Lab.$('#chMsg').textContent = ''; Lab.$('#chMsg').className = 'result'; advUpdate(); };
+  Lab.$('#chCheck').onclick = () => {
+    const ch = CH[chI], b = best(ch), V = l * w * h, A = sa(l, w, h, ch.open), msg = Lab.$('#chMsg');
+    let r, good = false;
+    if (open !== ch.open) r = ch.open ? o2('This one needs an open box: tick “no lid” first.', '这题要做无盖盒子：先勾选“无盖”。') : o2('This one needs a closed box: untick “no lid”.', '这题要做有盖盒子：取消勾选“无盖”。');
+    else if (Math.abs(V - ch.V) > 1e-9) r = o2(`Your volume is ${fmt(V)}, not ${ch.V}. Try l × w × h = ${ch.V}.`, `你的体积是 ${fmt(V)}，不是 ${ch.V}。试试让 l × w × h = ${ch.V}。`);
+    else if (A > b.A + 1e-9) r = o2(`V = ${ch.V} ✓ and SA = ${fmt(A)}. You can still use less: ${ch.open ? 'with no lid, try a square base and a lower height.' : 'make it more like a cube.'}`,
+                                   `V = ${ch.V} ✓,SA = ${fmt(A)}。还能更省：${ch.open ? '无盖时，试试底面是正方形、高矮一些。' : '让它更接近正方体。'}`);
+    else { good = true; r = o2(`🎉 Best box! ${fmt(l)} × ${fmt(w)} × ${fmt(h)} uses only ${fmt(A)} units² of cardboard.`, `🎉 最省料！${fmt(l)} × ${fmt(w)} × ${fmt(h)} 只用 ${fmt(A)} 平方单位的纸板。`); }
+    msg.textContent = Lab.L(r); msg.className = 'result ' + (good ? 'good' : 'bad');
+  };
   ['#lIn', '#wIn', '#hIn'].forEach(id => Lab.$(id).oninput = update);
-  Lab.onLang(update); update();
+  Lab.onLang(update); Lab.onMode(update); update();
 })();
 </script>
 <script>
@@ -530,6 +590,7 @@ build(); setMode('box');
 /* ================= Where you see this: real photos (Wikimedia Commons, freely licensed) ================= */
 (function(){
 const o = (en, zh) => ({ en, zh });
+const VID = o('Video', '视频');
 const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3c/Cardboard_boxes_by_Henry_S%C3%B6derlund.jpg/960px-Cardboard_boxes_by_Henry_S%C3%B6derlund.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'A stack of flat cardboard, ready to be folded into boxes. A flattened box is a net: its area is the box’s surface area.',
@@ -546,9 +607,23 @@ const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bf/Cardboard_boxes_in_different_sizes_for_sale_-_Thailand_Post.JPG/960px-Cardboard_boxes_in_different_sizes_for_sale_-_Thailand_Post.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'Boxes of different sizes for sale at a post office. Which one holds the most, and which uses the most cardboard?',
     zh:'邮局里出售的大小不同的纸箱。哪个装得最多？哪个用的纸板最多？',
-    credit:'User:Mattes', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Cardboard_boxes_in_different_sizes_for_sale_-_Thailand_Post.JPG' }
+    credit:'User:Mattes', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Cardboard_boxes_in_different_sizes_for_sale_-_Thailand_Post.JPG' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/97/W%C3%BCrfelzucker_--_2018_--_3561.jpg/960px-W%C3%BCrfelzucker_--_2018_--_3561.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'Sugar cubes. Stack 8 of them into a 2 × 2 × 2 big cube: the volume is 8 times bigger, but how many times bigger is the outside surface?',
+    zh:'方糖。用 8 块方糖拼成 2 × 2 × 2 的大立方体：体积变成 8 倍，那外表面积变成几倍？',
+    credit:'Dietmar Rabich', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:W%C3%BCrfelzucker_--_2018_--_3561.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/af/Ice_cubes.jpg/960px-Ice_cubes.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'Ice cubes. Crushed ice melts faster than one big block with the same volume. Why? (Hint: compare the surface areas.)',
+    zh:'冰块。同样体积的冰，碎冰比一整块冰化得快。为什么？（提示：比较表面积。）',
+    credit:'Pål Berge', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Ice_cubes.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e3/Kheops-Pyramid.jpg/960px-Kheops-Pyramid.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'The Great Pyramid of Giza has a square base about 230 m on each side and four triangular faces. It was once covered in smooth white stone: how would you find the area of that covering?',
+    zh:'埃及吉萨大金字塔的底面是边长约 230 米的正方形，四个侧面都是三角形。它原来外面包着一层光滑的白石：怎样求这层外壳的面积？',
+    credit:'Nina', license:'CC BY 2.5', page:'https://commons.wikimedia.org/wiki/File:Kheops-Pyramid.jpg' },
+  { type:'youtube', yt:'mtMNvnm71Z0', en:'Video: “Finding surface area using a net” — unfold a box and add up the areas of its faces.', zh:'视频：《用展开图求表面积》——把盒子展开，把各个面的面积加起来（英文）。', kind:VID, credit:'Khan Academy (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'qoM17ikreio', en:'Video: “Small is Mighty: the Square-Cube Law” — MIT shows why an ant can lift so much and why giant animals need thick legs.', zh:'视频：《小即是强：平方—立方定律》——麻省理工学院讲解：为什么蚂蚁力气那么大，为什么巨大的动物需要粗腿（英文）。', kind:VID, credit:'MIT K12 Videos (YouTube)', license:'YouTube' }
 ];
-LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos. Each one comes with a question this lesson helps you answer. Click a picture to enlarge it.','真实照片。每张都带着一个这节课能帮你回答的问题。点击图片可放大。') });
+LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos and short videos. Each photo comes with a question this lesson helps you answer. Click a picture to enlarge it or to play a video.','真实照片和短视频。每张照片都带着一个这节课能帮你回答的问题。点击图片可放大，点击视频可播放。') });
 })();
 </script>
 <!-- /real-world gallery script -->

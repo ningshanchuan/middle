@@ -26,6 +26,12 @@
 .therm i{position:absolute;top:-5px;width:6px;height:24px;border-radius:4px;background:var(--ink);transform:translateX(-50%);transition:left .3s}
 .vs{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .vs .box h3{display:flex;gap:8px;align-items:center}
+.ghgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-top:10px}
+.ghl{display:flex;flex-direction:column;gap:10px}
+.ghl .counter b{font-size:20px}
+.ghplot{position:relative;min-height:250px;background:var(--surface-2);border-radius:12px}
+.ghplot canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+@media (max-width:760px){.ghgrid{grid-template-columns:1fr}}
 @media (max-width:980px){.readouts{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:560px){.vs{grid-template-columns:1fr}}
 </style>
@@ -89,6 +95,7 @@
   <div class="sim">
     <div class="card simbox" style="min-height:420px"><canvas id="ghc"></canvas></div>
     <div class="card simside">
+      <div class="lab-mode"></div>
       <label class="ctl"><span><span data-zh="🏭 二氧化碳浓度">🏭 CO₂ in the air</span>: <b id="co2Val">420 ppm</b></span><input id="co2" type="range" min="180" max="1000" step="5" value="420"></label>
       <div class="btnrow">
         <button class="btn ghost" data-ppm="280" data-zh="1850 年（280）">1850 (280)</button>
@@ -103,6 +110,21 @@
       <p id="ghMsg"></p>
       <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="温室气体像一条毯子：阳光能进来，但热量不容易出去。毯子越厚，地球越暖。">Greenhouse gases act like a blanket: sunlight gets in, but heat has a harder time getting out. A thicker blanket means a warmer Earth.</span></div>
     </div>
+  </div>
+  <div class="adv adv-box" id="ghAdvBox" style="margin-top:12px">
+    <b data-zh="🚀 二氧化碳浓度与气温：用数字算一算">🚀 CO₂ and temperature by the numbers</b>
+    <div class="ghgrid">
+      <div class="ghl">
+        <label class="ctl"><span><span data-zh="🌡️ 气候敏感度 S（二氧化碳翻一倍带来的长期升温）">🌡️ Climate sensitivity S (long-term warming per doubling of CO₂)</span>: <b id="sensVal">3.0 °C</b></span><input id="sens" type="range" min="1.5" max="4.5" step="0.1" value="3"></label>
+        <p class="muted" style="margin:0;font-size:13px" data-zh="科学家估计 S 约为 2.5–4 °C，最可能约 3 °C。这个简化模型只算二氧化碳，算的是几十年后的长期结果。">Scientists estimate S is about 2.5–4 °C, most likely about 3 °C. This simple model counts CO₂ only and shows the long-term result after decades.</p>
+        <div class="counters" id="ghNums"></div>
+        <p class="muted" id="ghFormula" style="margin:0;font-size:13.5px;line-height:1.55"></p>
+      </div>
+      <div class="ghplot" data-nofs><canvas id="ghPlot"></canvas></div>
+    </div>
+    <div style="margin-top:12px;font-size:14.5px;line-height:1.5"><span data-zh-html="&lt;b&gt;🎯 挑战：&lt;/b&gt;《巴黎协定》的目标是把升温控制在比 1850 年高 2 °C 以内。用上面的二氧化碳滑块找出不超过 +2 °C 的&lt;b&gt;最高&lt;/b&gt;浓度，然后点“检查”。再改变 S 试试。"><b>🎯 Challenge:</b> The Paris Agreement aims to keep warming below 2 °C above 1850. Use the CO₂ slider above to find the <b>highest</b> level that stays at or below +2 °C, then press Check. Then try another S.</span>
+      <button class="btn" id="ghCheck" style="margin-left:6px" data-zh="检查">Check</button>
+      <div class="result" id="ghChMsg"></div></div>
   </div>
 </section>
 
@@ -307,7 +329,8 @@ const MONTHS = o(['J','F','M','A','M','J','J','A','S','O','N','D'],['1','2','3',
 /* ===== Greenhouse effect simulation ===== */
 (function(){
   const cv = Lab.$('#ghc'); let ppm = 420, none = false, phot = [], mols = [], back = 0, esc = 0, spawnT = 0, W = 600, H = 400;
-  const temp = () => none ? -18 : 13.9 + 3 * Math.log2(ppm / 280);
+  let sens = 3; const sensK = () => Lab.adv() ? sens : 3;   // 🚀 °C of long-term warming per doubling of CO₂ (Basic always 3)
+  const temp = () => none ? -18 : 13.9 + sensK() * Math.log2(ppm / 280);
   const absorbP = () => none ? 0 : Math.min(.9, .2 + .5 * Math.log2(ppm / 180) / Math.log2(1000 / 180));
   function setMols(){ const n = none ? 0 : Math.round(8 + 34 * Math.log2(ppm / 150) / Math.log2(1000 / 150)); while (mols.length < n) mols.push({ x:Math.random(), y:Math.random(), a:Math.random() * 6, f:0 }); mols.length = n; }
   function side(){
@@ -321,7 +344,55 @@ const MONTHS = o(['J','F','M','A','M','J','J','A','S','O','N','D'],['1','2','3',
       : ppm <= 440 ? o('Today: burning coal, oil and gas has raised CO₂ by about 50% since 1850. Earth has warmed about 1.3 °C so far.','现在：燃烧煤、石油和天然气使二氧化碳比 1850 年增加了约 50%，地球已经升温约 1.3 °C。')
       : o('More CO₂ traps more heat. A warmer climate melts ice, raises sea level and brings more extreme heat waves, droughts and floods.','二氧化碳越多，留住的热量越多。气候变暖会使冰川融化、海平面上升，热浪、干旱和洪涝也更加极端。'));
     setMols();
+    if (Lab.adv()) ghAdv();
   }
+  /* 🚀 Advanced: forcing, sensitivity, graph and the 2 °C challenge */
+  function ghAdv(){
+    const f2 = n => n.toFixed(2), f1 = n => n.toFixed(1), zh = Lab.lang === 'zh', S = sens;
+    const C = none ? 0 : ppm, dT = none ? null : S * Math.log2(ppm / 280), F = none ? null : 5.35 * Math.log(ppm / 280);
+    Lab.$('#sensVal').textContent = f1(S) + ' °C';
+    const N = [[o('CO₂ compared with 1850','与 1850 年相比的二氧化碳'), none ? '0×' : f2(C / 280) + '×'],
+      [o('Doublings since 1850','相对 1850 年翻倍的次数'), none ? '–' : f2(Math.log2(ppm / 280))],
+      [o('Extra heat trapped (forcing)','额外留住的热量（辐射强迫）'), none ? '–' : (F >= 0 ? '+' : '') + f2(F) + ' W/m²'],
+      [o('Long-term warming vs 1850','与 1850 年相比的长期升温'), none ? '≈ −32 °C' : (dT >= 0 ? '+' : '') + f2(dT) + ' °C']];
+    Lab.$('#ghNums').innerHTML = N.map(([n, v]) => `<div class="counter"><b>${v}</b><span>${Lab.L(n)}</span></div>`).join('');
+    Lab.$('#ghFormula').innerHTML = none
+      ? Lab.L(o('With no greenhouse gases at all, the CO₂ formula does not apply: Earth would be about −18 °C, about 32 °C colder than in 1850.','完全没有温室气体时，二氧化碳公式不适用：地球约为 −18 °C，比 1850 年低约 32 °C。'))
+      : (zh ? `升温 ΔT ≈ S × log<sub>2</sub>(C ÷ 280) = ${f1(S)} × log<sub>2</sub>(${C} ÷ 280) ≈ ${f2(dT)} °C<br>辐射强迫 ΔF ≈ 5.35 × ln(C ÷ 280) = 5.35 × ln(${f2(C / 280)}) ≈ ${f2(F)} W/m²<br>二氧化碳每翻一倍，升温都增加同样的 S（${f1(S)} °C）——所以曲线越往右越平。`
+            : `Warming ΔT ≈ S × log<sub>2</sub>(C ÷ 280) = ${f1(S)} × log<sub>2</sub>(${C} ÷ 280) ≈ ${f2(dT)} °C<br>Forcing ΔF ≈ 5.35 × ln(C ÷ 280) = 5.35 × ln(${f2(C / 280)}) ≈ ${f2(F)} W/m²<br>Every doubling of CO₂ adds the same S (${f1(S)} °C) of warming, so the curve flattens to the right.`);
+    ghPlot();
+  }
+  function ghPlot(){
+    const pc = Lab.$('#ghPlot'); if (!pc.getBoundingClientRect().width) return;
+    const [g, W2, H2] = fit(pc), L = 40, R = W2 - 12, Tp = 14, B = H2 - 30, lx = c => L + Math.log2(c / 180) / Math.log2(1200 / 180) * (R - L), Y = d => B - (d + 3) / 13 * (B - Tp), ink2 = css('--ink-2');
+    g.clearRect(0, 0, W2, H2); g.strokeStyle = css('--line'); g.lineWidth = 1; g.strokeRect(L, Tp, R - L, B - Tp);
+    g.font = '700 11px Nunito, sans-serif'; g.fillStyle = ink2; g.textAlign = 'center';
+    [180, 280, 420, 560, 840, 1120].forEach(c => { g.fillText(c, lx(c), B + 13); g.strokeStyle = css('--line'); g.beginPath(); g.moveTo(lx(c), Tp); g.lineTo(lx(c), B); g.stroke(); });
+    g.fillText(Lab.L(o('CO₂ (ppm, each step right = more doublings)','二氧化碳 (ppm，横轴按倍数等距)')), (L + R) / 2, H2 - 3);
+    g.textAlign = 'right'; for (let d = -2; d <= 10; d += 2) g.fillText((d > 0 ? '+' : '') + d + '°', L - 4, Y(d) + 4);
+    g.strokeStyle = ink2; g.setLineDash([3, 3]); g.beginPath(); g.moveTo(L, Y(0)); g.lineTo(R, Y(0)); g.stroke();
+    g.strokeStyle = '#f59e0b'; g.beginPath(); g.moveTo(L, Y(2)); g.lineTo(R, Y(2)); g.stroke(); g.setLineDash([]);
+    g.fillStyle = '#f59e0b'; g.textAlign = 'left'; g.fillText(Lab.L(o('2 °C goal (Paris Agreement)','2 °C 目标（《巴黎协定》）')), L + 6, Y(2) - 5);
+    g.strokeStyle = '#e5484d'; g.lineWidth = 2.5; g.beginPath();
+    for (let c = 180; c <= 1200; c += 10){ const y = Math.max(Tp, Math.min(B, Y(sens * Math.log2(c / 280)))); c === 180 ? g.moveTo(lx(c), y) : g.lineTo(lx(c), y); } g.stroke();
+    g.fillStyle = ink2; g.textAlign = 'center'; g.fillText('1850', lx(280), Y(0) + 14);
+    if (!none){ const d = sens * Math.log2(ppm / 280), y = Math.max(Tp, Math.min(B, Y(d))); g.fillStyle = '#e5484d'; g.beginPath(); g.arc(lx(ppm), y, 6, 0, 7); g.fill(); }
+  }
+  function ghCheck(){
+    const m = Lab.$('#ghChMsg'), d = none ? null : sens * Math.log2(ppm / 280), best = 280 * Math.pow(2, 2 / sens);
+    if (none || d < 1.85 || d > 2.0){
+      m.className = 'result bad';
+      m.textContent = Lab.L(none ? o('Move the CO₂ slider first.','先拖动二氧化碳滑块。')
+        : d > 2.0 ? o('❌ Too much: that gives about +' + d.toFixed(2) + ' °C, above the 2 °C goal. Lower the CO₂.','❌ 太多了：这样会升温约 ' + d.toFixed(2) + ' °C，超过 2 °C 目标。把二氧化碳调低一些。')
+        : o('❌ Safe (+' + d.toFixed(2) + ' °C), but you can go a bit higher. Find the HIGHEST level that stays at or below +2 °C.','❌ 是安全的（升温 ' + d.toFixed(2) + ' °C），但还可以再高一点。找出升温不超过 2 °C 的最高浓度。'));
+      return;
+    }
+    m.className = 'result good';
+    m.textContent = Lab.L(o('✅ Yes! With S = ' + sens.toFixed(1) + ' °C the limit is about ' + Math.round(best) + ' ppm (280 × 2^(2 ÷ ' + sens.toFixed(1) + ')). Today’s air is already about 420 ppm, so a high S leaves very little room. Try S = 4.5.',
+      '✅ 对了！当 S = ' + sens.toFixed(1) + ' °C 时，上限约为 ' + Math.round(best) + ' ppm（280 × 2^(2 ÷ ' + sens.toFixed(1) + ')）。现在空气中已经约有 420 ppm，如果 S 较大，剩下的空间就很小了。试试 S = 4.5。'));
+  }
+  Lab.$('#sens').oninput = e => { sens = +e.target.value; Lab.$('#ghChMsg').textContent = ''; side(); };
+  Lab.$('#ghCheck').onclick = ghCheck;
   function draw(dt){
     const [g, w, h] = fit(cv); W = w; H = h;
     const atmTop = H * .2, atmBot = H * .66, ground = H * .82, T = temp(), warm = Math.max(0, Math.min(1, (T + 18) / 40));
@@ -360,6 +431,8 @@ const MONTHS = o(['J','F','M','A','M','J','J','A','S','O','N','D'],['1','2','3',
   Lab.$('#co2').oninput = e => { none = false; ppm = +e.target.value; back = esc = 0; side(); };
   Lab.$$('[data-ppm]').forEach(b => b.onclick = () => { const v = +b.dataset.ppm; none = v === 0; if (!none){ ppm = v; Lab.$('#co2').value = v; } back = esc = 0; side(); });
   Lab.onLang(side);
+  Lab.onMode(() => requestAnimationFrame(side));
+  addEventListener('resize', () => { if (Lab.adv()) requestAnimationFrame(ghPlot); }); addEventListener('labtheme', () => { if (Lab.adv()) ghPlot(); });
 })();
 
 /* ===== Quiz ===== */

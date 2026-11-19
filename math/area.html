@@ -48,6 +48,7 @@
   <div class="ma-explore">
     <div class="ma-stage explore-stage" id="exStage" data-fs></div>
     <div class="card ctl">
+      <div class="lab-mode" style="align-self:flex-start"></div>
       <div class="seg" id="shapeSeg"><button data-k="para" class="on" data-zh="平行四边形">Parallelogram</button><button data-k="tri" data-zh="三角形">Triangle</button><button data-k="trap" data-zh="梯形">Trapezoid</button></div>
       <label class="ctl"><span><span data-zh="底 b = ">Base b = </span><b id="bVal">5</b></span><input id="bIn" type="range" min="1" max="8" step="1" value="5"></label>
       <label class="ctl" id="b1Row" hidden><span><span data-zh="上底 b₁ = ">Top base b₁ = </span><b id="b1Val">2</b></span><input id="b1In" type="range" min="1" max="8" step="1" value="2"></label>
@@ -57,6 +58,18 @@
       <div class="readout"><div><b id="areaN" style="color:#d49a1c">15</b><span data-zh="面积（平方单位）">area (square units)</span></div><div><b id="perN" style="color:#7a64c8">16.4</b><span data-zh="周长（单位）">perimeter (units)</span></div></div>
       <div class="note" id="note"></div>
       <div class="btnrow"><button class="btn" id="rearr"></button></div>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:10px">
+        <b data-zh="进阶：半个单位 · 用勾股定理算斜边 · 放大缩小">Advanced: half units, slanted sides with Pythagoras, scaling up</b>
+        <p class="muted" style="margin:0;font-size:14px" data-zh="现在底和高可以取 0.5 的倍数。">Base and height now move in steps of 0.5.</p>
+        <div id="perOut" style="text-align:center;font-size:17px;overflow-x:auto;overflow-y:hidden"></div>
+        <label class="ctl"><span><span data-zh="所有边长乘 k = ">Multiply every length by k = </span><b id="kVal">2</b></span><input id="kIn" type="range" min="0.5" max="3" step="0.5" value="2"></label>
+        <div id="kOut" style="text-align:center;font-size:17px;overflow-x:auto;overflow-y:hidden"></div>
+        <div style="border-top:1px solid var(--line);padding-top:8px">
+          <b data-zh="🎯 挑战">🎯 Challenge</b> <span id="chTxt"></span>
+          <div class="btnrow" style="margin-top:6px"><button class="btn" id="chCheck" data-zh="检查">Check</button><button class="btn ghost" id="chNew" data-zh="换一题">New challenge</button></div>
+          <div class="result" id="chMsg"></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -308,7 +321,58 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
                     trap:{ en:'Two copies make a parallelogram with base b₁ + b₂.', zh:'两个拼成底为 b₁ + b₂ 的平行四边形。' } };
     Lab.$('#note').textContent = Lab.L(notes[s.k]);
     Lab.$('#rearr').textContent = Lab.L(s.on ? { en:'↩ Put it back', zh:'↩ 还原' } : { en:'✂️ Rearrange', zh:'✂️ 剪拼' });
+    advUpdate(g, A, per);
   }
+  /* ---- Advanced: half units, side lengths by Pythagoras, scale factor k, challenge ---- */
+  const CH = [   // test(shape, area, perimeter) — the student sets the shape and the sliders
+    { en:'Make a triangle with area 12 whose base is 6.', zh:'做一个底为 6、面积为 12 的三角形。', test:(A, P) => s.k === 'tri' && s.b === 6 && A === 12,
+      why:{ en:'½ × 6 × h = 12, so 3h = 12 and h = 4.', zh:'½ × 6 × h = 12，即 3h = 12，所以 h = 4。' } },
+    { en:'Make a trapezoid with top base 3, height 4 and area 18.', zh:'做一个上底为 3、高为 4、面积为 18 的梯形。', test:(A, P) => s.k === 'trap' && s.b1 === 3 && s.h === 4 && A === 18,
+      why:{ en:'½ × (3 + b) × 4 = 18, so 3 + b = 9 and b = 6.', zh:'½ × (3 + b) × 4 = 18，所以 3 + b = 9，b = 6。' } },
+    { en:'Make a triangle with area 7.5 square units (use half units!).', zh:'做一个面积为 7.5 平方单位的三角形（可以用半个单位！）。', test:(A, P) => s.k === 'tri' && A === 7.5,
+      why:{ en:'b × h must be 15: for example 5 × 3, 6 × 2.5 or 7.5 × 2.', zh:'b × h 要等于 15：例如 5 × 3、6 × 2.5 或 7.5 × 2。' } },
+    { en:'Make a parallelogram with area 15 and the smallest possible perimeter.', zh:'做一个面积为 15、周长尽可能小的平行四边形。', test:(A, P) => s.k === 'para' && A === 15 && P <= 16 + 1e-9,
+      why:{ en:'No slant (a rectangle) keeps the sides short: 5 × 3 gives perimeter 16.', zh:'不倾斜（长方形）时边最短：5 × 3，周长为 16。' } },
+    { en:'Make a parallelogram with area 12 whose slanted sides are exactly 5 units long.', zh:'做一个面积为 12、斜边长正好为 5 个单位的平行四边形。', test:(A, P, g) => s.k === 'para' && A === 12 && Math.abs(Math.hypot(g.sl, s.h) - 5) < 1e-9,
+      why:{ en:'Height 4 and slant 3 make a 3-4-5 right triangle, so the side is √(3² + 4²) = 5; then b = 12 ÷ 4 = 3.', zh:'高 4、倾斜 3 组成 3-4-5 的直角三角形，斜边 = √(3² + 4²) = 5；底 b = 12 ÷ 4 = 3。' } }
+  ];
+  let chI = 0;
+  const cB = v => `\\textcolor{#2b8fb0}{${v}}`, cH = v => `\\textcolor{#d6458b}{${v}}`;
+  function sideTex(p, q){                        // length of one side: exact if straight, else √(dx² + dy²)
+    const dx = Math.abs(q[0] - p[0]), dy = Math.abs(q[1] - p[1]);
+    if (dx < 1e-9 || dy < 1e-9) return fmt(dx + dy);
+    const r = dx * dx + dy * dy, sq = Math.sqrt(r);
+    return Math.abs(sq - Math.round(sq * 2) / 2) < 1e-9 ? fmt(sq) : `\\sqrt{${fmt(r)}}`;
+  }
+  function advUpdate(g, A, per){
+    if (!Lab.adv()) return;
+    if (!g){ update(); return; }
+    const P = g.P, sides = P.map((p, i) => sideTex(p, P[(i + 1) % P.length]));
+    const slanted = P.map((p, i) => { const q = P[(i + 1) % P.length]; return Math.abs(q[0] - p[0]) > 1e-9 && Math.abs(q[1] - p[1]) > 1e-9 ? [Math.abs(q[0] - p[0]), Math.abs(q[1] - p[1])] : null; }).filter(Boolean);
+    let html = MathAnim.tex(`P = ${sides.join(' + ')} ${sides.some(x => x.includes('sqrt')) ? '\\approx' : '='} ${fmt(per)}`);
+    if (slanted.length){ const [dx, dy] = slanted[0];
+      html += '<br><span class="muted" style="font-size:14px">' + Lab.L({ en:'A slanted side is the long side of a right triangle: ', zh:'倾斜的边是一个直角三角形的斜边（勾股定理）：' }) + '</span>'
+        + MathAnim.tex(`\\sqrt{${fmt(dx)}^2 + ${cH(fmt(dy))}^2} = \\sqrt{${fmt(dx * dx + dy * dy)}} \\approx ${fmt(Math.hypot(dx, dy))}`); }
+    Lab.$('#perOut').innerHTML = html;
+    const k = +Lab.$('#kIn').value; Lab.$('#kVal').textContent = fmt(k);
+    Lab.$('#kOut').innerHTML = MathAnim.tex(`P' = ${fmt(k)} \\times ${fmt(per)} = ${fmt(k * per)}`) + '<br>'
+      + MathAnim.tex(`A' = ${fmt(k)}^2 \\times ${fmt(A)} = ${fmt(k * k)} \\times ${fmt(A)} = ${fmt(k * k * A)}`)
+      + '<br><span class="muted" style="font-size:14px">' + Lab.L({ en:`Lengths × ${fmt(k)}, but area × ${fmt(k * k)}: a 12-inch square pizza is 4 times a 6-inch one, not 2.`, zh:`长度 × ${fmt(k)}，面积却 × ${fmt(k * k)}：边长 12 英寸的方形披萨是 6 英寸的 4 倍，不是 2 倍。` }) + '</span>';
+    Lab.$('#chTxt').textContent = Lab.L(CH[chI]);
+  }
+  Lab.$('#kIn').oninput = () => advUpdate();
+  Lab.$('#chNew').onclick = () => { chI = (chI + 1) % CH.length; Lab.$('#chMsg').textContent = ''; Lab.$('#chMsg').className = 'result'; advUpdate(); };
+  Lab.$('#chCheck').onclick = () => {
+    const g = geom(), P = g.P, A = s.k === 'para' ? s.b * s.h : s.k === 'tri' ? s.b * s.h / 2 : (s.b + s.b1) * s.h / 2;
+    let per = 0; P.forEach((p, i) => { const q = P[(i + 1) % P.length]; per += Math.hypot(q[0] - p[0], q[1] - p[1]); });
+    const ok = CH[chI].test(A, per, g), msg = Lab.$('#chMsg');
+    msg.textContent = ok ? '🎉 ' + Lab.L(CH[chI].why) : Lab.L({ en:'Not yet. Check the shape, then write the area formula with the numbers you need and solve for the missing one.', zh:'还不对。先看图形对不对，再把已知数代入面积公式，求出缺少的那个量。' });
+    msg.className = 'result ' + (ok ? 'good' : 'bad');
+  };
+  Lab.onMode(adv => {                            // Advanced: base / top base / height in steps of 0.5; Basic: whole units as before
+    ['#bIn', '#b1In', '#hIn'].forEach(id => { const el = Lab.$(id); el.step = adv ? '0.5' : '1'; if (!adv) el.value = Math.round(+el.value); });
+    s.on = false; s.t = 0; update();
+  });
   const reset = () => { s.on = false; s.t = 0; update(); };
   ['#bIn', '#b1In', '#hIn', '#sIn'].forEach(id => Lab.$(id).oninput = reset);
   Lab.$$('#shapeSeg button').forEach(b => b.onclick = () => { s.k = b.dataset.k; Lab.$$('#shapeSeg button').forEach(x => x.classList.toggle('on', x === b)); reset(); });
@@ -345,6 +409,7 @@ Lab.sort(Lab.$('#sort'), {
 /* ================= Where you see this: real photos (Wikimedia Commons, freely licensed) ================= */
 (function(){
 const o = (en, zh) => ({ en, zh });
+const VID = o('Video', '视频');
 const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/74/Volunteers_lay_floor_tiles_Our_Community_Place_17_East_Johnson_Street_Harrisonburg_VA_March_2009.jpg/960px-Volunteers_lay_floor_tiles_Our_Community_Place_17_East_Johnson_Street_Harrisonburg_VA_March_2009.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'Volunteers laying floor tiles in Harrisonburg, Virginia. How many square tiles does a whole room need?',
@@ -356,10 +421,24 @@ const PHOTOS = [
     credit:'Gray Watson User:E090', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Solar_panels_on_house_roof.jpg' },
   { src:'https://upload.wikimedia.org/wikipedia/commons/c/c3/Floor_tiling_with_tetrakis_tiles.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled',
     en:'A floor tiling where each square tile is split into triangles. What part of the square does one triangle cover, and why?',
-    zh:'ä¸ç§å°ç éºæ³ï¼æ¯åæ­£æ¹å½¢ç è¢«åæå ä¸ªä¸è§å½¢ãä¸ä¸ªä¸è§å½¢å æ­£æ¹å½¢çå åä¹å ï¼ä¸ºä»ä¹ï¼',
-    credit:'Lambiam', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Floor_tiling_with_tetrakis_tiles.jpg' }
+    zh:'一种地砖铺法：每块正方形砖都被分成几个三角形。一个三角形占正方形的几分之几？为什么？',
+    credit:'Lambiam', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Floor_tiling_with_tetrakis_tiles.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/94/Hitane_Elementary_School_tatami_room_2.jpg/960px-Hitane_Elementary_School_tatami_room_2.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A tatami room in a Japanese elementary school. In Japan, rooms are measured in mats! One mat is about 0.9 m × 1.8 m. What is the area of a “6-mat room”?',
+    zh:'日本一所小学里的榻榻米房间。在日本，房间大小用“几张席子”来表示！一张榻榻米约 0.9 米 × 1.8 米。“6 张榻榻米”的房间面积是多少？',
+    credit:'Douglas P Perkins', license:'CC BY 3.0', page:'https://commons.wikimedia.org/wiki/File:Hitane_Elementary_School_tatami_room_2.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fa/Drone_aerial_view_of_the_soccer_stadium_%28Unsplash%29.jpg/960px-Drone_aerial_view_of_the_soccer_stadium_%28Unsplash%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A soccer field seen from a drone. A full-size field is about 105 m long and 68 m wide. How many square meters of grass is that?',
+    zh:'无人机拍到的足球场。标准足球场大约长 105 米、宽 68 米。草坪一共有多少平方米？',
+    credit:'Liane Metzler', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Drone_aerial_view_of_the_soccer_stadium_(Unsplash).jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/d/d9/Rhind_Mathematical_Papyrus.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled',
+    en:'The Rhind papyrus (Egypt, about 1550 BC) teaches how to find the area of fields, including a triangle-shaped field: take half the base times the height, just like you do.',
+    zh:'古埃及莱因德纸草书（约公元前 1550 年）教人计算田地的面积，其中有一块三角形的田：取底的一半再乘高，和你学的方法一样。',
+    kind:o('Ancient math','古代数学'), credit:'scribe Ahmes (ancient Egypt)', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Rhind_Mathematical_Papyrus.jpg' },
+  { type:'youtube', yt:'xCdxURXMdFY', en:'Video: “Area” — counting square units, and the formulas for rectangles, triangles and more.', zh:'视频：《面积》——数一数单位正方形，以及长方形、三角形等的面积公式（英文）。', kind:VID, credit:'Math Antics (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'QEzlsjAqADA', en:'Video: “Why do honeybees love hexagons?” — a TED-Ed lesson: hexagons cover the most area with the least wax.', zh:'视频：《蜜蜂为什么偏爱六边形？》——TED-Ed 课程：六边形用最少的蜂蜡围出最大的面积（英文）。', kind:VID, credit:'TED-Ed (YouTube)', license:'YouTube' }
 ];
-LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos. Each one comes with a question this lesson helps you answer. Click a picture to enlarge it.','真实照片。每张都带着一个这节课能帮你回答的问题。点击图片可放大。') });
+LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos and short videos. Each photo comes with a question this lesson helps you answer. Click a picture to enlarge it or to play a video.','真实照片和短视频。每张照片都带着一个这节课能帮你回答的问题。点击图片可放大，点击视频可播放。') });
 })();
 </script>
 <!-- /real-world gallery script -->

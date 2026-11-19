@@ -50,6 +50,13 @@
 .figbox{position:relative;height:420px;padding:0;overflow:hidden}
 .figbox canvas{position:absolute;inset:0;width:100%;height:100%}
 .figcap{font-size:13px;color:var(--ink-2);margin:8px 4px 0}
+/* 🚀 Advanced panel */
+.advgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start;margin-top:10px}
+.advcol{display:flex;flex-direction:column;gap:10px}
+.fml{font-family:ui-monospace,Consolas,monospace;font-size:13px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;line-height:1.55;overflow-wrap:anywhere}
+.lossbars.rkbud div{grid-template-columns:150px 1fr 70px}
+.lossbars.rkbud i.neg{background:var(--good)}
+@media (max-width:760px){ .advgrid{grid-template-columns:1fr} .lossbars.rkbud div{grid-template-columns:118px 1fr 60px} }
 #turnBox{min-height:400px}
 .lossbars{display:flex;flex-direction:column;gap:6px}
 .lossbars div{display:grid;grid-template-columns:120px 1fr 64px;gap:8px;align-items:center;font-size:13.5px;font-weight:700}
@@ -95,6 +102,7 @@
     <h2 data-zh="造一枚火箭，发射它！">Build a rocket and launch it!</h2>
     <p data-zh="选一个任务，设计分几级、每级装多少燃料、用什么发动机、带多重的载荷，然后发射。飞行用真实物理计算：引力随高度减弱、空气阻力随高度变稀、燃料烧掉后火箭越来越轻。从佛罗里达向东发射，地球自转白送你约 0.4 千米/秒。">Pick a mission, then design the rocket: how many stages, how much fuel in each, which engines and how heavy a payload. The flight uses real physics: gravity that weakens with height, air drag that thins out with height, and a rocket that gets lighter as it burns fuel. You launch eastward from Florida, so Earth’s spin gives you about 0.4 km/s for free.</p>
   </div>
+  <div class="lab-mode" style="margin-bottom:10px"></div>
   <div class="missions" id="missions"></div>
   <div class="builder" style="margin-top:14px">
     <div class="card design">
@@ -117,6 +125,24 @@
       <div class="stats" id="flyStats" style="margin-top:12px"></div>
       <div class="result" id="flyMsg" style="margin-top:8px"></div>
       <div class="card" id="grBox"><canvas id="grCv" aria-label="Altitude and speed graphs"></canvas></div>
+    </div>
+  </div>
+  <div class="adv adv-box" id="rkAdv" style="margin-top:14px">
+    <b data-zh="🚀 进阶：发射场、比冲，以及 Δv 都花到哪儿去了">🚀 Advanced: launch site, specific impulse, and where your Δv goes</b>
+    <div class="advgrid">
+      <div class="advcol">
+        <div class="presets" id="rkSite"></div>
+        <label class="ctl" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="rkWest"> <span data-zh="向西发射（逆着地球自转）">Launch west (against Earth’s spin)</span></label>
+        <div class="fml" id="rkF"></div>
+        <div class="stats" id="rkLive"></div>
+        <div><b data-zh="🎯 挑战">🎯 Challenge</b> <span id="rkChQ"></span> <button class="btn ghost sm" id="rkChNew" data-zh="换一个 ↻">New ↻</button></div>
+        <div class="result" id="rkCh"></div>
+      </div>
+      <div>
+        <h3 style="font-size:17px;margin:0 0 8px" data-zh="💸 你的 Δv 花到哪儿去了？">💸 Where did your Δv go?</h3>
+        <div class="lossbars rkbud" id="rkBud"></div>
+        <small class="muted" style="display:block;margin-top:8px" data-zh="发动机给的 Δv 总量 = 最后达到的速度 + 重力损失 + 阻力损失 + 转向等其他损失 − 地球自转白送的速度。真实火箭进入近地轨道时，重力、阻力和转向损失加起来约 1.5–2 千米/秒；这个简化模型的损失要小一些。">The engines’ total Δv = the speed you end with + gravity loss + drag loss + steering and other losses − the speed Earth’s spin gave you for free. For real rockets going to low orbit, gravity, drag and steering losses add up to about 1.5–2 km/s; this simplified model loses somewhat less.</small>
+      </div>
     </div>
   </div>
   <details class="peek" style="margin-top:14px"><summary data-zh="🧮 火箭方程：为什么分级有用？">🧮 The rocket equation: why does staging help?</summary>
@@ -330,7 +356,8 @@ function thDraw(dt){
 
 /* ===================== 2. Rocket physics (2D, Earth-centred, SI units) ===================== */
 const TUNE = { kv:60, ramp:10 };
-const RE = 6.371e6, MU =3.986004e14, G0 = 9.80665, VROT = 408, WROT = VROT / RE, HSC = 8500, CD = .3;
+const RE = 6.371e6, MU =3.986004e14, G0 = 9.80665, VROT0 = 408, HSC = 8500, CD = .3;
+let VROT = VROT0, WROT = VROT / RE;   // Earth’s spin at the launch site (m/s); 🚀 Advanced mode can change the launch site
 const ENG = {
   kero:{ n:o('Kerosene + oxygen','煤油 + 液氧'), like:o('like Merlin (Falcon 9)','类似灰背隼（猎鹰 9 号）'), F:914e3, vv:3050, vs:2770, m:470, tank:.06 },
   hydro:{ n:o('Hydrogen + oxygen','液氢 + 液氧'), like:o('like RS-25 (Shuttle, SLS)','类似 RS-25（航天飞机、SLS）'), F:2279e3, vv:4440, vs:3590, m:3500, tank:.10 },
@@ -451,7 +478,7 @@ function flightEnd(){ const f = FL.f; FL.done = true; f.pts.push([f.x, f.y]); if
   if (MI.cur === 'moon'){ if (f.res === 'orbit' && f.dvLeft >= 3100 && D.payload >= 1){ stars = frac >= .012 ? 3 : frac >= .006 ? 2 : 1; txt += ' ' + Lab.L(o(`Mission 3 complete: enough Δv left to head for the Moon! Payload ${(frac * 100).toFixed(2)}% of liftoff mass (3★ ≥ 1.2%, 2★ ≥ 0.6%; Saturn V sent about 1.5% toward the Moon).`, `任务 3 完成：剩余 Δv 足够奔向月球！载荷占起飞质量 ${(frac * 100).toFixed(2)}%（3 星 ≥ 1.2%，2 星 ≥ 0.6%；土星 5 号约 1.5%）。`)); }
     else txt += ' ' + Lab.L(o('For the Moon you need orbit, a payload of at least 1 t, AND at least 3.1 km/s left in your last stage. Try 3 stages with a hydrogen top stage.','去月球需要：进入轨道、载荷至少 1 吨，并且最后一级还剩至少 3.1 千米/秒。试试 3 级，顶级用液氢发动机。')); }
   if (stars){ MI.stars[MI.cur] = Math.max(MI.stars[MI.cur], stars); renderMissions(); txt += ' ' + '★'.repeat(stars) + '☆'.repeat(3 - stars); }
-  msg.className = 'result ' + (stars ? 'good' : 'bad'); msg.textContent = txt; renderFlyStats(); drawGraphs(); }
+  msg.className = 'result ' + (stars ? 'good' : 'bad'); msg.textContent = txt; renderFlyStats(); drawGraphs(); if (window.RkAdv) RkAdv.end(f); }
 function renderFlyStats(){ const f = FL.f, el = Lab.$('#flyStats');
   if (!f){ el.innerHTML = ''; return; }
   const r = Math.hypot(f.x, f.y), h = r - RE, v = Math.hypot(f.vx, f.vy), stg = Math.min(f.si + 1, f.st.length);
@@ -526,7 +553,7 @@ function drawGraphs(){
 /* ===================== 3. Gravity turn: same rocket, different pitch-over ===================== */
 const REF = { n:2, st:[{ eng:'kero', fuel:410, k:9 }, { eng:'kero', fuel:95, k:1 }], payload:8, kick:0 };
 const GT = { runs:{}, ghosts:[], scan:null };
-function gtRun(kick){ const key = kick.toFixed(2); if (!GT.runs[key]) GT.runs[key] = runFlight(Object.assign({}, REF, { kick })); return GT.runs[key]; }
+function gtRun(kick){ const key = kick.toFixed(2); if (!GT.runs[key]){ const v0 = VROT; VROT = VROT0; WROT = VROT / RE; GT.runs[key] = runFlight(Object.assign({}, REF, { kick })); VROT = v0; WROT = VROT / RE; } return GT.runs[key]; }   // always from Florida
 function gtScan(){ if (GT.scan) return GT.scan; GT.scan = []; for (let k = 0; k <= 20; k += .5){ const f = gtRun(k); GT.scan.push([k, f.res]); } return GT.scan; }
 function gtUpdate(){
   const kick = +Lab.$('#tk').value, f = gtRun(kick);
@@ -555,8 +582,8 @@ function drawTurn(){
   g.fillStyle = '#c6d0e6'; g.textAlign = 'left'; g.fillText(Lab.L(o('100 km: space','100 千米：太空')), pad.l + 6, Y(100) - 5); g.fillText(Lab.L(o('thick air','稠密大气')), pad.l + 6, Y(0) - 6);
   const cur = +Lab.$('#tk').value;
   GT.ghosts.forEach(k => { const f = gtRun(k), on = k === cur; g.strokeStyle = on ? (f.res === 'orbit' ? '#3ed596' : '#ff8a5c') : 'rgba(200,210,235,.35)'; g.lineWidth = on ? 2.6 : 1.4; g.beginPath();
-    f.pts.forEach((p, i) => { const d = (downrange(p[0], p[1]) - VROT * (p[2] || 0)) / 1000, h = (Math.hypot(p[0], p[1]) - RE) / 1000, x = X(Math.min(d, xM * 1.02)), y = Y(Math.min(h, yM * 1.02)); i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.stroke();
-    if (!on){ const p = f.pts[Math.min(f.pts.length - 1, 40)], d = (downrange(p[0], p[1]) - VROT * (p[2] || 0)) / 1000, h = (Math.hypot(p[0], p[1]) - RE) / 1000; g.fillStyle = 'rgba(200,210,235,.7)'; g.textAlign = 'left'; g.fillText(`${k}°`, X(Math.min(d, xM)) + 4, Y(Math.min(h, yM))); } });
+    f.pts.forEach((p, i) => { const d = (downrange(p[0], p[1]) - VROT0 * (p[2] || 0)) / 1000, h = (Math.hypot(p[0], p[1]) - RE) / 1000, x = X(Math.min(d, xM * 1.02)), y = Y(Math.min(h, yM * 1.02)); i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.stroke();
+    if (!on){ const p = f.pts[Math.min(f.pts.length - 1, 40)], d = (downrange(p[0], p[1]) - VROT0 * (p[2] || 0)) / 1000, h = (Math.hypot(p[0], p[1]) - RE) / 1000; g.fillStyle = 'rgba(200,210,235,.7)'; g.textAlign = 'left'; g.fillText(`${k}°`, X(Math.min(d, xM)) + 4, Y(Math.min(h, yM))); } });
   /* strip: which pitch-over angles reach orbit */
   const scan = gtScan(), sy = H - 22, sx0 = pad.l, sx1 = W - pad.r;
   g.fillStyle = '#c6d0e6'; g.textAlign = 'left'; g.font = '800 11px Nunito, sans-serif'; g.fillText(Lab.L(o('Pitch-over 0° → 20°: green = reaches orbit','转弯角 0° → 20°：绿色 = 能入轨')), sx0, sy - 8);
@@ -656,10 +683,19 @@ const RP = [
     en:'A Long March 5 (Chang Zheng 5, “Long March”) rocket launches the Chang’e 5 Moon mission. Chang’e 5 brought rocks from the Moon back to Earth in 2020.', zh:'长征五号火箭发射嫦娥五号探月任务。嫦娥五号在 2020 年把月球岩石样品带回了地球。', scale:o('57 m tall · about 25 t to low orbit','高 57 米 · 近地轨道载荷约 25 吨') },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0f/SpaceX_Super_Heavy_at_sunset.jpg/960px-SpaceX_Super_Heavy_at_sunset.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', page:'https://commons.wikimedia.org/wiki/File:SpaceX_Super_Heavy_at_sunset.jpg', credit:'Steve Jurvetson', license:'CC BY 2.0', kind:KIND.photo,
     en:'A SpaceX Super Heavy booster, the first stage of Starship, at sunset at Starbase, Texas.', zh:'夕阳下，位于美国得克萨斯州星港的 SpaceX“超重型”助推器，它是星舰的第一级。', scale:o('About 9 m wide','直径约 9 米') },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c6/Saturn_V_Rocket_S-IC_-_1992.jpg/960px-Saturn_V_Rocket_S-IC_-_1992.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', page:'https://commons.wikimedia.org/wiki/File:Saturn_V_Rocket_S-IC_-_1992.jpg', credit:'Torsten Bolten', license:'CC BY-SA 3.0', kind:KIND.photo,
+    en:'The five F-1 engines at the bottom of a real Saturn V first stage, on display at Kennedy Space Center. Each bell-shaped nozzle is taller than a grown-up; together they pushed with about 34 million newtons.', zh:'美国肯尼迪航天中心展出的真实土星 5 号第一级底部的五台 F-1 发动机。每个钟形喷管都比大人还高；五台加起来的推力约 3400 万牛顿。', scale:o('Each nozzle about 3.7 m across','每个喷管口直径约 3.7 米') },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/Artemis_I_Liftoff.jpg/960px-Artemis_I_Liftoff.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', page:'https://commons.wikimedia.org/wiki/File:Artemis_I_Liftoff.jpg', credit:'Isaac Watson (NASA)', license:'Public domain', kind:KIND.photo,
+    en:'NASA’s Space Launch System (SLS) lifts off at night on November 16, 2022, sending the uncrewed Orion capsule around the Moon on Artemis I. Its two white solid boosters came from the Space Shuttle design.', zh:'2022 年 11 月 16 日夜里，美国航天局的“太空发射系统”（SLS）火箭升空，把无人的“猎户座”飞船送去绕月飞行（阿耳忒弥斯 1 号任务）。两侧白色的固体助推器是从航天飞机的设计发展来的。', scale:o('98 m tall','高 98 米') },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/73/Launch_of_Shenzhou_13.jpg/960px-Launch_of_Shenzhou_13.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', page:'https://commons.wikimedia.org/wiki/File:Launch_of_Shenzhou_13.jpg', credit:'ForrestXYC', license:'CC BY-SA 4.0', kind:KIND.photo,
+    en:'A Long March 2F rocket launches Shenzhou 13 from Jiuquan, China, in October 2021, carrying three astronauts to the Tiangong space station for six months. Look for the escape tower on top.', zh:'2021 年 10 月，长征二号 F 火箭在中国酒泉发射神舟十三号，把三名航天员送上天宫空间站，在那里工作了半年。注意火箭顶端的逃逸塔。' },
   { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/6/61/Falcon_9_Flight_62_SAOCOM_1A.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/61/Falcon_9_Flight_62_SAOCOM_1A.webm/960px--Falcon_9_Flight_62_SAOCOM_1A.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', page:'https://commons.wikimedia.org/wiki/File:Falcon_9_Flight_62_SAOCOM_1A.webm', credit:'Senior Airman Latonya Kim and Airman 1st Class Daniel Myles (U.S. Air Force)', license:'Public domain', kind:KIND.vid,
     en:'A Falcon 9 launches the SAOCOM 1A satellite from Vandenberg Air Force Base, California (October 2018). Watch the path start to curve: the gravity turn.', zh:'猎鹰 9 号从美国加利福尼亚州范登堡空军基地发射 SAOCOM 1A 卫星（2018 年 10 月）。注意飞行路径开始弯曲：这就是重力转弯。', scale:o('12.7 MB video','视频 12.7 MB') },
   { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/8/8f/Apollo_4_separation_of_interstage_ring.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8f/Apollo_4_separation_of_interstage_ring.webm/960px--Apollo_4_separation_of_interstage_ring.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', page:'https://commons.wikimedia.org/wiki/File:Apollo_4_separation_of_interstage_ring.webm', credit:'NASA', license:'Public domain', kind:KIND.film,
-    en:'Filmed from a camera on the rocket itself: the Saturn V’s interstage ring falls away during Apollo 4, an uncrewed test flight in 1967.', zh:'由火箭自身携带的摄像机拍摄：1967 年无人试飞的阿波罗 4 号任务中，土星 5 号的级间环脱落。', scale:o('13 MB video','视频 13 MB') }
+    en:'Filmed from a camera on the rocket itself: the Saturn V’s interstage ring falls away during Apollo 4, an uncrewed test flight in 1967.', zh:'由火箭自身携带的摄像机拍摄：1967 年无人试飞的阿波罗 4 号任务中，土星 5 号的级间环脱落。', scale:o('13 MB video','视频 13 MB') },
+  { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/b/b1/%E5%AB%A6%E5%A8%A5%E5%9B%9B%E5%8F%B7%E6%88%90%E5%8A%9F%E5%8F%91%E5%B0%84_%E5%BC%80%E5%90%AF%E4%BA%BA%E7%B1%BB%E9%A6%96%E6%AC%A1%E6%9C%88%E7%90%83%E8%83%8C%E9%9D%A2%E8%BD%AF%E7%9D%80%E9%99%86%E6%8E%A2%E6%B5%8B%E4%B9%8B%E6%97%85_%21_Chang%E2%80%99e_4_launches_China%E2%80%99s_bid_to_be_first_on_dark_side_of_the_moon.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b1/%E5%AB%A6%E5%A8%A5%E5%9B%9B%E5%8F%B7%E6%88%90%E5%8A%9F%E5%8F%91%E5%B0%84_%E5%BC%80%E5%90%AF%E4%BA%BA%E7%B1%BB%E9%A6%96%E6%AC%A1%E6%9C%88%E7%90%83%E8%83%8C%E9%9D%A2%E8%BD%AF%E7%9D%80%E9%99%86%E6%8E%A2%E6%B5%8B%E4%B9%8B%E6%97%85_%21_Chang%E2%80%99e_4_launches_China%E2%80%99s_bid_to_be_first_on_dark_side_of_the_moon.webm/960px--%E5%AB%A6%E5%A8%A5%E5%9B%9B%E5%8F%B7%E6%88%90%E5%8A%9F%E5%8F%91%E5%B0%84_%E5%BC%80%E5%90%AF%E4%BA%BA%E7%B1%BB%E9%A6%96%E6%AC%A1%E6%9C%88%E7%90%83%E8%83%8C%E9%9D%A2%E8%BD%AF%E7%9D%80%E9%99%86%E6%8E%A2%E6%B5%8B%E4%B9%8B%E6%97%85_%21_Chang%E2%80%99e_4_launches_China%E2%80%99s_bid_to_be_first_on_dark_side_of_the_moon.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', page:'https://commons.wikimedia.org/wiki/File:%E5%AB%A6%E5%A8%A5%E5%9B%9B%E5%8F%B7%E6%88%90%E5%8A%9F%E5%8F%91%E5%B0%84_%E5%BC%80%E5%90%AF%E4%BA%BA%E7%B1%BB%E9%A6%96%E6%AC%A1%E6%9C%88%E7%90%83%E8%83%8C%E9%9D%A2%E8%BD%AF%E7%9D%80%E9%99%86%E6%8E%A2%E6%B5%8B%E4%B9%8B%E6%97%85_!_Chang%E2%80%99e_4_launches_China%E2%80%99s_bid_to_be_first_on_dark_side_of_the_moon.webm', credit:'China News Service (中国新闻网)', license:'CC BY 4.0', kind:KIND.vid,
+    en:'A Long March 3B rocket launches Chang’e 4 from Xichang, China, on December 8, 2018. A few weeks later it made the first landing on the far side of the Moon.', zh:'2018 年 12 月 8 日，长征三号乙火箭在中国西昌发射嫦娥四号。几周后，它实现了人类首次在月球背面着陆。', scale:o('10 MB video','视频 10 MB') },
+  { type:'youtube', yt:'mYTvg2abusc', en:'NASA: Artemis I launches to the Moon (official recap). Watch the boosters separate and the stages do their jobs one after another.', zh:'美国航天局：阿耳忒弥斯 1 号飞向月球（官方回顾）。看助推器分离，各级火箭一级接一级地完成任务。', kind:o('Video','视频'), credit:'NASA (YouTube)', license:'YouTube' }
 ];
 LabPhotos.render('#gallery', RP, { title:o('See the real thing','看看真实的样子'),
   sub:o('From Goddard’s first liquid-fuelled rocket to boosters that land themselves. Click a picture to enlarge it; videos play only when you press play.','从戈达德的第一枚液体火箭，到能自己着陆的助推器。点击图片可放大；视频要你按下播放键才会播放。') });
@@ -702,6 +738,77 @@ let lastT = performance.now();
   requestAnimationFrame(loop); })(lastT);
 window.RKT = { D, FL, MI, GT, runFlight, newFlight, buildStages, dvRows, gtScan, renderStages, renderDv };
 
+</script>
+<script>
+/* ===== 🚀 Advanced mode: launch site (Earth's spin), Isp, live max-Q and g-force, Δv budget, challenge ===== */
+(function(){
+  const $ = Lab.$, isZh = () => Lab.lang === 'zh';
+  const SITES = [ // latitude in degrees north
+    ['ksc', o('Cape Canaveral, USA','美国卡纳维拉尔角'), 28.6], ['kourou', o('Kourou, French Guiana','法属圭亚那库鲁'), 5.2], ['wenchang', o('Wenchang, China','中国文昌'), 19.6],
+    ['jiuquan', o('Jiuquan, China','中国酒泉'), 41.0], ['baikonur', o('Baikonur, Kazakhstan','哈萨克斯坦拜科努尔'), 45.9] ];
+  const A = { site:'ksc', ch:null, lastDv:0, lastT:0, gNow:0, maxG:0 };
+  const site = () => SITES.find(s => s[0] === A.site);
+  const spin = () => 465.1 * Math.cos(site()[2] * Math.PI / 180) * ($('#rkWest').checked ? -1 : 1);
+  function apply(){ VROT = Lab.adv() ? spin() : VROT0; WROT = VROT / RE; }
+  function sites(){ $('#rkSite').innerHTML = `<span class="lbl">${Lab.L(o('Launch site:','发射场：'))}</span>` + SITES.map(s => `<button data-k="${s[0]}" class="${s[0] === A.site ? 'on' : ''}">${Lab.L(s[1])} · ${s[2]}°</button>`).join('');
+    Lab.$$('#rkSite button').forEach(b => b.onclick = () => { A.site = b.dataset.k; sites(); changed(); }); }
+  const ks = v => `${(v / 1000).toFixed(2)} ${isZh() ? '千米/秒' : 'km/s'}`;
+  function fml(){
+    if (!Lab.adv()) return;
+    const s = site(), sp = spin(), r = RE + 200e3, vo = Math.sqrt(MU / r), loss = 1600, need = vo + loss - sp;
+    const st = buildStages(D), rows = dvRows(st, D.payload), tot = rows.reduce((a, q) => a + q.dv, 0);
+    const isp = rows.map((q, i) => `${i + 1}: ${Math.round(q.ve)} ÷ 9.81 ≈ ${Math.round(q.ve / G0)} s`).join(' · ');
+    $('#rkF').innerHTML = [
+      (isZh() ? '地球自转送的速度 ' : 'free speed from Earth’s spin ') + `= 465 m/s × cos ${s[2]}° = ${$('#rkWest').checked ? '−' : ''}${Math.round(Math.abs(sp))} m/s` + ($('#rkWest').checked ? (isZh() ? '（向西：要先抵消它）' : ' (west: you must cancel it first)') : ''),
+      (isZh() ? '200 千米高的圆轨道速度 ' : 'circular speed 200 km up ') + `v = √(GM/r) = √(3.986×10¹⁴ ÷ ${(r / 1e3).toLocaleString('en-US')} km) = ${ks(vo)}`,
+      (isZh() ? '大约需要 ' : 'roughly needed ') + `Δv ≈ ${ks(vo)} + ${ks(loss)} ${isZh() ? '（损失）' : '(losses)'} ${sp >= 0 ? '−' : '+'} ${ks(Math.abs(sp))} ≈ <b>${ks(need)}</b> · ${isZh() ? '你的火箭' : 'your rocket'}: <b>${ks(tot)}</b> ${tot >= need ? '✅' : '⚠️'}`,
+      (isZh() ? '比冲 ' : 'specific impulse ') + `I<sub>sp</sub> = vₑ ÷ g₀ — ${isZh() ? '第' : 'stage '}${isp}`
+    ].join('<br>');
+  }
+  function changed(){ apply(); fml(); }
+  /* live numbers during the flight */
+  function live(){
+    if (!Lab.adv()) return;
+    const f = FL.f, row = (l, v) => `<div class="stat"><small>${Lab.L(l)}</small>${v}</div>`;
+    if (!f){ $('#rkLive').innerHTML = ''; return; }
+    if (f.t < A.lastT) { A.lastT = 0; A.lastDv = 0; A.maxG = 0; }
+    if (f.t - A.lastT > .2){ A.gNow = (f.dvSpent - A.lastDv) / (f.t - A.lastT) / G0; A.maxG = Math.max(A.maxG, A.gNow); A.lastDv = f.dvSpent; A.lastT = f.t; }
+    if (!f.thrusting) A.gNow = 0;
+    $('#rkLive').innerHTML = row(o('Max Q (peak air pressure on the nose)','最大动压（迎面气流压力峰值）'), `${((f.maxQ || 0) / 1000).toFixed(1)} kPa`) +
+      row(o('Push from the engines now · peak','发动机推力加速度：现在 · 峰值'), `${A.gNow.toFixed(1)} g · ${A.maxG.toFixed(1)} g`);
+    budget(f);
+  }
+  function budget(f){
+    const el = $('#rkBud');
+    if (!f || f.dvSpent < 1){ el.innerHTML = `<small class="muted">${Lab.L(o('Launch to see your Δv budget build up.','发射后，这里会显示 Δv 的去向。'))}</small>`; return; }
+    const v = Math.hypot(f.vx, f.vy), sp = f.hist[0][2] * 1000, other = Math.max(0, f.dvSpent - v + sp - f.gLoss - f.dLoss);
+    const items = [[o('Speed you have now','现在的速度'), v, ''], [sp >= 0 ? o('Earth’s spin (free)','地球自转（白送）') : o('Earth’s spin (costs you)','地球自转（反而要抵消）'), -sp, sp > 0 ? 'neg' : ''], [o('Lost to gravity','重力损失'), f.gLoss, ''], [o('Lost to drag','阻力损失'), f.dLoss, ''], [o('Steering & other','转向等其他'), other, ''], [o('= Δv the engines gave','= 发动机给的 Δv'), f.dvSpent, '']];
+    const mx = Math.max(...items.map(x => Math.abs(x[1])), 1);
+    el.innerHTML = items.map(([l, x, c]) => `<div><span>${Lab.L(l)}</span><i class="${c}" style="width:${Math.abs(x) / mx * 100}%"></i><em>${x < 0 ? '−' : ''}${(Math.abs(x) / 1000).toFixed(2)}</em></div>`).join('');
+  }
+  /* 🎯 challenges, judged when a flight ends */
+  const CH = [
+    { q:o('Reach orbit from Baikonur (45.9° N), where Earth’s spin helps less.','从拜科努尔（北纬 45.9°）发射进入轨道，那里地球自转帮的忙更少。'), ok:f => A.site === 'baikonur' && !$('#rkWest').checked && f.res === 'orbit',
+      good:o('Farther from the equator, the ground moves slower: 465 m/s × cos 45.9° ≈ 324 m/s instead of 408.','离赤道越远，地面转得越慢：465 m/s × cos 45.9° ≈ 324 m/s，而不是 408。'), hint:o('Pick Baikonur, launch east, and make sure your Δv beats the “roughly needed” line.','选拜科努尔、向东发射，并让你的 Δv 超过“大约需要”的数值。') },
+    { q:o('Reach orbit launching WEST, against Earth’s spin.','逆着地球自转向西发射，并进入轨道。'), ok:f => $('#rkWest').checked && f.res === 'orbit',
+      good:o('You paid about 0.8 km/s extra: first cancel the spin, then build orbital speed. That is why almost every rocket launches east. (Israel launches west, over the sea.)','你多花了约 0.8 千米/秒：先抵消自转，再加速到轨道速度。所以几乎所有火箭都向东发射。（以色列为了在海上空飞行，只能向西发射。）'), hint:o('Tick “Launch west” and add more Δv: you need roughly 0.8 km/s extra.','勾选“向西发射”，再增加 Δv：大约要多 0.8 千米/秒。') },
+    { q:o('Reach orbit with gravity + drag losses together under 0.6 km/s.','进入轨道，并且重力损失 + 阻力损失合计小于 0.6 千米/秒。'), ok:f => f.res === 'orbit' && f.gLoss + f.dLoss < 600,
+      good:o('Gravity loss is the price of pushing upward. A strong first stage and an early turn spend less time fighting gravity.','重力损失是“向上推”的代价。第一级推力大、转弯早，跟重力较劲的时间就短。'), hint:o('More thrust (more engines) on stage 1 and a pitch-over of about 4–8° shortens the climb.','给第一级多加发动机，并把转弯角设在约 4–8°，爬升时间会缩短。') },
+    { q:o('From Kourou (5.2° N), put at least 10 t of payload into orbit.','从库鲁（北纬 5.2°）把至少 10 吨的载荷送入轨道。'), ok:f => A.site === 'kourou' && !$('#rkWest').checked && f.res === 'orbit' && f.pl >= 10000,
+      good:o('Kourou is almost on the equator, so it gets nearly the full 465 m/s for free: a favourite site for heavy satellites.','库鲁几乎就在赤道上，几乎能白得 465 米/秒：是发射重型卫星的好地方。'), hint:o('Choose Kourou, set the payload to 10 t or more, and use 2 or 3 stages.','选库鲁，载荷设为 10 吨以上，用 2 级或 3 级。') }
+  ];
+  function newCh(){ let i; do { i = Math.random() * CH.length | 0; } while (i === A.ch); A.ch = i; chText(); $('#rkCh').className = 'result'; $('#rkCh').textContent = ''; }
+  function chText(){ $('#rkChQ').textContent = Lab.L(CH[A.ch].q); }
+  window.RkAdv = { end(f){ live(); if (!Lab.adv() || A.ch == null) return; const c = CH[A.ch], ok = c.ok(f), el = $('#rkCh'); el.className = 'result ' + (ok ? 'good' : 'bad'); el.textContent = ok ? Lab.L(o('✅ Done! ','✅ 成功！')) + Lab.L(c.good) : '❌ ' + Lab.L(c.hint); },
+    state:A, spin, setSite:k => { A.site = k; sites(); changed(); } };
+  $('#rkWest').addEventListener('change', changed);
+  $('#rkChNew').onclick = newCh;
+  // the design bench changes the rocket: refresh the formula box
+  ['#stages', '#nSeg', '#pl', '#missions'].forEach(s => { $(s).addEventListener('input', () => setTimeout(fml)); $(s).addEventListener('click', () => setTimeout(fml)); $(s).addEventListener('change', () => setTimeout(fml)); });
+  setInterval(live, 250);
+  Lab.onLang(() => { sites(); fml(); if (A.ch != null) chText(); live(); });
+  Lab.onMode(adv => { apply(); if (adv){ sites(); if (A.ch == null) newCh(); fml(); live(); budget(FL.f); } });
+})();
 </script>
 </body>
 </html>

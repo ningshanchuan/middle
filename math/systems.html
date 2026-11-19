@@ -51,6 +51,7 @@
   <div class="ma-explore">
     <div class="ma-stage explore-stage" id="exStage" data-fs></div>
     <div class="card ctl">
+      <div class="lab-mode" style="align-self:flex-start"></div>
       <div class="eqs"><div class="l1" id="eq1"></div><div class="l2" id="eq2"></div></div>
       <div class="ma-big" id="xOut"></div>
       <div class="verdict" id="verdict"></div>
@@ -58,6 +59,17 @@
         <button class="btn ghost" data-preset="one" data-zh="相交">Crossing</button>
         <button class="btn ghost" data-preset="par" data-zh="平行">Parallel</button>
         <button class="btn ghost" data-preset="same" data-zh="重合">Same line</button>
+      </div>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:8px">
+        <b data-zh="进阶：用代数方法解，并比较斜率和截距">Advanced: solve it with algebra, and compare slopes and intercepts</b>
+        <div id="advStd" style="font-size:17px;overflow-x:auto;overflow-y:hidden;padding:4px 0"></div>
+        <div id="advSolve" style="font-size:17px;overflow-x:auto;overflow-y:hidden;padding:4px 0"></div>
+        <div id="advCmp" class="muted" style="font-size:14px"></div>
+        <div style="border-top:1px solid var(--line);padding-top:8px">
+          <b data-zh="🎯 挑战">🎯 Challenge</b> <span id="sChTxt"></span>
+          <div class="btnrow" style="margin-top:6px"><button class="btn" id="sChCheck" data-zh="检查">Check</button><button class="btn ghost" id="sChNew" data-zh="换一题">New challenge</button></div>
+          <div class="result" id="sChMsg"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -373,9 +385,64 @@ function dragPoints(Sc, getPts, setPt, snap){               // generic pointer d
       ctx.fillStyle = 'rgba(15,20,32,.75)'; ctx.fillRect(lx - 4, ly - 11, w + 8, 22); ctx.fillStyle = C.white; ctx.fillText(lbl, lx, ly);
     }
     H.forEach((p, i) => { ctx.beginPath(); ctx.arc(S.sx(p[0]), S.sy(p[1]), dragging() === i ? 11 : 9, 0, 7); ctx.fillStyle = i < 2 ? C.green : C.pink; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = '#fff'; ctx.stroke(); });
+    if (!Lab.adv() || !cur.L1) return;
+    /* Advanced: mark each line’s y-intercept (0, b) with a small diamond */
+    [[cur.L1, C.green], [cur.L2, C.pink]].forEach(([L, col], k) => {
+      if (L.vertical || Math.abs(L.bb.v) > 4.8) return;
+      const x = S.sx(0), y = S.sy(L.bb.v), r = 7; ctx.beginPath(); ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath();
+      ctx.fillStyle = col; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = C.bg; ctx.stroke();
+      ctx.font = `800 ${Math.max(11, S.px(.3))}px Nunito, sans-serif`; ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillStyle = col;
+      ctx.fillText(`b${k ? '₂' : '₁'}`, x - 10, y + (k ? 12 : -12));
+    });
   });
+  /* ---------- Advanced: standard form, algebraic solution, slope/intercept comparison, challenge ---------- */
+  const pTex = f => f.n < 0 ? `(${fTex(f)})` : fTex(f);                // wrap negatives in brackets when plugging in
+  function stdTex(L){
+    let a = L.a, b = L.b, c = L.c; const g = gcd(gcd(a, b), c); a /= g; b /= g; c /= g;
+    if (a < 0 || (a === 0 && b < 0)){ a = -a; b = -b; c = -c; }
+    const t = (k, v, first) => k === 0 ? '' : (k < 0 ? '-' : first ? '' : '+') + (Math.abs(k) === 1 ? '' : Math.abs(k)) + v;
+    const s = t(a, 'x', true); return `${s}${t(b, 'y', !s)} = ${c}`;
+  }
+  const CH = [
+    { en:'Make the two lines cross exactly at (2, −1).', zh:'让两条直线恰好交于点 (2, −1)。', ok:(r) => r.kind === 'one' && r.x.n === 2 && r.x.d === 1 && r.y.n === -1 && r.y.d === 1 },
+    { en:'Make a system with NO solution in which both lines have slope −½.', zh:'构造一个无解的方程组，并且两条直线的斜率都是 −½。', ok:(r, L1, L2) => r.kind === 'par' && !L1.vertical && L1.m.n === -1 && L1.m.d === 2 },
+    { en:'Make the lines cross at a point that is NOT a grid point (a fraction answer).', zh:'让两条直线的交点不在格点上（解是分数）。', ok:(r) => r.kind === 'one' && (r.x.d !== 1 || r.y.d !== 1) },
+    { en:'Make the lines perpendicular (a right angle) and crossing at the origin.', zh:'让两条直线互相垂直，并且交于原点。', ok:(r, L1, L2) => r.kind === 'one' && r.x.n === 0 && r.y.n === 0 && L1.a * L2.a + L1.b * L2.b === 0 },
+    { en:'Make a system with infinitely many solutions on the line y = 2x − 1.', zh:'构造一个有无数个解的方程组，两条直线都是 y = 2x − 1。', ok:(r, L1) => r.kind === 'same' && !L1.vertical && L1.m.n === 2 && L1.m.d === 1 && L1.bb.n === -1 && L1.bb.d === 1 }
+  ];
+  let chI = 0;
+  function advUpdate(){
+    if (!Lab.adv() || !cur) return;
+    const L1 = cur.L1, L2 = cur.L2;
+    Lab.$('#advStd').innerHTML = Lab.L({ en:'Standard form: ', zh:'一般形式：' }) + MathAnim.tex(`\\left\\{\\begin{array}{l} \\textcolor{#5aa84a}{${stdTex(L1)}} \\;\\;① \\\\ \\textcolor{#e0679f}{${stdTex(L2)}} \\;\\;② \\end{array}\\right.`);
+    let sol;
+    const rhs = L => L.tex.slice(4), setEq = `\\textcolor{#5aa84a}{${rhs(L1)}} = \\textcolor{#e0679f}{${rhs(L2)}}`;
+    if (cur.kind !== 'one') sol = cur.kind === 'par'
+      ? (L1.vertical ? `x = ${H[0][0]} \\text{ ${Lab.L({ en:'and', zh:'且' })} } x = ${H[2][0]} \\;\\Rightarrow\\; \\text{${Lab.L({ en:'impossible', zh:'矛盾' })}}` : `${setEq} \\;\\Rightarrow\\; ${fTex(L1.bb)} = ${fTex(L2.bb)} \\;\\text{${Lab.L({ en:'(false!)', zh:'（不成立！）' })}}`)
+      : (L1.vertical ? `x = ${H[0][0]} \\text{ ${Lab.L({ en:'twice', zh:'两次' })}}` : `${setEq} \\;\\Rightarrow\\; 0 = 0 \\;\\text{${Lab.L({ en:'(always true!)', zh:'（恒成立！）' })}}`);
+    else if (L1.vertical || L2.vertical){
+      const V = L1.vertical ? L1 : L2, O = L1.vertical ? L2 : L1, xv = frac(V.c, V.a);
+      sol = `x = ${fTex(xv)} \\;\\Rightarrow\\; y = ${pTex(O.m)}\\cdot ${pTex(xv)} + ${pTex(O.bb)} = ${fTex(cur.y)}`;
+    } else {
+      sol = `${setEq} \\\\ x = \\frac{b_2 - b_1}{m_1 - m_2} = \\frac{${pTex(L2.bb)} - ${pTex(L1.bb)}}{${pTex(L1.m)} - ${pTex(L2.m)}} = ${fTex(cur.x)}`
+          + ` \\\\ y = ${pTex(L1.m)}\\cdot ${pTex(cur.x)} + ${pTex(L1.bb)} = ${fTex(cur.y)}`;
+      sol = `\\begin{array}{l} ${sol} \\end{array}`;
+    }
+    Lab.$('#advSolve').innerHTML = Lab.L({ en:'Set the two y’s equal (substitution): ', zh:'代入消元（令两个 y 相等）：' }) + '<br>' + MathAnim.tex(sol);
+    const sl = L => L.vertical ? Lab.L({ en:'undefined', zh:'不存在' }) : MathAnim.tex(fTex(L.m)), ic = L => L.vertical ? '—' : MathAnim.tex(fTex(L.bb));
+    const rule = cur.kind === 'one' ? { en:'different slopes → the lines must cross once', zh:'斜率不同 → 两线必相交于一点' }
+               : cur.kind === 'par' ? { en:'same slope, different intercept → parallel', zh:'斜率相同、截距不同 → 平行' } : { en:'same slope and same intercept → the same line', zh:'斜率、截距都相同 → 同一条直线' };
+    Lab.$('#advCmp').innerHTML = `${Lab.L({ en:'slopes', zh:'斜率' })} m₁ = ${sl(L1)}, m₂ = ${sl(L2)} · ${Lab.L({ en:'intercepts', zh:'截距' })} b₁ = ${ic(L1)}, b₂ = ${ic(L2)}<br>→ ${Lab.L(rule)}`;
+    Lab.$('#sChTxt').textContent = Lab.L(CH[chI]);
+  }
+  Lab.$('#sChNew').onclick = () => { chI = (chI + 1) % CH.length; Lab.$('#sChMsg').textContent = ''; Lab.$('#sChMsg').className = 'result'; advUpdate(); };
+  Lab.$('#sChCheck').onclick = () => {
+    const ok = CH[chI].ok(cur, cur.L1, cur.L2), m = Lab.$('#sChMsg');
+    m.textContent = Lab.L(ok ? { en:'🎉 Yes! You built it.', zh:'🎉 对了！你做到了。' } : { en:'Not yet. Drag the handles and watch the slopes, intercepts and solution above.', zh:'还没有。拖动圆点，留意上面的斜率、截距和解。' });
+    m.className = 'result ' + (ok ? 'good' : 'bad');
+  };
   function update(){
-    const L1 = lineInfo(H[0], H[1]), L2 = lineInfo(H[2], H[3]); cur = solve(L1, L2);
+    const L1 = lineInfo(H[0], H[1]), L2 = lineInfo(H[2], H[3]); cur = solve(L1, L2); cur.L1 = L1; cur.L2 = L2;
     Lab.$('#eq1').innerHTML = MathAnim.tex(L1.tex); Lab.$('#eq2').innerHTML = MathAnim.tex(L2.tex);
     const v = Lab.$('#verdict');
     if (cur.kind === 'one'){
@@ -389,9 +456,10 @@ function dragPoints(Sc, getPts, setPt, snap){               // generic pointer d
       Lab.$('#xOut').innerHTML = MathAnim.tex('\\infty');
       v.textContent = Lab.L({ en:'♾️ Same slope AND same intercept: one line, infinitely many solutions', zh:'♾️ 斜率和截距都相同：同一条直线，有无数个解' }); v.style.color = '#8a63d2';
     }
+    advUpdate();
   }
   Lab.$$('[data-preset]').forEach(b => b.onclick = () => { H = PRE[b.dataset.preset].map(p => p.slice()); update(); });
-  Lab.onLang(update); update();
+  Lab.onLang(update); update(); Lab.onMode(advUpdate);
 })();
 
 /* ================= Puzzle: guess and check on the graph ================= */
@@ -470,6 +538,7 @@ Lab.sort(Lab.$('#sort'), {
 /* ================= Where you see this: real photos (Wikimedia Commons, freely licensed) ================= */
 (function(){
 const o = (en, zh) => ({ en, zh });
+const VID = o('Video', '视频');
 const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/05/Treadmills_in_Cobra_Gym_24_Hour_Fitness.jpg/960px-Treadmills_in_Cobra_Gym_24_Hour_Fitness.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'Treadmills in a 24-hour gym. Pay per visit or pay a monthly fee? Two equations tell you when the plans cost the same.',
@@ -482,9 +551,22 @@ const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2b/Concession_stand_at_the_Somerville_Theatre%2C_Somerville%2C_Massachusetts.jpg/960px-Concession_stand_at_the_Somerville_Theatre%2C_Somerville%2C_Massachusetts.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'A movie-theater snack stand in Massachusetts. 2 popcorns and 1 drink cost one amount; 1 popcorn and 2 drinks cost another. Can you find each price?',
     zh:'美国马萨诸塞州一家电影院的小吃柜台。2 份爆米花和 1 杯饮料是一个价，1 份爆米花和 2 杯饮料是另一个价。你能求出单价吗？',
-    credit:'Mattsjc', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Concession_stand_at_the_Somerville_Theatre,_Somerville,_Massachusetts.jpg' }
+    credit:'Mattsjc', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Concession_stand_at_the_Somerville_Theatre,_Somerville,_Massachusetts.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/8/84/Male_and_female_chicken_sitting_together.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled',
+    en:'The famous Chinese puzzle 鸡兔同笼 (“chickens and rabbits in one cage”), from the book 孙子算经 about 1,600 years ago: 35 heads and 94 legs. How many of each animal?',
+    zh:'著名的中国古题“鸡兔同笼”，出自约 1600 年前的《孙子算经》：上有 35 个头，下有 94 只脚。鸡和兔各有几只？',
+    kind:o('Math history','数学史'), credit:'Andrei Niemimäki', license:'CC BY-SA 2.0', page:'https://commons.wikimedia.org/wiki/File:Male_and_female_chicken_sitting_together.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3b/Rabbit_in_montana.jpg/960px-Rabbit_in_montana.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'Rabbits have 4 legs, chickens have 2. Let c + r = 35 (heads) and 2c + 4r = 94 (legs). Solve the system to finish the 鸡兔同笼 puzzle!',
+    zh:'兔子有 4 条腿，鸡有 2 条腿。设 c + r = 35（头），2c + 4r = 94（脚）。解这个方程组，完成“鸡兔同笼”！',
+    credit:'Larry D. Moore', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Rabbit_in_montana.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/e/e0/%E4%B9%9D%E7%AB%A0%E7%AE%97%E8%A1%93%E7%B4%B0%E8%8D%89%E5%9C%96%E8%AA%AA.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled',
+    en:'An 1820 edition of 九章算术 (The Nine Chapters on the Mathematical Art). Its chapter 方程 (fāngchéng), written about 2,000 years ago, solves systems of equations by arranging counting rods in a table.',
+    zh:'1820 年刊印的《九章算术》。书中“方程”一章写于约 2000 年前，用算筹摆成方阵来解方程组。',
+    kind:o('Math history','数学史'), credit:'中國書店海王邨公司', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:%E4%B9%9D%E7%AB%A0%E7%AE%97%E8%A1%93%E7%B4%B0%E8%8D%89%E5%9C%96%E8%AA%AA.jpg' },
+  { type:'youtube', yt:'z1hz8-Kri1E', en:'Video: “Systems of equations word problems” — turning a story into two equations and solving them.', zh:'视频：《方程组应用题》——把一个故事写成两个方程，再把它们解出来（英文）。', kind:VID, credit:'Khan Academy (YouTube)', license:'YouTube' }
 ];
-LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos. Each one comes with a question this lesson helps you answer. Click a picture to enlarge it.','真实照片。每张都带着一个这节课能帮你回答的问题。点击图片可放大。') });
+LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos and short videos. Each photo comes with a question this lesson helps you answer. Click a picture to enlarge it or to play a video.','真实照片和短视频。每张照片都带着一个这节课能帮你回答的问题。点击图片可放大，点击视频可播放。') });
 })();
 </script>
 <!-- /real-world gallery script -->

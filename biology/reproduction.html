@@ -97,6 +97,7 @@
   </div>
   <div class="sim">
     <div class="card simside">
+      <div class="lab-mode"></div>
       <div class="btnrow"><div class="seg" id="spSeg"></div></div>
       <p id="goalText"></p>
       <div class="pop" id="pop"></div>
@@ -106,6 +107,12 @@
         <button class="btn ghost" id="sbReset" data-zh="↺ 重新开始">↺ Start over</button>
       </div>
       <div class="result" id="sbMsg"></div>
+      <div class="adv adv-box">
+        <div class="btnrow" style="align-items:center"><b data-zh="后代怎样产生：">How offspring are made:</b><div class="seg" id="sbMode"><button data-m="sex" class="on" data-zh="🌸 两个亲本（有性）">🌸 Two parents (sexual)</button><button data-m="clone" data-zh="✂️ 只克隆（无性）">✂️ Clones only (asexual)</button></div></div>
+        <label class="ctl" style="margin-top:8px"><span><span data-zh="🧬 突变率（每个基因每次传递）">🧬 Mutation rate (per gene copy, per generation)</span> <b id="sbMutV"></b></span><input id="sbMut" type="range" min="0" max="10" step="0.5" value="2"></label>
+        <div style="border-top:1px dashed var(--line);margin-top:8px;padding-top:8px;font-size:14.5px"><b data-zh="🎯 挑战：">🎯 Challenge:</b> <span data-zh="用“只克隆”培育 3 代，再用“两个亲本”培育 3 代（每次都挑最好的）。哪种方式每代进步更大？">Breed 3 generations with “Clones only” and 3 with “Two parents” (pick the best each time). Which way improves more per generation?</span>
+          <div class="result" id="sbChal" style="min-height:0;margin-top:4px"></div></div>
+      </div>
     </div>
     <div class="card simside">
       <div class="counters">
@@ -116,6 +123,11 @@
       </div>
       <div class="goal"><span data-zh="目标进度">Goal</span><div class="track"><div id="sbGoal"></div></div></div>
       <div class="simbox" style="min-height:300px"><canvas id="sbCv"></canvas></div>
+      <div class="adv adv-box" style="font-size:14.5px;line-height:1.55">
+        <b data-zh="🔬 看看基因">🔬 Look at the genes</b>
+        <div id="sbGenes" style="display:flex;gap:4px;align-items:flex-end;height:46px;margin:6px 0 2px"></div>
+        <div id="sbNums"></div>
+      </div>
       <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="自然选择由环境“挑选”；人工选择（选择育种）由人来“挑选”。">Natural selection: nature does the choosing. Artificial (selective) breeding: people do the choosing.</span></div>
     </div>
   </div>
@@ -156,7 +168,13 @@ const P = [
   { src:'https://upload.wikimedia.org/wikipedia/commons/8/86/Sperm-egg.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Sexual, two parents: a sperm cell fertilizing an egg cell. Each carries half of the offspring’s genes.', zh:'有性生殖，两个亲本：一个精子正在使卵细胞受精。它们各自带着后代一半的基因。', kind:{en:'Micrograph',zh:'显微照片'}, credit:'Unknown author', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Sperm-egg.jpg' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a4/Misc_pollen.jpg/960px-Misc_pollen.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Pollen grains from several common plants. Pollen carries a flower’s male sex cells. Colors added by computer.', zh:'几种常见植物的花粉粒。花粉里带着花的雄性生殖细胞。颜色是用电脑加上去的。', kind:{en:'Electron micrograph (SEM)',zh:'扫描电镜照片'}, scale:{en:'magnified about 500 times',zh:'放大约 500 倍'}, credit:'Dartmouth College Electron Microscope Facility', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Misc_pollen.jpg' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cb/Maize-teosinte.jpg/960px-Maize-teosinte.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Selective breeding: wild teosinte, a teosinte–maize hybrid, and modern maize (corn). People chose which plants to breed for thousands of years.', zh:'人工选择：野生的大刍草、大刍草与玉米的杂交种，以及现代玉米。几千年来，人们一直在挑选要留种的植株。', kind:{en:'Photo',zh:'照片'}, credit:'John Doebley', license:'CC BY 3.0', page:'https://commons.wikimedia.org/wiki/File:Maize-teosinte.jpg' },
-  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0a/Mikrofoto.de-Hydra_15.jpg/960px-Mikrofoto.de-Hydra_15.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', _x:1, en:'A green hydra (Hydra viridissima), a tiny freshwater animal with tentacles.', zh:'一只绿水螅（Hydra viridissima），一种长着触手的微小淡水动物。', kind:{en:'Light micrograph',zh:'光学显微镜照片'}, credit:'Frank Fox', license:'CC BY-SA 3.0 de', page:'https://commons.wikimedia.org/wiki/File:Mikrofoto.de-Hydra_15.jpg' }
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0a/Mikrofoto.de-Hydra_15.jpg/960px-Mikrofoto.de-Hydra_15.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', _x:1, en:'A green hydra (Hydra viridissima), a tiny freshwater animal with tentacles.', zh:'一只绿水螅（Hydra viridissima），一种长着触手的微小淡水动物。', kind:{en:'Light micrograph',zh:'光学显微镜照片'}, credit:'Frank Fox', license:'CC BY-SA 3.0 de', page:'https://commons.wikimedia.org/wiki/File:Mikrofoto.de-Hydra_15.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/77/Potato_tubers.jpg/960px-Potato_tubers.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Asexual, one parent: potatoes that sprouted after months in the fridge. Plant a piece of potato with a sprout (an “eye”) and it grows into a new plant that is a clone of the parent.', zh:'无性生殖，一个亲本：在冰箱里放了几个月后发芽的马铃薯。把带芽眼的一块马铃薯种下去，它就会长成一株新植物，是亲本的“克隆”。', kind:{en:'Photo',zh:'照片'}, credit:'Spiritia', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Potato_tubers.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/ca/Brisingid_starfish_%2811464782503%29.jpg/960px-Brisingid_starfish_%2811464782503%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A deep-sea starfish regrowing lost arms (see the short new ones). Starfish can regenerate arms, and in some species a broken-off arm with part of the center can even grow into a whole new starfish.', zh:'一只正在重新长出断腕的深海海星（看那几条短短的新腕）。海星能再生腕；有些种类的海星，一条连着部分中央体盘的断腕甚至能长成一只完整的新海星。', kind:{en:'Deep-sea photo',zh:'深海照片'}, credit:'NOAA Photo Library', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Brisingid_starfish_(11464782503).jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/b/bf/Frog_spawn.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Sexual, two parents: frog spawn in a pond in Finland. Each black dot is a fertilized egg in a ball of jelly, and each one has its own mix of genes from the mother and the father.', zh:'有性生殖，两个亲本：芬兰一个池塘里的蛙卵。每个小黑点都是一枚包在胶质里的受精卵，每一枚都带着来自母亲和父亲的独特基因组合。', kind:{en:'Photo',zh:'照片'}, credit:'Tiia Monto', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Frog_spawn.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/28/Tadpoles_of_Common_Toad_%28Bufo_bufo%29_%2817208631051%29.jpg/960px-Tadpoles_of_Common_Toad_%28Bufo_bufo%29_%2817208631051%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A few weeks later: common toad tadpoles in France. They will grow legs, lose their tails and become toads. Look closely: the tadpoles are not all exactly alike.', zh:'几周以后：法国的大蟾蜍蝌蚪。它们会长出腿、尾巴消失，变成蟾蜍。仔细看：这些蝌蚪并不完全一模一样。', kind:{en:'Photo',zh:'照片'}, credit:'Bernard Dupont', license:'CC BY-SA 2.0', page:'https://commons.wikimedia.org/wiki/File:Tadpoles_of_Common_Toad_(Bufo_bufo)_(17208631051).jpg' },
+  { type:'youtube', yt:'fcGDUcGjcyk', kind:{en:'Video',zh:'视频'}, en:'Amoeba Sisters: asexual and sexual reproduction compared, with the advantages of each.', zh:'Amoeba Sisters（阿米巴姐妹）：比较无性生殖和有性生殖，以及各自的优点。', credit:'Amoeba Sisters (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'VzDMG7ke69g', kind:{en:'Video',zh:'视频'}, en:'Amoeba Sisters: meiosis, the special cell division that makes sperm and egg cells with half the usual number of chromosomes.', zh:'Amoeba Sisters（阿米巴姐妹）：减数分裂，一种特殊的细胞分裂，它产生的精子和卵细胞只有通常一半数目的染色体。', credit:'Amoeba Sisters (YouTube)', license:'YouTube' }
 ];
 window.REALFIG = { bud:P[1], fission:P[0], hydra:P[8], pollen:P[6] };
 if (window.LabPhotos) LabPhotos.render('#gallery', P.filter(p => !p._x), { title:{en:'See the real thing',zh:'看看真实的样子'}, sub:{en:'One parent or two? Real living things caught in the act of reproducing. Click any picture to enlarge it; the video plays only when you press play.',zh:'一个亲本还是两个亲本？这些都是真实的生物正在繁殖时被拍下的画面。点击图片可以放大；视频要按下播放键才会播放。'} });
@@ -233,6 +251,15 @@ const PARTS = {
     hint:o('Turn on “Gene colors”: blue pollen + pink egg → purple seed.','打开“基因颜色”：蓝色花粉 + 粉色卵细胞 → 紫色种子。'),
     mix:o('Seeds are not clones of the parent plant. Each seed is a unique combination, like brothers and sisters.','种子不是母株的克隆。每粒种子都是独特的组合，就像兄弟姐妹一样。')}
 };
+/* 🚀 Advanced mode: "zoom deeper" facts in the info panel */
+const DEEP = {
+  fission:o(['Doubling math: N = N₀ × 2ⁿ (n = number of divisions). Dividing every 20 minutes, one cell could become 2³⁰ ≈ 1 billion cells in 10 hours, if food never ran out.'],['倍增计算：N = N₀ × 2ⁿ（n 为分裂次数）。如果每 20 分钟分裂一次、食物永远不缺，一个细胞 10 小时后可变成 2³⁰ ≈ 10 亿个。']),
+  dnaCopy:o(['E. coli’s one chromosome is about 4.6 million base pairs long. Copying runs both ways round the loop at about 1,000 bases per second each, so one full copy takes about 40 minutes.','How can it divide every 20 minutes, then? It starts copying the next round before the last copy is finished.'],['大肠杆菌的那条染色体约有 460 万个碱基对。复制从一点开始沿环向两个方向进行，每个方向每秒约 1000 个碱基，复制一遍约需 40 分钟。','那它怎么能 20 分钟分裂一次？因为上一轮还没复制完，它就开始了下一轮复制。']),
+  hydra:o(['Hydra hardly seems to age: stem cells keep replacing its body tissue, roughly every 3 weeks.'],['水螅似乎几乎不会衰老：它的干细胞不断更新身体组织，大约每 3 周就换一遍。']),
+  pollen:o(['Real size: most pollen grains are about 10–100 micrometers (µm) across. A human hair is about 70 µm wide.'],['真实大小：大多数花粉粒直径约 10–100 微米（µm），一根头发约 70 微米粗。']),
+  ovule:o(['Chromosome math: egg (n) + sperm (n) → zygote (2n). The second sperm (n) joins two polar nuclei (n + n) → endosperm (3n), the seed’s food store. This is double fertilization.'],['染色体计算：卵细胞（n）+ 精子（n）→ 受精卵（2n）。另一个精子（n）与两个极核（n + n）结合 → 胚乳（3n），即种子储存养料的部分。这就是双受精。']),
+  seed:o(['Why every seed is different: a pea plant with 7 chromosome pairs can make 2⁷ = 128 kinds of gametes just by how the pairs line up. Two parents → 128 × 128 = 16,384 combinations, before counting crossing over.'],['为什么每粒种子都不同：豌豆有 7 对染色体，仅仅由于每对染色体分配方式不同，就能产生 2⁷ = 128 种配子。两个亲本 → 128 × 128 = 16384 种组合，这还没算上交叉互换。'])
+};
 const ORDER = ['fission','dnaCopy','daughter','hydra','bud','petal','stamen','pollen','pistil','pollenTube','ovule','seed'];
 const VIEWS = { all:o('All','全部'), fission:o('Fission','分裂'), budding:o('Budding','出芽'), flower:o('Flower','花') };
 
@@ -262,6 +289,7 @@ function renderInfo(){
     <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
     <div class="job">${Lab.L(p.job)}</div>
     <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>${window.REALFIG && REALFIG[k] ? LabPhotos.figure(REALFIG[k]) : ''}
+    ${DEEP[k] ? `<div class="adv adv-box"><b>${Lab.L({en:'🔬 Zoom deeper',zh:'🔬 深入一层'})}</b><ul style="margin:6px 0 0">${Lab.L(DEEP[k]).map(f => `<li>${f}</li>`).join('')}</ul></div>` : ''}
     <div class="now" id="phaseNow">${phaseHTML()}</div>
     <div class="memory"><b>${Lab.L({en:'💡 Memory hint',zh:'💡 记忆小窍门'})}</b>${Lab.L(p.hint)}</div>
     ${p.mix ? `<div class="mix"><b>${Lab.L({en:'⚠️ Common mix-up:',zh:'⚠️ 容易混淆：'})}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
@@ -302,12 +330,16 @@ function sbStart(sp){
   if (sp) SB.sp = sp;
   const S = SP[SB.sp];
   SB.pop = Array.from({length:NPOP}, () => mkInd(Array.from({length:2 * NL}, () => rnd() < S.f0 ? 1 : 0)));
-  SB.gen = 0; SB.sel = []; SB.prev = null; SB.done = false; SB.start = meanOf(SB.pop); SB.hist = [SB.start];
+  SB.gen = 0; SB.sel = []; SB.prev = null; SB.done = false; SB.last = null; SB.start = meanOf(SB.pop); SB.hist = [SB.start];
   Lab.$('#sbMsg').textContent = ''; Lab.$('#sbMsg').className = 'result';
   sbRender();
 }
 const MUT = .02;   // chance that an allele mutates (flips) when passed on: new variation
-function childOf(A, B){ const a = [], f = x => rnd() < MUT ? 1 - x : x; for (let i = 0; i < NL; i++){ a.push(f(A.a[2 * i + (rnd() < .5 ? 1 : 0)]), f(B.a[2 * i + (rnd() < .5 ? 1 : 0)])); } return mkInd(a); }
+/* 🚀 Advanced: choose sexual vs asexual (clones), set the mutation rate; Basic = sexual, 2% */
+const SBA = { mode:'sex', mut:.02, rec:{ sex:[], clone:[] }, sp:null };
+const mutR = () => Lab.adv() ? SBA.mut : MUT, cloneMode = () => Lab.adv() && SBA.mode === 'clone';
+function cloneOf(P){ const f = x => rnd() < mutR() ? 1 - x : x; return mkInd(P.a.map(f)); }
+function childOf(A, B){ const a = [], f = x => rnd() < mutR() ? 1 - x : x; for (let i = 0; i < NL; i++){ a.push(f(A.a[2 * i + (rnd() < .5 ? 1 : 0)]), f(B.a[2 * i + (rnd() < .5 ? 1 : 0)])); } return mkInd(a); }
 function pairFrom(pa){ const s = Lab.shuffle(pa); return [s[0], s[1]]; }
 function sbBreed(random){
   let pa;
@@ -315,8 +347,11 @@ function sbBreed(random){
   else { if (SB.sel.length < 2){ msg(o('Choose at least 2 parents first (tap 2 to 4 individuals).','请先至少选择 2 个亲本（点击 2~4 个个体）。'), false); return; } pa = SB.sel.map(i => SB.pop[i]); }
   const S = SP[SB.sp], before = meanOf(SB.pop);
   SB.prev = SB.pop.map(p => p.v);
-  SB.pop = Array.from({length:NPOP}, () => childOf(...pairFrom(pa)));
+  const cl = cloneMode();
+  SB.pop = Array.from({length:NPOP}, () => cl ? cloneOf(pa[rnd() * pa.length | 0]) : childOf(...pairFrom(pa)));
   SB.gen++; SB.sel = []; const m = meanOf(SB.pop); SB.hist.push(m);
+  SB.last = { m0:before, mp:meanOf(pa), m1:m, rand:random };
+  if (Lab.adv() && !random){ if (SBA.sp !== SB.sp){ SBA.sp = SB.sp; SBA.rec = { sex:[], clone:[] }; } SBA.rec[cl ? 'clone' : 'sex'].push((m - before) * S.dir); }
   const d = m - before, ds = (d >= 0 ? '+' : '') + d.toFixed(1) + ' ' + S.unit;
   const reached = S.dir > 0 ? m >= S.goal : m <= S.goal;
   if (reached && !SB.done){ SB.done = true; msg(Lab.lang === 'zh' ? `🎉 用了 ${SB.gen} 代就达到目标!平均${Lab.L(S.trait)}:${m.toFixed(1)} ${S.unit}。` : `🎉 Goal reached in ${SB.gen} generations! Average ${Lab.L(S.trait)}: ${m.toFixed(1)} ${S.unit}.`, true); }
@@ -347,8 +382,34 @@ function sbRender(){
   Lab.$('#sbVar').textContent = variety() + ' / ' + NL;
   Lab.$('#sbPar').textContent = SB.sel.length + ' / 4';
   Lab.$('#sbGoal').style.width = Math.max(0, Math.min(100, (m - SB.start) / (S.goal - SB.start) * 100)) + '%';
+  sbAdv(m);
   drawSB();
 }
+function sbAdv(m){
+  const S = SP[SB.sp], L = Lab.L, N = SB.pop.length, u = ' ' + S.unit, sg = v => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1);
+  const fr = Array.from({length:NL}, (_, i) => SB.pop.reduce((s, p) => s + p.a[2 * i] + p.a[2 * i + 1], 0) / (2 * N));
+  Lab.$('#sbGenes').innerHTML = fr.map((f, i) => `<div title="${L(o('gene','基因'))} ${i + 1}: ${Math.round(f * 100)}%" style="flex:1;height:100%;background:var(--surface-2);border-radius:5px;display:flex;align-items:flex-end;overflow:hidden;outline:${f === 0 || f === 1 ? '2px solid var(--warn)' : 'none'}"><div style="width:100%;height:${f * 100}%;background:var(--brand)"></div></div>`).join('');
+  const nbar = fr.reduce((s, f) => s + 2 * f, 0), p = nbar / (2 * NL);
+  let h = `<span class="muted">${L(o('Each bar = one of the 10 genes: the share of “+” alleles (the version that makes the ' , '每根柱子 = 10 个基因中的一个：其中“+”基因（让'))}${L(S.trait)}${L(o(' bigger). Orange outline = only one version left (fixed or lost).', '变大的版本）所占的比例。橙色边框 = 只剩一种版本（被固定或丢失）。'))}</span>`;
+  h += `<br>${L(o('“+” allele frequency','“+”基因频率'))} p = <b>${Math.round(p * 100)}%</b> · ${L(o('average “+” alleles per individual','平均每个个体的“+”基因数'))} n̄ = <b>${nbar.toFixed(1)}</b>`;
+  h += `<br>${L(S.trait)} ≈ ${S.base} + ${S.k} × n̄ = ${S.base} + ${S.k} × ${nbar.toFixed(1)} ≈ <b>${(S.base + S.k * nbar).toFixed(1)}${u}</b> <span class="muted">(${L(o('+ environment','+ 环境影响'))}; ${L(o('actual','实际'))} ${m.toFixed(1)}${u})</span>`;
+  const la = SB.last;
+  if (la && !la.rand){ const Sd = la.mp - la.m0, R = la.m1 - la.m0;
+    h += `<br>${L(o('Selection differential','选择差'))} S = ${L(o('parents','亲本'))} − ${L(o('population','种群'))} = <b>${sg(Sd)}${u}</b> · ${L(o('response','选择响应'))} R = <b>${sg(R)}${u}</b>`;
+    if (Math.abs(Sd) > .05) h += `<br>${L(o('Realized heritability','实际遗传力'))} h² = R ÷ S ≈ <b>${(R / Sd).toFixed(2)}</b> <span class="muted">${L(o('(1 = fully inherited, 0 = not at all)','（1 = 完全遗传，0 = 完全不遗传）'))}</span>`; }
+  Lab.$('#sbNums').innerHTML = h;
+  Lab.$('#sbMutV').textContent = (SBA.mut * 100).toFixed(1).replace('.0', '') + '%';
+  Lab.$$('#sbMode button').forEach(b => b.classList.toggle('on', b.dataset.m === SBA.mode));
+  const rc = SBA.sp === SB.sp ? SBA.rec : { sex:[], clone:[] }, avg = a => a.reduce((x, y) => x + y, 0) / a.length, c = Lab.$('#sbChal');
+  if (rc.sex.length >= 3 && rc.clone.length >= 3){
+    const gs = avg(rc.sex), gc = avg(rc.clone), t = `${L(o('Average improvement per generation','平均每代的进步'))}: ${L(o('clones','克隆'))} ${sg(gc)}${u}, ${L(o('two parents','两个亲本'))} ${sg(gs)}${u}. `;
+    c.textContent = gs > gc ? '✅ ' + t + L(o('Two parents win: mixing genes puts the helpful alleles of both parents together in one offspring. Clones can only copy the best plants that already exist (plus rare mutations), so they soon get stuck.','两个亲本获胜：基因重新组合，能把双亲的有利基因集中到一个后代身上；克隆只能复制已有的最好个体（再加上少见的突变），所以很快就停滞不前。'))
+      : t + L(o('Clones won this time, by chance. Breed a few more generations of each and compare again.','这次克隆碰巧赢了。每种方式再多培育几代，再比较一次。'));
+    c.className = 'result' + (gs > gc ? ' good' : '');
+  } else { c.textContent = `${L(o('Clones','克隆'))}: ${Math.min(3, rc.clone.length)}/3 · ${L(o('Two parents','两个亲本'))}: ${Math.min(3, rc.sex.length)}/3 ${L(o('generations','代'))}`; c.className = 'result'; }
+}
+Lab.$$('#sbMode button').forEach(b => b.onclick = () => { SBA.mode = b.dataset.m; sbRender(); });
+Lab.$('#sbMut').addEventListener('input', e => { SBA.mut = e.target.value / 100; sbRender(); });
 function drawSB(){
   const cv = Lab.$('#sbCv'), r = cv.getBoundingClientRect(); if (!r.width) return;
   const d = Math.min(devicePixelRatio || 1, 2); cv.width = r.width * d; cv.height = r.height * d;

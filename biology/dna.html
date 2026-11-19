@@ -25,6 +25,11 @@
 .zoomline{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
 .zoomline .box{text-align:center;position:relative}
 .zoomline .box:not(:last-child)::after{content:"›";position:absolute;right:-12px;top:30%;font-size:26px;color:var(--ink-2);font-weight:800}
+.advf{font-size:14px;color:var(--ink-2);line-height:1.55}
+.advf b{color:var(--ink)}
+.advf code{font-family:Fredoka;font-size:15px;letter-spacing:.06em;color:var(--ink)}
+.numin{width:90px;font:inherit;font-weight:800;padding:8px 10px;border-radius:12px;border:2px solid var(--line);background:var(--surface);color:var(--ink)}
+.info .adv-box{font-size:14.5px;display:flex;flex-direction:column;gap:6px}
 @media (max-width:980px){.zoomline{grid-template-columns:repeat(3,minmax(0,1fr))}.zoomline .box::after{display:none}}
 </style>
 </head>
@@ -41,6 +46,7 @@
   <div class="explorer">
     <div class="stage card" id="stage" data-3d>
       <div class="toolbar">
+        <div class="lab-mode"></div>
         <button class="tbtn on" id="rotBtn" data-zh="⟳ 旋转">⟳ Spin</button>
         <button class="tbtn" id="resetBtn" data-zh="⌂ 重置">⌂ Reset</button>
         <button class="tbtn" id="copyBtn" data-zh="🧬 复制 DNA（故事）">🧬 Copy DNA (story)</button>
@@ -79,12 +85,17 @@
   </div>
   <div class="sim">
     <div class="card simside">
+      <div class="lab-mode"></div>
       <h3 data-zh="模板链">Template strand</h3>
       <div class="seq" id="tmpl"></div>
       <h3 data-zh="你的互补链">Your matching strand</h3>
       <div class="seq" id="built"></div>
       <div class="keys" id="keys"></div>
       <div class="result" id="pairMsg"></div>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:8px">
+        <label class="ctl"><span><span data-zh="链的长度（碱基数）">Strand length (bases)</span>: <b id="lenVal">10</b></span><input id="lenIn" type="range" min="6" max="16" value="10"></label>
+        <div id="pairNums" class="advf"></div>
+      </div>
     </div>
     <div class="card simside">
       <h3 data-zh="记分板">Scoreboard</h3>
@@ -94,6 +105,12 @@
       </div>
       <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="“苹果（Apple）长在树（Tree）上，汽车（Car）停在车库（Garage）里”：A–T,C–G。">“Apples grow on Trees, Cars go in the Garage”: A–T, C–G.</span></div>
       <div class="btnrow"><button class="btn" id="newSeq" data-zh="新的 DNA 链">New strand</button><button class="btn ghost" id="hintBtn" data-zh="提示">Hint</button></div>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:8px">
+        <b data-zh="🎯 挑战：查加夫法则">🎯 Challenge: Chargaff’s rule</b>
+        <div class="advf" id="chQ"></div>
+        <div class="predict" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input id="chIn" type="number" min="0" max="100" inputmode="numeric" class="numin"><b>%</b><button class="btn" id="chGo" data-zh="✔ 检查">✔ Check</button><button class="btn ghost" id="chNew" data-zh="换一题">New puzzle</button></div>
+        <div class="result" id="chMsg"></div>
+      </div>
     </div>
   </div>
 </section>
@@ -126,7 +143,13 @@ const P = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/df/Human_male_karyotpe_high_resolution.jpg/960px-Human_male_karyotpe_high_resolution.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'In a cell, DNA is coiled into chromosomes. This is the full set from one human male, lined up in pairs.', zh:'在细胞里，DNA 缠绕成染色体。这是一位男性的全套染色体，按对排列。', kind:{en:'Light micrograph',zh:'光学显微镜照片'}, scale:{en:'46 chromosomes = 23 pairs',zh:'46 条染色体 = 23 对'}, credit:'National Human Genome Research Institute', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Human_male_karyotpe_high_resolution.jpg' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/60/Gel_electrophoresis_2.jpg/960px-Gel_electrophoresis_2.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Gel electrophoresis sorts pieces of DNA by size. Each glowing band is a group of DNA fragments of the same length; the left lane is a ruler of known sizes.', zh:'凝胶电泳按大小把 DNA 片段分开。每条发光的条带都是一组长度相同的 DNA 片段；最左边一列是已知长度的“标尺”。', kind:{en:'Lab photo',zh:'实验照片'}, credit:'Mnolf', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Gel_electrophoresis_2.jpg' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d1/Agarose_gel_with_UV_illumination_-_Ethidium_bromide_stained_DNA_glows_orange_%28close-up%29.jpg/960px-Agarose_gel_with_UV_illumination_-_Ethidium_bromide_stained_DNA_glows_orange_%28close-up%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A close-up of a gel under ultraviolet light. The DNA has been stained with a dye that glows, so the bands of DNA light up.', zh:'紫外光下凝胶的特写。DNA 被会发光的染料染过，所以一条条 DNA 条带亮了起来。', kind:{en:'Lab photo',zh:'实验照片'}, credit:'School of Natural Resources from Ann Arbor', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Agarose_gel_with_UV_illumination_-_Ethidium_bromide_stained_DNA_glows_orange_(close-up).jpg' },
-  { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/e/e0/DNA_extraction_explained_-_biology_animation.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e0/DNA_extraction_explained_-_biology_animation.webm/960px--DNA_extraction_explained_-_biology_animation.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e0/DNA_extraction_explained_-_biology_animation.webm/960px--DNA_extraction_explained_-_biology_animation.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Animation: how scientists get DNA out of cells. The cells are burst open and the DNA is separated from everything else.', zh:'动画：科学家怎样把 DNA 从细胞里提取出来。先让细胞破裂，再把 DNA 和其他物质分开。', kind:{en:'Animation',zh:'动画'}, credit:'yourgenome', license:'CC BY 3.0', page:'https://commons.wikimedia.org/wiki/File:DNA_extraction_explained_-_biology_animation.webm' }
+  { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/e/e0/DNA_extraction_explained_-_biology_animation.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e0/DNA_extraction_explained_-_biology_animation.webm/960px--DNA_extraction_explained_-_biology_animation.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e0/DNA_extraction_explained_-_biology_animation.webm/960px--DNA_extraction_explained_-_biology_animation.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Animation: how scientists get DNA out of cells. The cells are burst open and the DNA is separated from everything else.', zh:'动画：科学家怎样把 DNA 从细胞里提取出来。先让细胞破裂，再把 DNA 和其他物质分开。', kind:{en:'Animation',zh:'动画'}, credit:'yourgenome', license:'CC BY 3.0', page:'https://commons.wikimedia.org/wiki/File:DNA_extraction_explained_-_biology_animation.webm' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/b/bc/Friedrich_Miescher.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Friedrich Miescher (1844–1895), the Swiss scientist who first collected DNA in 1869. He took it from the nuclei of white blood cells and called it “nuclein”.', zh:'弗里德里希·米歇尔（1844—1895），瑞士科学家，他在 1869 年第一次提取出了 DNA。他从白细胞的细胞核里得到这种物质，把它叫作“核素”。', kind:{en:'Historical photo',zh:'历史照片'}, credit:'Unknown photographer', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Friedrich_Miescher.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/9/97/Rosalind_Franklin.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Rosalind Franklin at her microscope in 1955. Her X-ray photographs of DNA, especially “Photo 51” (1952), gave key clues that DNA is a double helix.', zh:'1955 年，罗莎琳德·富兰克林在显微镜前。她拍摄的 DNA X 射线衍射照片，尤其是“51 号照片”（1952 年），为 DNA 是双螺旋结构提供了关键线索。', kind:{en:'Historical photo',zh:'历史照片'}, credit:'MRC Laboratory of Molecular Biology', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Rosalind_Franklin.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a0/Thermal_cycler_for_PCR.jpg/960px-Thermal_cycler_for_PCR.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A PCR machine (thermal cycler). By heating and cooling tiny tubes over and over, it copies one piece of DNA millions of times, so there is enough to study.', zh:'PCR 仪（热循环仪）。它让小管子一遍遍地加热、冷却，把一段 DNA 复制成几百万份，这样就有足够的 DNA 来研究了。', kind:{en:'Lab photo',zh:'实验照片'}, credit:'Juan Carlos Fonseca Mata', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Thermal_cycler_for_PCR.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/8/88/DNA-Sequencers_from_Flickr_57080968.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'A row of DNA sequencing machines. They read the order of the bases A, T, C and G. Rows of machines like these helped read the whole human genome, finished in 2003.', zh:'一排 DNA 测序仪。它们能读出碱基 A、T、C、G 的排列顺序。正是靠成排的这类机器，人类基因组在 2003 年被完整读了出来。', kind:{en:'Lab photo',zh:'实验照片'}, credit:'Steve Jurvetson', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:DNA-Sequencers_from_Flickr_57080968.jpg' },
+  { type:'youtube', yt:'zwibgNGe4aY', kind:{en:'Video',zh:'视频'}, en:'Stated Clearly: what is DNA and how does it work? A clear animated explanation of the “code” in DNA and how cells read it.', zh:'Stated Clearly：DNA 是什么？它是怎样起作用的？用清晰的动画讲解 DNA 里的“密码”，以及细胞怎样读取它。', credit:'Stated Clearly (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'MvuYATh7Y74', kind:{en:'Video',zh:'视频'}, en:'TED-Ed: how scientists sequence a genome, reading billions of DNA letters in the right order.', zh:'TED-Ed：科学家怎样给基因组测序，把几十亿个 DNA “字母”按正确的顺序读出来。', credit:'TED-Ed (YouTube)', license:'YouTube' }
 ];
 window.REALFIG = {  };
 if (window.LabPhotos) LabPhotos.render('#gallery', P.filter(p => !p._x), { title:{en:'See the real thing',zh:'看看真实的样子'}, sub:{en:'DNA is far too thin to see with your eyes, but scientists have many ways to make it visible. Click any picture to enlarge it; the video plays only when you press play.',zh:'DNA 细得用肉眼根本看不见，但科学家有很多办法让它“现形”。点击图片可以放大；视频要按下播放键才会播放。'} });
@@ -170,6 +193,18 @@ const COPY_STEPS = [
   {en:'3 · Result: two identical DNA molecules, each with one old strand and one new strand (glowing).',zh:'3 · 结果：得到两个完全相同的 DNA 分子，每个都有一条旧链和一条新链（发光的那条）。'}
 ];
 
+/* ===== Advanced: zoom deeper (real sizes and chemistry) in the info panel, Advanced mode only ===== */
+const DEEP = {
+  intro:{en:'Real sizes: the helix is about <b>2 nm</b> wide; each base pair adds <b>0.34 nm</b>, and one full twist takes about <b>10 base pairs</b> (3.4 nm). One human cell holds about 6.4 billion base pairs: 6.4 × 10⁹ × 0.34 nm ≈ <b>2 m</b> of DNA!',zh:'真实尺寸：双螺旋直径约 <b>2 纳米</b>；每个碱基对长 <b>0.34 纳米</b>，大约 <b>10 个碱基对</b>转一圈（3.4 纳米）。一个人体细胞约有 64 亿个碱基对：6.4 × 10⁹ × 0.34 纳米 ≈ <b>2 米</b>长的 DNA！'},
+  phosphate:{en:'Phosphate groups carry a negative charge, which is why DNA is an <b>acid</b> (deoxyribonucleic ACID). The two backbones run in opposite directions: one 5′→3′, the other 3′→5′ (<b>antiparallel</b>).',zh:'磷酸基团带负电，所以 DNA 是一种<b>酸</b>（脱氧核糖核“酸”）。两条骨架方向相反：一条 5′→3′，另一条 3′→5′（<b>反向平行</b>）。'},
+  sugar:{en:'Deoxyribose has 5 carbon atoms, numbered 1′ to 5′. The base hangs on carbon 1′; phosphates join at 3′ and 5′. That is where the names “5′ end” and “3′ end” come from. RNA’s ribose has one extra oxygen atom.',zh:'脱氧核糖有 5 个碳原子，编号 1′ 到 5′。碱基连在 1′ 号碳上，磷酸连在 3′ 和 5′ 号碳上，“5′ 端”和“3′ 端”就是这么来的。RNA 的核糖比它多一个氧原子。'},
+  A:{en:'A and G are <b>purines</b> (two rings); T and C are <b>pyrimidines</b> (one ring). Every rung is one purine + one pyrimidine, so the ladder is the same width all the way along.',zh:'A 和 G 是<b>嘌呤</b>（双环）；T 和 C 是<b>嘧啶</b>（单环）。每根横档都是“一个嘌呤 + 一个嘧啶”，所以 DNA 梯子处处一样宽。'},
+  G:{en:'A and G are <b>purines</b> (two rings); T and C are <b>pyrimidines</b> (one ring). Every rung is one purine + one pyrimidine, so the ladder is the same width all the way along.',zh:'A 和 G 是<b>嘌呤</b>（双环）；T 和 C 是<b>嘧啶</b>（单环）。每根横档都是“一个嘌呤 + 一个嘧啶”，所以 DNA 梯子处处一样宽。'},
+  T:{en:'Chargaff’s rule: in double-stranded DNA there is always as much T as A, and as much C as G. Human DNA is about 30% A, 30% T, 20% G and 20% C.',zh:'查加夫法则：双链 DNA 中 T 总是和 A 一样多，C 总是和 G 一样多。人的 DNA 中约 30% 是 A，30% 是 T，20% 是 G，20% 是 C。'},
+  C:{en:'Chargaff’s rule: in double-stranded DNA there is always as much T as A, and as much C as G. Human DNA is about 30% A, 30% T, 20% G and 20% C.',zh:'查加夫法则：双链 DNA 中 T 总是和 A 一样多，C 总是和 G 一样多。人的 DNA 中约 30% 是 A，30% 是 T，20% 是 G，20% 是 C。'},
+  hbond:{en:'A–T: <b>2</b> hydrogen bonds; G–C: <b>3</b>. DNA with more G–C needs more heat to separate. In the lab (PCR), DNA strands are pulled apart by heating to about <b>95 °C</b>.',zh:'A–T 之间 <b>2</b> 个氢键，G–C 之间 <b>3</b> 个。G–C 越多的 DNA 越难解开。实验室做 PCR 时，要加热到约 <b>95 °C</b> 才能把两条链分开。'}
+};
+const deepBox = k => DEEP[k] ? `<div class="adv adv-box"><b>${Lab.L({en:'🔬 Zoom deeper',zh:'🔬 再深入一点'})}</b><span>${Lab.L(DEEP[k])}</span></div>` : '';
 /* ===== Info panel / selection ===== */
 const App = window.DNA = { sel:null, three:null };
 App.select = (k, from3D) => { App.sel = k; renderInfo(); renderChips(); if (!from3D && App.three) App.three.focus(k); };
@@ -179,7 +214,7 @@ function renderInfo(){
     box.innerHTML = `<span class="tag">${Lab.lang==='zh'?'双螺旋':'Double helix'}</span>
       <h3>${Lab.lang==='zh'?'DNA 的形状像一架扭曲的梯子':'DNA is a twisted ladder'}</h3>
       <p class="muted" style="margin:0">${Lab.lang==='zh'?'两条长链（骨架）像梯子的扶手，中间的碱基对像梯子的横档。点击模型的任何部分来认识它。':'Two long strands (the backbones) are the rails, and the base pairs in the middle are the rungs. Click any part of the model to meet it.'}</p>
-      <div class="memory"><b>${Lab.L({en:'💡 Big idea',zh:'💡 核心概念'})}</b>${Lab.lang==='zh'?'碱基 A、T、G、C 的排列顺序就是制造生物体的说明书。':'The order of the bases A, T, G and C is the instruction manual for building a living thing.'}</div>
+      <div class="memory"><b>${Lab.L({en:'💡 Big idea',zh:'💡 核心概念'})}</b>${Lab.lang==='zh'?'碱基 A、T、G、C 的排列顺序就是制造生物体的说明书。':'The order of the bases A, T, G and C is the instruction manual for building a living thing.'}</div>${deepBox('intro')}
       <div class="nav"><button id="startBtn">${Lab.lang==='zh'?'从碱基开始 ▶':'Start with the bases ▶'}</button></div>`;
     Lab.$('#startBtn').onclick = () => App.select('A');
     return;
@@ -191,7 +226,7 @@ function renderInfo(){
     <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>${window.REALFIG && REALFIG[k] ? LabPhotos.figure(REALFIG[k]) : ''}
     <div class="memory"><b>${Lab.L({en:'💡 Memory hint',zh:'💡 记忆小窍门'})}</b>${Lab.L(p.hint)}</div>
     ${p.mix ? `<div class="mix"><b>${Lab.L({en:'⚠️ Common mix-up:',zh:'⚠️ 容易混淆：'})}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
-    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+    <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>${deepBox(k)}
     <div class="nav"><button id="pPrev">${Lab.L({en:'◀ Previous',zh:'◀ 上一个'})}</button><button id="pNext">${Lab.L({en:'Next ▶',zh:'下一个 ▶'})}</button></div>`;
   Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. '));
   Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
@@ -208,12 +243,37 @@ Lab.onLang(() => { renderInfo(); renderChips(); });
   const COLORS = { A:PARTS.A.color, T:PARTS.T.color, G:PARTS.G.color, C:PARTS.C.color };
   let tmpl = [], built = [], ok = 0, bad = 0;
   const tile = (b, cls='') => `<div class="base ${cls}" style="${b ? `background:${COLORS[b]};color:${b==='T'?'#4a3b00':'#fff'}` : ''}">${b || '?'}</div>`;
-  function newSeq(){ tmpl = Array.from({length:10}, () => 'ATGC'[Math.random()*4|0]); built = []; render(); msg(''); }
+  function newSeq(){ tmpl = Array.from({length:Lab.adv() ? +Lab.$('#lenIn').value : 10}, () => 'ATGC'[Math.random()*4|0]); built = []; render(); msg(''); }
   function render(){
     Lab.$('#tmpl').innerHTML = tmpl.map(b => tile(b)).join('');
     Lab.$('#built').innerHTML = tmpl.map((_, i) => i < built.length ? tile(built[i], i === built.length - 1 ? 'ok' : '') : tile(null, 'empty' + (i === built.length ? ' cur' : ''))).join('');
     Lab.$('#sOk').textContent = ok; Lab.$('#sBad').textContent = bad;
+    advNums();
   }
+  /* Advanced: antiparallel strands, Chargaff counts, hydrogen bonds, GC content */
+  function advNums(){
+    if (!Lab.adv()) return;
+    const zh = Lab.lang === 'zh', cnt = s => ({ A:s.filter(b => b === 'A').length, T:s.filter(b => b === 'T').length, G:s.filter(b => b === 'G').length, C:s.filter(b => b === 'C').length });
+    const t = cnt(tmpl), full = tmpl.concat(tmpl.map(b => PAIR[b])), d = cnt(full), n = tmpl.length;
+    const done = built.length, hb = built.reduce((s, b) => s + (b === 'G' || b === 'C' ? 3 : 2), 0), hbAll = tmpl.reduce((s, b) => s + (b === 'G' || b === 'C' ? 3 : 2), 0);
+    const gc = Math.round((t.G + t.C) / n * 100), seqs = Math.pow(4, n).toLocaleString('en-US');
+    Lab.$('#pairNums').innerHTML = zh
+      ? `<code>5′-${tmpl.join('')}-3′</code><br><code>3′-${built.join('')}${'·'.repeat(n - done)}-5′</code><br>两条链方向相反（<b>反向平行</b>）。<br>整个双链：A ${d.A} = T ${d.T}，G ${d.G} = C ${d.C}（<b>A = T，G = C</b>）。GC 含量 <b>${gc}%</b>。<br>氢键：已连好 <b>${hb}</b> / 共 ${hbAll} 个（A–T 2 个，G–C 3 个）。<br>${n} 个碱基长的链可以有 4<sup>${n}</sup> = <b>${seqs}</b> 种排列。`
+      : `<code>5′-${tmpl.join('')}-3′</code><br><code>3′-${built.join('')}${'·'.repeat(n - done)}-5′</code><br>The two strands run in opposite directions (<b>antiparallel</b>).<br>Whole double strand: A ${d.A} = T ${d.T}, G ${d.G} = C ${d.C} (<b>A = T, G = C</b>). GC content <b>${gc}%</b>.<br>Hydrogen bonds: <b>${hb}</b> made of ${hbAll} (A–T has 2, G–C has 3).<br>A strand ${n} bases long can be written 4<sup>${n}</sup> = <b>${seqs}</b> different ways.`;
+  }
+  Lab.$('#lenIn').oninput = () => { Lab.$('#lenVal').textContent = Lab.$('#lenIn').value; newSeq(); };
+  Lab.onMode(adv => { if (tmpl.length && (adv ? tmpl.length !== +Lab.$('#lenIn').value : tmpl.length !== 10)) newSeq(); else advNums(); });
+  Lab.onLang(advNums);
+  /* Chargaff puzzle */
+  let chA = 30;
+  function chNew(){ chA = 5 * (2 + (Math.random() * 7 | 0)); Lab.$('#chIn').value = ''; chQ(); Lab.$('#chMsg').textContent = ''; Lab.$('#chMsg').className = 'result'; }
+  function chQ(){ Lab.$('#chQ').innerHTML = Lab.lang === 'zh' ? `一段双链 DNA 中，<b>${chA}%</b> 的碱基是 A（腺嘌呤）。G（鸟嘌呤）占百分之几？` : `In a piece of double-stranded DNA, <b>${chA}%</b> of the bases are A (adenine). What percent are G (guanine)?`; }
+  Lab.$('#chNew').onclick = chNew;
+  Lab.$('#chGo').onclick = () => { const v = +Lab.$('#chIn').value, g = 50 - chA, m = Lab.$('#chMsg'), zh = Lab.lang === 'zh';
+    if (Lab.$('#chIn').value === ''){ m.textContent = zh ? '先输入一个数。' : 'Type a number first.'; m.className = 'result'; return; }
+    if (v === g){ m.textContent = zh ? `✅ 对！A = T = ${chA}%，所以 A + T = ${2 * chA}%，剩下 ${100 - 2 * chA}% 由 G 和 C 平分：G = ${g}%。` : `✅ Right! A = T = ${chA}%, so A + T = ${2 * chA}%. The other ${100 - 2 * chA}% is split equally between G and C: G = ${g}%.`; m.className = 'result good'; }
+    else { m.textContent = zh ? `❌ 不对。提示：A 一定和 T 一样多，G 一定和 C 一样多，四种加起来是 100%。` : `❌ Not quite. Hint: there is always as much T as A, and as much C as G, and all four add up to 100%.`; m.className = 'result bad'; } };
+  Lab.onLang(chQ); chNew();
   const msg = (t, good) => { const m = Lab.$('#pairMsg'); m.textContent = t; m.className = 'result ' + (good === true ? 'good' : good === false ? 'bad' : ''); };
   function press(b){
     if (built.length >= tmpl.length) return;

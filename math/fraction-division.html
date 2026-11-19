@@ -47,6 +47,7 @@
   <div class="ma-explore">
     <div class="ma-stage explore-stage" id="exStage" data-fs></div>
     <div class="card ctl">
+      <div class="lab-mode" style="align-self:flex-start"></div>
       <div class="fracpick">
         <fieldset><legend data-zh="被除数 a/b（总量）">Dividend a/b (amount)</legend>
           <label class="ctl"><span>a = <b id="aVal">3</b></span><input id="aIn" type="range" min="1" max="12" step="1" value="3"></label>
@@ -61,6 +62,18 @@
       <div class="ma-big" id="fOut"></div>
       <div class="ma-big sm" id="cdOut"></div>
       <div class="verdict" id="fMsg"></div>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:10px">
+        <b data-zh="进阶：负分数、为什么要颠倒、余下的到底是多少">Advanced: negative fractions, why the flip works, what the leftover really is</b>
+        <div class="btnrow"><button class="btn ghost" id="sgA" data-zh="± 改变被除数的符号">± sign of dividend</button><button class="btn ghost" id="sgB" data-zh="± 改变除数的符号">± sign of divisor</button></div>
+        <div id="whyOut" style="text-align:center;font-size:19px;overflow-x:auto;overflow-y:hidden;padding:2px 0"></div>
+        <div id="chkOut" style="text-align:center;font-size:17px;overflow-x:auto;overflow-y:hidden;padding:2px 0"></div>
+        <div id="fFacts" class="muted" style="font-size:14px"></div>
+        <div style="border-top:1px solid var(--line);padding-top:8px">
+          <b data-zh="🎯 挑战">🎯 Challenge</b> <span id="chTxt"></span>
+          <div class="btnrow" style="margin-top:6px"><button class="btn" id="chCheck" data-zh="检查">Check</button><button class="btn ghost" id="chNew" data-zh="换一题">New challenge</button></div>
+          <div class="result" id="chMsg"></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -303,19 +316,60 @@ function fracTxt(p, q){ const g = gcd(p, q); p /= g; q /= g; const w = Math.floo
     }
     txt(Lab.L({ en:`${n} full piece${n === 1 ? '' : 's'} fit`, zh:`能放下 ${n} 整份` }), x0, -2.4, C.green, .4, 'left');
     txt(Lab.L({ en:`answer: ${fracTxt(a * d, b * c)} pieces`, zh:`答案：${fracTxt(a * d, b * c)} 份` }), x0, -3.3, C.white, .44, 'left');
+    if (Lab.adv() && sA * sB < 0) txt(Lab.L({ en:'(the bars show sizes; the quotient’s sign is −)', zh:'（色条只表示大小；商的符号是 −）' }), x0, -4.05, C.pink, .28, 'left');
   });
   function update(){
     a = +Lab.$('#aIn').value; b = +Lab.$('#bIn').value; c = +Lab.$('#cIn').value; d = +Lab.$('#dIn').value;
     ['a', 'b', 'c', 'd'].forEach(k => Lab.$('#' + k + 'Val').textContent = { a, b, c, d }[k]);
     const fb = (n, m, col) => `\\frac{${K(col, n)}}{${K(col, m)}}`;
-    Lab.$('#fOut').innerHTML = MathAnim.tex(`${fb(a, b, DK.blue)} \\div ${fb(c, d, DK.yellow)} = ${fb(a, b, DK.blue)} \\times ${fb(d, c, DK.pink)} = \\frac{${a * d}}{${b * c}} = ${fracTex(a * d, b * c, DK.green)}`);
+    const ua = Lab.adv() ? sA : 1, ub = Lab.adv() ? sB : 1, ng = s => s < 0 ? '-' : '', pr = (s, t) => s < 0 ? `\\left(-${t}\\right)` : t;   // signs: Advanced only
+    Lab.$('#fOut').innerHTML = MathAnim.tex(`${ng(ua)}${fb(a, b, DK.blue)} \\div ${pr(ub, fb(c, d, DK.yellow))} = ${ng(ua)}${fb(a, b, DK.blue)} \\times ${pr(ub, fb(d, c, DK.pink))} = ${ng(ua * ub)}\\frac{${a * d}}{${b * c}} = ${ng(ua * ub)}${fracTex(a * d, b * c, DK.green)}`);
     Lab.$('#cdOut').innerHTML = MathAnim.rich(Lab.L({ en:`Common denominator: $\\frac{${a * d}}{${b * d}} \\div \\frac{${b * c}}{${b * d}} = ${a * d} \\div ${b * c}$`, zh:`通分：$\\frac{${a * d}}{${b * d}} \\div \\frac{${b * c}}{${b * d}} = ${a * d} \\div ${b * c}$` }));
     const q = a * d / (b * c), m = Lab.$('#fMsg');
     m.style.color = q > 1 ? 'var(--good)' : q < 1 ? DK.pink : 'var(--ink)';
     m.textContent = Lab.L(q > 1 ? { en:'Quotient > 1: the piece is smaller than the amount, so more than one piece fits.', zh:'商 > 1：一份比总量小，所以能放下不止一份。' }
                        : q < 1 ? { en:'Quotient < 1: the piece is bigger than the amount, so not even one whole piece fits.', zh:'商 < 1：一份比总量还大，连一整份都放不满。' }
                                : { en:'Quotient = 1: the piece is exactly the same size as the amount.', zh:'商 = 1：一份正好和总量一样大。' });
+    advUpdate();
   }
+  /* ---------- Advanced mode: signs, why the flip works, check, leftover, challenge ---------- */
+  let sA = 1, sB = 1, chI = 0;
+  const o2 = (en, zh) => ({ en, zh });
+  const CH = [   // target quotient p/q (signed), plus an extra rule
+    { en:'Make the quotient exactly 6, using a dividend less than 2.', zh:'让商正好等于 6，而且被除数小于 2。', p:6, q:1, rule:() => a < 2 * b },
+    { en:'Make the quotient exactly ½.', zh:'让商正好等于 ½。', p:1, q:2 },
+    { en:'Keep the dividend 3 and find a divisor that makes the quotient 4½.', zh:'被除数保持为 3，找一个除数，使商等于 4½。', p:9, q:2, rule:() => a === 3 * b },
+    { en:'Divide by a fraction and get an answer SMALLER than the dividend (both positive).', zh:'除以一个分数，结果反而比被除数小（两个数都是正数）。', rule:() => sA > 0 && sB > 0 && c > d },
+    { en:'Use the ± buttons: make the quotient exactly −⅔.', zh:'用 ± 按钮：让商正好等于 −⅔。', p:-2, q:3 },
+    { en:'Two negative fractions whose quotient is 2.', zh:'两个负分数相除，商等于 2。', p:2, q:1, rule:() => sA < 0 && sB < 0 }
+  ];
+  function advUpdate(){
+    if (!Lab.adv()) return;
+    const s = sA * sB, ng = v => v < 0 ? '-' : '', fb = (n, m) => `\\tfrac{${n}}{${m}}`, fw = (n, m) => `\\dfrac{${n}}{${m}}`;
+    Lab.$('#sgA').classList.toggle('alt', sA < 0); Lab.$('#sgB').classList.toggle('alt', sB < 0);
+    Lab.$('#whyOut').innerHTML = MathAnim.tex(`\\dfrac{${fw(a, b)}}{${fw(c, d)}} = \\dfrac{${fw(a, b)} \\times ${K(DK.pink, fw(d, c))}}{${fw(c, d)} \\times ${K(DK.pink, fw(d, c))}} = \\dfrac{${fw(a, b)} \\times ${K(DK.pink, fw(d, c))}}{1}`);
+    const pr = (v, t) => v < 0 ? `\\left(-${t}\\right)` : t;
+    Lab.$('#chkOut').innerHTML = MathAnim.tex(`\\text{${Lab.L(o2('check', '验算'))}: } ${pr(s, fracTex(a * d, b * c))} \\times ${pr(sB, fb(c, d))} = ${ng(sA)}${fracTex(a * c * d, b * c * d)}`);
+    const n = Math.floor(a * d / (b * c) + 1e-9), remP = a * d - n * b * c;
+    let f = Lab.L(o2('Multiplying top and bottom by the reciprocal d/c turns the bottom into 1, so dividing by c/d is the same as multiplying by d/c.', '分子、分母同时乘倒数 d/c，分母就变成 1，所以除以 c/d 等于乘 d/c。'));
+    if (remP) f += '<br>' + Lab.L(o2(`Careful: the leftover is ${fracTxt(remP, b * d)} of the whole amount, but ${fracTxt(remP, b * c)} of a PIECE. The quotient counts pieces: ${n} + ${fracTxt(remP, b * c)} = ${fracTxt(a * d, b * c)}.`,
+                                    `注意：余下的是总量单位“1”的 ${fracTxt(remP, b * d)}，但却是“一份”的 ${fracTxt(remP, b * c)}。商数的是“份数”：${n} + ${fracTxt(remP, b * c)} = ${fracTxt(a * d, b * c)}。`));
+    f += '<br>' + Lab.L(o2(`Signs work like integers: ${sA < 0 ? '−' : '+'} ÷ ${sB < 0 ? '−' : '+'} → ${s < 0 ? '−' : '+'} (same signs positive, different signs negative).`, `符号法则和整数一样：${sA < 0 ? '−' : '+'} ÷ ${sB < 0 ? '−' : '+'} → ${s < 0 ? '−' : '+'}（同号得正，异号得负）。`));
+    Lab.$('#fFacts').innerHTML = f;
+    Lab.$('#chTxt').textContent = Lab.L(CH[chI]);
+  }
+  Lab.$('#sgA').onclick = () => { sA = -sA; update(); };
+  Lab.$('#sgB').onclick = () => { sB = -sB; update(); };
+  Lab.$('#chNew').onclick = () => { chI = (chI + 1) % CH.length; Lab.$('#chMsg').textContent = ''; Lab.$('#chMsg').className = 'result'; advUpdate(); };
+  Lab.$('#chCheck').onclick = () => {
+    const ch = CH[chI], top = sA * sB * a * d, bot = b * c;           // quotient = top / bot
+    const qOk = ch.p == null || top * ch.q === ch.p * bot, ok = qOk && (!ch.rule || ch.rule()), msg = Lab.$('#chMsg');
+    msg.textContent = Lab.L(ok ? o2(`🎉 Yes! The quotient is ${top < 0 ? '−' : ''}${fracTxt(Math.abs(top), bot)}.`, `🎉 对了！商是 ${top < 0 ? '−' : ''}${fracTxt(Math.abs(top), bot)}。`)
+                              : qOk && ch.p != null ? o2('The quotient is right, but read the challenge again: one more condition is not met yet.', '商对了，但再读读题目：还有一个条件没有满足。')
+                              : o2(`Not yet: your quotient is ${top < 0 ? '−' : ''}${fracTxt(Math.abs(top), bot)}. Try another divisor (or sign).`, `还不对：你的商是 ${top < 0 ? '−' : ''}${fracTxt(Math.abs(top), bot)}。换一个除数（或符号）试试。`));
+    msg.className = 'result ' + (ok ? 'good' : 'bad');
+  };
+  Lab.onMode(update);
   ['#aIn', '#bIn', '#cIn', '#dIn'].forEach(s => Lab.$(s).oninput = update);
   Lab.$$('[data-f]').forEach(btn => btn.onclick = () => { const v = btn.dataset.f.split(','); ['#aIn', '#bIn', '#cIn', '#dIn'].forEach((s, i) => Lab.$(s).value = v[i]); update(); });
   Lab.onLang(update); update();
@@ -348,6 +402,7 @@ Lab.sort(Lab.$('#sort'), {
 /* ================= Where you see this: real photos (Wikimedia Commons, freely licensed) ================= */
 (function(){
 const o = (en, zh) => ({ en, zh });
+const VID = o('Video', '视频');
 const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d8/Unutra%C5%A1njost_%C5%A1oljice_za_merenje.jpg/960px-Unutra%C5%A1njost_%C5%A1oljice_za_merenje.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'The inside of a measuring cup with its marks. How many ⅓-cup scoops fit into 2 cups?',
@@ -360,9 +415,23 @@ const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/17/Measuring-tape.jpg/960px-Measuring-tape.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'A tape measure splits every inch into small fractions. How many ¼-inch pieces fit into 3½ inches?',
     zh:'卷尺把每一英寸分成小份。3½ 英寸里有几个 ¼ 英寸？',
-    credit:'Evan-Amos', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Measuring-tape.jpg' }
+    credit:'Evan-Amos', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Measuring-tape.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/89/Eye_of_Ra_%28fractions%29.svg/960px-Eye_of_Ra_%28fractions%29.svg.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'Ancient Egyptians used parts of the “Eye of Horus” to write ½, ¼, ⅛, 1/16, 1/32 and 1/64. Each part is half the one before. How many 1/64s are in ½?',
+    zh:'古埃及人用“荷鲁斯之眼”的各个部分表示 ½、¼、⅛、1/16、1/32 和 1/64，每一份都是前一份的一半。½ 里有几个 1/64？',
+    kind:o('Ancient math','古代数学'), credit:'Kompak; Benoît Stella (derivative)', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Eye_of_Ra_(fractions).svg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/d/d9/Rhind_Mathematical_Papyrus.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled',
+    en:'The Rhind papyrus (Egypt, about 1550 BC) opens with a table for dividing 2 by odd numbers, written as sums of unit fractions, like 2 ÷ 3 = ½ + 1/6. Can you check it?',
+    zh:'古埃及莱因德纸草书（约公元前 1550 年）开头是一张“2 除以奇数”的表，结果写成单位分数之和，比如 2 ÷ 3 = ½ + 1/6。你能验证一下吗？',
+    kind:o('Ancient math','古代数学'), credit:'scribe Ahmes (ancient Egypt)', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Rhind_Mathematical_Papyrus.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/31/Chopin_polonaise_Op._53.jpg/960px-Chopin_polonaise_Op._53.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'Chopin’s handwritten music for his Polonaise Op. 53. Note lengths are fractions: a half note lasts ½ of a whole note, an eighth note ⅛. How many eighth notes fit in a dotted half note (¾)? Work out ¾ ÷ ⅛.',
+    zh:'肖邦亲笔写的《降 A 大调波兰舞曲》（作品 53）乐谱。音符的时值就是分数：二分音符是全音符的 ½，八分音符是 ⅛。一个附点二分音符（¾）里有几个八分音符？算一算 ¾ ÷ ⅛。',
+    credit:'Frédéric Chopin', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Chopin_polonaise_Op._53.jpg' },
+  { type:'youtube', yt:'4lkq3DgvmJo', en:'Video: “Dividing Fractions” — why “multiply by the reciprocal” works.', zh:'视频：《分数除法》——为什么“乘以倒数”是对的（英文）。', kind:VID, credit:'Math Antics (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'NKmGVE85GUU', en:'Video: “Why can’t you divide by zero?” — a TED-Ed lesson on what division really means.', zh:'视频：《为什么不能除以零？》——TED-Ed 课程：除法到底是什么意思（英文）。', kind:VID, credit:'TED-Ed (YouTube)', license:'YouTube' }
 ];
-LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos. Each one comes with a question this lesson helps you answer. Click a picture to enlarge it.','真实照片。每张都带着一个这节课能帮你回答的问题。点击图片可放大。') });
+LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos and short videos. Each photo comes with a question this lesson helps you answer. Click a picture to enlarge it or to play a video.','真实照片和短视频。每张照片都带着一个这节课能帮你回答的问题。点击图片可放大，点击视频可播放。') });
 })();
 </script>
 <!-- /real-world gallery script -->

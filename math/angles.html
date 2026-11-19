@@ -44,6 +44,7 @@
   <div class="ma-explore">
     <div class="ma-stage explore-stage" id="exStage" data-fs></div>
     <div class="card ctl">
+      <div class="lab-mode" style="align-self:flex-start"></div>
       <label class="ctl"><span><span data-zh="截线的角度：">Transversal angle: </span><b id="thVal">60°</b></span><input id="thIn" type="range" min="20" max="160" step="1" value="60"></label>
       <div class="btnrow pairbtns" id="pairBtns">
         <button class="btn ghost" data-p="vert" data-zh="对顶角">Vertical</button>
@@ -53,9 +54,20 @@
         <button class="btn ghost" data-p="altE" data-zh="外错角">Alternate exterior</button>
         <button class="btn ghost" data-p="ssi" data-zh="同旁内角">Same-side interior</button>
       </div>
-      <label class="ctl" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="tiltIn"> <span data-zh="让上面的线倾斜（不再平行）">Tilt the top line (not parallel)</span></label>
+      <label class="ctl basic-only" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="tiltIn"> <span data-zh="让上面的线倾斜（不再平行）">Tilt the top line (not parallel)</span></label>
       <div class="ma-big" id="pairOut"></div>
       <div class="pairnote" id="pairNote"></div>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:10px">
+        <b data-zh="进阶：倾斜多少度？全部 8 个角 · 平行线的判定">Advanced: tilt by any amount, all 8 angles, testing for parallel lines</b>
+        <label class="ctl"><span><span data-zh="上面那条线转过的角度 p = ">Turn the top line by p = </span><b id="pVal">0°</b> <span data-zh="（0° = 平行）">(0° = parallel)</span></span><input id="pIn" type="range" min="-15" max="15" step="1" value="0"></label>
+        <div id="allTab" style="text-align:center;overflow-x:auto;overflow-y:hidden"></div>
+        <div id="advNote" class="muted" style="font-size:14px"></div>
+        <div style="border-top:1px solid var(--line);padding-top:8px">
+          <b data-zh="🎯 挑战">🎯 Challenge</b> <span id="chTxt"></span>
+          <div class="btnrow" style="margin-top:6px"><button class="btn" id="chCheck" data-zh="检查">Check</button><button class="btn ghost" id="chNew" data-zh="换一题">New challenge</button></div>
+          <div class="result" id="chMsg"></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -68,9 +80,22 @@
   <div class="ma-explore">
     <div class="ma-stage explore-stage" id="tStage" data-fs></div>
     <div class="card ctl">
+      <div class="lab-mode" style="align-self:flex-start"></div>
       <div class="ma-big" id="triOut"></div>
       <div class="btnrow"><button class="btn ghost" data-tri="right" data-zh="直角三角形">Right triangle</button><button class="btn ghost" data-tri="equi" data-zh="等边三角形">Equilateral</button><button class="btn ghost" data-tri="obtuse" data-zh="钝角三角形">Obtuse</button></div>
       <p class="muted" style="margin:0" data-zh="小挑战：你能做出一个有两个直角的三角形吗？为什么不能？">Challenge: can you make a triangle with two right angles? Why not?</p>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:10px">
+        <b data-zh="进阶：三角形的外角 · 多边形的内角和">Advanced: exterior angle of a triangle, angle sum of any polygon</b>
+        <div id="extOut" style="text-align:center;font-size:18px;overflow-x:auto;overflow-y:hidden"></div>
+        <p class="muted" style="margin:0;font-size:14px" data-zh="紫色是三角形的一个外角（把一条边延长）。外角等于与它不相邻的两个内角之和。">Purple: an exterior angle of the triangle (one side is extended past a corner). It equals the sum of the two inside angles that are not next to it.</p>
+        <label class="ctl"><span><span data-zh="多边形的边数 n = ">Polygon with n = </span><b id="nVal">5</b> <span data-zh="条边">sides</span></span><input id="nIn" type="range" min="3" max="12" step="1" value="5"></label>
+        <div id="polyOut" style="text-align:center;font-size:17px;overflow-x:auto;overflow-y:hidden"></div>
+        <div style="border-top:1px solid var(--line);padding-top:8px">
+          <b data-zh="🎯 挑战">🎯 Challenge</b> <span id="pChTxt"></span>
+          <div class="btnrow" style="margin-top:6px"><button class="btn" id="pChCheck" data-zh="检查">Check</button><button class="btn ghost" id="pChNew" data-zh="换一题">New challenge</button></div>
+          <div class="result" id="pChMsg"></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -330,16 +355,19 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     ssi:{ en:'Same-side interior angles: between the lines, on the same side of the transversal. Add to 180° when the lines are parallel.', zh:'同旁内角：在两条线之间、截线同侧的角。两直线平行时和为 180°。' } };
   const QK = [1, 0, 2, 3];                       // angle number → quadrant (0 upper-right, 1 upper-left, 2 lower-left, 3 lower-right)
   let th = 60, tilt = false, type = 'corr', idx = 0;
+  let pAdv = 0;                                   // Advanced: tilt of the top line in degrees, turned about its crossing point
   function geom(){
-    const t = th * D, p = tilt ? (th < 90 ? -12 : 12) * D : 0;
-    const sT = Y / (Math.sin(t) - Math.cos(t) * Math.tan(p)), sB = -Y / Math.sin(t);
+    const A = Lab.adv(), t = th * D, p = A ? pAdv * D : tilt ? (th < 90 ? -12 : 12) * D : 0;
+    const sT = A ? Y / Math.sin(t) : Y / (Math.sin(t) - Math.cos(t) * Math.tan(p)), sB = -Y / Math.sin(t);
     return { t, p, P2:[sT * Math.cos(t), sT * Math.sin(t)], P1:[sB * Math.cos(t), sB * Math.sin(t)],
              qT:[[p, t], [t, Math.PI + p], [Math.PI + p, Math.PI + t], [Math.PI + t, TAU + p]], qB:[[0, t], [t, Math.PI], [Math.PI, Math.PI + t], [Math.PI + t, TAU]] };
   }
   const val = (g, n) => { const q = (n <= 4 ? g.qT : g.qB)[QK[(n - 1) % 4]]; return Math.round((q[1] - q[0]) / D); };
   E.custom((ctx, S) => {
     const g = geom(), pair = PAIRS[type][idx], cols = [C.blue, C.orange, C.blue, C.orange];
-    seg(ctx, S, -5.8, -Y, 5.8, -Y, C.white, 3); seg(ctx, S, -5.8, Y - 5.8 * Math.tan(g.p), 5.8, Y + 5.8 * Math.tan(g.p), tilt ? C.red : C.white, 3);
+    seg(ctx, S, -5.8, -Y, 5.8, -Y, C.white, 3);
+    if (Lab.adv()){ const k = Math.tan(g.p), x0 = g.P2[0]; seg(ctx, S, -5.8, Y + (-5.8 - x0) * k, 5.8, Y + (5.8 - x0) * k, pAdv ? C.red : C.white, 3); }
+    else seg(ctx, S, -5.8, Y - 5.8 * Math.tan(g.p), 5.8, Y + 5.8 * Math.tan(g.p), tilt ? C.red : C.white, 3);
     const u = [Math.cos(g.t), Math.sin(g.t)]; seg(ctx, S, g.P1[0] - 2 * u[0], g.P1[1] - 2 * u[1], g.P2[0] + 2 * u[0], g.P2[1] + 2 * u[1], C.yellow, 3.5);
     for (let n = 1; n <= 8; n++){
       const P = n <= 4 ? g.P2 : g.P1, k = QK[(n - 1) % 4], q = (n <= 4 ? g.qT : g.qB)[k], on = pair.includes(n), m = (q[0] + q[1]) / 2;
@@ -349,17 +377,56 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     dotAt(ctx, S, g.P1[0], g.P1[1]); dotAt(ctx, S, g.P2[0], g.P2[1]);
   });
   function update(){
-    th = +Lab.$('#thIn').value; tilt = Lab.$('#tiltIn').checked; Lab.$('#thVal').textContent = th + '°';
+    th = +Lab.$('#thIn').value; tilt = Lab.$('#tiltIn').checked; pAdv = +Lab.$('#pIn').value; Lab.$('#thVal').textContent = th + '°';
     const g = geom(), [a, b] = PAIRS[type][idx], va = val(g, a), vb = val(g, b), sum = type === 'lin' || type === 'ssi';
     Lab.$('#pairOut').innerHTML = sum
       ? MathAnim.tex(`\\angle ${a} + \\angle ${b} = ${va}^\\circ + ${vb}^\\circ = ${va + vb}^\\circ`)
       : MathAnim.tex(va === vb ? `\\angle ${a} = \\angle ${b} = ${va}^\\circ` : `\\angle ${a} = ${va}^\\circ \\ne \\angle ${b} = ${vb}^\\circ`);
-    const broken = sum ? va + vb !== 180 : va !== vb;
-    const extra = !tilt ? '' : broken ? Lab.L({ en:' ⚠️ The lines are not parallel now, so this relationship breaks!', zh:' ⚠️ 现在两条线不平行，这个关系不成立了！' })
+    const broken = sum ? va + vb !== 180 : va !== vb, tl = Lab.adv() ? pAdv !== 0 : tilt;
+    const extra = !tl ? '' : broken ? Lab.L({ en:' ⚠️ The lines are not parallel now, so this relationship breaks!', zh:' ⚠️ 现在两条线不平行，这个关系不成立了！' })
                                       : Lab.L({ en:' ✅ Still true: this one does not need parallel lines.', zh:' ✅ 依然成立：这个关系不需要平行线。' });
     Lab.$('#pairNote').textContent = Lab.L(NOTE[type]) + extra;
     Lab.$$('#pairBtns [data-p]').forEach(btn => btn.classList.toggle('on', btn.dataset.p === type));
+    advUpdate(g);
   }
+  /* ---- Advanced: all 8 angles, any tilt, converse of the parallel-line facts, challenge ---- */
+  const CH = [   // test(a = angles 1..8, transversal th, tilt p) — the student sets the sliders
+    { en:'Keep the lines parallel and turn the transversal so that ∠1 is twice ∠2.', zh:'保持两线平行，转动截线，使 ∠1 是 ∠2 的 2 倍。', test:(a, t, p) => p === 0 && a[1] === 2 * a[2],
+      why:{ en:'∠1 + ∠2 = 180° (linear pair), so 2x + x = 180 and x = 60°.', zh:'∠1 + ∠2 = 180°（邻补角），所以 2x + x = 180，x = 60°。' } },
+    { en:'Keep the lines parallel and make the same-side interior angles ∠3 and ∠5 equal.', zh:'保持两线平行，使同旁内角 ∠3 和 ∠5 相等。', test:(a, t, p) => p === 0 && a[3] === a[5],
+      why:{ en:'∠3 + ∠5 = 180° and ∠3 = ∠5, so each is 90°: the transversal is perpendicular to both lines.', zh:'∠3 + ∠5 = 180° 且 ∠3 = ∠5，所以都是 90°：截线与两条平行线都垂直。' } },
+    { en:'Keep the lines parallel and make ∠6 four times as big as ∠5.', zh:'保持两线平行，使 ∠6 是 ∠5 的 4 倍。', test:(a, t, p) => p === 0 && a[6] === 4 * a[5],
+      why:{ en:'∠5 + ∠6 = 180°, so x + 4x = 180, x = 36° and ∠6 = 144°.', zh:'∠5 + ∠6 = 180°，所以 x + 4x = 180，x = 36°，∠6 = 144°。' } },
+    { en:'Set ∠6 = 60°, then turn the top line so that ∠2 = 70°. Are the lines still parallel?', zh:'先使 ∠6 = 60°，再转动上面的线，使 ∠2 = 70°。这时两条线还平行吗？', test:(a, t, p) => a[6] === 60 && a[2] === 70,
+      why:{ en:'Not parallel! The corresponding angles ∠2 and ∠6 differ by 10°: exactly how far the top line turned (p = −10°).', zh:'不平行！同位角 ∠2 和 ∠6 相差 10°，正好是上面那条线转过的角度（p = −10°）。' } },
+    { en:'Keep the lines parallel and make the alternate interior angles ∠4 and ∠5 add up to 140°.', zh:'保持两线平行，使内错角 ∠4 与 ∠5 的和为 140°。', test:(a, t, p) => p === 0 && a[4] + a[5] === 140,
+      why:{ en:'Parallel lines make ∠4 = ∠5, so each is 70° and the transversal angle is 110°.', zh:'两线平行时 ∠4 = ∠5，所以都是 70°，截线的角度是 110°。' } },
+    { en:'Turn the top line (p ≠ 0°) so that ∠3 + ∠5 = 170°.', zh:'转动上面的线（p ≠ 0°），使 ∠3 + ∠5 = 170°。', test:(a, t, p) => p !== 0 && a[3] + a[5] === 170,
+      why:{ en:'∠3 + ∠5 = 180° − p, so p = +10°. Same-side interior angles add to 180° only when the lines are parallel.', zh:'∠3 + ∠5 = 180° − p，所以 p = +10°。只有两线平行时，同旁内角之和才是 180°。' } }
+  ];
+  let chI = 0;
+  const allAngles = g => { const a = [0]; for (let n = 1; n <= 8; n++) a.push(val(g, n)); return a; };
+  function advUpdate(g){
+    if (!Lab.adv()) return;
+    g = g || geom(); Lab.$('#pVal').textContent = (pAdv > 0 ? '+' : pAdv < 0 ? '−' : '') + Math.abs(pAdv) + '°';
+    const a = allAngles(g), hl = n => (PAIRS[type][idx].includes(n) ? `\\textcolor{#d49a1c}{\\mathbf{${a[n]}^\\circ}}` : `${a[n]}^\\circ`);
+    const tt = Lab.L({ en:'\\text{top}', zh:'\\text{上交点}' }), tb = Lab.L({ en:'\\text{bottom}', zh:'\\text{下交点}' });
+    Lab.$('#allTab').innerHTML = MathAnim.tex(`\\begin{array}{c|cccc} ${tt} & \\angle 1 & \\angle 2 & \\angle 3 & \\angle 4 \\\\ & ${[1, 2, 3, 4].map(hl).join(' & ')} \\\\ \\hline ${tb} & \\angle 5 & \\angle 6 & \\angle 7 & \\angle 8 \\\\ & ${[5, 6, 7, 8].map(hl).join(' & ')} \\end{array}`);
+    Lab.$('#advNote').textContent = pAdv === 0
+      ? Lab.L({ en:`Parallel: corresponding ∠2 = ∠6 = ${a[2]}°, same-side interior ∠4 + ∠6 = ${a[4] + a[6]}°. It also works backwards: if corresponding angles are equal, the lines must be parallel.`,
+                zh:`平行：同位角 ∠2 = ∠6 = ${a[2]}°，同旁内角 ∠4 + ∠6 = ${a[4] + a[6]}°。反过来也成立：同位角相等，两直线平行（平行线的判定）。` })
+      : Lab.L({ en:`Not parallel: ∠2 − ∠6 = ${a[2]}° − ${a[6]}° = ${a[2] - a[6]}°, the opposite of the turn p. Vertical angles (∠1 = ∠4 = ${a[1]}°) and linear pairs still work.`,
+                zh:`不平行：∠2 − ∠6 = ${a[2]}° − ${a[6]}° = ${a[2] - a[6]}°，大小正好等于转过的角度 p。对顶角（∠1 = ∠4 = ${a[1]}°）和邻补角仍然成立。` });
+    Lab.$('#chTxt').textContent = Lab.L(CH[chI]);
+  }
+  Lab.$('#pIn').oninput = () => update();
+  Lab.$('#chNew').onclick = () => { chI = (chI + 1) % CH.length; Lab.$('#chMsg').textContent = ''; Lab.$('#chMsg').className = 'result'; advUpdate(); };
+  Lab.$('#chCheck').onclick = () => {
+    const a = allAngles(geom()), ok = CH[chI].test(a, th, pAdv), msg = Lab.$('#chMsg');
+    msg.textContent = ok ? '🎉 ' + Lab.L(CH[chI].why) : Lab.L({ en:'Not yet. Write an equation: a linear pair adds to 180°, and with parallel lines corresponding angles are equal.', zh:'还不对。先列方程：邻补角之和是 180°；两线平行时，同位角相等。' });
+    msg.className = 'result ' + (ok ? 'good' : 'bad');
+  };
+  Lab.onMode(() => update());
   Lab.$$('#pairBtns [data-p]').forEach(btn => btn.onclick = () => { if (type === btn.dataset.p) idx = (idx + 1) % PAIRS[type].length; else { type = btn.dataset.p; idx = 0; } update(); });
   Lab.$('#thIn').oninput = update; Lab.$('#tiltIn').onchange = update;
   Lab.onLang(update); update();
@@ -391,12 +458,62 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     let s = 0; A.forEach((a, i) => { wedge(ctx, S, Q[0], Q[1], 1.55, s, s + a.v, COL[i], .45); const m = s + a.v / 2;
       if (a.v > .12) txt(ctx, S, R[i] + '°', Q[0] + 2.05 * Math.cos(m), Q[1] + 2.05 * Math.sin(m), COL[i], .3); s += a.v; });
     dotAt(ctx, S, Q[0], Q[1]);
+    if (Lab.adv()){                                // Advanced: one exterior angle (a side extended past a corner)
+      const X = extPick(), P = V[X.k], E = 1.6;
+      ctx.setLineDash([7, 6]); seg(ctx, S, P[0], P[1], P[0] + E * X.u[0], P[1] + E * X.u[1], C.purple, 3); ctx.setLineDash([]);
+      wedge(ctx, S, P[0], P[1], .5, X.a0, X.a1, C.purple, .45);
+      txt(ctx, S, (180 - R[X.k]) + '°', P[0] + .95 * Math.cos(X.m), P[1] + .95 * Math.sin(X.m), C.purple, .3);
+    }
     V.forEach((p, i) => { ctx.beginPath(); ctx.arc(S.sx(p[0]), S.sy(p[1]), drag === i ? 11 : 9, 0, TAU); ctx.fillStyle = COL[i]; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke(); });
   });
   function update(){
     const R = rounded(angles(), 1);
     Lab.$('#triOut').innerHTML = MathAnim.tex(R.map((v, i) => `\\color{${CSS[i]}}{${v}^\\circ}`).join(' + ') + ' = 180^\\circ');
+    advUpdate(R);
   }
+  /* ---- Advanced: exterior angle + polygon angle sum ---- */
+  function extPick(){        // choose the corner + side extension that stays best on screen (prefer teal, then yellow, then pink)
+    let best = null;
+    [2, 1, 0].forEach(k => [1, 2].forEach(j => {
+      const P = V[k], Xv = V[(k + j) % 3], O = V[(k + 3 - j) % 3], L = Math.hypot(P[0] - Xv[0], P[1] - Xv[1]) || 1, u = [(P[0] - Xv[0]) / L, (P[1] - Xv[1]) / L];
+      const e = Math.atan2(u[1], u[0]), a = Math.atan2(O[1] - P[1], O[0] - P[0]); let d = a - e; while (d <= -Math.PI) d += TAU; while (d > Math.PI) d -= TAU;
+      const a0 = d >= 0 ? e : a, a1 = a0 + Math.abs(d), m = (a0 + a1) / 2;
+      const off = (x, y) => Math.max(Math.abs(x) - 5.7, y - 4.2, -4.3 - y, 0);
+      const bad = off(P[0] + 1.6 * u[0], P[1] + 1.6 * u[1]) + off(P[0] + 1.2 * Math.cos(m), P[1] + 1.2 * Math.sin(m)) + (P[1] + 1.6 * u[1] < -1.3 ? 1 : 0);   // keep clear of the torn-off angles below
+      if (!best || bad < best.bad - 1e-9) best = { k, u, a0, a1, m, bad };
+    }));
+    return best;
+  }
+  const PCH = [   // the student sets n with the slider
+    { en:'Each angle of a regular polygon is 140°. How many sides does it have?', zh:'一个正多边形的每个内角都是 140°。它有几条边？', n:9, why:{ en:'Each exterior angle is 180° − 140° = 40°, and 360° ÷ 40° = 9.', zh:'每个外角是 180° − 140° = 40°，360° ÷ 40° = 9。' } },
+    { en:'The angles of a polygon add up to 1080°. How many sides?', zh:'一个多边形的内角和是 1080°。它是几边形？', n:8, why:{ en:'(n − 2) × 180 = 1080, so n − 2 = 6 and n = 8.', zh:'(n − 2) × 180 = 1080，所以 n − 2 = 6，n = 8。' } },
+    { en:'A stop sign is a regular polygon with 135° angles. How many sides?', zh:'停车标志是每个内角为 135° 的正多边形。它有几条边？', n:8, why:{ en:'Exterior angle 45°, and 360° ÷ 45° = 8: an octagon.', zh:'外角是 45°，360° ÷ 45° = 8：正八边形。' } },
+    { en:'Honeycomb cells are regular polygons with 120° angles. How many sides?', zh:'蜂巢的格子是内角为 120° 的正多边形。它有几条边？', n:6, why:{ en:'Exterior angle 60°, and 360° ÷ 60° = 6: a hexagon.', zh:'外角是 60°，360° ÷ 60° = 6：正六边形。' } },
+    { en:'Each exterior angle of a regular polygon is 30°. How many sides?', zh:'一个正多边形的每个外角都是 30°。它有几条边？', n:12, why:{ en:'The exterior angles always add to 360°, and 360° ÷ 30° = 12.', zh:'多边形的外角和总是 360°，360° ÷ 30° = 12。' } },
+    { en:'The angles of a polygon add up to 900°. How many sides?', zh:'一个多边形的内角和是 900°。它是几边形？', n:7, why:{ en:'(n − 2) × 180 = 900, so n − 2 = 5 and n = 7.', zh:'(n − 2) × 180 = 900，所以 n − 2 = 5，n = 7。' } }
+  ];
+  let pchI = 0;
+  const r1 = v => String(Math.round(v * 10) / 10);
+  function advUpdate(R){
+    if (!Lab.adv()) return;
+    R = R || rounded(angles(), 1);
+    const k = extPick().k, i1 = (k + 1) % 3, i2 = (k + 2) % 3;
+    Lab.$('#extOut').innerHTML = MathAnim.tex(`\\textcolor{#8a63d2}{${180 - R[k]}^\\circ} = 180^\\circ - \\textcolor{${CSS[k]}}{${R[k]}^\\circ} = \\textcolor{${CSS[i1]}}{${R[i1]}^\\circ} + \\textcolor{${CSS[i2]}}{${R[i2]}^\\circ}`);
+    const n = +Lab.$('#nIn').value, sum = (n - 2) * 180; Lab.$('#nVal').textContent = n;
+    Lab.$('#polyOut').innerHTML = MathAnim.tex(`(${n} - 2) \\times 180^\\circ = ${sum}^\\circ`) + '<br>'
+      + Lab.L({ en:'regular: each angle ', zh:'正多边形：每个内角 ' }) + MathAnim.tex(`${sum}^\\circ \\div ${n} ${sum % n ? '\\approx' : '='} ${r1(sum / n)}^\\circ`)
+      + '<br>' + Lab.L({ en:'exterior angles: ', zh:'外角和：' }) + MathAnim.tex(`${n} \\times ${r1(360 / n)}^\\circ = 360^\\circ`)
+      + '<br><span class="muted" style="font-size:14px">' + Lab.L({ en:`Why? From one corner, diagonals cut it into ${n - 2} triangles of 180° each.`, zh:`为什么？从一个顶点出发画对角线，可以把它分成 ${n - 2} 个三角形，每个 180°。` }) + '</span>';
+    Lab.$('#pChTxt').textContent = Lab.L(PCH[pchI]);
+  }
+  Lab.$('#nIn').oninput = () => advUpdate();
+  Lab.$('#pChNew').onclick = () => { pchI = (pchI + 1) % PCH.length; Lab.$('#pChMsg').textContent = ''; Lab.$('#pChMsg').className = 'result'; advUpdate(); };
+  Lab.$('#pChCheck').onclick = () => {
+    const ok = +Lab.$('#nIn').value === PCH[pchI].n, msg = Lab.$('#pChMsg');
+    msg.textContent = ok ? '🎉 ' + Lab.L(PCH[pchI].why) : Lab.L({ en:'Not yet. Hint: the exterior angles of any polygon add up to 360°.', zh:'还不对。提示：任何多边形的外角和都是 360°。' });
+    msg.className = 'result ' + (ok ? 'good' : 'bad');
+  };
+  Lab.onMode(() => update()); Lab.onLang(() => update());
   const cv = T.cv, toWorld = e => { const r = cv.getBoundingClientRect(); return [T.wx(e.clientX - r.left), T.wy(e.clientY - r.top)]; };
   cv.style.touchAction = 'none'; cv.style.cursor = 'grab';
   cv.addEventListener('pointerdown', e => { const [x, y] = toWorld(e); drag = V.findIndex(p => Math.hypot(p[0] - x, p[1] - y) < .7); if (drag >= 0) cv.setPointerCapture(e.pointerId); });
@@ -436,6 +553,7 @@ Lab.sort(Lab.$('#sort'), {
 /* ================= Where you see this: real photos (Wikimedia Commons, freely licensed) ================= */
 (function(){
 const o = (en, zh) => ({ en, zh });
+const VID = o('Video', '视频');
 const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7f/Pratt_Truss_Bridge_--_Deer_Park.jpg/960px-Pratt_Truss_Bridge_--_Deer_Park.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'A truss bridge is built from triangles. If you know two angles of one triangle, can you find the third?',
@@ -452,9 +570,35 @@ const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1e/Skateboard_ramp_at_Sonoma_Surf_%26_Skate_-_2021_-_Sarah_Stierch.jpg/960px-Skateboard_ramp_at_Sonoma_Surf_%26_Skate_-_2021_-_Sarah_Stierch.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'A skateboard ramp in Sonoma, California. Skaters name tricks by degrees of turn: after a “180”, which way are you facing?',
     zh:'美国加州索诺马的滑板场。滑板选手用转动的度数给动作命名：转了“180”之后，你面朝哪个方向？',
-    credit:'Missvain', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Skateboard_ramp_at_Sonoma_Surf_%26_Skate_-_2021_-_Sarah_Stierch.jpg' }
+    credit:'Missvain', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Skateboard_ramp_at_Sonoma_Surf_%26_Skate_-_2021_-_Sarah_Stierch.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fc/Brass_Protractor.jpg/960px-Brass_Protractor.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A brass protractor from about 1800. Its half circle is split into 180 degrees. Where do you put the center mark to measure an angle?',
+    zh:'一把大约 1800 年的黄铜量角器，半圆被分成 180 度。量角时，中心点要对准哪里？',
+    credit:'Compo', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Brass_Protractor.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/51/Real_snowflake_macro_photo_2021-02-11_1.jpg/960px-Real_snowflake_macro_photo_2021-02-11_1.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A real snowflake has six arms, spaced evenly all the way around. 360° ÷ 6 = ? degrees between neighboring arms.',
+    zh:'真实的雪花有六条“手臂”，绕一圈均匀分布。相邻两条之间是 360° ÷ 6 = ? 度。',
+    credit:'Alexey Kljatov', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Real_snowflake_macro_photo_2021-02-11_1.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2a/Exterior_of_the_Leaning_Tower_%28Pisa%29_in_April_2024.jpg/960px-Exterior_of_the_Leaning_Tower_%28Pisa%29_in_April_2024.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'The Leaning Tower of Pisa, Italy, tilts about 4° away from straight up. What angle does it make with the ground on its leaning side?',
+    zh:'意大利比萨斜塔偏离竖直方向大约 4°。在它倾斜的那一侧，塔身和地面成多少度角？',
+    credit:'PaestumPaestum', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Exterior_of_the_Leaning_Tower_(Pisa)_in_April_2024.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d0/Pool_Table_with_Cue_%26_Ball_%2814516530503%29.jpg/960px-Pool_Table_with_Cue_%26_Ball_%2814516530503%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'On a pool table, a ball bounces off the cushion at the same angle it came in. Good players “see” those angles before they shoot.',
+    zh:'在台球桌上，球撞到台边后弹出的角度和进来的角度相同。高手出杆前就能“看见”这些角。',
+    credit:'Stuart Kerr', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Pool_Table_with_Cue_%26_Ball_(14516530503).jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1b/Sundial%2C_Meissen_%28P1100892%29.jpg/960px-Sundial%2C_Meissen_%28P1100892%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A sundial in Meissen, Germany. The shadow turns about 15° every hour (360° ÷ 24 hours). How far does it turn in 3 hours?',
+    zh:'德国迈森的一座日晷。影子每小时大约转 15°（360° ÷ 24 小时）。3 小时转多少度？',
+    credit:'Matti Blume', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Sundial,_Meissen_(P1100892).jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8d/P._Oxy._I_29.jpg/960px-P._Oxy._I_29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A scrap of papyrus from Egypt, about 1,900 years old, with a diagram from Euclid’s “Elements”, the book that proved a triangle’s angles add up to 180°.',
+    zh:'一片来自埃及、约 1900 年前的纸草残片，上面有欧几里得《几何原本》里的图。正是这本书证明了三角形内角和是 180°。',
+    kind:o('Ancient math','古代数学'), credit:'Euclid (Oxyrhynchus papyrus)', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:P._Oxy._I_29.jpg' },
+  { type:'youtube', yt:'DGKwdHMiqCg', en:'Video: “Angle Basics” — acute, right, obtuse, complementary and supplementary angles.', zh:'视频：《角的基础》——锐角、直角、钝角、余角和补角（英文）。', kind:VID, credit:'Math Antics (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'_n3KZR1DSEo', en:'Video: “Angles & Degrees” — why a full turn is 360° and how to use a protractor.', zh:'视频：《角与度数》——为什么转一整圈是 360°，以及怎样用量角器（英文）。', kind:VID, credit:'Math Antics (YouTube)', license:'YouTube' }
 ];
-LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos. Each one comes with a question this lesson helps you answer. Click a picture to enlarge it.','真实照片。每张都带着一个这节课能帮你回答的问题。点击图片可放大。') });
+LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos and short videos. Each photo comes with a question this lesson helps you answer. Click a picture to enlarge it or to play a video.','真实照片和短视频。每张照片都带着一个这节课能帮你回答的问题。点击图片可放大，点击视频可播放。') });
 })();
 </script>
 <!-- /real-world gallery script -->

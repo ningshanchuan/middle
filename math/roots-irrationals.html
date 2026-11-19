@@ -44,6 +44,7 @@ select.nsel{font:inherit;font-weight:800;padding:6px 10px;border-radius:10px;bor
   <div class="ma-explore">
     <div class="ma-stage zoomstage" id="zStage" data-fs></div>
     <div class="card ctl">
+      <div class="lab-mode" style="align-self:flex-start"></div>
       <label class="ctl"><span data-zh="选择 n:">Choose n:</span>
         <select class="nsel" id="nSel"><option>2</option><option>3</option><option>5</option><option>7</option><option>10</option><option>20</option><option>50</option><option>9</option><option>16</option></select></label>
       <div class="digits" id="zDigits"></div>
@@ -53,6 +54,18 @@ select.nsel{font:inherit;font-weight:800;padding:6px 10px;border-radius:10px;bor
         <button class="btn" id="zIn" data-zh="放大 🔍">Zoom in 🔍</button>
         <button class="btn ghost" id="zOut" data-zh="缩小">Zoom out</button>
         <button class="btn ghost" id="zReset" data-zh="重来">Reset</button>
+      </div>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:10px">
+        <b data-zh="进阶：立方根、任意 n、巴比伦算法">Advanced: cube roots, any n, the Babylonian method</b>
+        <div class="btnrow"><button class="btn ghost" id="pSq" data-zh="√ 平方根">√ square root</button><button class="btn ghost" id="pCu" data-zh="∛ 立方根">∛ cube root</button></div>
+        <label style="font-weight:700;font-size:14px;color:var(--ink-2)"><span data-zh="或输入任意 n（1–999）：">Or type any n (1–999): </span><input id="nAny" type="number" min="1" max="999" step="1" style="width:80px;font:inherit;font-weight:800;padding:4px 8px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink)"></label>
+        <div id="babTxt" class="muted" style="font-size:14px"></div>
+        <div id="babTab" style="text-align:center;overflow-x:auto;overflow-y:hidden;font-size:15px"></div>
+        <div style="border-top:1px solid var(--line);padding-top:8px">
+          <b data-zh="🎯 挑战">🎯 Challenge</b> <span id="rchTxt"></span>
+          <div class="btnrow" style="margin-top:6px;align-items:center"><input id="rchIn" type="number" step="0.01" style="width:100px;font:inherit;font-weight:800;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink)"><button class="btn" id="rchCheck" data-zh="检查">Check</button><button class="btn ghost" id="rchNew" data-zh="换一题">New challenge</button></div>
+          <div class="result" id="rchMsg"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -333,13 +346,16 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
   const Z = MathAnim.scene('#zStage', { x:[-8, 8], y:[-4.5, 4.5] });
   const X0 = -7, X1 = 7, MAXL = 6;
   let n = 2, r = Math.SQRT2, L = 0, busy = false, bad = null, badA = 0, msg = null;
+  let p = 2;                                                   // root index: 2 = square root, 3 = cube root (Advanced)
+  const RS = () => p === 3 ? '∛' : '√', SUP = () => p === 3 ? '³' : '²', RT = v => p === 3 ? `\\sqrt[3]{${v}}` : `\\sqrt{${v}}`;
+  const rootOf = (nn, pp) => { const raw = pp === 3 ? Math.cbrt(nn) : Math.sqrt(nn), q = Math.round(raw); return Math.pow(q, pp) === nn ? q : raw; };
   const nl = Z.custom(drawNL, { lo:0, w:10, X0, X1, y:-1, mark:r, markA:1, hl:null, hlA:0, fs:.42 });
-  const view = l => l === 0 ? [0, 10] : [Math.floor(r * Math.pow(10, l - 1) + 1e-9) / Math.pow(10, l - 1), Math.pow(10, 1 - l)];
+  const view = l => l === 0 ? [Math.floor(r / 10) * 10, 10] :[Math.floor(r * Math.pow(10, l - 1) + 1e-9) / Math.pow(10, l - 1), Math.pow(10, 1 - l)];
   Z.custom((ctx, S) => {
     if (bad && badA > 0){ const k = (X1 - X0) / nl.w, a = X0 + (bad[0] - nl.lo) * k, b = X0 + (bad[1] - nl.lo) * k;
       ctx.fillStyle = `rgba(252,98,85,${.4 * badA})`; ctx.fillRect(S.sx(a), S.sy(nl.y + .32), S.px(b - a), S.px(.64)); }
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = C.yellow; ctx.font = `800 ${S.px(.75)}px Nunito, sans-serif`;
-    ctx.fillText(`√${n}`, S.sx(0), S.sy(2.9));
+    ctx.fillText(`${RS()}${n}`, S.sx(0), S.sy(2.9));
     ctx.fillStyle = C.grey; ctx.font = `700 ${S.px(.36)}px Nunito, "Microsoft YaHei", sans-serif`;
     ctx.fillText(Lab.L(L >= MAXL || Number.isInteger(r) ? o2('done: press Zoom out or Reset', '完成：可以缩小或重来') : o2('tap the piece of the line where it lives', '点击它所在的那一小段')), S.sx(0), S.sy(1.6));
     ctx.fillStyle = C.white; ctx.font = `700 ${S.px(.32)}px Nunito, "Microsoft YaHei", sans-serif`;
@@ -349,13 +365,14 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
   const scaled = (N, dec) => { if (!dec) return String(N); const s = String(N).padStart(dec + 1, '0'); return s.slice(0, -dec) + '.' + s.slice(-dec); };
   function render(){
     const known = L === 0 ? null : Math.floor(r * Math.pow(10, L - 1) + 1e-9), dz = Lab.$('#zDigits');
-    if (Number.isInteger(r)) dz.innerHTML = MathAnim.tex(`\\sqrt{${n}} = ${r}`) + ' ✓';
-    else if (known === null) dz.innerHTML = MathAnim.tex(`\\sqrt{${n}} = \\;?`);
-    else { const s = scaled(known, L - 1); dz.innerHTML = MathAnim.tex(`\\sqrt{${n}} \\approx`) + ' ' + s.slice(0, -1) + `<span class="new">${s.slice(-1)}</span>…`; }
+    if (Number.isInteger(r)) dz.innerHTML = MathAnim.tex(`${RT(n)} = ${r}`) + ' ✓';
+    else if (known === null) dz.innerHTML = MathAnim.tex(`${RT(n)} = \\;?`);
+    else { const s = scaled(known, L - 1); dz.innerHTML = MathAnim.tex(`${RT(n)} \\approx`) + ' ' + s.slice(0, -1) + `<span class="new">${s.slice(-1)}</span>…`; }
     const zc = Lab.$('#zCheck');
-    if (known === null) zc.innerHTML = Lab.L(o2('Zoom in to trap it between two squares.', '放大，用两个平方数把它“夹住”。'));
-    else { const d = L - 1, a = known, b = known + 1;
-      zc.innerHTML = MathAnim.tex(`${scaled(a, d)}^2 = ${scaled(a * a, 2 * d)} ${a * a === n * Math.pow(100, d) ? '=' : '<'} \\textcolor{#2f9fc0}{${n}} ${b * b === n * Math.pow(100, d) ? '=' : '<'} ${scaled(b * b, 2 * d)} = ${scaled(b, d)}^2`); }
+    if (known === null) zc.innerHTML = Lab.L(p === 3 ? o2('Zoom in to trap it between two cubes.', '放大，用两个立方数把它“夹住”。') : o2('Zoom in to trap it between two squares.', '放大，用两个平方数把它“夹住”。'));
+    else { const d = L - 1, P = BigInt(p), a = BigInt(known), b = a + 1n, aP = a ** P, bP = b ** P, N = BigInt(n) * 10n ** BigInt(p * d);   // BigInt: cubes of 7-digit numbers exceed 2^53
+      zc.innerHTML = MathAnim.tex(`${scaled(a, d)}^${p} = ${scaled(aP, p * d)} ${aP === N ? '=' : '<'} \\textcolor{#2f9fc0}{${n}} ${bP === N ? '=' : '<'} ${scaled(bP, p * d)} = ${scaled(b, d)}^${p}`); }
+    advRender();
     const m = Lab.$('#zMsg'); m.textContent = msg ? Lab.L(msg.t) : ''; m.className = 'result' + (msg ? ' ' + msg.c : '');
     Lab.$('#zIn').disabled = busy || L >= MAXL || (Number.isInteger(r) && L >= 1); Lab.$('#zOut').disabled = busy || L === 0;
   }
@@ -367,13 +384,14 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
   }
   function zoomIn(){
     if (L >= MAXL || busy) return;
-    if (Number.isInteger(r)){ msg = { t:o2(`√${n} = ${r} exactly: it lands right on a tick mark, so it is rational. No more digits to find!`, `√${n} 正好等于 ${r}:它恰好落在刻度上,是有理数,没有更多小数可找了!`), c:'good' }; L = 1; render(); return; }
+    if (Number.isInteger(r)){ msg = { t:o2(`${RS()}${n} = ${r} exactly: it lands right on a tick mark, so it is rational. No more digits to find!`, `${RS()}${n} 正好等于 ${r}:它恰好落在刻度上,是有理数,没有更多小数可找了!`), c:'good' }; L = 1; render(); return; }
     msg = null; goLevel(L + 1);
   }
   Lab.$('#zIn').onclick = zoomIn;
   Lab.$('#zOut').onclick = () => { msg = null; if (Number.isInteger(r) && L === 1){ L = 0; render(); return; } if (L > 0) goLevel(L - 1); };
   Lab.$('#zReset').onclick = () => { msg = null; if (busy) return; L = 0; const [lo, w] = view(0); nl.lo = lo; nl.w = w; render(); };
-  Lab.$('#nSel').onchange = e => { if (busy) return; n = +e.target.value; r = Math.sqrt(n); nl.mark = r; L = 0; msg = null; const [lo, w] = view(0); nl.lo = lo; nl.w = w; render(); };
+  function setN(nn, pp){ n = nn; p = pp; r = rootOf(n, p); nl.mark = r; L = 0; msg = null; bad = null; const [lo, w] = view(0); nl.lo = lo; nl.w = w; render(); }
+  Lab.$('#nSel').onchange = e => { if (busy) return; Lab.$('#nAny').value = ''; setN(+e.target.value, p); };
   Z.cv.style.cursor = 'pointer';
   Z.cv.addEventListener('pointerdown', e => {
     if (busy || L >= MAXL || (Number.isInteger(r) && L >= 1)) return;
@@ -381,10 +399,48 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     if (x < X0 || x > X1 || Math.abs(y - nl.y) > 1.6) return;
     const s = nl.w / 10, gi = Math.floor((x - X0) / (X1 - X0) * 10), g0 = nl.lo + gi * s, g1 = g0 + s, ri = Math.floor((r - nl.lo) / s + 1e-9);
     if (gi === ri){ msg = { t:o2('✔ Yes! It is in that piece. Zooming in…', '✔ 对！就在这一段。正在放大……'), c:'good' }; zoomIn(); if (!Number.isInteger(r)) msg = { t:o2('✔ Yes! One more digit found.', '✔ 对！又找到一位小数。'), c:'good' }; render(); return; }
-    const dg = Math.max(0, L), f = v => +v.toFixed(dg), sq = v => +(v * v).toFixed(2 * dg);
-    msg = g1 <= r ? { t:o2(`Too small: ${f(g1)}² = ${sq(g1)}, still less than ${n}.`, `太小了:${f(g1)}² = ${sq(g1)},仍然小于 ${n}。`), c:'bad' }
-                  : { t:o2(`Too big: ${f(g0)}² = ${sq(g0)}, already more than ${n}.`, `太大了:${f(g0)}² = ${sq(g0)},已经大于 ${n}。`), c:'bad' };
+    const dg = Math.max(0, L), f = v => +v.toFixed(dg), sq = v => +(p === 3 ? v * v * v : v * v).toFixed(p * dg), E = SUP();
+    msg = g1 <= r ? { t:o2(`Too small: ${f(g1)}${E} = ${sq(g1)}, still less than ${n}.`, `太小了:${f(g1)}${E} = ${sq(g1)},仍然小于 ${n}。`), c:'bad' }
+                  : { t:o2(`Too big: ${f(g0)}${E} = ${sq(g0)}, already more than ${n}.`, `太大了:${f(g0)}${E} = ${sq(g0)},已经大于 ${n}。`), c:'bad' };
     bad = [g0, g1]; badA = 1; render();
+  });
+  /* ---- Advanced: cube roots, any n, Babylonian / Newton steps, rounding challenge ---- */
+  let ch = null;
+  const fx = (v, d) => (+v.toFixed(d)).toString();
+  function newCh(){
+    let nn, pp;
+    do { pp = Math.random() < .5 ? 2 : 3; nn = 2 + Math.floor(Math.random() * 199); } while (Number.isInteger(rootOf(nn, pp)) || (ch && ch.n === nn && ch.p === pp));
+    ch = { n:nn, p:pp }; Lab.$('#rchIn').value = ''; Lab.$('#rchMsg').textContent = ''; Lab.$('#rchMsg').className = 'result';
+  }
+  function advRender(){
+    if (!Lab.adv()) return;
+    Lab.$('#pSq').classList.toggle('ghost', p !== 2); Lab.$('#pCu').classList.toggle('ghost', p !== 3);
+    const x0 = Math.max(1, Math.floor(r + 1e-9)), rows = [x0];
+    for (let k = 0; k < 4; k++){ const x = rows[k]; rows.push(p === 3 ? (2 * x + n / (x * x)) / 3 : (x + n / x) / 2); }
+    Lab.$('#babTxt').innerHTML = Lab.L(p === 3
+      ? o2(`Newton’s method for ${RS()}${n}: start with a guess x, then replace it by (2x + n ÷ x²) ÷ 3. Each round roughly doubles the number of correct digits!`, `求 ${RS()}${n} 的牛顿迭代法：先猜一个数 x，再用 (2x + n ÷ x²) ÷ 3 代替它。每算一轮，正确的位数大约翻一倍！`)
+      : o2(`The Babylonian method (about 3,800 years old): guess x, then replace it by the average of x and n ÷ x. Each round roughly doubles the number of correct digits!`, `巴比伦算法（约 3800 年前）：先猜一个数 x，再用 x 与 n ÷ x 的平均数代替它。每算一轮，正确的位数大约翻一倍！`));
+    Lab.$('#babTab').innerHTML = MathAnim.tex(`\\begin{array}{c|l|l} k & x_k & x_k^${p} \\\\ \\hline ${rows.map((x, k) => `${k} & ${fx(x, 8)} & ${fx(Math.pow(x, p), 6)}`).join(' \\\\ ')} \\end{array}`)
+      + `<div class="muted" style="font-size:13px">${Lab.L(o2(`Calculator: ${RS()}${n} = ${fx(r, 10)}`, `计算器：${RS()}${n} = ${fx(r, 10)}`))}</div>`;
+    if (!ch) newCh();
+    Lab.$('#rchTxt').textContent = Lab.L(o2(`Use the zoom to round ${ch.p === 3 ? '∛' : '√'}${ch.n} to the nearest hundredth (2 decimal places). Then type it in.`, `用放大镜把 ${ch.p === 3 ? '∛' : '√'}${ch.n} 精确到百分位（保留两位小数），再填进去。`));
+  }
+  Lab.$('#pSq').onclick = () => { if (!busy) setN(n, 2); };
+  Lab.$('#pCu').onclick = () => { if (!busy) setN(n, 3); };
+  const showN = v => { Lab.$('#nSel').value = String(v); Lab.$('#nAny').value = v; };   // the menu goes blank when n is not one of its options
+  Lab.$('#nAny').onchange = e => { const v = Math.round(+e.target.value); if (busy || !(v >= 1 && v <= 999)) return; showN(v); setN(v, p); };
+  Lab.$('#rchNew').onclick = () => { newCh(); if (!busy){ showN(ch.n); setN(ch.n, ch.p); } };
+  Lab.$('#rchCheck').onclick = () => {
+    const v = +Lab.$('#rchIn').value, want = Math.round(rootOf(ch.n, ch.p) * 100) / 100, m = Lab.$('#rchMsg'), S2 = ch.p === 3 ? '³' : '²', R2 = ch.p === 3 ? '∛' : '√';
+    if (Lab.$('#rchIn').value === ''){ m.textContent = Lab.L(o2('Type your answer first.', '先填写答案。')); m.className = 'result bad'; return; }
+    if (Math.abs(v - want) < 1e-9){ m.textContent = Lab.L(o2(`🎉 Correct! ${R2}${ch.n} ≈ ${want.toFixed(2)}`, `🎉 对了！${R2}${ch.n} ≈ ${want.toFixed(2)}`)); m.className = 'result good'; return; }
+    const pw = +Math.pow(v, ch.p).toFixed(6);
+    m.textContent = Lab.L(pw > ch.n ? o2(`Too big: ${v}${S2} = ${pw} > ${ch.n}.`, `太大了：${v}${S2} = ${pw} > ${ch.n}。`) : o2(`Too small (or rounded wrongly): ${v}${S2} = ${pw}. Find 3 decimals first, then round.`, `太小了（或四舍五入错了）：${v}${S2} = ${pw}。先找出三位小数，再四舍五入。`));
+    m.className = 'result bad';
+  };
+  Lab.onMode(adv => {
+    const sel = Lab.$('#nSel');
+    if (!adv && (p !== 2 || String(n) !== sel.value)){ if (sel.selectedIndex < 0) sel.value = '2'; setN(+sel.value, 2); } else render();
   });
   Lab.onLang(render); render();
 })();
@@ -451,6 +507,7 @@ Lab.sort(Lab.$('#sort'), {
 /* ================= Where you see this: real photos (Wikimedia Commons, freely licensed) ================= */
 (function(){
 const o = (en, zh) => ({ en, zh });
+const VID = o('Video', '视频');
 const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f0/The_Diamond_ballpark_in_Richmond%2C_Virginia.jpg/960px-The_Diamond_ballpark_in_Richmond%2C_Virginia.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'The Diamond ballpark in Richmond, Virginia. The infield is a square 90 feet on a side; its diagonal is 90√2 feet. Is that a whole number?',
@@ -463,9 +520,23 @@ const PHOTOS = [
   { src:'https://upload.wikimedia.org/wikipedia/commons/1/1d/Grey_checkered_speckled_square_ground_floor_pattern_tile_texture.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled',
     en:'Square floor tiles. If a tile is 1 foot on a side, how long is the line from corner to corner?',
     zh:'正方形地砖。如果边长是 1 英尺，从一个角到对角的线有多长？',
-    credit:'Sisters.seamless', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Grey_checkered_speckled_square_ground_floor_pattern_tile_texture.jpg' }
+    credit:'Sisters.seamless', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Grey_checkered_speckled_square_ground_floor_pattern_tile_texture.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/0/0b/Ybc7289-bw.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled',
+    en:'Babylonian clay tablet YBC 7289 (about 1800–1600 BC). A square with its diagonals, and the number √2 ≈ 1.414213 written in base 60. Correct to about 6 decimal places!',
+    zh:'古巴比伦泥板 YBC 7289（约公元前 1800–1600 年）。上面画着正方形和对角线，还用六十进制写着 √2 ≈ 1.414213，大约准确到小数点后 6 位！',
+    kind:o('Ancient math','古代数学'), credit:'Bill Casselman', license:'CC BY 2.5', page:'https://commons.wikimedia.org/wiki/File:Ybc7289-bw.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/2/2a/Pi-unrolled-720.gif?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled',
+    en:'A wheel 1 unit across rolls exactly π = 3.14159265… units. π is irrational: its decimals never end and never repeat.',
+    zh:'直径为 1 的轮子滚一圈正好是 π = 3.14159265……π 是无理数：小数永远写不完，也不会循环。',
+    kind:o('Animation','动画'), credit:'John Reid', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Pi-unrolled-720.gif' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/28/Sunflower_head_2011_G1.jpg/960px-Sunflower_head_2011_G1.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'Sunflower seeds grow in spirals turned by the “golden angle”, linked to the irrational number φ = (1 + √5) ÷ 2 ≈ 1.618. Can you count the spirals?',
+    zh:'向日葵的种子按“黄金角”排成螺旋，这和无理数 φ = (1 + √5) ÷ 2 ≈ 1.618 有关。你能数出有几条螺旋吗？',
+    credit:'George Chernilevsky', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Sunflower_head_2011_G1.jpg' },
+  { type:'youtube', yt:'B4zejSI8zho', en:'Video: “Exponents and Square Roots” — squaring a number and “undoing” it with a square root.', zh:'视频：《乘方与平方根》——求平方，以及用平方根把它“还原”（英文）。', kind:VID, credit:'Math Antics (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'sbGjr_awePE', en:'Video: “Making sense of irrational numbers” — a TED-Ed lesson on √2 and why it can’t be a fraction.', zh:'视频：《理解无理数》——TED-Ed 课程：√2 为什么不能写成分数（英文）。', kind:VID, credit:'TED-Ed (YouTube)', license:'YouTube' }
 ];
-LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos. Each one comes with a question this lesson helps you answer. Click a picture to enlarge it.','真实照片。每张都带着一个这节课能帮你回答的问题。点击图片可放大。') });
+LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos and short videos. Each photo comes with a question this lesson helps you answer. Click a picture to enlarge it or to play a video.','真实照片和短视频。每张照片都带着一个这节课能帮你回答的问题。点击图片可放大，点击视频可播放。') });
 })();
 </script>
 <!-- /real-world gallery script -->

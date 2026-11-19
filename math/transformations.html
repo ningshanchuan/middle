@@ -50,6 +50,7 @@
   <div class="ma-explore">
     <div class="ma-stage explore-stage" id="sbStage" data-fs></div>
     <div class="card ctl">
+      <div class="lab-mode" style="align-self:flex-start"></div>
       <div class="trow">
         <label class="ctl"><span><span data-zh="横向 a = ">Across a = </span><b id="aVal">3</b></span><input id="aIn" type="range" min="-6" max="6" step="1" value="3"></label>
         <label class="ctl"><span><span data-zh="纵向 b = ">Up b = </span><b id="bVal">-2</b></span><input id="bIn" type="range" min="-6" max="6" step="1" value="-2"></label>
@@ -60,6 +61,21 @@
       <div class="status" id="status"></div>
       <div class="result" id="sbMsg"></div>
       <div class="btnrow"><button class="btn ghost" id="undoBtn" data-zh="↶ 撤销">↶ Undo</button><button class="btn ghost" id="resetBtn" data-zh="重置">Reset</button><button class="btn alt" id="chalBtn" data-zh="🎯 挑战">🎯 Challenge</button></div>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:10px">
+        <b data-zh="进阶：绕任意点旋转、沿任意直线翻折、把一串变换合成一条规则">Advanced: turn about any point, flip over any line, and combine a whole sequence into one rule</b>
+        <div class="trow">
+          <label class="ctl"><span><span data-zh="点 P 的横坐标 p = ">Point P: p = </span><b id="pVal">1</b></span><input id="pIn" type="range" min="-5" max="5" step="1" value="1"></label>
+          <label class="ctl"><span><span data-zh="纵坐标 q = ">q = </span><b id="qVal">-1</b></span><input id="qIn" type="range" min="-5" max="5" step="1" value="-1"></label>
+        </div>
+        <div class="opgrid" id="advOps"></div>
+        <div style="font-size:14px"><b data-zh="整个变换序列合成一条规则：">The whole sequence as ONE rule:</b><div id="compRule" style="text-align:center;font-size:17px;margin-top:4px"></div></div>
+        <div id="compKind" class="muted" style="font-size:14px"></div>
+        <div style="border-top:1px solid var(--line);padding-top:8px">
+          <b data-zh="🎯 一步挑战">🎯 One-move challenge</b> <span data-zh="只用一步（一个 🚀 变换）把三角形放到粉色目标上。先想清楚：用哪种变换？点 P 在哪里？">Land the triangle on the pink target in ONE move (one of the 🚀 moves). Think first: which move, and where is P?</span>
+          <div class="btnrow" style="margin-top:6px"><button class="btn" id="omCheck" data-zh="检查">Check</button><button class="btn ghost" id="omNew" data-zh="新目标">New target</button></div>
+          <div class="result" id="omMsg"></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -72,11 +88,23 @@
   <div class="ma-explore">
     <div class="ma-stage explore-stage" id="dlStage" data-fs></div>
     <div class="card ctl">
+      <div class="lab-mode" style="align-self:flex-start"></div>
       <label class="ctl"><span><span data-zh="比例 k = ">Scale factor k = </span><b id="kVal">2</b></span><input id="kIn" type="range" min="0.25" max="2.5" step="0.25" value="2"></label>
       <div class="ma-big" id="kRule"></div>
       <div class="coords" id="kSides"></div>
       <div class="status" id="kStatus"></div>
       <p class="muted" style="margin:0" data-zh="想一想：k 在什么范围内图形放大？什么范围内缩小？k = 1 时会怎样？">Think: for which k does the shape grow? Shrink? What happens at k = 1?</p>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:10px">
+        <b data-zh="进阶：k 可以是负数；周长和面积怎样变？">Advanced: k can be negative; what happens to perimeter and area?</b>
+        <div class="muted" style="font-size:14px" data-zh="现在滑块可以拖到负数：k &lt; 0 时，像在位似中心的另一侧，并且倒过来（相当于再绕中心转 180°）。">The slider now goes below 0: with k &lt; 0 the image lands on the other side of the center, upside down (an extra 180° turn about the center).</div>
+        <div id="dlPlug" style="text-align:center;font-size:16px;overflow-x:auto"></div>
+        <div id="dlArea" style="font-size:14px"></div>
+        <div style="border-top:1px solid var(--line);padding-top:8px">
+          <b data-zh="🎯 挑战">🎯 Challenge</b> <span data-zh="调 k、拖动位似中心，让 A′ 和 B′ 正好落在两个粉色圆圈上。">Set k and drag the center so that A′ and B′ land exactly on the two pink rings.</span>
+          <div class="btnrow" style="margin-top:6px"><button class="btn" id="dcCheck" data-zh="检查">Check</button><button class="btn ghost" id="dcNew" data-zh="换一题">New challenge</button></div>
+          <div class="result" id="dcMsg"></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -329,6 +357,17 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     { id:'Dh', g:'d', en:'Dilate × ½', zh:'位似 × ½', mk:() => ({ at:(p, t) => [p[0] * (1 - t / 2), p[1] * (1 - t / 2)], tex:'(\\tfrac12 x,\\, \\tfrac12 y)', k:.5 }) }
   ];
   function rotAt(th){ return (p, t) => { const a = th * t, c = Math.cos(a), s = Math.sin(a); return [p[0] * c - p[1] * s, p[0] * s + p[1] * c]; }; }
+  /* ---- Advanced moves: they use the point P = (p, q) ---- */
+  const PP = () => [+Lab.$('#pIn').value, +Lab.$('#qIn').value];
+  const lin = (v, n) => n === 0 ? v : `${v} ${n < 0 ? '-' : '+'} ${Math.abs(n)}`;          // "x + 3", "-y - 2"
+  function rotAbout(th, P){ const r = rotAt(th); return (p, t) => { const q = r([p[0] - P[0], p[1] - P[1]], t); return [q[0] + P[0], q[1] + P[1]]; }; }
+  const ADV_OPS = [
+    { id:'Ryx', g:'r', en:'Reflect: line y = x', zh:'关于直线 y = x 对称', mk:() => ({ at:(p, t) => [p[0] + (p[1] - p[0]) * t, p[1] + (p[0] - p[1]) * t], tex:'(y,\\, x)', k:1 }) },
+    { id:'Rxp', g:'r', en:'Reflect: line x = p', zh:'关于直线 x = p 对称', mk:() => { const h = PP()[0]; return { at:(p, t) => [p[0] + (2 * h - 2 * p[0]) * t, p[1]], tex:`(${lin('-x', 2 * h)},\\, y)`, k:1, P:[h, null] }; } },
+    { id:'RP90', g:'o', en:'Rotate 90° ↺ about P', zh:'绕 P 逆时针转 90°', mk:() => { const P = PP(); return { at:rotAbout(Math.PI / 2, P), tex:`(${lin('-y', P[0] + P[1])},\\, ${lin('x', P[1] - P[0])})`, k:1, P }; } },
+    { id:'RP180', g:'o', en:'Rotate 180° about P', zh:'绕 P 旋转 180°', mk:() => { const P = PP(); return { at:rotAbout(Math.PI, P), tex:`(${lin('-x', 2 * P[0])},\\, ${lin('-y', 2 * P[1])})`, k:1, P }; } }
+  ];
+  let oneMove = null;   // the move that made the current one-move target
   const snap = pts => pts.map(p => p.map(v => Math.round(v * 1e6) / 1e6 + 0));
   let cur = BASE.map(p => p.slice()), draw = cur, hist = [], target = null, busy = false, lastG = null, msg = null;
   const scale = () => hist.reduce((k, h) => k * h.k, 1);
@@ -342,6 +381,12 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; for (let y = -6; y <= 6; y += 2) if (y) ctx.fillText(String(y), S.sx(-.12), S.sy(y));
     const tri = (pts, stroke, fill, dash, w) => { ctx.setLineDash(dash || []); ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(S.sx(p[0]), S.sy(p[1])) : ctx.moveTo(S.sx(p[0]), S.sy(p[1]))); ctx.closePath();
       if (fill){ ctx.fillStyle = fill; ctx.fill(); } ctx.strokeStyle = stroke; ctx.lineWidth = w || 3; ctx.stroke(); ctx.setLineDash([]); };
+    const adv = Lab.adv(), P = adv ? PP() : null;
+    if (adv){   // the mirror lines y = x and x = p (faint), for the Advanced moves
+      ctx.setLineDash([4, 6]); ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(180,142,240,.55)'; seg(-6.2, -6.2, 6.2, 6.2); seg(P[0], -6.3, P[0], 6.3); ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(180,142,240,.9)'; ctx.font = `700 ${Math.max(10, S.px(.32))}px Nunito, sans-serif`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillText('y = x', S.sx(5.4), S.sy(6.0)); ctx.fillText('x = ' + f(P[0]), S.sx(P[0] + .12), S.sy(-5.7));
+    }
     tri(BASE, C.yellow, 'rgba(255,209,102,.12)', [6, 5], 2);
     if (target) tri(target, C.pink, 'rgba(246,127,179,.18)', [9, 6], 3);
     const col = lastG ? COL[lastG] : C.yellow;
@@ -349,6 +394,8 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     const g = [(draw[0][0] + draw[1][0] + draw[2][0]) / 3, (draw[0][1] + draw[1][1] + draw[2][1]) / 3], pr = '′'.repeat(Math.min(hist.length, 3));
     ctx.font = `800 ${Math.max(11, S.px(.4))}px Nunito, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = col;
     ['A', 'B', 'C'].forEach((n, i) => { const dx = draw[i][0] - g[0], dy = draw[i][1] - g[1], d = Math.hypot(dx, dy) || 1; ctx.fillText(n + pr, S.sx(draw[i][0] + dx / d * .5), S.sy(draw[i][1] + dy / d * .5)); });
+    if (adv){ ctx.beginPath(); ctx.arc(S.sx(P[0]), S.sy(P[1]), 8, 0, 7); ctx.fillStyle = C.white; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = C.purple; ctx.stroke();
+      ctx.fillStyle = C.white; ctx.textAlign = 'left'; ctx.fillText(`P(${f(P[0])}, ${f(P[1])})`, S.sx(P[0] + .3), S.sy(P[1] + .35)); }
   });
   const f = v => String(+v.toFixed(2)).replace('-', '−');
   function render(){
@@ -363,6 +410,53 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     else { s.textContent = Lab.L({ en:`∼ Similar to △ABC, scale factor k = ${f(k)} (not congruent)`, zh:`∼ 与 △ABC 相似,相似比 k = ${f(k)}(不全等)` }); s.style.color = '#e08a2c'; }
     const m = Lab.$('#sbMsg'); m.className = 'result ' + (msg ? msg.cls : ''); m.textContent = msg ? Lab.L(msg.t) : (target ? Lab.L({ en:'🎯 Land the triangle exactly on the pink target.', zh:'🎯 把三角形正好放到粉色目标上。' }) : '');
     Lab.$('#aVal').textContent = Lab.$('#aIn').value; Lab.$('#bVal').textContent = Lab.$('#bIn').value;
+    advRender();
+  }
+  /* ---- Advanced: the whole sequence as one rule (x, y) → (ax + by + e, cx + dy + g), and what kind of move it is ---- */
+  const L2 = (en, zh) => Lab.L({ en, zh });
+  const near = (a, b) => Math.abs(a - b) < 1e-6;
+  function affine(){   // BASE A(2,1), B(4,1), C(2,2): AB = 2 along x, AC = 1 along y, so the matrix columns come straight from the image
+    const [A, B, Cc] = cur, a = (B[0] - A[0]) / 2, c = (B[1] - A[1]) / 2, b = Cc[0] - A[0], d = Cc[1] - A[1];
+    return { a, b, c, d, e:A[0] - 2 * a - b, g:A[1] - 2 * c - d };
+  }
+  function ruleTex(M){
+    const part = (cx, cy, k) => { let s = ''; [[cx, 'x'], [cy, 'y']].forEach(([v, n]) => { if (near(v, 0)) return; const av = Math.abs(v), co = near(av, 1) ? '' : f(av);
+        s += s ? ` ${v < 0 ? '-' : '+'} ${co}${n}` : `${v < 0 ? '-' : ''}${co}${n}`; });
+      if (!near(k, 0)) s += s ? ` ${k < 0 ? '-' : '+'} ${f(Math.abs(k))}` : f(k); return s || '0'; };
+    return `(x,\\, y) \\;\\to\\; (${part(M.a, M.b, M.e)},\\; ${part(M.c, M.d, M.g)})`.replace(/−/g, '-');
+  }
+  function kindText(M){
+    const det = M.a * M.d - M.b * M.c, k = Math.sqrt(Math.abs(det)), pt = (x, y) => `(${f(x)}, ${f(y)})`;
+    let s;
+    if (!hist.length) return L2('No moves yet: the rule is (x, y) → (x, y), the identity.', '还没有变换：规则是 (x, y) → (x, y)，图形不动。');
+    if (near(k, 1) && det > 0){
+      const th = Math.round(Math.atan2(M.c, M.a) * 180 / Math.PI);
+      if (near(th, 0)) s = near(M.e, 0) && near(M.g, 0) ? L2('The moves cancel out: the triangle is back where it started.', '这些变换互相抵消了：三角形回到了原处。')
+                          : L2(`Same as ONE translation by ${pt(M.e, M.g)}.`, `等于一次平移 ${pt(M.e, M.g)}。`);
+      else { const D = (1 - M.a) * (1 - M.d) - M.b * M.c, cx = (M.e * (1 - M.d) + M.b * M.g) / D, cy = ((1 - M.a) * M.g + M.c * M.e) / D;
+        const ang = Math.abs(th) === 180 ? L2('180°', '180°') : th > 0 ? L2(`${th}° counterclockwise`, `逆时针 ${th}°`) : L2(`${-th}° clockwise`, `顺时针 ${-th}°`);
+        s = L2(`Same as ONE rotation: ${ang} about the point ${pt(cx, cy)}.`, `等于一次旋转：绕点 ${pt(cx, cy)} ${ang}。`); }
+    } else if (near(k, 1)){
+      if (near(M.a * M.e + M.b * M.g + M.e, 0) && near(M.c * M.e + M.d * M.g + M.g, 0)){   // applying it twice gives the identity → a reflection
+        const ang = Math.atan2(M.c, M.a) / 2, mx = (cur[0][0] + BASE[0][0]) / 2, my = (cur[0][1] + BASE[0][1]) / 2;
+        let line;
+        if (near(Math.cos(ang), 0)) line = `x = ${f(mx)}`;
+        else { const m = Math.tan(ang), b0 = my - m * mx; line = near(m, 0) ? `y = ${f(b0)}` : `y = ${near(Math.abs(m), 1) ? (m < 0 ? '−' : '') : f(m)}x${near(b0, 0) ? '' : (b0 < 0 ? ' − ' : ' + ') + f(Math.abs(b0))}`; }
+        s = L2(`Same as ONE reflection, across the line ${line}.`, `等于一次轴对称，对称轴是直线 ${line}。`);
+      } else s = L2('Same as a “glide reflection”: a reflection plus a slide along the mirror line (no single slide, flip or turn does it).', '等于“滑移反射”：先沿一条直线翻折，再沿这条直线平移（单独一次平移、翻折或旋转都做不到）。');
+    } else s = L2(`Not rigid: all lengths are multiplied by ${f(k)}, so the image is similar (∼) but not congruent.`, `不是刚体运动：所有长度都乘以 ${f(k)}，像与原图相似（∼）但不全等。`);
+    const ori = det > 0 ? L2('Orientation kept: A → B → C still runs counterclockwise (an even number of reflections).', '方向不变：A → B → C 仍是逆时针（翻折了偶数次）。')
+                        : L2('Orientation reversed: A → B → C now runs clockwise (an odd number of reflections).', '方向反了：A → B → C 变成顺时针（翻折了奇数次）。');
+    return s + '<br>' + ori;
+  }
+  function advRender(){
+    if (!Lab.adv()) return;
+    Lab.$('#pVal').textContent = f(+Lab.$('#pIn').value); Lab.$('#qVal').textContent = f(+Lab.$('#qIn').value);
+    Lab.$('#advOps').innerHTML = ADV_OPS.map(o => `<button class="btn ghost op-${o.g}" data-aop="${o.id}">${Lab.L(o)}</button>`).join('');
+    Lab.$$('#advOps [data-aop]').forEach(b => b.onclick = () => apply(ADV_OPS.find(o => o.id === b.dataset.aop)));
+    const M = affine();
+    Lab.$('#compRule').innerHTML = MathAnim.tex(ruleTex(M));
+    Lab.$('#compKind').innerHTML = kindText(M);
   }
   const same = (P, Q) => P.every(p => Q.some(q => Math.abs(p[0] - q[0]) < 1e-6 && Math.abs(p[1] - q[1]) < 1e-6));
   async function apply(op){
@@ -391,6 +485,38 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
   Lab.$('#resetBtn').onclick = () => { if (busy) return; reset(); target = null; render(); };
   Lab.$('#chalBtn').onclick = () => { if (busy) return; reset(); target = newTarget(); render(); };
   Lab.$('#aIn').oninput = render; Lab.$('#bIn').oninput = render;
+  /* ---- Advanced: one-move challenge ---- */
+  const orient = T => Math.sign((T[1][0] - T[0][0]) * (T[2][1] - T[0][1]) - (T[1][1] - T[0][1]) * (T[2][0] - T[0][0]));
+  const omMsg = (t, cls) => { const m = Lab.$('#omMsg'); m.textContent = t ? L2(t.en, t.zh) : ''; m.className = 'result ' + (cls || ''); };
+  function oneMoveTarget(){
+    const r = n => Math.floor(Math.random() * (2 * n + 1)) - n;
+    for (let tries = 0; tries < 300; tries++){
+      const kind = ['Ryx', 'Rxp', 'RP90', 'RP180'][Math.floor(Math.random() * 4)], P = [r(3), r(3)];
+      if (kind === 'Rxp' && P[0] === 0) continue;                       // x = 0 is the basic y-axis flip
+      if (kind !== 'Ryx' && kind !== 'Rxp' && P[0] === 0 && P[1] === 0) continue;   // about the origin is a basic move
+      const fn = { Ryx:p => [p[1], p[0]], Rxp:p => [2 * P[0] - p[0], p[1]], RP90:p => [P[0] + P[1] - p[1], p[0] - P[0] + P[1]], RP180:p => [2 * P[0] - p[0], 2 * P[1] - p[1]] }[kind];
+      const pts = snap(BASE.map(fn));
+      if (pts.every(p => Math.abs(p[0]) <= 7.5 && Math.abs(p[1]) <= 5.5) && !same(pts, BASE) && !(target && same(pts, target))) return { pts, kind };
+    }
+    return { pts:snap([[1, 2], [1, 4], [2, 2]]), kind:'Ryx' };
+  }
+  Lab.$('#omNew').onclick = () => { if (busy) return; reset(); const t = oneMoveTarget(); target = t.pts; oneMove = t.kind; omMsg(null); render(); };
+  Lab.$('#omCheck').onclick = () => {
+    if (!target || !oneMove) return omMsg({ en:'Press “New target” first.', zh:'先点“新目标”。' });
+    if (!hist.length) return omMsg({ en:'Make one move first: pick P, then press one of the 🚀 moves.', zh:'先做一步：选好点 P，再点一个 🚀 变换。' });
+    if (same(cur, target)) return hist.length === 1
+      ? omMsg({ en:'🎉 One move, bullseye! The rule for it is shown above.', zh:'🎉 一步命中！上面显示了它的坐标规则。' }, 'good')
+      : omMsg({ en:`On target, but in ${hist.length} moves. Press Reset and find ONE move that does it all (the “one rule” above is a clue).`, zh:`命中了，但用了 ${hist.length} 步。点“重置”，找一步就能做到的变换（上面的“合成规则”是线索）。` }, 'bad');
+    if (hist.length > 1) return omMsg({ en:'Only one move is allowed: press ↶ Undo and try again.', zh:'只能用一步：点 ↶ 撤销再试。' }, 'bad');
+    if (orient(cur) !== orient(target)) return omMsg(orient(target) < 0
+      ? { en:'Wrong kind of move: the target is flipped (A → B → C runs clockwise), so you need a reflection. Undo and try again.', zh:'变换种类不对：目标是翻过来的（A → B → C 是顺时针），需要轴对称。撤销再试。' }
+      : { en:'Wrong kind of move: the target is NOT flipped, so you need a rotation, not a reflection. Undo and try again.', zh:'变换种类不对：目标没有翻过来，需要旋转而不是轴对称。撤销再试。' }, 'bad');
+    omMsg({ en:'Right kind of move, wrong place. Undo, move P (or the line x = p) and try again. Tip: P stays the same distance from A and from A′.', zh:'变换种类对了，位置不对。撤销，移动点 P（或直线 x = p）再试。提示：点 P 到 A 和到 A′ 的距离相等。' }, 'bad');
+  };
+  Lab.$('#pIn').oninput = advRender; Lab.$('#qIn').oninput = advRender;
+  Lab.$('#chalBtn').addEventListener('click', () => { oneMove = null; omMsg(null); });
+  Lab.$('#resetBtn').addEventListener('click', () => { oneMove = null; omMsg(null); });
+  Lab.onMode(advRender);
   Lab.onLang(render); render();
 })();
 </script>
@@ -402,22 +528,27 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
   let k = 2, c = [0, 0], drag = false;
   const img = () => P.map(p => [c[0] + k * (p[0] - c[0]), c[1] + k * (p[1] - c[1])]);
   const f = v => String(+v.toFixed(2)).replace('-', '−');
+  let big = false, goal = null;   // Advanced: bigger view (room for negative k) + challenge target points A′, B′
   E.custom((ctx, S) => {
     const seg = (x1, y1, x2, y2) => { ctx.beginPath(); ctx.moveTo(S.sx(x1), S.sy(y1)); ctx.lineTo(S.sx(x2), S.sy(y2)); ctx.stroke(); };
-    ctx.lineWidth = 1; ctx.strokeStyle = C.dim; for (let x = -2; x <= 11; x++) seg(x, -.9, x, 8.9); for (let y = -1; y <= 9; y++) seg(-2.1, y, 11.1, y);
-    ctx.lineWidth = 2; ctx.strokeStyle = C.grey; seg(-2.1, 0, 11.1, 0); seg(0, -.9, 0, 8.9);
+    const X0 = big ? -9 : -2, Y0 = big ? -6 : -1;
+    ctx.lineWidth = 1; ctx.strokeStyle = C.dim; for (let x = X0; x <= 11; x++) seg(x, Y0 + .1, x, 8.9); for (let y = Y0; y <= 9; y++) seg(X0 - .1, y, 11.1, y);
+    ctx.lineWidth = 2; ctx.strokeStyle = C.grey; seg(X0 - .1, 0, 11.1, 0); seg(0, Y0 + .1, 0, 8.9);
     ctx.fillStyle = 'rgba(138,147,166,.85)'; ctx.font = `600 ${Math.max(9, S.px(.3))}px Nunito, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-    for (let x = 2; x <= 10; x += 2) ctx.fillText(String(x), S.sx(x), S.sy(-.1));
-    ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; for (let y = 2; y <= 8; y += 2) ctx.fillText(String(y), S.sx(-.12), S.sy(y));
+    for (let x = big ? -8 : 2; x <= 10; x += 2) if (x) ctx.fillText(String(x).replace('-', '−'), S.sx(x), S.sy(-.1));
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; for (let y = big ? -6 : 2; y <= 8; y += 2) if (y) ctx.fillText(String(y).replace('-', '−'), S.sx(-.12), S.sy(y));
     const Q = img();
+    if (big && goal) goal.forEach((g, i) => { ctx.beginPath(); ctx.arc(S.sx(g[0]), S.sy(g[1]), 11, 0, 7); ctx.lineWidth = 3; ctx.strokeStyle = C.pink; ctx.stroke();
+      ctx.fillStyle = C.pink; ctx.font = `800 ${Math.max(10, S.px(.3))}px Nunito, sans-serif`; ctx.textAlign = 'left'; ctx.fillText(i ? 'B′?' : 'A′?', S.sx(g[0] + .3), S.sy(g[1] + .35)); });
     ctx.setLineDash([5, 6]); ctx.strokeStyle = 'rgba(255,159,67,.6)'; ctx.lineWidth = 1.5;
-    P.forEach((p, i) => { const far = Math.max(1, k) * 1.15; seg(c[0], c[1], c[0] + far * (p[0] - c[0]), c[1] + far * (p[1] - c[1])); }); ctx.setLineDash([]);
+    P.forEach((p, i) => { const far = Math.max(1, k) * 1.15, near0 = Math.min(0, k) * 1.15; seg(c[0] + near0 * (p[0] - c[0]), c[1] + near0 * (p[1] - c[1]), c[0] + far * (p[0] - c[0]), c[1] + far * (p[1] - c[1])); }); ctx.setLineDash([]);
     const tri = (pts, stroke, fill) => { ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(S.sx(p[0]), S.sy(p[1])) : ctx.moveTo(S.sx(p[0]), S.sy(p[1]))); ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = stroke; ctx.lineWidth = 3; ctx.stroke(); };
     tri(P, C.yellow, 'rgba(255,209,102,.15)'); tri(Q, C.orange, 'rgba(255,159,67,.2)');
-    const mark = (pts, col) => { const s = .28 * Math.min(1, Math.max(.6, k)); ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(S.sx(pts[0][0] + s), S.sy(pts[0][1])); ctx.lineTo(S.sx(pts[0][0] + s), S.sy(pts[0][1] + s)); ctx.lineTo(S.sx(pts[0][0]), S.sy(pts[0][1] + s)); ctx.stroke(); };
-    mark(P, C.yellow); mark(Q, C.orange);
+    const mark = (pts, col, sg = 1) => { const s = .28 * Math.min(1, Math.max(.6, Math.abs(k))) * sg; ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(S.sx(pts[0][0] + s), S.sy(pts[0][1])); ctx.lineTo(S.sx(pts[0][0] + s), S.sy(pts[0][1] + s)); ctx.lineTo(S.sx(pts[0][0]), S.sy(pts[0][1] + s)); ctx.stroke(); };
+    const sg = k < 0 ? -1 : 1;   // a negative k turns the image upside down
+    mark(P, C.yellow); mark(Q, C.orange, sg);
     ctx.font = `800 ${Math.max(11, S.px(.38))}px Nunito, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ['A', 'B', 'C'].forEach((n, i) => { ctx.fillStyle = C.orange; ctx.fillText(n + '′', S.sx(Q[i][0] + (i === 1 ? .35 : -.35)), S.sy(Q[i][1] + (i === 2 ? .3 : -.3))); });
+    ['A', 'B', 'C'].forEach((n, i) => { ctx.fillStyle = C.orange; ctx.fillText(n + '′', S.sx(Q[i][0] + sg * (i === 1 ? .35 : -.35)), S.sy(Q[i][1] + sg * (i === 2 ? .3 : -.3))); });
     ctx.beginPath(); ctx.arc(S.sx(c[0]), S.sy(c[1]), drag ? 11 : 9, 0, 7); ctx.fillStyle = C.white; ctx.fill(); ctx.strokeStyle = C.orange; ctx.lineWidth = 2.5; ctx.stroke();
   });
   const cv = E.cv, toW = e => { const r = cv.getBoundingClientRect(); return [E.wx(e.clientX - r.left), E.wy(e.clientY - r.top)]; };
@@ -425,14 +556,57 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
   cv.addEventListener('pointerdown', e => { const [x, y] = toW(e); if (Math.hypot(x - c[0], y - c[1]) < .8){ drag = true; cv.setPointerCapture(e.pointerId); } });
   cv.addEventListener('pointermove', e => { if (!drag) return; const [x, y] = toW(e); c = [Math.max(-1, Math.min(3, Math.round(x))), Math.max(-1, Math.min(3, Math.round(y)))]; update(); });
   const up = () => { drag = false; }; cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  let prevK = 2;
   function update(){
-    k = +Lab.$('#kIn').value; Lab.$('#kVal').textContent = f(k);
+    k = +Lab.$('#kIn').value;
+    if (k === 0){ k = prevK > 0 ? -.25 : .25; Lab.$('#kIn').value = k; }   // k = 0 would squash the triangle to a point: skip it
+    prevK = k; Lab.$('#kVal').textContent = f(k);
     Lab.$('#kRule').innerHTML = c[0] === 0 && c[1] === 0 ? MathAnim.tex(`(x, y) \\to (${f(k)}x,\\; ${f(k)}y)`) : MathAnim.tex(`\\text{center } (${f(c[0])}, ${f(c[1])}),\\; k = ${f(k)}`);
-    Lab.$('#kSides').innerHTML = [['AB', 2], ['AC', 1.5], ['BC', 2.5]].map(([n, L]) => `<div>${n[0]}′${n[1]}′ = ${f(L)} × ${f(k)} = ${f(L * k)}</div>`).join('');
+    Lab.$('#kSides').innerHTML = [['AB', 2], ['AC', 1.5], ['BC', 2.5]].map(([n, L]) => k < 0 ? `<div>${n[0]}′${n[1]}′ = ${f(L)} × |${f(k)}| = ${f(-L * k)}</div>` : `<div>${n[0]}′${n[1]}′ = ${f(L)} × ${f(k)} = ${f(L * k)}</div>`).join('');
     const s = Lab.$('#kStatus');
-    if (k === 1){ s.textContent = Lab.L({ en:'k = 1: the image is the same triangle, congruent ≅', zh:'k = 1：像就是原三角形，全等 ≅' }); s.style.color = 'var(--good)'; }
+    advDl();
+    if (k < 0){ s.textContent = Lab.L({ en:`k < 0: the image is on the other side of the center, turned 180°. Still similar ∼ (sides × |k| = ${f(-k)})`, zh:`k < 0：像在位似中心的另一侧，并且转了 180°。仍然相似 ∼（边长 × |k| = ${f(-k)}）` }); s.style.color = '#e08a2c'; }
+    else if (k === 1){ s.textContent = Lab.L({ en:'k = 1: the image is the same triangle, congruent ≅', zh:'k = 1：像就是原三角形，全等 ≅' }); s.style.color = 'var(--good)'; }
     else { s.textContent = Lab.L(k > 1 ? { en:`k > 1: enlargement. Similar ∼ (angles equal, sides × ${f(k)})`, zh:`k > 1:放大。相似 ∼(角相等,边长 × ${f(k)})` } : { en:`0 < k < 1: reduction. Similar ∼ (angles equal, sides × ${f(k)})`, zh:`0 < k < 1:缩小。相似 ∼(角相等,边长 × ${f(k)})` }); s.style.color = '#e08a2c'; }
   }
+  /* ---- Advanced: plugged-in vertex formula, perimeter × |k|, area × k², and a challenge ---- */
+  const par = v => v < 0 ? `(${f(v)})` : f(v);
+  function advDl(){
+    if (!Lab.adv()) return;
+    const A = P[0], Q = img()[0];
+    Lab.$('#dlPlug').innerHTML = `<div style="font-size:14px;margin-bottom:4px">${Lab.L({ en:'Image of a point: A′ = O + k·(A − O), O = center', zh:'对应点：A′ = O + k·(A − O)，O 为位似中心' })}</div>`
+      + MathAnim.tex(`\\begin{aligned} x_{A'} &= ${f(c[0])} + ${par(k)}\\cdot(${f(A[0])} - ${par(c[0])}) = ${f(Q[0])} \\\\ y_{A'} &= ${f(c[1])} + ${par(k)}\\cdot(${f(A[1])} - ${par(c[1])}) = ${f(Q[1])} \\end{aligned}`);
+    const ak = Math.abs(k);
+    Lab.$('#dlArea').innerHTML = Lab.L({ en:'Perimeter', zh:'周长' }) + `: 6 × |k| = 6 × ${f(ak)} = <b>${f(6 * ak)}</b><br>`
+      + Lab.L({ en:'Area', zh:'面积' }) + `: 1.5 × k² = 1.5 × ${par(k)}² = <b>${f(1.5 * k * k)}</b><br>`
+      + `<span class="muted">${Lab.L({ en:'Lengths are multiplied by |k|, but areas by k² (the shape grows in two directions at once).', zh:'长度乘以 |k|，面积却乘以 k²（图形同时在两个方向上放缩）。' })}</span>`;
+  }
+  let ans = null;
+  function newGoal(){
+    const Ks = [-1.5, -1, -.5, .5, 1.5, 2, 2.5], ok = p => p[0] >= -8.5 && p[0] <= 10.7 && p[1] >= -5.6 && p[1] <= 8.6;
+    for (let tries = 0; tries < 300; tries++){
+      const kk = Ks[Math.floor(Math.random() * Ks.length)], cc = [Math.floor(Math.random() * 5) - 1, Math.floor(Math.random() * 5) - 1];
+      const g = P.slice(0, 2).map(p => [cc[0] + kk * (p[0] - cc[0]), cc[1] + kk * (p[1] - cc[1])]);
+      if (g.every(ok) && !(ans && ans.k === kk && ans.c[0] === cc[0] && ans.c[1] === cc[1]) && !(kk === k && cc[0] === c[0] && cc[1] === c[1])){ ans = { k:kk, c:cc }; goal = g; return; }
+    }
+  }
+  const dcMsg = (t, cls) => { const m = Lab.$('#dcMsg'); m.textContent = t ? Lab.L(t) : ''; m.className = 'result ' + (cls || ''); };
+  Lab.$('#dcNew').onclick = () => { newGoal(); dcMsg(null); };
+  Lab.$('#dcCheck').onclick = () => {
+    const Q = img(), hit = Q.slice(0, 2).every((q, i) => Math.abs(q[0] - goal[i][0]) < 1e-6 && Math.abs(q[1] - goal[i][1]) < 1e-6);
+    if (hit) return dcMsg({ en:`🎉 Exactly! k = ${f(k)}, center (${f(c[0])}, ${f(c[1])}).`, zh:`🎉 完全正确！k = ${f(k)}，位似中心 (${f(c[0])}, ${f(c[1])})。` }, 'good');
+    if (k === ans.k) return dcMsg({ en:'k is right! Now drag the center. Tip: the center lies on the line through A and the ring A′?, and on the line through B and B′?.', zh:'k 对了！再拖动位似中心。提示：位似中心在直线 A—A′? 上，也在直线 B—B′? 上。' }, 'bad');
+    if (k === -ans.k) return dcMsg({ en:'Right size, but look at the order: is A′? left or right of B′? If the image is turned around, k must be negative (and vice versa).', zh:'大小对了，但看看顺序：A′? 在 B′? 的左边还是右边？如果像倒过来了，k 就应该是负数（反之亦然）。' }, 'bad');
+    dcMsg({ en:'Not yet. Measure first: AB = 2, so |k| = (distance between the two rings) ÷ 2.', zh:'还不对。先量一量：AB = 2，所以 |k| =（两个圆圈之间的距离）÷ 2。' }, 'bad');
+  };
+  Lab.onMode(adv => {
+    big = adv; E.setView(adv ? [-9, 11.2] : [-2.2, 11.2], adv ? [-6.1, 9.05] : [-1.0, 9.05]);
+    const sl = Lab.$('#kIn');
+    if (!adv && +sl.value < .25) sl.value = Math.max(.25, -sl.value);
+    sl.min = adv ? -1.5 : .25;
+    if (adv && !goal) newGoal();
+    update();
+  });
   Lab.$('#kIn').oninput = update; Lab.onLang(update); update();
 })();
 
@@ -465,6 +639,7 @@ Lab.sort(Lab.$('#sort'), {
 /* ================= Where you see this: real photos (Wikimedia Commons, freely licensed) ================= */
 (function(){
 const o = (en, zh) => ({ en, zh });
+const VID = o('Video', '视频');
 const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f7/Tassellatura_alhambra.jpg/960px-Tassellatura_alhambra.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'A tiling in the Alhambra, Spain, that M. C. Escher sketched in 1936. Which slides, turns or flips carry one tile onto the next?',
@@ -473,7 +648,7 @@ const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c3/Mountains_Reflection_Sani_Zanskar_Oct22_A7C_04247.jpg/960px-Mountains_Reflection_Sani_Zanskar_Oct22_A7C_04247.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'Mountains reflected in a lake in Ladakh, India. The water surface is the line of reflection.',
     zh:'印度拉达克，群山倒映在湖中。水面就是对称轴。',
-    credit:'This Photo was taken by Timothy A. Gonsalves. Feel free to use my photos, but please mentiâ€¦', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Mountains_Reflection_Sani_Zanskar_Oct22_A7C_04247.jpg' },
+    credit:'Timothy A. Gonsalves', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Mountains_Reflection_Sani_Zanskar_Oct22_A7C_04247.jpg' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7e/Toy_Pinwheel_in_Fuzhou_Zuohai_Park.jpg/960px-Toy_Pinwheel_in_Fuzhou_Zuohai_Park.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'A toy pinwheel in Fuzhou, China. Turn it about its center: after how many degrees does it look the same again?',
     zh:'中国福州左海公园的玩具风车。绕中心转动，转多少度后它看起来又和原来一样？',
@@ -481,9 +656,31 @@ const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9b/Frame_from_a_beehive%3B_closeup_-_2011.12.18.jpg/960px-Frame_from_a_beehive%3B_closeup_-_2011.12.18.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'Honeycomb from a beehive. Slide one hexagon and it lands exactly on another: a translation.',
     zh:'蜂箱里的蜂巢。把一个六边形平移，它正好落在另一个六边形上。',
-    credit:'Jolán Dénes', license:'CC BY-SA 2.5', page:'https://commons.wikimedia.org/wiki/File:Frame_from_a_beehive;_closeup_-_2011.12.18.jpg' }
+    credit:'Jolán Dénes', license:'CC BY-SA 2.5', page:'https://commons.wikimedia.org/wiki/File:Frame_from_a_beehive;_closeup_-_2011.12.18.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1d/Taj_Mahal_%28Edited%29.jpeg/960px-Taj_Mahal_%28Edited%29.jpeg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'The Taj Mahal in India. Draw a line straight down the middle: the left half is a reflection of the right half. Where else do you see a reflection in this photo?',
+    zh:'印度泰姬陵。从正中间画一条竖线：左半边正好是右半边的镜像（轴对称）。照片里还有哪里能看到“反射”？',
+    credit:'Yann; edited by Jim Carter', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Taj_Mahal_(Edited).jpeg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/51/Real_snowflake_macro_photo_2021-02-11_1.jpg/960px-Real_snowflake_macro_photo_2021-02-11_1.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A real snowflake. Rotate it by 60° around its center and it lands on itself. How many different rotations (less than 360°) map it onto itself?',
+    zh:'一片真实的雪花。绕中心旋转 60°，它和原来完全重合。在 360° 以内，一共有几种旋转能让它和自己重合？',
+    credit:'Alexey Kljatov', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Real_snowflake_macro_photo_2021-02-11_1.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/63/Monarch_In_May.jpg/960px-Monarch_In_May.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A monarch butterfly. Its body is a line of symmetry: each wing is a reflection of the other.',
+    zh:'一只帝王蝶。它的身体就是对称轴：两边的翅膀互为镜像。',
+    credit:'Kenneth Dwain Harrelson', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Monarch_In_May.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/51/Kaleidoscope-abc.jpg/960px-Kaleidoscope-abc.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'Inside a kaleidoscope, three mirrors meet at 60° angles. One small triangle of colors is reflected again and again to fill the whole circle.',
+    zh:'万花筒里有三面镜子，彼此成 60° 角。一小块三角形的彩色图案被反射了一次又一次，铺满了整个圆。',
+    credit:'Koperczak', license:'CC BY 3.0', page:'https://commons.wikimedia.org/wiki/File:Kaleidoscope-abc.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4f/Chinese_Paper_Cutting.png/960px-Chinese_Paper_Cutting.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A Chinese paper cutting (剪纸) of the character 春 (spring). Artists fold the paper, cut once, and unfold: the fold line becomes a line of reflection.',
+    zh:'一幅“春”字剪纸。剪纸艺人先把纸对折，剪一次再展开：折痕就成了对称轴。',
+    credit:'Lanneixi', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Chinese_Paper_Cutting.png' },
+  { type:'youtube', yt:'61OPqIp9xkA', en:'Video: “Transformations” — translations, rotations, reflections and dilations, with clear animations.', zh:'视频：《图形变换》——平移、旋转、轴对称（翻折）和位似（缩放），配有清楚的动画（英文）。', kind:VID, credit:'Math Antics (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'pg1NpMmPv48', en:'Video: “The complex geometry of Islamic design” — a TED-Ed lesson on how repeated rotations and reflections make tile patterns like the Alhambra’s.', zh:'视频：《伊斯兰图案中的复杂几何》——TED-Ed 课程：反复旋转和反射怎样拼出阿尔罕布拉宫那样的图案（英文）。', kind:VID, credit:'TED-Ed (YouTube)', license:'YouTube' }
 ];
-LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos. Each one comes with a question this lesson helps you answer. Click a picture to enlarge it.','真实照片。每张都带着一个这节课能帮你回答的问题。点击图片可放大。') });
+LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos and short videos. Each photo comes with a question this lesson helps you answer. Click a picture to enlarge it or to play a video.','真实照片和短视频。每张照片都带着一个这节课能帮你回答的问题。点击图片可放大，点击视频可播放。') });
 })();
 </script>
 <!-- /real-world gallery script -->

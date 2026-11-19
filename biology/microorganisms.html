@@ -28,6 +28,11 @@
 .ctlrow label{font-weight:800;font-size:14px;color:var(--ink-2);display:flex;justify-content:space-between}
 .ctlrow label b{color:var(--ink)}
 td.yes{color:var(--good);font-weight:800} td.no{color:var(--bad);font-weight:800}
+#growAdv{margin-top:16px;padding-right:38px;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start}
+.gctl{display:flex;flex-direction:column;gap:10px}
+.gf{font-family:Fredoka,sans-serif;font-size:15.5px;line-height:1.55;margin:8px 0 0}
+.gchal{font-size:14px;font-weight:700;margin:0 0 8px}
+@media (max-width:900px){#growAdv{grid-template-columns:1fr}}
 </style>
 </head>
 <body data-subject="biology" data-topic="microorganisms">
@@ -66,6 +71,7 @@ td.yes{color:var(--good);font-weight:800} td.no{color:var(--bad);font-weight:800
   <div class="sim">
     <div class="simbox card" style="min-height:420px"><canvas id="growCv"></canvas></div>
     <div class="card simside">
+      <div class="lab-mode"></div>
       <div class="ctlrow"><label><span data-zh="🌡 温度">🌡 Temperature</span><b id="tempRead"></b></label><input id="temp" type="range" min="0" max="55" value="37"></div>
       <div class="ctlrow"><label><span data-zh="⏩ 速度">⏩ Speed</span><b id="spdRead"></b></label><input id="spd" type="range" min="1" max="10" value="4"></div>
       <div class="btnrow">
@@ -82,6 +88,21 @@ td.yes{color:var(--good);font-weight:800} td.no{color:var(--bad);font-weight:800
       </div>
       <div class="result" id="growMsg"></div>
       <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="冰箱让细菌“慢下来”，高温烹饪让细菌“停下来”。抗生素只对细菌有效，对病毒无效！">Fridges slow bacteria down; cooking stops them. Antibiotics work on bacteria only, never on viruses!</span></div>
+    </div>
+  </div>
+  <div class="adv adv-box" id="growAdv">
+    <div>
+      <b data-zh="指数增长与资源限制（高中生物预习）">Exponential growth vs. limited food (high-school preview)</b>
+      <p class="gf" id="gForm"></p>
+    </div>
+    <div class="gctl">
+      <div class="ctlrow"><label><span data-zh="⏱ 37 °C 时的倍增时间 t_d">⏱ Doubling time t_d at 37 °C</span><b id="tdRead"></b></label><input id="advTd" type="range" min="10" max="120" step="5" value="20"></div>
+      <div class="ctlrow"><label><span data-zh="🍽 食物上限 K（最多能养活的细菌数）">🍽 Food limit K (most bacteria the dish can feed)</span><b id="kRead"></b></label><input id="advK" type="range" min="6" max="9" step=".5" value="9"></div>
+      <div class="ctlrow"><label><span data-zh="🧫 起始数量 N₀（点“重新开始”生效）">🧫 Starting number N₀ (used on Restart)</span><b id="n0Read"></b></label><input id="advN0" type="range" min="0" max="4" step="1" value="2"></div>
+    </div>
+    <div>
+      <p class="gchal" data-zh="🎯 挑战：调节滑块，让培养皿在“重新开始”后的 4～5 小时之间达到 90% 满（保持 37 °C，不加抗生素）。先用左边的公式估算！">🎯 Challenge: set the sliders so the dish becomes 90% full between 4 h and 5 h after Restart (keep 37 °C, no antibiotic). Estimate first with the formula on the left!</p>
+      <div class="result" id="gChal"></div>
     </div>
   </div>
 </section>
@@ -131,7 +152,15 @@ const P = [
   { src:'https://upload.wikimedia.org/wikipedia/commons/f/f1/Hyphae.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Fungus: the white threads are hyphae, found under an overturned log. Most of a fungus is hidden like this.', zh:'真菌：这些白色的细丝就是菌丝，是在一根翻过来的木头下面发现的。真菌的大部分身体都这样藏着。', kind:{en:'Photo',zh:'照片'}, credit:'TheAlphaWolf', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Hyphae.JPG' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/31/Moldy_bread.jpg/960px-Moldy_bread.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Fungus in your kitchen: a slice of bread covered in mold.', zh:'厨房里的真菌：一片长满霉菌的面包。', kind:{en:'Photo',zh:'照片'}, credit:'Jan Mysák', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Moldy_bread.jpg' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d9/S_cerevisiae_under_DIC_microscopy.jpg/960px-S_cerevisiae_under_DIC_microscopy.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Yeast (Saccharomyces cerevisiae), a fungus made of single cells. Bakers use it to make bread rise.', zh:'酵母菌（Saccharomyces cerevisiae），一种单细胞的真菌。做面包时就是靠它把面团发起来。', kind:{en:'Light micrograph',zh:'光学显微镜照片'}, credit:'Masur', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:S_cerevisiae_under_DIC_microscopy.jpg' },
-  { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/4/47/Ameba_de_agua_dulce.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/47/Ameba_de_agua_dulce.webm/960px--Ameba_de_agua_dulce.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/47/Ameba_de_agua_dulce.webm/960px--Ameba_de_agua_dulce.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Video: a living freshwater amoeba under the microscope.', zh:'视频：显微镜下一只活的淡水变形虫。', kind:{en:'Microscope video',zh:'显微镜视频'}, credit:'Brandon Antonio Segura Torres & Priscilla Vieto Bonilla', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Ameba_de_agua_dulce.webm' }
+  { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/4/47/Ameba_de_agua_dulce.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/47/Ameba_de_agua_dulce.webm/960px--Ameba_de_agua_dulce.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/47/Ameba_de_agua_dulce.webm/960px--Ameba_de_agua_dulce.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Video: a living freshwater amoeba under the microscope.', zh:'视频：显微镜下一只活的淡水变形虫。', kind:{en:'Microscope video',zh:'显微镜视频'}, credit:'Brandon Antonio Segura Torres & Priscilla Vieto Bonilla', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Ameba_de_agua_dulce.webm' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/1/18/Euglena_sp.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Protist: Euglena from a pond in Quebec, Canada. It is green because it has chloroplasts and can make food from sunlight, yet it also swims with a whip-like flagellum like an animal.', zh:'原生生物：采自加拿大魁北克一个池塘的眼虫（裸藻）。它有叶绿体，能利用阳光制造养料，所以是绿色的；可它又像动物一样，靠一根鞭子似的鞭毛游动。', kind:{en:'Light micrograph',zh:'光学显微镜照片'}, credit:'Deuterostome', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Euglena_sp.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a6/Louis_Pasteur%2C_foto_av_Paul_Nadar%2C_Crisco_edit.jpg/960px-Louis_Pasteur%2C_foto_av_Paul_Nadar%2C_Crisco_edit.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Louis Pasteur (1822–1895), the French scientist who showed that microbes cause food to spoil and some diseases to spread. “Pasteurized” milk is named after him.', zh:'路易·巴斯德（1822—1895），法国科学家。他证明了微生物会使食物变质、使一些疾病传播。“巴氏杀菌”牛奶就是以他的名字命名的。', kind:{en:'Historical photo',zh:'历史照片'}, credit:'Paul Nadar', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Louis_Pasteur,_foto_av_Paul_Nadar,_Crisco_edit.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/72/Volvox_Aureus_400x.jpg/960px-Volvox_Aureus_400x.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Protist: a Volvox colony, a hollow green ball made of hundreds of tiny algae cells that swim together. The smaller balls inside are daughter colonies.', zh:'原生生物：团藻群体，一个由几百个微小藻类细胞组成、一起游动的空心绿球。里面的小绿球是子群体。', kind:{en:'Light micrograph',zh:'光学显微镜照片'}, scale:{en:'magnified 400 times',zh:'放大 400 倍'}, credit:'Massimo Brizzi', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Volvox_Aureus_400x.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/d/d4/Penicillium_digitatum_orange.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Fungus: Penicillium mold growing on an orange that fell from a tree. A cousin of this mold gave us penicillin, the first widely used antibiotic.', zh:'真菌：长在一个落地橙子上的青霉。正是这种霉菌的“亲戚”，给我们带来了第一种被广泛使用的抗生素：青霉素。', kind:{en:'Photo',zh:'照片'}, credit:'Medmyco (English Wikipedia)', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Penicillium_digitatum_orange.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/56/Agarplate_redbloodcells_edit.jpg/960px-Agarplate_redbloodcells_edit.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'How scientists grow bacteria: a dish of agar jelly with added nutrients. Each little dot is a colony, millions of bacteria that usually grew from a single cell.', zh:'科学家怎样培养细菌：一个装着琼脂培养基（加了营养）的培养皿。每一个小点都是一个菌落，里面的几百万个细菌通常是由一个细菌繁殖出来的。', kind:{en:'Lab photo',zh:'实验照片'}, credit:'Bill Branson (National Cancer Institute)', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Agarplate_redbloodcells_edit.jpg' },
+  { type:'youtube', yt:'ORB866QSGv8', kind:{en:'Video',zh:'视频'}, en:'Amoeba Sisters: bacteria. What they look like, how they reproduce, and why most of them are helpful, not harmful.', zh:'Amoeba Sisters（阿米巴姐妹）：细菌。它们长什么样？怎样繁殖？为什么大多数细菌是有益的而不是有害的？', credit:'Amoeba Sisters (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'8FqlTslU22s', kind:{en:'Video',zh:'视频'}, en:'Amoeba Sisters: viruses. Why a virus is not a cell, and how it takes over a living cell to make copies of itself.', zh:'Amoeba Sisters（阿米巴姐妹）：病毒。为什么病毒不是细胞？它又是怎样“劫持”活细胞来复制自己的？', credit:'Amoeba Sisters (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'zK7Ckmxxqds', kind:{en:'Video',zh:'视频'}, en:'Amoeba Sisters: protists and fungi, two very mixed groups, from amoebas and algae to yeast and mushrooms.', zh:'Amoeba Sisters（阿米巴姐妹）：原生生物和真菌，两个成员五花八门的类群，从变形虫、藻类到酵母和蘑菇。', credit:'Amoeba Sisters (YouTube)', license:'YouTube' }
 ];
 window.REALFIG = { a:P[3], b:P[0], f:P[5], p:P[4], v:P[1] };
 if (window.LabPhotos) LabPhotos.render('#gallery', P, { title:{en:'See the real thing',zh:'看看真实的样子'}, sub:{en:'The 3D models are clean and colorful. Here is what microbes really look like through microscopes, and one of them moving. Click any picture to enlarge it; the video plays only when you press play.',zh:'3D 模型又干净又鲜艳。下面是显微镜下微生物真实的样子，还有一段它们活动的视频。点击图片可以放大；视频要按下播放键才会播放。'} });
@@ -221,6 +250,19 @@ const ORDER = Object.keys(PARTS);
 const App = window.MIC = { sel:null, spec:'all', three:null };
 App.select = (k, from3D) => { App.sel = k; if (k){ App.spec = PARTS[k].s; renderSeg(); } renderInfo(); renderChips(); if (!from3D && App.three) App.three.focus(k); };
 App.setSpec = s => { App.spec = s; App.sel = null; renderSeg(); renderInfo(); renderChips(); if (App.three) App.three.view(s); };
+/* 🚀 Advanced "zoom deeper": real numbers for each specimen (approximate) */
+const DEEP = {
+  b:o(['E. coli is about 2 µm long and 0.5 µm wide. If it were the size of a grain of rice, you would be almost 4 km tall.','Its one circular chromosome has about 4.6 million DNA base pairs and about 4,300 genes.','Your body carries roughly as many bacterial cells as human cells: tens of trillions of each.'],
+      ['大肠杆菌长约 2 微米、宽约 0.5 微米。如果它有一粒米那么大，你就差不多有 4 千米高。','它只有一条环状 DNA，约 460 万个碱基对、约 4300 个基因。','你身体里细菌细胞的数量和人体细胞差不多：各有几十万亿个。']),
+  v:o(['The T4 phage is about 0.2 µm (200 nm) tall, about 10 times smaller than the bacterium it attacks.','Its DNA has about 169,000 base pairs, roughly 300 genes: tiny next to a bacterium’s 4,300.','About 25 minutes after infecting, one bacterium bursts and releases about 100–200 new phages.'],
+      ['T4 噬菌体高约 0.2 微米（200 纳米），大约只有它攻击的细菌的十分之一大。','它的 DNA 约有 16.9 万个碱基对、约 300 个基因，比细菌的 4300 个基因少得多。','侵染约 25 分钟后，一个细菌就会破裂，释放出约 100～200 个新的噬菌体。']),
+  a:o(['Amoeba proteus can reach about 0.5 mm, big enough to see as a tiny white dot without a microscope, and about 250 times longer than E. coli.','It eats by wrapping its pseudopods around food to form a food vacuole. Your white blood cells catch bacteria the same way.'],
+      ['大变形虫可以长到约 0.5 毫米，不用显微镜也能看到一个小白点，约是大肠杆菌长度的 250 倍。','它用伪足把食物包起来，形成食物泡。你的白细胞也是这样“吞掉”细菌的。']),
+  p:o(['Paramecium caudatum is about 0.2–0.3 mm long and covered in thousands of cilia.','It swims about 1 mm per second, roughly 4 body lengths every second.','A food vacuole forms at the oral groove and travels around the cell while the food is digested.'],
+      ['草履虫长约 0.2～0.3 毫米，身体表面有成千上万根纤毛。','它每秒大约游 1 毫米，相当于每秒游过约 4 个身长。','食物从口沟进入形成食物泡，食物泡在细胞内流动，食物边流动边被消化。']),
+  f:o(['One mushroom can release billions of spores. Each spore is only about 5–10 µm across.','The largest known living thing is a honey fungus in Oregon: its hyphae spread under about 9 km² of forest and it may be thousands of years old.','Fungal cell walls are made of chitin, the same material as insect shells.'],
+      ['一个蘑菇能释放数十亿个孢子，每个孢子直径只有约 5～10 微米。','已知最大的生物是美国俄勒冈州的一株蜜环菌：它的菌丝在约 9 平方千米的森林地下蔓延，可能已活了几千年。','真菌的细胞壁由几丁质构成，和昆虫外壳的主要成分一样。'])
+};
 function renderInfo(){
   const box = Lab.$('#info'), k = App.sel;
   if (!k){
@@ -228,6 +270,7 @@ function renderInfo(){
     box.innerHTML = S ? `<span class="tag" style="color:${S.color};background:color-mix(in srgb,${S.color} 15%,transparent)">${Lab.L(S.group)}</span>
         <h3><span class="dot" style="background:${S.color}"></span>${Lab.L(S.name)}</h3><div class="job">${Lab.L(S.size)}</div>${window.REALFIG && REALFIG[App.spec] ? LabPhotos.figure(REALFIG[App.spec]) : ''}
         <p class="muted" style="margin:0">${Lab.L(o('Click a part of the model, or a chip below, to learn what it does.','点击模型的某个部分或下方的标签，了解它的作用。'))}</p>
+        ${DEEP[App.spec] ? `<div class="adv adv-box"><b>${Lab.L(o('Zoom deeper','深入一层'))}</b><ul style="margin:6px 0 0;padding-left:18px">${Lab.L(DEEP[App.spec]).map(f => `<li>${f}</li>`).join('')}</ul></div>` : ''}
         <div class="nav"><button id="startBtn">${Lab.L(o('First part ▶','第一个部分 ▶'))}</button></div>` :
       `<span class="tag">${Lab.L(o('Microscopic life','微观生命'))}</span>
         <h3>${Lab.L(o('Five tiny specimens','五个微小标本'))}</h3>
@@ -276,21 +319,48 @@ Lab.onLang(() => { renderSeg(); renderInfo(); renderChips(); renderTable(); });
 /* ===== Bacteria growth simulation =====
    Logistic growth with a temperature-dependent doubling time (20 min at 37 °C), a carrying capacity set by food,
    and a tiny resistant sub-population that survives the antibiotic. */
-const K = 1e9, N0 = 100;
-const G = { t:0, S:N0, R:.002, ab:false, abT:null, hist:[], playing:true, log:true, acc:0, lastMsg:'' };
+const K = 1e9, N0 = 100;   // Basic values
+const AD = { td:20, K:1e9, N0:100, won:false };   // 🚀 Advanced: doubling time at 37 °C, food limit, starting number
+const TD = () => Lab.adv() ? AD.td : 20, Kf = () => Lab.adv() ? AD.K : K, N0f = () => Lab.adv() ? AD.N0 : N0;
+const G = { t:0, S:N0, R:.002, E:N0, ab:false, abT:null, hist:[], playing:true, log:true, acc:0, lastMsg:'' };
 const fTemp = T => T <= 37 ? Math.max(0, 1 - Math.pow((37 - T) / 27, 2)) : Math.max(0, 1 - Math.pow((T - 37) / 9, 2));
 const sup = n => String(n).split('').map(c => '⁰¹²³⁴⁵⁶⁷⁸⁹'['0123456789'.indexOf(c)] || c).join('');
 const fmtN = n => { n = Math.max(0, Math.floor(n)); if (n < 10000) return String(n); let e = Math.floor(Math.log10(n)), m = n / Math.pow(10, e); if (m >= 9.95){ m /= 10; e++; } return m.toFixed(1) + '×10' + sup(e); };
 const COL = Array.from({length:42}, () => { const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * .8; return [Math.cos(a) * r, Math.sin(a) * r, .04 + Math.random() * .1]; });
 const DOTS = Array.from({length:1500}, (_, i) => { const c = COL[i % COL.length], a = Math.random() * Math.PI * 2, r = Math.random() * c[2]; return [c[0] + Math.cos(a) * r, c[1] + Math.sin(a) * r]; });
-function growReset(){ Object.assign(G, { t:0, S:N0, R:.002, ab:false, abT:null, hist:[{t:0, N:N0, R:0}], acc:0, lastMsg:'' }); Lab.$('#abBtn').disabled = false; growUI(); drawGrow(); }
+function growReset(){ Object.assign(G, { t:0, S:N0f(), R:.002, E:N0f(), full:null, off37:false, ab:false, abT:null, hist:[{t:0, N:N0f(), R:0, E:N0f()}], acc:0, lastMsg:'' }); Lab.$('#abBtn').disabled = false; growUI(); drawGrow(); }
 function growStep(){
-  const T = +Lab.$('#temp').value, f = fTemp(T), r = Math.LN2 / 20 * f, die = T > 47 ? .04 * (T - 47) : 0, N = G.S + G.R, room = 1 - N / K;
+  const T = +Lab.$('#temp').value, f = fTemp(T), r = Math.LN2 / TD() * f, die = T > 47 ? .04 * (T - 47) : 0, N = G.S + G.R, room = 1 - N / Kf();
+  G.E = Math.min(1e15, G.E * (1 + r));   // unlimited (exponential) growth for comparison
   G.S = Math.max(0, G.S + G.S * (r * room - die - (G.ab ? .09 : 0)));
   G.R = Math.max(0, G.R + G.R * (r * room - die));
   if (G.S < .5) G.S = 0;
   G.t++;
-  if (G.t % 5 === 0){ G.hist.push({ t:G.t, N:G.S + G.R, R:G.R }); if (G.hist.length > 400) G.hist.shift(); }
+  if (T !== 37) G.off37 = true;
+  if (G.full == null && G.S + G.R >= .9 * Kf()) G.full = G.t;   // 🎯 challenge timer
+  if (G.t % 5 === 0){ G.hist.push({ t:G.t, N:G.S + G.R, R:G.R, E:G.E }); if (G.hist.length > 400) G.hist.shift(); }
+}
+/* ===== 🚀 Advanced panel: N = N₀ × 2^(t/t_d), the food limit, and the 🎯 challenge ===== */
+const hm = m => Math.floor(m / 60) + ' h ' + String(Math.round(m % 60)).padStart(2, '0') + ' min';
+function growAdvUI(){
+  if (!Lab.adv()) return;
+  const L = Lab.L, T = +Lab.$('#temp').value, f = fTemp(T), td = f > 0 && T <= 47 ? TD() / f : null, n0 = N0f(), Kv = Kf();
+  const gens = Math.log2(Math.max(1, G.E) / n0), est = TD() * (Math.log2(Kv / n0) + 3);
+  Lab.$('#tdRead').textContent = AD.td + ' min'; Lab.$('#kRead').textContent = fmtN(AD.K); Lab.$('#n0Read').textContent = fmtN(AD.N0);
+  Lab.$('#gForm').innerHTML = `N = N₀ × 2<sup>n</sup>, n = t ÷ t<sub>d</sub><br>`
+    + `${L(o('Doubling time now','当前倍增时间'))}: t<sub>d</sub> = ${td ? Math.round(td) + ' min' : L(o('no growth','不生长'))} (${T} °C)<br>`
+    + `${L(o('Generations so far','已经繁殖的代数'))}: n ≈ ${gens.toFixed(1)}<br>`
+    + `${L(o('Unlimited food','食物无限时'))}: ${fmtN(n0)} × 2<sup>${gens.toFixed(1)}</sup> ≈ <b>${fmtN(G.E)}</b><br>`
+    + `${L(o('Real dish (food limit K = ','真实培养皿（食物上限 K = '))}${fmtN(Kv)}${L(o(')',')'))}: <b>${fmtN(G.S + G.R)}</b><br>`
+    + `<small>${L(o('Time to 90% full at 37 °C','37 °C 下长到 90% 满约需'))} ≈ t<sub>d</sub> × (log₂(K ÷ N₀) + 3) = ${TD()} × (${Math.log2(Kv / n0).toFixed(1)} + 3) ≈ ${hm(est)}. ${L(o('The “+3”: the last few doublings slow down as food runs out.','“+3”：食物快耗尽时，最后几次倍增会变慢。'))}</small>`;
+  let m, cls = 'result';
+  if (G.full != null){
+    const ok = G.full >= 240 && G.full <= 300 && !G.ab && !G.off37;
+    if (ok){ m = o('🎉 90% full at ' + hm(G.full) + '. You used exponential growth like a microbiologist!','🎉 在 ' + hm(G.full) + ' 时达到 90% 满。你像微生物学家一样运用了指数增长！'); cls += ' good'; }
+    else if (G.ab || G.off37) m = o('The dish filled at ' + hm(G.full) + ', but the rules say 37 °C and no antibiotic. Restart and try again.','培养皿在 ' + hm(G.full) + ' 时满了，但规则要求保持 37 °C、不加抗生素。重新开始再试一次。');
+    else m = o('90% full at ' + hm(G.full) + ': too ' + (G.full < 240 ? 'early. Make it slower (longer t_d, more room or fewer to start).' : 'late. Make it faster (shorter t_d, smaller K or more to start).') + ' Then Restart.','在 ' + hm(G.full) + ' 时达到 90% 满：太' + (G.full < 240 ? '早了。让它慢一些（更长的 t_d、更大的 K 或更少的起始数量）。' : '晚了。让它快一些（更短的 t_d、更小的 K 或更多的起始数量）。') + '然后点“重新开始”。');
+  } else m = o('Your estimate now: about ' + hm(est) + '. Target: 4 h 00 min – 5 h 00 min. Press Restart to test it.','你现在的估算：约 ' + hm(est) + '。目标：4 小时～5 小时。点“重新开始”来检验。');
+  const el = Lab.$('#gChal'); el.textContent = L(m); el.className = cls;
 }
 function growUI(){
   const T = +Lab.$('#temp').value, f = fTemp(T), N = G.S + G.R;
@@ -299,7 +369,7 @@ function growUI(){
   Lab.$('#spdRead').textContent = (+Lab.$('#spd').value * 6) + ' ' + Lab.L(o('min/s','分钟/秒'));
   Lab.$('#gTime').textContent = Math.floor(G.t / 60) + ':' + String(G.t % 60).padStart(2, '0');
   Lab.$('#gPop').textContent = fmtN(N);
-  Lab.$('#gDbl').textContent = f > 0 && T <= 47 ? Math.round(20 / f) + ' min' : Lab.L(o('no growth','不生长'));
+  Lab.$('#gDbl').textContent = f > 0 && T <= 47 ? Math.round(TD() / f) + ' min' : Lab.L(o('no growth','不生长'));
   Lab.$('#gRes').textContent = fmtN(G.R);
   let m, cls = 'result';
   if (N < 1){ m = o('☠️ All the bacteria are dead.','☠️ 所有细菌都死了。'); cls += ' bad'; }
@@ -307,11 +377,12 @@ function growUI(){
   else if (G.ab){ m = o('💊 The antibiotic is killing the normal bacteria…','💊 抗生素正在杀死普通细菌……'); }
   else if (T > 47){ m = o('🔥 Too hot: the bacteria’s proteins break down and they die. That is why cooking makes food safe.','🔥 太热了：细菌的蛋白质被破坏而死亡。所以把食物煮熟更安全。'); cls += ' bad'; }
   else if (f < .15){ m = o('🧊 Too cold: growth almost stops. That is why fridges keep food fresh longer.','🧊 太冷了：几乎停止生长。所以冰箱能让食物保鲜更久。'); }
-  else if (N > K * .9){ m = o('🍽️ The dish is full: food and space have run out, so growth levels off.','🍽️ 培养皿满了：食物和空间耗尽，数量不再增长。'); cls += ' good'; }
+  else if (N > Kf() * .9){ m = o('🍽️ The dish is full: food and space have run out, so growth levels off.','🍽️ 培养皿满了：食物和空间耗尽，数量不再增长。'); cls += ' good'; }
   else if (T >= 30 && T <= 40){ m = o('📈 Near body temperature: perfect for these bacteria. Watch the numbers double!','📈 接近体温：这些细菌最喜欢的温度。看数量不断翻倍！'); cls += ' good'; }
   else m = o('🐢 Growing, but slower than at body temperature.','🐢 在生长，但比在体温下慢。');
   const el = Lab.$('#growMsg'); el.textContent = Lab.L(m); el.className = cls;
   Lab.$('#growPlay').textContent = Lab.L(G.playing ? o('⏸ Pause','⏸ 暂停') : o('▶ Play','▶ 继续'));
+  growAdvUI();
 }
 function drawGrow(){
   const cv = Lab.$('#growCv'), r = cv.getBoundingClientRect(); if (!r.width) return;
@@ -331,14 +402,20 @@ function drawGrow(){
   const L = wide ? cx + R0 + 60 : 52, Rr = W - 14, T = wide ? 26 : cy + R0 + 40, B = H - 30;
   g.strokeStyle = line; g.strokeRect(L, T, Rr - L, B - T);
   const tMax = Math.max(360, G.t), xOf = t => L + (Rr - L) * t / tMax;
-  const yOf = v => G.log ? B - (B - T) * Math.log10(Math.max(1, v)) / 9 : B - (B - T) * Math.min(1, v / K);
+  const top = Lab.adv() ? 12 : 9;   // 🚀 Advanced: room above 10⁹ to see the unlimited curve keep going
+  const yOf = v => G.log ? B - (B - T) * Math.log10(Math.max(1, v)) / top : B - (B - T) * Math.min(1, v / Kf());
   g.fillStyle = ink2; g.textAlign = 'right';
-  if (G.log) for (let e = 0; e <= 9; e += 3){ const y = yOf(Math.pow(10, e)); g.fillText('10' + sup(e), L - 5, y); g.strokeStyle = line; g.beginPath(); g.moveTo(L, y); g.lineTo(Rr, y); g.stroke(); }
-  else for (const v of [0, .5, 1]){ const y = yOf(v * K); g.fillText(v ? fmtN(v * K) : '0', L - 5, y); g.beginPath(); g.moveTo(L, y); g.lineTo(Rr, y); g.stroke(); }
+  if (G.log) for (let e = 0; e <= top; e += 3){ const y = yOf(Math.pow(10, e)); g.fillText('10' + sup(e), L - 5, y); g.strokeStyle = line; g.beginPath(); g.moveTo(L, y); g.lineTo(Rr, y); g.stroke(); }
+  else for (const v of [0, .5, 1]){ const y = yOf(v * Kf()); g.fillText(v ? fmtN(v * Kf()) : '0', L - 5, y); g.beginPath(); g.moveTo(L, y); g.lineTo(Rr, y); g.stroke(); }
   g.textAlign = 'center';
   for (let h = 0; h <= tMax / 60; h += tMax > 900 ? 4 : 2) g.fillText(h + 'h', xOf(h * 60), B + 12);
   if (G.abT != null){ g.strokeStyle = '#4f8ff0'; g.setLineDash([5, 4]); g.beginPath(); g.moveTo(xOf(G.abT), T); g.lineTo(xOf(G.abT), B); g.stroke(); g.setLineDash([]); g.fillStyle = '#4f8ff0'; g.fillText('💊', xOf(G.abT), T + 10); }
   const plot = (key, col) => { g.strokeStyle = col; g.lineWidth = 2.5; g.beginPath(); let s = false; G.hist.forEach(h => { const v = h[key]; if (key === 'R' && v < 1){ s = false; return; } const x = xOf(h.t), y = yOf(v); s ? g.lineTo(x, y) : g.moveTo(x, y); s = true; }); g.stroke(); g.lineWidth = 1; };
+  if (Lab.adv() && G.log){   // 🚀 dashed: the same bacteria with unlimited food (pure exponential growth)
+    g.save(); g.beginPath(); g.rect(L, T, Rr - L, B - T); g.clip(); g.setLineDash([6, 5]); plot('E', ink2); g.restore();
+    g.fillStyle = ink2; g.textAlign = 'left'; g.fillText('- - ' + Lab.L(o('unlimited food: N₀ × 2ⁿ','食物无限：N₀ × 2ⁿ')), L + 8, T + 44);
+    const yk = yOf(Kf()); g.strokeStyle = '#2fb36d'; g.setLineDash([2, 4]); g.beginPath(); g.moveTo(L, yk); g.lineTo(Rr, yk); g.stroke(); g.setLineDash([]); g.fillStyle = '#2fb36d'; g.textAlign = 'right'; g.fillText('K', Rr - 6, yk - 8);
+  }
   plot('N', brand); plot('R', bad);
   g.textAlign = 'left'; g.fillStyle = brand; g.fillText('● ' + Lab.L(o('all bacteria','全部细菌')), L + 8, T + 12); g.fillStyle = bad; g.fillText('● ' + Lab.L(o('resistant','耐药细菌')), L + 8, T + 28);
   g.fillStyle = ink2; g.textAlign = 'right'; g.fillText(Lab.L(G.log ? o('log scale','对数刻度') : o('linear scale','线性刻度')), Rr - 6, T + 12);
@@ -358,6 +435,10 @@ Lab.$('#growReset').onclick = growReset;
 Lab.$("#abBtn").onclick = () => { if (G.ab) return; if (G.R < 1) G.R = 0; G.ab = true; G.abT = G.t; Lab.$('#abBtn').disabled = true; growUI(); drawGrow(); };
 Lab.$('#logBtn').onclick = () => { G.log = !G.log; drawGrow(); };
 Lab.$('#temp').oninput = growUI; Lab.$('#spd').oninput = growUI;
+Lab.$('#advTd').oninput = e => { AD.td = +e.target.value; growUI(); };
+Lab.$('#advK').oninput = e => { AD.K = Math.round(Math.pow(10, +e.target.value)); growUI(); drawGrow(); };
+Lab.$('#advN0').oninput = e => { AD.N0 = Math.pow(10, +e.target.value); growUI(); };
+Lab.onMode(() => { if (G.hist.length) growReset(); });   // switching mode restarts the dish with that mode’s settings
 new ResizeObserver(drawGrow).observe(Lab.$('#growCv').parentElement);
 addEventListener('labtheme', drawGrow); matchMedia('(prefers-color-scheme: dark)').addEventListener('change', drawGrow);
 Lab.onLang(() => { if (!G.hist.length) growReset(); growUI(); drawGrow(); });

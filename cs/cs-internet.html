@@ -101,12 +101,30 @@ table.lab td b{font-family:Fredoka}
   </div>
   <div class="explorer">
     <div class="stage card" id="netStage">
+      <div class="lab-mode" style="margin:12px 14px 0"></div>
       <svg id="netSvg" viewBox="0 0 1000 560" role="img" aria-label="Network map"></svg>
       <div class="netbar">
         <select id="msgSel" aria-label="Message"></select>
         <button class="btn" id="sendBtn" data-zh="📨 发送">📨 Send</button>
         <button class="btn ghost" id="stormBtn" data-zh="⚡ 随机剪断一条线">⚡ Cut a random line</button>
         <button class="btn ghost" id="fixBtn" data-zh="🔧 全部修好">🔧 Repair all</button>
+      </div>
+      <div class="adv adv-box" id="netAdv" style="margin:0 14px 14px;display:flex;flex-direction:column;gap:10px">
+        <b data-zh="进阶：丢包与重传、数据包大小、最快路线的计算">Advanced: packet loss &amp; resending, packet size, the fastest route in numbers</b>
+        <div class="grid2" style="gap:12px">
+          <label class="ctl"><span data-zh="每一跳的丢包率 p">Loss rate per hop p</span> <b id="aLossOut">5%</b><input type="range" id="aLoss" min="0" max="30" value="5"></label>
+          <label class="ctl"><span data-zh="每个数据包装几个字符">Characters per packet</span> <b id="aSizeOut">2</b><input type="range" id="aSize" min="1" max="6" value="2"></label>
+        </div>
+        <div id="aRoute" style="font-size:14.5px;line-height:1.55"></div>
+        <div id="aLossTxt" style="font-size:14.5px;line-height:1.55"></div>
+        <div id="aSizeTxt" style="font-size:14.5px;line-height:1.55"></div>
+        <div id="aChart" data-nofs></div>
+        <div id="aMeas" class="muted" style="font-size:13.5px"></div>
+        <div style="border-top:1px solid var(--line);padding-top:8px">
+          <b data-zh="🎯 挑战">🎯 Challenge</b> <span id="nChTxt"></span>
+          <div class="btnrow" style="margin-top:6px;align-items:center"><input id="nChIn" type="number" min="0" max="100" style="width:110px;border:2px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:10px;padding:6px 10px;font:700 16px Nunito,sans-serif" aria-label="Answer"><button class="btn" id="nChCheck" data-zh="检查">Check</button><button class="btn ghost" id="nChNew" data-zh="换一题">New challenge</button></div>
+          <div class="result" id="nChMsg"></div>
+        </div>
       </div>
     </div>
     <aside class="info card" id="info" aria-live="polite"></aside>
@@ -317,7 +335,8 @@ const CNNIC = { y:[1997, 2000, 2005, 2010, 2015, 2020, 2024], n:[0.0062, 0.225, 
 /* ================= Sim 1: packet network ================= */
 const NS = 'http://www.w3.org/2000/svg';
 const mk = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
-const Net = { cut:new Set(), down:new Set(), sel:null, pk:[], arrived:[], sent:0, lost:0, hopSum:0, msg:MSGS[0], parts:[], waiting:[], last:0, stuck:false };
+const Net = { cut:new Set(), down:new Set(), sel:null, pk:[], arrived:[], sent:0, lost:0, hopSum:0, msg:MSGS[0], parts:[], waiting:[], last:0, stuck:false, tries:{} };
+const NA = { loss:5, size:2, ch:0, ready:false };   /* 🚀 Advanced-mode settings */
 const eKey = (a, b) => a < b ? a + '|' + b : b + '|' + a;
 function dijkstra(from, to, noise, graph){
   const g = graph || { nodes:Object.keys(NODES), edges:EDGES.filter(e => !Net.cut.has(eKey(e[0], e[1])) && !Net.down.has(e[0]) && !Net.down.has(e[1])) };
@@ -366,6 +385,7 @@ function paint(){
   Object.entries(NODES).forEach(([k, n]) => { n.el.classList.toggle('down', Net.down.has(k)); n.el.classList.toggle('sel', !!(Net.sel && Net.sel.node === k)); n.lb.textContent = Lab.L(n.n); });
   Lab.$('#oceanLab').textContent = Lab.L(o('PACIFIC OCEAN · undersea cables', '太平洋 · 海底光缆'));
   Lab.$('#mapNote').textContent = Lab.L(o('Schematic — not to scale; delays approximate', '示意图——不按比例，延迟为约数'));
+  advNet();
 }
 function renderInfo(){
   const s = Net.sel, K = KINDS[s ? s.kind : 'intro'], box = Lab.$('#info');
@@ -385,7 +405,7 @@ function renderInfo(){
   Lab.$('#introBtn').onclick = () => { Net.sel = null; paint(); renderInfo(); };
   Lab.$('#routerBtn').onclick = () => { Net.sel = { kind:'router', node:'chi' }; paint(); renderInfo(); };
 }
-function splitMsg(){ const m = Lab.L(Net.msg), chars = [...m], parts = []; for (let i = 0; i < chars.length; i += 2) parts.push(chars.slice(i, i + 2).join('')); return parts; }
+function splitMsg(){ const m = Lab.L(Net.msg), chars = [...m], parts = [], sz = Lab.adv() ? NA.size : 2; for (let i = 0; i < chars.length; i += sz) parts.push(chars.slice(i, i + sz).join('')); return parts; }
 function renderSlots(){
   const got = new Set(Net.arrived.map(a => a.n));
   Lab.$('#slots').innerHTML = Net.parts.map((p, i) => `<span class="${got.has(i + 1) ? 'in' : ''}"><small>#${i + 1}</small>${got.has(i + 1) ? p.replace(/ /g, '␣') : '?'}</span>`).join('');
@@ -396,13 +416,14 @@ function renderSlots(){
   Lab.$('#arrlog').textContent = t;
   Lab.$('#cSent').textContent = Net.sent; Lab.$('#cArr').textContent = Net.arrived.length; Lab.$('#cLost').textContent = Net.lost;
   Lab.$('#cHops').textContent = Net.arrived.length ? (Net.hopSum / Net.arrived.length).toFixed(1) : '—';
+  advNet();
 }
 function launch(n){
   const g = mk('g', { class:'pk' }, gPk); mk('rect', { x:-17, y:-12, width:34, height:24, rx:6 }, g); const t = mk('text', { 'text-anchor':'middle', y:5 }, g); t.textContent = '#' + n;
-  Net.pk.push({ n, at:'you', to:null, t:0, hops:0, ms:0, el:g, wait:0 }); Net.sent++;
+  Net.pk.push({ n, at:'you', to:null, t:0, hops:0, ms:0, el:g, wait:0 }); Net.sent++; Net.tries[n] = (Net.tries[n] || 0) + 1;
 }
 function send(){
-  Net.pk.forEach(p => p.el.remove()); Net.pk = []; Net.arrived = []; Net.sent = 0; Net.lost = 0; Net.hopSum = 0; Net.waiting = []; Net.stuck = false;
+  Net.pk.forEach(p => p.el.remove()); Net.pk = []; Net.arrived = []; Net.sent = 0; Net.lost = 0; Net.hopSum = 0; Net.waiting = []; Net.stuck = false; Net.tries = {};
   Net.msg = MSGS[+Lab.$('#msgSel').value]; Net.parts = splitMsg();
   Net.parts.forEach((_, i) => Net.waiting.push({ n:i + 1, delay:i * 0.15 }));
   renderSlots();
@@ -432,7 +453,8 @@ function tick(dt){
     p.t += dt / (p.edge[2] * 0.03);
     const a = NODES[p.at], b = NODES[p.to], f = Math.min(1, p.t);
     p.el.setAttribute('transform', `translate(${a.x + (b.x - a.x) * f},${a.y + (b.y - a.y) * f - 2})`);
-    if (p.t >= 1){ p.ms += p.edge[2]; p.hops++; p.at = p.to; p.to = null; }
+    if (p.t >= 1){ if (Lab.adv() && NA.loss > 0 && Math.random() < NA.loss / 100){ lose(p); return; }   /* 🚀 Advanced: random loss on each hop */
+      p.ms += p.edge[2]; p.hops++; p.at = p.to; p.to = null; }
   });
   const was = Net.stuck; Net.stuck = blockedAll && Net.pk.length > 0; if (was !== Net.stuck) renderSlots();
 }
@@ -442,6 +464,74 @@ Lab.$('#fixBtn').onclick = () => { Net.cut.clear(); Net.down.clear(); retryWaiti
 function fillMsgSel(){ const v = Lab.$('#msgSel').value || 0; Lab.$('#msgSel').innerHTML = MSGS.map((m, i) => `<option value="${i}">${Lab.L(o('Message: ', '消息：'))}${Lab.L(m)}</option>`).join(''); Lab.$('#msgSel').value = v; }
 buildNet();
 Net.parts = splitMsg();
+
+/* ---------- 🚀 Advanced mode for Sim 1: loss & resending, packet size & header overhead, fastest-route sum, measured delay of every packet ---------- */
+const tenc = new TextEncoder();
+const NCH = [
+  { q:o('Cut ONE cable so that the fastest route to Beijing goes through Seattle.', '只剪断一条线路，让去北京的最快路线经过西雅图。'),
+    check:r => Net.cut.size === 1 && Net.down.size === 0 && !!r && r.path.includes('sea'),
+    hint:o('Right now the fastest way leaves the US from Los Angeles. Which single cable would make Seattle the better choice? (“Repair all” starts again.)', '现在最快的路线从洛杉矶离开美国。剪断哪一条线，西雅图就会变成更好的选择？（点“全部修好”可以重来。）') },
+  { q:o('Make the fastest route take at least 140 ms — but Beijing must still be reachable.', '让最快路线的延迟至少达到140毫秒——但北京必须仍然连得上。'),
+    check:r => !!r && r.d >= 140,
+    hint:o('Cut cables or switch off routers one at a time and watch the delay sum above. If Beijing is cut off, repair one.', '一次剪断一条线或关掉一个路由器，看上面的延迟加法。如果北京连不上了，就修好一条。') },
+  { q:o('Set the loss rate to 10%. About what percent of packets get through the current fastest route on the first try? (Whole number.)', '把丢包率设为10%。沿着当前最快路线，大约百分之几的数据包能一次送到？（填整数）'), input:true,
+    check:r => NA.loss === 10 && !!r && Math.abs(+Lab.$('#nChIn').value - Math.round(100 * 0.9 ** (r.path.length - 1))) <= 1,
+    hint:o('Set p to 10% first. Then use (1 − p)ʰ with p = 0.10 and h = the number of hops on the fastest route.', '先把 p 设为10%。再用 (1 − p)ʰ 计算，其中 p = 0.10，h 是最快路线的跳数。') },
+  { q:o('Choose the characters per packet so that “SEE YOU ONLINE” is split into exactly 4 packets.', '调整每个数据包装的字符数，使“SEE YOU ONLINE”正好分成4个数据包。'),
+    check:() => Math.ceil(14 / NA.size) === 4,
+    hint:o('“SEE YOU ONLINE” has 14 characters (spaces count). Packets = 14 ÷ size, rounded up.', '“SEE YOU ONLINE”有14个字符（空格也算）。数据包个数 = 14 ÷ 每包字符数，向上取整。') }
+];
+const hopName = k => k === 'you' ? Lab.L(o('You', '你')) : k === 'bj' ? Lab.L(o('Beijing', '北京')) : k === 'wifi' ? 'Wi-Fi' : k === 'atl' ? Lab.L(o('ISP Atlanta', '亚特兰大ISP')) : Lab.L(NODES[k].n);
+const netIdle = () => !Net.pk.length && !Net.waiting.length;
+function prepParts(){ Net.msg = MSGS[+Lab.$('#msgSel').value || 0]; Net.parts = splitMsg(); Net.arrived = []; Net.sent = 0; Net.lost = 0; Net.hopSum = 0; Net.tries = {}; renderSlots(); }
+function advNet(){
+  if (!NA.ready || !Lab.adv()) return;
+  Lab.$('#aLossOut').textContent = NA.loss + '%'; Lab.$('#aSizeOut').textContent = NA.size;
+  const r = dijkstra('you', 'bj', 0), p = NA.loss / 100;
+  let h = 0;
+  if (!r) Lab.$('#aRoute').innerHTML = Lab.L(o('⛔ <b>No route to Beijing right now</b> — repair a cable or switch a router back on.', '⛔ <b>现在没有通往北京的路线</b>——修好一条线路或恢复一个路由器。'));
+  else {
+    const ds = r.path.slice(1).map((k, i) => EDGES.find(e => eKey(e[0], e[1]) === eKey(r.path[i], k))[2]); h = ds.length;
+    Lab.$('#aRoute').innerHTML = Lab.L(o(`<b>Fastest route now</b> (${h} hops — what Dijkstra’s shortest-path algorithm finds): ${r.path.map(hopName).join(' → ')}<br>Delay = ${ds.join(' + ')} = <b>${r.d} ms</b> one way · round trip (“ping”) ≈ 2 × ${r.d} = <b>${2 * r.d} ms</b>`,
+      `<b>当前最快路线</b>（${h}跳——用迪杰斯特拉最短路径算法求出）：${r.path.map(hopName).join(' → ')}<br>延迟 = ${ds.join(' + ')} = <b>${r.d} 毫秒</b>（单程）· 往返（“ping”）≈ 2 × ${r.d} = <b>${2 * r.d} 毫秒</b>`));
+  }
+  const P = (1 - p) ** h;
+  Lab.$('#aLossTxt').innerHTML = !r ? '' : p === 0
+    ? Lab.L(o('With p = 0 every packet arrives on the first try. Real networks do lose a small share of packets, especially on busy or wireless links — slide p up.', 'p = 0 时，每个数据包都能一次送到。真实网络总会丢掉一小部分数据包，尤其是在拥挤或无线的线路上——把 p 调大试试。'))
+    : Lab.L(o(`Chance one packet survives all ${h} hops = (1 − p)ʰ = ${(1 - p).toFixed(2)}${sup(h)} ≈ <b>${P.toFixed(2)}</b> → about <b>${Math.round(P * 100)}%</b> arrive on the first try; on average each packet is sent about 1 ÷ ${P.toFixed(2)} ≈ <b>${(1 / P).toFixed(1)}</b> times. TCP notices a missing packet (no acknowledgement comes back) and sends it again.`,
+      `一个数据包闯过全部${h}跳的概率 = (1 − p)ʰ = ${(1 - p).toFixed(2)}${sup(h)} ≈ <b>${P.toFixed(2)}</b> → 约 <b>${Math.round(P * 100)}%</b> 能一次送到；平均每个数据包要发送约 1 ÷ ${P.toFixed(2)} ≈ <b>${(1 / P).toFixed(1)}</b> 次。TCP 发现某个数据包没有收到“确认”，就会重发它。`));
+  const m = Lab.L(MSGS[+Lab.$('#msgSel').value || 0]), nc = [...m].length, nb = tenc.encode(m).length, np = Math.ceil(nc / NA.size), tot = nb + np * 40, pct = Math.round(nb / tot * 100);
+  Lab.$('#aSizeTxt').innerHTML = Lab.L(o(`“${m}”: ${nc} characters = ${nb} bytes (UTF-8) → ${nc} ÷ ${NA.size}, rounded up = <b>${np} packets</b>. Each packet also carries about 40 bytes of headers (IP 20: the addresses · TCP 20: packet number, checks). Total ≈ ${nb} + ${np} × 40 = <b>${tot} bytes</b> — only <b>${pct}%</b> is your message. Real packets carry up to about 1,460 bytes of data each, so headers are a small extra; but a big lost packet costs more to resend.`,
+    `“${m}”：${nc}个字符 = ${nb}字节（UTF-8）→ ${nc} ÷ ${NA.size}，向上取整 = <b>${np}个数据包</b>。每个数据包还要带约40字节的“包头”（IP 20字节：地址 · TCP 20字节：编号、校验）。总共约 ${nb} + ${np} × 40 = <b>${tot}字节</b>——你的消息只占 <b>${pct}%</b>。真实的数据包每个最多装约1460字节数据，包头只是一小部分；但大数据包丢了，重发的代价也更大。`));
+  /* measured delay of every packet that arrived */
+  const N = Math.max(1, Net.parts.length), W = 520, H = 120, Lm = 34, B = 16, T = 8, got = {}; Net.arrived.forEach(a => got[a.n] = a);
+  const mx = Math.max(r ? r.d * 1.4 : 100, ...Net.arrived.map(a => a.ms), 1), y = v => T + (mx - v) / mx * (H - T - B), bw = (W - Lm - 4) / N, step = mx > 300 ? 100 : 50;
+  let s = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img" aria-label="${Lab.L(o('Trip delay of each packet', '每个数据包的传输延迟'))}">`;
+  for (let v = 0; v <= mx; v += step) s += `<line x1="${Lm}" x2="${W - 4}" y1="${y(v)}" y2="${y(v)}" style="stroke:var(--line)"/><text x="${Lm - 4}" y="${y(v) + 3}" text-anchor="end" font-size="9" style="fill:var(--ink-2)">${v}</text>`;
+  for (let i = 1; i <= Net.parts.length; i++){ const a = got[i], x = Lm + (i - 1) * bw;
+    if (a) s += `<rect x="${x + bw * .15}" y="${y(a.ms)}" width="${bw * .7}" height="${y(0) - y(a.ms)}" rx="2" style="fill:${(Net.tries[i] || 1) > 1 ? 'var(--accent)' : 'var(--brand)'}"/>`;
+    if (bw >= 16) s += `<text x="${x + bw / 2}" y="${H - 4}" text-anchor="middle" font-size="9" font-weight="800" style="fill:var(--ink-2)">#${i}</text>`; }
+  if (r) s += `<line x1="${Lm}" x2="${W - 4}" y1="${y(r.d)}" y2="${y(r.d)}" stroke-dasharray="5 4" style="stroke:var(--good);stroke-width:1.5"/><text x="${W - 6}" y="${y(r.d) - 4}" text-anchor="end" font-size="10" font-weight="800" style="fill:var(--good)">${Lab.L(o(`fastest possible ${r.d} ms`, `理论最快 ${r.d} 毫秒`))}</text>`;
+  if (!Net.arrived.length) s += `<text x="${W / 2}" y="${H / 2}" text-anchor="middle" font-size="12" font-weight="700" style="fill:var(--ink-2)">${Lab.L(o('Press 📨 Send to measure every packet’s trip (ms)', '按 📨 发送，测量每个数据包的旅程（毫秒）'))}</text>`;
+  Lab.$('#aChart').innerHTML = s + '</svg>';
+  const avg = Net.arrived.length ? Math.round(Net.arrived.reduce((t, a) => t + a.ms, 0) / Net.arrived.length) : null;
+  Lab.$('#aMeas').innerHTML = Lab.L(o(`Bars: trip delay (ms) of the copy of each packet that arrived — <span style="color:var(--brand);font-weight:800">first try</span> or <span style="color:var(--accent);font-weight:800">resent</span>.`, `柱子：每个数据包最终送达的那一份的延迟（毫秒）——<span style="color:var(--brand);font-weight:800">一次送达</span>或<span style="color:var(--accent);font-weight:800">重发后送达</span>。`))
+    + (avg !== null ? ' ' + Lab.L(o(`Average ${avg} ms over ${Net.arrived.length} packets; ${Net.sent} packets sent in all (${Net.lost} resent). Some take slower roads because routers react to changing traffic (random here).`, `${Net.arrived.length}个数据包平均 ${avg} 毫秒；一共发出${Net.sent}个数据包（重发${Net.lost}个）。有些数据包走了较慢的路，因为路由器会根据变化的流量改道（这里用随机数模拟）。`)) : '');
+  const C = NCH[NA.ch]; Lab.$('#nChTxt').textContent = Lab.L(C.q); Lab.$('#nChIn').hidden = !C.input;
+}
+const SUPD = { '0':'⁰', '1':'¹', '2':'²', '3':'³', '4':'⁴', '5':'⁵', '6':'⁶', '7':'⁷', '8':'⁸', '9':'⁹' };
+const sup = n => String(n).split('').map(c => SUPD[c] || c).join('');
+Lab.$('#aLoss').oninput = () => { NA.loss = +Lab.$('#aLoss').value; advNet(); };
+Lab.$('#aSize').oninput = () => { NA.size = +Lab.$('#aSize').value; if (netIdle()) prepParts(); advNet(); };
+Lab.$('#msgSel').addEventListener('change', advNet);
+Lab.$('#nChNew').onclick = () => { NA.ch = (NA.ch + 1) % NCH.length; Lab.$('#nChIn').value = ''; Lab.$('#nChMsg').textContent = ''; Lab.$('#nChMsg').className = 'result'; advNet(); };
+Lab.$('#nChCheck').onclick = () => {
+  const C = NCH[NA.ch], ok = C.check(dijkstra('you', 'bj', 0)), el = Lab.$('#nChMsg');
+  el.className = 'result ' + (ok ? 'good' : 'bad');
+  el.textContent = Lab.L(ok ? o('🎉 Yes — challenge solved! Try “New challenge”.', '🎉 成功完成挑战！试试“换一题”。') : o(`Not yet. 💡 ${C.hint.en}`, `还不对。💡 ${C.hint.zh}`));
+};
+NA.ready = true;
+Lab.onMode(() => { if (netIdle()) prepParts(); advNet(); });
 
 /* ================= Sim 2: DNS ================= */
 const DNS = { cache:new Map(), busy:false, timers:[] };
@@ -642,9 +732,15 @@ const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/94/Wikimedia_Foundation_Servers-8055_13.jpg/960px-Wikimedia_Foundation_Servers-8055_13.jpg', en:'Racks of servers belonging to the Wikimedia Foundation, which runs Wikipedia. When you open a web page, a server like these sends it.', zh:'维基媒体基金会（运营维基百科）的服务器机柜。你打开网页时，就是这样的服务器把它发给你。', kind:o('Data center','数据中心'), credit:'Victorgrigas', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Wikimedia_Foundation_Servers-8055_13.jpg' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f5/Data_center_roof.jpg/960px-Data_center_roof.jpg', en:'The roof of a data center, with cooling towers and backup generators — thousands of computers make a lot of heat and must never lose power.', zh:'数据中心的屋顶：冷却塔和备用发电机——成千上万台计算机会产生大量热量，而且绝不能断电。', kind:o('Data center','数据中心'), credit:'Rsparks3', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Data_center_roof.jpg' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e5/Network_switches.jpg/960px-Network_switches.jpg', en:'Two network switches with copper Ethernet (Cat5) cables — the kind of box that links computers inside a school or office.', zh:'两台网络交换机和铜质网线（五类线）——学校和办公室里就是用这种设备把计算机连起来的。', kind:o('Photo','照片'), credit:'ShakataGaNai', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Network_switches.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bf/Arpanet_logical_map%2C_march_1977.png/960px-Arpanet_logical_map%2C_march_1977.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A map of ARPANET, the network that grew into the internet, in March 1977. Every computer on it fits on one page!', zh:'1977年3月的ARPANET（阿帕网）连接图。阿帕网后来发展成了互联网——当时网上的所有计算机一页纸就画得下！', kind:o('Historic map','历史地图'), credit:'ARPANET', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Arpanet_logical_map,_march_1977.png' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d1/First_Web_Server.jpg/960px-First_Web_Server.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The NeXT computer Tim Berners-Lee used at CERN as the world’s first web server (1990). The sticker says: “This machine is a server. DO NOT POWER IT DOWN!!”', zh:'蒂姆·伯纳斯-李在欧洲核子研究中心用作世界上第一台网页服务器的NeXT计算机（1990年）。贴纸上写着：“这台机器是服务器，不要关机！！”', kind:o('Museum object','博物馆藏品'), credit:'User:Coolcaesar at en.wikipedia', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:First_Web_Server.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c8/Tim_Berners-Lee_April_2009.jpg/960px-Tim_Berners-Lee_April_2009.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Tim Berners-Lee (2009), who invented the World Wide Web — web pages, links and HTTP — in 1989–1991.', zh:'蒂姆·伯纳斯-李（2009年）。他在1989—1991年发明了万维网——网页、超链接和HTTP协议。', kind:o('Portrait','肖像'), credit:'Enrique Dans from Madrid, Spain', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Tim_Berners-Lee_April_2009.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/34/Linksys-Wireless-G-Router.jpg/960px-Linksys-Wireless-G-Router.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A home Wi-Fi router. It turns data into radio waves for your devices and passes packets between your home network and the internet.', zh:'家用Wi-Fi路由器。它把数据变成无线电波发给你的设备，并在家庭网络和互联网之间转发数据包。', kind:o('Photo','照片'), credit:'Evan-Amos', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Linksys-Wireless-G-Router.jpg' },
   { type:'youtube', yt:'AYdF7b3nMto', en:'Video: “The Internet: Packets, Routing & Reliability” — from Code.org’s “How the Internet Works” series.', zh:'视频：《互联网：数据包、路由与可靠性》——Code.org“互联网是怎样工作的”系列（英文）。', kind:{en:'Video',zh:'视频'}, credit:'CodeAI / Code.org (YouTube)', license:'YouTube' },
   { type:'youtube', yt:'5o8CwafCxnU', en:'Video: “The Internet: IP Addresses & DNS” — from Code.org’s “How the Internet Works” series.', zh:'视频：《互联网：IP地址与域名系统》——Code.org“互联网是怎样工作的”系列（英文）。', kind:{en:'Video',zh:'视频'}, credit:'CodeAI / Code.org (YouTube)', license:'YouTube' },
-  { type:'youtube', yt:'ZhEf7e4kopM', en:'Video: “The Internet: Wires, Cables & Wifi” — from Code.org’s “How the Internet Works” series.', zh:'视频：《互联网：电线、光缆与Wi-Fi》——Code.org“互联网是怎样工作的”系列（英文）。', kind:{en:'Video',zh:'视频'}, credit:'CodeAI / Code.org (YouTube)', license:'YouTube' }
+  { type:'youtube', yt:'ZhEf7e4kopM', en:'Video: “The Internet: Wires, Cables & Wifi” — from Code.org’s “How the Internet Works” series.', zh:'视频：《互联网：电线、光缆与Wi-Fi》——Code.org“互联网是怎样工作的”系列（英文）。', kind:{en:'Video',zh:'视频'}, credit:'CodeAI / Code.org (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'kBXQZMmiA4s', en:'Video: “The Internet: HTTP & HTML” — from Code.org’s “How the Internet Works” series.', zh:'视频：《互联网：HTTP与HTML》——Code.org“互联网是怎样工作的”系列（英文）。', kind:{en:'Video',zh:'视频'}, credit:'CodeAI / Code.org (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'AEaKrq3SpW8', en:'Video: “The Internet” — Crash Course Computer Science #29.', zh:'视频：《互联网》——Crash Course计算机科学第29集（英文）。', kind:{en:'Video',zh:'视频'}, credit:'CrashCourse (YouTube)', license:'YouTube' }
 ];
 LabPhotos.render('#gallery', PHOTOS, { title:o('See the real thing', '看一看真实的互联网'), sub:o('The internet is very physical: cables, ships, buildings full of computers. Click a picture to enlarge it.', '互联网其实非常“实在”：线缆、轮船、装满计算机的大楼。点击图片可以放大。') });
 function renderLinks(){ Lab.$('#links').innerHTML = LINKS.map(l => `<a class="linkcard" href="${l.u}" target="_blank" rel="noopener"><b>${Lab.L(l.t)}</b><span>${Lab.L(l.d)}</span><small>${l.s} ↗</small></a>`).join(''); }

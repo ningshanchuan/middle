@@ -47,12 +47,25 @@
   <div class="ma-explore">
     <div class="ma-stage explore-stage" id="exStage" data-fs></div>
     <div class="card ctl">
+      <div class="lab-mode" style="align-self:flex-start"></div>
       <label class="ctl"><span><span data-zh="每份蓝色 a = ">Blue per batch a = </span><b id="aVal">2</b></span><input id="aIn" type="range" min="1" max="6" step="1" value="2"></label>
       <label class="ctl"><span><span data-zh="每份黄色 b = ">Yellow per batch b = </span><b id="bVal">3</b></span><input id="bIn" type="range" min="1" max="6" step="1" value="3"></label>
       <label class="ctl"><span><span data-zh="份数 k = ">Batches k = </span><b id="kVal">3</b></span><input id="kIn" type="range" min="0.5" max="5" step="0.5" value="3"></label>
       <div class="ma-big" id="rOut"></div>
       <div class="ma-big sm" id="uOut"></div>
       <div class="verdict muted" id="simp"></div>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:10px">
+        <b data-zh="进阶：部分与整体、百分数和比的图像">Advanced: part-to-whole, percent and the ratio graph</b>
+        <div id="pwOut" style="text-align:center;font-size:17px;line-height:2.1"></div>
+        <label class="ctl"><span><span data-zh="一共需要 T = ">Total needed T = </span><b id="tVal">20</b> <span data-zh="杯">cups</span></span><input id="tIn" type="range" min="5" max="40" step="1" value="20"></label>
+        <div id="tOut" style="text-align:center;font-size:17px;line-height:2.1"></div>
+        <div class="ma-stage" id="advG" style="border-radius:12px"></div>
+        <div style="border-top:1px solid var(--line);padding-top:8px">
+          <b data-zh="🎯 挑战">🎯 Challenge</b> <span id="chTxt"></span>
+          <div class="btnrow" style="margin-top:6px"><button class="btn" id="chCheck" data-zh="检查">Check</button><button class="btn ghost" id="chNew" data-zh="换一题">New challenge</button></div>
+          <div class="result" id="chMsg"></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -404,7 +417,63 @@ const font = (S, s) => `800 ${Math.max(11, S.px(s))}px Nunito, "PingFang SC", "M
     const g = gcd(a, b);
     Lab.$('#simp').textContent = g > 1 ? Lab.L({ en:`${a} : ${b} simplifies to ${a / g} : ${b / g}, the same colour as that recipe.`, zh:`${a} : ${b} 可以化简为 ${a / g} : ${b / g},和那个配方颜色一样。` })
                                        : Lab.L({ en:`${a} : ${b} is already in simplest form.`, zh:`${a} : ${b} 已经是最简整数比。` });
+    advUpdate();
   }
+  /* ---- Advanced: part-to-whole, scaling to a total, ratio graph, challenge ---- */
+  const pct = v => { const p = v * 100, r = Math.round(p * 10) / 10; return (Math.abs(p - r) < 1e-9 ? '= ' : '\\approx ') + fmt(r) + '\\%'; };
+  const word = o => `\\text{${Lab.L(o)}}`, BL = { en:'blue', zh:'蓝' }, YE = { en:'yellow', zh:'黄' }, TOT = { en:'total', zh:'总量' };
+  const G = MathAnim.scene('#advG', { x:[-1.4, 10.6], y:[-.9, 5.85] });
+  G.custom((ctx, S) => {
+    if (!Lab.adv()) return;
+    const M = 5 * Math.max(a, b), sc = 5.2 / M, g = v => v * sc;
+    const txt = (t, x, y, col, s = .3, al = 'left') => { ctx.font = font(S, s); ctx.fillStyle = col; ctx.textAlign = al; ctx.textBaseline = 'middle'; ctx.fillText(t, S.sx(x), S.sy(y)); };
+    const seg = (x1, y1, x2, y2, col, w) => { ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(S.sx(x1), S.sy(y1)); ctx.lineTo(S.sx(x2), S.sy(y2)); ctx.stroke(); };
+    const step = M > 20 ? 10 : 5;
+    ctx.globalAlpha = .5; for (let v = step; v <= M; v += step){ seg(g(v), 0, g(v), g(M), C.dim, 1); seg(0, g(v), g(M), g(v), C.dim, 1); } ctx.globalAlpha = 1;
+    for (let v = step; v <= M; v += step){ txt(String(v), g(v), -.32, C.grey, .26, 'center'); txt(String(v), -.15, g(v), C.grey, .26, 'right'); }
+    seg(0, 0, g(M) + .2, 0, C.grey, 2); seg(0, 0, 0, g(M) + .2, C.grey, 2);
+    txt(Lab.L({ en:'blue →', zh:'蓝 →' }), g(M) + .3, .05, C.blue, .28);
+    txt(Lab.L({ en:'yellow ↑', zh:'黄 ↑' }), .15, g(M) + .35, C.yellow, .28);
+    const m = b / a, xe = Math.min(M, M / m);
+    seg(0, 0, g(xe), g(m * xe), C.green, 2.5);
+    for (let j = 1; j <= 5; j++){ ctx.beginPath(); ctx.arc(S.sx(g(j * a)), S.sy(g(j * b)), 4.5, 0, 7); ctx.fillStyle = C.white; ctx.fill(); }
+    ctx.beginPath(); ctx.arc(S.sx(g(k * a)), S.sy(g(k * b)), 7.5, 0, 7); ctx.fillStyle = C.pink; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+    const right = k * a > M * .55;
+    txt(`(${fmt(k * a)}, ${fmt(k * b)})`, g(k * a) + (right ? -.3 : .3), g(k * b) - .32, C.pink, .28, right ? 'right' : 'left');
+    txt(Lab.L({ en:'All equivalent ratios', zh:'所有等价的比' }), 6.1, 4.8, C.white, .3);
+    txt(Lab.L({ en:'lie on one straight', zh:'都在同一条' }), 6.1, 4.3, C.white, .3);
+    txt(Lab.L({ en:'line through (0, 0):', zh:'过原点的直线上：' }), 6.1, 3.8, C.white, .3);
+    txt(`y = ${fmt(m)}x`, 6.1, 3.0, C.green, .44);
+    txt(Lab.L({ en:'slope = b ÷ a = unit rate', zh:'斜率 = b ÷ a = 单位比率' }), 6.1, 2.2, C.grey, .26);
+  });
+  const CHR = [[1, 1], [1, 3], [3, 1], [1, 4], [4, 1], [2, 3], [3, 2], [3, 5], [5, 3]], KS = [1, 1.5, 2, 2.5, 3, 4, 5];
+  let ch = null;
+  function newCh(){
+    let c;
+    do { const r = CHR[Math.floor(Math.random() * CHR.length)], kk = KS[Math.floor(Math.random() * KS.length)]; c = { a:r[0], b:r[1], T:kk * (r[0] + r[1]) }; }
+    while (!Number.isInteger(c.T) || (ch && c.a === ch.a && c.b === ch.b && c.T === ch.T));
+    ch = c; const msg = Lab.$('#chMsg'); msg.textContent = ''; msg.className = 'result'; advUpdate();
+  }
+  function advUpdate(){
+    if (!Lab.adv() || !ch) return;
+    const T = +Lab.$('#tIn').value, s = a + b; Lab.$('#tVal').textContent = T;
+    Lab.$('#pwOut').innerHTML = MathAnim.tex(`\\frac{${K(DK.blue, word(BL))}}{${word(TOT)}} = \\frac{${a}}{${a} + ${b}} ${K(DK.blue, pct(a / s))}`) + '<br>' + MathAnim.tex(`\\frac{${K(DK.yellow, word(YE))}}{${word(TOT)}} = \\frac{${b}}{${s}} ${K(DK.yellow, pct(b / s))}`);
+    Lab.$('#tOut').innerHTML = MathAnim.tex(`${K(DK.blue, word(BL))} = ${T} \\times \\frac{${a}}{${s}} = ${K(DK.blue, fmt(T * a / s))}`) + '<br>' + MathAnim.tex(`${K(DK.yellow, word(YE))} = ${T} \\times \\frac{${b}}{${s}} = ${K(DK.yellow, fmt(T * b / s))}`);
+    const P = fmt(ch.a / (ch.a + ch.b) * 100);
+    Lab.$('#chTxt').textContent = Lab.L({ en:`Using the a, b and k sliders, mix exactly ${ch.T} cups of paint that is ${P}% blue.`, zh:`用 a、b、k 三个滑块，正好调出 ${ch.T} 杯颜料，其中蓝色占 ${P}%。` });
+  }
+  Lab.$('#tIn').oninput = advUpdate;
+  Lab.$('#chNew').onclick = newCh;
+  Lab.$('#chCheck').onclick = () => {
+    const okP = a * (ch.a + ch.b) === ch.a * (a + b), okT = Math.abs(k * (a + b) - ch.T) < 1e-9, msg = Lab.$('#chMsg'), P = fmt(ch.a / (ch.a + ch.b) * 100);
+    msg.textContent = Lab.L(okP && okT ? { en:`🎉 Yes! ${fmt(k * a)} blue + ${fmt(k * b)} yellow = ${ch.T} cups, and ${P}% is blue.`, zh:`🎉 对了！${fmt(k * a)} 杯蓝 + ${fmt(k * b)} 杯黄 = ${ch.T} 杯，蓝色占 ${P}%。` }
+      : okP ? { en:`The colour is right. Now change k so the total k × (a + b) is ${ch.T}.`, zh:`颜色对了。再调 k，使总量 k ×（a + b）= ${ch.T}。` }
+      : okT ? { en:'The total is right, but not the colour: what fraction of the paint must be blue?', zh:'总量对了，但颜色不对：蓝色应占总量的几分之几？' }
+      : { en:'Not yet. First find a : b so that blue ÷ total is that percent, then the number of batches k.', zh:'还不对。先找出使“蓝 ÷ 总量”等于这个百分数的比 a : b，再求份数 k。' });
+    msg.className = 'result ' + (okP && okT ? 'good' : 'bad');
+  };
+  newCh();
+  Lab.onMode(advUpdate);
   ['#aIn', '#bIn', '#kIn'].forEach(s => Lab.$(s).oninput = update);
   Lab.onLang(update); update();
 })();
@@ -472,6 +541,7 @@ Lab.sort(Lab.$('#sort'), {
 /* ================= Where you see this: real photos (Wikimedia Commons, freely licensed) ================= */
 (function(){
 const o = (en, zh) => ({ en, zh });
+const VID = o('Video', '视频');
 const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3e/Water.jpeg/960px-Water.jpeg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'Mixing flour and water in the kitchen. If the dough needs 3 cups of flour for every cup of water, how much water goes with 9 cups?',
@@ -488,9 +558,26 @@ const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/92/Shelf_with_4_varieties_of_Tyrells_potatoe_chips.jpg/960px-Shelf_with_4_varieties_of_Tyrells_potatoe_chips.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'Bags of potato chips on a store shelf. If 3 bags cost $6, what is the unit rate: the price of one bag?',
     zh:'超市货架上的袋装薯片。如果 3 袋卖 6 美元，单位价格（一袋多少钱）是多少？',
-    credit:'Pittigrilli', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Shelf_with_4_varieties_of_Tyrells_potatoe_chips.jpg' }
+    credit:'Pittigrilli', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Shelf_with_4_varieties_of_Tyrells_potatoe_chips.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/22/Da_Vinci_Vitruve_Luc_Viatour.jpg/960px-Da_Vinci_Vitruve_Luc_Viatour.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'Leonardo da Vinci’s “Vitruvian Man” (about 1490) shows body ratios: arm span : height is about 1 : 1. Measure yourself: is your ratio close to 1 : 1?',
+    zh:'达·芬奇的《维特鲁威人》（约 1490 年）画出了人体的比例：两臂张开的长度 : 身高大约是 1 : 1。量一量你自己，比值接近 1 : 1 吗？',
+    kind:o('Famous drawing','名画'), credit:'Leonardo da Vinci', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Da_Vinci_Vitruve_Luc_Viatour.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0c/Lemonade_pitcher_and_glass.jpg/960px-Lemonade_pitcher_and_glass.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A pitcher of lemonade. A recipe uses lemon juice : water = 1 : 4. To make a bigger batch that tastes the same, how much water goes with 3 cups of lemon juice?',
+    zh:'一壶柠檬水。配方是 柠檬汁 : 水 = 1 : 4。想做一大壶、味道不变，3 杯柠檬汁要配多少水？',
+    credit:'Grandmaster Huon', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Lemonade_pitcher_and_glass.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5a/Wisconsin_vs._Milwaukee_women%27s_basketball_2022_26_%28free_throw%29.jpg/960px-Wisconsin_vs._Milwaukee_women%27s_basketball_2022_26_%28free_throw%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A free throw in a college women’s basketball game. One player made 12 out of 16 shots, another 15 out of 20. Write both as ratios: who is the better shooter?',
+    zh:'一场大学女篮比赛中的罚球。一名球员 16 投 12 中，另一名 20 投 15 中。把两人的命中情况写成比：谁投得更准？',
+    credit:'Michael Barera', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Wisconsin_vs._Milwaukee_women%27s_basketball_2022_26_(free_throw).jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/ce/Speedometer.jpg/960px-Speedometer.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A speedometer shows a rate: miles per hour. A car that goes 150 miles in 3 hours has what unit rate?',
+    zh:'速度表显示的是一个速率：每小时多少英里。一辆车 3 小时开了 150 英里，它的单位速率是多少？',
+    credit:'Greg L. Wright (SnapJag)', license:'CC BY 2.5', page:'https://commons.wikimedia.org/wiki/File:Speedometer.jpg' },
+  { type:'youtube', yt:'RQ2nYUBVvqI', en:'Video: “Ratios and Rates” — writing ratios three ways and finding unit rates.', zh:'视频：《比与速率》——比的三种写法，以及怎样求单位速率（英文）。', kind:VID, credit:'Math Antics (YouTube)', license:'YouTube' }
 ];
-LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos. Each one comes with a question this lesson helps you answer. Click a picture to enlarge it.','真实照片。每张都带着一个这节课能帮你回答的问题。点击图片可放大。') });
+LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos and short videos. Each photo comes with a question this lesson helps you answer. Click a picture to enlarge it or to play a video.','真实照片和短视频。每张照片都带着一个这节课能帮你回答的问题。点击图片可放大，点击视频可播放。') });
 })();
 </script>
 <!-- /real-world gallery script -->

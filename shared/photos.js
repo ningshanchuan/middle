@@ -139,7 +139,7 @@
   };
   function draw(r){
     const ids = r.items.map(idOf);
-    r.el.innerHTML = (r.o.title ? `<div class="sec-head"><h2>${esc(L(r.o.title))}</h2>${r.o.sub ? `<p>${esc(L(r.o.sub))}</p>` : ''}</div>` : '') +
+    r.el.innerHTML = (r.o.title ? `<div class="sec-head lp-head"><h2>${esc(L(r.o.title))}</h2>${r.o.sub ? `<p>${esc(L(r.o.sub))}</p>` : ''}</div>` : '') +
       `<div class="lp-gallery">${r.items.map((it, k) => `<div class="lp-card" data-lp-id="${ids[k]}" data-lp-set="${ids.join(',')}" title="${esc(L(T.zoom))}">${img(it)}
         <div class="lp-cap"><b>${esc(L(it))}</b>${it.scale ? `<span class="lp-sc">${esc(L(it.scale))}</span>` : ''}<span class="lp-credit">${credit(it)}</span>${it.type === 'video' || it.type === 'audio' || it.type === 'youtube' || it.type === 'model3d' ? extLink(it) : ''}</div></div>`).join('')}</div>`;
   }

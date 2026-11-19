@@ -28,6 +28,8 @@
 .legend2{display:flex;gap:14px;flex-wrap:wrap;font-size:14px;font-weight:700;color:var(--ink-2)}
 .legend2 i{display:inline-block;width:22px;height:5px;border-radius:3px;margin-right:6px;vertical-align:middle}
 @media (max-width:560px){.tankctl,.readout{grid-template-columns:1fr}}
+.tsgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:16px;margin-top:10px;align-items:start}
+@media (max-width:760px){.tsgrid{grid-template-columns:1fr}}
 </style>
 </head>
 <body data-subject="earth" data-topic="oceans">
@@ -69,6 +71,7 @@
   <div class="sim">
     <div class="card simbox" id="waveBox"><canvas id="waveCv"></canvas></div>
     <div class="card simside">
+      <div class="lab-mode"></div>
       <h3 data-zh="风和波浪">Wind &amp; waves</h3>
       <label class="ctl"><span><span data-zh="风速">Wind speed</span>: <b id="wsVal"></b></span><input id="ws" type="range" min="0" max="25" step=".5" value="8"></label>
       <label class="ctl" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="orbits" checked style="width:18px;height:18px;accent-color:var(--brand)"><span data-zh="显示水质点的运动轨迹">Show water particle paths</span></label>
@@ -78,6 +81,11 @@
         <div class="counter"><b id="wL">—</b><span data-zh="波长（波峰到波峰）">wavelength (crest to crest)</span></div>
         <div class="counter"><b id="wT">—</b><span data-zh="周期（每个波经过的时间）">period (time per wave)</span></div>
         <div class="counter"><b id="wB" style="font-size:19px">—</b><span data-zh="海况">sea state</span></div>
+      </div>
+      <div class="adv adv-box" id="waveAdv">
+        <b data-zh="🚀 进阶：波速、波能与浅水">🚀 Advanced: wave speed, energy and shallow water</b>
+        <label class="ctl" style="margin-top:8px"><span><span data-zh="🏖 近岸水深">🏖 Water depth near the beach</span>: <b id="wdV"></b></span><input id="wd" type="range" min="0.5" max="20" step="0.5" value="3"></label>
+        <div id="waveAdvOut" style="font-size:14px;line-height:1.55;margin-top:6px"></div>
       </div>
       <div class="mix"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="波浪传递的是能量，不是水。水质点只是在原地画圈，所以小鸭子基本上原地上下起伏。">Waves carry energy, not water. Water particles just move in circles, so the duck mostly bobs up and down in place.</span></div>
       <p style="font-size:14px" data-zh-html="🌙 潮汐是最长的“波浪”，由月球和太阳的引力引起。去看看 <a href='../astronomy/tides.html' data-lab-link>潮汐</a> 主题！">🌙 Tides are the longest “waves” of all, caused by the pull of the Moon and Sun. See the <a href="../astronomy/tides.html" data-lab-link>Tides</a> topic!</p>
@@ -93,6 +101,7 @@
   <div class="sim">
     <div class="card simbox" id="densBox"><canvas id="densCv"></canvas></div>
     <div class="card simside">
+      <div class="lab-mode"></div>
       <div class="presets" id="presets"></div>
       <div class="tankctl">
         <div class="card"><h4 data-zh="左侧海水">Left water</h4>
@@ -107,6 +116,19 @@
       <div class="btnrow"><button class="btn" id="lift" data-zh="⬆ 抽掉隔板">⬆ Lift the divider</button><button class="btn ghost" id="dReset" data-zh="↺ 重来">↺ Reset</button></div>
       <div class="result" id="densMsg"></div>
     </div>
+  </div>
+  <div class="adv adv-box" id="densAdv" style="margin-top:14px">
+    <b data-zh="🚀 进阶：温盐图、海冰和蒸发">🚀 Advanced: T–S diagram, sea ice and evaporation</b>
+    <div class="tsgrid" data-nofs>
+      <canvas id="tsCv" style="display:block;width:100%;height:230px" role="img" aria-label="T–S diagram"></canvas>
+      <div>
+        <div style="font-size:13.5px;font-weight:800" data-zh="改变左侧海水：">Change the left water:</div>
+        <div class="presets" id="advBtns" style="margin-top:4px"></div>
+        <div id="densForm" style="font-size:14px;line-height:1.55;margin-top:8px"></div>
+      </div>
+    </div>
+    <div class="btnrow" style="align-items:center;margin-top:8px"><span id="densGoal" style="font-weight:700;font-size:14px;flex:1 1 260px"></span><button class="btn ghost" id="densCheck" data-zh="🎯 检查">🎯 Check</button></div>
+    <div class="result" id="densCMsg" style="margin-top:4px"></div>
   </div>
   <div class="grid3" style="margin-top:18px">
     <div class="card box"><div class="ico">🧂</div><h3 data-zh="海水为什么是咸的？">Why is the sea salty?</h3><p data-zh="雨水慢慢溶解岩石中的矿物质，河流把这些盐分带进大海。海水蒸发时只有水离开，盐留了下来，经过亿万年越积越多。">Rain slowly dissolves minerals from rocks, and rivers carry these salts to the sea. When seawater evaporates only the water leaves, so the salt has built up over millions of years.</p></div>
@@ -278,7 +300,26 @@ Lab.onLang(() => { renderInfo(); renderChips(); });
     Lab.$('#wL').textContent = s.U < .5 ? '—' : Math.round(s.L) + ' m';
     Lab.$('#wT').textContent = s.U < .5 ? '—' : s.T.toFixed(1) + (zh ? ' 秒' : ' s');
     Lab.$('#wB').textContent = sea(s.U);
+    advOut();
   }
+  /* 🚀 Advanced: speed c = λ/T, energy E = ⅛ρgH², and the full depth rule ω² = g·k·tanh(k·d) near the beach */
+  const nf = (x, d) => x.toLocaleString(Lab.lang === 'zh' ? 'zh-CN' : 'en-US', { minimumFractionDigits:d, maximumFractionDigits:d });
+  function speedAt(T, d){ const w = 2 * Math.PI / T; let a = 1e-6, b = 200; for (let i = 0; i < 60; i++){ const k = (a + b) / 2; if (9.8 * k * Math.tanh(k * d) > w * w) b = k; else a = k; } return w / ((a + b) / 2); }
+  function advOut(){
+    const s = state(), zh = Lab.lang === 'zh', d = +Lab.$('#wd').value, out = Lab.$('#waveAdvOut');
+    Lab.$('#wdV').textContent = d + (zh ? ' 米' : ' m');
+    if (s.U < .5){ out.textContent = Lab.L({en:'No wind, no waves: turn up the wind first.',zh:'没有风就没有浪，先把风调大。'}); return; }
+    const c = s.L / s.T, E = .125 * 1025 * 9.8 * s.Hs * s.Hs, cd = speedAt(s.T, d), csh = Math.sqrt(9.8 * d), base = s.L / 2;
+    const L1 = `📐 ${zh ? '波速' : 'Speed'} c = λ ÷ T = ${Math.round(s.L)} m ÷ ${nf(s.T, 1)} s ≈ <b>${nf(c, 1)} m/s</b>${zh ? '（约 ' + Math.round(c * 3.6) + ' km/h）' : ' (about ' + Math.round(c * 3.6) + ' km/h)'}`;
+    const L2 = `⚡ ${zh ? '波能' : 'Energy'} E = ⅛ ρ g H² = ⅛ × 1025 × 9.8 × ${nf(s.Hs, 2)}² ≈ <b>${nf(Math.round(E), 0)} J</b> ${zh ? '（每平方米海面）。波高加倍，能量变为 4 倍！' : 'on every m² of sea. Double the height → 4× the energy!'}`;
+    const L3 = d >= base
+      ? (zh ? `🏖 ${d} 米深比波基面（λ/2 ≈ ${Math.round(base)} 米）还深，波浪“碰不到”海底，速度不变。把水深调浅一些试试。` : `🏖 ${d} m is deeper than the wave base (λ/2 ≈ ${Math.round(base)} m), so the wave does not feel the bottom and keeps its speed. Try shallower water.`)
+      : (zh ? `🏖 在 ${d} 米深处，波速降到约 <b>${nf(cd, 1)} m/s</b>${d < s.L / 20 ? `（浅水公式 c ≈ √(g·d) = √(9.8 × ${d}) ≈ ${nf(csh, 1)} m/s）` : ''}。波浪变慢、挤在一起，于是变高。`
+            : `🏖 At ${d} m deep the wave slows to about <b>${nf(cd, 1)} m/s</b>${d < s.L / 20 ? ` (shallow-water rule c ≈ √(g·d) = √(9.8 × ${d}) ≈ ${nf(csh, 1)} m/s)` : ''}. It slows, bunches up and grows taller.`);
+    const L4 = zh ? `💥 波高约为水深的 0.78 倍时波浪破碎：这个浪大约在水深 H ÷ 0.78 ≈ <b>${nf(s.Hs / .78, 1)} 米</b>处破碎。` : `💥 A wave breaks when its height reaches about 0.78 × the depth: this one breaks where the water is about H ÷ 0.78 ≈ <b>${nf(s.Hs / .78, 1)} m</b> deep.`;
+    out.innerHTML = [L1, L2, L3, L4].map(x => `<div>${x}</div>`).join('');
+  }
+  Lab.$('#wd').oninput = advOut;
   ws.oninput = readout;
   function resize(){ const b = box.getBoundingClientRect(), d = Math.min(devicePixelRatio, 2); W = b.width; H = b.height; cv.width = W * d; cv.height = H * d; g.setTransform(d, 0, 0, d, 0, 0); }
   new ResizeObserver(resize).observe(box); resize();
@@ -327,6 +368,7 @@ Lab.onLang(() => { renderInfo(); renderChips(); });
     }
     if (beach && A > 0){ g.fillStyle = ink2; g.font = '800 13px Nunito, sans-serif'; g.textAlign = 'right'; g.fillText(Lab.L({en:'shallow water: waves slow, grow taller, then break',zh:'浅水区：波浪变慢、变高，然后破碎'}), W - 10, H - 8); }
     if (A === 0){ g.fillStyle = '#fff'; g.font = '800 15px Nunito, sans-serif'; g.textAlign = 'center'; g.fillText(Lab.L({en:'No wind, no waves. Turn up the wind!',zh:'没有风，就没有浪。把风调大！'}), W / 2, y0 + 40); }
+    if (A > 0 && Lab.adv()){ g.fillStyle = ink; g.font = '800 14px Nunito, sans-serif'; g.textAlign = 'left'; g.fillText('🚀 ' + Lab.L({en:'wave speed',zh:'波速'}) + ' c ≈ ' + (s.L / s.T).toFixed(1) + ' m/s →', 10, 20); }
   }
   const clamp = x => Math.max(0, Math.min(1, x));
   readout(); Lab.onLang(readout); requestAnimationFrame(frame);
@@ -353,6 +395,7 @@ Lab.onLang(() => { renderInfo(); renderChips(); });
     el('lD').textContent = v.lD.toFixed(1) + ' kg/m³'; el('rD').textContent = v.rD.toFixed(1) + ' kg/m³';
     const diff = v.lD - v.rD, badge = Lab.L({en:'denser',zh:'密度更大'});
     el('lBadge').innerHTML = diff > .2 ? `<span class="badge">${badge}</span>` : ''; el('rBadge').innerHTML = diff < -.2 ? `<span class="badge">${badge}</span>` : '';
+    advRender();
   }
   function reset(){ lifted = false; prog = 0; done = false; el('densMsg').textContent = ''; el('densMsg').className = 'result'; update(); }
   ['lT', 'lS', 'rT', 'rS'].forEach(id => el(id).oninput = reset);
@@ -399,7 +442,67 @@ Lab.onLang(() => { renderInfo(); renderChips(); });
   new ResizeObserver(resize).observe(box); resize();
   let last = performance.now();
   function loop(now){ const dt = Math.min(.05, (now - last) / 1000); last = now; draw(dt); requestAnimationFrame(loop); }
-  Lab.onLang(() => { renderPresets(); update(); if (done) el('densMsg').textContent = message(vals()); });
+  /* ---- 🚀 Advanced: T–S diagram with density lines, sea ice / evaporation / rain buttons, challenge ---- */
+  const tsCv = el('tsCv'), tg = tsCv.getContext('2d');
+  let advChecked = false;
+  const ADV = [
+    {n:{en:'☀️ Evaporate 10% of the water',zh:'☀️ 蒸发掉 10% 的水'}, f:(T, S) => [T, S / .9]},
+    {n:{en:'🧊 Freeze sea ice',zh:'🧊 结成海冰'}, f:(T, S) => [0, S / .9]},
+    {n:{en:'🌧 Add 10% rain or river water',zh:'🌧 加入 10% 的雨水或河水'}, f:(T, S) => [T, S * .9]}];
+  function renderAdvBtns(){
+    el('advBtns').innerHTML = ADV.map((a, i) => `<button data-i="${i}">${Lab.L(a.n)}</button>`).join('');
+    Lab.$$('#advBtns button').forEach(b => b.onclick = () => { const [T, S] = ADV[+b.dataset.i].f(+el('lT').value, +el('lS').value); el('lT').value = Math.round(T); el('lS').value = Math.min(40, Math.round(S)); reset(); });
+  }
+  function drawTS(){
+    const w = tsCv.clientWidth, h = tsCv.clientHeight; if (!w || !h) return;
+    const dd = Math.min(devicePixelRatio, 2); if (tsCv.width !== Math.round(w * dd)){ tsCv.width = Math.round(w * dd); tsCv.height = Math.round(h * dd); }
+    tg.setTransform(dd, 0, 0, dd, 0, 0); tg.clearRect(0, 0, w, h);
+    const css = getComputedStyle(document.documentElement), ink = css.getPropertyValue('--ink').trim(), ink2 = css.getPropertyValue('--ink-2').trim(), line = css.getPropertyValue('--line').trim();
+    const L = 40, R = w - 12, Tp = 10, B = h - 30, X = S => L + S / 40 * (R - L), Y = T => B - T / 30 * (B - Tp);
+    tg.strokeStyle = line; tg.lineWidth = 1; tg.strokeRect(L, Tp, R - L, B - Tp);
+    tg.font = '700 11px Nunito, sans-serif'; tg.fillStyle = ink2; tg.textAlign = 'center';
+    for (let S = 0; S <= 40; S += 10) tg.fillText(S, X(S), B + 13);
+    tg.textAlign = 'right'; for (let T = 0; T <= 30; T += 10) tg.fillText(T + '°', L - 5, Y(T) + 4);
+    tg.textAlign = 'center'; tg.fillText(Lab.L({en:'salinity (‰) →',zh:'盐度（‰）→'}), (L + R) / 2, h - 3);
+    tg.save(); tg.translate(11, (Tp + B) / 2); tg.rotate(-Math.PI / 2); tg.fillText(Lab.L({en:'temperature (°C) →',zh:'温度（°C）→'}), 0, 0); tg.restore();
+    // lines of equal density (isopycnals): S = (ρ − 1000 + 0.0055·(T − 4)²) ÷ 0.78
+    for (let r = 1000; r <= 1030; r += 5){
+      tg.strokeStyle = 'rgba(47,134,214,.55)'; tg.setLineDash([4, 4]); tg.beginPath(); let started = false, lx = 0, ly = 0;
+      for (let T = 0; T <= 30; T += .5){ const S = (r - 1000 + .0055 * (T - 4) * (T - 4)) / .78; if (S < 0 || S > 40){ started = false; continue; } const x = X(S), y = Y(T); if (started) tg.lineTo(x, y); else { tg.moveTo(x, y); started = true; } lx = x; ly = y; }
+      tg.stroke(); tg.setLineDash([]);
+      const St = (r - 1000 + .0055 * 26 * 26) / .78; if (St >= 0 && St <= 38){ tg.fillStyle = '#2f86d6'; tg.textAlign = 'left'; tg.fillText(r, X(St) + 3, Y(30) + 11); }
+    }
+    tg.fillStyle = ink2; tg.textAlign = 'left'; tg.fillText(Lab.L({en:'colder + saltier = denser ↘',zh:'更冷 + 更咸 = 密度更大 ↘'}), L + 6, B - 8);
+    const v = vals();
+    [[v.lS, v.lT, '#1d4f91', Lab.L({en:'L',zh:'左'})], [v.rS, v.rT, '#e5484d', Lab.L({en:'R',zh:'右'})]].forEach(([S, T, c, n]) => {
+      tg.fillStyle = c; tg.beginPath(); tg.arc(X(S), Y(T), 7, 0, 6.283); tg.fill(); tg.strokeStyle = '#fff'; tg.lineWidth = 2; tg.stroke();
+      tg.fillStyle = ink; tg.font = '800 12px Nunito, sans-serif'; tg.textAlign = 'left'; tg.fillText(n, X(S) + 9, Y(T) - 6); tg.font = '700 11px Nunito, sans-serif'; });
+    tsCv.setAttribute('aria-label', Lab.L({en:'T–S diagram: dashed lines join water of equal density',zh:'温盐图：虚线连接密度相同的海水'}));
+  }
+  function challenge(){
+    const v = vals(), dT = Math.abs(v.lT - v.rT), dR = Math.abs(v.lD - v.rD), m = el('densCMsg');
+    let ok = false, t;
+    if (dT < 10) t = {en:`The temperatures differ by only ${dT} °C: make them at least 10 °C apart.`,zh:`两边温度只差 ${dT} °C：要相差至少 10 °C。`};
+    else if (dR > .3) t = {en:`Densities still differ by ${dR.toFixed(1)} kg/m³. Change the salinity of the warmer water to make up for its temperature (follow a dashed line).`,zh:`密度还差 ${dR.toFixed(1)} kg/m³。调节较暖一侧的盐度来抵消温度的影响（沿着虚线找）。`};
+    else { ok = true; t = {en:'🎉 Different water, same density: both dots sit on the same density line. Lift the divider: neither water sinks under the other!',zh:'🎉 海水不同，密度却相同：两个点落在同一条等密度线上。抽掉隔板试试：谁也不会沉到谁的下面！'}; }
+    m.textContent = Lab.L(t); m.className = 'result ' + (ok ? 'good' : 'bad');
+  }
+  function advRender(){
+    if (!tsCv) return;
+    const v = vals(), zh = Lab.lang === 'zh', d = v.lD - v.rD;
+    el('densForm').innerHTML = `<div>📐 ${zh ? '密度（简化公式）' : 'Density (simplified formula)'}: ρ ≈ 1000 + 0.78 × S − 0.0055 × (T − 4)²</div>` +
+      `<div>${zh ? '左' : 'Left'}: 1000 + 0.78 × ${v.lS} − 0.0055 × (${v.lT} − 4)² ≈ <b>${v.lD.toFixed(1)} kg/m³</b></div>` +
+      `<div>${zh ? '右' : 'Right'}: 1000 + 0.78 × ${v.rS} − 0.0055 × (${v.rT} − 4)² ≈ <b>${v.rD.toFixed(1)} kg/m³</b></div>` +
+      `<div>⚖️ ${Math.abs(d) < .05 ? (zh ? '两边 1 立方米的海水一样重。' : '1 m³ of each water weighs the same.') : zh ? `1 立方米${d > 0 ? '左' : '右'}侧海水比另一侧重约 <b>${Math.abs(d).toFixed(1)} 千克</b>，就是这点差别推动了深层洋流。` : `1 m³ of the ${d > 0 ? 'left' : 'right'} water is about <b>${Math.abs(d).toFixed(1)} kg</b> heavier. Tiny differences like this drive the deep currents.`}</div>` +
+      `<div class="muted" style="font-size:13px">${zh ? '注：海水实际约在 −1.9 °C 才结冰；结冰时盐大部分留在海水里，所以剩下的海水又冷又咸。' : 'Note: seawater really freezes at about −1.9 °C; sea ice leaves most of its salt behind, so the water left over gets colder and saltier.'}</div>`;
+    el('densGoal').textContent = Lab.L({en:'🎯 Challenge: make two waters at least 10 °C apart but with the same density (within 0.3 kg/m³).',zh:'🎯 挑战：让两边海水温度相差至少 10 °C，但密度相同（相差不超过 0.3 kg/m³）。'});
+    if (advChecked) challenge();
+    requestAnimationFrame(drawTS);
+  }
+  el('densCheck').onclick = () => { advChecked = true; challenge(); };
+  Lab.onMode(adv => { if (adv) requestAnimationFrame(drawTS); });
+  window.addEventListener('labtheme', () => requestAnimationFrame(drawTS));
+  Lab.onLang(() => { renderPresets(); renderAdvBtns(); update(); if (done) el('densMsg').textContent = message(vals()); });
   reset(); requestAnimationFrame(loop);
 })();
 
@@ -423,7 +526,8 @@ const PHOTOS = [
   { part:'trench', kind:{en:'Sea-floor depth map',zh:'海底地形图'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a3/Mariana_trench.png/960px-Mariana_trench.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A map of sea-floor depth (bathymetry) around the Mariana Trench in the western Pacific. The long, curved groove is the trench; its deepest point, the Challenger Deep, is about 11,000 m down.', zh:'西太平洋马里亚纳海沟一带的海底深度图。那条又长又弯的“沟”就是海沟；它的最深处“挑战者深渊”深约 11000 米。', scale:{en:'western Pacific Ocean',zh:'西太平洋'}, credit:'astrobob', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Mariana_trench.png' },
   { part:'kuroshio', kind:{en:'Satellite data',zh:'卫星数据图'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4d/Exploring_High-Resolution_Sea_Surface_Height_Data_from_NASA%E2%80%99s_SWOT_Satellite_%28SVS5538_-_8k_04950%29.jpg/960px-Exploring_High-Resolution_Sea_Surface_Height_Data_from_NASA%E2%80%99s_SWOT_Satellite_%28SVS5538_-_8k_04950%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Swirling eddies in the Kuroshio Current Extension east of Japan, revealed by NASA’s SWOT satellite, which measures the height of the sea surface. The Kuroshio is the fast, warm current that flows north past Taiwan and Japan.', zh:'美国国家航空航天局 SWOT 卫星测量海面高度，显示出日本以东黑潮延伸体中打着旋的涡流。黑潮是一股流速很快的暖流，向北流过台湾和日本附近。', scale:{en:'North Pacific, east of Japan',zh:'北太平洋，日本以东'}, credit:'NASA Scientific Visualization Studio', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Exploring_High-Resolution_Sea_Surface_Height_Data_from_NASA%E2%80%99s_SWOT_Satellite_(SVS5538_-_8k_04950).jpg' },
   { type:'youtube', yt:'hnyuPin06Ak', kind:{en:'Video',zh:'视频'}, en:'CGTN: the surging tidal bore of the Qiantang River, Zhejiang, China, wows visitors.', zh:'CGTN：浙江钱塘江汹涌的涌潮吸引了大批观潮的游客。', credit:'CGTN (YouTube)', license:'YouTube' },
-  { type:'video', kind:{en:'NASA video · 63 MB',zh:'NASA 影片 · 63 MB'}, media:'https://upload.wikimedia.org/wikipedia/commons/6/67/NASA_-_Perpetual_Ocean_CCmTY0PKGDs.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/67/NASA_-_Perpetual_Ocean_CCmTY0PKGDs.webm/960px--NASA_-_Perpetual_Ocean_CCmTY0PKGDs.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/67/NASA_-_Perpetual_Ocean_CCmTY0PKGDs.webm/960px--NASA_-_Perpetual_Ocean_CCmTY0PKGDs.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Watch: “Perpetual Ocean”, a NASA visualization of ocean surface currents around the world from 2005 to 2007. Look for the Gulf Stream and the swirling eddies. (Large file: needs a good connection.)', zh:'看一看：美国国家航空航天局制作的《永恒的海洋》，展示了 2005—2007 年全球海洋表层洋流的流动。找一找墨西哥湾暖流和打着旋的涡流。（文件较大，需要较好的网络。）', credit:'NASA Goddard Space Flight Center', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:NASA_-_Perpetual_Ocean_CCmTY0PKGDs.webm' }
+  { type:'video', kind:{en:'NASA video · 63 MB',zh:'NASA 影片 · 63 MB'}, media:'https://upload.wikimedia.org/wikipedia/commons/6/67/NASA_-_Perpetual_Ocean_CCmTY0PKGDs.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/67/NASA_-_Perpetual_Ocean_CCmTY0PKGDs.webm/960px--NASA_-_Perpetual_Ocean_CCmTY0PKGDs.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/67/NASA_-_Perpetual_Ocean_CCmTY0PKGDs.webm/960px--NASA_-_Perpetual_Ocean_CCmTY0PKGDs.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Watch: “Perpetual Ocean”, a NASA visualization of ocean surface currents around the world from 2005 to 2007. Look for the Gulf Stream and the swirling eddies. (Large file: needs a good connection.)', zh:'看一看：美国国家航空航天局制作的《永恒的海洋》，展示了 2005—2007 年全球海洋表层洋流的流动。找一找墨西哥湾暖流和打着旋的涡流。（文件较大，需要较好的网络。）', credit:'NASA Goddard Space Flight Center', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:NASA_-_Perpetual_Ocean_CCmTY0PKGDs.webm' },
+  { type:'youtube', yt:'fZ_x-Yy7sUY', kind:{en:'Video · deep sea',zh:'视频 · 深海'}, en:'NOAA Ocean Exploration: a robot submarine films an active hydrothermal vent in the Mariana Trench region in 2016. Hot, mineral-rich water pours out of the sea floor like black smoke.', zh:'美国国家海洋和大气管理局海洋探索项目：2016 年，无人潜水器在马里亚纳海沟一带拍到一座活跃的海底热泉。富含矿物质的热水像黑烟一样从海底喷出。', credit:'NOAA Ocean Exploration (YouTube)', license:'YouTube' }
 ];
 PHOTOS.forEach(it => { if (it.part && PARTS[it.part]) PARTS[it.part].photo = it; });
 LabPhotos.render(Lab.$('#gallery'), PHOTOS);

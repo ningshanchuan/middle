@@ -46,6 +46,7 @@
   <div class="ma-explore">
     <div class="ma-stage explore-stage" id="exStage" data-fs></div>
     <div class="card ctl">
+      <div class="lab-mode" style="align-self:flex-start"></div>
       <label class="ctl"><span><span data-zh="块数 n = ">Slices n = </span><b id="nVal">8</b></span><input id="nIn" type="range" min="4" max="64" step="2" value="8"></label>
       <label class="ctl"><span><span data-zh="拼合程度：">Rearrange: </span><b id="tVal">100%</b></span><input id="tIn" type="range" min="0" max="1" step="0.01" value="1"></label>
       <div class="readout">
@@ -55,6 +56,18 @@
       </div>
       <div class="ma-big" id="sliceOut"></div>
       <p class="muted" style="margin:0" data-zh="把块数调到 64：长 × 宽已经非常接近 π ≈ 3.1416 了。">Push n to 64: width × height is already very close to π ≈ 3.1416.</p>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:10px">
+        <b data-zh="进阶：真实半径 · 扇形的弧长和面积 · 弧度">Advanced: a real radius, arc length and sector area, radians</b>
+        <label class="ctl"><span><span data-zh="半径 r = ">Radius r = </span><b id="rVal">6</b> cm</span><input id="rIn" type="range" min="1" max="10" step="0.5" value="6"></label>
+        <div id="circOut" style="text-align:center;font-size:17px;overflow-x:auto;overflow-y:hidden"></div>
+        <label class="ctl"><span><span data-zh="圆心角 θ = ">Central angle θ = </span><b id="thVal">60°</b> <span data-zh="（粉色扇形）">(pink sector)</span></span><input id="thIn" type="range" min="1" max="360" step="1" value="60"></label>
+        <div id="secOut" style="text-align:center;font-size:17px;overflow-x:auto;overflow-y:hidden"></div>
+        <div style="border-top:1px solid var(--line);padding-top:8px">
+          <b data-zh="🎯 挑战">🎯 Challenge</b> <span id="chTxt"></span>
+          <div class="btnrow" style="margin-top:6px"><button class="btn" id="chCheck" data-zh="检查">Check</button><button class="btn ghost" id="chNew" data-zh="换一题">New challenge</button></div>
+          <div class="result" id="chMsg"></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -291,8 +304,50 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     ctx.font = `800 ${Math.max(12, S.px(.36))}px Nunito, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillStyle = C.yellow; ctx.fillText('πr', S.sx(ob.rowCx), S.sy(ob.rowCy + ob.r / 2 + .5));
     ctx.fillStyle = C.teal; ctx.textAlign = 'right'; ctx.fillText('r', S.sx(ob.rowCx - w / 2 - .45), S.sy(ob.rowCy));
+    if (!Lab.adv()) return;
+    /* ---- Advanced: the chosen sector on the top circle (starting at 3 o’clock, counter-clockwise) ---- */
+    const X = S.sx(ob.cx), Y = S.sy(ob.cy), R = S.px(ob.r), a = sec * Math.PI / 180;
+    ctx.beginPath(); ctx.moveTo(X, Y); ctx.arc(X, Y, R, 0, -a, true); ctx.closePath(); ctx.fillStyle = 'rgba(246,127,179,.32)'; ctx.fill();
+    ctx.lineWidth = 3; ctx.strokeStyle = C.pink; ctx.stroke();
+    ctx.beginPath(); ctx.arc(X, Y, R, 0, -a, true); ctx.lineWidth = 6; ctx.strokeStyle = C.pink; ctx.stroke();
+    ctx.beginPath(); ctx.arc(X, Y, S.px(.45), 0, -a, true); ctx.lineWidth = 2; ctx.strokeStyle = C.white; ctx.stroke();
+    ctx.font = `800 ${Math.max(12, S.px(.32))}px Nunito, sans-serif`; ctx.fillStyle = C.white; ctx.textAlign = 'center';
+    ctx.fillText(sec + '°', S.sx(ob.cx + .8 * Math.cos(a / 2)), S.sy(ob.cy + .8 * Math.sin(a / 2)));
   });
   const f = (v, d = 4) => (+v.toFixed(d)).toString();
+  /* ---- Advanced: real radius, arc length, sector area, radians, challenge ---- */
+  let sec = 60, chI = 0;
+  const f2 = v => (Math.round(v * 100) / 100).toString();
+  const CH = [   // test(r, θ, arc length, sector area)
+    { en:'With r = 6 cm, make a sector whose arc length is 2π cm (≈ 6.28 cm).', zh:'取 r = 6 cm，做一个弧长为 2π cm（≈ 6.28 cm）的扇形。', test:(r, t) => r === 6 && t === 60,
+      why:{ en:'θ/360 × 2π × 6 = 2π → θ/360 = 1/6 → θ = 60°.', zh:'θ/360 × 2π × 6 = 2π → θ/360 = 1/6 → θ = 60°。' } },
+    { en:'With r = 6 cm, make a sector whose area is 12π cm² (≈ 37.70 cm²).', zh:'取 r = 6 cm，做一个面积为 12π cm²（≈ 37.70 cm²）的扇形。', test:(r, t) => r === 6 && t === 120,
+      why:{ en:'θ/360 × π × 6² = 12π → θ/360 = 12/36 = 1/3 → θ = 120°.', zh:'θ/360 × π × 6² = 12π → θ/360 = 12/36 = 1/3 → θ = 120°。' } },
+    { en:'A 16-inch pizza (diameter) is cut into 8 equal slices. Set r and θ to show one slice (read r in inches).', zh:'一个直径 16 英寸的比萨平均切成 8 块。调 r 和 θ 表示其中一块（把 r 的单位当作英寸）。', test:(r, t) => r === 8 && t === 45,
+      why:{ en:'r = 16 ÷ 2 = 8 and θ = 360° ÷ 8 = 45°. One slice ≈ 25.13 in², and the whole pizza ≈ 201 in², more than two 8-inch pizzas (≈ 100.5 in²)!', zh:'r = 16 ÷ 2 = 8，θ = 360° ÷ 8 = 45°。一块约 25.13 平方英寸；整个比萨约 201 平方英寸，比两个 8 英寸的比萨（约 100.5 平方英寸）还多！' } },
+    { en:'Make a sector whose arc is as long as the radius (any r). This angle has a name!', zh:'做一个弧长等于半径的扇形（r 任取）。这个角有专门的名字！', test:(r, t) => Math.abs(t * Math.PI / 180 - 1) < .01,
+      why:{ en:'θ ≈ 57.3° is 1 radian: the angle whose arc equals the radius. A whole turn is 2π ≈ 6.28 radians.', zh:'θ ≈ 57.3° 叫作 1 弧度：弧长等于半径时的圆心角。一整圈是 2π ≈ 6.28 弧度（高中会学）。' } }
+  ];
+  function advUpdate(){
+    if (!Lab.adv()) return;
+    const r = +Lab.$('#rIn').value; sec = +Lab.$('#thIn').value;
+    Lab.$('#rVal').textContent = r; Lab.$('#thVal').textContent = sec + '°';
+    const Cc = 2 * Math.PI * r, A = Math.PI * r * r, L = sec / 360 * Cc, As = sec / 360 * A, rad = sec * Math.PI / 180, cr = v => `\\textcolor{#2a9d84}{${v}}`;
+    Lab.$('#circOut').innerHTML = MathAnim.tex(`C = 2\\pi ${cr('r')} = 2\\pi \\times ${cr(r)} \\approx ${f2(Cc)}\\text{ cm}`) + '<br>'
+      + MathAnim.tex(`A = \\pi ${cr('r')} \\times ${cr('r')} = \\pi \\times ${cr(r)}^2 \\approx ${f2(A)}\\text{ cm}^2`);
+    Lab.$('#secOut').innerHTML = MathAnim.tex(`\\textcolor{#d6458b}{l} = \\tfrac{${sec}}{360} \\times 2\\pi \\times ${r} \\approx ${f2(L)}\\text{ cm}`) + '<br>'
+      + MathAnim.tex(`\\textcolor{#d6458b}{S} = \\tfrac{${sec}}{360} \\times \\pi \\times ${r}^2 \\approx ${f2(As)}\\text{ cm}^2`) + '<br>'
+      + '<span class="muted" style="font-size:14px">' + Lab.L({ en:'In radians: ', zh:'用弧度表示：' }) + '</span>' + MathAnim.tex(`\\theta = ${sec} \\times \\tfrac{\\pi}{180} \\approx ${f2(rad)},\\; l = r\\theta \\approx ${f2(r * rad)}`);
+    Lab.$('#chTxt').textContent = Lab.L(CH[chI]);
+  }
+  Lab.$('#rIn').oninput = advUpdate; Lab.$('#thIn').oninput = advUpdate;
+  Lab.$('#chNew').onclick = () => { chI = (chI + 1) % CH.length; Lab.$('#chMsg').textContent = ''; Lab.$('#chMsg').className = 'result'; advUpdate(); };
+  Lab.$('#chCheck').onclick = () => {
+    const r = +Lab.$('#rIn').value, t = +Lab.$('#thIn').value, ok = CH[chI].test(r, t), msg = Lab.$('#chMsg');
+    msg.textContent = ok ? '🎉 ' + Lab.L(CH[chI].why) : Lab.L({ en:'Not yet. A sector is the fraction θ/360 of the circle: arc = θ/360 × 2πr, area = θ/360 × πr².', zh:'还不对。扇形是整个圆的 θ/360：弧长 = θ/360 × 2πr，面积 = θ/360 × πr²。' });
+    msg.className = 'result ' + (ok ? 'good' : 'bad');
+  };
+  Lab.onMode(advUpdate); Lab.onLang(advUpdate);
   function update(){
     ob.n = +Lab.$('#nIn').value; ob.t = +Lab.$('#tIn').value;
     const n = ob.n, w = n * Math.sin(Math.PI / n), h = Math.cos(Math.PI / n), a = w * h;
@@ -373,6 +428,7 @@ Lab.sort(Lab.$('#sort'), {
 /* ================= Where you see this: real photos (Wikimedia Commons, freely licensed) ================= */
 (function(){
 const o = (en, zh) => ({ en, zh });
+const VID = o('Video', '视频');
 const PHOTOS = [
   { src:'https://upload.wikimedia.org/wikipedia/commons/d/de/Ferris-wheel.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled',
     en:'The original Ferris wheel at the 1893 World’s Fair in Chicago. How far does one car travel in one full turn?',
@@ -389,9 +445,35 @@ const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bc/Two_pizza_slices.jpg/960px-Two_pizza_slices.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'Each slice is a wedge of a circle. What fraction of the whole pizza is one slice?',
     zh:'每一块都是圆的一个扇形。一块占整个披萨的几分之几？',
-    credit:'Douglas Perkins', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Two_pizza_slices.jpg' }
+    credit:'Douglas Perkins', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Two_pizza_slices.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/2/2a/Pi-unrolled-720.gif?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled',
+    en:'Roll a wheel 1 unit across exactly once: the line it leaves is π ≈ 3.14 units long. That is why C = π × d.',
+    zh:'让直径为 1 的轮子正好滚一圈：留下的线段长 π ≈ 3.14。这就是 C = π × d 的由来。',
+    kind:o('Animation','动画'), credit:'John Reid', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Pi-unrolled-720.gif' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e4/Crops_Kansas_AST_20010624.jpg/960px-Crops_Kansas_AST_20010624.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'Farm fields in Kansas seen from space. A long sprinkler arm swings around a center point, so it waters a circle. If the arm is 400 m long, what area gets water?',
+    zh:'从太空看美国堪萨斯州的农田。长长的喷灌臂绕中心点转圈，浇出一个圆。如果喷灌臂长 400 米，能浇多大面积？',
+    kind:o('Satellite photo','卫星照片'), credit:'NASA', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Crops_Kansas_AST_20010624.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3c/Stonehenge2007_07_30.jpg/960px-Stonehenge2007_07_30.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'Stonehenge, England, built over 4,000 years ago. Its big stone ring is about 33 m across. About how far is it to walk once around?',
+    zh:'英国巨石阵，建于 4000 多年前。巨石围成的圆环直径约 33 米。绕它走一圈大约多远？',
+    credit:'garethwiscombe', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Stonehenge2007_07_30.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/42/Tree_rings.jpg/960px-Tree_rings.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'Tree rings are circles that all share one center. Each year the radius grows a little. Which grows faster: the radius or the area?',
+    zh:'树的年轮是一圈圈同心圆。每年半径长一点点。半径和面积，哪个长得更快？',
+    credit:'Arnoldius', license:'CC BY-SA 2.5', page:'https://commons.wikimedia.org/wiki/File:Tree_rings.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e7/Domenico-Fetti_Archimedes_1620.jpg/960px-Domenico-Fetti_Archimedes_1620.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'Archimedes (Greece, about 250 BC) trapped a circle between two polygons with 96 sides and proved π is between 3 10⁄71 and 3 1⁄7. (Painting by Domenico Fetti, 1620.)',
+    zh:'古希腊的阿基米德（约公元前 250 年）用两个 96 边形把圆“夹”在中间，证明 π 在 3 10⁄71 和 3 1⁄7 之间。（多梅尼科·费蒂 1620 年的画作）',
+    kind:o('Math history','数学史'), credit:'Domenico Fetti', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Domenico-Fetti_Archimedes_1620.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/92/%E7%A5%96%E5%86%B2%E4%B9%8B%E9%93%9C%E5%83%8F.jpg/960px-%E7%A5%96%E5%86%B2%E4%B9%8B%E9%93%9C%E5%83%8F.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A bronze statue of Zu Chongzhi (祖冲之, AD 429–500). He showed π is between 3.1415926 and 3.1415927, a world record for about 900 years, and found the handy fraction 355/113.',
+    zh:'祖冲之（公元 429–500 年）铜像。他算出 π 在 3.1415926 和 3.1415927 之间，这个世界纪录保持了大约 900 年；他还找到了非常好用的“密率” 355/113。',
+    kind:o('Math history','数学史'), credit:'三猎', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:%E7%A5%96%E5%86%B2%E4%B9%8B%E9%93%9C%E5%83%8F.jpg' },
+  { type:'youtube', yt:'O-cawByg2aA', en:'Video: “Circles, Circumference and Area” — radius, diameter, π and the two circle formulas.', zh:'视频：《圆、周长和面积》——半径、直径、π 和两个圆的公式（英文）。', kind:VID, credit:'Math Antics (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'9a5vHXsUvUw', en:'Video: “The infinite life of pi” — a TED-Ed lesson on where π comes from and why its digits never end.', zh:'视频：《π 的无限生命》——TED-Ed 课程：π 从哪里来，为什么它的小数永远写不完（英文）。', kind:VID, credit:'TED-Ed (YouTube)', license:'YouTube' }
 ];
-LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos. Each one comes with a question this lesson helps you answer. Click a picture to enlarge it.','真实照片。每张都带着一个这节课能帮你回答的问题。点击图片可放大。') });
+LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos and short videos. Each photo comes with a question this lesson helps you answer. Click a picture to enlarge it or to play a video.','真实照片和短视频。每张照片都带着一个这节课能帮你回答的问题。点击图片可放大，点击视频可播放。') });
 })();
 </script>
 <!-- /real-world gallery script -->

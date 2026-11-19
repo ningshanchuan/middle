@@ -53,6 +53,24 @@
 @media (max-width:900px){.ide{grid-template-columns:1fr}}
 @media (max-width:560px){.ms .counters{grid-template-columns:1fr 1fr}.pal button{font-size:12px;padding:5px 8px}}
 label.ctl span{white-space:nowrap}
+/* Advanced mode */
+.idel .lab-mode{margin-bottom:-2px}
+.advp{grid-column:1/-1;display:flex;flex-direction:column;gap:8px}
+.advp .counters{grid-template-columns:repeat(5,minmax(0,1fr))}
+.advp .counter b{font-size:20px}
+.advp .counter span{font-size:12px}
+.arule{font-size:14px;margin:0}
+.trw{max-height:190px;overflow:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.trace{border-collapse:collapse;width:100%;font:12.5px/1.4 ui-monospace,Consolas,monospace}
+.trace th{position:sticky;top:0;background:var(--surface-2);text-align:left;padding:4px 8px;font-weight:800;color:var(--ink-2);white-space:nowrap}
+.trace td{padding:3px 8px;border-top:1px solid var(--line);white-space:nowrap}
+.trace td.vv{color:#be185d;font-weight:800}
+.trace tr.last td{background:color-mix(in srgb,var(--warn) 22%,transparent)}
+.pal button.fn{background:#15803d}
+html.lab-adv .gut{cursor:pointer}
+.gut .bp{color:var(--bad);font-weight:800}
+.atips{font-size:13px;margin:0}
+@media (max-width:700px){.advp .counters{grid-template-columns:repeat(3,minmax(0,1fr))}}
 </style>
 </head>
 <body data-subject="cs" data-topic="cs-coding">
@@ -166,6 +184,10 @@ function parse(src, world){
   const T = lex(src); let p = 0; const pk = () => T[p], nx = () => T[p++], isOp = (t, v) => t.t === 'op' && t.v === v;
   const skip = () => { while (pk().t === 'nl' || isOp(pk(), ';')) p++; };
   const KNOWN = [...CMDS[world], 'repeat', 'while', 'if', 'else', 'set', 'say'];
+  /* Advanced mode only: functions with parameters — define name p1 p2 { … } and a call: name 6 50 */
+  const ADV = Lab.adv(), FN = Object.create(null), BASEK = [...KNOWN, 'define', 'and', 'or', 'not', 'true', 'false', ...SENS[world], ...COLORS];
+  if (ADV){ for (let i = 0; i < T.length - 1; i++) if (T[i].t === 'id' && T[i].v === 'define' && T[i + 1].t === 'id' && !BASEK.includes(T[i + 1].v)){ let j = i + 2; const ps = []; while (T[j] && T[j].t === 'id') ps.push(T[j++].v); FN[T[i + 1].v] = ps.length; }
+    KNOWN.push('define', ...Object.keys(FN)); }
   function block(top){ const out = []; for (;;){ skip(); const t = pk(); if (t.t === 'eof'){ if (!top) E(t.L, 'a “{” block was never closed — add “}”.', '有一个“{”没有配对的“}”。'); break; }
       if (isOp(t, '}')){ if (top) E(t.L, 'this “}” has no matching “{”.', '这个“}”没有配对的“{”。'); break; } out.push(stmt()); } return out; }
   function body(){ const t = nx(); if (!isOp(t, '{')) E(t.L, 'expected “{” to start the block.', '这里需要“{”开始一个代码块。'); const b = block(false); nx(); return b; }
@@ -177,7 +199,14 @@ function parse(src, world){
       if (pk().t === 'id' && pk().v === 'else'){ nx(); e = (pk().t === 'id' && pk().v === 'if') ? [stmt()] : body(); } else p = save; return { k:'if', c, b, e, L }; }
     if (t.v === 'set'){ const n = nx(); if (n.t !== 'id') E(L, 'after “set” write a variable name, like: set n = 0', '“set”后面要写变量名，例如：set n = 0'); if (!isOp(nx(), '=')) E(L, 'write “=” after the variable name.', '变量名后面要写“=”。'); return { k:'set', name:n.v, x:expr(), L }; }
     if (t.v === 'say') return { k:'say', x:expr(), L };
+    if (ADV && t.v === 'define'){ const n = nx(); if (n.t !== 'id') E(L, 'after “define” write a function name, like: define poly n len {', '“define”后面要写函数名，例如：define poly n len {');
+      if (BASEK.includes(n.v)) E(L, `“${n.v}” is a built-in name — pick another function name.`, `“${n.v}”是内置名字——换一个函数名吧。`);
+      const params = []; while (pk().t === 'id'){ const q = nx(); if (BASEK.includes(q.v) || q.v in FN) E(L, `“${q.v}” is a built-in name — pick another parameter name.`, `“${q.v}”是内置名字——换一个参数名吧。`); params.push(q.v); }
+      return { k:'def', name:n.v, params, b:body(), L }; }
     if (isOp(pk(), '=')){ nx(); return { k:'set', name:t.v, x:expr(), L }; }
+    if (ADV && t.v in FN){ const args = [];
+      for (let i = 0; i < FN[t.v]; i++){ if (pk().t === 'nl' || pk().t === 'eof' || isOp(pk(), '}') || isOp(pk(), ';')) E(L, `“${t.v}” needs ${FN[t.v]} value${FN[t.v] > 1 ? 's' : ''} — one for each parameter.`, `“${t.v}”需要${FN[t.v]}个值——每个参数一个。`); args.push(expr()); }
+      return { k:'call', name:t.v, args, L }; }
     if (!CMDS[world].includes(t.v)){ const best = KNOWN.map(w => [w, lev(w, t.v)]).sort((a, b) => a[1] - b[1])[0];
       if (best[1] <= 2) E(L, `I don’t know the command “${t.v}”. Did you mean “${best[0]}”?`, `我不认识命令“${t.v}”。你是想写“${best[0]}”吗？`);
       E(L, `I don’t know the command “${t.v}”. Commands here: ${CMDS[world].join(', ')}.`, `我不认识命令“${t.v}”。这里可以用：${CMDS[world].join('、')}。`); }
@@ -203,16 +232,39 @@ const uses = (ast, k) => { let y = false; walk(ast, s => { if (s.k === k) y = tr
 const nestedRepeat = ast => { let y = false; walk(ast, s => { if (s.k === 'repeat' && s.b.some(x => x.k === 'repeat')) y = true; }); return y; };
 const ifInLoop = ast => { let y = false; walk(ast, s => { if ((s.k === 'repeat' || s.k === 'while') && JSON.stringify(s.b).includes('"k":"if"')) y = true; }); return y; };
 const codeLines = src => src.split('\n').map(l => l.replace(/#.*$/, '').trim()).filter(Boolean).length;
+/* Advanced: X.trace (an array) turns on the trace table — every statement is recorded and also becomes a Step stop */
+const fv = v => typeof v === 'number' ? String(Math.round(v * 1000) / 1000) : '“' + v + '”';
+function plug(e, X, top){   // the expression with the current values plugged in, e.g. side + 10 → 20 + 10
+  switch (e.k){ case 'num': return fv(e.v); case 'str': return fv(e.v);
+    case 'var': try { const v = fv(ev(e, X)); return !(e.name in X.vars) && SENS[X.world].includes(e.name) ? e.name + ' (' + v + ')' : v; } catch (_){ return e.name; }
+    case 'not': return 'not ' + plug(e.a, X); case 'neg': return '−' + plug(e.a, X);
+    case 'bin': { const s = plug(e.a, X) + ' ' + e.op + ' ' + plug(e.b, X); return top ? s : '(' + s + ')'; } }
+  return '?';
+}
+function tr(X, s, note){ if (!X.trace) return; const v = {}; for (const k in X.vars) v[k] = X.vars[k];
+  X.tn = (X.tn || 0) + 1; X.trace.push({ n:X.tn, L:s.L, note, v }); if (X.trace.length > 400) X.trace.shift(); }
 function* exec(stmts, X){
   for (const s of stmts){
     if (++X.ticks > 20000) E(s.L, 'more than 20,000 steps — is a loop running forever?', '执行超过2万步——是不是有循环停不下来？');
     X.line = s.L;
-    if (s.k === 'cmd'){ yield* X.W.cmd(s.name, s.args.map(a => ev(a, X)), s.L); yield s.L; }
-    else if (s.k === 'repeat'){ const n = ev(s.n, X); if (typeof n !== 'number' || n < 0 || n > 10000) E(s.L, 'repeat needs a number from 0 to 10,000.', 'repeat后面需要0到10000之间的数。'); for (let i = 0; i < Math.floor(n); i++) yield* exec(s.b, X); }
-    else if (s.k === 'while'){ while (truthy(ev(s.c, X))){ if (++X.ticks > 20000) E(s.L, 'this while loop never stops — its condition stays true.', '这个while循环停不下来——条件一直成立。'); yield* exec(s.b, X); } }
-    else if (s.k === 'if'){ if (truthy(ev(s.c, X))) yield* exec(s.b, X); else if (s.e) yield* exec(s.e, X); }
-    else if (s.k === 'set'){ if (CMDS[X.world].includes(s.name) || SENS[X.world].includes(s.name)) E(s.L, `“${s.name}” is a built-in name — pick another variable name.`, `“${s.name}”是内置名字——换一个变量名吧。`); X.vars[s.name] = ev(s.x, X); X.setCount++; }
-    else if (s.k === 'say'){ const v = ev(s.x, X); X.said.push(v); X.log(String(v), ''); yield s.L; }
+    if (s.k === 'cmd'){ const a = s.args.map(a => ev(a, X)); yield* X.W.cmd(s.name, a, s.L); X.cmds = (X.cmds || 0) + 1; tr(X, s, s.name + (a.length ? ' ' + fv(a[0]) : '')); yield s.L; }
+    else if (s.k === 'repeat'){ const n = ev(s.n, X); if (typeof n !== 'number' || n < 0 || n > 10000) E(s.L, 'repeat needs a number from 0 to 10,000.', 'repeat后面需要0到10000之间的数。'); if (X.trace){ tr(X, s, 'repeat ' + Math.floor(n) + ' ×'); yield s.L; } for (let i = 0; i < Math.floor(n); i++){ X.loops = (X.loops || 0) + 1; yield* exec(s.b, X); } }
+    else if (s.k === 'while'){ for (;;){ const c = truthy(ev(s.c, X)); if (X.trace){ tr(X, s, plug(s.c, X, true) + ' → ' + (c ? 'true' : 'false')); yield s.L; } if (!c) break;
+        if (++X.ticks > 20000) E(s.L, 'this while loop never stops — its condition stays true.', '这个while循环停不下来——条件一直成立。'); X.loops = (X.loops || 0) + 1; yield* exec(s.b, X); } }
+    else if (s.k === 'if'){ const c = truthy(ev(s.c, X)); if (X.trace){ tr(X, s, plug(s.c, X, true) + ' → ' + (c ? 'true' : 'false')); yield s.L; } if (c) yield* exec(s.b, X); else if (s.e) yield* exec(s.e, X); }
+    else if (s.k === 'set'){ if (CMDS[X.world].includes(s.name) || SENS[X.world].includes(s.name)) E(s.L, `“${s.name}” is a built-in name — pick another variable name.`, `“${s.name}”是内置名字——换一个变量名吧。`);
+      const before = X.trace ? plug(s.x, X, true) : ''; X.vars[s.name] = ev(s.x, X); X.setCount++;
+      if (X.trace){ const after = fv(X.vars[s.name]); tr(X, s, s.name + ' = ' + before + (before === after ? '' : ' = ' + after)); X.lastSet = s.name + ' = ' + before + (before === after ? '' : ' = ' + after); yield s.L; } }
+    else if (s.k === 'say'){ const v = ev(s.x, X); X.said.push(v); X.log(String(v), ''); tr(X, s, 'say ' + fv(v)); yield s.L; }
+    else if (s.k === 'def'){ X.funcs = X.funcs || {}; X.funcs[s.name] = s; tr(X, s, 'define ' + s.name + (s.params.length ? ' (' + s.params.join(', ') + ')' : '')); }
+    else if (s.k === 'call'){ const f = X.funcs && X.funcs[s.name];
+      if (!f) E(s.L, `put the “define ${s.name} …” block ABOVE the first time you use it.`, `要先写“define ${s.name} …”代码块，再使用这个函数（把定义放到上面）。`);
+      if ((X.depth || 0) >= 30) E(s.L, 'more than 30 function calls inside each other — does your function keep calling itself without stopping?', '函数一层套一层超过30层——是不是函数一直调用自己、停不下来？');
+      const vals = s.args.map(a => ev(a, X)), saved = f.params.map(p => [p, Object.prototype.hasOwnProperty.call(X.vars, p), X.vars[p]]);
+      f.params.forEach((p, i) => X.vars[p] = vals[i]); X.depth = (X.depth || 0) + 1; X.calls = (X.calls || 0) + 1; X.maxDepth = Math.max(X.maxDepth || 0, X.depth);
+      tr(X, s, s.name + '(' + f.params.map((p, i) => p + ' = ' + fv(vals[i])).join(', ') + ')'); if (X.trace) yield s.L;
+      yield* exec(f.b, X);
+      X.depth--; saved.forEach(([p, had, v]) => { if (had) X.vars[p] = v; else delete X.vars[p]; }); }
   }
 }
 const truthy = v => !!v && v !== '0';
@@ -234,14 +286,14 @@ function num(v, L){ if (typeof v !== 'number') E(L, `“${v}” is not a number.
 
 /* ===================== Worlds ===================== */
 function Turtle(){
-  const W = { x:0, y:0, h:0, pen:true, col:'#2563eb', w:3, segs:[] };
+  const W = { x:0, y:0, h:0, pen:true, col:'#2563eb', w:3, segs:[], turn:0 };
   const CM = { red:'#dc2626', orange:'#ea580c', yellow:'#ca8a04', green:'#16a34a', blue:'#2563eb', purple:'#7c3aed', pink:'#db2777', black:'#111827', white:'#f8fafc', brown:'#92400e', gray:'#6b7280', teal:'#0d9488' };
   W.cmd = function*(n, a, L){ const v = a[0];
     const need = () => { if (typeof v !== 'number') E(L, `“${n}” needs a number, like: ${n} ${n === 'left' || n === 'right' ? 90 : 100}`, `“${n}”后面需要一个数，例如：${n} ${n === 'left' || n === 'right' ? 90 : 100}`); return v; };
     if (n === 'forward' || n === 'back'){ const d = need() * (n === 'back' ? -1 : 1); if (Math.abs(d) > 2000) E(L, 'that is too far (max 2,000).', '走得太远了（最多2000）。');
       const nx2 = W.x + d * Math.sin(W.h * Math.PI / 180), ny = W.y + d * Math.cos(W.h * Math.PI / 180);
       if (W.pen) W.segs.push({ x1:W.x, y1:W.y, x2:nx2, y2:ny, c:W.col, w:W.w }); W.x = nx2; W.y = ny; }
-    else if (n === 'right') W.h = (W.h + need()) % 360; else if (n === 'left') W.h = (W.h - need() + 360) % 360;
+    else if (n === 'right'){ W.turn += need(); W.h = (W.h + need()) % 360; } else if (n === 'left'){ W.turn -= need(); W.h = (W.h - need() + 360) % 360; }
     else if (n === 'penup') W.pen = false; else if (n === 'pendown') W.pen = true;
     else if (n === 'color'){ if (!CM[v]) E(L, `try a colour name: ${COLORS.join(', ')}.`, `请用颜色名：${COLORS.join('、')}。`); W.col = CM[v]; }
     else if (n === 'width'){ W.w = Math.max(1, Math.min(20, need())); } };
@@ -295,7 +347,16 @@ const TM = [
  { t:o('4 · Square spiral','4 · 方形螺旋'), goal:o('Use a variable! Start with side = 10 and draw 20 lines: after each line turn right 90 and make side 10 bigger.','用变量！先设 side = 10，画20条线：每画一条就右转90度，并让side增加10。'), start:'set side = 10\n',
    ref:'set side = 10\nrepeat 20 {\n forward side\n right 90\n side = side + 10\n}', skill:{ f:a => uses(a, 'set') && uses(a, 'repeat'), n:o('uses a variable in a loop','在循环里用了变量') }, max:6, hint:o('Inside the loop: forward side, right 90, then side = side + 10.','循环里写：forward side、right 90，然后 side = side + 10。') },
  { t:o('5 · Flower','5 · 花朵'), goal:o('Nested loops: draw 8 squares with sides of 80, turning right 45 after each square.','嵌套循环：画8个边长80的正方形，每画完一个就右转45度。'), start:'repeat 4 {\n  forward 80\n  right 90\n}\n',
-   ref:'repeat 8 {\n repeat 4 {\n  forward 80\n  right 90\n }\n right 45\n}', skill:{ f:nestedRepeat, n:o('uses a loop inside a loop','用了循环套循环') }, max:7, hint:o('Wrap your square loop inside repeat 8 { … } and add right 45 after it.','把画正方形的循环放进 repeat 8 { … } 里，并在它后面加上 right 45。') }
+   ref:'repeat 8 {\n repeat 4 {\n  forward 80\n  right 90\n }\n right 45\n}', skill:{ f:nestedRepeat, n:o('uses a loop inside a loop','用了循环套循环') }, max:7, hint:o('Wrap your square loop inside repeat 8 { … } and add right 45 after it.','把画正方形的循环放进 repeat 8 { … } 里，并在它后面加上 right 45。') },
+ /* Advanced-mode challenges (shown only in 🚀 Advanced; not counted in the 30 stars) */
+ { adv:true, tab:'🎯 A', t:o('🎯 Challenge A · A function with parameters','🎯 挑战A · 带参数的函数'), goal:o('Write ONE function that can draw any regular polygon: define poly n len { … } (n = number of sides, len = side length; each turn is 360 ÷ n). Then call it 3 times to draw a triangle, a square and a hexagon, all with sides of 60.','只写一个函数，就能画任意正多边形：define poly n len { … }（n是边数，len是边长；每次转 360 ÷ n 度）。然后调用它3次，画出边长都是60的三角形、正方形和正六边形。'),
+   start:'define poly n len {\n  # your loop here\n}\npoly 3 60\n', ref:'define poly n len {\n repeat n {\n  forward len\n  right 360 / n\n }\n}\npoly 3 60\npoly 4 60\npoly 6 60',
+   skill:{ f:a => { let d = null, k = 0; walk(a, s => { if (s.k === 'def' && s.params.length >= 2) d = s.name; }); walk(a, s => { if (s.k === 'call' && s.name === d) k++; }); return !!d && k >= 3; }, n:o('a function with 2 parameters, called 3 times','定义了有2个参数的函数，并调用了3次') }, max:9,
+   hint:o('Inside the function: repeat n { forward len  right 360 / n }. Below it: poly 3 60, poly 4 60, poly 6 60.','函数里面写：repeat n { forward len  right 360 / n }。下面写：poly 3 60、poly 4 60、poly 6 60。') },
+ { adv:true, tab:'🎯 B', t:o('🎯 Challenge B · Recursion: a fractal tree','🎯 挑战B · 递归：分形树'), goal:o('A function may call ITSELF (recursion). Draw the tree: tree size draws a trunk of length size, then two smaller trees (size × 0.7) turned left 25° and right 25°, then walks back. Stop when size is 8 or less. Start with tree 80, 170 steps below the centre.','函数可以调用它自己（递归）。画出这棵树：tree size 先画一根长size的树干，再分别向左、向右偏25°各画一棵更小的树（size × 0.7），然后退回来。size不大于8时就停。从中心下方170步的地方开始画 tree 80。'),
+   start:'penup\nback 170\npendown\ndefine tree size {\n  if size > 8 {\n    forward size\n    # two smaller trees here\n    back size\n  }\n}\ntree 80\n', ref:'penup\nback 170\npendown\ndefine tree size {\n if size > 8 {\n  forward size\n  left 25\n  tree size * 0.7\n  right 50\n  tree size * 0.7\n  left 25\n  back size\n }\n}\ntree 80',
+   skill:{ f:a => { let y = false; walk(a, s => { if (s.k === 'def'){ const me = s.name; walk(s.b, t => { if (t.k === 'call' && t.name === me) y = true; }); } }); return y; }, n:o('the function calls itself (recursion)','函数调用了它自己（递归）') }, max:15,
+   hint:o('Between forward size and back size: left 25 · tree size * 0.7 · right 50 · tree size * 0.7 · left 25.','在 forward size 和 back size 之间写：left 25 · tree size * 0.7 · right 50 · tree size * 0.7 · left 25。') }
 ];
 const N8 = 8, blank = () => Array.from({ length:N8 }, () => Array(N8).fill('.'));
 const RM = [
@@ -314,7 +375,12 @@ const RM = [
  { t:o('10 · Canyon run','10 · 穿越峡谷'), goal:o('Find your way through a twisting canyon to BASE. Every run is a new canyon! Use while, if and the sensors.','穿过弯弯曲曲的峡谷到达基地。每次都是新峡谷！要用while、if和传感器。'), start:'while not at_base {\n  forward\n}\n', max:11, tests:3,
    map:() => { const g = Array.from({ length:N8 }, () => Array(N8).fill('#')); let r = 0, c = 0; g[0][0] = '.'; const mv = Lab.shuffle([...Array(7).fill('E'), ...Array(7).fill('S')]);
      mv.forEach(m => { if (m === 'E') c++; else r++; g[r][c] = '.'; }); g[7][7] = 'B'; return { g, r:0, c:0, d:1 }; },
-   skill:{ f:a => uses(a, 'while') && uses(a, 'if'), n:o('uses while + if','用了while和if') }, hint:o('Inside the loop: if blocked { if right_blocked { left } else { right } } else { forward }','循环里写：if blocked { if right_blocked { left } else { right } } else { forward }') }
+   skill:{ f:a => uses(a, 'while') && uses(a, 'if'), n:o('uses while + if','用了while和if') }, hint:o('Inside the loop: if blocked { if right_blocked { left } else { right } } else { forward }','循环里写：if blocked { if right_blocked { left } else { right } } else { forward }') },
+ /* Advanced-mode challenge */
+ { adv:true, tab:'🎯 C', t:o('🎯 Challenge C · Count with a variable','🎯 挑战C · 用变量计数'), goal:o('Drive to the rock wall and stop on BASE — the distance changes every run. At the end, say how many squares the rover drove. Use a counter variable; it must be right on 3 maps. Watch the counter grow in the trace table!','开到石墙前、停在基地上——每次距离都不一样。最后用say说出火星车走了几格。要用一个计数变量，3张地图都要说对。在跟踪表里看着计数器一点点变大！'),
+   start:'set steps = 0\nwhile not blocked {\n  forward\n}\n', max:6, tests:3, map:() => RM[3].map(),
+   check:(W, X) => X && X.said.length > 0 && X.said[X.said.length - 1] === W.trail.length - 1, checkWhy:o('The rover is on BASE, but the last number it said is not the number of squares it drove.','火星车到了基地，可它最后说出的数不是它走过的格数。'),
+   skill:{ f:a => uses(a, 'set') && uses(a, 'say') && uses(a, 'while'), n:o('counts with a variable in a while loop','在while循环里用变量计数') }, hint:o('Inside the loop, after forward: steps = steps + 1. After the loop: say steps.','在循环里forward后面写：steps = steps + 1。循环结束后写：say steps。') }
 ];
 const HRANKS = [ { min:0, n:o('Cadet','学员') }, { min:8, n:o('Rover Driver','火星车驾驶员') }, { min:16, n:o('Mission Engineer','任务工程师') }, { min:24, n:o('Flight Director','飞行总指挥') } ];
 const HUD = { stars:Array(10).fill(0), runs:0 };
@@ -330,49 +396,83 @@ const PAL = {
   turtle:[ ['mv', 'forward 100'], ['mv', 'right 90'], ['mv', 'left 90'], ['lp', 'repeat 4 {\n\n}'], ['vr', 'set side = 10'], ['vr', 'side = side + 10'], ['pn', 'penup'], ['pn', 'pendown'], ['pn', 'color red'], ['vr', 'say side'] ],
   rover:[ ['mv', 'forward'], ['mv', 'left'], ['mv', 'right'], ['mv', 'collect'], ['lp', 'repeat 3 {\n\n}'], ['lp', 'while not blocked {\n\n}'], ['lp', 'while not at_base {\n\n}'], ['cd', 'if at_sample {\n\n}'], ['cd', 'if blocked {\n\n} else {\n\n}'], ['vr', 'set n = 0'], ['vr', 'n = n + 1'], ['vr', 'say n'] ]
 };
+const PALADV = { turtle:[ ['fn', 'define poly n len {\n\n}'], ['fn', 'poly 6 50'] ], rover:[ ['fn', 'define turn_around {\n\n}'], ['fn', 'steps = steps + 1'] ] };
 function makeIDE(root, world, missions, off){
   const el = Lab.$(root);
-  el.innerHTML = `<div class="ide"><div class="card idel"><div class="mlist"></div><div class="goal"></div><div class="pal"></div>
+  el.innerHTML = `<div class="ide"><div class="card idel"><div class="lab-mode"></div><div class="mlist"></div><div class="goal"></div><div class="pal"></div>
     <div class="ed"><div class="gut"></div><textarea spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="code"></textarea></div>
     <div class="ctlrow"><button class="btn run"></button><button class="btn ghost step"></button><button class="btn ghost reset"></button><button class="btn ghost hintb"></button>
     <label class="ctl"><span class="spl"></span><input type="range" class="speed" min="1" max="10" value="5" aria-label="speed"></label></div><div class="out" aria-live="polite"></div></div>
-    <div class="card ider"><canvas width="880" height="880"></canvas><div class="sensors"></div><div class="result"></div></div></div>`;
+    <div class="card ider"><canvas width="880" height="880"></canvas><div class="sensors"></div><div class="result"></div></div>
+    <div class="adv adv-box advp"><b class="advh"></b><div class="counters acnt"></div><p class="arule"></p><div class="trw" data-nofs><table class="trace"></table></div>
+    <p class="atips muted"></p><div class="btnrow"><button class="btn ghost chgo"></button></div></div></div>`;
   const ta = el.querySelector('textarea'), gut = el.querySelector('.gut'), cv = el.querySelector('canvas'), out = el.querySelector('.out'), res = el.querySelector('.result');
-  const S = { m:0, code:missions.map(m => m.start), W:null, it:null, X:null, timer:null, line:0, errL:0, map:null, logs:[] };
-  function gutter(){ const n = ta.value.split('\n').length; gut.innerHTML = Array.from({ length:n }, (_, i) => i + 1 === S.errL ? `<span class="er">${i + 1}</span>` : i + 1 === S.line ? `<span class="hl">${i + 1}</span>` : String(i + 1)).join('\n'); gut.scrollTop = ta.scrollTop; }
+  const S = { m:0, code:missions.map(m => m.start), W:null, it:null, X:null, timer:null, line:0, errL:0, map:null, logs:[], bp:new Set(), adv:{} };
+  function gutter(){ const n = ta.value.split('\n').length, bp = Lab.adv() ? S.bp : new Set();
+    gut.innerHTML = Array.from({ length:n }, (_, i) => { const t = (bp.has(i + 1) ? '●' : '') + (i + 1); return i + 1 === S.errL ? `<span class="er">${t}</span>` : i + 1 === S.line ? `<span class="hl">${t}</span>` : bp.has(i + 1) ? `<span class="bp">${t}</span>` : t; }).join('\n'); gut.scrollTop = ta.scrollTop; }
+  /* Advanced: click a line number to set a breakpoint */
+  gut.addEventListener('click', e => { if (!Lab.adv()) return; const cs = getComputedStyle(gut), lh = parseFloat(cs.lineHeight) || 21.7, r = gut.getBoundingClientRect();
+    const L = Math.floor((e.clientY - r.top - parseFloat(cs.paddingTop) + gut.scrollTop) / lh) + 1; if (L < 1 || L > ta.value.split('\n').length) return;
+    S.bp.has(L) ? S.bp.delete(L) : S.bp.add(L); gutter(); });
   function log(t, c){ S.logs.push([t, c]); out.innerHTML = S.logs.slice(-40).map(([t, c]) => `<div class="${c}">${String(Lab.L(t)).replace(/[&<]/g, ch => ch === '&' ? '&amp;' : '&lt;')}</div>`).join(''); out.scrollTop = out.scrollHeight; }
   function sensors(){ const box = el.querySelector('.sensors'); if (world !== 'rover' || !S.W){ box.innerHTML = world === 'turtle' && S.W ? `<span>x ${S.W.sense('x')}</span><span>y ${S.W.sense('y')}</span><span>heading ${S.W.sense('heading')}°</span>` : ''; return; }
     box.innerHTML = SENS.rover.map(n => { const v = S.W.sense(n); return `<span class="${v && n !== 'samples' ? 'on' : ''}">${n} = ${v}</span>`; }).join(''); }
   function fresh(){ stop(); const M = missions[S.m]; S.map = world === 'rover' ? M.map() : null; S.W = world === 'turtle' ? Turtle() : Rover(S.map);
     if (world === 'turtle') S.W.ghost = runAll('turtle', parse(M.ref, 'turtle')).W.segs; S.it = null; S.line = 0; S.errL = 0; draw(); gutter(); }
-  function draw(){ S.W.draw(cv); sensors(); }
+  function draw(){ S.W.draw(cv); sensors(); if (Lab.adv()) advRender(); }
+  const esc = t => String(t).replace(/[&<>]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' })[ch]);
+  function advRender(){ const X = S.X && S.X.W === S.W ? S.X : null, W = S.W, num = v => (v || 0).toLocaleString('en-US');
+    const C = [ [num(X && X.ticks), o('steps run (limit 20,000)', '执行步数（上限2万）')], [num(X && X.cmds), o('commands', '命令条数')], [num(X && X.setCount), o('variable updates', '变量更新次数')],
+      [num(X && X.calls) + (X && X.maxDepth > 1 ? ' · ' + X.maxDepth : ''), o('function calls · deepest', '函数调用 · 最深层数')],
+      world === 'turtle' ? [Math.round(W.turn) + '°', o('total turning', '累计转角')] : [num(W.trail.length - 1), o('squares driven', '已走格数')] ];
+    el.querySelector('.acnt').innerHTML = C.map(([b, s]) => `<div class="counter"><b>${b}</b><span>${Lab.L(s)}</span></div>`).join('');
+    const last = X && X.lastSet ? Lab.L(o(`Last variable update: <b class="mono">${esc(X.lastSet)}</b> (the right side is worked out first, then stored on the left). `, `最近一次变量更新：<b class="mono">${esc(X.lastSet)}</b>（先算出右边的值，再存进左边的变量）。`)) : '';
+    const t = W.turn, rule = world === 'turtle'
+      ? Lab.L(o(`Turtle rule: a closed shape that goes round once turns 360° in total. So far ${Math.round(t)}° = ${Math.round(t / 360 * 100) / 100} × 360°.`, `小海龟规律：绕一圈回到起点的封闭图形，转角加起来是360°。目前转了${Math.round(t)}° = ${Math.round(t / 360 * 100) / 100} × 360°。`))
+      : Lab.L(o(`Samples ${W.got}/${W.total} · facing ${'NESW'[W.d]} · a program that reads sensors works on any map; fixed numbers work on one.`, `样本 ${W.got}/${W.total} · 朝向${'北东南西'[W.d]} · 读取传感器的程序在任何地图上都管用，固定数字只对一张地图有效。`));
+    el.querySelector('.arule').innerHTML = last + rule;
+    const T = X && X.trace ? X.trace.slice(-60) : [], names = []; T.forEach(r => Object.keys(r.v).forEach(k => { if (!names.includes(k) && names.length < 5) names.push(k); }));
+    const src = S.src || [], tb = el.querySelector('.trace');
+    tb.innerHTML = `<tr><th>#</th><th>${Lab.L(o('line', '行'))}</th><th>${Lab.L(o('code', '代码'))}</th><th>${Lab.L(o('what happened', '执行结果'))}</th>${names.map(n => `<th>${esc(n)}</th>`).join('')}</tr>`
+      + (T.length ? T.map((r, i) => `<tr class="${i === T.length - 1 ? 'last' : ''}"><td>${r.n}</td><td>${r.L}</td><td>${esc((src[r.L - 1] || '').replace(/#.*$/, '').trim())}</td><td>${esc(r.note)}</td>${names.map(n => `<td class="vv">${n in r.v ? esc(fv(r.v[n])) : '—'}</td>`).join('')}</tr>`).join('')
+        : `<tr><td colspan="4" class="muted" style="white-space:normal">${Lab.L(o('Press Step ▶| or Run ▶ — every line the computer runs appears here, with the value of each variable after it.', '按“单步 ▶|”或“运行 ▶”——计算机执行的每一行都会出现在这里，后面是执行完这一行时每个变量的值。'))}</td></tr>`);
+    const w = el.querySelector('.trw'); w.scrollTop = w.scrollHeight; }
   function stop(){ if (S.timer){ clearInterval(S.timer); S.timer = null; } el.querySelector('.run').textContent = Lab.L(o('Run ▶', '运行 ▶')); }
   function compile(){ S.errL = 0; let ast; try { ast = parse(ta.value, world); } catch (e){ if (e instanceof CodeErr){ S.errL = e.L; log(e.m, 'e'); gutter(); return null; } throw e; }
     const keepGhost = S.W && S.W.ghost; S.W = world === 'turtle' ? Turtle() : Rover(S.map || missions[S.m].map()); if (keepGhost) S.W.ghost = keepGhost;
-    S.X = { W:S.W, world, vars:{}, said:[], ticks:0, setCount:0, log:t => log(o('💬 ' + t, '💬 ' + t), '') }; S.ast = ast; S.it = exec(ast, S.X); HUD.runs++; hud(); return ast; }
+    S.X = { W:S.W, world, vars:{}, said:[], ticks:0, setCount:0, log:t => log(o('💬 ' + t, '💬 ' + t), ''), trace:Lab.adv() ? [] : null }; S.src = ta.value.split('\n'); S.ast = ast; S.it = exec(ast, S.X); HUD.runs++; hud(); return ast; }
   function stepOnce(){ if (!S.it) return false; let r; try { r = S.it.next(); } catch (e){ if (e instanceof CodeErr){ S.errL = e.L; log(e.m, 'e'); S.it = null; stop(); draw(); gutter(); res.className = 'result bad'; res.textContent = Lab.L(o('Fix the error and run again.', '改正错误后再运行一次。')); return false; } throw e; }
     if (r.done){ S.it = null; S.line = 0; stop(); draw(); gutter(); finish(); return false; } S.line = r.value; return true; }
-  function finish(){ const M = missions[S.m], idx = off + S.m, ast = S.ast; let ok, why;
+  function finish(){ const M = missions[S.m], idx = off + S.m, ast = S.ast; let ok, why; if (M.adv && !Lab.adv()) return;
     if (world === 'turtle'){ ok = same(S.W.segs, S.W.ghost); why = ok ? null : o('The drawing doesn’t match the dashed shape yet. Check your numbers and turns.', '画出来的图形和虚线图形还不一样。检查一下数字和转的角度。'); }
-    else { const W = S.W; ok = W.g[W.r][W.c] === 'B' && W.got === W.total; why = ok ? null : W.got < W.total ? o(`Only ${W.got} of ${W.total} samples collected.`, `只采集了${W.total}个样本中的${W.got}个。`) : o('The rover did not finish on BASE.', '火星车没有停在基地上。'); }
+    else { const W = S.W; ok = W.g[W.r][W.c] === 'B' && W.got === W.total; why = ok ? null : W.got < W.total ? o(`Only ${W.got} of ${W.total} samples collected.`, `只采集了${W.total}个样本中的${W.got}个。`) : o('The rover did not finish on BASE.', '火星车没有停在基地上。');
+      if (ok && M.check && !M.check(W, S.X)){ ok = false; why = M.checkWhy; } }
     let passed = ok ? 1 : 0;
-    if (ok && M.tests > 1){ for (let k = 1; k < M.tests; k++){ const rr = runAll('rover', ast, M.map()); if (!rr.err && rr.W.g[rr.W.r][rr.W.c] === 'B' && rr.W.got === rr.W.total) passed++; }
+    if (ok && M.tests > 1){ for (let k = 1; k < M.tests; k++){ const rr = runAll('rover', ast, M.map()); if (!rr.err && rr.W.g[rr.W.r][rr.W.c] === 'B' && rr.W.got === rr.W.total && (!M.check || M.check(rr.W, rr.X))) passed++; }
       ok = passed === M.tests; if (!ok) why = o(`It worked on this map, but only on ${passed} of ${M.tests} maps. Use sensors instead of fixed numbers!`, `这张地图成功了，但3张地图里只成功了${passed}张。要用传感器，不要用固定的数字！`); }
     if (!ok){ res.className = 'result bad'; res.textContent = Lab.L(why); log(why, 'e'); return; }
     const sk = M.skill.f(ast), short = codeLines(ta.value) <= M.max, st = 1 + (sk ? 1 : 0) + (short ? 1 : 0);
-    HUD.stars[idx] = Math.max(HUD.stars[idx], st); hud(); tabs();
+    if (M.adv) S.adv[S.m] = Math.max(S.adv[S.m] || 0, st); else HUD.stars[idx] = Math.max(HUD.stars[idx], st); hud(); tabs();
     const msg = o(`✅ ${'★'.repeat(st)}${'☆'.repeat(3 - st)} Mission complete${M.tests > 1 ? ' on all 3 maps' : ''}! ${sk ? '✓' : '✗'} ${M.skill.n.en} · ${short ? '✓' : '✗'} ${codeLines(ta.value)} lines (goal ≤ ${M.max}).`,
       `✅ ${'★'.repeat(st)}${'☆'.repeat(3 - st)} 任务完成${M.tests > 1 ? '（3张地图全部成功）' : ''}！${sk ? '✓' : '✗'} ${M.skill.n.zh} · ${short ? '✓' : '✗'} ${codeLines(ta.value)}行（目标≤${M.max}行）。`);
     res.className = 'result good'; res.textContent = Lab.L(msg); log(msg, 'g'); }
   function run(){ stop(); el.querySelector('.run').textContent = Lab.L(o('Pause ⏸', '暂停 ⏸'));
-    S.timer = setInterval(() => { const sp = +el.querySelector('.speed').value, k = sp >= 9 ? 40 : sp >= 7 ? 6 : 1; for (let i = 0; i < k; i++) if (!stepOnce()) return; draw(); gutter(); }, sp2ms()); }
+    S.timer = setInterval(() => { const sp = +el.querySelector('.speed').value, k = sp >= 9 ? 40 : sp >= 7 ? 6 : 1;
+      for (let i = 0; i < k; i++){ if (!stepOnce()) return; if (Lab.adv() && S.bp.has(S.line)){ stop(); draw(); gutter(); log(o(`⏸ Breakpoint: paused after line ${S.line}. Check the trace table, then press Step ▶| or Run ▶.`, `⏸ 断点：第${S.line}行执行完后暂停。看看跟踪表，再按“单步 ▶|”或“运行 ▶”继续。`), 'g'); return; } }
+      draw(); gutter(); }, sp2ms()); }
   const sp2ms = () => { const sp = +el.querySelector('.speed').value; return sp >= 7 ? 30 : 520 - sp * 70; };
-  function tabs(){ el.querySelector('.mlist').innerHTML = missions.map((m, i) => `<button class="tbtn ${i === S.m ? 'on' : ''}" data-m="${i}">${off + i + 1} <span class="stars">${'★'.repeat(HUD.stars[off + i])}</span></button>`).join('');
-    el.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { S.code[S.m] = ta.value; S.m = +b.dataset.m; ta.value = S.code[S.m]; S.logs = []; out.innerHTML = ''; res.textContent = ''; tabs(); text(); fresh(); }); }
+  function tabs(){ el.querySelector('.mlist').innerHTML = missions.map((m, i) => m.adv && !Lab.adv() ? '' : `<button class="tbtn ${i === S.m ? 'on' : ''}" data-m="${i}">${m.adv ? m.tab : off + i + 1} <span class="stars">${'★'.repeat(m.adv ? S.adv[i] || 0 : HUD.stars[off + i])}</span></button>`).join('');
+    el.querySelectorAll('[data-m]').forEach(b => b.onclick = () => pickM(+b.dataset.m)); }
+  function pickM(i){ S.code[S.m] = ta.value; S.m = i; ta.value = S.code[S.m]; S.logs = []; out.innerHTML = ''; res.textContent = ''; S.bp.clear(); tabs(); text(); fresh(); }
   function text(){ const M = missions[S.m]; el.querySelector('.goal').innerHTML = `<b>${Lab.L(M.t)}</b>${Lab.L(M.goal)}`;
     el.querySelector('.run').textContent = Lab.L(S.timer ? o('Pause ⏸', '暂停 ⏸') : o('Run ▶', '运行 ▶')); el.querySelector('.step').textContent = Lab.L(o('Step ▶|', '单步 ▶|'));
     el.querySelector('.reset').textContent = Lab.L(o('Reset', '重置')); el.querySelector('.hintb').textContent = Lab.L(o('💡 Hint', '💡 提示')); el.querySelector('.spl').textContent = Lab.L(o('Speed', '速度'));
-    el.querySelector('.pal').innerHTML = PAL[world].map(([c, t]) => `<button class="${c}" data-ins="${encodeURIComponent(t)}">${t.split('\n')[0].replace(/\{$/, '{ }')}</button>`).join('');
+    el.querySelector('.advh').textContent = Lab.L(o('Advanced: trace table, functions with parameters, breakpoints', '进阶：跟踪表、带参数的函数、断点'));
+    el.querySelector('.atips').textContent = Lab.L(world === 'turtle'
+      ? o('New in Advanced: define name p1 p2 { … } makes your own command (a function); its parameters are variables that get the values you pass in, e.g. poly 6 50 → n = 6, len = 50. Click a line number to set a ● breakpoint — Run pauses there. Step ▶| now stops on every line, including set, if and while.', '进阶新本领：define 名字 参数1 参数2 { … } 可以自己造一条新命令（函数）；参数就是变量，调用时传进去的值会存进参数，例如 poly 6 50 → n = 6、len = 50。点击行号可以设置●断点——运行到那里会暂停。现在“单步 ▶|”每行都会停，包括set、if和while。')
+      : o('New in Advanced: watch each variable change in the trace table, and how every if / while condition works out to true or false. Click a line number to set a ● breakpoint — Run pauses there. You can also define your own commands: define turn_around { right  right }.', '进阶新本领：在跟踪表里看每个变量怎样变化，看每个if / while条件算出来是真（true）还是假（false）。点击行号可以设置●断点——运行到那里会暂停。还可以自己定义新命令：define turn_around { right  right }。'));
+    el.querySelector('.chgo').textContent = Lab.L(o('🎯 Go to the challenge', '🎯 去挑战'));
+    el.querySelector('.pal').innerHTML = [...PAL[world], ...(Lab.adv() ? PALADV[world] : [])].map(([c, t]) => `<button class="${c}" data-ins="${encodeURIComponent(t)}">${t.split('\n')[0].replace(/\{$/, '{ }')}</button>`).join('');
     el.querySelectorAll('[data-ins]').forEach(b => b.onclick = () => insert(decodeURIComponent(b.dataset.ins))); }
   function insert(t){ const s = ta.selectionStart, v = ta.value, ls = v.lastIndexOf('\n', s - 1) + 1, ind = (v.slice(ls).match(/^\s*/) || [''])[0], atStart = v.slice(ls, s).trim() === '';
     const block = t.split('\n').map((l, i) => i ? ind + (l === '' ? '  ' : l) : l).join('\n'), pre = atStart ? '' : '\n' + ind, ins = pre + block + (v.slice(s).startsWith('\n') || s === v.length ? '' : '\n');
@@ -383,12 +483,15 @@ function makeIDE(root, world, missions, off){
   el.querySelector('.run').onclick = () => { if (S.timer){ stop(); return; } if (!S.it){ S.logs = []; res.textContent = ''; if (world === 'rover') S.map = missions[S.m].map(); if (!compile()) return; } run(); };
   el.querySelector('.step').onclick = () => { stop(); if (!S.it){ S.logs = []; res.textContent = ''; if (world === 'rover') S.map = missions[S.m].map(); if (!compile()) return; } stepOnce(); draw(); gutter(); };
   el.querySelector('.reset').onclick = () => { S.logs = []; out.innerHTML = ''; res.textContent = ''; fresh(); };
-  el.querySelector('.hintb').onclick = () => log(o('💡 ' + missions[S.m].hint.en, '💡 ' + missions[S.m].hint.zh), 'g');
+  el.querySelector('.chgo').onclick = () => { const i = missions.findIndex(m => m.adv); if (i >= 0) pickM(i); el.scrollIntoView({ behavior:'smooth', block:'start' }); };
+  el.querySelector('.hintb').onclick =() => log(o('💡 ' + missions[S.m].hint.en, '💡 ' + missions[S.m].hint.zh), 'g');
   el.querySelector('.speed').oninput = () => { if (S.timer) run(); };
   const redraw = () => setTimeout(() => S.W && draw(), 60);
   new MutationObserver(redraw).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme'] });
   ta.value = S.code[0]; tabs(); text(); fresh();
-  Lab.onLang(() => { text(); tabs(); if (S.logs.length){ const L = S.logs; S.logs = []; L.forEach(([t, c]) => log(t, c)); } });
+  Lab.onLang(() => { text(); tabs(); if (S.logs.length){ const L = S.logs; S.logs = []; L.forEach(([t, c]) => log(t, c)); } if (Lab.adv() && S.W) advRender(); });
+  Lab.onMode(adv => { if (!adv && missions[S.m].adv) pickM(0); else { text(); tabs(); gutter(); if (S.W) draw(); } });
+  if (Lab.modes) Lab.modes(el);
   return { S, ta, el, runFast:() => { if (world === 'rover') S.map = missions[S.m].map(); if (!compile()) return; while (stepOnce()); draw(); gutter(); } };
 }
 const IDE_T = makeIDE('#ideT', 'turtle', TM, 0), IDE_R = makeIDE('#ideR', 'rover', RM, 5);
@@ -512,9 +615,15 @@ const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3a/Sojourner_on_Mars_PIA01122.jpg/960px-Sojourner_on_Mars_PIA01122.jpg', en:'Sojourner, the first Mars rover (1997), next to a rock nicknamed “the Dice”.', zh:'第一辆火星车“旅居者号”（1997年），旁边是一块昵称为“骰子”的石头。', kind:o('NASA photo','NASA照片'), credit:'NASA/JPL', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Sojourner_on_Mars_PIA01122.jpg' },
   { src:'https://upload.wikimedia.org/wikipedia/commons/6/6b/Sojourner_rover_driver_in_3D_goggles.png', en:'A Sojourner rover driver wearing 3D goggles to plan the rover’s moves.', zh:'“旅居者号”火星车的驾驶员戴着3D眼镜规划火星车的行动。', kind:o('NASA photo','NASA照片'), credit:'NASA', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Sojourner_rover_driver_in_3D_goggles.png' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/01/PIA24836_Perseverance%27s_Selfie_at_Rochette.jpg/960px-PIA24836_Perseverance%27s_Selfie_at_Rochette.jpg', en:'NASA’s Perseverance rover takes a selfie over a rock nicknamed “Rochette” on Mars.', zh:'NASA“毅力号”火星车在一块昵称为“Rochette”的岩石上方自拍。', kind:o('NASA photo','NASA照片'), credit:'NASA', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:PIA24836_Perseverance%27s_Selfie_at_Rochette.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/55/A_Jacquard_loom_showing_information_punchcards%2C_National_Museum_of_Scotland.jpg/960px-A_Jacquard_loom_showing_information_punchcards%2C_National_Museum_of_Scotland.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A Jacquard loom at the National Museum of Scotland. From 1804, a chain of punched cards told the loom which threads to lift for each row — a “program” for weaving patterns, long before computers.', zh:'苏格兰国家博物馆里的提花织机。从1804年起，一串穿孔卡片告诉织机每一行该提起哪些线——这是织图案的“程序”，比计算机早了一百多年。', kind:o('Museum object','博物馆藏品'), credit:'Stephencdickson', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:A_Jacquard_loom_showing_information_punchcards,_National_Museum_of_Scotland.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/74/Micro-bit.jpg/960px-Micro-bit.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'BBC micro:bits at the BETT education show (2016). This pocket-sized board has a grid of 25 lights, buttons and sensors; students program it with blocks or Python.', zh:'2016年BETT教育展上的BBC micro:bit。这块口袋大小的电路板有25个小灯组成的点阵、按钮和传感器；学生可以用积木或Python给它编程。', kind:o('Photo','照片'), credit:'lespounder', license:'CC BY-SA 2.0', page:'https://commons.wikimedia.org/wiki/File:Micro-bit.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f1/Raspberry_Pi_4_Model_B_-_Side.jpg/960px-Raspberry_Pi_4_Model_B_-_Side.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A Raspberry Pi 4: a whole computer on a board about the size of a credit card (85.6 mm long). It was made so students everywhere could afford to learn coding.', zh:'树莓派4：一整台计算机做在一块信用卡大小的电路板上（长85.6毫米）。设计它是为了让世界各地的学生都买得起、学得了编程。', kind:o('Computer','计算机'), credit:'Laserlicht', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Raspberry_Pi_4_Model_B_-_Side.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8c/Lego_Mindstorms_Nxt-FLL.jpg/960px-Lego_Mindstorms_Nxt-FLL.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A LEGO Mindstorms NXT robot at a FIRST LEGO League competition. Teams write programs that read the robot’s sensors and drive its motors to finish missions.', zh:'FIRST乐高机器人大赛上的乐高Mindstorms NXT机器人。参赛队编写程序，读取机器人的传感器、驱动电机去完成任务。', kind:o('Robot','机器人'), credit:'Eirik Refsdal from Trondheim, NORWAY', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Lego_Mindstorms_Nxt-FLL.jpg' },
   { type:'youtube', yt:'nKIu9yen5nc', en:'Video: “What Most Schools Don’t Teach” (Code.org).', zh:'视频：《大多数学校不教的事》（Code.org，英文）。', kind:{en:'Video',zh:'视频'}, credit:'Code.org — CodeAI channel (YouTube)', license:'YouTube' },
   { type:'youtube', yt:'l26oaHV7D40', en:'Video: “Programming Basics: Statements & Functions” — Crash Course Computer Science #12.', zh:'视频：《编程基础：语句与函数》——Crash Course计算机科学第12集（英文）。', kind:{en:'Video',zh:'视频'}, credit:'CrashCourse (YouTube)', license:'YouTube' },
-  { type:'youtube', yt:'RU1u-js7db8', en:'Video: “The First Programming Languages” — Crash Course Computer Science #11.', zh:'视频：《最早的编程语言》——Crash Course计算机科学第11集（英文）。', kind:{en:'Video',zh:'视频'}, credit:'CrashCourse (YouTube)', license:'YouTube' }
+  { type:'youtube', yt:'RU1u-js7db8', en:'Video: “The First Programming Languages” — Crash Course Computer Science #11.', zh:'视频：《最早的编程语言》——Crash Course计算机科学第11集（英文）。', kind:{en:'Video',zh:'视频'}, credit:'CrashCourse (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'QvyTEx1wyOY', en:'Video: “Computer Science is Changing Everything” (Code.org).', zh:'视频：《计算机科学正在改变一切》（Code.org，英文）。', kind:{en:'Video',zh:'视频'}, credit:'Code.org — CodeAI channel (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'xnyFYiK2rSY', en:'Video: “How Computers Work: Hardware and Software” — from Code.org’s How Computers Work series.', zh:'视频：《计算机怎样工作：硬件与软件》——Code.org“计算机怎样工作”系列（英文）。', kind:{en:'Video',zh:'视频'}, credit:'Code.org — CodeAI channel (YouTube)', license:'YouTube' }
 ];
 LabPhotos.render('#gallery', PHOTOS, { title:o('See the real thing', '看一看真实的样子'), sub:o('Pioneers of programming, the first “computer bug”, a real turtle robot and Mars rovers driven by code — plus short videos. Click a picture to enlarge it.', '编程先驱、第一只“计算机bug”、真实的海龟机器人和靠代码驾驶的火星车——还有短视频。点击图片可放大。') });
 function renderLinks(){ Lab.$('#links').innerHTML = LINKS.map(l => `<a class="linkcard" href="${l.u}" target="_blank" rel="noopener"><b>${Lab.L(l.t)}</b><span>${Lab.L(l.d)}</span><small>${l.s} ↗</small></a>`).join(''); }

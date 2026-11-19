@@ -40,6 +40,13 @@
 .cmp{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-weight:700;font-size:14px}
 .cmp select{border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:10px;padding:5px 8px;font:inherit;font-size:14px;max-width:100%}
 .bigfact{font-family:Fredoka;font-size:19px;font-weight:600;color:var(--ink);margin:0}
+/* 🚀 Advanced panel */
+.advgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:16px;align-items:start;margin-top:10px}
+.advcol{display:flex;flex-direction:column;gap:10px}
+.fml{font-family:ui-monospace,Consolas,monospace;font-size:13px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;line-height:1.55;overflow-wrap:anywhere}
+.mcnt{position:relative;height:250px;background:var(--surface);border-radius:12px;border:1px solid var(--line)}
+.mcnt canvas{position:absolute;inset:0;width:100%;height:100%}
+@media (max-width:760px){ .advgrid{grid-template-columns:1fr} }
 @media (max-width:980px){.readout{grid-template-columns:repeat(3,minmax(0,1fr))}.ctlrow{grid-template-columns:1fr 1fr}}
 @media (max-width:560px){#stage{min-height:500px}.readout{grid-template-columns:1fr 1fr}.ctlrow{grid-template-columns:1fr}#stage .toolbar .tbtn{padding:5px 9px;font-size:13px}}
 </style>
@@ -55,6 +62,7 @@
 </header>
 
 <section class="wrap" id="map" data-nav="Sky map" data-nav-zh="星图">
+  <div class="lab-mode" style="margin-bottom:10px"></div>
   <div class="explorer">
     <div class="stage card space" id="stage">
       <canvas id="skyCv"></canvas>
@@ -80,6 +88,28 @@
     <label class="ctl"><span data-zh="夜空有多黑（光污染）">How dark is your sky? (light pollution)</span><b id="darkTxt">–</b><input type="range" id="darkSl" min="2.5" max="6.5" step="0.1" value="5.5"></label>
   </div>
   <div class="chips" id="layers"></div>
+  <div class="adv adv-box" id="stAdv" style="margin-top:14px">
+    <b data-zh="🚀 进阶：坐标网格、时角与中天、大气质量和星等计数">🚀 Advanced: coordinate grids, hour angle and transit, air mass, and star counts</b>
+    <div class="advgrid">
+      <div class="advcol">
+        <div class="btnrow">
+          <label class="ctl" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="stEq" checked> <span data-zh="赤道坐标网（赤经 / 赤纬）">Equatorial grid (RA / Dec)</span></label>
+          <label class="ctl" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="stAz"> <span data-zh="地平坐标网（高度 / 方位）">Horizon grid (altitude / azimuth)</span></label>
+        </div>
+        <div class="counters">
+          <div class="counter"><b id="stRD">—</b><span data-zh="所选天体的赤经 · 赤纬">chosen object: RA · Dec</span></div>
+          <div class="counter"><b id="stAA">—</b><span data-zh="高度 · 方位角 · 大气质量">altitude · azimuth · air mass</span></div>
+        </div>
+        <div class="fml" id="stF"></div>
+        <div><b data-zh="🎯 挑战">🎯 Challenge</b> <span id="stChQ"></span> <button class="btn ghost sm" id="stChNew" data-zh="换一个 ↻">New ↻</button> <button class="btn sm" id="stChk" data-zh="检查">Check</button></div>
+        <div class="result" id="stCh"></div>
+      </div>
+      <div>
+        <div class="mcnt" data-nofs><canvas id="stCv" aria-label="Number of stars above the horizon brighter than each magnitude"></canvas></div>
+        <small class="muted" data-zh="此刻地平线以上、比每个星等更亮的恒星有多少颗（真实星表）。每暗 1 个星等，星星数量大约变成 3 倍；橙线 = 你的天空能看到的极限星等。">How many stars above your horizon right now are brighter than each magnitude (real catalog). Each magnitude fainter brings roughly 3 times as many stars; orange line = the faintest your sky lets you see.</small>
+      </div>
+    </div>
+  </div>
   <div class="readout">
     <div class="counter"><b id="rClock">–</b><span data-zh="当地时间">local time</span></div>
     <div class="counter"><b id="rLst">–</b><span data-zh="恒星时（哪一部分星空在头顶）">sidereal time (which sky is overhead)</span></div>
@@ -523,7 +553,7 @@ const LAYERS = [ ['lines', o('✦ Constellation lines','✦ 星座连线')], ['c
 const main = SkyView(Lab.$('#stage'), Lab.$('#skyCv'), {
   view:{ az:180, alt:90, fov:180 }, frame:() => SKY.F, layers:() => SKY.layers, sel:() => SKY.sel,
   onClick(x, y, api){ const p = api.pick(x, y); SKY.sel = p; renderInfo(); api.draw(); },
-  onView:() => viewText(), after:(api, lim) => afterDraw(api, lim),
+  onView:() => viewText(), after:(api, lim) => afterDraw(api, lim), overlay:(g, api) => { if (window.STAdv) STAdv.overlay(g, api); },   // 🚀 Advanced: coordinate grids
   hover(e, api){ const b = Lab.$('#skyCv').getBoundingClientRect(), p = api.pick(e.clientX - b.left, e.clientY - b.top), tip = Lab.$('#skyTip');
     if (!p){ tip.style.display = 'none'; return; } tip.textContent = objName(p); tip.style.left = (e.clientX - b.left) + 'px'; tip.style.top = (e.clientY - b.top) + 'px'; tip.style.display = 'block'; }
 });
@@ -871,12 +901,21 @@ const GAL = [
     en:'Saturn in natural colour, from NASA’s Cassini spacecraft (2008). From your backyard it looks like a steady pale-yellow “star”; a small telescope shows the rings.', zh:'NASA 卡西尼号拍摄的土星真实色彩照片（2008 年）。在你家院子里，它看起来是一颗稳定的淡黄色“星”；小望远镜就能看到光环。' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/ff/Manitoba_Museum_Planetarium.jpg/960px-Manitoba_Museum_Planetarium.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', page:'https://commons.wikimedia.org/wiki/File:Manitoba_Museum_Planetarium.jpg', credit:'TMMCommunications', license:'CC BY-SA 4.0', kind:KIND.place,
     en:'Inside the Manitoba Museum Planetarium, Canada: the star projector (lit blue) throws stars and galaxies onto the dome, just like this page draws them on your screen.', zh:'加拿大马尼托巴博物馆天象馆内部：投影仪（蓝光处）把恒星和星系投到圆顶上，就像本页把它们画在你的屏幕上。' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3c/Jupiter-and-its-moons-amateur.jpg/960px-Jupiter-and-its-moons-amateur.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', page:'https://commons.wikimedia.org/wiki/File:Jupiter-and-its-moons-amateur.jpg', credit:'salamander724', license:'Public domain', kind:KIND.earth,
+    en:'Jupiter and its moons through an amateur’s backyard telescope. Even binoculars held steady can show some of these four tiny “stars” in a line, the same moons Galileo found in 1610.', zh:'用业余爱好者的后院望远镜拍到的木星和它的卫星。就算是拿稳的双筒望远镜，也能看到排成一行的几颗小“星星”，它们就是伽利略在 1610 年发现的木星卫星。' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/25/20180211_Orion%2C_Hauptsterne_%2802259%29.jpg/960px-20180211_Orion%2C_Hauptsterne_%2802259%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', page:'https://commons.wikimedia.org/wiki/File:20180211_Orion,_Hauptsterne_(02259).jpg', credit:'Günter Seggebäing', license:'CC BY-SA 3.0', kind:KIND.earth,
+    en:'The constellation Orion, photographed with an ordinary camera lens. Look for the three stars of the belt, red Betelgeuse at the top left and blue-white Rigel at the bottom right. Orion rises in the evening from late autumn to winter.', zh:'用普通相机镜头拍到的猎户座。找一找排成一排的三颗“腰带”星、左上方发红的参宿四和右下方蓝白色的参宿七。从深秋到冬天，猎户座在傍晚升起。' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e8/ISS_over_M.B_Gonnet_07.jpg/960px-ISS_over_M.B_Gonnet_07.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', page:'https://commons.wikimedia.org/wiki/File:ISS_over_M.B_Gonnet_07.jpg', credit:'BugWarp', license:'CC BY 4.0', kind:KIND.earth,
+    en:'The International Space Station crossing the sky near a bright Moon, seen from Argentina. In a long-exposure photo it becomes a line. The ISS is often the brightest moving “star” you can spot, a few minutes after sunset or before sunrise.', zh:'在阿根廷看到的国际空间站从明亮的月亮旁边划过。长时间曝光的照片里，它变成了一条线。日落后或日出前的几分钟里，国际空间站常常是天上最亮的“会动的星星”。' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/9/95/Dunhuang_Star_Atlas_-_Orion.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', page:'https://commons.wikimedia.org/wiki/File:Dunhuang_Star_Atlas_-_Orion.jpg', credit:'British Library, Or.8210/S.3326', license:'Public domain', kind:o('Ancient star map','古代星图'),
+    en:'Part of the Dunhuang Star Chart from China, drawn about 1,300 years ago and found in a cave at Dunhuang: one of the oldest star maps in the world. This section includes the stars we call Orion (in Chinese astronomy, the mansion 参宿, Shen).', zh:'中国敦煌星图的一部分，约 1300 年前绘制，发现于敦煌藏经洞，是世界上现存最古老的星图之一。这一段里有我们今天叫作猎户座的星星（中国古代称为“参宿”）。' },
   { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/c/c5/ESO_-_Night-time_time-lapse_at_Cerro_Armazones_%28by%29.ogv?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c5/ESO_-_Night-time_time-lapse_at_Cerro_Armazones_%28by%29.ogv/960px--ESO_-_Night-time_time-lapse_at_Cerro_Armazones_%28by%29.ogv.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', page:'https://commons.wikimedia.org/wiki/File:ESO_-_Night-time_time-lapse_at_Cerro_Armazones_(by).ogv', credit:'ESO/S. Brunier', license:'CC BY 4.0', kind:KIND.vid,
     en:'Time-lapse of a night on Cerro Armazones in Chile’s Atacama Desert: the Milky Way wheels across the sky as Earth turns.', zh:'智利阿塔卡马沙漠阿马索内斯山上一夜的延时视频：地球转动时，银河在天空中缓缓转过。' },
   { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/3/39/Time-lapse_of_night_sky_in_Antarctica.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/39/Time-lapse_of_night_sky_in_Antarctica.webm/960px--Time-lapse_of_night_sky_in_Antarctica.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', page:'https://commons.wikimedia.org/wiki/File:Time-lapse_of_night_sky_in_Antarctica.webm', credit:'Discovering Antarctica / Kenrick Turner', license:'CC BY 3.0', kind:KIND.vid,
-    en:'A winter night under the stars in Antarctica, in time-lapse. Near the South Pole, the stars circle the south celestial pole: try latitude −75° on the map.', zh:'南极冬夜星空的延时视频。在南极附近，星星绕着南天极转圈：在星图上把纬度设为南纬 75° 试试。' }
+    en:'A winter night under the stars in Antarctica, in time-lapse. Near the South Pole, the stars circle the south celestial pole: try latitude −75° on the map.', zh:'南极冬夜星空的延时视频。在南极附近，星星绕着南天极转圈：在星图上把纬度设为南纬 75° 试试。' },
+  { type:'youtube', yt:'L-Wtlev6suc', en:'Crash Course Astronomy #2: Naked-eye observations. What you can see in the sky with just your eyes, and why the stars seem to turn during the night.', zh:'Crash Course 天文学第 2 集：肉眼观测。只用眼睛能在天上看到什么，以及星星为什么好像在夜里转圈。', kind:o('Video','视频'), credit:'CrashCourse (YouTube)', license:'YouTube' }
 ];
-LabPhotos.render('#gallery', GAL, { title:o('See the real thing','看看真实的样子'), sub:o('Real photos of planets and stars in the night sky, a planetarium, and two time-lapse videos of the sky turning. Click a picture to enlarge it; videos play only when you press play.','夜空中行星和恒星的真实照片、一座天象馆，以及两段星空旋转的延时视频。点击图片可放大；视频只有按下播放键才会播放。') });
+LabPhotos.render('#gallery', GAL, { title:o('See the real thing','看看真实的样子'), sub:o('Real photos of planets, stars and the space station in the night sky, an ancient Chinese star map, a planetarium, two time-lapse videos of the sky turning and a video lesson. Click a picture to enlarge it; videos play only when you press play.','夜空中行星、恒星和空间站的真实照片，一幅中国古代星图、一座天象馆，两段星空旋转的延时视频，还有一段视频讲解。点击图片可放大；视频只有按下播放键才会播放。') });
 /* ===== Go further links (all checked) ===== */
 const LINKS = [
   ['https://stellarium-web.org/', 'Stellarium Web', o('A full planetarium in your browser: type any star, planet or galaxy and it shows you exactly where it is tonight.','浏览器里的完整天象馆：输入任何恒星、行星或星系，它会告诉你今晚它在哪里。'), 'stellarium-web.org'],
@@ -913,6 +952,97 @@ Lab.sort(Lab.$('#sort'), {
     {en:'Acrux (−63°)',zh:'十字架二（−63°）',bin:'never'},{en:'Alpha Centauri (−61°)',zh:'南门二（−61°）',bin:'never'},{en:'Large Magellanic Cloud (−70°)',zh:'大麦哲伦云（−70°）',bin:'never'}
   ]
 });
+</script>
+<script>
+/* ===== 🚀 Advanced mode: RA/Dec and alt-az grids on the map, coordinates of the chosen object, hour angle & transit, air mass, star counts by magnitude, challenge ===== */
+(function(){
+  const $ = Lab.$;
+  const A = { ch:null, key:'' };
+  const raDec = v => ({ ra:((Math.atan2(v[1], v[0]) * R2D + 360) % 360) / 15, dec:Math.asin(clamp(v[2], -1, 1)) * R2D });
+  const hm = h => { h = ((h % 24) + 24) % 24; let hh = Math.floor(h), mm = Math.round((h - hh) * 60); if (mm === 60){ hh = (hh + 1) % 24; mm = 0; } return `${hh}h ${pad2(mm)}m`; };
+  const dms = d => `${d < 0 ? '−' : '+'}${Math.floor(Math.abs(d))}°${pad2(Math.round((Math.abs(d) % 1) * 60) % 60)}′`;
+  const selVec = () => { const p = SKY.sel, F = SKY.F; if (!p || !F) return null; return p.type === 'star' ? starVec(p.i) : F.B[p.id].v; };
+  /* grids drawn on top of the map */
+  function overlay(g, api){
+    if (!Lab.adv()) return;
+    const F = api.frame(), [W, H] = api.size(); if (!F) return;
+    const path = (pts, col, w) => { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); let prev = null; for (const v of pts){ const p = api.proj(v); if (p && prev && Math.abs(p[0] - prev[0]) < W / 3 && Math.abs(p[1] - prev[1]) < H / 3) g.lineTo(p[0], p[1]); else if (p) g.moveTo(p[0], p[1]); prev = p; } g.stroke(); };
+    const eq = (ra, dec) => { const a = ra * 15 * D2R, d = dec * D2R; return [Math.cos(d) * Math.cos(a), Math.cos(d) * Math.sin(a), Math.sin(d)]; };
+    const hz = (az, alt) => { const a = az * D2R, h = alt * D2R; return [0, 1, 2].map(j => Math.cos(h) * (Math.sin(a) * F.E[j] + Math.cos(a) * F.N[j]) + Math.sin(h) * F.U[j]); };
+    g.save(); g.font = '700 11px Nunito, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    if ($('#stEq').checked){
+      for (let ra = 0; ra < 24; ra += 2){ const pts = []; for (let d = -84; d <= 84; d += 3) pts.push(eq(ra, d)); path(pts, 'rgba(127,227,210,.35)', 1); }
+      [-60, -30, 30, 60].forEach(d => { const pts = []; for (let r = 0; r <= 24.01; r += .2) pts.push(eq(r, d)); path(pts, 'rgba(127,227,210,.35)', 1); });
+      const ceq = []; for (let r = 0; r <= 24.01; r += .2) ceq.push(eq(r, 0)); path(ceq, 'rgba(127,227,210,.85)', 1.8);
+      g.fillStyle = 'rgba(160,240,225,.95)';
+      for (let ra = 0; ra < 24; ra += 2){ const p = api.proj(eq(ra, 0)); if (p && dot(eq(ra, 0), F.U) > -.05 && p[0] > 10 && p[0] < W - 10 && p[1] > 10 && p[1] < H - 10) g.fillText(ra + 'h', p[0], p[1] - 9); }
+      const pole = api.proj(eq(0, F.lat >= 0 ? 90 : -90)); if (pole && dot(eq(0, F.lat >= 0 ? 90 : -90), F.U) > 0){ g.beginPath(); g.arc(pole[0], pole[1], 4, 0, 7); g.fill(); g.fillText(Lab.L(F.lat >= 0 ? o('north celestial pole','北天极') : o('south celestial pole','南天极')), pole[0], pole[1] + 13); }
+      const ql = api.proj(eq(F.lst / 15 + 1.2, 0)); if (ql && dot(eq(F.lst / 15 + 1.2, 0), F.U) > 0) g.fillText(Lab.L(o('celestial equator','天赤道')), ql[0], ql[1] + 12);
+    }
+    if ($('#stAz').checked){
+      [15, 30, 45, 60, 75].forEach(h => { const pts = []; for (let a = 0; a <= 360; a += 3) pts.push(hz(a, h)); path(pts, 'rgba(255,180,120,.45)', 1); const p = api.proj(hz(180, h)); if (p){ g.fillStyle = 'rgba(255,200,150,.95)'; g.fillText(h + '°', p[0] + 12, p[1]); } });
+      for (let a = 0; a < 360; a += 30){ const pts = []; for (let h = 0; h <= 90; h += 3) pts.push(hz(a, h)); path(pts, 'rgba(255,180,120,.35)', 1); }
+    }
+    g.restore();
+  }
+  function live(force){
+    if (!Lab.adv()) return;
+    const F = SKY.F; if (!F) return;
+    const key = [SKY.sel && (SKY.sel.i ?? SKY.sel.id), SKY.min, SKY.day, SKY.lat, SKY.dark, Lab.lang, DATA.ok].join('|'); if (!force && key === A.key) return; A.key = key;
+    const v = selVec(), lst = F.lst / 15;
+    if (!v){ $('#stRD').textContent = '—'; $('#stAA').textContent = '—';
+      $('#stF').innerHTML = (isZh() ? `地方恒星时 LST = ${hm(lst)}：此刻赤经 ${hm(lst)} 的星正好在正南方（中天）。<br>点击星图上的一颗星或行星，查看它的坐标。` : `local sidereal time LST = ${hm(lst)}: stars with RA ${hm(lst)} are crossing the meridian (due south) right now.<br>Click a star or planet on the map to see its coordinates.`);
+    } else {
+      const { ra, dec } = raDec(v), alt = altOf(F, v), az = azOf(F, v), Hh = (((lst - ra) % 24) + 36) % 24 - 12, X = alt > 1 ? 1 / Math.sin(alt * D2R) : null;
+      const hi = 90 - Math.abs(SKY.lat - dec), lo = Math.abs(SKY.lat + dec) - 90, tr = SKY.clock((((Math.round(SKY.min - Hh * 60 / 1.0027)) % 1440) + 1440) % 1440);
+      $('#stRD').textContent = `${hm(ra)} · ${dms(dec)}`;
+      $('#stAA').textContent = `${alt.toFixed(1)}° · ${az.toFixed(0)}° · ${X ? 'X ≈ ' + X.toFixed(2) : '—'}`;
+      $('#stF').innerHTML = [
+        (isZh() ? '时角 ' : 'hour angle ') + `H = LST − RA = ${hm(lst)} − ${hm(ra)} = ${Hh >= 0 ? '+' : '−'}${Math.abs(Hh).toFixed(2)} h → ` + Lab.L(Math.abs(Hh) < .05 ? o('crossing the meridian now!','此刻正在中天！') : Hh < 0 ? o('still rising toward the meridian','还在向子午线爬升') : o('already past the meridian, sinking west','已过子午线，向西落下')),
+        (isZh() ? `中天（最高点）时刻 ≈ ${tr}，最高 = 90° − |φ − δ| = ${hi.toFixed(1)}°` : `transit (highest point) at about ${tr}, height = 90° − |φ − δ| = ${hi.toFixed(1)}°`) + (lo > 0 ? Lab.L(o(' · circumpolar',' · 拱极，永不落下')) : hi < 0 ? Lab.L(o(' · never rises here',' · 在这里永不升起')) : ''),
+        X ? (isZh() ? `大气质量 X ≈ 1 ÷ sin(高度) = ${X.toFixed(2)}：星光穿过的空气是头顶方向的 ${X.toFixed(1)} 倍，大约变暗 ${(0.2 * X).toFixed(1)} 个星等` : `air mass X ≈ 1 ÷ sin(altitude) = ${X.toFixed(2)}: starlight crosses ${X.toFixed(1)}× as much air as straight up, dimming it by about ${(0.2 * X).toFixed(1)} magnitudes`) : Lab.L(o('Below or right on the horizon: the air (or the ground) blocks it.','在地平线以下或贴着地平线：被空气（或地面）挡住了。'))
+      ].join('<br>');
+    }
+    graph();
+  }
+  /* bar chart: cumulative star counts above the horizon by magnitude */
+  function graph(){
+    const cv = $('#stCv'), box = cv.parentElement, W = box.clientWidth, H = box.clientHeight; if (!W || !H) return;
+    const dpr = Math.min(devicePixelRatio || 1, 2); cv.width = W * dpr; cv.height = H * dpr;
+    const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+    const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim(), ink = css('--ink') || '#222', ink2 = css('--ink-2') || '#666', brand = css('--brand') || '#7a5cff';
+    if (!DATA.ok){ g.fillStyle = ink2; g.font = '700 13px Nunito'; g.textAlign = 'center'; g.fillText(Lab.L(o('Star catalog not loaded (needs the internet).','星表未加载（需要联网）。')), W / 2, H / 2); return; }
+    const F = SKY.F, bins = [0, 1, 2, 3, 4, 5, 6], cnt = bins.map(() => 0);
+    for (let i = 0; i < DATA.N; i++){ const v = starVec(i); if (dot(v, F.U) <= 0) continue; const m = DATA.MAG[i]; bins.forEach((b, j) => { if (m <= b + .5) cnt[j]++; }); }
+    const Lx = 36, Rx = W - 10, Ty = 14, By = H - 30, mx = Math.max(...cnt, 1), bw = (Rx - Lx) / bins.length;
+    g.font = '700 11px Nunito'; g.textAlign = 'center';
+    bins.forEach((b, j) => { const h = cnt[j] / mx * (By - Ty - 14), x = Lx + j * bw + bw * .15; g.fillStyle = b + .5 <= SKY.dark ? brand : 'rgba(140,150,175,.45)'; g.fillRect(x, By - h, bw * .7, h);
+      g.fillStyle = ink; g.fillText(cnt[j].toLocaleString('en-US'), x + bw * .35, By - h - 5); g.fillStyle = ink2; g.fillText(`≤ ${b + .5}`, x + bw * .35, By + 13); });
+    g.fillText(Lab.L(o('brighter than magnitude…','亮于这个星等……')), (Lx + Rx) / 2, H - 3);
+    g.strokeStyle = '#ff9f43'; g.lineWidth = 2; g.setLineDash([4, 3]); g.beginPath(); g.moveTo(Lx + (SKY.dark + .5) * bw, Ty); g.lineTo(Lx + (SKY.dark + .5) * bw, By); g.stroke(); g.setLineDash([]);
+  }
+  /* 🎯 challenge: catch a star exactly as it crosses the meridian */
+  const POOL = [32349, 69673, 91262, 24608, 24436];
+  function newCh(){ const ok = POOL.filter(h => DATA.ok ? DATA.hipIdx[h] != null && 90 - Math.abs(SKY.lat - raDec(starVec(DATA.hipIdx[h])).dec) > 5 : true);
+    let h; do { h = ok[Math.random() * ok.length | 0]; } while (ok.length > 1 && A.ch === h); A.ch = h; chText(); $('#stCh').className = 'result'; $('#stCh').textContent = ''; }
+  function chText(){ const n = FAM[A.ch] ? (isZh() ? FAM[A.ch][1] : FAM[A.ch][0]) : '?';
+    $('#stChQ').textContent = isZh() ? `用时间滑块（或换日期）让${n}正好“中天”：时角 H 在 ±0.1 小时以内（它在正南或正北方的最高点）。提示：先点击它，看公式框。` : `Use the time slider (or the date) to catch ${n} at transit: hour angle H within ±0.1 h (its highest point, due south or north). Tip: click it first and watch the formula box.`; }
+  $('#stChk').onclick = () => {
+    const el = $('#stCh'), i = DATA.hipIdx[A.ch];
+    if (!DATA.ok || i == null){ el.className = 'result bad'; el.textContent = Lab.L(o('The star catalog has not loaded yet.','星表还没加载好。')); return; }
+    const { ra, dec } = raDec(starVec(i)), Hh = (((SKY.F.lst / 15 - ra) % 24) + 36) % 24 - 12, hi = 90 - Math.abs(SKY.lat - dec);
+    if (Math.abs(Hh) <= .1){ el.className = 'result good'; el.textContent = isZh() ? `✅ 抓到了！赤经 ${hm(ra)} = 此刻的恒星时，它在最高点 ${hi.toFixed(0)}°。每天中天会提前约 4 分钟，因为恒星日只有 23 小时 56 分。` : `✅ Caught it! RA ${hm(ra)} = the sidereal time now, so it is at its highest, ${hi.toFixed(0)}°. It transits about 4 minutes earlier each day, because a sidereal day is only 23 h 56 min.`; }
+    else { el.className = 'result bad'; el.textContent = isZh() ? `❌ 现在 H = ${Hh.toFixed(2)} 小时：${Hh < 0 ? '它还没到最高点，把时间往后拨' : '它已经过了最高点，把时间往前拨'}约 ${Math.abs(Hh).toFixed(1)} 小时。` : `❌ Now H = ${Hh.toFixed(2)} h: ${Hh < 0 ? 'it has not reached its highest point yet; move the time later' : 'it already passed its highest point; move the time earlier'} by about ${Math.abs(Hh).toFixed(1)} h.`; }
+  };
+  $('#stChNew').onclick = newCh;
+  ['#stEq', '#stAz'].forEach(s => $(s).addEventListener('change', () => main.draw()));
+  setInterval(() => live(), 300);
+  new ResizeObserver(() => live(true)).observe($('#stCv').parentElement);
+  addEventListener('labtheme', () => live(true));
+  Lab.onLang(() => { if (A.ch != null) chText(); live(true); });
+  Lab.onMode(adv => { main.draw(); if (adv){ if (A.ch == null) newCh(); live(true); } });
+  window.STAdv = { overlay, live, state:A };
+})();
 </script>
 </body>
 </html>

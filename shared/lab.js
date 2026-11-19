@@ -16,6 +16,8 @@
     // modern names after ancient place names in China lessons: 长安（今陕西西安）
     // (placenames.js only acts on <body data-subject="china">)
     if (base && !window.LabPlaces){ const s = document.createElement('script'); s.src = base + 'placenames.js'; document.head.appendChild(s); }
+    // 📍 place links + lesson maps (places.js decides itself whether the page needs them: body[data-subject] or .lab-atlas)
+    if (base && !window.LabGaz){ const s = document.createElement('script'); s.src = base + 'places.js'; document.head.appendChild(s); }
   } catch(e){}
   const $ = Lab.$ = (s, r=document) => r.querySelector(s);
   const $$ = Lab.$$ = (s, r=document) => Array.from(r.querySelectorAll(s));
@@ -28,6 +30,8 @@
   Lab.L = o => o == null ? '' : (typeof o === 'string' ? o : (o[Lab.lang] ?? o.en ?? ''));
   Lab.shuffle = a => { a = a.slice(); for (let i=a.length-1;i>0;i--){ const j=Math.random()*(i+1)|0; [a[i],a[j]]=[a[j],a[i]]; } return a; };
   const langFns = [], readyFns = []; let isReady = false;
+  // errors inside onLang / onMode callbacks: log them and also report them to page checkers (window.__labErr)
+  const cbErr = e => { console.error(e); try { if (Array.isArray(window.__labErr)) window.__labErr.push('callback: ' + (e && e.message || e)); } catch(_){} };
   Lab.onLang = fn => { langFns.push(fn); if (isReady) fn(Lab.lang); };
   Lab.ready = fn => { if (isReady) fn(); else readyFns.push(fn); };
   const UI = {
@@ -36,9 +40,33 @@
     q:{en:'Question {n} of {t}',zh:'第 {n} 题 / 共 {t} 题'}, right:{en:'✅ Correct!',zh:'✅ 答对了！'}, wrong:{en:'❌ Not quite. Answer: ',zh:'❌ 不对，正确答案：'},
     nextQ:{en:'Next question ▶',zh:'下一题 ▶'}, done:{en:'🎉 Finished! You got {s} of {t} right.',zh:'🎉 完成！你答对了 {s} / {t} 题。'}, again:{en:'Play again ↺',zh:'再来一轮 ↺'},
     sortGood:{en:'✅ Correct!',zh:'✅ 正确！'}, sortBad:{en:'❌ Try again!',zh:'❌ 再想想！'}, sortDone:{en:'🎉 All sorted! Mistakes: {m}',zh:'🎉 全部分对了！出错次数：{m}'}, reset:{en:'Play again',zh:'再玩一次'},
-    theme:{en:'Toggle dark mode',zh:'切换深色模式'}, listen:{en:'🔊 Read aloud',zh:'🔊 朗读'}, need3d:{en:'⚠️ The 3D scene needs an internet connection to load.',zh:'⚠️ 3D 场景需要联网才能加载。'}
+    theme:{en:'Toggle dark mode',zh:'切换深色模式'}, listen:{en:'🔊 Read aloud',zh:'🔊 朗读'}, need3d:{en:'⚠️ The 3D scene needs an internet connection to load.',zh:'⚠️ 3D 场景需要联网才能加载。'},
+    basic:{en:'🙂 Basic',zh:'🙂 基础'}, adv:{en:'🚀 Advanced',zh:'🚀 进阶'}, advTip:{en:'Advanced: more controls, real numbers and the science behind it',zh:'进阶：更多可调参数、真实数据和背后的原理'}
   };
   Lab.UI = UI;
+
+  /* ---------- Basic / Advanced mode (STEM simulations) ----------
+     Put <div class="lab-mode"></div> where the switch should appear (usually at the top of a simulation card).
+     Elements with class "adv" are shown only in Advanced mode, "basic-only" only in Basic mode; ".adv-box" = a framed 🚀 panel.
+     JS: Lab.adv() -> true/false · Lab.onMode(fn(adv)) runs at start-up and on every change · Lab.setAdv(true|false).
+     The choice is remembered across lessons (localStorage labAdv); ?adv=1 or ?adv=0 in the URL overrides it. */
+  let advOn = params.get('adv') != null ? params.get('adv') === '1' : store.get('labAdv') === '1';
+  const modeFns = [];
+  document.documentElement.classList.toggle('lab-adv', advOn);
+  Lab.adv = () => advOn;
+  Lab.onMode = fn => { modeFns.push(fn); if (isReady) try { fn(advOn); } catch(e){ console.error(e); } };
+  function renderModes(root = document){
+    $$('.lab-mode', root).forEach(el => {
+      if (!el.dataset.built){ el.dataset.built = '1'; el.setAttribute('role', 'group');
+        el.innerHTML = '<button type="button" data-m="0"></button><button type="button" data-m="1"></button>';
+        el.addEventListener('click', e => { const b = e.target.closest('button[data-m]'); if (b) Lab.setAdv(b.dataset.m === '1'); }); }
+      const [b0, b1] = el.querySelectorAll('button[data-m]');
+      b0.textContent = Lab.L(UI.basic); b1.textContent = Lab.L(UI.adv); b1.title = Lab.L(UI.advTip); el.title = '';
+      b0.classList.toggle('on', !advOn); b1.classList.toggle('on', advOn); b0.setAttribute('aria-pressed', String(!advOn)); b1.setAttribute('aria-pressed', String(advOn));
+    });
+  }
+  Lab.modes = renderModes;   // call after inserting new .lab-mode placeholders
+  Lab.setAdv = v => { advOn = !!v; store.set('labAdv', advOn ? '1' : '0'); document.documentElement.classList.toggle('lab-adv', advOn); renderModes(); modeFns.forEach(fn => { try { fn(advOn); } catch(e){ cbErr(e); } }); };
   const fmt = (o, v={}) => { let s = Lab.L(o); for (const k in v) s = s.replace('{'+k+'}', v[k]); return s; };
   Lab.fmt = fmt;
 
@@ -100,7 +128,8 @@
     applyStatic();
     $$('.lab-lang button').forEach(b => b.classList.toggle('on', b.dataset.lang === Lab.lang));
     if (Lab.topic) document.title = (Lab.lang === 'zh' ? Lab.topic.zh : Lab.topic.en) + ' · ' + Lab.L(UI.home);
-    langFns.forEach(fn => { try { fn(Lab.lang); } catch(e){ console.error(e); } });
+    renderModes();
+    langFns.forEach(fn => { try { fn(Lab.lang); } catch(e){ cbErr(e); } });
   };
   Lab.translate = applyStatic;  // call on dynamically inserted markup that uses data-zh
   function setLang(l){ Lab.lang = l; store.set('labLang', l); Lab.stopSpeech(); loadRec(l); Lab.applyLang(); }
@@ -302,6 +331,7 @@
     isReady = true;
     readyFns.forEach(fn => { try { fn(); } catch(e){ console.error(e); } });
     Lab.applyLang();
+    modeFns.forEach(fn => { try { fn(advOn); } catch(e){ cbErr(e); } });
   }
   // Boot as soon as the HTML is parsed ("interactive"), i.e. BEFORE deferred/module scripts run — so the nav,
   // footer and translations don't wait for three.js / CDN modules to download.

@@ -33,6 +33,12 @@ table.lab td .sw{display:inline-block;width:12px;height:12px;border-radius:50%;m
 .chk{display:flex;gap:8px;align-items:center;font-weight:700;font-size:15px}
 .chk input{width:18px;height:18px;accent-color:var(--brand)}
 .counters.c3{grid-template-columns:repeat(2,minmax(0,1fr))}
+/* 🚀 Advanced mode */
+#elAdv h4{margin:0 0 6px;font-size:17px}
+#elAdv .segs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+#elG{width:100%;height:230px;display:block;border-radius:12px;background:var(--surface-2);touch-action:none;cursor:ew-resize}
+.advf{font-family:ui-monospace,Consolas,monospace;font-size:13.5px;background:var(--surface-2);border-radius:10px;padding:8px 10px;margin:8px 0 0;overflow-wrap:anywhere;line-height:1.5}
+.advnote{font-size:14px;margin:4px 0;color:var(--ink-2)}
 @media (max-width:980px){.probe{grid-template-columns:repeat(3,minmax(0,1fr))}.analogy,.know{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:560px){.probe{grid-template-columns:repeat(2,minmax(0,1fr))}.analogy,.know{grid-template-columns:1fr}.pill input#depth{width:110px}#seisBox{min-height:400px}}
 </style>
@@ -75,6 +81,20 @@ table.lab td .sw{display:inline-block;width:12px;height:12px;border-radius:50%;m
     <div class="counter"><b id="pDens">—</b><span data-zh="密度（克/厘米³）">density (g/cm³)</span></div>
     <div class="counter wide"><b id="pTemp">—</b><span data-zh="温度">temperature</span><div class="heatbar"><i id="pTempMark" style="left:0"></i></div></div>
     <div class="counter full"><b id="pPress">—</b><span data-zh="压力">pressure</span></div>
+  </div>
+  <div class="adv adv-box" id="elAdv" style="margin-top:12px">
+    <h4 data-zh="🚀 深度剖面：一路向下，什么在变？">🚀 Depth profile: what changes on the way down?</h4>
+    <div class="segs">
+      <div class="seg small" id="qSeg"><button data-q="T" class="on" data-zh="🌡 温度">🌡 Temperature</button><button data-q="P" data-zh="🗜 压力">🗜 Pressure</button><button data-q="D" data-zh="⚖ 密度">⚖ Density</button><button data-q="V" data-zh="〰 地震波速">〰 Wave speed</button></div>
+      <div class="seg small" id="zSeg"><button data-z="6371" class="on" data-zh="整个地球">Whole Earth</button><button data-z="700" data-zh="上部 700 千米">Top 700 km</button></div>
+    </div>
+    <canvas id="elG" aria-label="Graph of the chosen quantity against depth; tap or drag to move the drill"></canvas>
+    <p class="advnote" data-zh="在图上点击或拖动，也能移动钻头。">Tap or drag on the graph to move the drill too.</p>
+    <div class="grid2" style="gap:10px"><div class="advf" id="elV"></div><div class="advf" id="elP"></div></div>
+    <h4 style="margin-top:12px" data-zh="🎯 挑战：找到两个“不连续面”">🎯 Challenge: find the two great boundaries</h4>
+    <p class="advnote" data-zh="选“地震波速”曲线。地震波速度突然改变的深度就是圈层的分界面。把钻头移到 ① P 波和 S 波都突然加快的地方，② S 波完全消失、P 波突然变慢的地方，每次按“📍 标记这个深度”。">Pick the “Wave speed” graph. Where seismic waves suddenly change speed, one layer ends and another begins. Move the drill to ① the depth where P and S waves both suddenly speed up, and ② where S waves vanish and P waves suddenly slow down. Press “📍 Mark this depth” each time.</p>
+    <div class="btnrow"><button class="btn" id="elMark" data-zh="📍 标记这个深度">📍 Mark this depth</button></div>
+    <div class="result" id="elMsg"></div>
   </div>
 </section>
 
@@ -232,16 +252,16 @@ App.select = (k, from3D) => { App.sel = k; renderInfo(); renderChips(); if (!fro
 function renderInfo(){
   const box = Lab.$('#info'), k = App.sel;
   if (!k){
-    box.innerHTML = `<span class="tag">${Lab.L(o('Inside Earth','地球内部'))}</span>
+    box.innerHTML = `<div class="lab-mode"></div><span class="tag">${Lab.L(o('Inside Earth','地球内部'))}</span>
       <h3>${Lab.L(o('Three main layers','三个主要圈层'))}</h3>
       <p class="muted" style="margin:0">${Lab.L(o('By what they are made of, Earth has a crust, a mantle and a core. By how they behave, scientists also split the top into the rigid lithosphere and the soft asthenosphere, and the core into a liquid outer core and a solid inner core. Click any layer of the model.','按组成物质来分，地球分为地壳、地幔和地核。按物理性质来分，科学家又把上部分成坚硬的岩石圈和柔软的软流层，把地核分成液态的外核和固态的内核。点击模型中的任意一层。'))}</p>
       <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(o('Going deeper, temperature, pressure and density all increase. Heavy materials (iron, nickel) sank to the center long ago; light rock floated to the top.','越往深处，温度、压力和密度都越大。很久以前，重的物质（铁、镍）沉到了中心，轻的岩石浮到了表面。'))}</div>
       <div class="nav"><button id="startBtn">${Lab.L(o('Start at the crust ▶','从地壳开始 ▶'))}</button></div>`;
     Lab.$('#startBtn').onclick = () => App.select('ccrust');
-    return;
+    Lab.modes(box); return;
   }
   const p = PARTS[k], i = ORDER.indexOf(k);
-  box.innerHTML = `<span class="tag">${Lab.L(o('Layer of Earth','地球的圈层'))}</span>
+  box.innerHTML = `<div class="lab-mode"></div><span class="tag">${Lab.L(o('Layer of Earth','地球的圈层'))}</span>
     <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
     <div class="job">${Lab.L(p.job)}</div>
     ${p.photo ? LabPhotos.figure(p.photo) : ''}
@@ -253,6 +273,7 @@ function renderInfo(){
   Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. '));
   Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
   Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
+  Lab.modes(box);
 }
 function renderChips(){
   Lab.$('#chips').innerHTML = ORDER.map(k => `<button class="chip ${App.sel===k?'on':''}" data-k="${k}"><i style="background:${PARTS[k].color}"></i>${Lab.L(PARTS[k].name)}</button>`).join('');
@@ -273,6 +294,7 @@ function renderProbe(){
   const big = Lab.lang === 'zh' ? (atm >= 1e4 ? (atm / 1e4).toFixed(atm >= 1e6 ? 0 : 1) + ' 万' : num(atm)) : (atm >= 1e6 ? (atm / 1e6).toFixed(1) + ' million' : num(atm));
   Lab.$('#pPress').textContent = d <= 0 ? Lab.L(o('1 × air pressure at sea level','海平面气压的 1 倍')) :
     (Lab.lang === 'zh' ? `${P.toFixed(P < 10 ? 1 : 0)} 吉帕,约为海平面气压的 ${big} 倍` : `${P.toFixed(P < 10 ? 1 : 0)} GPa ≈ ${big} × air pressure at sea level`);
+  if (App.advDraw) App.advDraw();
 }
 App.setDepth = (d, fromSlider) => {
   App.depth = Math.max(0, Math.min(6371, d)); if (!fromSlider) Lab.$('#depth').value = App.depth;
@@ -280,6 +302,96 @@ App.setDepth = (d, fromSlider) => {
 };
 Lab.$('#depth').addEventListener('input', e => App.setDepth(+e.target.value, true));
 Lab.onLang(() => { renderInfo(); renderChips(); renderProbe(); });
+
+/* ===== 🚀 Advanced: depth profile graph, seismic speeds, p = ρgh, find the discontinuities ===== */
+(function(){
+  const $ = Lab.$, zh = () => Lab.lang === 'zh';
+  // approximate seismic speeds (km/s) by depth (km), simplified from the PREM Earth model
+  const VP = [[0,5.8],[35,6.5],[35.1,8.0],[220,8.0],[410,8.9],[410.1,9.1],[660,10.2],[660.1,10.8],[2900,13.7],[2900.1,8.06],[5150,10.36],[5150.1,11.03],[6371,11.26]];
+  const VS = [[0,3.2],[35,3.9],[35.1,4.5],[220,4.4],[410,4.8],[410.1,4.9],[660,5.6],[660.1,5.95],[2900,7.3],[2900.1,0],[5150,0],[5150.1,3.5],[6371,3.67]];
+  const GT = [[0,9.8],[2900,10.7],[6371,0]];   // gravity g (m/s²): about constant in the mantle, falling to 0 at the center
+  const vp = d => lerpTab(VP, d), vs = d => lerpTab(VS, d), gAt = d => lerpTab(GT, d);
+  const BANDS = [[0,35,'ccrust'],[35,100,'litho'],[100,350,'astheno'],[350,2900,'mantle'],[2900,5150,'outer'],[5150,6371,'inner']];
+  const Q = {
+    T:{ f:tempAt, max:6000, unit:'°C', name:o('Temperature','温度') },
+    P:{ f:pressAt, max:400, unit:o('GPa','吉帕'), name:o('Pressure','压力') },
+    D:{ f:densAt, max:16, unit:o('g/cm³','克/厘米³'), name:o('Density','密度') },
+    V:{ f:vp, max:16, unit:o('km/s','千米/秒'), name:o('Wave speed','地震波速') }
+  };
+  const A = { q:'T', z:6371, found:{} };
+  const nf = (x, d = 0) => x.toLocaleString('en-US', { minimumFractionDigits:d, maximumFractionDigits:d, useGrouping:!zh() });
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const cv = $('#elG');
+  const pad = { l:44, r:10, t:22, b:24 };
+  function draw(){
+    if (!Lab.adv()) return;
+    const w = cv.clientWidth, h = cv.clientHeight; if (!w) return;
+    const r = devicePixelRatio || 1; if (cv.width !== Math.round(w * r) || cv.height !== Math.round(h * r)){ cv.width = Math.round(w * r); cv.height = Math.round(h * r); }
+    const c = cv.getContext('2d'); c.setTransform(r, 0, 0, r, 0, 0); c.clearRect(0, 0, w, h);
+    const ink = css('--ink'), ink2 = css('--ink-2'), line = css('--line'), q = Q[A.q], Z = A.z;
+    const pw = w - pad.l - pad.r, ph = h - pad.t - pad.b, X = d => pad.l + d / Z * pw, Y = v => pad.t + ph - v / q.max * ph;
+    BANDS.forEach(([a, b, k]) => { if (a >= Z) return; const x0 = X(a), x1 = X(Math.min(b, Z)); c.globalAlpha = .2; c.fillStyle = PARTS[k].color; c.fillRect(x0, pad.t, x1 - x0, ph); c.globalAlpha = 1;
+      if (x1 - x0 > 70){ c.fillStyle = ink2; c.font = '700 11px Nunito,sans-serif'; c.textAlign = 'center'; c.fillText(Lab.L(PARTS[k].name), (x0 + x1) / 2, pad.t + 13); } });
+    c.textAlign = 'right'; c.font = '700 11px Nunito,sans-serif'; c.fillStyle = ink2; c.strokeStyle = line; c.lineWidth = 1;
+    for (let i = 0; i <= 4; i++){ const v = q.max * i / 4, y = Y(v); c.beginPath(); c.moveTo(pad.l, y); c.lineTo(w - pad.r, y); c.stroke(); c.fillText(nf(v), pad.l - 5, y + 4); }
+    c.textAlign = 'center';
+    const step = Z > 1000 ? 1000 : 100;
+    for (let d = 0; d <= Z; d += step) c.fillText(nf(d), X(d), h - 8);
+    c.textAlign = 'left'; c.fillText(Lab.L(q.unit), 4, 13);
+    c.textAlign = 'right'; c.fillText(zh() ? '深度（千米）→' : 'depth (km) →', w - pad.r - 4, pad.t + ph - 6);
+    const curve = (f, col) => { c.beginPath(); for (let px = 0; px <= pw; px++){ const d = px / pw * Z, y = Y(f(d)); px ? c.lineTo(pad.l + px, y) : c.moveTo(pad.l + px, y); } c.strokeStyle = col; c.lineWidth = 2.5; c.stroke(); };
+    if (A.q === 'V'){ curve(vp, '#2f7df6'); curve(vs, '#d4a300');
+      c.font = '800 12px Nunito,sans-serif'; c.textAlign = 'left'; c.fillStyle = '#2f7df6'; c.fillText(zh() ? 'P 波（纵波）' : 'P wave', pad.l + 8, pad.t + 30); c.fillStyle = '#d4a300'; c.fillText(zh() ? 'S 波（横波）' : 'S wave', pad.l + 8, pad.t + 46); }
+    else curve(q.f, ink);
+    // discontinuities the student has found
+    [['moho', 35, o('Moho','莫霍界面')], ['gut', 2900, o('Gutenberg','古登堡界面')], ['leh', 5150, o('inner core','内核')]].forEach(([k, d, n]) => { if (!A.found[k] || d > Z) return;
+      c.setLineDash([5, 4]); c.strokeStyle = '#e5484d'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(X(d), pad.t); c.lineTo(X(d), pad.t + ph); c.stroke(); c.setLineDash([]);
+      c.fillStyle = '#e5484d'; c.font = '800 11px Nunito,sans-serif'; c.textAlign = 'left'; c.fillText(Lab.L(n), X(d) + 4, pad.t + ph - 6); });
+    // drill marker
+    const d = App.depth; if (d <= Z){ const x = X(d); c.strokeStyle = ink; c.lineWidth = 2; c.beginPath(); c.moveTo(x, pad.t); c.lineTo(x, pad.t + ph); c.stroke();
+      const v = A.q === 'V' ? vp(d) : q.f(d); c.beginPath(); c.arc(x, Y(v), 5, 0, 7); c.fillStyle = A.q === 'V' ? '#2f7df6' : ink; c.fill();
+      if (A.q === 'V'){ c.beginPath(); c.arc(x, Y(vs(d)), 5, 0, 7); c.fillStyle = '#d4a300'; c.fill(); } }
+    else { c.fillStyle = ink; c.font = '800 12px Nunito,sans-serif'; c.textAlign = 'right'; c.fillText('⛏ ' + nf(d) + (zh() ? ' 千米 →' : ' km →'), w - pad.r - 4, pad.t + 30); }
+  }
+  function nums(){
+    const d = App.depth, P = vp(d), S = vs(d);
+    $('#elV').innerHTML = (zh() ? `深度 ${nf(d)} 千米：<br>P 波速度 ≈ ${P.toFixed(1)} 千米/秒<br>` : `At ${nf(d)} km:<br>P-wave speed ≈ ${P.toFixed(1)} km/s<br>`) +
+      (S > 0 ? (zh() ? `S 波速度 ≈ ${S.toFixed(1)} 千米/秒<br>P 波跑 100 千米约 ${(100 / P).toFixed(1)} 秒` : `S-wave speed ≈ ${S.toFixed(1)} km/s<br>P wave crosses 100 km in about ${(100 / P).toFixed(1)} s`)
+             : (zh() ? 'S 波：无！液体不能被“左右摇”，横波过不去' : 'S wave: none! A liquid can’t be shaken sideways, so S waves stop'));
+    // pressure = weight of the rock above: p = ∫ρ g dh  (same idea as liquid pressure p = ρgh)
+    let sp = 0, sr = 0; const n = Math.max(1, Math.ceil(d / 5)), dz = d / n;
+    for (let i = 0; i < n; i++){ const z = (i + .5) * dz, rho = densAt(z); sr += rho * dz; sp += rho * gAt(z) * dz; }
+    const Pg = sp / 1000, rb = d ? sr / d * 1000 : 0, gb = d ? Pg * 1e9 / (rb * d * 1000) : 9.8;
+    $('#elP').innerHTML = d <= 0 ? (zh() ? 'p = ρgh：地表 h = 0，只有空气压强（约 0.0001 吉帕）。往下钻试试！' : 'p = ρgh: at the surface h = 0, only air pressure (about 0.0001 GPa). Drill down!')
+      : (zh() ? `p ≈ ρ̄ × ḡ × h<br>= ${nf(rb)} 千克/米³ × ${gb.toFixed(1)} 牛/千克 × ${nf(d * 1000)} 米<br>≈ ${Pg.toFixed(Pg < 10 ? 2 : 0)} 吉帕（模型值约 ${pressAt(d).toFixed(pressAt(d) < 10 ? 2 : 0)} 吉帕）`
+               : `p ≈ ρ̄ × ḡ × h<br>= ${nf(rb)} kg/m³ × ${gb.toFixed(1)} m/s² × ${nf(d * 1000)} m<br>≈ ${Pg.toFixed(Pg < 10 ? 2 : 0)} GPa (model: about ${pressAt(d).toFixed(pressAt(d) < 10 ? 2 : 0)} GPa)`);
+  }
+  function upd(){ if (!Lab.adv()) return; nums(); draw(); }
+  App.advDraw = upd;
+  let drag = false;
+  const toDepth = e => { const b = cv.getBoundingClientRect(), u = (e.clientX - b.left - pad.l) / (b.width - pad.l - pad.r); App.setDepth(Math.round(Math.max(0, Math.min(1, u)) * A.z)); };
+  cv.addEventListener('pointerdown', e => { drag = true; cv.setPointerCapture(e.pointerId); toDepth(e); });
+  cv.addEventListener('pointermove', e => { if (drag) toDepth(e); });
+  cv.addEventListener('pointerup', () => drag = false); cv.addEventListener('pointercancel', () => drag = false);
+  const seg = (id, key, attr) => Lab.$$('#' + id + ' button').forEach(b => b.onclick = () => { Lab.$$('#' + id + ' button').forEach(x => x.classList.toggle('on', x === b)); A[key] = attr === 'z' ? +b.dataset.z : b.dataset.q; draw(); });
+  seg('qSeg', 'q', 'q'); seg('zSeg', 'z', 'z');
+  $('#elMark').onclick = () => {
+    const d = App.depth, m = $('#elMsg'); let t, good = true;
+    if (Math.abs(d - 35) <= 12){ A.found.moho = true; t = o('✅ The Moho discontinuity (莫霍界面), about 35 km down under continents (textbooks give about 33 km on average): crust above, mantle below. P waves jump from about 6.5 to 8 km/s.','✅ 莫霍界面：大陆下约 35 千米深（教科书常说平均约 33 千米）。上面是地壳，下面是地幔，P 波速度从约 6.5 千米/秒跳到 8 千米/秒。'); }
+    else if (Math.abs(d - 2900) <= 50){ A.found.gut = true; t = o('✅ The Gutenberg discontinuity (古登堡界面), about 2,900 km down: mantle above, core below. S waves vanish and P waves drop from about 13.7 to 8 km/s.','✅ 古登堡界面：约 2900 千米深。上面是地幔，下面是地核。S 波消失，P 波速度从约 13.7 千米/秒骤降到约 8 千米/秒。'); }
+    else if (Math.abs(d - 5150) <= 60){ A.found.leh = true; t = o('⭐ Bonus: about 5,150 km, where S waves appear again: the solid inner core that Inge Lehmann discovered in 1936.','⭐ 加分：约 5150 千米处 S 波又出现了，这就是莱曼在 1936 年发现的固态内核。'); }
+    else if (Math.abs(d - 410) <= 15 || Math.abs(d - 660) <= 15){ good = false; t = o('A small jump! At about 410 km and 660 km mantle minerals squeeze into denser crystal forms. They are not boundaries between main layers. Keep looking.','一个小跳变！在约 410 千米和 660 千米处，地幔矿物被挤成更致密的晶体结构，但它们不是主要圈层的分界面。继续找。'); }
+    else { good = false; t = Lab.fmt(o('No sudden jump here (P ≈ {p} km/s, S ≈ {s} km/s). Look for a “cliff” on the wave-speed graph. Tip: the “Top 700 km” view helps for ①.','这里没有突变（P 波约 {p} 千米/秒，S 波约 {s} 千米/秒）。在地震波速曲线上找“悬崖”。提示：找 ① 时用“上部 700 千米”视图更清楚。'), { p:vp(d).toFixed(1), s:vs(d).toFixed(1) }); }
+    let s = typeof t === 'string' ? t : Lab.L(t);
+    if (A.found.moho && A.found.gut) s += ' ' + Lab.L(o('🎉 Both found! Crust | Moho | mantle | Gutenberg | core: this is how seismologists split Earth into layers without ever drilling there.','🎉 两个都找到了！地壳｜莫霍界面｜地幔｜古登堡界面｜地核：地震学家不用钻到那里，就是这样划分地球圈层的。'));
+    else if (good) s += ' ' + Lab.L(o('Now find the other one.','再找另一个。'));
+    m.textContent = s; m.className = 'result ' + (good ? 'good' : 'bad'); draw();
+  };
+  addEventListener('resize', () => requestAnimationFrame(draw)); addEventListener('labtheme', () => requestAnimationFrame(draw));
+  Lab.onLang(() => { $('#elMsg').textContent = ''; upd(); });
+  Lab.onMode(adv => { if (adv) requestAnimationFrame(upd); });
+  App.advState = A;
+})();
 
 /* ===== Seismic wave simulation (ray tracing with Snell's law through spherical shells) ===== */
 (function(){
@@ -439,7 +551,14 @@ const PHOTOS = [
   { part:'mantle', kind:{en:'Rock specimen',zh:'岩石标本'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/46/Peridotite_mantle_xenolith_in_basalt_%28near_Mount_Trumbull%2C_Arizona%2C_USA%29_%2840590968485%29.jpg/960px-Peridotite_mantle_xenolith_in_basalt_%28near_Mount_Trumbull%2C_Arizona%2C_USA%29_%2840590968485%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A real piece of the mantle. The greenish chunk is peridotite that rising lava tore loose and carried up to the surface inside dark basalt.', zh:'一块真正的地幔岩石。发绿的那一块是橄榄岩，被上升的熔岩从地幔带到了地表，包在深色的玄武岩里。', scale:{en:'found near Mount Trumbull, Arizona, USA',zh:'发现于美国亚利桑那州特兰布尔山附近'}, credit:'James St. John', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Peridotite_mantle_xenolith_in_basalt_(near_Mount_Trumbull,_Arizona,_USA)_(40590968485).jpg' },
   { part:'inner', kind:{en:'Meteorite slice',zh:'陨石切片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c8/Iron_meteorite._Toluca%2C_Mexico-8913.jpg/960px-Iron_meteorite._Toluca%2C_Mexico-8913.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'An iron meteorite found at Toluca, Mexico. Scientists think Earth’s core is made of iron–nickel metal much like this.', zh:'在墨西哥托卢卡发现的铁陨石。科学家认为，地核就是由与它很相似的铁镍金属构成的。', scale:{en:'found at Toluca, Mexico',zh:'发现于墨西哥托卢卡'}, credit:'Raimond Spekking', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Iron_meteorite._Toluca,_Mexico-8913.jpg' },
   { part:'outer', kind:{en:'Astronaut photo',zh:'宇航员拍摄'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/31/Aurora_Seen_From_Space_by_NASA.jpg/960px-Aurora_Seen_From_Space_by_NASA.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'An aurora seen from the International Space Station. Liquid iron swirling in the outer core makes Earth’s magnetic field, and that field steers the particles that light up the aurora.', zh:'从国际空间站看到的极光。外核里流动的液态铁产生了地球磁场，磁场引导着带电粒子，才点亮了极光。', credit:'NASA', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Aurora_Seen_From_Space_by_NASA.jpg' },
-  { type:'video', kind:{en:'Video · 5 MB',zh:'影片 · 5 MB'}, media:'https://upload.wikimedia.org/wikipedia/commons/2/20/Strokkur_geyser_eruption_in_Iceland.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/20/Strokkur_geyser_eruption_in_Iceland.webm/960px--Strokkur_geyser_eruption_in_Iceland.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/20/Strokkur_geyser_eruption_in_Iceland.webm/960px--Strokkur_geyser_eruption_in_Iceland.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Watch: the Strokkur geyser in Iceland erupts. Heat from inside the Earth boils underground water until it bursts out.', zh:'看一看：冰岛的斯特罗库尔间歇泉喷发。地球内部的热量把地下水烧开，直到它喷出地面。', credit:'Alexander Grebenkov', license:'CC BY 3.0', page:'https://commons.wikimedia.org/wiki/File:Strokkur_geyser_eruption_in_Iceland.webm' }
+  { type:'video', kind:{en:'Video · 5 MB',zh:'影片 · 5 MB'}, media:'https://upload.wikimedia.org/wikipedia/commons/2/20/Strokkur_geyser_eruption_in_Iceland.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/20/Strokkur_geyser_eruption_in_Iceland.webm/960px--Strokkur_geyser_eruption_in_Iceland.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/20/Strokkur_geyser_eruption_in_Iceland.webm/960px--Strokkur_geyser_eruption_in_Iceland.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Watch: the Strokkur geyser in Iceland erupts. Heat from inside the Earth boils underground water until it bursts out.', zh:'看一看：冰岛的斯特罗库尔间歇泉喷发。地球内部的热量把地下水烧开，直到它喷出地面。', credit:'Alexander Grebenkov', license:'CC BY 3.0', page:'https://commons.wikimedia.org/wiki/File:Strokkur_geyser_eruption_in_Iceland.webm' },
+  { kind:{en:'Mineral specimen',zh:'矿物标本'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d7/Octahedral_diamond_%28Mir_Kimberlite%3B_Mirnyy%2C_Siberia%2C_Russia%29_1_%2825177430258%29.jpg/960px-Octahedral_diamond_%28Mir_Kimberlite%3B_Mirnyy%2C_Siberia%2C_Russia%29_1_%2825177430258%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A natural diamond crystal from Siberia, Russia. Diamonds form in the mantle, more than about 150 km down, where it is hot and the pressure is huge. Rare, fast volcanic eruptions carried them up to the surface.', zh:'来自俄罗斯西伯利亚的天然钻石晶体。钻石形成于地幔中约 150 千米以下的深处，那里温度高、压力极大。罕见的快速火山喷发把它们带到了地表。', scale:{en:'Mir kimberlite pipe, Siberia',zh:'西伯利亚“和平”金伯利岩管'}, credit:'James St. John', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Octahedral_diamond_(Mir_Kimberlite;_Mirnyy,_Siberia,_Russia)_1_(25177430258).jpg' },
+  { kind:{en:'Historic photo',zh:'历史照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/20/Inge_Lehman.jpg/960px-Inge_Lehman.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Inge Lehmann (1888–1993), a Danish seismologist, in 1932. By studying how earthquake waves bounce and bend inside the Earth, she discovered in 1936 that the core has a solid inner part.', zh:'丹麦地震学家英厄·莱曼（1888—1993），摄于 1932 年。她研究地震波在地球内部怎样反射和弯折，于 1936 年发现地核中心还有一个固态的内核。', scale:{en:'photo from 1932',zh:'摄于 1932 年'}, credit:'Even Neuhaus', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Inge_Lehman.jpg' },
+  { kind:{en:'Astronaut photo',zh:'宇航员拍摄'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/97/The_Earth_seen_from_Apollo_17.jpg/960px-The_Earth_seen_from_Apollo_17.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'“The Blue Marble”, photographed by the Apollo 17 crew on their way to the Moon in 1972. Every ocean, desert and ice sheet you can see sits on the crust, a layer thinner, compared with the whole Earth, than the skin of an apple.', zh:'“蓝色弹珠”：1972 年阿波罗 17 号宇航员在飞往月球途中拍下的地球。你看到的海洋、沙漠和冰盖都位于地壳上；和整个地球比起来，地壳比苹果皮还要薄。', scale:{en:'Earth is about 12,742 km across',zh:'地球直径约 12742 千米'}, credit:'NASA / Apollo 17 crew', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:The_Earth_seen_from_Apollo_17.jpg' },
+  { kind:{en:'Scientific instrument',zh:'科学仪器'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0f/Kinemetrics_seismograph.jpg/960px-Kinemetrics_seismograph.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A seismograph draws the shaking of the ground as wiggly lines on a turning drum of paper. By comparing records of the same earthquake from stations all over the world, scientists mapped the layers deep inside the Earth.', zh:'地震仪把地面的震动画成转筒纸上弯弯曲曲的线条。科学家比较世界各地的台站记录下的同一次地震，就绘出了地球深处的分层。', credit:'Kkkdc', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Kinemetrics_seismograph.jpg' },
+  { type:'video', kind:{en:'USGS time-lapse · 13 MB',zh:'美国地质调查局延时影片 · 13 MB'}, media:'https://upload.wikimedia.org/wikipedia/commons/5/54/Halema%CA%BBuma%CA%BBu_lava_lake_USGS_multimediaFile-1585.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/54/Halema%CA%BBuma%CA%BBu_lava_lake_USGS_multimediaFile-1585.webm/960px--Halema%CA%BBuma%CA%BBu_lava_lake_USGS_multimediaFile-1585.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/54/Halema%CA%BBuma%CA%BBu_lava_lake_USGS_multimediaFile-1585.webm/960px--Halema%CA%BBuma%CA%BBu_lava_lake_USGS_multimediaFile-1585.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Watch: a lava lake inside Halemaʻumaʻu crater on Kīlauea, Hawaii, sped up 50 times. The mantle is mostly solid rock, but where a little of it melts, the magma rises and can reach the surface like this.', zh:'看一看：美国夏威夷基拉韦厄火山哈莱马乌马乌火山口里的熔岩湖（50 倍快放）。地幔大部分是固态岩石，但有少量岩石熔化后，岩浆就会上升，像这样到达地表。', scale:{en:'Kīlauea, Hawaii, USA · 2016',zh:'美国夏威夷基拉韦厄火山 · 2016 年'}, credit:'United States Geological Survey', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Halema%CA%BBuma%CA%BBu_lava_lake_USGS_multimediaFile-1585.webm' },
+  { type:'youtube', yt:'bouvNyq8xCY', kind:{en:'Video',zh:'视频'}, en:'Crash Course Geology (for older students): the crust and the mantle, what they are made of, and how scientists learned about them without ever drilling that deep.', zh:'Crash Course 地质学（适合稍大一些的学生）：地壳和地幔由什么构成？科学家从没钻得那么深，是怎样了解它们的？', credit:'CrashCourse (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'rm46SdVfB4I', kind:{en:'Video',zh:'视频'}, en:'Crash Course Geology (for older students): what is at the center of the Earth? The liquid outer core, the solid inner core, and the magnetic field they make.', zh:'Crash Course 地质学（适合稍大一些的学生）：地球中心有什么？液态的外核、固态的内核，以及它们产生的地磁场。', credit:'CrashCourse (YouTube)', license:'YouTube' }
 ];
 PHOTOS.forEach(it => { if (it.part && PARTS[it.part]) PARTS[it.part].photo = it; });
 LabPhotos.render(Lab.$('#gallery'), PHOTOS);

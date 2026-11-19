@@ -28,6 +28,8 @@
 .slread div{background:var(--surface-2);border-radius:12px;padding:8px 12px;font-size:17px;overflow-x:auto;overflow-y:hidden}
 .slread>div>span{display:block;font-size:13px;font-weight:800;color:var(--ink-2)}
 .ma-big.sm{font-size:18px}
+/* Advanced mode makes the side panel taller: keep the 3D stage at its usual size and let it stay in view */
+@media (min-width:981px){html.lab-adv #explore .explorer{align-items:start} html.lab-adv #stage3d{height:680px;position:sticky;top:76px}}
 </style>
 </head>
 <body data-subject="math" data-topic="volume-solids">
@@ -60,6 +62,7 @@
       <div class="bottombar"><div class="tip" data-zh="拖动旋转 · 滚轮缩放 · 悬停查看名称">Drag to rotate · Scroll to zoom · Hover for names</div></div>
     </div>
     <aside class="info card vpanel">
+      <div class="lab-mode" style="align-self:flex-start"></div>
       <h3 data-zh="改变尺寸">Change the size</h3>
       <label class="ctl"><span><span data-zh="底面半径 r = ">Radius r = </span><b id="rVal">3</b></span><input id="rIn" type="range" min="1" max="5" step="0.5" value="3"></label>
       <label class="ctl"><span><span data-zh="高 h = ">Height h = </span><b id="hVal">5</b></span><input id="hIn" type="range" min="1" max="10" step="0.5" value="5"></label>
@@ -69,6 +72,21 @@
       <div class="ratio" id="ratio"></div>
       <div class="btnrow"><button class="btn ghost" id="h2rBtn" data-zh="让 h = 2r">Make h = 2r</button></div>
       <p class="muted small" data-zh="如果 r 和 h 的单位是 cm，体积的单位就是 cm³（立方厘米）。">If r and h are in cm, the volumes are in cm³ (cubic centimeters).</p>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:10px">
+        <b data-zh="进阶：表面积、圆锥的母线（斜高）">Advanced: surface area and the cone’s slant height</b>
+        <div class="slread">
+          <div><span data-zh="圆柱表面积 = 两个底面 + 侧面">Cylinder surface = 2 bases + the side</span><b id="sCyl"></b></div>
+          <div><span data-zh="圆锥母线 l（勾股定理）">Cone slant height l (Pythagoras)</span><b id="sSlant"></b></div>
+          <div><span data-zh="圆锥表面积 = 底面 + 侧面 πrl">Cone surface = base + side πrl</span><b id="sCone"></b></div>
+          <div><span data-zh="球的表面积（高中会学）">Sphere surface (a high-school preview)</span><b id="sSph"></b></div>
+        </div>
+        <p class="muted small" data-zh="面积的单位是平方单位（cm²），体积的单位是立方单位（cm³）。r 扩大到 2 倍时，表面积变为 4 倍，体积变为 8 倍。">Areas are in square units (cm²), volumes in cubic units (cm³). Double r (and h): every surface area becomes 4 ×, every volume 8 ×.</p>
+        <div style="border-top:1px solid var(--line);padding-top:8px">
+          <b data-zh="🎯 挑战">🎯 Challenge</b> <span id="chTxt"></span>
+          <div class="btnrow" style="margin-top:6px"><button class="btn" id="chCheck" data-zh="检查">Check</button><button class="btn ghost" id="chNew" data-zh="换一题">New challenge</button></div>
+          <div class="result" id="chMsg"></div>
+        </div>
+      </div>
     </aside>
   </div>
 </section>
@@ -381,7 +399,42 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     const R = Lab.$('#ratio');
     if (b === 2 * a){ R.innerHTML = Lab.L({ en:'h = 2r, so cone : sphere : cylinder = 1 : 2 : 3 🎉', zh:'h = 2r，所以 圆锥： 球： 圆柱 = 1 : 2 : 3 🎉' }); R.style.color = 'var(--good)'; }
     else { R.innerHTML = Lab.L({ en:`cone ÷ cylinder = ⅓ (always) · sphere ÷ cylinder ≈ ${f2(sph / cyl)}`, zh:`圆锥 ÷ 圆柱 = ⅓(永远如此)· 球 ÷ 圆柱 ≈ ${f2(sph / cyl)}` }); R.style.color = 'var(--ink-2)'; }
+    advRender();
   }
+  /* ---- Advanced mode: surface areas, slant height, challenge ---- */
+  const o2 = (en, zh) => ({ en, zh }), eq = (a, b) => Math.abs(a - b) < 1e-9;
+  let chI = 0;
+  const CH = [
+    { en:'Make the cone hold exactly as much as the sphere.', zh:'让圆锥的体积正好等于球的体积。', ok:(r, h) => eq(h, 4 * r),
+      now:(r, h) => o2(`cone ${f2(r * r * h / 3)}π, sphere ${f2(4 * r ** 3 / 3)}π`, `圆锥 ${f2(r * r * h / 3)}π，球 ${f2(4 * r ** 3 / 3)}π`) },
+    { en:'Make the cone’s slant height l exactly 5.', zh:'让圆锥的母线长 l 正好等于 5。', ok:(r, h) => eq(r * r + h * h, 25),
+      now:(r, h) => o2(`l ≈ ${f2(Math.hypot(r, h))}`, `l ≈ ${f2(Math.hypot(r, h))}`) },
+    { en:'Make the cylinder’s surface area equal to the sphere’s.', zh:'让圆柱的表面积等于球的表面积。', ok:(r, h) => eq(h, r),
+      now:(r, h) => o2(`cylinder ${f2(2 * r * (r + h))}π, sphere ${f2(4 * r * r)}π`, `圆柱 ${f2(2 * r * (r + h))}π，球 ${f2(4 * r * r)}π`) },
+    { en:'Make the cylinder’s volume exactly 100π.', zh:'让圆柱的体积正好是 100π。', ok:(r, h) => eq(r * r * h, 100),
+      now:(r, h) => o2(`cylinder ${f2(r * r * h)}π`, `圆柱 ${f2(r * r * h)}π`) },
+    { en:'Make the cylinder hold exactly 2 spheres’ worth of water.', zh:'让圆柱的容积正好等于 2 个球的体积。', ok:(r, h) => eq(3 * h, 8 * r),
+      now:(r, h) => o2(`cylinder ${f2(r * r * h)}π, 2 spheres ${f2(8 * r ** 3 / 3)}π`, `圆柱 ${f2(r * r * h)}π,2 个球 ${f2(8 * r ** 3 / 3)}π`) },
+    { en:'Make the cone’s volume exactly 12π.', zh:'让圆锥的体积正好是 12π。', ok:(r, h) => eq(r * r * h, 36),
+      now:(r, h) => o2(`cone ${f2(r * r * h / 3)}π`, `圆锥 ${f2(r * r * h / 3)}π`) }
+  ];
+  function advRender(){
+    if (!Lab.adv()) return;
+    const r = SZ.r, h = SZ.h, l = Math.hypot(r, h), P = Math.PI;
+    Lab.$('#sCyl').innerHTML = MathAnim.tex(`2\\pi \\cdot ${f2(r)}^2 + 2\\pi \\cdot ${f2(r)} \\cdot ${f2(h)} = ${f2(2 * r * (r + h))}\\pi \\approx ${f2(2 * P * r * (r + h))}`);
+    Lab.$('#sSlant').innerHTML = MathAnim.tex(`l = \\sqrt{${f2(r)}^2 + ${f2(h)}^2} = \\sqrt{${f2(r * r + h * h)}} ${eq(l, Math.round(l * 100) / 100) ? '=' : '\\approx'} ${f2(l)}`);
+    Lab.$('#sCone').innerHTML = MathAnim.tex(`\\pi \\cdot ${f2(r)}^2 + \\pi \\cdot ${f2(r)} \\cdot ${f2(l)} \\approx ${f2(P * r * (r + l))}`);
+    Lab.$('#sSph').innerHTML = MathAnim.tex(`4\\pi \\cdot ${f2(r)}^2 = ${f2(4 * r * r)}\\pi \\approx ${f2(4 * P * r * r)}`);
+    Lab.$('#chTxt').textContent = Lab.L(CH[chI]);
+  }
+  Lab.$('#chNew').onclick = () => { chI = (chI + 1) % CH.length; Lab.$('#chMsg').textContent = ''; Lab.$('#chMsg').className = 'result'; advRender(); };
+  Lab.$('#chCheck').onclick = () => {
+    const ch = CH[chI], ok = ch.ok(SZ.r, SZ.h), msg = Lab.$('#chMsg');
+    msg.textContent = Lab.L(ok ? o2(`🎉 Yes! r = ${f2(SZ.r)}, h = ${f2(SZ.h)} works.`, `🎉 对了！r = ${f2(SZ.r)},h = ${f2(SZ.h)} 符合要求。`)
+                               : o2(`Not yet (now: ${ch.now(SZ.r, SZ.h).en}). Use the formulas to write an equation in r and h, then solve it.`, `还不对（现在：${ch.now(SZ.r, SZ.h).zh}）。用公式列出关于 r 和 h 的方程，再解出来。`));
+    msg.className = 'result ' + (ok ? 'good' : 'bad');
+  };
+  Lab.onMode(render);
   Lab.$('#fCyl').innerHTML = MathAnim.tex('V = \\pi r^2 h');
   Lab.$('#fCone').innerHTML = MathAnim.tex('V = \\tfrac13\\pi r^2 h');
   Lab.$('#fSph').innerHTML = MathAnim.tex('V = \\tfrac43\\pi r^3');
@@ -621,6 +674,7 @@ apply();
 /* ================= Where you see this: real photos (Wikimedia Commons, freely licensed) ================= */
 (function(){
 const o = (en, zh) => ({ en, zh });
+const VID = o('Video', '视频');
 const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/62/Ice_cream_in_cones.jpg/960px-Ice_cream_in_cones.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'Three ice creams in cones. A cone holds exactly ⅓ of the cylinder with the same base and height.',
@@ -637,9 +691,31 @@ const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fc/Traffic_cones_london.jpg/960px-Traffic_cones_london.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'Traffic cones in London. How much plastic would it take to fill one solid cone?',
     zh:'伦敦街头的交通锥。做一个实心的锥要多少塑料？',
-    credit:'Secretlondon', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Traffic_cones_london.jpg' }
+    credit:'Secretlondon', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Traffic_cones_london.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d0/Pantheon_dome.jpg/960px-Pantheon_dome.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'The dome of the Pantheon in Rome, almost 1,900 years old. It is as tall as it is wide (about 43 m), so a giant ball 43 m across would fit perfectly inside. What is that ball’s volume?',
+    zh:'罗马万神殿的穹顶，已有近 1900 年历史。它的高度和宽度一样（约 43 米），所以一个直径 43 米的大球正好能放进去。这个球的体积是多少？',
+    credit:'Anthony M. from Rome, Italy', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Pantheon_dome.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e7/Domenico-Fetti_Archimedes_1620.jpg/960px-Domenico-Fetti_Archimedes_1620.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'Archimedes proved that a sphere holds exactly ⅔ of the cylinder that wraps around it. He was so proud that he asked for a sphere and cylinder on his tomb. (Painting by Domenico Fetti, 1620.)',
+    zh:'阿基米德证明了：球的体积正好是包住它的圆柱体积的 ⅔。他为此非常自豪，希望在自己的墓碑上刻一个球和圆柱。（多梅尼科·费蒂 1620 年的画作）',
+    kind:o('Math history','数学史'), credit:'Domenico Fetti', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Domenico-Fetti_Archimedes_1620.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/97/The_Earth_seen_from_Apollo_17.jpg/960px-The_Earth_seen_from_Apollo_17.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'Earth from Apollo 17 is almost a perfect sphere, radius about 6,371 km. Use V = ⁴⁄₃πr³: roughly how many cubic kilometers is Earth?',
+    zh:'阿波罗 17 号拍到的地球几乎是一个完美的球，半径约 6,371 千米。用 V = ⁴⁄₃πr³ 算一算：地球大约有多少立方千米？',
+    kind:o('Space photo','太空照片'), credit:'NASA / Apollo 17 crew', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:The_Earth_seen_from_Apollo_17.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/94/Reflection_in_a_soap_bubble_edit.jpg/960px-Reflection_in_a_soap_bubble_edit.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A soap bubble pulls itself into a sphere, because a sphere holds the most air for the least soap film. If a bubble is 10 cm across, how much air is inside?',
+    zh:'肥皂泡会自己变成球形，因为用同样多的肥皂膜，球能装下最多的空气。如果一个泡泡直径 10 厘米，里面有多少空气？',
+    credit:'Brocken Inaglory (edit: Alvesgaspar)', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Reflection_in_a_soap_bubble_edit.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d2/Water_tower.jpg/960px-Water_tower.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A tall cylindrical water tower at dusk. If its tank is 10 m across and 20 m tall, how many cubic meters of water can it hold? (1 m³ = 1,000 liters.)',
+    zh:'黄昏时一座高高的圆柱形水塔。如果水箱直径 10 米、高 20 米，能装多少立方米水？（1 立方米 = 1000 升。）',
+    credit:'unknown (Public Domain Depot)', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Water_tower.jpg' },
+  { type:'youtube', yt:'2IZh-KIAQLE', en:'Video: “The Volume of a Sphere” — Numberphile shows where V = ⁴⁄₃πr³ comes from.', zh:'视频：《球的体积》——Numberphile 讲解 V = ⁴⁄₃πr³ 是怎么来的（英文）。', kind:VID, credit:'Numberphile (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'0v86Yk14rf8', en:'Video: “The real story behind Archimedes’ Eureka!” — a TED-Ed lesson on measuring volume with water.', zh:'视频：《阿基米德“我找到了！”背后的真实故事》——TED-Ed 课程：怎样用水测量体积（英文）。', kind:VID, credit:'TED-Ed (YouTube)', license:'YouTube' }
 ];
-LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos. Each one comes with a question this lesson helps you answer. Click a picture to enlarge it.','真实照片。每张都带着一个这节课能帮你回答的问题。点击图片可放大。') });
+LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos and short videos. Each photo comes with a question this lesson helps you answer. Click a picture to enlarge it or to play a video.','真实照片和短视频。每张照片都带着一个这节课能帮你回答的问题。点击图片可放大，点击视频可播放。') });
 })();
 </script>
 <!-- /real-world gallery script -->

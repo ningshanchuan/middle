@@ -24,6 +24,12 @@
 .db{display:grid;grid-template-columns:auto 1fr auto;gap:6px 10px;align-items:center;font-size:14px;font-weight:700}
 .db .bar{height:10px;border-radius:99px;background:linear-gradient(90deg,var(--good),var(--warn),var(--bad))}
 .db small{color:var(--ink-2);font-weight:700}
+.advgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start;margin-top:10px}
+.advcol{display:flex;flex-direction:column;gap:10px}
+.fml{font-family:ui-monospace,Consolas,monospace;font-size:13px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;line-height:1.6;overflow-wrap:anywhere}
+.pbox{position:relative;height:240px;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.pbox canvas{position:absolute;inset:0;width:100%;height:100%}
+@media (max-width:760px){.advgrid{grid-template-columns:1fr}}
 @media (max-width:560px){.hud{bottom:112px;right:8px;width:200px;font-size:12px}}
 </style>
 </head>
@@ -37,6 +43,7 @@
 </header>
 
 <section class="wrap" id="explore" data-nav="3D Sound" data-nav-zh="3D 声音">
+  <div class="lab-mode" style="margin-bottom:10px"></div>
   <div class="explorer">
     <div class="stage card" id="stage" data-3d>
       <div class="toolbar">
@@ -69,6 +76,27 @@
   </div>
   <div class="result" id="hS" style="margin-top:12px;font-size:15px"></div>
   <div class="chips" id="chips"></div>
+  <div class="adv adv-box" style="margin-top:12px">
+    <b data-zh="🚀 进阶：声速、波长和分贝的计算">🚀 Advanced: calculating sound speed, wavelength and decibels</b>
+    <div class="advgrid">
+      <div class="advcol">
+        <label class="ctl"><span><span data-zh="气温（只影响空气中的声速）">Air temperature (changes the speed in air)</span>: <b id="aTv">20 °C</b></span><input id="aT" type="range" min="-20" max="40" step="1" value="20" aria-label="air temperature"></label>
+        <label class="ctl"><span><span data-zh="听者离扬声器的距离 s">Listener’s distance from the speaker s</span>: <b id="aSv">10 m</b></span><input id="aS" type="range" min="0" max="3" step="0.01" value="1" aria-label="distance"></label>
+        <div class="counters">
+          <div class="counter"><b id="aTime">0.029 s</b><span data-zh="声音传到听者的时间 t = s ÷ v">time to reach the listener t = s ÷ v</span></div>
+          <div class="counter"><b id="aDb">≈ 51 dB</b><span data-zh="听者处的响度">loudness at the listener</span></div>
+        </div>
+        <div class="fml" id="aF"></div>
+        <div><b data-zh="🎯 挑战">🎯 Challenge</b> <span id="aChQ"></span> <button class="btn ghost sm" id="aChNew" data-zh="换一个 ↻">New ↻</button></div>
+        <div id="aAnsRow" class="btnrow" hidden><input id="aAns" type="number" min="0" step="0.1" style="width:100px;padding:7px 10px;border:1px solid var(--line);border-radius:10px;font:inherit;background:var(--surface);color:var(--ink)" aria-label="your answer in seconds"> <span>s</span> <button class="btn sm" id="aAnsGo" data-zh="检查">Check</button></div>
+        <div class="result" id="aCh"></div>
+      </div>
+      <div class="advcol">
+        <div class="pbox" data-nofs><canvas id="aGr" aria-label="loudness against distance"></canvas></div>
+        <small class="muted" data-zh="分贝是对数刻度：距离每变为 10 倍，响度约降低 20 dB（声音向四面八方传开，强度与距离的平方成反比）。横轴也是对数刻度。">Decibels are a logarithmic scale: every time the distance becomes 10 times larger, the level drops by about 20 dB (the sound spreads out in all directions, so its intensity falls with distance squared). The distance axis is logarithmic too.</small>
+      </div>
+    </div>
+  </div>
 </section>
 
 <section class="wrap" id="tone" data-nav="Tone generator" data-nav-zh="音调发生器">
@@ -230,8 +258,72 @@ function hudUI(){
   Lab.$('#hF').textContent = f + ' Hz'; Lab.$('#hL').textContent = vac ? '—' : (M.v / f).toFixed(2) + ' m'; Lab.$('#hD').textContent = '≈ ' + App.dB() + ' dB';
   Lab.$('#hS').innerHTML = vac ? `<span style="color:var(--bad)">${Lab.L({en:'🚫 No particles to vibrate: the eardrum stays still. Sound cannot travel through a vacuum.',zh:'🚫 没有可以振动的粒子：鼓膜一动不动。声音不能在真空中传播。'})}</span>`
     : Lab.L({en:`${f < 300 ? '🐘 Low' : f < 900 ? '🎤 Medium' : '🐦 High'} pitch: your eardrum vibrates ${f} times every second.`,zh:`${f < 300 ? '🐘 低' : f < 900 ? '🎤 中' : '🐦 高'}音:你的鼓膜每秒振动 ${f} 次。`});
+  renderAdvSound();
 }
 ['pitch', 'loud'].forEach(id => Lab.$('#' + id).addEventListener('input', hudUI));
+
+/* ===== 🚀 Advanced: speed of sound vs temperature, v = fλ, travel time, decibels on a log scale, challenge ===== */
+const so = (en, zh) => ({en, zh});
+let sdCh = 0, sdAns = null;
+const sdDist = () => Math.pow(10, +Lab.$('#aS').value);                 // 1 m … 1000 m
+const sdAt = (L1, r) => L1 - 20 * Math.log10(Math.max(1, r));            // inverse-square law: −20 dB per 10× distance
+const SD_CH = [
+  { q:so('Lightning strikes 1.7 km away. About how many seconds after the flash do you hear the thunder (air at 20 °C)?','闪电落在 1.7 km 外。看到闪光后大约多少秒听到雷声（气温 20 °C）？'), ask:true, answer:1700 / 343,
+    check:() => sdAns || [null, so('Type your answer and press Check. (Light arrives almost instantly.)','输入答案并按“检查”。（光几乎是瞬间到达的。）')] },
+  { q:so('In air, make the wavelength exactly 1.00 m (±0.02 m). Use the 🎵 Pitch slider and the air temperature.','在空气中，让波长恰好为 1.00 m（误差 ±0.02 m）。可以调 🎵 音调和气温。'),
+    check:() => { if (App.medium !== 'air') return [null, so('Pick Air first.','先选择“空气”。')]; const v = MEDIA.air.v, f = App.freq(), l = v / f;
+      return Math.abs(l - 1) <= .02 ? [true, so(`λ = v ÷ f = ${Math.round(v)} ÷ ${f} = ${l.toFixed(3)} m ✓. A 1 m wave needs f = v ÷ 1 m, so f (in Hz) has the same number as v (in m/s).`, `λ = v ÷ f = ${Math.round(v)} ÷ ${f} = ${l.toFixed(3)} m ✓。要得到 1 m 的波长，f 的数值（Hz）就要等于 v 的数值（m/s）。`)]
+        : [false, so(`λ = ${Math.round(v)} ÷ ${f} = ${l.toFixed(2)} m. ${l > 1 ? 'Raise the pitch.' : 'Lower the pitch.'}`, `λ = ${Math.round(v)} ÷ ${f} = ${l.toFixed(2)} m。${l > 1 ? '把音调调高。' : '把音调调低。'}`)]; } },
+  { q:so('Turn 📢 Loudness to the maximum, then find the distance where the sound has dropped to 75 dB (±1 dB).','把 📢 响度调到最大，再找出声音降到 75 dB（误差 ±1 dB）的距离。'),
+    check:() => { if (App.dB() < 95) return [null, so('First turn 📢 Loudness all the way up (95 dB at 1 m).','先把 📢 响度调到最大（1 m 处 95 dB）。')]; const r = sdDist(), L = sdAt(App.dB(), r);
+      return Math.abs(L - 75) <= 1 ? [true, so(`About ${L.toFixed(1)} dB at ${r.toFixed(1)} m. 95 − 75 = 20 dB = 100 times less intense, and that happens 10 times farther away (10² = 100).`, `${r.toFixed(1)} m 处约 ${L.toFixed(1)} dB。95 − 75 = 20 dB，强度变为 1/100，而距离正好是 10 倍（10² = 100）。`)]
+        : [false, so(`${L.toFixed(1)} dB at ${r.toFixed(1)} m. ${L > 75 ? 'Move farther away.' : 'Move closer.'}`, `${r.toFixed(1)} m 处 ${L.toFixed(1)} dB。${L > 75 ? '再远一些。' : '再近一些。'}`)]; } }
+];
+Lab.$('#aT').addEventListener('input', e => { MEDIA.air.v = 331 + .6 * +e.target.value; Lab.$('#aTv').textContent = e.target.value + ' °C'; hudUI(); });
+Lab.$('#aS').addEventListener('input', () => renderAdvSound());
+Lab.$('#aChNew').onclick = () => { sdCh = (sdCh + 1) % SD_CH.length; sdAns = null; renderAdvSound(); };
+Lab.$('#aAnsGo').onclick = () => { const v = +Lab.$('#aAns').value, a = SD_CH[sdCh].answer;
+  sdAns = Math.abs(v - a) <= .3 ? [true, so(`Yes, about ${a.toFixed(1)} s: t = s ÷ v = 1700 m ÷ 343 m/s ≈ 5 s. Rule of thumb: count the seconds and divide by 3 to get kilometers.`, `对，约 ${a.toFixed(1)} s：t = s ÷ v = 1700 m ÷ 343 m/s ≈ 5 s。小窍门：数秒数再除以 3，就是闪电离你大约多少千米。`)]
+    : [false, so('Not quite. Use t = s ÷ v with s = 1700 m and v = 343 m/s.','还不对。用 t = s ÷ v，s = 1700 m，v = 343 m/s。')];
+  renderAdvSound(); };
+function renderAdvSound(){
+  if (!Lab.adv()) return;
+  const M = MEDIA[App.medium], v = M.v, f = App.freq(), r = sdDist(), L1 = App.dB(), Lr = sdAt(L1, r), vac = !v;
+  Lab.$('#aSv').textContent = (r < 10 ? r.toFixed(1) : Math.round(r)) + ' m';
+  Lab.$('#aTime').textContent = vac ? '∞' : (r / v < 1 ? (r / v).toFixed(3) : (r / v).toFixed(2)) + ' s';
+  Lab.$('#aDb').textContent = vac ? '0' : Lr < 0 ? '< 0 dB' : '≈ ' + Math.round(Lr) + ' dB';
+  const I = rel => '10^' + (rel / 10).toFixed(1);
+  Lab.$('#aF').innerHTML = vac ? Lab.L(so('Vacuum: no particles, so v = 0 and no sound arrives at all.','真空：没有粒子，v = 0，声音根本传不过去。')) :
+    `${App.medium === 'air' ? `v ≈ 331 + 0.6 × T = 331 + 0.6 × ${Lab.$('#aT').value} = ${v.toFixed(1)} m/s<br>` : `v(${Lab.L(M)}) ≈ ${v} m/s<br>`}` +
+    `T = 1 ÷ f = 1 ÷ ${f} = ${(1000 / f).toFixed(2)} ms · λ = v ÷ f = ${v.toFixed(0)} ÷ ${f} = <b>${(v / f).toFixed(2)} m</b><br>` +
+    `t = s ÷ v = ${r.toFixed(1)} ÷ ${v.toFixed(0)} = ${(r / v).toFixed(3)} s<br>` +
+    `L = ${L1} − 20 × lg(${r.toFixed(1)} m ÷ 1 m) ≈ <b>${Lr.toFixed(1)} dB</b><br>` +
+    (Lr < 0 ? `<span class="muted">${Lab.L(so('Below 0 dB: too quiet for human ears to hear.','低于 0 dB：人耳听不到。'))}</span>` : `<span class="muted">${Lab.L(so(`Intensity I = ${I(Lr)} × I₀: about ${Math.round(Math.pow(10, Lr / 10)).toExponential(1).replace('e+', ' × 10^')} times the quietest sound you can hear (0 dB). +10 dB = 10× the intensity.`, `强度 I = ${I(Lr)} × I₀：约为人耳刚能听到的声音（0 dB）的 ${Math.round(Math.pow(10, Lr / 10)).toExponential(1).replace('e+', ' × 10^')} 倍。每 +10 dB，强度变为 10 倍。`))}</span>`);
+  drawDb(L1, r);
+  const C = SD_CH[sdCh], [ok, m] = C.check(), el = Lab.$('#aCh');
+  Lab.$('#aChQ').textContent = Lab.L(C.q); Lab.$('#aAnsRow').hidden = !C.ask;
+  el.textContent = (ok === true ? '✅ ' : ok === false ? '❌ ' : '') + Lab.L(m); el.className = 'result' + (ok === true ? ' good' : ok === false ? ' bad' : '');
+}
+function drawDb(L1, rNow){
+  const cv = Lab.$('#aGr'), b = cv.getBoundingClientRect(); if (!b.width) return;
+  const d = Math.min(devicePixelRatio || 1, 2); if (cv.width !== Math.round(b.width * d) || cv.height !== Math.round(b.height * d)){ cv.width = Math.round(b.width * d); cv.height = Math.round(b.height * d); }
+  const g = cv.getContext('2d'), cs = getComputedStyle(document.documentElement), ink = cs.getPropertyValue('--ink').trim(), ink2 = cs.getPropertyValue('--ink-2').trim(), line = cs.getPropertyValue('--line').trim(), brand = cs.getPropertyValue('--brand').trim(), bad = cs.getPropertyValue('--bad').trim();
+  g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, b.width, b.height);
+  const Lp = 40, R = 26, T = 26, B = 34, w = b.width - Lp - R, h = b.height - T - B, X = r => Lp + Math.log10(r) / 3 * w, Y = v => T + h - v / 100 * h;
+  g.font = '700 11px Nunito, sans-serif'; g.strokeStyle = line; g.fillStyle = ink2; g.lineWidth = 1; g.textAlign = 'right'; g.textBaseline = 'middle';
+  for (let v = 0; v <= 100; v += 20){ g.beginPath(); g.moveTo(Lp, Y(v)); g.lineTo(Lp + w, Y(v)); g.stroke(); g.fillText(v, Lp - 4, Y(v)); }
+  g.textAlign = 'center'; g.textBaseline = 'top'; [1, 10, 100, 1000].forEach(r => { g.beginPath(); g.moveTo(X(r), T); g.lineTo(X(r), T + h); g.stroke(); g.fillText(r + ' m', X(r), T + h + 4); });
+  g.fillText(Lab.L(so('distance from the speaker (log scale)','到扬声器的距离（对数刻度）')), Lp + w / 2, T + h + 18);
+  g.fillStyle = ink; g.font = '600 13px Fredoka, Nunito, sans-serif'; g.textAlign = 'left'; g.fillText(Lab.L(so('Loudness (dB)','响度（dB）')), Lp, 5);
+  g.strokeStyle = bad; g.setLineDash([5, 4]); g.beginPath(); g.moveTo(Lp, Y(85)); g.lineTo(Lp + w, Y(85)); g.stroke(); g.setLineDash([]);
+  g.fillStyle = bad; g.font = '800 10px Nunito, sans-serif'; g.textAlign = 'right'; g.textBaseline = 'bottom'; g.fillText(Lab.L(so('85 dB: hearing damage with long exposure','85 dB：长时间会损伤听力')), Lp + w - 2, Y(85) - 2);
+  if (!MEDIA[App.medium].v) return;
+  g.strokeStyle = brand; g.lineWidth = 2.5; g.beginPath(); g.moveTo(X(1), Y(sdAt(L1, 1))); g.lineTo(X(1000), Y(Math.max(0, sdAt(L1, 1000)))); g.stroke();
+  g.fillStyle = '#ff7a59'; g.strokeStyle = ink; g.lineWidth = 2; g.beginPath(); g.arc(X(rNow), Y(Math.max(0, sdAt(L1, rNow))), 6, 0, 7); g.fill(); g.stroke();
+}
+new ResizeObserver(() => renderAdvSound()).observe(Lab.$('#aGr'));
+addEventListener('labtheme', () => renderAdvSound());
+Lab.onMode(adv => { MEDIA.air.v = adv ? 331 + .6 * +Lab.$('#aT').value : 343; hudUI(); });
 /* ===== Real photos (Wikimedia Commons, freely licensed) ===== */
 const PHOTOS = [
   { src:'https://upload.wikimedia.org/wikipedia/commons/9/91/Rice_Kellogg_loudspeaker_2.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'One of the first cone loudspeakers, built by Chester Rice and Edward Kellogg in the 1920s. The cone moves in and out to push the air, just like the speaker in the 3D model.', zh:'最早的锥形扬声器之一，由赖斯和凯洛格在20世纪20年代制成。纸盆前后振动推动空气，和3D模型里的扬声器一样。', kind:{en:'Historic photo', zh:'历史照片'}, credit:'Chester W. Rice, Edward W. Kellogg', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Rice_Kellogg_loudspeaker_2.jpg' },
@@ -240,7 +332,14 @@ const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d0/FA-18_Hornet_breaking_sound_barrier_%287_July_1999%29.jpg/960px-FA-18_Hornet_breaking_sound_barrier_%287_July_1999%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A U.S. Navy jet breaking the sound barrier. It is flying about as fast as sound travels, around 760 mph (340 m/s), and a cloud forms around it.', zh:'美国海军的一架战斗机正在突破音障。它的速度和声音传播的速度差不多，约每秒340米，周围出现了一团云雾。', kind:{en:'Photo', zh:'照片'}, credit:'Ensign John Gay, U.S. Navy', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:FA-18_Hornet_breaking_sound_barrier_(7_July_1999).jpg' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cb/Obstetric_ultrasound_scan_monitor_showing_20-week_human_fetus_profile_in_Navi_Mumbai_2015.jpg/960px-Obstetric_ultrasound_scan_monitor_showing_20-week_human_fetus_profile_in_Navi_Mumbai_2015.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'An ultrasound scan of a baby before birth. The machine sends out sound too high for us to hear and builds a picture from the echoes.', zh:'胎儿的B超（超声波）检查画面。仪器发出人耳听不到的超声波，再根据回声拼出图像。', kind:{en:'Medical image', zh:'医学影像'}, credit:'Goleisureintl', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Obstetric_ultrasound_scan_monitor_showing_20-week_human_fetus_profile_in_Navi_Mumbai_2015.jpg' },
   { src:'https://upload.wikimedia.org/wikipedia/commons/a/a0/Theater_horn_loudspeaker_1928.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'A huge horn loudspeaker built in 1928 for movie theaters. The horn shape helps send the sound out into a big room.', zh:'1928年为电影院制造的巨型号筒扬声器。号筒的形状帮助把声音传遍整个大厅。', kind:{en:'Historic photo', zh:'历史照片'}, credit:'G. C. B. Rowe', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Theater_horn_loudspeaker_1928.jpg' },
-  { type:'audio', media:'https://upload.wikimedia.org/wikipedia/commons/7/70/Tuning-fork-440Hz.ogg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', en:'Listen: a tuning fork playing 440 Hz, the note A that orchestras tune to. Its prongs vibrate 440 times every second.', zh:'听一听：440赫兹的音叉声，这是乐团调音用的A音。叉股每秒振动440次。', kind:{en:'Audio', zh:'音频'}, credit:'jmuehlhans', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Tuning-fork-440Hz.ogg' }
+  { type:'audio', media:'https://upload.wikimedia.org/wikipedia/commons/7/70/Tuning-fork-440Hz.ogg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', en:'Listen: a tuning fork playing 440 Hz, the note A that orchestras tune to. Its prongs vibrate 440 times every second.', zh:'听一听：440赫兹的音叉声，这是乐团调音用的A音。叉股每秒振动440次。', kind:{en:'Audio', zh:'音频'}, credit:'jmuehlhans', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Tuning-fork-440Hz.ogg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/76/Bianzhong_of_Marquis_Yi_of_Zeng_Wuhan.jpg/960px-Bianzhong_of_Marquis_Yi_of_Zeng_Wuhan.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The bronze chime bells (bianzhong) of Marquis Yi of Zeng, about 2,400 years old, in the Hubei Provincial Museum, Wuhan, China. Smaller bells vibrate faster and give higher notes; bigger bells give lower notes.', zh:'湖北省博物馆（武汉）的曾侯乙编钟，距今约2400年。小钟振动得快，发出的音高；大钟振动得慢，发出的音低。', kind:{en:'Museum photo', zh:'博物馆照片'}, credit:'ZhengZhou', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Bianzhong_of_Marquis_Yi_of_Zeng_Wuhan.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2b/Rubens_Tube_fire.jpg/960px-Rubens_Tube_fire.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A Rubens’ tube: a metal pipe with a row of small gas flames on top and a speaker at one end. The sound wave inside makes the flames taller in some places and shorter in others, so you can see the wave.', zh:'鲁本斯管：一根金属管，上面有一排小小的煤气火苗，一端装着扬声器。管里的声波让有的地方火苗高、有的地方火苗低，于是声波就“看得见”了。', kind:{en:'Lab demo', zh:'实验演示'}, credit:'Pete from Liverpool, UK', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Rubens_Tube_fire.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/6/68/FDA_Bldg_62_-_Anechoic_Chamber_%285160771795%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'An anechoic (“no echo”) chamber at a U.S. FDA lab. The foam wedges on every wall soak up sound instead of reflecting it, so there are no echoes at all. Engineers test how loud devices are in rooms like this.', zh:'美国食品药品监督管理局（FDA）实验室里的消声室。墙上到处是泡沫尖劈，它们吸收声音而不反射，所以完全没有回声。工程师在这样的房间里测试仪器有多响。', kind:{en:'Lab photo', zh:'实验室照片'}, credit:'U.S. Food and Drug Administration', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:FDA_Bldg_62_-_Anechoic_Chamber_(5160771795).jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/b/b8/Bat_flying_at_night.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'A bat hunting at night. It calls out with ultrasound (too high for us to hear) and listens for the echoes bouncing off insects. This is called echolocation.', zh:'夜里捕食的蝙蝠。它发出超声波（频率太高，人耳听不到），再听从昆虫身上反射回来的回声来找猎物。这叫做回声定位。', kind:{en:'Photo', zh:'照片'}, credit:'see source page', license:'CC BY 2.5', page:'https://commons.wikimedia.org/wiki/File:Bat_flying_at_night.png' },
+  { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/b/ba/Prato_de_Chladni_03.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/ba/Prato_de_Chladni_03.webm/960px--Prato_de_Chladni_03.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/ba/Prato_de_Chladni_03.webm/960px--Prato_de_Chladni_03.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Video: a Chladni plate in action. As the metal plate vibrates, the sand dances away from the moving parts and gathers on the still lines, drawing the shape of the vibration.', zh:'视频：克拉德尼板现场演示。金属板振动时，沙子从振动的地方跳开，聚到不动的线上，画出了振动的图样。', kind:{en:'Video', zh:'视频'}, credit:'Estes Objethos Atelier (exhibit), Rodrigo Tetsuo Argenton (video)', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Prato_de_Chladni_03.webm' },
+  { type:'youtube', yt:'3-xKZKxXuu0', en:'SciShow Kids: What is sound? How vibrations travel through the air to your ears.', zh:'SciShow Kids：声音是什么？振动怎样穿过空气传到你的耳朵。', kind:{en:'Video', zh:'视频'}, credit:'SciShow Kids (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'1ZcOusmB4Ls', en:'Veritasium: Sound + fire = Rubens’ tube. Watch music make the flames dance.', zh:'Veritasium：声音 + 火 = 鲁本斯管。看音乐让火苗跳起舞来。', kind:{en:'Video', zh:'视频'}, credit:'Veritasium (YouTube)', license:'YouTube' }
 ];
 LabPhotos.render('#gallery', PHOTOS, { title:{en:'See the real thing', zh:'看看真实的样子'}, sub:{en:'Real photos of this physics in everyday life and in the lab. Click any picture to enlarge it; nothing plays until you press play.', zh:'生活中和实验室里的真实照片。点击图片可以放大；视频和音频不会自动播放。'} });
 /* photos shown inside the info panel */

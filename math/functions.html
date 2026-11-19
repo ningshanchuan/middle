@@ -51,6 +51,7 @@
   <div class="ma-explore">
     <div class="ma-stage explore-stage" id="mStage" data-fs></div>
     <div class="card ctl">
+      <div class="lab-mode" style="align-self:flex-start"></div>
       <div class="chips" id="rules" style="margin-top:0"></div>
       <div class="feedrow">
         <label class="ctl"><span><span data-zh="输入 x = ">Input x = </span><b id="xVal">3</b></span><input id="xIn" type="range" min="-4" max="4" step="1" value="3"></label>
@@ -61,6 +62,22 @@
       <div class="guess" id="guessRow"></div>
       <div class="result" id="mMsg"></div>
       <div class="btnrow"><button class="btn ghost" id="curveBtn" data-zh="画出完整图像">Draw the whole graph</button><button class="btn ghost" id="clearBtn" data-zh="清空">Clear</button></div>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:8px">
+        <b data-zh="进阶：自己造函数 y = ax² + bx + c，用差分看出线性和二次">Advanced: build your own y = ax² + bx + c, and spot linear vs quadratic from differences</b>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+          <label class="ctl"><span>a = <b id="aVal">0</b></span><input id="aIn" type="range" min="-2" max="2" step="0.5" value="0"></label>
+          <label class="ctl"><span>b = <b id="bVal">2</b></span><input id="bIn" type="range" min="-4" max="4" step="1" value="2"></label>
+          <label class="ctl"><span>c = <b id="cVal">1</b></span><input id="cIn" type="range" min="-5" max="5" step="1" value="1"></label>
+        </div>
+        <div id="fNote" style="text-align:center;font-size:18px"></div>
+        <div class="tablewrap"><table class="ftable" id="dTable"></table></div>
+        <div id="dNote" class="muted" style="font-size:14px"></div>
+        <div style="border-top:1px solid var(--line);padding-top:8px">
+          <b data-zh="🎯 挑战">🎯 Challenge</b> <span data-zh="调 a、b、c，让你的函数图像同时经过三个黄色圆圈。">Set a, b and c so that your graph passes through all three yellow rings.</span> <span id="tgTxt"></span>
+          <div class="btnrow" style="margin-top:6px"><button class="btn" id="tgCheck" data-zh="检查">Check</button><button class="btn ghost" id="tgNew" data-zh="换一题">New challenge</button></div>
+          <div class="result" id="tgMsg"></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -384,10 +401,23 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     { id:'mys', mystery:true }
   ];
   const MYST = [ { tex:'y = 3x - 2', f:x => 3 * x - 2 }, { tex:'y = x^2 - 1', f:x => x * x - 1 }, { tex:'y = -2x + 3', f:x => -2 * x + 3 }, { tex:'y = x + 4', f:x => x + 4 } ];
+  /* ---- Advanced: a rule you build yourself, y = ax² + bx + c (only offered in Advanced mode) ---- */
+  const K = { a:0, b:2, c:1 }, nf = v => String(+v.toFixed(2));
+  const F = (k, x) => k.a * x * x + k.b * x + k.c;
+  function polyTerms(vals){            // vals = [[coef, texForVariablePart], ...] → "a x^2 - b x + c"
+    const t = vals.filter(v => v[0]).map(([k, v]) => ({ s:k < 0 ? '-' : '+', body:(Math.abs(k) === 1 && v ? '' : nf(Math.abs(k))) + v }));
+    return t.length ? t.map((q, i) => i ? ` ${q.s} ${q.body}` : (q.s === '-' ? '-' : '') + q.body).join('') : '0';
+  }
+  const OWN = { id:'own', adv:true, get tex(){ return 'y = ' + polyTerms([[K.a, 'x^2'], [K.b, 'x'], [K.c, '']]); }, f:x => F(K, x),
+                work:x => 'y = ' + polyTerms([[K.a, `(${x})^2`], [K.b, `(${x})`], [K.c, '']]) };
+  RULES.push(OWN);
+  let TG = null;                       // challenge: three target points [[x, y], …]
   let rule = RULES[0], myst = null, fed = [], showCurve = false, anim = null, msg = null;
   const cur = () => rule.mystery ? myst : rule;
   const label = E.tex('', 0, 3.7, { size:26, color:C.purple });
-  function yRange(){ const fn = cur().f; let lo = 0, hi = 0; for (let x = -4; x <= 4; x += .25){ const v = fn(x); lo = Math.min(lo, v); hi = Math.max(hi, v); } if (hi - lo < 4) hi = lo + 4; return [lo, hi]; }
+  function yRange(){ const fn = cur().f; let lo = 0, hi = 0; for (let x = -4; x <= 4; x += .25){ const v = fn(x); lo = Math.min(lo, v); hi = Math.max(hi, v); }
+    if (Lab.adv() && TG) TG.forEach(p => { lo = Math.min(lo, p[1]); hi = Math.max(hi, p[1]); });
+    if (hi - lo < 4) hi = lo + 4; return [lo, hi]; }
   const gx = x => x * 1.3;
   function gy(y){ const [lo, hi] = yRange(); return -4.45 + (y - lo) / (hi - lo) * 6.1; }
   E.custom((ctx, S) => {
@@ -411,6 +441,8 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
       for (let i = 0; i <= 160; i++){ const x = -4.3 + 8.6 * i / 160, y = cur().f(x); const px = S.sx(gx(x)), py = S.sy(gy(y)); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); } ctx.stroke();
     }
     fed.forEach(p => { ctx.beginPath(); ctx.arc(S.sx(gx(p.x)), S.sy(gy(p.y)), 6.5, 0, 7); ctx.fillStyle = C.white; ctx.fill(); });
+    if (Lab.adv() && TG) TG.forEach(p => { const hit = rule === OWN && Math.abs(F(K, p[0]) - p[1]) < 1e-9;
+      ctx.beginPath(); ctx.arc(S.sx(gx(p[0])), S.sy(gy(p[1])), 11, 0, 7); ctx.lineWidth = 3.5; ctx.strokeStyle = hit ? C.green : C.yellow; ctx.stroke(); });
     /* the moving ball */
     if (anim){
       const r = S.px(.42); ctx.beginPath(); ctx.arc(S.sx(anim.x), S.sy(anim.y), r, 0, 7);
@@ -425,7 +457,7 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
       : `<tr><td class="muted">${Lab.L({ en:'Fed results will appear here.', zh:'投入的结果会显示在这里。' })}</td></tr>`;
   }
   function renderRules(){
-    Lab.$('#rules').innerHTML = RULES.map(r => `<button class="chip ${r === rule ? 'on' : ''}" data-r="${r.id}">${r.mystery ? Lab.L({ en:'🎁 Mystery', zh:'🎁 神秘规则' }) : MathAnim.tex(r.tex)}</button>`).join('');
+    Lab.$('#rules').innerHTML = RULES.filter(r => !r.adv || Lab.adv()).map(r => `<button class="chip ${r === rule ? 'on' : ''}" data-r="${r.id}">${r.mystery ? Lab.L({ en:'🎁 Mystery', zh:'🎁 神秘规则' }) : MathAnim.tex(r.tex)}</button>`).join('');
     Lab.$$('#rules [data-r]').forEach(b => b.onclick = () => setRule(RULES.find(r => r.id === b.dataset.r)));
     const g = Lab.$('#guessRow');
     g.innerHTML = rule.mystery ? `<span class="muted" style="width:100%">${Lab.L({ en:'Your guess:', zh:'你的猜测：' })}</span>` + MYST.map((m, i) => `<button class="btn ghost" data-g="${i}">${MathAnim.tex(m.tex)}</button>`).join('') : '';
@@ -443,20 +475,63 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     if (r.mystery){ let n; do { n = MYST[Math.floor(Math.random() * MYST.length)]; } while (n === myst); myst = n; label.set('?'); }
     else label.set(r.tex);
     Lab.$('#mOut').innerHTML = MathAnim.tex(rule.mystery ? '? \\mapsto ?' : rule.tex);
-    renderRules(); renderTable(); renderMsg();
+    renderRules(); renderTable(); renderMsg(); advUpdate();
   }
+  /* ---- Advanced panel: f(x) notation, difference table, challenge ---- */
+  function advUpdate(){
+    if (!Lab.adv()) return;
+    ['a', 'b', 'c'].forEach(k => Lab.$('#' + k + 'Val').textContent = nf(K[k]));
+    const x = +Lab.$('#xIn').value;
+    if (rule.mystery){
+      Lab.$('#fNote').innerHTML = MathAnim.tex('f(x) = \\;?');
+      Lab.$('#dTable').innerHTML = '';
+      Lab.$('#dNote').textContent = Lab.L({ en:'Mystery rule: feed x = −2, −1, 0, 1, 2 and look at how much y changes each time.', zh:'神秘规则：依次投入 x = −2, −1, 0, 1, 2，看看 y 每次变化多少。' });
+    } else {
+      Lab.$('#fNote').innerHTML = MathAnim.tex(`f(x) = ${rule.tex.slice(4)} \\quad\\Rightarrow\\quad f(${x}) = ${rule.work(x).slice(4)} = ${nf(rule.f(x))}`);
+      const xs = [-3, -2, -1, 0, 1, 2, 3], ys = xs.map(rule.f), d1 = ys.slice(1).map((y, i) => y - ys[i]), d2 = d1.slice(1).map((d, i) => d - d1[i]);
+      const cells = (arr, off, cls) => '<td></td>'.repeat(off) + arr.map(v => `<td class="${cls || ''}">${nf(v)}</td>`).join('');
+      Lab.$('#dTable').innerHTML = `<tr><th>x</th>${cells(xs, 0, 'xin')}</tr><tr><th>y</th>${cells(ys, 0, 'yout')}</tr>`
+        + `<tr><th>Δy</th>${cells(d1, 1)}</tr><tr><th>Δ²y</th>${cells(d2, 2)}</tr>`;
+      const c1 = d1.every(d => Math.abs(d - d1[0]) < 1e-9), c2 = d2.every(d => Math.abs(d - d2[0]) < 1e-9);
+      Lab.$('#dNote').textContent = Lab.L(c1 ? { en:`Δy is always ${nf(d1[0])}: a constant rate of change, so the function is LINEAR (slope ${nf(d1[0])}).`, zh:`Δy 总是 ${nf(d1[0])}：变化率不变，所以是一次函数（斜率 ${nf(d1[0])}）。` }
+        : c2 ? { en:`Δy keeps changing, but the second difference Δ²y is always ${nf(d2[0])} (= 2a): a QUADRATIC function, whose graph is a parabola (Algebra 1).`, zh:`Δy 在变，但二阶差 Δ²y 总是 ${nf(d2[0])}（= 2a）：这是二次函数，图像是抛物线（九年级会学）。` }
+        : { en:'Neither Δy nor Δ²y is constant.', zh:'Δy 和 Δ²y 都不是常数。' });
+    }
+    Lab.$('#tgTxt').textContent = TG ? TG.map(p => `(${p[0]}, ${nf(p[1])})`).join('  ').replace(/-/g, '−') : '';
+  }
+  function newTarget(){
+    let k, xs;
+    do { k = { a:[-1, -.5, 0, .5, 1][Math.floor(Math.random() * 5)], b:Math.floor(Math.random() * 7) - 3, c:Math.floor(Math.random() * 7) - 3 };
+         xs = Lab.shuffle([-3, -2, -1, 0, 1, 2, 3]).slice(0, 3).sort((p, q) => p - q); }
+    while (xs.some(x => Math.abs(F(k, x)) > 9) || (!k.a && !k.b) || (k.a === K.a && k.b === K.b && k.c === K.c));
+    TG = xs.map(x => [x, F(k, x)]);
+    const m = Lab.$('#tgMsg'); m.textContent = ''; m.className = 'result'; advUpdate();
+  }
+  ['a', 'b', 'c'].forEach(k => Lab.$('#' + k + 'In').oninput = () => {
+    K[k] = +Lab.$('#' + k + 'In').value;
+    if (rule !== OWN) setRule(OWN);
+    else { fed = []; msg = null; label.set(OWN.tex); Lab.$('#mOut').innerHTML = MathAnim.tex(OWN.tex); renderTable(); renderMsg(); advUpdate(); }
+  });
+  Lab.$('#tgNew').onclick = newTarget;
+  Lab.$('#tgCheck').onclick = () => {
+    const hits = rule === OWN ? TG.filter(p => Math.abs(F(K, p[0]) - p[1]) < 1e-9).length : 0, m = Lab.$('#tgMsg');
+    m.textContent = Lab.L(rule !== OWN ? { en:'Move the a, b, c sliders to build your own rule first.', zh:'先拖动 a、b、c 滑块，造出你自己的函数。' }
+      : hits === 3 ? { en:`🎉 All three points fit! f(x) = ${OWN.tex.slice(4).replace(/\^2/g, '²').replace(/-/g, '−')}`, zh:`🎉 三个点都经过了！f(x) = ${OWN.tex.slice(4).replace(/\^2/g, '²').replace(/-/g, '−')}` }
+      : { en:`${hits} of 3 points fit. Hint: at x = 0 the value is c; if the rings don’t lie on a straight line, you need a ≠ 0.`, zh:`经过了 ${hits} / 3 个点。提示：x = 0 时函数值就是 c；如果三个圆圈不在一条直线上，就需要 a ≠ 0。` });
+    m.className = 'result ' + (hits === 3 ? 'good' : 'bad');
+  };
   let busy = false;
   async function feedIt(){
     if (busy) return; busy = true;
     const x = +Lab.$('#xIn').value, y = cur().f(x), again = fed.find(p => p.x === x);
     anim = { x:-6, y:3.7, v:x, out:false };
     try {
-      await E.tween(t => { anim.x = -6 + 5 * t; }, .7);
+      await E.tween(t => { if (anim) anim.x = -6 + 5 * t; }, .7);
       await E.tween(() => {}, .25);
       anim = { x:1.2, y:3.7, v:y, out:true };
-      await E.tween(t => { anim.x = 1.2 + 3.6 * t; }, .5);
-      const x0 = anim.x, y0 = anim.y;
-      await E.tween(t => { anim.x = x0 + (gx(x) - x0) * t; anim.y = y0 + (gy(y) - y0) * t; }, .6);
+      await E.tween(t => { if (anim) anim.x = 1.2 + 3.6 * t; }, .5);
+      const x0 = anim ? anim.x : 4.8, y0 = anim ? anim.y : 3.7;
+      await E.tween(t => { if (anim) { anim.x = x0 + (gx(x) - x0) * t; anim.y = y0 + (gy(y) - y0) * t; } }, .6);
     } catch(e){}
     anim = null;
     if (!again) fed.push({ x, y });
@@ -472,12 +547,13 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     return lin ? { cls:'', t:{ en:`Every rate of change is ${+rates[0].toFixed(2)}: the points line up (linear so far).`, zh:`每段变化率都是 ${+rates[0].toFixed(2)}:这些点在一条直线上(目前看是一次函数)。` } }
                : { cls:'', t:{ en:'The rate of change is not constant: the points bend (nonlinear).', zh:'变化率不是常数：这些点连起来是弯的（非一次函数）。' } };
   }
-  Lab.$('#xIn').oninput = () => Lab.$('#xVal').textContent = Lab.$('#xIn').value;
+  Lab.$('#xIn').oninput = () => { Lab.$('#xVal').textContent = Lab.$('#xIn').value; advUpdate(); };
   Lab.$('#feedBtn').onclick = feedIt;
   Lab.$('#curveBtn').onclick = () => { showCurve = !showCurve; Lab.$('#curveBtn').classList.toggle('on', showCurve); };
   Lab.$('#clearBtn').onclick = () => { fed = []; msg = null; renderTable(); renderMsg(); };
-  setRule(RULES[0]);
-  Lab.onLang(() => { renderRules(); renderTable(); renderMsg(); });
+  setRule(RULES[0]); newTarget();
+  Lab.onLang(() => { renderRules(); renderTable(); renderMsg(); advUpdate(); });
+  Lab.onMode(adv => { if (!adv && rule.adv) setRule(RULES[0]); else renderRules(); advUpdate(); });
 })();
 
 /* ================= Explore: story graph builder ================= */
@@ -562,6 +638,7 @@ Lab.sort(Lab.$('#sort'), {
 /* ================= Where you see this: real photos (Wikimedia Commons, freely licensed) ================= */
 (function(){
 const o = (en, zh) => ({ en, zh });
+const VID = o('Video', '视频');
 const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/50/Snacks_in_vending_machine%2C_PatchWerk_Recording_Studios%2C_2007.jpg/960px-Snacks_in_vending_machine%2C_PatchWerk_Recording_Studios%2C_2007.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'Snacks in a vending machine. Each button gives exactly one snack. Why does that make it a function?',
@@ -574,9 +651,23 @@ const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/21/Treadmill_display_in_fitness_center_features_functional_training_program_settings_and_workout_statistics_for_gym_users.jpg/960px-Treadmill_display_in_fitness_center_features_functional_training_program_settings_and_workout_statistics_for_gym_users.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'A treadmill display shows workout statistics. If the speed stays the same, what does a graph of distance against time look like?',
     zh:'跑步机屏幕上显示运动数据。如果速度不变，距离随时间变化的图像是什么样子？',
-    credit:'Shixart1985', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Treadmill_display_in_fitness_center_features_functional_training_program_settings_and_workout_statistics_for_gym_users.jpg' }
+    credit:'Shixart1985', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Treadmill_display_in_fitness_center_features_functional_training_program_settings_and_workout_statistics_for_gym_users.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d7/Leonhard_Euler.jpg/960px-Leonhard_Euler.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'Leonhard Euler of Switzerland, one of the greatest mathematicians ever. In 1734 he started writing f(x) for “a function of x”, the notation you use today.',
+    zh:'瑞士数学家莱昂哈德·欧拉，史上最伟大的数学家之一。1734 年，他开始用 f(x) 表示“x 的函数”，也就是你今天用的写法。',
+    kind:o('Math history','数学史'), credit:'Jakob Emanuel Handmann', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Leonhard_Euler.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1e/Fahrenheit_Celsius_scales.svg/960px-Fahrenheit_Celsius_scales.svg.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'Celsius and Fahrenheit side by side. Every Celsius reading gives exactly one Fahrenheit reading: F = 1.8 × C + 32. What is 100 °C in °F?',
+    zh:'摄氏度和华氏度并排对照。每个摄氏温度都恰好对应一个华氏温度：F = 1.8 × C + 32。100 °C 是多少 °F？',
+    kind:o('Diagram','图解'), credit:'TheVovaNik', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Fahrenheit_Celsius_scales.svg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/5/53/Snowytreecricket.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled',
+    en:'A snowy tree cricket, nature’s thermometer. Input: chirps in 15 seconds (n). Output: about the temperature in °F, using the rule T = n + 40. 25 chirps means about what temperature?',
+    zh:'雪树蟋，大自然的“温度计”。输入：15 秒内的叫声次数 n；输出：大约的华氏温度，规则是 T = n + 40。叫了 25 声，大约是多少度？',
+    credit:'Calibas (English Wikipedia)', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Snowytreecricket.JPG' },
+  { type:'youtube', yt:'52tpYl2tTqk', en:'Video: “What Are Functions?” — a function as a machine: one input in, exactly one output out.', zh:'视频：《什么是函数？》——把函数看成一台机器：放进一个输入，只出来一个输出（英文）。', kind:VID, credit:'Math Antics (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'MXV65i9g1Xg', en:'Video: “Basic Linear Functions” — making a table of inputs and outputs and graphing it as a straight line.', zh:'视频：《基础一次函数》——列出输入和输出的表格，再把它画成一条直线（英文）。', kind:VID, credit:'Math Antics (YouTube)', license:'YouTube' }
 ];
-LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos. Each one comes with a question this lesson helps you answer. Click a picture to enlarge it.','真实照片。每张都带着一个这节课能帮你回答的问题。点击图片可放大。') });
+LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos and short videos. Each photo comes with a question this lesson helps you answer. Click a picture to enlarge it or to play a video.','真实照片和短视频。每张照片都带着一个这节课能帮你回答的问题。点击图片可放大，点击视频可播放。') });
 })();
 </script>
 <!-- /real-world gallery script -->

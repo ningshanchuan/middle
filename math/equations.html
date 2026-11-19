@@ -47,6 +47,7 @@
   <div class="ma-explore">
     <div class="ma-stage explore-stage" id="bStage" data-fs></div>
     <div class="card ctl">
+      <div class="lab-mode" style="align-self:flex-start"></div>
       <div class="ma-big" id="bEq"></div>
       <div class="btnrow">
         <button class="btn" id="bSub" data-zh="两边同时减 1">Subtract 1 from both sides</button>
@@ -56,6 +57,18 @@
       </div>
       <div class="result" id="bMsg"></div>
       <div class="steps" id="bLog"></div>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:10px">
+        <b data-zh="进阶：两边都有 x 的方程（移项）与代入检验">Advanced: x on both sides, and checking by substitution</b>
+        <div class="btnrow"><button class="btn alt" id="bNew2" data-zh="新题：两边都有 x">New: x on both sides</button><button class="btn" id="bSubX" data-zh="两边同时减 x">Subtract x from both sides</button></div>
+        <label class="ctl"><span><span data-zh="试一试：x = ">Try x = </span><b id="bTryVal">1</b> <span data-zh="（代入两边算一算）">(plug it into both sides)</span></span><input id="bTry" type="range" min="0" max="6" step="1" value="1"></label>
+        <div id="bPlug" style="text-align:center;font-size:18px"></div>
+        <div style="border-top:1px solid var(--line);padding-top:8px">
+          <b data-zh="🎯 挑战">🎯 Challenge</b> <span data-zh="这道题的数太大（还有负数），天平放不下。在纸上解出来，再输入 x：">These numbers are too big (and some are negative) for the scale. Solve it on paper, then type x:</span>
+          <div id="bChEq" style="text-align:center;font-size:20px;margin:6px 0"></div>
+          <div class="btnrow" style="align-items:center"><b>x =</b><input id="bChIn" type="number" step="1" aria-label="x" style="width:80px;font:inherit;padding:6px 8px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink)"><button class="btn" id="bChCheck" data-zh="检查">Check</button><button class="btn ghost" id="bChNew" data-zh="换一题">New challenge</button></div>
+          <div class="result" id="bChMsg"></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -68,12 +81,19 @@
   <div class="ma-explore">
     <div class="ma-stage explore-stage" id="iStage" data-fs></div>
     <div class="card ctl">
+      <div class="lab-mode" style="align-self:flex-start"></div>
       <label class="ctl"><span><span data-zh="系数 a = ">Coefficient a = </span><b id="iaVal">2</b></span><input id="iaIn" type="range" min="-4" max="4" step="1" value="2"></label>
       <div class="seg" id="iSym"><button data-s="<" class="on">&lt;</button><button data-s="≤">≤</button><button data-s=">">&gt;</button><button data-s="≥">≥</button></div>
       <label class="ctl"><span><span data-zh="右边 b = ">Right side b = </span><b id="ibVal">6</b></span><input id="ibIn" type="range" min="-8" max="8" step="1" value="6"></label>
+      <label class="ctl adv"><span><span data-zh="🚀 左边再加一个常数 c = ">🚀 Add a constant c = </span><b id="icVal">0</b> <span data-zh="（a·x + c ? b，两步不等式）">(a·x + c ? b, a two-step inequality)</span></span><input id="icIn" type="range" min="-6" max="6" step="1" value="0"></label>
       <div class="ma-big" id="iOut"></div>
       <div class="steps" id="iNote"></div>
       <div class="result" id="iTest"></div>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:8px">
+        <div><b data-zh="🎯 挑战">🎯 Challenge</b> <span id="iChTxt"></span></div>
+        <div class="btnrow"><button class="btn" id="iChCheck" data-zh="检查">Check</button><button class="btn ghost" id="iChNew" data-zh="换一题">New challenge</button></div>
+        <div class="result" id="iChMsg"></div>
+      </div>
     </div>
   </div>
 </section>
@@ -339,41 +359,83 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
 (function(){
   const B = MathAnim.scene('#bStage', { x:[-6.4, 6.4], y:[-4.3, 5.3] });
   const T = [B.tex('', -BL, 4.1, { size:34 }), B.tex('', 0, 4.1, { size:34 }), B.tex('', BL, 4.1, { size:34 })];
-  const s = { tilt:0, L:[], R:[], c:{ Lx:2, Lu:3, Ru:11 }, x:4, start:null, hist:[], log:[], msg:null };
+  const s = { tilt:0, L:[], R:[], c:{ Lx:2, Lu:3, Rx:0, Ru:11 }, x:4, start:null, hist:[], log:[], msg:null };
   B.custom((ctx, S) => drawScale(ctx, S, s));
   const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
   const sideTex = (nx, nu) => { const t = []; if (nx) t.push(tx(nx === 1 ? 'x' : nx + 'x')); if (nu || !nx) t.push(tu(nu)); return t.join(' + '); };
-  const eqTex = c => { const l = c.Lx * s.x + c.Lu, r = c.Ru; return `${sideTex(c.Lx, c.Lu)} ${l === r ? '=' : l > r ? '>' : '<'} ${sideTex(0, c.Ru)}`; };
+  const rw = c => (c.Rx || 0) * s.x + c.Ru;                                       // weight on the right pan (Advanced: boxes on both sides)
+  const eqTex = c => { const l = c.Lx * s.x + c.Lu, r = rw(c); return `${sideTex(c.Lx, c.Lu)} ${l === r ? "=" : l > r ? ">" : "<"} ${sideTex(c.Rx || 0, c.Ru)}`; };
   function build(animate){
-    s.L = mkItems(s.c.Lx, s.c.Lu); s.R = mkItems(0, s.c.Ru);
+    s.L = mkItems(s.c.Lx, s.c.Lu); s.R = mkItems(s.c.Rx || 0, s.c.Ru);
     for (const side of ['L', 'R']){ const m = slots(s[side]); s[side].forEach(it => { it.dx = m.get(it)[0]; it.dy = m.get(it)[1]; }); }
-    const solved = s.c.Lx === 1 && s.c.Lu === 0 && s.x === s.c.Ru;
+    const solved = s.c.Lx === 1 && s.c.Lu === 0 && !s.c.Rx && s.x === s.c.Ru;
     if (solved) s.L[0].lab = String(s.x);
-    const t = tiltFor(s.c.Lx * s.x + s.c.Lu, s.c.Ru);
+    const t = tiltFor(s.c.Lx * s.x + s.c.Lu, rw(s.c));
     if (animate) B.to(s, { tilt:t }, .9, MathAnim.ease.back).catch(() => {}); else s.tilt = t;
     render();
   }
   function push(c, logTex, msg){ s.hist.push({ c:{ ...s.c }, log:s.log.slice() }); s.c = c; if (logTex) s.log.push(logTex); s.msg = msg || null; build(true); }
   function render(){
-    const c = s.c, n = c.Lx, bal = c.Lx * s.x + c.Lu === c.Ru;
+    const c = s.c, n = c.Lx, r = rw(c), bal = c.Lx * s.x + c.Lu === r;
     Lab.$('#bEq').innerHTML = MathAnim.tex(eqTex(c));
-    const l = c.Lx * s.x + c.Lu; T[0].set(sideTex(c.Lx, c.Lu)); T[1].set(l === c.Ru ? '=' : l > c.Ru ? '>' : '<'); T[2].set(sideTex(0, c.Ru));
+    const l = c.Lx * s.x + c.Lu; T[0].set(sideTex(c.Lx, c.Lu)); T[1].set(l === r ? '=' : l > r ? '>' : '<'); T[2].set(sideTex(c.Rx || 0, c.Ru));
+    Lab.$('#bSubX').disabled = !(c.Lx > 0 && c.Rx > 0);
+    plug();
     const dv = Lab.$('#bDiv'); dv.textContent = Lab.L(n > 1 ? { en:`Divide both sides by ${n}`, zh:`两边同时除以 ${n}` } : { en:'Divide both sides', zh:'两边同时除以…' }); dv.disabled = n < 2;
     Lab.$('#bSub').disabled = !(c.Lu > 0 && c.Ru > 0); Lab.$('#bUndo').disabled = !s.hist.length;
     let m = s.msg;
-    if (!m && c.Lx === 1 && c.Lu === 0 && bal) m = { o:{ en:`🎉 Solved! The box holds ${s.x}, so x = ${s.x}.`, zh:`🎉 解出来了!盒子里有 ${s.x} 个,所以 x = ${s.x}。` }, good:true };
+    if (!m && c.Lx === 1 && c.Lu === 0 && !c.Rx && bal) m = { o:{ en:`🎉 Solved! The box holds ${s.x}, so x = ${s.x}.`, zh:`🎉 解出来了!盒子里有 ${s.x} 个,所以 x = ${s.x}。` }, good:true };
     if (!m && !bal) m = { o:{ en:'⚖️ The scale is tipped: the two sides are no longer equal. Undo, or make the same change on the other side.', zh:'⚖️ 天平倾斜了：两边不再相等。撤销，或者对另一边做同样的改变。' }, good:false };
     const el = Lab.$('#bMsg'); el.textContent = m ? Lab.L(m.o) : ''; el.className = 'result ' + (m ? (m.good ? 'good' : 'bad') : '');
     Lab.$('#bLog').innerHTML = [s.start, ...s.log].map(t => MathAnim.tex(t)).join(' &nbsp;→&nbsp; ');
   }
   function fresh(){
     const a = rnd(1, 3), x = rnd(1, 4), b = rnd(a === 1 ? 1 : 0, 4);
-    s.x = x; s.c = { Lx:a, Lu:b, Ru:a * x + b }; s.hist = []; s.log = []; s.msg = null; s.start = eqTex(s.c); s.tilt = 0; build(false);
+    s.x = x; s.c = { Lx:a, Lu:b, Rx:0, Ru:a * x + b }; s.hist = []; s.log = []; s.msg = null; s.start = eqTex(s.c); s.tilt = 0; build(false);
   }
+  /* ---- Advanced: equations with x on both sides (ax + b = cx + d), guess-and-check, paper challenge ---- */
+  function fresh2(){
+    const a = rnd(2, 3), cx = rnd(1, a - 1), x = rnd(1, 3), b = rnd(1, 3), d = (a - cx) * x + b;
+    s.x = x; s.c = { Lx:a, Lu:b, Rx:cx, Ru:d }; s.hist = []; s.log = []; s.msg = null; s.start = eqTex(s.c); s.tilt = 0; build(false);
+  }
+  function plug(){
+    if (!Lab.adv()) return;
+    const c = s.c, v = +Lab.$('#bTry').value, l = c.Lx * v + c.Lu, r = (c.Rx || 0) * v + c.Ru, ok = l === r;
+    Lab.$('#bTryVal').textContent = v;
+    const side = (nx, nu) => { const t = []; if (nx) t.push((nx === 1 ? '' : nx + '\\cdot') + `\\textcolor{${OC}}{${v}}`); if (nu || !nx) t.push(nu); return t.join(' + '); };
+    const both = (nx, nu, val) => (nx > 1 || (nx && nu)) ? [side(nx, nu), String(val)] : [side(nx, nu)];   // show "= value" only when there is something to work out
+    const L2 = both(c.Lx, c.Lu, l), R2 = both(c.Rx || 0, c.Ru, r).reverse();
+    Lab.$('#bPlug').innerHTML = MathAnim.tex(`${L2.join(' = ')} \\;${ok ? '=' : '\\ne'}\\; ${R2.join(' = ')}`) + ' ' + (ok ? '✅' : '❌');
+  }
+  let ch = null;
+  const term = (k, first) => k === 1 ? (first ? '' : '+') + 'x' : k === -1 ? '-x' : (k > 0 && !first ? '+' : '') + k + 'x';
+  const cst = k => k === 0 ? '' : (k > 0 ? '+' : '') + k;
+  function newCh(){
+    let a, c2, x, b, d;
+    do { x = rnd(-5, 9); a = rnd(2, 9); c2 = rnd(-4, 8); b = rnd(-12, 12); d = (a - c2) * x + b; } while (c2 === 0 || c2 === a || Math.abs(d) > 60 || x === 0);
+    ch = { a, c:c2, b, d, x };
+    Lab.$('#bChEq').innerHTML = MathAnim.tex(`${term(a, true)} ${cst(b)} = ${term(c2, true)} ${cst(d)}`);
+    Lab.$('#bChIn').value = ''; Lab.$('#bChMsg').textContent = ''; Lab.$('#bChMsg').className = 'result';
+  }
+  Lab.$('#bNew2').onclick = fresh2;
+  Lab.$('#bSubX').onclick = () => { const c = s.c; if (!(c.Lx > 0 && c.Rx > 0)) return; const n = { ...c, Lx:c.Lx - 1, Rx:c.Rx - 1 }; push(n, eqTex(n)); };
+  Lab.$('#bTry').oninput = plug;
+  Lab.$('#bChNew').onclick = newCh;
+  Lab.$('#bChCheck').onclick = () => {
+    const raw = Lab.$('#bChIn').value.trim(), v = +raw, m = Lab.$('#bChMsg');
+    if (raw === '' || !isFinite(v)){ m.textContent = Lab.L({ en:'Type a number first.', zh:'先输入一个数。' }); m.className = 'result bad'; return; }
+    const l = ch.a * v + ch.b, r = ch.c * v + ch.d;
+    if (v === ch.x) m.textContent = Lab.L({ en:`🎉 Correct! Check: left = ${l}, right = ${r}. Both sides are equal.`, zh:`🎉 正确！检验：左边 = ${l}，右边 = ${r}，两边相等。` });
+    else { const k = Math.abs(ch.c), kx = (k === 1 ? '' : k) + 'x';
+      m.textContent = Lab.L({ en:`Not quite. With x = ${v}: left = ${l}, right = ${r}, not equal. Hint: first ${ch.c > 0 ? 'subtract' : 'add'} ${kx} ${ch.c > 0 ? 'from' : 'to'} both sides.`,
+                              zh:`不对。x = ${v} 时：左边 = ${l}，右边 = ${r}，不相等。提示：先移项，两边同时${ch.c > 0 ? '减去' : '加上'} ${kx}。` }); }
+    m.className = 'result ' + (v === ch.x ? 'good' : 'bad');
+  };
   Lab.$('#bSub').onclick = () => { const c = s.c; if (c.Lu < 1 || c.Ru < 1) return; const n = { ...c, Lu:c.Lu - 1, Ru:c.Ru - 1 }; push(n, eqTex(n)); };
   Lab.$('#bDiv').onclick = () => {
     const c = s.c, n = c.Lx;
-    if (c.Lx * s.x + c.Lu !== c.Ru){ s.msg = { o:{ en:'Balance the scale first!', zh:'先让天平平衡！' }, good:false }; render(); return; }
+    if (c.Lx * s.x + c.Lu !== rw(c)){ s.msg = { o:{ en:'Balance the scale first!', zh:'先让天平平衡！' }, good:false }; render(); return; }
+    if (c.Rx){ s.msg = { o:{ en:'First get all the boxes onto one side: subtract x from both sides.', zh:'先把所有盒子移到同一边：两边同时减 x。' }, good:false }; render(); return; }
     if (c.Lu % n || c.Ru % n){ s.msg = { o:{ en:`The weights can’t be split into ${n} equal groups yet. Remove the loose weights first.`, zh:`现在还不能把砝码平均分成 ${n} 份。先拿走零散的砝码。` }, good:false }; render(); return; }
     const nc = { Lx:1, Lu:c.Lu / n, Ru:c.Ru / n }; push(nc, eqTex(nc));
   };
@@ -391,13 +453,14 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
       }
     }
   });
-  Lab.onLang(render); fresh();
+  Lab.onLang(render); fresh(); newCh();
+  Lab.onMode(plug);
 })();
 
 /* ================= Explore 2: inequality on the number line ================= */
 (function(){
   const I = MathAnim.scene('#iStage', { x:[-6, 6], y:[-3.5, 5.5] });
-  const s = { a:2, b:6, sym:'<', t:1, drag:false };
+  const s = { a:2, b:6, c:0, sym:'<', t:1, drag:false };   // c: Advanced constant term (a·x + c ? b), always 0 in Basic
   const XP = v => v * .52, Y = -1.2;
   const FLIP = { '<':'>', '>':'<', '≤':'≥', '≥':'≤' }, TEX = { '<':'<', '>':'>', '≤':'\\le', '≥':'\\ge' };
   const cmp = (l, sy, r) => sy === '<' ? l < r - 1e-9 : sy === '>' ? l > r + 1e-9 : sy === '≤' ? l <= r + 1e-9 : l >= r - 1e-9;
@@ -410,7 +473,7 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     ctx.font = `700 ${Math.max(10, S.px(.3))}px Nunito, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = C.grey;
     for (let v = -10; v <= 10; v++){ const h = v % 2 ? .08 : .15; ctx.beginPath(); ctx.moveTo(...P(XP(v), Y - h)); ctx.lineTo(...P(XP(v), Y + h)); ctx.stroke(); if (!(v % 2)) ctx.fillText(String(v), ...P(XP(v), Y - .5)); }
     // solution set
-    const a = s.a, b = s.b;
+    const a = s.a, b = s.b - s.c;           // b here = right side after subtracting c
     ctx.lineCap = 'round';
     if (a === 0){
       if (cmp(0, s.sym, b)){ ctx.lineWidth = 10; ctx.strokeStyle = 'rgba(131,193,103,.85)'; ctx.beginPath(); ctx.moveTo(...P(XP(-10.4), Y)); ctx.lineTo(...P(XP(10.4), Y)); ctx.stroke(); }
@@ -430,17 +493,29 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     ctx.lineCap = 'butt'; ctx.setLineDash([4, 5]); ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(236,230,226,.5)'; ctx.beginPath(); ctx.moveTo(...P(tx0, Y + .3)); ctx.lineTo(...P(tx0, 1.15)); ctx.stroke(); ctx.setLineDash([]);
     ctx.beginPath(); ctx.arc(...P(tx0, 1.5), S.px(.24), 0, 7); ctx.fillStyle = C.white; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = ok ? C.green : C.red; ctx.stroke();
     ctx.font = `800 ${Math.max(12, S.px(.42))}px Nunito, sans-serif`; ctx.fillStyle = ok ? C.green : C.red;
-    const lhs = a * s.t;
-    ctx.fillText(`${a}·(${nice(s.t)}) = ${nice(lhs)} ${s.sym} ${b} ?  ${ok ? '✓' : '✗'}`, S.sx(0), S.sy(2.7));
+    const lhs = a * s.t + s.c, cs = s.c ? (s.c > 0 ? " + " : " − ") + Math.abs(s.c) : "";
+    ctx.fillText(`${a}·(${nice(s.t)})${cs} = ${nice(lhs)} ${s.sym} ${s.b} ?  ${ok ? '✓' : '✗'}`, S.sx(0), S.sy(2.7));
     ctx.fillStyle = C.grey; ctx.font = `700 ${Math.max(10, S.px(.3))}px Nunito, sans-serif`;
     ctx.fillText(Lab.L({ en:'drag the white test point', zh:'拖动白色测试点' }), S.sx(0), S.sy(3.6));
   });
   function update(){
-    s.a = +Lab.$('#iaIn').value; s.b = +Lab.$('#ibIn').value;
-    Lab.$('#iaVal').textContent = s.a; Lab.$('#ibVal').textContent = s.b;
+    s.a = +Lab.$('#iaIn').value; s.b = +Lab.$('#ibIn').value; s.c = Lab.adv() ? +Lab.$('#icIn').value : 0;
+    Lab.$('#iaVal').textContent = s.a; Lab.$('#ibVal').textContent = s.b; Lab.$('#icVal').textContent = s.c;
     const lhs = s.a === 1 ? 'x' : s.a === -1 ? '-x' : s.a + 'x';
     let out, note;
-    if (s.a === 0){
+    if (s.c){   // Advanced two-step: a·x + c ? b  ⇒  a·x ? b − c  ⇒ divide by a
+      const R = s.b - s.c, first = `${s.a === 0 ? '0' : tx(lhs)} ${s.c > 0 ? '+' : '-'} ${Math.abs(s.c)} ${TEX[s.sym]} ${s.b} \\;\\Rightarrow\\; ${s.a === 0 ? '0' : tx(lhs)} ${TEX[s.sym]} ${R}`;
+      if (s.a === 0){
+        const all = cmp(0, s.sym, R);
+        out = first;
+        note = all ? { en:'No x is left: this is always true, so every number is a solution.', zh:'x 消失了：这句话永远成立，所以任何数都是解。' } : { en:'No x is left: this is never true, so there is no solution.', zh:'x 消失了：这句话永远不成立，所以没有解。' };
+      } else {
+        const sym2 = s.a < 0 ? FLIP[s.sym] : s.sym;
+        out = `${first} \\;\\Rightarrow\\; ${tx('x')} ${s.a < 0 ? `\\mathrel{\\textcolor{${OC}}{${TEX[sym2]}}}` : TEX[sym2]} ${fracTex(R, s.a)}`;
+        note = { en:`Step 1: ${s.c > 0 ? 'subtract' : 'add'} ${Math.abs(s.c)} on both sides (the sign stays). Step 2: divide by ${s.a}` + (s.a < 0 ? ', a negative number, so the sign flips!' : ', a positive number: the sign stays.'),
+                 zh:`第 1 步：两边同时${s.c > 0 ? '减去' : '加上'} ${Math.abs(s.c)}（不等号方向不变）。第 2 步：两边同时除以 ${s.a}` + (s.a < 0 ? '，是负数，所以不等号方向改变！' : '，是正数，不等号方向不变。') };
+      }
+    } else if (s.a === 0){
       const all = cmp(0, s.sym, s.b);
       out = `0 ${TEX[s.sym]} ${s.b}`;
       note = all ? { en:'No x is left: this is always true, so every number is a solution.', zh:'x 消失了：这句话永远成立，所以任何数都是解。' } : { en:'No x is left: this is never true, so there is no solution.', zh:'x 消失了：这句话永远不成立，所以没有解。' };
@@ -452,11 +527,25 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     }
     Lab.$('#iOut').innerHTML = MathAnim.tex(out);
     Lab.$('#iNote').textContent = Lab.L(note); Lab.$('#iNote').style.color = s.a < 0 ? '#e0478f' : '';
-    const ok = cmp(s.a * s.t, s.sym, s.b), m = Lab.$('#iTest');
+    const ok = cmp(s.a * s.t + s.c, s.sym, s.b), m = Lab.$('#iTest');
     m.textContent = Lab.L(ok ? { en:`x = ${nice(s.t)} is a solution.`, zh:`x = ${nice(s.t)} 是解。` } : { en:`x = ${nice(s.t)} is not a solution.`, zh:`x = ${nice(s.t)} 不是解。` });
     m.className = 'result ' + (ok ? 'good' : 'bad');
   }
-  ['#iaIn', '#ibIn'].forEach(id => Lab.$(id).oninput = update);
+  ['#iaIn', '#ibIn', '#icIn'].forEach(id => Lab.$(id).oninput = update);
+  /* ---- Advanced challenge: build an inequality with a negative a and a constant c whose solution is the target ---- */
+  let ich = { k:-2, sym:'≤' };
+  const ichTxt = () => Lab.$('#iChTxt').innerHTML = Lab.L({ en:'Set a negative a and a constant c ≠ 0 so that the solution is ', zh:'让 a 为负数、常数 c ≠ 0，并使不等式的解集是 ' }) + MathAnim.tex(`x ${TEX[ich.sym]} ${ich.k}`) + Lab.L({ en:'.', zh:'。' });
+  Lab.$('#iChNew').onclick = () => { const syms = ['<', '≤', '>', '≥']; let n; do { n = { k:Math.floor(Math.random() * 9) - 4, sym:syms[Math.floor(Math.random() * 4)] }; } while (n.k === ich.k && n.sym === ich.sym); ich = n; ichTxt(); Lab.$('#iChMsg').textContent = ''; Lab.$('#iChMsg').className = 'result'; };
+  Lab.$('#iChCheck').onclick = () => {
+    const m = Lab.$('#iChMsg'), R = s.b - s.c, sym2 = s.a < 0 ? FLIP[s.sym] : s.sym;
+    let r;
+    if (s.a >= 0) r = { en:'Make a negative first (that is the tricky part!).', zh:'先把 a 调成负数（难点就在这里！）。' };
+    else if (!s.c) r = { en:'Now add a constant: c must not be 0.', zh:'再加一个常数：c 不能是 0。' };
+    else if (R !== ich.k * s.a) r = { en:`Your boundary is x = ${nice(R / s.a)}, but it should be ${ich.k}. Change b or c.`, zh:`你的分界点是 x = ${nice(R / s.a)}，应该是 ${ich.k}。调一调 b 或 c。` };
+    else if (sym2 !== ich.sym) r = { en:'Right boundary, wrong direction. Remember: dividing by a negative flips the sign.', zh:'分界点对了，方向反了。记住：除以负数，不等号要改变方向。' };
+    const good = !r; m.textContent = Lab.L(r || { en:'🎉 Exactly right!', zh:'🎉 完全正确！' }); m.className = 'result ' + (good ? 'good' : 'bad');
+  };
+  Lab.onLang(ichTxt); Lab.onMode(update);
   Lab.$$('#iSym button').forEach(b => b.onclick = () => { s.sym = b.dataset.s; Lab.$$('#iSym button').forEach(x => x.classList.toggle('on', x === b)); update(); });
   const cv = I.cv, toT = e => { const r = cv.getBoundingClientRect(); return Math.max(-10, Math.min(10, Math.round(I.wx(e.clientX - r.left) / .52 * 2) / 2)); };
   cv.addEventListener('pointerdown', e => { s.drag = true; cv.setPointerCapture(e.pointerId); s.t = toT(e); update(); });
@@ -495,6 +584,7 @@ Lab.sort(Lab.$('#sort'), {
 /* ================= Where you see this: real photos (Wikimedia Commons, freely licensed) ================= */
 (function(){
 const o = (en, zh) => ({ en, zh });
+const VID = o('Video', '视频');
 const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d0/Balance_scale_IMGP9755.jpg/960px-Balance_scale_IMGP9755.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'An old two-pan balance. If both pans hold the same weight, what can you add or remove and keep it level?',
@@ -511,9 +601,23 @@ const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f9/Gas_prices_at_pump.JPG/960px-Gas_prices_at_pump.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'A gas pump shows the gallons and the price. If you paid $30, how many gallons did you get?',
     zh:'加油机上显示加油量（加仑）和金额。如果付了 30 美元，加了多少加仑？',
-    credit:'Ck1media', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Gas_prices_at_pump.JPG' }
+    credit:'Ck1media', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Gas_prices_at_pump.JPG' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/d/d9/Rhind_Mathematical_Papyrus.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled',
+    en:'The Rhind papyrus from ancient Egypt (about 1550 BC, British Museum). Problem 24 asks: a number plus its 1/7 makes 19. What is the number? That is an equation, 3,500 years old!',
+    zh:'古埃及的莱因德纸草书（约公元前 1550 年，藏于大英博物馆）。第 24 题问：一个数加上它的七分之一等于 19，这个数是多少？这是一道 3500 年前的方程题！',
+    kind:o('Ancient math','古代数学'), credit:'scribe Ahmes (ancient Egypt)', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Rhind_Mathematical_Papyrus.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/2/23/Image-Al-Kit%C4%81b_al-mu%E1%B8%ABta%E1%B9%A3ar_f%C4%AB_%E1%B8%A5is%C4%81b_al-%C4%9Fabr_wa-l-muq%C4%81bala.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled',
+    en:'A page from al-Khwarizmi’s book on “al-jabr” (Baghdad, about AD 820). “Al-jabr” means moving a term to the other side to restore balance, and it gave us the word “algebra”.',
+    zh:'花拉子米关于“al-jabr”的书中的一页（巴格达，约公元 820 年）。“al-jabr”的意思是把一项移到另一边、恢复平衡，“代数”（algebra）这个词就来自它。',
+    kind:o('Math history','数学史'), credit:'Muḥammad ibn Musa al-Khwarizmi', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Image-Al-Kit%C4%81b_al-mu%E1%B8%ABta%E1%B9%A3ar_f%C4%AB_%E1%B8%A5is%C4%81b_al-%C4%9Fabr_wa-l-muq%C4%81bala.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c5/You_cannot_be_taller_than_this_to_ride_sign.jpg/960px-You_cannot_be_taller_than_this_to_ride_sign.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A sign at a county fair in Oregon: “You cannot be taller than this to ride.” That is an inequality! If the mark is h inches, riders must have height ≤ h.',
+    zh:'美国俄勒冈州一个集市上的标牌：“身高超过这里就不能坐。”这就是一个不等式！如果标记处是 h 英寸，乘客身高必须 ≤ h。',
+    credit:'Rick Obst', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:You_cannot_be_taller_than_this_to_ride_sign.jpg' },
+  { type:'youtube', yt:'l3XzepN03KQ', en:'Video: “Solving Basic Equations” — do the same thing to both sides to get x by itself.', zh:'视频：《解简单方程》——两边做同样的运算，让 x 单独留在一边（英文）。', kind:VID, credit:'Math Antics (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'mgHO-bsCDrA', en:'Video: “Basic Inequalities” — what the symbols <, >, ≤ and ≥ mean and how to show them on a number line.', zh:'视频：《基础不等式》——符号 <、>、≤、≥ 的意思，以及怎样在数轴上表示（英文）。', kind:VID, credit:'Math Antics (YouTube)', license:'YouTube' }
 ];
-LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos. Each one comes with a question this lesson helps you answer. Click a picture to enlarge it.','真实照片。每张都带着一个这节课能帮你回答的问题。点击图片可放大。') });
+LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos and short videos. Each photo comes with a question this lesson helps you answer. Click a picture to enlarge it or to play a video.','真实照片和短视频。每张照片都带着一个这节课能帮你回答的问题。点击图片可放大，点击视频可播放。') });
 })();
 </script>
 <!-- /real-world gallery script -->

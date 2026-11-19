@@ -47,6 +47,7 @@
   <div class="ma-explore">
     <div class="ma-stage explore-stage" id="exStage" data-fs></div>
     <div class="card ctl">
+      <div class="lab-mode" style="align-self:flex-start"></div>
       <div class="readout">
         <div><b id="oMean" style="color:#d49a1c">–</b><span data-zh="平均数">mean</span></div>
         <div><b id="oMed" style="color:#2aa98a">–</b><span data-zh="中位数">median</span></div>
@@ -68,6 +69,22 @@
       </div>
       <div class="legend2"><span><i style="background:#58c4dd"></i><span data-zh="数据">data</span></span><span><i style="background:#ffd166"></i><span data-zh="平均数">mean</span></span><span><i style="background:#5cd0b3"></i><span data-zh="中位数">median</span></span><span><i style="background:#b48ef0"></i><span data-zh="箱线图（Q1–Q3）">box (Q1–Q3)</span></span></div>
       <div class="result" id="exMsg"></div>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:10px">
+        <b data-zh="进阶：众数、方差与标准差、离群值的判断">Advanced: mode, variance &amp; standard deviation, outlier fences</b>
+        <div class="readout">
+          <div><b id="oMode">–</b><span data-zh="众数">mode</span></div>
+          <div><b id="oVar" style="color:#d4508f">–</b><span data-zh="方差 s²">variance s²</span></div>
+          <div><b id="oSD" style="color:#d4508f">–</b><span data-zh="标准差 s">std. dev. s</span></div>
+        </div>
+        <div id="varOut" style="text-align:center;font-size:17px;overflow-x:auto"></div>
+        <div id="fenceOut" class="muted" style="font-size:14px"></div>
+        <label style="font-weight:700;font-size:14px"><input type="checkbox" id="devIn"> <span data-zh="显示每个点到平均数的距离（粉色）">Show each dot’s distance from the mean (pink)</span></label>
+        <div style="border-top:1px solid var(--line);padding-top:8px">
+          <b data-zh="🎯 挑战">🎯 Challenge</b> <span id="chTxt"></span>
+          <div class="btnrow" style="margin-top:6px"><button class="btn" id="chCheck" data-zh="检查">Check</button><button class="btn ghost" id="chNew" data-zh="换一题">New challenge</button></div>
+          <div class="result" id="chMsg"></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -353,8 +370,12 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     const s = data.slice().sort((a, b) => a - b), n = s.length, sum = s.reduce((a, b) => a + b, 0), mean = sum / n;
     const lo = s.slice(0, Math.floor(n / 2)), hi = s.slice(Math.ceil(n / 2));
     return { s, n, sum, mean, median:med(s), q1:lo.length ? med(lo) : s[0], q3:hi.length ? med(hi) : s[n - 1], min:s[0], max:s[n - 1],
-             mad:s.reduce((a, v) => a + Math.abs(v - mean), 0) / n };
+             mad:s.reduce((a, v) => a + Math.abs(v - mean), 0) / n, ss:s.reduce((a, v) => a + (v - mean) ** 2, 0) };
   }
+  /* Advanced: mode(s), and the 1.5 × IQR fences that flag outliers */
+  const modes = s => { const c = {}; s.forEach(v => c[v] = (c[v] || 0) + 1); const mx = Math.max(...Object.values(c)); return mx < 2 ? [] : Object.keys(c).filter(k => c[k] === mx).map(Number); };
+  const fences = t => { const iqr = t.q3 - t.q1; return [t.q1 - 1.5 * iqr, t.q3 + 1.5 * iqr]; };
+  let showDev = false, chI = 0;
   const pos = () => { const seen = {}; return data.map(v => { seen[v] = (seen[v] || 0) + 1; return [X(v), LY + .3 + (seen[v] - 1) * .4]; }); };
   E.custom((ctx, S) => {
     const t = stats(), P = pos(), line = (x1, y1, x2, y2, col, w, dash) => { ctx.strokeStyle = col; ctx.lineWidth = w; ctx.setLineDash(dash || []); ctx.beginPath(); ctx.moveTo(S.sx(x1), S.sy(y1)); ctx.lineTo(S.sx(x2), S.sy(y2)); ctx.stroke(); ctx.setLineDash([]); };
@@ -369,6 +390,8 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     // median line
     const top = Math.max(...P.map(p => p[1])) + .5;
     line(X(t.median), LY, X(t.median), top, C.teal, 2.5, [6, 5]);
+    // Advanced: each dot’s distance from the mean
+    if (Lab.adv() && showDev) P.forEach(p => { if (Math.abs(p[0] - mx) > 1e-6) line(p[0], p[1], mx, p[1], C.pink, 2.5); });
     // dots
     P.forEach((p, i) => { ctx.beginPath(); ctx.arc(S.sx(p[0]), S.sy(p[1]), S.px(.17) + (drag === i ? 3 : 0), 0, 7); ctx.fillStyle = C.blue; ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = '#0f1420'; ctx.stroke(); });
     // labels
@@ -376,9 +399,15 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     ctx.fillStyle = C.yellow; ctx.fillText(Lab.L({ en:'mean ', zh:'平均数 ' }) + fmt(t.mean), S.sx(Math.min(4.6, Math.max(-4.6, mx))), S.sy(LY - 1.15));
     ctx.fillStyle = C.teal; ctx.fillText(Lab.L({ en:'median ', zh:'中位数 ' }) + fmt(t.median), S.sx(Math.min(4.6, Math.max(-4.6, X(t.median)))), S.sy(top + .3));
     // box plot
-    const bh = .4;
-    line(X(t.min), BY, X(t.q1), BY, C.white, 2.5); line(X(t.q3), BY, X(t.max), BY, C.white, 2.5);
-    line(X(t.min), BY - .22, X(t.min), BY + .22, C.white, 2.5); line(X(t.max), BY - .22, X(t.max), BY + .22, C.white, 2.5);
+    const bh = .4, adv = Lab.adv(), [f1, f2] = fences(t);
+    // Advanced: whiskers stop at the last value inside the fences; outliers are red ×
+    const inner = adv ? t.s.filter(v => v >= f1 && v <= f2) : t.s, wLo = inner[0], wHi = inner[inner.length - 1];
+    line(X(wLo), BY, X(t.q1), BY, C.white, 2.5); line(X(t.q3), BY, X(wHi), BY, C.white, 2.5);
+    line(X(wLo), BY - .22, X(wLo), BY + .22, C.white, 2.5); line(X(wHi), BY - .22, X(wHi), BY + .22, C.white, 2.5);
+    if (adv){
+      [f1, f2].forEach(f => { if (f >= 0 && f <= 20) line(X(f), BY - .65, X(f), BY + .65, C.red, 1.8, [4, 4]); });
+      t.s.filter(v => v < f1 || v > f2).forEach(v => { const x = S.sx(X(v)), y = S.sy(BY), r = S.px(.16); ctx.strokeStyle = C.red; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x - r, y - r); ctx.lineTo(x + r, y + r); ctx.moveTo(x + r, y - r); ctx.lineTo(x - r, y + r); ctx.stroke(); });
+    }
     ctx.fillStyle = 'rgba(180,142,240,.2)'; ctx.fillRect(S.sx(X(t.q1)), S.sy(BY + bh), S.px(X(t.q3) - X(t.q1)), S.px(2 * bh));
     ctx.strokeStyle = C.purple; ctx.lineWidth = 2.5; ctx.strokeRect(S.sx(X(t.q1)), S.sy(BY + bh), S.px(X(t.q3) - X(t.q1)), S.px(2 * bh));
     line(X(t.median), BY - bh, X(t.median), BY + bh, C.teal, 3.5);
@@ -404,7 +433,42 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
       : d > 0 ? T(`Mean > median by ${fmt(d)}: big values on the right pull the mean up.`, `平均数比中位数大 ${fmt(d)}:右边的大数值把平均数往上拉。`)
       : T(`Mean < median by ${fmt(-d)}: small values on the left pull the mean down.`, `平均数比中位数小 ${fmt(-d)}:左边的小数值把平均数往下拉。`));
     Lab.$('#bDel').disabled = data.length <= 2; Lab.$('#bAdd').disabled = data.length >= 16;
+    advUpdate();
   }
+  /* ---- Advanced mode: mode, variance / standard deviation, fences, challenge ---- */
+  const exactS = v => Math.abs(v * 100 - Math.round(v * 100)) < 1e-9, sgn = v => fmt(v).replace('-', '−');
+  const CH = [
+    { en:'Make the mean exactly 10 and the median exactly 8.', zh:'让平均数正好是 10，中位数正好是 8。', ok:t => Math.abs(t.mean - 10) < 1e-9 && t.median === 8 },
+    { en:'Make the mean at least 3 bigger than the median.', zh:'让平均数比中位数至少大 3。', ok:t => t.mean - t.median >= 3 - 1e-9 },
+    { en:'Make the standard deviation exactly 2.', zh:'让标准差正好等于 2。', ok:t => Math.abs(Math.sqrt(t.ss / t.n) - 2) < 1e-9 },
+    { en:'Make data whose only mode is 5, with median 7 and mean 8.', zh:'让唯一的众数是 5，中位数是 7，平均数是 8。', ok:t => { const m = modes(t.s); return m.length === 1 && m[0] === 5 && t.median === 7 && Math.abs(t.mean - 8) < 1e-9; } },
+    { en:'Make a data set with exactly one outlier (a red × outside the fences).', zh:'做一组恰好有一个离群值的数据（栅栏外的红色 ×）。', ok:t => { const [a, b] = fences(t); return t.s.filter(v => v < a || v > b).length === 1; } },
+    { en:'Keep the mean at exactly 10 but make the MAD at least 4.', zh:'平均数保持正好 10，但让平均绝对偏差 MAD 至少为 4。', ok:t => Math.abs(t.mean - 10) < 1e-9 && t.mad >= 4 - 1e-9 }
+  ];
+  function advUpdate(){
+    if (!Lab.adv()) return;
+    const t = stats(), md = modes(t.s), v = t.ss / t.n, sd = Math.sqrt(v), [f1, f2] = fences(t), outs = t.s.filter(x => x < f1 || x > f2);
+    Lab.$('#oMode').textContent = md.length ? md.join(', ') : Lab.L(T('none', '无'));
+    Lab.$('#oVar').textContent = fmt(v); Lab.$('#oSD').textContent = fmt(sd);
+    const term = x => `(${x} - \\bar{x})^2`, s = t.s;
+    const terms = s.length <= 4 ? s.map(term).join(' + ') : `${term(s[0])} + ${term(s[1])} + \\cdots + ${term(s[s.length - 1])}`;
+    Lab.$('#varOut').innerHTML = MathAnim.tex(`\\bar{x} ${exactS(t.mean) ? '=' : '\\approx'} ${fmt(t.mean)}`) + '<br>'
+      + MathAnim.tex(`s^2 = \\frac{${terms}}{${t.n}} ${exactS(v) ? '=' : '\\approx'} ${fmt(v)}`) + '<br>'
+      + MathAnim.tex(`s = \\sqrt{s^2} ${exactS(sd) ? '=' : '\\approx'} ${fmt(sd)}`);
+    Lab.$('#fenceOut').textContent = Lab.L(T(`Fences: Q1 − 1.5 × IQR = ${sgn(f1)} and Q3 + 1.5 × IQR = ${sgn(f2)}. Values outside are outliers: ${outs.length ? outs.join(', ') : 'none'}. The bigger s is, the more spread out (less steady) the data are.`,
+                                            `栅栏：Q1 − 1.5 × IQR = ${sgn(f1)}，Q3 + 1.5 × IQR = ${sgn(f2)}。栅栏外的数据是离群值：${outs.length ? outs.join('、') : '无'}。方差（标准差）越大，数据的波动越大，越不稳定。`));
+    Lab.$('#chTxt').textContent = Lab.L(CH[chI]);
+  }
+  Lab.$('#devIn').onchange = () => { showDev = Lab.$('#devIn').checked; };
+  Lab.$('#chNew').onclick = () => { chI = (chI + 1) % CH.length; Lab.$('#chMsg').textContent = ''; Lab.$('#chMsg').className = 'result'; advUpdate(); };
+  Lab.$('#chCheck').onclick = () => {
+    const t = stats(), ok = CH[chI].ok(t), msg = Lab.$('#chMsg'), md = modes(t.s);
+    msg.textContent = ok ? Lab.L(T('🎉 You did it! Look how the numbers fit together.', '🎉 做到了！看看这些数是怎样配合的。'))
+      : Lab.L(T(`Not yet. Now: mean ${fmt(t.mean)}, median ${fmt(t.median)}, mode ${md.length ? md.join(', ') : 'none'}, MAD ${fmt(t.mad)}, s ${fmt(Math.sqrt(t.ss / t.n))}. Drag, add or remove dots.`,
+                `还没有。现在：平均数 ${fmt(t.mean)}，中位数 ${fmt(t.median)}，众数 ${md.length ? md.join('、') : '无'}，MAD ${fmt(t.mad)}，s ${fmt(Math.sqrt(t.ss / t.n))}。拖动、添加或删除数据点试试。`));
+    msg.className = 'result ' + (ok ? 'good' : 'bad');
+  };
+  Lab.onMode(update);
   Lab.$('#bAdd').onclick = () => { const t = stats(); data.push(Math.round(t.median)); update(); };
   Lab.$('#bDel').onclick = () => { if (data.length > 2){ data.pop(); update(); } };
   Lab.$$('[data-pre]').forEach(b => b.onclick = () => { data = PRE[b.dataset.pre].slice(); update(); });
@@ -486,6 +550,7 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
 /* ================= Where you see this: real photos (Wikimedia Commons, freely licensed) ================= */
 (function(){
 const o = (en, zh) => ({ en, zh });
+const VID = o('Video', '视频');
 const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7b/Pizzitola_Scoreboard_after_Stony_Brook_game_in_2024.jpg/960px-Pizzitola_Scoreboard_after_Stony_Brook_game_in_2024.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'The scoreboard after a college basketball game at Brown University. From all the players’ points, what is the mean and the median?',
@@ -498,9 +563,23 @@ const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/11/Scoreboard_inside_Roll_High_School_Gym.jpg/960px-Scoreboard_inside_Roll_High_School_Gym.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'A scoreboard in a high-school gym in Roll, Oklahoma. Over a season, how spread out are a team’s scores?',
     zh:'美国俄克拉何马州一所高中体育馆里的记分牌。一个赛季里，球队的得分有多分散？',
-    credit:'Ranger John', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Scoreboard_inside_Roll_High_School_Gym.jpg' }
+    credit:'Ranger John', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Scoreboard_inside_Roll_High_School_Gym.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/17/Nightingale-mortality.jpg/960px-Nightingale-mortality.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'Nurse Florence Nightingale drew this chart in 1858. Each wedge is one month of soldiers’ deaths in the Crimean War; the big blue parts were from diseases that could be prevented. Data changed how hospitals work!',
+    zh:'护士弗洛伦斯·南丁格尔在 1858 年画了这张图。每个扇形代表克里米亚战争中一个月的士兵死亡人数；大片的蓝色部分死于本可预防的疾病。数据改变了医院的做法！',
+    kind:o('Math history','数学史'), credit:'Florence Nightingale', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Nightingale-mortality.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a5/Davis_Instruments_weather_station.jpg/960px-Davis_Instruments_weather_station.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A small weather station in a French vineyard records temperature, rain and wind all day. A month of daily highs: what is the mean, the median and the range?',
+    zh:'法国一片葡萄园里的小型气象站，整天记录气温、降雨和风。一个月每天的最高气温：平均数、中位数和极差各是多少？',
+    credit:'Cjp24', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Davis_Instruments_weather_station.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c1/Galton_box.jpg/960px-Galton_box.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A Galton board: beads pile up in a hill shape, high in the middle and low at the edges. Where would the mean and median of the beads’ positions be?',
+    zh:'高尔顿板：珠子堆成一座“小山”，中间高、两边低。珠子位置的平均数和中位数会在哪里？',
+    credit:'Estes Objethos Atelier; photo Rodrigo.Argenton', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Galton_box.jpg' },
+  { type:'youtube', yt:'B1HEzNTGeZ4', en:'Video: “Mean, Median and Mode” — three ways to describe the “middle” of a data set.', zh:'视频：《平均数、中位数和众数》——描述一组数据“中间”的三种方法（英文）。', kind:VID, credit:'Math Antics (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'sxYrzzy3cq8', en:'Video: “How statistics can be misleading” — a TED-Ed lesson on why an average can hide the real story.', zh:'视频：《统计数字怎样误导人》——TED-Ed 课程：为什么平均数有时会掩盖真相（英文）。', kind:VID, credit:'TED-Ed (YouTube)', license:'YouTube' }
 ];
-LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos. Each one comes with a question this lesson helps you answer. Click a picture to enlarge it.','真实照片。每张都带着一个这节课能帮你回答的问题。点击图片可放大。') });
+LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos and short videos. Each photo comes with a question this lesson helps you answer. Click a picture to enlarge it or to play a video.','真实照片和短视频。每张照片都带着一个这节课能帮你回答的问题。点击图片可放大，点击视频可播放。') });
 })();
 </script>
 <!-- /real-world gallery script -->

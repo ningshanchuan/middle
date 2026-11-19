@@ -35,6 +35,15 @@
 .which button{border:2px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:14px;padding:14px;font-weight:800;min-height:84px}
 .which button.right{border-color:var(--good);background:color-mix(in srgb,var(--good) 16%,var(--surface))}
 .which button.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,var(--surface))}
+/* 🚀 Advanced panel */
+.advgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:16px;align-items:start;margin-top:10px}
+.advcol{display:flex;flex-direction:column;gap:10px}
+.fml{font-family:ui-monospace,Consolas,monospace;font-size:13px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;line-height:1.55;overflow-wrap:anywhere}
+.regr{position:relative;height:280px;background:var(--surface);border-radius:12px;border:1px solid var(--line)}
+.regr canvas{position:absolute;inset:0;width:100%;height:100%}
+.vepre{display:flex;flex-wrap:wrap;gap:6px}
+.vepre button{border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:999px;padding:4px 10px;font-weight:800;font-size:13px}
+@media (max-width:760px){ .advgrid{grid-template-columns:1fr} }
 @media (max-width:980px){.readout{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:560px){.pill input[type=range]{width:90px}.which{grid-template-columns:1fr}}
 </style>
@@ -82,6 +91,7 @@
     <h2 data-zh="模拟：你能把火箭送上太空吗？">Simulation: can you reach space?</h2>
     <p data-zh="调整燃料、发动机推力和火箭质量，然后竖直发射。推力必须大于重力火箭才能离地；到达 100 千米的卡门线就算进入太空。">Adjust the fuel, engine thrust and rocket mass, then launch straight up. Thrust must be bigger than the rocket’s weight to lift off; crossing the Kármán line at 100 km counts as reaching space.</p>
   </div>
+  <div class="lab-mode" style="margin-bottom:10px"></div>
   <div class="sim">
     <div class="card simbox" id="rocketBox"><canvas id="rocketCv"></canvas></div>
     <div class="card simside">
@@ -97,6 +107,23 @@
       </div>
       <div class="result" id="simMsg"></div>
       <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="火箭向下推燃气，燃气就向上推火箭（牛顿第三定律）。推力 > 重力 → 起飞！">Rocket pushes gas down, gas pushes rocket up (Newton’s 3rd law). Thrust &gt; weight → liftoff!</span></div>
+    </div>
+  </div>
+  <div class="adv adv-box" id="seAdv" style="margin-top:14px">
+    <b data-zh="🚀 进阶：齐奥尔科夫斯基火箭方程">🚀 Advanced: the Tsiolkovsky rocket equation</b>
+    <div class="advgrid">
+      <div class="advcol">
+        <label class="ctl"><span><span data-zh="💨 喷气速度 vₑ（燃料越好越快）">💨 Exhaust speed vₑ (better fuel = faster)</span>: <b id="seVeV">3.00 km/s</b></span><input id="seVe" type="range" min="2000" max="4500" step="10" value="3000" aria-label="exhaust speed"></label>
+        <div class="vepre" id="sePre"></div>
+        <label class="ctl" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="seNoDrag"> <span data-zh="关掉空气阻力（好像在没有空气的星球上发射）">Turn off air drag (like launching from an airless world)</span></label>
+        <div class="fml" id="seF"></div>
+        <div><b data-zh="🎯 挑战">🎯 Challenge</b> <span id="seChQ"></span> <button class="btn ghost sm" id="seChNew" data-zh="换一个 ↻">New ↻</button></div>
+        <div class="result" id="seCh"></div>
+      </div>
+      <div>
+        <div class="regr" data-nofs><canvas id="seCv" aria-label="Rocket equation: change in speed against mass ratio"></canvas></div>
+        <small class="muted" data-zh="火箭方程 Δv = vₑ × ln(m₀ ÷ m_f)：横轴是质量比（满载 ÷ 燃料烧完），纵轴是能获得的速度变化。曲线越往右越平：燃料加倍，Δv 只多一点点。这就是火箭要分级的原因。虚线：进入近地轨道约需 9.4 千米/秒（含损失），逃离地球需 11.2 千米/秒。">Rocket equation Δv = vₑ × ln(m₀ ÷ m_f): across is the mass ratio (full ÷ empty), up is the change in speed you can get. The curve flattens to the right: doubling the fuel adds only a little Δv. That is why rockets use stages. Dashed: about 9.4 km/s to reach low orbit (including losses); 11.2 km/s to escape Earth.</small>
+      </div>
     </div>
   </div>
 </section>
@@ -193,7 +220,7 @@
 <script>
 const o = (en, zh) => ({en, zh});
 /* ===== Real photos (Wikimedia Commons, free licences; rendered by shared/photos.js) ===== */
-const RP_KIND = { earth:o('Photo from Earth','从地球上拍的照片'), crew:o('Astronaut photo','宇航员拍摄的照片'), craft:o('Spacecraft photo','航天器照片'), audio:o('Apollo 11 audio','阿波罗 11 号录音') };
+const RP_KIND = { earth:o('Photo from Earth','从地球上拍的照片'), crew:o('Astronaut photo','宇航员拍摄的照片'), craft:o('Spacecraft photo','航天器照片'), audio:o('Apollo 11 audio','阿波罗 11 号录音'), vid:o('Video from Mars','火星视频'), yt:o('Video','视频') };
 const RP = {
   sputnik:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/be/Sputnik_asm.jpg/960px-Sputnik_asm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Sputnik_asm.jpg', credit:'NSSDC, NASA', kind:RP_KIND.earth,
     en:'A copy of Sputnik 1, the world’s first artificial satellite (1957), at the National Air and Space Museum in Washington, D.C.', zh:'世界上第一颗人造卫星“斯普特尼克 1 号”（1957 年）的复制品，收藏在美国华盛顿的国家航空航天博物馆。',
@@ -215,12 +242,29 @@ const RP = {
   rover:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f3/Curiosity_Self-Portrait_at_%27Big_Sky%27_Drilling_Site.jpg/960px-Curiosity_Self-Portrait_at_%27Big_Sky%27_Drilling_Site.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Curiosity_Self-Portrait_at_%27Big_Sky%27_Drilling_Site.jpg', credit:'NASA', kind:RP_KIND.craft,
     en:'A selfie of NASA’s Curiosity rover on Mars, at the “Big Sky” site where it drilled into rock on Mount Sharp.', zh:'美国航天局“好奇号”火星车在火星上的自拍，地点是它在夏普山钻探岩石的“大天空”。' },
   audio:{ type:'audio', media:'https://upload.wikimedia.org/wikipedia/commons/e/e0/Phrase_de_Neil_Armstrong.oga?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Phrase_de_Neil_Armstrong.oga', credit:'NASA', kind:RP_KIND.audio,
-    en:'Listen: Neil Armstrong’s famous words as he stepped onto the Moon on July 21, 1969 (UTC): “That’s one small step for man, one giant leap for mankind.”', zh:'听一听：1969 年 7 月 21 日（世界时）尼尔·阿姆斯特朗踏上月球时说的名言：“这是个人的一小步，却是人类的一大步。”' }
+    en:'Listen: Neil Armstrong’s famous words as he stepped onto the Moon on July 21, 1969 (UTC): “That’s one small step for man, one giant leap for mankind.”', zh:'听一听：1969 年 7 月 21 日（世界时）尼尔·阿姆斯特朗踏上月球时说的名言：“这是个人的一小步，却是人类的一大步。”' },
+  earthrise:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a8/NASA-Apollo8-Dec24-Earthrise.jpg/960px-NASA-Apollo8-Dec24-Earthrise.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:NASA-Apollo8-Dec24-Earthrise.jpg', credit:'NASA / Bill Anders', kind:RP_KIND.crew,
+    en:'“Earthrise”: Earth rising over the Moon, photographed by astronaut Bill Anders on Apollo 8, the first crewed flight around the Moon, on December 24, 1968.', zh:'“地出”：1968 年 12 月 24 日，第一次载人绕月飞行的阿波罗 8 号上，宇航员比尔·安德斯拍下地球从月球边上升起的画面。' },
+  iss:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/ff/ISS-56_International_Space_Station_fly-around_%2805%29.jpg/960px-ISS-56_International_Space_Station_fly-around_%2805%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:ISS-56_International_Space_Station_fly-around_(05).jpg', credit:'NASA/Roscosmos', kind:RP_KIND.crew,
+    en:'The International Space Station, photographed by astronauts leaving in a Soyuz spacecraft in 2018. People have lived on board without a break since November 2000.', zh:'2018 年，乘“联盟号”飞船离开的航天员拍下的国际空间站。从 2000 年 11 月起，一直有人在上面生活，从没间断。',
+    scale:o('About 109 m across · as big as a football field','宽约 109 米 · 和一个橄榄球场差不多大') },
+  tiangong:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/90/Rear_view_of_Tiangong_Space_Station.jpg/960px-Rear_view_of_Tiangong_Space_Station.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Rear_view_of_Tiangong_Space_Station.jpg', credit:'China Manned Space Engineering Office', kind:RP_KIND.craft,
+    en:'China’s Tiangong space station, photographed from a spacecraft flying around it. The core module Tianhe is in the middle, with the lab modules Wentian and Mengtian on each side and big solar panels.', zh:'从环绕飞行的飞船上拍到的中国天宫空间站。中间是天和核心舱，两边是问天、梦天实验舱，还有巨大的太阳能电池板。',
+    scale:o('Astronauts have lived on board since 2021','从 2021 年起一直有航天员在上面生活和工作') },
+  yutu:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/54/Yutu-2_leaving_Chang_e-4-iau1901a.jpg/960px-Yutu-2_leaving_Chang_e-4-iau1901a.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Yutu-2_leaving_Chang_e-4-iau1901a.jpg', credit:'CNSA (via IAU)', kind:RP_KIND.craft,
+    en:'The Yutu-2 (“Jade Rabbit 2”) rover driving away from the Chang’e-4 lander in January 2019: the first spacecraft ever to land on the far side of the Moon.', zh:'2019 年 1 月，“玉兔二号”月球车驶离“嫦娥四号”着陆器。这是人类第一次在月球背面着陆。' },
+  ingenuity:{ src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0e/Mastcam-Z_Gives_Ingenuity_a_Close-up.jpg/960px-Mastcam-Z_Gives_Ingenuity_a_Close-up.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Mastcam-Z_Gives_Ingenuity_a_Close-up.jpg', credit:'NASA/JPL-Caltech/ASU/MSSS', kind:RP_KIND.craft,
+    en:'NASA’s Ingenuity helicopter on Mars, photographed by the Perseverance rover in 2021. It was the first aircraft to fly on another planet, and it flew 72 times.', zh:'2021 年“毅力号”火星车拍到的美国航天局“机智号”直升机。它是第一架在另一颗行星上飞行的飞行器，一共飞了 72 次。',
+    scale:o('About 1.8 kg · rotors 1.2 m across','约 1.8 千克 · 旋翼直径 1.2 米') },
+  ingvid:{ type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/7/71/Ingenuity_mid-air_during_second_flight_%28above_5m%29.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/71/Ingenuity_mid-air_during_second_flight_%28above_5m%29.webm/960px--Ingenuity_mid-air_during_second_flight_%28above_5m%29.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Ingenuity_mid-air_during_second_flight_(above_5m).webm', credit:'NASA/JPL-Caltech', kind:RP_KIND.vid,
+    en:'Real video from Mars: the Ingenuity helicopter hovering about 5 m up on its second flight (April 2021), filmed by the Perseverance rover’s cameras.', zh:'来自火星的真实视频：2021 年 4 月，“机智号”第二次飞行时悬停在约 5 米高处，由“毅力号”火星车的相机拍摄。' },
+  ytlanding:{ type:'youtube', yt:'4czjS9h4Fpg', en:'NASA: Perseverance rover’s descent and touchdown on Mars, filmed by the spacecraft’s own cameras: parachute, rocket “sky crane” and landing.', zh:'美国航天局：“毅力号”火星车降落火星的全过程，由探测器自己的相机拍摄：降落伞、火箭“空中吊车”和着陆。', kind:RP_KIND.yt, credit:'NASA (YouTube)', license:'YouTube' },
+  ytiss:{ type:'youtube', yt:'doN4t5NKW-k', en:'NASA: Commander Sunita Williams gives a tour of the International Space Station before flying home: where astronauts sleep, eat, exercise and work.', zh:'美国航天局：指令长苏尼塔·威廉姆斯在返回地球前带大家参观国际空间站：航天员在哪里睡觉、吃饭、锻炼和工作。', kind:RP_KIND.yt, credit:'NASA (YouTube)', license:'YouTube' }
 };
 const RP_PANEL = { stage1:'falcon', pad:'launch', payload:'sputnik', reflector:'jwst', radio:'vla', space:'hubble' };
 const realFig = k => RP[RP_PANEL[k]] ? LabPhotos.figure(RP[RP_PANEL[k]]) : '';
-LabPhotos.render('#gallery', ['sputnik','launch','aldrin','audio','falcon','hubble','jwst','vla','rover'].map(k => RP[k]), { title:o('See the real thing','看看真实的样子'),
-  sub:o('Real rockets, telescopes and explorers, plus the real sound of the first step on the Moon. Click a picture to enlarge it; the audio plays only when you press play.','真实的火箭、望远镜和探测器，还有人类第一次踏上月球时的真实录音。点击图片可以放大；音频要你按下播放键才会播放。') });
+LabPhotos.render('#gallery', ['sputnik','launch','earthrise','aldrin','audio','falcon','iss','tiangong','hubble','jwst','vla','yutu','rover','ingenuity','ingvid','ytlanding','ytiss'].map(k => RP[k]), { title:o('See the real thing','看看真实的样子'),
+  sub:o('Real rockets, space stations, telescopes and explorers, the real sound of the first step on the Moon, and real videos from Mars. Click a picture to enlarge it; audio and videos play only when you press play.','真实的火箭、空间站、望远镜和探测器，人类第一次踏上月球时的真实录音，还有来自火星的真实视频。点击图片可以放大；音频和视频要你按下播放键才会播放。') });
 /* ===== Clickable parts: rocket mode + telescope mode ===== */
 const PARTS = {
   stage1:{color:'#e2e8f0', name:o('First stage (booster)','第一级（助推级）'), job:o('Lifts the rocket off the ground','把火箭推离地面'),
@@ -376,25 +420,26 @@ Lab.onLang(() => { renderInfo(); renderChips(); renderWaves(); renderReadout(); 
   const S = { run:null, t:0, play:false, speed:1, maxSoFar:0 };
   let W = 0, H = 0;
   function resize(){ const b = box.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); W = b.width; H = b.height; cv.width = W * d; cv.height = H * d; g.setTransform(d, 0, 0, d, 0, 0); }
-  const P = () => ({ fuel:+Lab.$('#sFuel').value, thrust:+Lab.$('#sThrust').value, dry:+Lab.$('#sDry').value });
+  const P = () => ({ fuel:+Lab.$('#sFuel').value, thrust:+Lab.$('#sThrust').value, dry:+Lab.$('#sDry').value, ve:Lab.adv() ? +Lab.$('#seVe').value : VE, drag:!(Lab.adv() && Lab.$('#seNoDrag').checked) });   // 🚀 Advanced: exhaust speed, drag on/off
   const twr = p => p.thrust * 1000 / ((p.fuel + p.dry) * 1000 * G0);
   function simulate(p){
-    let m = (p.fuel + p.dry) * 1000, fuel = p.fuel * 1000, h = 0, v = 0, t = 0, maxH = 0, escaped = false, burnEnd = 0;
-    const F = p.thrust * 1000, mdot = F / VE, pts = [{ t:0, h:0, v:0, burn:fuel > 0 }];
+    let m = (p.fuel + p.dry) * 1000, fuel = p.fuel * 1000, h = 0, v = 0, t = 0, maxH = 0, escaped = false, burnEnd = 0, gl = 0, dl = 0, vbo = 0, hbo = 0;
+    const F = p.thrust * 1000, mdot = F / (p.ve || VE), pts = [{ t:0, h:0, v:0, burn:fuel > 0 }];
     if (F <= m * G0 || fuel <= 0) return { pts, maxH:0, lift:false, tEnd:0 };
     const dt = .2;
     while (t < 4000){
       const gh = G0 * Math.pow(RE / (RE + h), 2), burning = fuel > 0;
       let th = 0; if (burning){ const b = Math.min(fuel, mdot * dt); fuel -= b; m -= b; th = F * (b / (mdot * dt)); burnEnd = t; }
-      const drag = .5 * RHO0 * Math.exp(-h / HS) * v * Math.abs(v) * CDA;
-      v += ((th - drag) / m - gh) * dt; h += v * dt; t += dt;
+      const drag = p.drag === false ? 0 : .5 * RHO0 * Math.exp(-h / HS) * v * Math.abs(v) * CDA;
+      if (burning){ gl += gh * dt; dl += drag / m * dt; }
+      v += ((th - drag) / m - gh) * dt; h += v * dt; t += dt; if (burning){ vbo = v; hbo = h; }
       if (h <= 0 && t > 2){ h = 0; pts.push({ t, h:0, v:0, burn:false }); break; }
       maxH = Math.max(maxH, h);
       if (!burning && v > 0 && v * v >= 2 * G0 * RE * RE / (RE + h)) escaped = true;
       if (Math.round(t / dt) % 5 === 0) pts.push({ t, h, v, burn:burning });
       if (escaped && t > burnEnd + 300) break;
     }
-    return { pts, maxH, lift:true, escaped, tEnd:t, burnEnd };
+    return { pts, maxH, lift:true, escaped, tEnd:t, burnEnd, gl, dl, vbo, hbo, p };
   }
   const km = h => h / 1000;
   const fmt = (x, dp = 0) => x.toLocaleString(Lab.lang === 'zh' ? 'zh-CN' : 'en-US', { maximumFractionDigits:dp });
@@ -468,6 +513,7 @@ Lab.onLang(() => { renderInfo(); renderChips(); renderWaves(); renderReadout(); 
     draw(); requestAnimationFrame(loop);
   })(last);
   Lab.onLang(() => { readSliders(); updateCounters(); verdict(); });
+  window.SpaceRocket = { S, P, simulate, reset:() => { if (S.run && !S.play){ S.run = null; verdict(); updateCounters(); } } };
 })();
 /* ===== Timeline ===== */
 const TLCAT = { tel:{c:'#60a5fa', i:'🔭', n:o('Telescopes','望远镜')}, human:{c:'#fb923c', i:'🚀', n:o('Rockets & people','火箭与载人')}, orbit:{c:'#facc15', i:'🛰️', n:o('Satellites & stations','卫星与空间站')}, probe:{c:'#34d399', i:'🤖', n:o('Probes & rovers','探测器与巡视器')} };
@@ -672,6 +718,87 @@ if (dp && AST) dp.innerHTML = dp.dataset.deeper.split(',').map(id => { const t =
 
 Lab.onLang(() => setYear(st.y, true));
 window.SpaceAge = { setYear, pick, state:st, vg:(k, y) => vgAU(k, y ?? NOW), missions:MS.length };
+})();
+</script>
+<script>
+/* ===== 🚀 Advanced mode: exhaust speed, drag switch, rocket equation with numbers, Δv budget of the flight, Δv–mass-ratio graph, challenge ===== */
+(function(){
+  const o = (en, zh) => ({en, zh}), $ = Lab.$, isZh = () => Lab.lang === 'zh', R = window.SpaceRocket;
+  const cssv = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const A = { ch:null, judged:null };
+  const PRE = [[o('Solid fuel ≈ 2.5','固体燃料 ≈ 2.5'), 2500], [o('Kerosene + oxygen ≈ 3.0','煤油 + 液氧 ≈ 3.0'), 3000], [o('Hydrogen + oxygen ≈ 4.4','液氢 + 液氧 ≈ 4.4'), 4400]];
+  const ks = v => `${(v / 1000).toFixed(2)} ${isZh() ? '千米/秒' : 'km/s'}`;
+  function pre(){ $('#sePre').innerHTML = PRE.map((p, i) => `<button data-i="${i}">${Lab.L(p[0])}</button>`).join('');
+    Lab.$$('#sePre button').forEach(b => b.onclick = () => { $('#seVe').value = PRE[+b.dataset.i][1]; changed(); }); }
+  function changed(){ R.reset(); live(); }
+  function live(){
+    if (!Lab.adv()) return;
+    const p = R.P(), m0 = p.fuel + p.dry, ratio = m0 / p.dry, dv = p.ve * Math.log(ratio), tb = p.fuel * 1000 * p.ve / (p.thrust * 1000), md = p.thrust * 1000 / p.ve;
+    $('#seVeV').textContent = ks(p.ve);
+    const L = [
+      `m₀ = ${p.fuel} + ${p.dry} = ${m0} t · m_f = ${p.dry} t → m₀ ÷ m_f = ${ratio.toFixed(2)}`,
+      `Δv = vₑ × ln(m₀ ÷ m_f) = ${(p.ve / 1000).toFixed(2)} × ln ${ratio.toFixed(2)} = <b>${ks(dv)}</b>`,
+      (isZh() ? '燃料流量 ' : 'fuel flow ') + `ṁ = F ÷ vₑ = ${Math.round(md).toLocaleString('en-US')} kg/s → ` + (isZh() ? '燃烧时间 ' : 'burn time ') + `t = ${p.fuel} t ÷ ṁ = ${p.fuel ? Math.round(tb) : 0} s`
+    ];
+    const r = R.S.run;
+    if (r && r.lift && !R.S.play && r.p){
+      L.push((isZh() ? '<b>这次飞行的 Δv 账单</b>：' : '<b>This flight’s Δv bill</b>: ') + `${ks(r.p.ve * Math.log((r.p.fuel + r.p.dry) / r.p.dry))} = ${isZh() ? '熄火时速度' : 'speed at burnout'} ${ks(r.vbo)} + ${isZh() ? '重力损失' : 'gravity loss'} ${ks(r.gl)} + ${isZh() ? '阻力损失' : 'drag loss'} ${ks(r.dl)}`);
+      L.push(isZh() ? `熄火高度 ${Math.round(r.hbo / 1000)} 千米，之后靠惯性继续上升到 ${Math.round(r.maxH / 1000).toLocaleString('en-US')} 千米。` : `Engine cut-off at ${Math.round(r.hbo / 1000)} km; it coasts on up to ${Math.round(r.maxH / 1000).toLocaleString('en-US')} km.`);
+    }
+    $('#seF').innerHTML = L.join('<br>');
+    graph(p, ratio, dv);
+  }
+  /* graph: Δv against mass ratio for several exhaust speeds */
+  function graph(p, ratio, dv){
+    if (!Lab.adv()) return;
+    const cv = $('#seCv'), box = cv.parentElement, W = box.clientWidth, H = box.clientHeight; if (!W || !H) return;
+    const dpr = Math.min(devicePixelRatio || 1, 2); cv.width = W * dpr; cv.height = H * dpr;
+    const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+    const ink = cssv('--ink') || '#222', ink2 = cssv('--ink-2') || '#666', line = cssv('--line') || '#ccc', brand = cssv('--brand') || '#7a5cff';
+    const Lx = 38, Rx = W - 12, Ty = 12, By = H - 32, xMax = 40, yMax = 16;
+    const X = x => Lx + (x - 1) / (xMax - 1) * (Rx - Lx), Y = v => By - Math.min(v, yMax) / yMax * (By - Ty);
+    g.strokeStyle = line; g.lineWidth = 1; g.font = '700 11px Nunito'; g.fillStyle = ink2; g.textAlign = 'center';
+    [1, 10, 20, 30, 40].forEach(x => { g.beginPath(); g.moveTo(X(x), Ty); g.lineTo(X(x), By); g.stroke(); g.fillText(x, X(x), By + 14); });
+    g.textAlign = 'right'; for (let v = 0; v <= yMax; v += 4){ g.beginPath(); g.moveTo(Lx, Y(v)); g.lineTo(Rx, Y(v)); g.stroke(); g.fillText(v, Lx - 5, Y(v) + 4); }
+    g.textAlign = 'center'; g.fillText(Lab.L(o('mass ratio m₀ ÷ m_f','质量比 m₀ ÷ m_f')), (Lx + Rx) / 2, H - 4);
+    g.save(); g.translate(11, (Ty + By) / 2); g.rotate(-Math.PI / 2); g.fillText('Δv (km/s)', 0, 0); g.restore();
+    [[9.4, o('low orbit ≈ 9.4','近地轨道 ≈ 9.4')], [11.2, o('escape 11.2','逃逸 11.2')]].forEach(([v, l]) => { g.strokeStyle = ink2; g.setLineDash([5, 4]); g.beginPath(); g.moveTo(Lx, Y(v)); g.lineTo(Rx, Y(v)); g.stroke(); g.setLineDash([]);
+      g.fillStyle = ink2; g.textAlign = 'left'; g.fillText(Lab.L(l), Lx + 6, Y(v) - 4); });
+    const curve = (ve, col, w, lab) => { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); for (let i = 0; i <= 120; i++){ const x = 1 + i / 120 * (xMax - 1), y = Y(ve / 1000 * Math.log(x)); i ? g.lineTo(X(x), y) : g.moveTo(X(x), y); } g.stroke();
+      if (lab){ g.fillStyle = col; g.font = '800 11px Nunito'; g.textAlign = 'right'; g.fillText(lab, Rx - 4, Math.max(Ty + 22, Y(ve / 1000 * Math.log(xMax)) - 6)); } };
+    PRE.forEach(([, ve]) => { if (Math.abs(ve - p.ve) > 60) curve(ve, ink2, 1, `${(ve / 1000).toFixed(1)}`); });
+    curve(p.ve, brand, 3, `vₑ = ${(p.ve / 1000).toFixed(2)}`);
+    if (p.fuel > 0){ const x = Math.min(ratio, xMax), px = X(x), py = Y(dv / 1000);
+      g.fillStyle = '#ff9f43'; g.beginPath(); g.arc(px, py, 6.5, 0, 7); g.fill(); g.strokeStyle = ink; g.lineWidth = 1.5; g.stroke();
+      g.fillStyle = ink; g.font = '800 11px Nunito'; g.textAlign = px > Rx - 90 ? 'right' : 'left'; g.fillText(Lab.L(o('your rocket','你的火箭')) + (ratio > xMax ? ' →' : ''), px + (px > Rx - 90 ? -10 : 10), py + 16); }
+  }
+  /* 🎯 challenges (judged when a flight ends) */
+  const CH = [
+    { q:o('Reach the height of the space station: highest point 380–440 km.','飞到空间站的高度：最高点在 380–440 千米之间。'), ok:r => r.maxH >= 380e3 && r.maxH <= 440e3,
+      good:o('The ISS orbits about 420 km up. To STAY there it would also need about 7.7 km/s sideways.','空间站在约 420 千米高处绕行。要留在那里，还需要约 7.7 千米/秒的横向速度。'), hint:r => r.maxH < 380e3 ? o('Not high enough: more Δv (more fuel, a lighter rocket or a faster exhaust).','还不够高：需要更多 Δv（加燃料、减轻火箭或提高喷气速度）。') : o('Too high: take away a little fuel.','太高了：减一点燃料。') },
+    { q:o('Escape Earth: reach 11.2 km/s going straight up.','逃离地球：竖直飞到 11.2 千米/秒。'), ok:r => r.escaped,
+      good:o('Escape needs a huge mass ratio: that is why real probes ride on giant multi-stage rockets.','逃逸需要非常大的质量比：所以真实的探测器都坐在巨大的多级火箭上。'), hint:() => o('Use the fastest exhaust, lots of fuel, a light rocket and plenty of thrust (less time fighting gravity).','用最快的喷气速度、很多燃料、很轻的箭体和足够大的推力（跟重力较劲的时间短一些）。') },
+    { q:o('Reach space (100 km) with a mass ratio under 2: less fuel than the rocket body weighs.','用小于 2 的质量比飞进太空（100 千米）：燃料比箭体还轻。'), ok:r => r.maxH >= 100e3 && (r.p.fuel + r.p.dry) / r.p.dry < 2,
+      good:o('A fast exhaust and high thrust make a small mass ratio enough for a short hop into space, like the Blue Origin New Shepard.','喷气速度快、推力大，小小的质量比就够跳进太空，就像“新谢泼德”亚轨道火箭。'), hint:r => (r.p.fuel + r.p.dry) / r.p.dry >= 2 ? o('Your fuel must weigh less than the rocket body + payload.','燃料必须比箭体 + 载荷轻。') : o('Use the fastest exhaust and more thrust to cut gravity loss.','用最快的喷气速度和更大的推力，减少重力损失。') },
+    { q:o('Use solid fuel (vₑ ≤ 2.5 km/s) and still reach 1,000 km.','用固体燃料（vₑ ≤ 2.5 千米/秒），仍然飞到 1,000 千米。'), ok:r => r.p.ve <= 2500 && r.maxH >= 1e6,
+      good:o('With a slow exhaust you need a much bigger mass ratio for the same Δv: look how low the 2.5 curve sits.','喷气速度慢，同样的 Δv 就要大得多的质量比：看看 2.5 那条曲线有多低。'), hint:r => r.p.ve > 2500 ? o('Set the exhaust speed to 2.5 km/s or less first.','先把喷气速度设为 2.5 千米/秒或更低。') : o('More fuel and a lighter rocket body.','加燃料，减轻箭体。') }
+  ];
+  function newCh(){ let i; do { i = Math.random() * CH.length | 0; } while (i === A.ch); A.ch = i; chText(); $('#seCh').className = 'result'; $('#seCh').textContent = ''; }
+  function chText(){ $('#seChQ').textContent = Lab.L(CH[A.ch].q); }
+  function judge(){
+    const r = R.S.run; if (!Lab.adv() || A.ch == null || !r || R.S.play || r === A.judged) return; A.judged = r; live();
+    const c = CH[A.ch], el = $('#seCh'); if (!r.lift){ el.className = 'result bad'; el.textContent = Lab.L(o('❌ It never lifted off.','❌ 它根本没起飞。')); return; }
+    const ok = c.ok(r); el.className = 'result ' + (ok ? 'good' : 'bad'); el.textContent = ok ? Lab.L(o('✅ Done! ','✅ 成功！')) + Lab.L(c.good) : '❌ ' + Lab.L(c.hint(r));
+  }
+  $('#seVe').addEventListener('input', changed); $('#seNoDrag').addEventListener('change', changed);
+  ['#sFuel', '#sThrust', '#sDry'].forEach(s => $(s).addEventListener('input', live));
+  $('#seChNew').onclick = newCh;
+  setInterval(judge, 300);
+  new ResizeObserver(() => live()).observe($('#seCv').parentElement);
+  addEventListener('labtheme', live);
+  Lab.onLang(() => { pre(); if (A.ch != null) chText(); live(); });
+  Lab.onMode(adv => { R.reset(); if (adv){ pre(); if (A.ch == null) newCh(); requestAnimationFrame(live); } });
+  window.SeAdv = { state:A, live };
 })();
 </script>
 <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>

@@ -45,6 +45,7 @@
   <div class="ma-explore">
     <div class="ma-stage explore-stage" id="exStage" data-fs></div>
     <div class="card ctl">
+      <div class="lab-mode" style="align-self:flex-start"></div>
       <div class="modes">
         <button class="btn ghost on" data-mode="part" data-zh="求部分">Find the part</button>
         <button class="btn ghost" data-mode="pct" data-zh="求百分数">Find the percent</button>
@@ -53,6 +54,20 @@
       <label class="ctl"><span><span data-zh="整体 = ">Whole = </span><b id="wVal">80</b></span><input id="wIn" type="range" min="10" max="200" step="5" value="80"></label>
       <label class="ctl"><span><span data-zh="百分数 = ">Percent = </span><b id="pVal">30%</b></span><input id="pIn" type="range" min="0" max="150" step="1" value="30"></label>
       <div class="ma-big sm" id="solve"></div>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:10px">
+        <b data-zh="进阶：百分数变化、单利与复利">Advanced: percent change, simple and compound interest</b>
+        <div id="chgOut" style="text-align:center;font-size:16px;line-height:1.7"></div>
+        <p class="muted" style="margin:0;font-size:14px" data-zh="把“整体”当作存入银行的本金（美元），每年的利率是 r。">Now treat the whole as money in a bank (the principal, in $), earning r per year.</p>
+        <label class="ctl"><span><span data-zh="年利率 r = ">Interest rate r = </span><b id="rVal">8%</b></span><input id="rIn" type="range" min="1" max="20" step="1" value="8"></label>
+        <label class="ctl"><span><span data-zh="存期 n = ">Years n = </span><b id="nVal">10</b></span><input id="nIn" type="range" min="1" max="30" step="1" value="10"></label>
+        <div id="intOut" style="text-align:center;font-size:16px;line-height:2"></div>
+        <div class="ma-stage" id="advG" style="border-radius:12px"></div>
+        <div style="border-top:1px solid var(--line);padding-top:8px">
+          <b data-zh="🎯 挑战">🎯 Challenge</b> <span id="chTxt"></span>
+          <div class="btnrow" style="margin-top:6px"><button class="btn" id="chCheck" data-zh="检查">Check</button><button class="btn ghost" id="chNew" data-zh="换一题">New challenge</button></div>
+          <div class="result" id="chMsg"></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -359,7 +374,56 @@ function painter(ctx, S){
     else s = p === 0 ? { en:'0% of any number is 0, so the whole cannot be found. Move the percent slider.', zh:'任何数的 0% 都是 0，所以求不出整体。请拖动百分数滑块。' }
                      : { en:`whole $= ${Pt} \\div ${P} = ${fmt(part)} \\div ${d} = ${Wt}$`, zh:`整体 $= ${Pt} \\div ${P} = ${fmt(part)} \\div ${d} = ${Wt}$` };
     Lab.$('#solve').innerHTML = MathAnim.rich(Lab.L(s));
+    advUpdate();
   }
+  /* ---- Advanced: percent change, simple vs compound interest, challenge ---- */
+  let r = 8, n = 10, chN = 10;
+  const money = v => '\\$' + v.toFixed(2), sg = v => (v > 0 ? '+' : v < 0 ? '−' : '') + fmt(Math.abs(v));
+  const G = MathAnim.scene('#advG', { x:[-1.5, 10.5], y:[-.9, 5.85] });
+  G.custom((ctx, S) => {
+    if (!Lab.adv()) return;
+    const { txt } = painter(ctx, S);
+    const top = W * Math.pow(1 + r / 100, n), sx = t => t / n * 9.4, sy = v => v / top * 4.4;
+    const ln = (pts, col, w) => { ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(S.sx(x), S.sy(y)) : ctx.moveTo(S.sx(x), S.sy(y))); ctx.stroke(); };
+    ln([[0, 0], [9.6, 0]], C.grey, 2); ln([[0, 0], [0, 5.3]], C.grey, 2);
+    txt(Lab.L({ en:'years →', zh:'年数 →' }), 4.7, -.45, C.grey, .26); txt('0', 0, -.4, C.grey, .26); txt(String(n), sx(n), -.4, C.grey, .26);
+    txt(money(W).replace('\\', ''), -.1, sy(W), C.blue, .24, 'right');
+    if (sy(2 * W) < 4.6){ ctx.setLineDash([4, 5]); ln([[0, sy(2 * W)], [9.6, sy(2 * W)]], C.grey, 1.5); ctx.setLineDash([]); txt('×2', -.1, sy(2 * W), C.grey, .26, 'right'); }
+    const simp = [], comp = [];
+    for (let i = 0; i <= 60; i++){ const t = n * i / 60; simp.push([sx(t), sy(W * (1 + r / 100 * t))]); comp.push([sx(t), sy(W * Math.pow(1 + r / 100, t))]); }
+    ln(simp, C.yellow, 3); ln(comp, C.green, 3);
+    const sE = W * (1 + r / 100 * n);
+    txt('— ' + Lab.L({ en:'compound', zh:'复利' }) + ' ' + money(top).replace('\\', ''), .3, 5.35, C.green, .28, 'left');
+    txt('— ' + Lab.L({ en:'simple', zh:'单利' }) + ' ' + money(sE).replace('\\', ''), .3, 4.85, C.yellow, .28, 'left');
+  });
+  function advUpdate(){
+    if (!Lab.adv()) return;
+    r = +Lab.$('#rIn').value; n = +Lab.$('#nIn').value;
+    Lab.$('#rVal').textContent = r + '%'; Lab.$('#nVal').textContent = n;
+    const part = W * p / 100, ch = p - 100, kind = ch > 0 ? { en:'increase', zh:'增加' } : ch < 0 ? { en:'decrease', zh:'减少' } : { en:'no change', zh:'不变' };
+    let h = MathAnim.tex(`\\frac{${K(DK.orange, fmt(part))} - ${K(DK.blue, W)}}{${K(DK.blue, W)}} \\times 100\\% = ${sg(ch)}\\%`) + ' ' + Lab.L({ en:`(${kind.en} from ${W} to ${fmt(part)})`, zh:`（从 ${W} 变到 ${fmt(part)}，${kind.zh}）` });
+    if (p > 0 && p !== 100){ const back = (W - part) / part * 100;
+      h += '<br>' + Lab.L({ en:'Going back: ', zh:'再变回去：' }) + MathAnim.tex(`\\frac{${K(DK.blue, W)} - ${K(DK.orange, fmt(part))}}{${K(DK.orange, fmt(part))}} \\times 100\\% ${Math.abs(back * 10 - Math.round(back * 10)) < 1e-9 ? '=' : '\\approx'} ${sg(Math.round(back * 10) / 10)}\\%`)
+        + ' ' + Lab.L({ en:'— not the same size!', zh:'——大小不一样！' }); }
+    Lab.$('#chgOut').innerHTML = h;
+    const sI = W * r / 100 * n, cT = W * Math.pow(1 + r / 100, n);
+    Lab.$('#intOut').innerHTML = Lab.L({ en:'Simple: ', zh:'单利：' }) + MathAnim.tex(`${K(DK.blue, W)} + ${K(DK.blue, W)} \\times ${fmt(r / 100)} \\times ${n} = ${K(DK.yellow, money(W + sI))}`)
+      + '<br>' + Lab.L({ en:'Compound: ', zh:'复利：' }) + MathAnim.tex(`${K(DK.blue, W)} \\times ${fmt(1 + r / 100)}^{${n}} \\approx ${K(DK.green, money(cT))}`);
+    Lab.$('#chTxt').textContent = Lab.L({ en:`With compound interest, find the SMALLEST whole-number rate r that at least doubles the money in ${chN} years. (Set n = ${chN}.)`, zh:`按复利计算，求能在 ${chN} 年内使本金至少翻一番的最小整数利率 r。（把 n 调到 ${chN}。）` });
+  }
+  ['#rIn', '#nIn'].forEach(s => Lab.$(s).oninput = advUpdate);
+  Lab.$('#chNew').onclick = () => { const L = [5, 6, 7, 8, 9, 10, 12, 15, 18, 24].filter(v => v !== chN); chN = L[Math.floor(Math.random() * L.length)]; const m = Lab.$('#chMsg'); m.textContent = ''; m.className = 'result'; advUpdate(); };
+  Lab.$('#chCheck').onclick = () => {
+    const f = q => Math.pow(1 + q / 100, chN), m = Lab.$('#chMsg');
+    let best = 1; while (f(best) < 2) best++;
+    const ok = n === chN && r === best;
+    m.textContent = Lab.L(n !== chN ? { en:`First set the years to n = ${chN}.`, zh:`先把存期调到 n = ${chN}。` }
+      : f(r) < 2 ? { en:`Too small: after ${chN} years you have only ${fmt(f(r))} times the money.`, zh:`太小了：${chN} 年后只有本金的 ${fmt(f(r))} 倍。` }
+      : r > best ? { en:`It doubles (× ${fmt(f(r))}), but a smaller rate also works. Try lower!`, zh:`能翻倍（× ${fmt(f(r))}），但更小的利率也可以。再调低试试！` }
+      : { en:`🎉 Yes! ${r}% → × ${fmt(f(r))}, while ${r - 1}% gives only × ${fmt(f(r - 1))}. Shortcut “rule of 72”: 72 ÷ ${chN} ≈ ${fmt(72 / chN)}.`, zh:`🎉 对了！${r}% → × ${fmt(f(r))}，而 ${r - 1}% 只有 × ${fmt(f(r - 1))}。速算“72 法则”：72 ÷ ${chN} ≈ ${fmt(72 / chN)}。` });
+    m.className = 'result ' + (ok ? 'good' : 'bad');
+  };
+  Lab.onMode(advUpdate);
   Lab.$$('[data-mode]').forEach(b => b.onclick = () => { mode = b.dataset.mode; Lab.$$('[data-mode]').forEach(x => x.classList.toggle('on', x === b)); update(); });
   Lab.$('#wIn').oninput = update; Lab.$('#pIn').oninput = update;
   Lab.onLang(update); update();
@@ -425,6 +489,7 @@ Lab.sort(Lab.$('#sort'), {
 /* ================= Where you see this: real photos (Wikimedia Commons, freely licensed) ================= */
 (function(){
 const o = (en, zh) => ({ en, zh });
+const VID = o('Video', '视频');
 const PHOTOS = [
   { src:'https://upload.wikimedia.org/wikipedia/commons/e/e9/FDA_Nutrition_Facts_Label_2016.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled',
     en:'A US Nutrition Facts label lists a “% Daily Value” for each nutrient. If a snack gives 15% of your daily value, how much of the day is left?',
@@ -437,9 +502,27 @@ const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/54/2021-06-28_E-ink_price_tag_in_Sydney_supermarket.jpg/960px-2021-06-28_E-ink_price_tag_in_Sydney_supermarket.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'An electronic price tag in a Sydney supermarket. If the store takes 20% off, what is the new price?',
     zh:'悉尼一家超市的电子价签。如果打八折（减价 20%），新价格是多少？',
-    credit:'Maksym Kozlenko', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:2021-06-28_E-ink_price_tag_in_Sydney_supermarket.jpg' }
+    credit:'Maksym Kozlenko', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:2021-06-28_E-ink_price_tag_in_Sydney_supermarket.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/97/The_Earth_seen_from_Apollo_17.jpg/960px-The_Earth_seen_from_Apollo_17.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'Earth from Apollo 17. About 71% of Earth’s surface is covered by water. What percent is land? If you dropped a pin at random, what are the chances it lands in water?',
+    zh:'阿波罗 17 号拍到的地球。地球表面大约 71% 被水覆盖。陆地占百分之几？随便扎一根针，扎到水里的可能性有多大？',
+    kind:o('Space photo','太空照片'), credit:'NASA / Apollo 17 crew', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:The_Earth_seen_from_Apollo_17.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8f/50%25_Off_Greeting_Cards_%2836981086174%29.jpg/960px-50%25_Off_Greeting_Cards_%2836981086174%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A “50% off” sign at a drugstore in Manhattan. 50% off means you pay half. A card that cost $6 now costs how much? What about 25% off?',
+    zh:'纽约曼哈顿一家药店里的“五折（50% off）”标牌。减价 50% 就是只付一半。原价 6 美元的贺卡现在多少钱？如果减价 25% 呢？',
+    credit:'Paul Sableman', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:50%25_Off_Greeting_Cards_(36981086174).jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9d/Tip_jar_at_Sherwood_Gourmet_Deli.jpg/960px-Tip_jar_at_Sherwood_Gourmet_Deli.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A tip jar at a deli in Virginia. In the US, people often tip 15% to 20%. On a $20 meal, how much is a 15% tip? A 20% tip?',
+    zh:'美国弗吉尼亚州一家熟食店的小费罐。在美国，人们常给 15% 到 20% 的小费。20 美元的饭钱，15% 的小费是多少？20% 呢？',
+    credit:'Ser Amantio di Nicolao', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Tip_jar_at_Sherwood_Gourmet_Deli.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/14/Wisconsin_vs._Milwaukee_women%27s_basketball_2022_49_%28free_throw%29.jpg/960px-Wisconsin_vs._Milwaukee_women%27s_basketball_2022_49_%28free_throw%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A free throw in a college women’s basketball game in Wisconsin. A player who makes 18 of 24 free throws: what is her free-throw percentage?',
+    zh:'美国威斯康星州一场大学女篮比赛中的罚球。一名球员 24 次罚球命中 18 次，她的罚球命中率是百分之几？',
+    credit:'Michael Barera', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Wisconsin_vs._Milwaukee_women%27s_basketball_2022_49_(free_throw).jpg' },
+  { type:'youtube', yt:'JeVSmq1Nrpw', en:'Video: “What Are Percentages?” — percent means “out of 100”.', zh:'视频：《什么是百分数？》——百分数就是“每 100 份里有几份”（英文）。', kind:VID, credit:'Math Antics (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'rR95Cbcjzus', en:'Video: “Finding a Percent of a Number” — how to work out things like 20% of $35.', zh:'视频：《求一个数的百分之几》——比如怎样算出 35 美元的 20%（英文）。', kind:VID, credit:'Math Antics (YouTube)', license:'YouTube' }
 ];
-LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos. Each one comes with a question this lesson helps you answer. Click a picture to enlarge it.','真实照片。每张都带着一个这节课能帮你回答的问题。点击图片可放大。') });
+LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos and short videos. Each photo comes with a question this lesson helps you answer. Click a picture to enlarge it or to play a video.','真实照片和短视频。每张照片都带着一个这节课能帮你回答的问题。点击图片可放大，点击视频可播放。') });
 })();
 </script>
 <!-- /real-world gallery script -->

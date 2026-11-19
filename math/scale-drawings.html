@@ -47,6 +47,7 @@
   <div class="ma-explore">
     <div class="ma-stage explore-stage" id="exStage" data-fs></div>
     <div class="card ctl">
+      <div class="lab-mode" style="align-self:flex-start"></div>
       <label class="ctl"><span><span data-zh="比例因子 k = ">Scale factor k = </span><b id="kVal">1.5</b></span><input id="kIn" type="range" min="0.5" max="2.5" step="0.25" value="1.5"></label>
       <div class="readout">
         <div><b id="wOut" style="color:#d49a1c">6</b><span data-zh="宽（原 4）">width (was 4)</span></div>
@@ -56,6 +57,18 @@
       <div class="ma-big" id="planOut"></div>
       <div class="tagline" id="planTag"></div>
       <div class="btnrow"><button class="btn ghost" data-k="0.5">k = ½</button><button class="btn ghost" data-k="1">k = 1</button><button class="btn ghost" data-k="2">k = 2</button><button class="btn ghost" data-k="2.5">k = 2.5</button></div>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:10px">
+        <b data-zh="进阶：宽和长分别缩放——还相似吗？">Advanced: scale width and height separately — still similar?</b>
+        <label style="font-weight:700;font-size:14px"><input type="checkbox" id="linkIn" checked> <span data-zh="宽和长用同一个比例因子（相似）">Same factor for width and height (similar)</span></label>
+        <label class="ctl" id="kyRow"><span><span data-zh="长（竖直方向）的比例因子 = ">Height factor = </span><b id="kyVal">1.5</b></span><input id="kyIn" type="range" min="0.5" max="2.5" step="0.25" value="1.5"></label>
+        <p class="muted" style="margin:0;font-size:13px" data-zh="上面的 k 滑块现在控制宽（水平方向）。">The k slider above now sets the width factor.</p>
+        <div id="advOut" style="text-align:center;font-size:16px;line-height:2;overflow-x:auto;overflow-y:hidden"></div>
+        <div style="border-top:1px solid var(--line);padding-top:8px">
+          <b data-zh="🎯 挑战">🎯 Challenge</b> <span id="chTxt"></span>
+          <div class="btnrow" style="margin-top:6px"><button class="btn" id="chCheck" data-zh="检查">Check</button><button class="btn ghost" id="chNew" data-zh="换一题">New challenge</button></div>
+          <div class="result" id="chMsg"></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -303,33 +316,71 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
 /* ================= Explore: resize a floor plan ================= */
 (function(){
   const E = MathAnim.scene('#exStage', { x:[-6, 6], y:[-4.5, 4.5] });
-  const ax = -5.4, ay = -3.6, fmt = v => String(+v.toFixed(4)); let k = 1.5;
+  const ax = -5.4, ay = -3.6, fmt = v => String(+v.toFixed(4)); let k = 1.5, ky = 1.5, linked = true;   // ky = height factor (differs from k only in Advanced mode)
   const ROOMS = [ { en:'living room', zh:'客厅', x:1.25, y:1.5 }, { en:'bedroom', zh:'卧室', x:3.25, y:2.2 }, { en:'bath', zh:'浴室', x:3.25, y:.7 } ];
   E.custom((ctx, S) => {
     ctx.strokeStyle = 'rgba(138,147,166,.2)'; ctx.lineWidth = 1; ctx.beginPath();
     for (let i = -1; i <= 12; i++){ ctx.moveTo(S.sx(ax + i), S.sy(-4.5)); ctx.lineTo(S.sx(ax + i), S.sy(4.5)); }
     for (let j = -1; j <= 9; j++){ ctx.moveTo(S.sx(-6), S.sy(ay + j)); ctx.lineTo(S.sx(6), S.sy(ay + j)); }
     ctx.stroke();
-    const P = (x, y, s) => [S.sx(ax + x * s), S.sy(ay + y * s)];
+    const P = (x, y) => [S.sx(ax + x * k), S.sy(ay + y * ky)];
     const seg = (pts, s) => { ctx.beginPath(); pts.forEach((p, i) => { const q = P(p[0], p[1], s); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }); ctx.stroke(); };
     // scaled copy
-    ctx.fillStyle = 'rgba(92,208,179,.16)'; ctx.fillRect(S.sx(ax), S.sy(ay + 3 * k), S.px(4 * k), S.px(3 * k));
+    ctx.fillStyle = 'rgba(92,208,179,.16)'; ctx.fillRect(S.sx(ax), S.sy(ay + 3 * ky), S.px(4 * k), S.px(3 * ky));
     ctx.lineCap = 'round'; ctx.strokeStyle = C.yellow; ctx.lineWidth = 2.5;
     seg([[2.5, 0], [2.5, 1.9]], k); seg([[2.5, 2.6], [2.5, 3]], k);          // inner walls with door gaps
     seg([[2.5, 1.4], [2.9, 1.4]], k); seg([[3.5, 1.4], [4, 1.4]], k);
-    ctx.lineWidth = 3.5; ctx.strokeRect(S.sx(ax), S.sy(ay + 3 * k), S.px(4 * k), S.px(3 * k));
-    if (k >= .75){ ctx.font = `700 ${S.px(Math.min(.3, .17 * k))}px Nunito, "Microsoft YaHei", sans-serif`; ctx.fillStyle = 'rgba(236,230,226,.75)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = 3.5; ctx.strokeRect(S.sx(ax), S.sy(ay + 3 * ky), S.px(4 * k), S.px(3 * ky));
+    if (Math.min(k, ky) >= .75){ ctx.font = `700 ${S.px(Math.min(.3, .17 * Math.min(k, ky)))}px Nunito, "Microsoft YaHei", sans-serif`; ctx.fillStyle = 'rgba(236,230,226,.75)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ROOMS.forEach(r => { const q = P(r.x, r.y, k); ctx.fillText(Lab.L(r), q[0], q[1]); }); }
     // original (dashed)
     ctx.setLineDash([8, 6]); ctx.strokeStyle = C.blue; ctx.lineWidth = 2.5; ctx.strokeRect(S.sx(ax), S.sy(ay + 3), S.px(4), S.px(3)); ctx.setLineDash([]);
     // dimension labels
     ctx.font = `800 ${S.px(.36)}px Nunito, sans-serif`; ctx.fillStyle = C.yellow; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(fmt(4 * k), S.sx(ax + 2 * k), S.sy(ay - .4));
-    ctx.textAlign = 'left'; ctx.fillText(fmt(3 * k), S.sx(ax + 4 * k + .2), S.sy(ay + 1.5 * k));
+    ctx.textAlign = 'left'; ctx.fillText(fmt(3 * ky), S.sx(ax + 4 * k + .2), S.sy(ay + 1.5 * ky));
   });
+  /* ---- Advanced: separate width/height factors (similar or not?), perimeter, area, volume, challenge ---- */
+  const CH = [ { A:48, sim:true }, { A:27, sim:true }, { A:3, sim:true }, { A:75, sim:true }, { A:6.75, sim:true }, { A:24, sim:false }, { A:36, sim:false }, { A:18, sim:false } ];
+  let chI = 0;
+  function advUpdate(){
+    if (!Lab.adv()) return;
+    Lab.$('#kyRow').style.opacity = linked ? .45 : 1; Lab.$('#kyIn').disabled = linked;
+    if (linked) Lab.$('#kyIn').value = k;
+    Lab.$('#kyVal').textContent = fmt(ky);
+    const P0 = 14, P1 = 2 * (4 * k + 3 * ky), A1 = 12 * k * ky, sim = k === ky;
+    let h = MathAnim.tex(`P' = 2(4 \\times ${fmt(k)} + 3 \\times ${fmt(ky)}) = ${fmt(P1)}, \\quad \\tfrac{P'}{P} = \\tfrac{${fmt(P1)}}{14} = ${fmt(P1 / P0)}`)
+      + '<br>' + MathAnim.tex(`\\tfrac{A'}{A} = \\tfrac{${fmt(A1)}}{12} = ${fmt(A1 / 12)}`);
+    if (sim) h += '<br>' + Lab.L({ en:'Similar: perimeter ×k, area ×k². A 4 × 3 × 2 box: ', zh:'相似：周长比 = k，面积比 = k²。4 × 3 × 2 的长方体：' }) + MathAnim.tex(`V' = ${fmt(k)}^3 \\times 24 = ${fmt(24 * k * k * k)}`);
+    Lab.$('#advOut').innerHTML = h;
+    const c = CH[chI];
+    Lab.$('#chTxt').textContent = Lab.L(c.sim ? { en:`Make a copy that is SIMILAR to the original with area exactly ${c.A} square units.`, zh:`作一个与原图相似、面积正好是 ${c.A} 平方单位的图形。` }
+                                              : { en:`Make a rectangle with area exactly ${c.A} square units that is NOT similar to the original (untick “same factor”).`, zh:`作一个面积正好是 ${c.A} 平方单位、但与原图不相似的长方形（取消勾选“同一个比例因子”）。` });
+  }
+  const T2 = (en, zh) => ({ en, zh });
+  Lab.$('#kyIn').oninput = update;
+  Lab.$('#linkIn').onchange = () => { linked = Lab.$('#linkIn').checked; update(); };
+  Lab.$('#chNew').onclick = () => { chI = (chI + 1) % CH.length; const m = Lab.$('#chMsg'); m.textContent = ''; m.className = 'result'; advUpdate(); };
+  Lab.$('#chCheck').onclick = () => {
+    const c = CH[chI], A1 = 12 * k * ky, okA = Math.abs(A1 - c.A) < 1e-9, sim = k === ky, m = Lab.$('#chMsg');
+    const ok = okA && sim === c.sim;
+    m.textContent = Lab.L(ok ? (c.sim ? T2(`🎉 Yes! k = ${fmt(k)}, so the area is ${fmt(k)}² × 12 = ${c.A}.`, `🎉 对了！k = ${fmt(k)}，面积 = ${fmt(k)}² × 12 = ${c.A}。`)
+                                     : T2(`🎉 Yes! ${fmt(4 * k)} × ${fmt(3 * ky)} = ${c.A}, but ${fmt(4 * k)} : ${fmt(3 * ky)} is not 4 : 3, so it is not similar.`, `🎉 对了！${fmt(4 * k)} × ${fmt(3 * ky)} = ${c.A}，但 ${fmt(4 * k)} : ${fmt(3 * ky)} 不等于 4 : 3，所以不相似。`))
+      : !okA ? T2(`The area is ${fmt(A1)}, not ${c.A}. Area factor = ${fmt(c.A)} ÷ 12 = ${fmt(c.A / 12)}${c.sim ? ' = k²' : ' = width factor × height factor'}.`, `面积是 ${fmt(A1)}，不是 ${c.A}。面积扩大的倍数 = ${fmt(c.A)} ÷ 12 = ${fmt(c.A / 12)}${c.sim ? ' = k²' : ' = 宽的倍数 × 长的倍数'}。`)
+      : c.sim ? T2('The area is right, but the shape is stretched: use the same factor for width and height.', '面积对了，但形状被拉变形了：宽和长要用同一个比例因子。')
+      : T2('The area is right, but this copy is still similar. Use two DIFFERENT factors.', '面积对了，但这个图形仍然相似。请用两个不同的比例因子。'));
+    m.className = 'result ' + (ok ? 'good' : 'bad');
+  };
+  Lab.onMode(update);
   function update(){
-    k = +Lab.$('#kIn').value; const A = 12 * k * k;
-    Lab.$('#kVal').textContent = fmt(k); Lab.$('#wOut').textContent = fmt(4 * k); Lab.$('#hOut').textContent = fmt(3 * k); Lab.$('#aOut').textContent = fmt(A);
+    k = +Lab.$('#kIn').value; ky = Lab.adv() && !linked ? +Lab.$('#kyIn').value : k; const A = 12 * k * ky;
+    Lab.$('#kVal').textContent = fmt(k); Lab.$('#wOut').textContent = fmt(4 * k); Lab.$('#hOut').textContent = fmt(3 * ky); Lab.$('#aOut').textContent = fmt(A);
+    advUpdate();
+    if (k !== ky){
+      Lab.$('#planOut').innerHTML = MathAnim.tex(`A' = ${fmt(k)} \\times ${fmt(ky)} \\times 12 = ${fmt(A)}`);
+      Lab.$('#planTag').textContent = Lab.L({ en:`Not similar: width ×${fmt(k)} but height ×${fmt(ky)}, so the shape is stretched (4 : 3 → ${fmt(4 * k)} : ${fmt(3 * ky)}).`, zh:`不相似：宽 ×${fmt(k)}，长却 ×${fmt(ky)}，形状被拉变形了（4 : 3 → ${fmt(4 * k)} : ${fmt(3 * ky)}）。` });
+      return;
+    }
     Lab.$('#planOut').innerHTML = MathAnim.tex(`A' = ${fmt(k)}^2 \\times 12 = ${fmt(A)}`);
     const tag = k > 1 ? { en:`Enlargement: lengths ×${fmt(k)}, area ×${fmt(k * k)}`, zh:`放大:长度 ×${fmt(k)},面积 ×${fmt(k * k)}` }
               : k < 1 ? { en:`Reduction: lengths ×${fmt(k)}, area ×${fmt(k * k)}`, zh:`缩小:长度 ×${fmt(k)},面积 ×${fmt(k * k)}` }
@@ -422,6 +473,7 @@ Lab.sort(Lab.$('#sort'), {
 /* ================= Where you see this: real photos (Wikimedia Commons, freely licensed) ================= */
 (function(){
 const o = (en, zh) => ({ en, zh });
+const VID = o('Video', '视频');
 const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2d/Ground_floor_plan_%28CABHC_2024-014-03%29.jpg/960px-Ground_floor_plan_%28CABHC_2024-014-03%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'A ground-floor plan by architect J. Arnold Thomson. If 1 inch on the plan means 8 feet, how big is the real room?',
@@ -434,9 +486,27 @@ const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e5/Scale_from_NOAA_Chart_13272.png/960px-Scale_from_NOAA_Chart_13272.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'The scale bar from a NOAA chart of Boston harbor, at 1 : 10,000. How far is 5 cm on this chart in real life?',
     zh:'美国海洋与大气管理局（NOAA）波士顿港海图上的比例尺，1 : 10000。图上 5 厘米是实际多远？',
-    credit:'NOAA', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Scale_from_NOAA_Chart_13272.png' }
+    credit:'NOAA', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Scale_from_NOAA_Chart_13272.png' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/10/Mount_Rushmore_National_Memorial.jpg/960px-Mount_Rushmore_National_Memorial.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'Mount Rushmore, South Dakota. The sculptor first made plaster models at a 1 : 12 scale (1 inch on the model = 1 foot on the mountain). Each face is about 60 ft tall. How tall was a face on the model?',
+    zh:'美国南达科他州的总统山。雕刻家先按 1 : 12 的比例做石膏模型（模型上 1 英寸 = 山上 1 英尺）。每张脸约 60 英尺高。模型上的脸有多高？',
+    credit:'Jim Bowen', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Mount_Rushmore_National_Memorial.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2d/Replica_of_the_Statue_of_Liberty_in_Utica%2C_New_York.jpg/960px-Replica_of_the_Statue_of_Liberty_in_Utica%2C_New_York.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A small copy of the Statue of Liberty in Utica, New York. The real statue is 151 ft from its feet to the torch. If a copy is built at a 1 : 18 scale, how tall is it?',
+    zh:'美国纽约州尤蒂卡市的一座小“自由女神像”复制品。真正的自由女神像从脚到火炬高 151 英尺。如果按 1 : 18 的比例复制，有多高？',
+    credit:'Kenneth C. Zirkel', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Replica_of_the_Statue_of_Liberty_in_Utica,_New_York.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/51/Terrestrial_globe-MnM_2008.66.1-IMG_8785.jpg/960px-Terrestrial_globe-MnM_2008.66.1-IMG_8785.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'An antique globe in a museum in Paris. A globe is a scale model of Earth. Earth is about 12,700 km across; if a globe is 32 cm across, what is its scale?',
+    zh:'巴黎一家博物馆里的古董地球仪。地球仪就是地球的比例模型。地球直径约 12,700 千米；如果地球仪直径是 32 厘米，比例尺是多少？',
+    credit:'Rama', license:'CC BY-SA 3.0 fr', page:'https://commons.wikimedia.org/wiki/File:Terrestrial_globe-MnM_2008.66.1-IMG_8785.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/16/An_architectural_model_of_the_British_Library.jpg/960px-An_architectural_model_of_the_British_Library.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'An architect’s scale model of the British Library in London. Every length is shrunk by the same factor, so the model has exactly the same shape as the real building.',
+    zh:'伦敦大英图书馆的建筑比例模型。每一条边都按同一个比例缩小，所以模型和真实建筑的形状完全相同。',
+    credit:'Robert-brook', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:An_architectural_model_of_the_British_Library.jpg' },
+  { type:'youtube', yt:'XUOPGqKGbjk', en:'Video: “Scale drawings” — using a scale to find real lengths from a drawing.', zh:'视频：《比例图》——用比例尺从图上求出实际长度（英文）。', kind:VID, credit:'Khan Academy (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'72ZKaJyoLZM', en:'Video: “Relating Scale Drawings to Ratios and Rates” — a scale is just a ratio between drawing and reality.', zh:'视频：《比例图与比、速率的关系》——比例尺其实就是“图上 : 实际”的比（英文）。', kind:VID, credit:'Buffington (YouTube)', license:'YouTube' }
 ];
-LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos. Each one comes with a question this lesson helps you answer. Click a picture to enlarge it.','真实照片。每张都带着一个这节课能帮你回答的问题。点击图片可放大。') });
+LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos and short videos. Each photo comes with a question this lesson helps you answer. Click a picture to enlarge it or to play a video.','真实照片和短视频。每张照片都带着一个这节课能帮你回答的问题。点击图片可放大，点击视频可播放。') });
 })();
 </script>
 <!-- /real-world gallery script -->

@@ -45,7 +45,17 @@
 .toggle{display:flex;gap:6px;flex-wrap:wrap}
 .toggle button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 11px;font-weight:800;font-size:13px;color:var(--ink-2)}
 .toggle button.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.advctl{display:flex;flex-wrap:wrap;gap:10px 22px;margin-top:10px}
+.advctl small{display:block;font-weight:800;color:var(--ink-2);font-size:12px;letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px}
+#advNums{margin-top:10px;font-size:15px;line-height:1.55}
+.fx{display:inline-block;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:3px 9px;margin:2px 0;font-weight:800}
+.ladder{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-top:8px}
+.ladder div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:5px 6px;font-size:12.5px;font-weight:700;text-align:center;color:var(--ink-2)}
+.ladder div.on{border:2px solid var(--brand);color:var(--ink)}
+.ladder b{display:block;font-family:Fredoka;font-size:16px;color:var(--ink)}
+.advchal{margin-top:10px;font-size:15px}
 @media (max-width:980px){.meter{grid-template-columns:repeat(2,minmax(0,1fr))}.titrbox{height:360px}}
+@media (max-width:560px){.ladder{grid-template-columns:repeat(3,minmax(0,1fr))}.ladder div:first-child,.ladder div:last-child{display:none}}
 @media (max-width:640px){.indrow,.ticks{grid-template-columns:1fr}.ticks>i{display:none}.titr{grid-template-columns:110px minmax(0,1fr)}}
 @media (max-width:560px){#stage .lab-caption{top:150px}.stage .seg.ind button{padding:5px 7px;font-size:12px}}
 </style>
@@ -60,6 +70,7 @@
 </header>
 
 <section class="wrap" id="explore" data-nav="3D pH Lab" data-nav-zh="3D pH 实验">
+  <div style="display:flex;justify-content:flex-end;margin-bottom:10px"><div class="lab-mode"></div></div>
   <div class="explorer">
     <div class="stage card" id="stage" data-3d>
       <div class="toolbar">
@@ -84,6 +95,18 @@
     <div class="counter"><b id="mClass">—</b><span id="mTimes">—</span></div>
     <div class="counter"><b id="mDrops">0 / 0</b><span data-zh="已滴加：酸滴数 / 碱滴数">drops added: acid / base</span></div>
     <div class="counter"><b id="mVol">100 mL</b><span id="mWhat">—</span></div>
+  </div>
+  <div class="adv adv-box" id="advBox" style="margin-top:12px">
+    <b data-zh="🚀 进阶：强酸与弱酸、浓度和 pH 的对数刻度">🚀 Advanced: strong vs. weak, concentration and the log scale of pH</b>
+    <div class="advctl">
+      <div><small data-zh="滴管里的酸">Acid in the dropper</small><div class="toggle" id="advAcid"></div></div>
+      <div><small data-zh="滴管里的碱">Base in the dropper</small><div class="toggle" id="advBase"></div></div>
+      <div><small data-zh="浓度">Concentration</small><div class="toggle" id="advConc"></div></div>
+    </div>
+    <div id="advNums"></div>
+    <div class="ladder" id="advLadder"></div>
+    <div class="advchal"><b data-zh="🎯 挑战">🎯 Challenge</b> <span data-zh="点 🚰 换清水。选“盐酸（强酸）”和 0.1 mol/L，滴到 pH = 3.0。先预测：要几滴？然后用 0.1 mol/L 氢氧化钠溶液把它中和回 pH 7。每一步都点“检查”。">Press 🚰 Fresh water. Pick hydrochloric acid (strong) at 0.1 mol/L and add drops until pH = 3.0 — predict first: how many drops? Then neutralize it back to pH 7 with 0.1 mol/L sodium hydroxide. Press Check after each step.</span>
+      <div class="btnrow" style="margin-top:6px;align-items:center"><button class="tbtn" id="advCheck" data-zh="✔ 检查">✔ Check</button><span class="result" id="advMsg"></span></div></div>
   </div>
   <div class="mix" style="margin-top:14px"><b data-zh="⚠️ 安全第一：">⚠️ Safety first:</b><span data-zh="酸尝起来是酸的，碱尝起来是苦的、摸起来滑滑的——但在实验室里绝对不能用尝或摸的方法鉴别物质！要用指示剂或 pH 试纸。">Acids taste sour and bases taste bitter and feel slippery — but NEVER taste or touch chemicals to identify them! Use an indicator or pH paper instead.</span></div>
 </section>
@@ -136,6 +159,7 @@
         <div class="counter"><b id="tVol">0.00 mL</b><span data-zh="已加入 NaOH 的体积">NaOH added</span></div>
         <div class="counter"><b id="tPH">1.00</b><span data-zh="锥形瓶中溶液的 pH">pH in the flask</span></div>
       </div>
+      <div class="adv near" id="tAdv" style="margin-top:0;font-size:14.5px"></div>
       <div class="result" id="tMsg"></div>
       <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="酸 + 碱 → 盐 + 水。HCl + NaOH → NaCl + H₂O。终点附近只差一滴，pH 就会从酸性一下子跳到碱性！">Acid + base → salt + water. HCl + NaOH → NaCl + H₂O. Near the end point, a single drop makes the pH jump from acidic to basic!</span></div>
     </div>
@@ -193,11 +217,23 @@ const RP = {
     media:'https://upload.wikimedia.org/wikipedia/commons/6/6c/Red_Cabbage_Indicator.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original',
     poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6c/Red_Cabbage_Indicator.webm/500px--Red_Cabbage_Indicator.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo',
     en:'Video (about 1½ minutes): a red cabbage solution changes color as the pH changes. Compare it with the cabbage button in the 3D beaker above.',
-    zh:'视频（约 1 分半钟）：随着 pH 的改变，紫甘蓝溶液不断变色。和上面 3D 烧杯里的“紫甘蓝”按钮比一比。' }
+    zh:'视频（约 1 分半钟）：随着 pH 的改变，紫甘蓝溶液不断变色。和上面 3D 烧杯里的“紫甘蓝”按钮比一比。' },
+  phMeter:lpS('f/f2', 'Red_pH_meter_reads_4.96.jpg', { kind:LPK.photo, credit:'Ildar Sagdejev (Specious)', license:'CC BY-SA 3.0',
+    en:'A pH meter measuring the water in a bucket. It reads 4.96, so this water is a little acidic. A meter gives an exact number instead of a color.',
+    zh:'用 pH 计测量桶里的水。读数是 4.96，说明这桶水略呈酸性。pH 计给出的是精确的数字，而不是颜色。' }),
+  hydrangea:lpS('4/49', 'Hydrangea_macrophylla_pink_and_blue.jpg', { kind:LPK.photo, credit:'Gustamons', license:'CC0',
+    en:'Bigleaf hydrangea flowers, pink and blue side by side. This plant is a living indicator: in acidic soil its flowers usually turn blue, in neutral or basic soil they turn pink.',
+    zh:'大叶绣球的花，粉色和蓝色挨在一起。这种植物就是一种“活的指示剂”：在酸性土壤里花通常变蓝，在中性或碱性土壤里则变成粉色。' }),
+  arrhenius:lpS('a/a4', '1922_Svante_Arrhenius.jpg', { kind:LPK.photo, credit:'Auguste Léon', license:'Public domain',
+    en:'Svante Arrhenius, a Swedish chemist, in an early color photo from 1922. In the 1880s he explained that acids give H⁺ ions in water and bases give OH⁻ ions. He won the Nobel Prize in Chemistry in 1903.',
+    zh:'瑞典化学家斯万特·阿伦尼乌斯，这是 1922 年的一张早期彩色照片。19 世纪 80 年代，他提出：酸在水中会产生 H⁺ 离子，碱在水中会产生 OH⁻ 离子。他在 1903 年获得诺贝尔化学奖。' }),
+  tedAcids:{ type:'youtube', yt:'DupXDD87oHc', kind:{en:'Video · animated lesson', zh:'视频 · 动画课'}, credit:'TED-Ed (YouTube)', license:'YouTube',
+    en:'TED-Ed video (a few minutes): the strengths and weaknesses of acids and bases. Why is a strong acid more dangerous than a weak one?',
+    zh:'TED-Ed 视频（几分钟）：酸和碱的“强”与“弱”。为什么强酸比弱酸更危险？（英文，可开字幕）' }
 };
 const REAL_PIC = { scale:RP.uniPaper, acid:RP.lemon, base:RP.phenol, indicator:RP.cabbage, neutralization:RP.antacid };
 const realFig = k => REAL_PIC[k] ? LabPhotos.figure(REAL_PIC[k]) : '';
-LabPhotos.render('#gallery', [RP.lemon, RP.litmus, RP.uniPaper, RP.cabbage, RP.cabbageVideo, RP.phenol, RP.btb, RP.acidRain, RP.antacid], {
+LabPhotos.render('#gallery', [RP.lemon, RP.litmus, RP.uniPaper, RP.cabbage, RP.cabbageVideo, RP.phenol, RP.btb, RP.phMeter, RP.hydrangea, RP.acidRain, RP.antacid, RP.tedAcids, RP.arrhenius], {
   title:{en:'See the real thing', zh:'看看真实的样子'},
   sub:{en:'The colors in the 3D beaker are computer colors. These are the real ones, from real acids, bases and indicators. Click a picture to enlarge it; the video plays only when you press play.', zh:'3D 烧杯里的颜色是电脑画出来的。这里是真实的酸、碱和指示剂呈现的颜色。点击图片可放大；视频只有按下播放键才会播放。'} });
 /* ===== end real photos ===== */
@@ -284,6 +320,8 @@ const ORDER = [...CONCEPTS, ...ITEMS.map(i => i.id)];
 
 /* ===== Beaker chemistry: 1 mol/L acetic acid (vinegar) & ammonia drops, 0.05 mL each; items act as strong-acid/base equivalents ===== */
 const KA = 1.8e-5, KNH4 = 5.6e-10, KW = 1e-14, DROP = 5e-5;
+const SUP = { '-':'⁻', 0:'⁰', 1:'¹', 2:'²', 3:'³', 4:'⁴', 5:'⁵', 6:'⁶', 7:'⁷', 8:'⁸', 9:'⁹' };
+const sci = x => { if (!(x > 0)) return '0'; let e = Math.floor(Math.log10(x)), m = x / Math.pow(10, e); if (m >= 9.95){ m = 1; e++; } return e === 0 ? m.toFixed(1) : `${m.toFixed(1)}×10${String(e).split('').map(c => SUP[c]).join('')}`; };
 function phOf(st){
   const V = st.V, ca = st.nA / V, cb = st.nB / V, sa = Math.max(0, st.Cs) / V, sb = Math.max(0, -st.Cs) / V;
   const f = p => { const h = Math.pow(10, -p); return h + cb * h / (h + KNH4) + sb - KW / h - ca * KA / (KA + h) - sa; };
@@ -291,8 +329,14 @@ function phOf(st){
   return Math.max(0, Math.min(14, (lo + hi) / 2));
 }
 const App = window.AB = { sel:null, three:null, ind:'universal', bk:null };
-App.fresh = (item) => { const p = item ? ITEM[item].pH : 7; App.bk = { V:.1, nA:0, nB:0, dA:0, dB:0, Cs:(Math.pow(10, -p) - Math.pow(10, p - 14)) * .1, item:item || 'water' }; App.bk.pH = phOf(App.bk); renderMeter(); };
-App.drop = type => { const b = App.bk; if (b.V > .245) return false; b.V += DROP / 1; b.V = +b.V.toFixed(6); if (type === 'acid'){ b.nA += DROP; b.dA++; } else { b.nB += DROP; b.dB++; } b.pH = phOf(b); renderMeter(); return true; };
+App.fresh = (item) => { const p = item ? ITEM[item].pH : 7; App.bk = { V:.1, nA:0, nB:0, dA:0, dB:0, sA:0, sB:0, molA:0, molB:0, Cs:(Math.pow(10, -p) - Math.pow(10, p - 14)) * .1, item:item || 'water' }; App.bk.pH = phOf(App.bk); renderMeter(); };
+/* 🚀 Advanced mode can switch the droppers to a strong acid/base (HCl, NaOH: counted in Cs) and to 0.1 mol/L; `plain` = always the basic 1 mol/L vinegar/ammonia (used by the story) */
+App.dk = { acid:'weak', base:'weak', c:1 };
+App.drop = (type, plain) => { const b = App.bk; if (b.V > .245) return false; b.V += DROP / 1; b.V = +b.V.toFixed(6);
+  const adv = !plain && Lab.adv(), n = DROP * (adv ? App.dk.c : 1), strong = adv && App.dk[type] === 'strong';
+  if (type === 'acid'){ b.dA++; b.molA += n; if (strong){ b.Cs += n; b.sA++; } else b.nA += n; }
+  else { b.dB++; b.molB += n; if (strong){ b.Cs -= n; b.sB++; } else b.nB += n; }
+  b.pH = phOf(b); renderMeter(); return true; };
 /* (V grows by 0.05 mL = 5e-5 L per drop; 1 mol/L × 5e-5 L = 5e-5 mol) */
 
 /* ===== Info panel ===== */
@@ -360,9 +404,78 @@ function renderMeter(){
   Lab.$('#mDrops').textContent = `${b.dA} / ${b.dB}`;
   Lab.$('#mVol').textContent = (b.V * 1000).toFixed(1) + ' mL';
   Lab.$('#mWhat').textContent = Lab.L(nm('Beaker: ', '烧杯：')) + Lab.L(ITEM[b.item].name) + (b.item === 'water' ? '' : Lab.L(nm(' (sample)', '(样品)'))) + Lab.L(nm(' + indicator', ' + 指示剂'));
+  if (App.renderAdv && Lab.adv()) App.renderAdv();
 }
 Lab.onLang(() => { renderInfo(); renderChips(); renderControls(); renderMeter(); });
 App.fresh('water');
+
+/* ===== 🚀 Advanced: strong/weak droppers, concentration, [H⁺] on a log scale, 2-step challenge ===== */
+(function(){
+  const OPT = {
+    acid:[['weak', nm('Vinegar · weak','醋酸 · 弱酸')], ['strong', nm('Hydrochloric acid HCl · strong','盐酸 HCl · 强酸')]],
+    base:[['weak', nm('Ammonia · weak','氨水 · 弱碱')], ['strong', nm('Sodium hydroxide NaOH · strong','氢氧化钠 NaOH · 强碱')]],
+    c:[[1, nm('1 mol/L','1 mol/L')], [.1, nm('0.1 mol/L','0.1 mol/L')]]
+  };
+  const BTN = { acid:{ basic:nm('💧 Acid (vinegar)','💧 加酸（醋）'), strong:nm('💧 Acid (HCl)','💧 加酸（盐酸）') }, base:{ basic:nm('💧 Base (ammonia)','💧 加碱（氨水）'), strong:nm('💧 Base (NaOH)','💧 加碱（NaOH）') } };
+  let chal = null, step = 1;
+  const H = () => Lab.lang === 'zh' ? 'c(H⁺)' : '[H⁺]', OH = () => Lab.lang === 'zh' ? 'c(OH⁻)' : '[OH⁻]';
+  function relabel(){
+    ['acid','base'].forEach(t => { const b = Lab.$('#' + t + 'Btn'), o = Lab.adv() && App.dk[t] === 'strong' ? BTN[t].strong : BTN[t].basic;
+      b.dataset.en = o.en; b.dataset.zh = o.zh; b.textContent = Lab.L(o); });
+  }
+  function controls(){
+    ['acid','base','c'].forEach(k => {
+      const box = Lab.$(k === 'c' ? '#advConc' : k === 'acid' ? '#advAcid' : '#advBase');
+      box.innerHTML = OPT[k].map(([v, o]) => `<button data-v="${v}" class="${App.dk[k] == v ? 'on' : ''}">${Lab.L(o)}</button>`).join('');
+      box.querySelectorAll('button').forEach(b => b.onclick = () => { App.dk[k] = k === 'c' ? +b.dataset.v : b.dataset.v; controls(); relabel(); render(); });
+    });
+  }
+  function render(){
+    const b = App.bk; if (!b) return;
+    const p = b.pH, h = Math.pow(10, -p), oh = KW / h, c = App.dk.c, zh = Lab.lang === 'zh';
+    const pS = -Math.log10(c), pW = .5 * (-Math.log10(KA) - Math.log10(c));
+    const L = [
+      `<span class="fx">pH = −lg ${H()} = −lg(${sci(h)}) = ${p.toFixed(2)}</span>`,
+      zh ? `${H()} ≈ ${sci(h)} mol/L · ${OH()} ≈ ${sci(oh)} mol/L · ${H()} × ${OH()} = 1×10⁻¹⁴（25 °C）`
+         : `${H()} ≈ ${sci(h)} mol/L · ${OH()} ≈ ${sci(oh)} mol/L · ${H()} × ${OH()} = 1×10⁻¹⁴ (at 25 °C)`,
+      zh ? `已加入：酸 ${b.dA} 滴，共 <b>${sci(b.molA)} mol</b>；碱 ${b.dB} 滴，共 <b>${sci(b.molB)} mol</b>（每滴 0.05 mL；n = c × V）`
+         : `Added: acid ${b.dA} drops = <b>${sci(b.molA)} mol</b>; base ${b.dB} drops = <b>${sci(b.molB)} mol</b> (0.05 mL per drop; n = c × V)`,
+      zh ? `同样是 ${c} mol/L：盐酸（强酸，全部电离）pH = ${pS.toFixed(1)}；醋酸（弱酸，只有一小部分电离）pH 约 ${pW.toFixed(1)}。`
+         : `Both at ${c} mol/L: hydrochloric acid (strong, fully ionized) has pH ${pS.toFixed(1)}; vinegar (weak, only a little ionized) about pH ${pW.toFixed(1)}.`
+    ];
+    Lab.$('#advNums').innerHTML = L.map(x => `<div>${x}</div>`).join('');
+    const r = Math.round(p * 10) / 10, cells = [];
+    for (let d = -2; d <= 2; d++){ const q = r + d; if (q < -.01 || q > 14.01){ cells.push('<div style="visibility:hidden"></div>'); continue; }
+      const f = d === 0 ? Lab.L(nm('now','现在')) : d < 0 ? `${H()} ×${Math.pow(10, -d)}` : `${H()} ÷${Math.pow(10, d)}`;
+      cells.push(`<div class="${d === 0 ? 'on' : ''}"><b>pH ${q.toFixed(1)}</b>${sci(Math.pow(10, -q))} mol/L<br>${f}</div>`); }
+    Lab.$('#advLadder').innerHTML = cells.join('');
+  }
+  function check(){
+    const b = App.bk, p = b.pH, m = Lab.$('#advMsg'); let o, good = false;
+    const mixedIn = b.item !== 'water' || b.nA > 0 || b.nB > 0;
+    if (!b.sA && !b.sB) step = 1;
+    if (mixedIn) o = nm('This beaker has vinegar, ammonia or a sample in it. Press 🚰 Fresh water and use only HCl and NaOH.','烧杯里有醋酸、氨水或样品。点 🚰 换清水，只用盐酸和氢氧化钠。');
+    else if (step === 1){
+      if (!b.sA) o = nm('Pick “Hydrochloric acid · strong” and 0.1 mol/L, then add acid drops.','选“盐酸 · 强酸”和 0.1 mol/L，再滴加酸。');
+      else if (Math.abs(p - 3) <= .1 && !b.sB){ good = true; step = 2;
+        o = nm(`✅ pH ${p.toFixed(2)} with ${b.sA} drops. pH 3 means [H⁺] = 10⁻³ mol/L; in 0.1 L that is 1×10⁻⁴ mol = 20 drops × 0.05 mL × 0.1 mol/L. Step 2: neutralize it with 0.1 mol/L NaOH.`,
+               `✅ 滴了 ${b.sA} 滴，pH = ${p.toFixed(2)}。pH 3 即 c(H⁺) = 10⁻³ mol/L；0.1 L 中就是 1×10⁻⁴ mol = 20 滴 × 0.05 mL × 0.1 mol/L。第 2 步：用 0.1 mol/L 氢氧化钠溶液把它中和。`); }
+      else o = nm(`pH is ${p.toFixed(2)}, not 3.0 yet. Each drop of 0.1 mol/L HCl adds 0.05 mL × 0.1 mol/L = 5×10⁻⁶ mol of H⁺. How many do you need for 1×10⁻⁴ mol? (Fresh water to start over.)`,
+                  `pH 是 ${p.toFixed(2)}，还不是 3.0。每滴 0.1 mol/L 盐酸含 H⁺：0.05 mL × 0.1 mol/L = 5×10⁻⁶ mol。要得到 1×10⁻⁴ mol 需要几滴？（换清水可以重来。）`);
+    } else {
+      if (Math.abs(p - 7) <= .5){ good = true; step = 1;
+        o = nm(`✅ Neutral, pH ${p.toFixed(1)}: ${b.sB} drops of NaOH for ${b.sA} drops of HCl — same concentration, so the same number of drops (H⁺ + OH⁻ → H₂O). One drop more or less makes the pH jump by about 3!`,
+               `✅ 中性，pH = ${p.toFixed(1)}：${b.sA} 滴盐酸用了 ${b.sB} 滴氢氧化钠——浓度相同，所以滴数相同（H⁺ + OH⁻ → H₂O）。多一滴或少一滴，pH 就会跳大约 3！`); }
+      else if (p < 7) o = nm(`pH ${p.toFixed(2)}: still acidic. Pick “Sodium hydroxide · strong” at 0.1 mol/L and add base drops one at a time.`,`pH = ${p.toFixed(2)}：仍是酸性。选“氢氧化钠 · 强碱”和 0.1 mol/L，一滴一滴地加碱。`);
+      else o = nm(`pH ${p.toFixed(2)}: you overshot — now it is basic. Add an acid drop to come back, or start again with Fresh water.`,`pH = ${p.toFixed(2)}：加过头了，溶液已呈碱性。滴一滴酸回来，或换清水重来。`);
+    }
+    chal = { o, good }; m.textContent = Lab.L(o); m.className = 'result ' + (good ? 'good' : 'bad');
+  }
+  App.renderAdv = render;
+  Lab.$('#advCheck').onclick = check;
+  Lab.onLang(() => { controls(); relabel(); if (Lab.adv()) render(); if (chal) Lab.$('#advMsg').textContent = Lab.L(chal.o); });
+  Lab.onMode(on => { relabel(); if (on){ controls(); render(); } });
+})();
 
 /* ===== Indicator chart ===== */
 (function(){
@@ -405,6 +518,11 @@ App.fresh('water');
     Lab.$('#tVol').textContent = T.Vb.toFixed(2) + ' mL'; Lab.$('#tPH').textContent = p.toFixed(2);
     Lab.$('#flaskLiq').setAttribute('fill', col);
     const h = (50 - T.Vb) / 50 * 166; const bl = Lab.$('#burLiq'); bl.setAttribute('y', 8 + 166 - h); bl.setAttribute('height', h);
+    /* 🚀 Advanced: neutralization amounts, n = c × V (1 mmol = 0.001 mol) */
+    const na = CA * VA, nb = CB * T.Vb, left = na - nb, ta = Lab.$('#tAdv');
+    ta.innerHTML = Lab.lang === 'zh'
+      ? `🚀 n = c × V：n(HCl) = 0.10 mol/L × 25.0 mL = <b>${na.toFixed(2)} mmol</b> · n(NaOH) = 0.10 mol/L × ${T.Vb.toFixed(2)} mL = <b>${nb.toFixed(2)} mmol</b><br>${Math.abs(left) < .0005 ? '恰好完全反应：HCl 和 NaOH 的物质的量相等（1 : 1）。' : left > 0 ? `还剩 <b>${left.toFixed(2)} mmol</b> HCl → c(H⁺) ≈ ${left.toFixed(2)} mmol ÷ ${(VA + T.Vb).toFixed(1)} mL ≈ ${sci(left / (VA + T.Vb))} mol/L` : `NaOH 过量 <b>${(-left).toFixed(2)} mmol</b> → 溶液呈碱性`}（1 mmol = 0.001 mol）`
+      : `🚀 n = c × V: n(HCl) = 0.10 mol/L × 25.0 mL = <b>${na.toFixed(2)} mmol</b> · n(NaOH) = 0.10 mol/L × ${T.Vb.toFixed(2)} mL = <b>${nb.toFixed(2)} mmol</b><br>${Math.abs(left) < .0005 ? 'Exactly used up: equal amounts of HCl and NaOH (they react 1 : 1).' : left > 0 ? `HCl left over: <b>${left.toFixed(2)} mmol</b> → [H⁺] ≈ ${left.toFixed(2)} mmol ÷ ${(VA + T.Vb).toFixed(1)} mL ≈ ${sci(left / (VA + T.Vb))} mol/L` : `Extra NaOH: <b>${(-left).toFixed(2)} mmol</b> → the solution is basic`} (1 mmol = 0.001 mol)`;
     draw();
   }
   function loop(now){
@@ -605,7 +723,7 @@ function spawnDrop(type){
   d.material = dropMat[type]; d.position.set(BX, TIP_Y - .05, BZ); d.visible = true; d.userData = { live:true, type, vy:0 };
 }
 function land(type){
-  if (!App.drop(type)){ ctx.caption(nm('The beaker is full! Press 🚰 Fresh water.','烧杯满了！点 🚰 换清水。')); capT = 4; S.queue.length = 0; return; }
+  if (!App.drop(type, story.active)){ ctx.caption(nm('The beaker is full! Press 🚰 Fresh water.','烧杯满了！点 🚰 换清水。')); capT = 4; S.queue.length = 0; return; }
   ripple.position.set(BX, surfY() + .01, BZ); ripple.userData.t = 0;
 }
 
@@ -664,7 +782,7 @@ const story = Lab3D.story('#stage', STEPS, i => {
   const pl = PLAN[i];
   if (pl){
     setInd('cabbage'); App.fresh('water');
-    for (let k = 0; k < pl[0]; k++) App.drop('acid'); for (let k = 0; k < pl[1]; k++) App.drop('base');
+    for (let k = 0; k < pl[0]; k++) App.drop('acid', true); for (let k = 0; k < pl[1]; k++) App.drop('base', true);
     for (let k = pl[0]; k < pl[2]; k++) S.queue.push('acid'); for (let k = pl[1]; k < pl[3]; k++) S.queue.push('base');
     App.select(['indicator', 'acid', 'base', 'neutralization', 'base'][i - 2], true);
     ctx.flyToPose([BX - 4.2, 4.4, 11.8], [(BX + TX) / 2 + .6, 2.6, 0]);

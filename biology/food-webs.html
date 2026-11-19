@@ -48,6 +48,14 @@
 .reasons{margin:0;padding-left:18px;font-size:14px;color:var(--ink-2);display:flex;flex-direction:column;gap:3px}
 .ctlgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .ppstatus{background:var(--surface-2);border-radius:14px;padding:10px 12px;font-weight:700;font-size:15px;min-height:48px}
+#ppAdv{margin-top:16px;padding-right:38px;display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start}
+#ppAdv .ppstatus{min-height:0;font-size:14px}
+.ppctl{display:flex;flex-direction:column;gap:10px}
+.ppf{font-family:Fredoka,sans-serif;font-size:15.5px;line-height:1.5;margin:8px 0}
+.ppchal{font-size:14px;font-weight:700;margin:0 0 8px}
+#ppPhase{display:block;width:100%;height:200px}
+.fw-deep ul{margin:6px 0;padding-left:18px}
+@media (max-width:900px){#ppAdv{grid-template-columns:1fr}}
 @media (max-width:560px){.ctlgrid{grid-template-columns:1fr}.poprow{grid-template-columns:24px 78px minmax(0,1fr) 48px}}
 </style>
 </head>
@@ -125,6 +133,7 @@
   <div class="sim">
     <div class="simbox card"><canvas id="ppCanvas"></canvas></div>
     <div class="card simside">
+      <div class="lab-mode"></div>
       <h3 data-zh="草原控制台">Meadow controls</h3>
       <div class="counters">
         <div class="counter"><b id="ppR">0</b><span data-zh="🐇 兔子">🐇 rabbits</span></div>
@@ -147,6 +156,21 @@
       </div>
       <div class="ppstatus" id="ppStatus"></div>
     </div>
+  </div>
+  <div class="adv adv-box" id="ppAdv">
+    <div>
+      <b data-zh="捕食者—猎物模型（洛特卡—沃尔泰拉方程，高中/大学预习）">The predator–prey equations (Lotka–Volterra, a high-school/college preview)</b>
+      <p class="ppf" id="ppEq"></p>
+      <p class="ppf" id="ppStar"></p>
+      <p class="ppchal" data-zh="🎯 挑战：用公式算一算，把平衡点调到 R* ≈ 200 只兔子（180～220），并且狐狸能活下来。再让模拟跑一会儿，看兔子是否真的稳定在那里。">🎯 Challenge: use the formula to set the balance point to R* ≈ 200 rabbits (180–220) with the foxes surviving. Then let it run: do the rabbits really settle there?</p>
+      <div class="ppstatus" id="ppChal"></div>
+    </div>
+    <div class="ppctl">
+      <label class="ctl"><span><span data-zh="🦊 狐狸死亡率 m（每年）">🦊 Fox death rate m (per year)</span> <b id="vM"></b></span><input id="sM" type="range" min="10" max="80" step="1" value="35"></label>
+      <label class="ctl"><span><span data-zh="🍖 食物转化为小狐狸的效率 e">🍖 Food → new foxes, efficiency e</span> <b id="vE"></b></span><input id="sE" type="range" min="5" max="30" step="1" value="10"></label>
+      <p class="muted" style="margin:0;font-size:13px" data-zh="a = 兔子出生率，b = 狐狸捕猎本领 ÷ 1000，K = 草能养活的兔子数。">a = rabbit birth rate, b = fox hunting skill ÷ 1000, K = rabbits the grass can feed.</p>
+    </div>
+    <canvas id="ppPhase"></canvas>
   </div>
   <div class="mix" style="margin-top:16px"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="捕食者并不会把猎物“吃光”。猎物变少时，捕食者先挨饿、数量下降，猎物才有机会恢复。注意：狐狸的曲线总是比兔子的曲线晚一步达到高峰。">Predators do not usually “eat up” all their prey. When prey get scarce, predators starve and decline first, which lets the prey recover. Notice that the fox peak always comes a little after the rabbit peak.</span></div>
 </section>
@@ -181,10 +205,17 @@ const P = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7c/Hawk_eating_prey.jpg/960px-Hawk_eating_prey.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Top of the pyramid: a young red-tailed hawk eating its prey, a California meadow vole.', zh:'金字塔的顶端：一只年轻的红尾鵟正在吃它的猎物——一只加州草甸田鼠。', kind:{en:'Photo',zh:'照片'}, credit:'Steve Jurvetson', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Hawk_eating_prey.jpg' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/03/Vulpes_vulpes_laying_in_snow.jpg/960px-Vulpes_vulpes_laying_in_snow.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A red fox resting in the snow in Hokkaido, Japan. Foxes eat both animals and berries, so they sit at more than one level.', zh:'日本北海道雪地里休息的一只赤狐。赤狐既吃动物也吃浆果，所以它不止处在一个营养级上。', kind:{en:'Photo',zh:'照片'}, credit:'Shiretoko-Shari Tourist Association', license:'Attribution', page:'https://commons.wikimedia.org/wiki/File:Vulpes_vulpes_laying_in_snow.jpg' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d8/Mushrooms_on_a_log.jpg/960px-Mushrooms_on_a_log.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Decomposers at work: mushrooms growing on a dead log, returning its nutrients to the soil.', zh:'分解者在工作：长在枯木上的蘑菇，把枯木里的养分还给土壤。', kind:{en:'Photo',zh:'照片'}, credit:'Charlie Marshall', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Mushrooms_on_a_log.jpg' },
-  { type:'audio', media:'https://upload.wikimedia.org/wikipedia/commons/e/e5/Buteo_jamaicensis_-_Red-tailed_Hawk_-_XC71575.ogg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', en:'Listen: the call of a red-tailed hawk, a top predator. Movies often use this scream for eagles!', zh:'听一听：红尾鵟的叫声。它是顶级捕食者，电影里老鹰的叫声常常就是用它的声音配的！', kind:{en:'Audio',zh:'音频'}, credit:'Jonathon Jongsma', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Buteo_jamaicensis_-_Red-tailed_Hawk_-_XC71575.ogg' }
+  { type:'audio', media:'https://upload.wikimedia.org/wikipedia/commons/e/e5/Buteo_jamaicensis_-_Red-tailed_Hawk_-_XC71575.ogg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', en:'Listen: the call of a red-tailed hawk, a top predator. Movies often use this scream for eagles!', zh:'听一听：红尾鵟的叫声。它是顶级捕食者，电影里老鹰的叫声常常就是用它的声音配的！', kind:{en:'Audio',zh:'音频'}, credit:'Jonathon Jongsma', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Buteo_jamaicensis_-_Red-tailed_Hawk_-_XC71575.ogg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/93/Coccinella_septempunctata%2C_larva_eating_aphids.jpg/960px-Coccinella_septempunctata%2C_larva_eating_aphids.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A tiny food chain on one plant: aphids suck the plant’s sap (primary consumers), and a seven-spot ladybug larva eats the aphids (secondary consumer).', zh:'一株植物上的小小食物链：蚜虫吸食植物的汁液（初级消费者），七星瓢虫的幼虫再吃掉蚜虫（次级消费者）。', kind:{en:'Close-up photo',zh:'特写照片'}, credit:'Gilles San Martin', license:'CC BY-SA 2.0', page:'https://commons.wikimedia.org/wiki/File:Coccinella_septempunctata,_larva_eating_aphids.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c7/Antarctic_krill_%28Euphausia_superba%29.jpg/960px-Antarctic_krill_%28Euphausia_superba%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Antarctic krill, shrimp-like animals about 6 cm (2 in) long. They eat tiny algae, and in turn they feed whales, seals, penguins and fish: a key link in the Southern Ocean food web.', zh:'南极磷虾，一种像小虾的动物，体长约 6 厘米。它们吃微小的藻类，自己又是鲸、海豹、企鹅和鱼的食物，是南大洋食物网里关键的一环。', kind:{en:'Photo',zh:'照片'}, scale:{en:'about 6 cm long',zh:'体长约 6 厘米'}, credit:'Uwe Kils', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Antarctic_krill_(Euphausia_superba).jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/79/Sea_otter_kelp_forest_Chumash_Heritage_National_Marine_Sanctuary.PNG/960px-Sea_otter_kelp_forest_Chumash_Heritage_National_Marine_Sanctuary.PNG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A sea otter in a California kelp forest. Otters eat sea urchins, and urchins eat kelp. Where otters disappear, urchins can multiply and mow the kelp forest down.', zh:'美国加州海藻林里的一只海獭。海獭吃海胆，海胆吃海带一类的大型海藻。海獭一旦消失，海胆就可能大量繁殖，把整片海藻林啃光。', kind:{en:'Underwater photo',zh:'水下照片'}, credit:'Robert Schwemmer / NOAA', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Sea_otter_kelp_forest_Chumash_Heritage_National_Marine_Sanctuary.PNG' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/77/OwlPellets_%2850615056686%29.jpg/960px-OwlPellets_%2850615056686%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Owl pellets from Saguaro National Park. Owls swallow small prey whole and later cough up the bones and fur they cannot digest. Scientists pick pellets apart to learn what owls eat.', zh:'萨瓜罗国家公园里的猫头鹰食丸。猫头鹰把小猎物整个吞下，再把消化不了的骨头和毛吐出来。科学家拆开食丸，就能知道猫头鹰吃了什么。', kind:{en:'Photo',zh:'照片'}, credit:'Saguaro National Park (NPS)', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:OwlPellets_(50615056686).jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f5/Dung_Beetle_making_a_dung_ball_02.jpg/960px-Dung_Beetle_making_a_dung_ball_02.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A dung beetle in Zambia shaping a ball of animal droppings. By burying dung, beetles like this recycle nutrients back into the soil, just as decomposers do.', zh:'赞比亚的一只蜣螂（屎壳郎）正在滚粪球。它们把动物粪便埋进土里，像分解者一样把养分送回土壤。', kind:{en:'Photo',zh:'照片'}, credit:'Icem4k', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Dung_Beetle_making_a_dung_ball_02.jpg' },
+  { type:'youtube', yt:'-oVavgmveyY', kind:{en:'Video',zh:'视频'}, en:'Amoeba Sisters: food webs and energy pyramids. Why only about 10% of the energy passes up to each next level.', zh:'Amoeba Sisters（阿米巴姐妹）：食物网和能量金字塔。为什么每往上一级，只有大约 10% 的能量能传上去？', credit:'Amoeba Sisters (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'ysa5OBhXz-Q', kind:{en:'Video',zh:'视频'}, en:'How wolves change rivers: when wolves returned to Yellowstone in 1995, changes rippled down the food web. (Scientists still debate how big some of these effects were.)', zh:'狼如何改变河流：1995 年狼重返黄石公园后，变化沿着食物网一层层传了下去。（其中一些影响到底有多大，科学家仍在讨论。）', credit:'Sustainable Human (YouTube)', license:'YouTube' }
 ];
 window.REALFIG = { decomposers:P[6], primary:P[1], producers:P[0], secondary:P[3], tertiary:P[4] };
-if (window.LabPhotos) LabPhotos.render('#gallery', P.filter(p => !p._x), { title:{en:'See the real thing',zh:'看看真实的样子'}, sub:{en:'Meet real members of a food web, one for each level of the energy pyramid. Click any picture to enlarge it; the sound plays only when you press play.',zh:'认识食物网里真实的成员：能量金字塔的每一层都有一位代表。点击图片可以放大；声音要按下播放键才会播放。'} });
+if (window.LabPhotos) LabPhotos.render('#gallery', P.filter(p => !p._x), { title:{en:'See the real thing',zh:'看看真实的样子'}, sub:{en:'Meet real members of a food web, one for each level of the energy pyramid. Click any picture to enlarge it; videos and sounds play only when you press play.',zh:'认识食物网里真实的成员：能量金字塔的每一层都有一位代表。点击图片可以放大；视频和声音要按下播放键才会播放。'} });
 })();
 </script>
 <!--/REAL-PHOTOS-->
@@ -245,6 +276,16 @@ const App = window.FW = { sel:null, three:null, eff:.1 };
 App.select = (k, from3D) => { App.sel = k; renderInfo(); renderChips(); if (!from3D && App.three) App.three.focus(k); };
 const kJ = n => (n >= 100 ? Math.round(n).toLocaleString('en-US') : n >= 10 ? n.toFixed(0) : n >= 1 ? n.toFixed(1) : n.toFixed(2)) + ' kJ';
 App.energyAt = i => 10000 * Math.pow(App.eff, i);
+/* 🚀 Advanced "zoom deeper" for the pyramid overview: the transfer-efficiency formula with the slider value */
+function deepPyramid(){
+  const L = Lab.L, pct = Math.round(App.eff * 100), e1 = App.energyAt(1), e0 = App.energyAt(0);
+  let lv = 1; while (App.energyAt(lv) >= .999) lv++; lv++;   // trophic level number (index + 1)
+  return `<div class="adv adv-box fw-deep"><b>${L(o('Zoom deeper: transfer efficiency','深入一层：能量传递效率'))}</b>
+    <p style="margin:6px 0;font-family:Fredoka,sans-serif">${L(o('efficiency','传递效率'))} = ${L(o('energy of next level','下一营养级的同化量'))} ÷ ${L(o('energy of this level','这一营养级的同化量'))} × 100%<br>= ${kJ(e1)} ÷ ${kJ(e0)} × 100% = <b>${pct}%</b></p>
+    <ul><li>${L(o('Real ecosystems pass on about 10–20% (Chinese textbooks use 10%–20%; US books round to 10%).','真实生态系统中，相邻两个营养级之间的能量传递效率约为 10%～20%（美国教材常取 10%）。'))}</li>
+    <li>${L(o('At ' + pct + '%, level ' + lv + ' would get less than 1 kJ: not enough to feed even one top predator. That is why food chains are short.','按 ' + pct + '% 计算，第 ' + lv + ' 营养级得到的能量已不足 1 kJ，连一只顶级捕食者都养不活，所以食物链都不长。'))}</li>
+    <li>${L(o('Matter is different: decomposers return carbon, nitrogen and other nutrients to the soil, so matter cycles again and again.','物质则不同：分解者把碳、氮等元素归还土壤，所以物质可以反复循环。'))}</li></ul></div>`;
+}
 function renderInfo(){
   const box = Lab.$('#info'), k = App.sel;
   if (!k){
@@ -254,6 +295,7 @@ function renderInfo(){
       <p class="muted" style="margin:0">${Lab.L(o('Each shelf is a trophic (feeding) level. Its width shows how much energy it holds. Click a shelf, the Sun, the heat sparks or the mushrooms to learn more.','每一层平台代表一个营养级，宽度表示它含有多少能量。点击平台、太阳、热火花或蘑菇来了解更多。'))}</p>
       <ul>${rows}</ul>
       <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(o('Only about 10% of the energy at one level is passed to the next level. The rest is used for life and lost as heat.','每一营养级只有约 10% 的能量传到下一级，其余用于生命活动并以热的形式散失。'))}</div>
+      ${deepPyramid()}
       <div class="nav"><button id="startBtn">${Lab.L(o('Start with the Sun ▶','从太阳开始 ▶'))}</button></div>`;
     Lab.$('#startBtn').onclick = () => App.select('sun');
     return;
@@ -388,12 +430,13 @@ Lab.$('#eff').addEventListener('input', e => { App.eff = e.target.value / 100; L
   const cv = Lab.$('#ppCanvas'), g = cv.getContext('2d');
   const P = { a:.9, K:600, b:.01, e:.1, m:.35, speed:4 };
   const CR = '#4f8ff0', CF = '#ee7a3b';
-  let R, F, t, hist, run = true, lastSample = 0, dR = 0, dF = 0;
-  function reset(){ R = 200; F = 10; t = 0; hist = [{t:0, R, F}]; lastSample = 0; }
+  const A = { e:.1, m:.35 }, E = () => Lab.adv() ? A.e : P.e, M = () => Lab.adv() ? A.m : P.m;   // Advanced: fox death rate + food→fox efficiency (Basic keeps the fixed values)
+  let R, F, t, hist, run = true, lastSample = 0, dR = 0, dF = 0, won = false, holdT = 0;
+  function reset(){ R = 200; F = 10; t = 0; hist = [{t:0, R, F}]; lastSample = 0; holdT = 0; }
   function step(dt){
-    const n = 40, h = dt / n;
+    const n = 40, h = dt / n, e = E(), m = M();
     for (let i = 0; i < n; i++){
-      dR = P.a * R * (1 - R / P.K) - P.b * R * F; dF = P.e * P.b * R * F - P.m * F;
+      dR = P.a * R * (1 - R / P.K) - P.b * R * F; dF = e * P.b * R * F - m * F;
       R = Math.max(0, R + dR * h); F = Math.max(0, F + dF * h);
     }
     if (F < .5) F = 0; if (R < .5) R = 0;
@@ -440,6 +483,41 @@ Lab.$('#eff').addEventListener('input', e => { App.eff = e.target.value / 100; L
     Lab.$('#ppStatus').textContent = Lab.L(m);
     Lab.$('#ppR').textContent = Math.round(R); Lab.$('#ppF').textContent = Math.round(F); Lab.$('#ppT').textContent = Math.floor(t);
     Lab.$('#ppRatio').textContent = F >= 1 ? Math.round(R / F) : '–';
+    advStatus();
+  }
+  /* ===== 🚀 Advanced: equations with numbers, predicted balance point, phase plot, challenge ===== */
+  const star = () => { const Rs = M() / (E() * P.b), Fs = P.a / P.b * (1 - Rs / P.K); return { Rs, Fs, ok: Rs < P.K }; };
+  function advStatus(){
+    if (!Lab.adv()) return;
+    const L = Lab.L, e = E(), m = M(), s = star(), r = Math.round(R), f = Math.round(F);
+    Lab.$('#ppEq').innerHTML = `${L(o('🐇 rabbits','🐇 兔子'))}: dR/dt = a·R(1 − R/K) − b·R·F<br>= ${P.a.toFixed(2)}×${r}×(1 − ${r}/${P.K}) − ${P.b.toFixed(3)}×${r}×${f} ≈ <b>${dR >= 0 ? '+' : '−'}${Math.abs(dR).toFixed(0)}</b> ${L(o('/year','只/年'))}<br>`
+      + `${L(o('🦊 foxes','🦊 狐狸'))}: dF/dt = e·b·R·F − m·F<br>= ${e.toFixed(2)}×${P.b.toFixed(3)}×${r}×${f} − ${m.toFixed(2)}×${f} ≈ <b>${dF >= 0 ? '+' : '−'}${Math.abs(dF).toFixed(1)}</b> ${L(o('/year','只/年'))}`;
+    Lab.$('#ppStar').innerHTML = s.ok
+      ? `⚖️ ${L(o('Balance point','平衡点'))}: R* = m ÷ (e·b) = ${m.toFixed(2)} ÷ (${e.toFixed(2)}×${P.b.toFixed(3)}) ≈ <b>${Math.round(s.Rs)}</b> ${L(o('rabbits','只兔子'))} · F* = (a/b)(1 − R*/K) ≈ <b>${Math.round(s.Fs)}</b> ${L(o('foxes','只狐狸'))}`
+      : `⚖️ R* = m ÷ (e·b) ≈ ${Math.round(s.Rs)} > K = ${P.K}: ${L(o('the grass can’t feed enough rabbits for the foxes, so foxes die out.','草养不活足够多的兔子来喂饱狐狸，狐狸会灭绝。'))}`;
+    const target = s.ok && Math.abs(s.Rs - 200) <= 20;
+    if (target && F >= 1 && Math.abs(R - s.Rs) < .08 * s.Rs && Math.abs(dR) < 4) holdT += .25; else holdT = 0;
+    if (holdT >= 1.5) won = true;
+    Lab.$('#ppChal').textContent = L(won ? o('🎉 Solved! The rabbits settled at your predicted balance point. Notice: to get FEWER rabbits you needed foxes that die less, or turn food into babies better, or hunt better. Rabbit birth rate doesn’t change R* at all!','🎉 完成！兔子稳定在了你预测的平衡点。注意：要让兔子更少，需要狐狸死得更少、把食物变成幼崽的效率更高，或者捕猎本领更强。兔子出生率根本不影响 R*！')
+      : target ? (F < 1 ? o('R* is right, but there are no foxes. Press “Add 10 foxes”.','R* 对了，但没有狐狸。点“放入 10 只狐狸”。') : o('R* is in the target range! Now wait for the curves to calm down…','R* 已经在目标范围内！等曲线稳定下来……'))
+      : o('Now R* ≈ ' + Math.round(s.Rs) + '. Which sliders appear in R* = m ÷ (e·b)? Only those can move it.','现在 R* ≈ ' + Math.round(s.Rs) + '。R* = m ÷ (e·b) 里有哪些滑块？只有它们能改变 R*。'));
+  }
+  function drawPhase(){
+    if (!Lab.adv()) return;
+    const c = Lab.$('#ppPhase'), q = c.getContext('2d'), b = c.getBoundingClientRect(), dpr = Math.min(devicePixelRatio, 2);
+    if (!b.width) return;
+    if (c.width !== Math.round(b.width * dpr) || c.height !== Math.round(b.height * dpr)){ c.width = Math.round(b.width * dpr); c.height = Math.round(b.height * dpr); }
+    const W = b.width, H = b.height, pl = 36, pr = 8, pt = 18, pb = 26, w = W - pl - pr, h = H - pt - pb;
+    q.setTransform(dpr, 0, 0, dpr, 0, 0); q.clearRect(0, 0, W, H);
+    const s = star(), maxR = nice(Math.max(P.K, ...hist.map(p => p.R)) * 1.05), maxF = nice(Math.max(20, s.ok ? s.Fs * 1.3 : 0, ...hist.map(p => p.F)) * 1.1);
+    const X = v => pl + v / maxR * w, Y = v => pt + h - v / maxF * h;
+    q.strokeStyle = css('--line'); q.lineWidth = 1; q.strokeRect(pl, pt, w, h);
+    q.font = '700 11px Nunito, sans-serif'; q.fillStyle = CR; q.textAlign = 'center'; q.fillText(Lab.L(o('🐇 rabbits R','🐇 兔子 R')) + ' (0–' + maxR + ')', pl + w / 2, H - 6);
+    q.save(); q.translate(12, pt + h / 2); q.rotate(-Math.PI / 2); q.fillStyle = CF; q.fillText(Lab.L(o('🦊 foxes F','🦊 狐狸 F')) + ' (0–' + maxF + ')', 0, 0); q.restore();
+    q.strokeStyle = '#8a7bd8'; q.lineWidth = 2; q.beginPath(); hist.forEach((p, i) => { i ? q.lineTo(X(p.R), Y(p.F)) : q.moveTo(X(p.R), Y(p.F)); }); q.stroke();
+    q.fillStyle = '#8a7bd8'; q.beginPath(); q.arc(X(R), Y(F), 4.5, 0, 7); q.fill();
+    if (s.ok){ q.strokeStyle = css('--ink'); q.lineWidth = 2; const x = X(s.Rs), y = Y(s.Fs); q.beginPath(); q.moveTo(x - 6, y); q.lineTo(x + 6, y); q.moveTo(x, y - 6); q.lineTo(x, y + 6); q.stroke(); q.fillStyle = css('--ink-2'); q.textAlign = 'left'; q.fillText('⚖️', x + 6, y - 6); }
+    q.fillStyle = css('--ink-2'); q.textAlign = 'left'; q.fillText(Lab.L(o('Phase plot: the path spirals toward ⚖️','相图：轨迹绕着 ⚖️ 旋转靠近')), pl + 4, pt - 6);
   }
   function labels(){
     Lab.$('#vK').textContent = P.K; Lab.$('#vA').textContent = P.a.toFixed(2); Lab.$('#vB').textContent = Math.round(P.b * 1000); Lab.$('#vS').textContent = P.speed + '×';
@@ -447,6 +525,10 @@ Lab.$('#eff').addEventListener('input', e => { App.eff = e.target.value / 100; L
   }
   const bind = (id, fn) => Lab.$(id).addEventListener('input', e => { fn(+e.target.value); labels(); });
   bind('#sK', v => P.K = v); bind('#sA', v => P.a = v / 100); bind('#sB', v => P.b = v / 1000); bind('#sS', v => P.speed = v);
+  bind('#sM', v => A.m = v / 100); bind('#sE', v => A.e = v / 100);
+  const advLabels = () => { Lab.$('#vM').textContent = A.m.toFixed(2); Lab.$('#vE').textContent = Math.round(A.e * 100) + '%'; advStatus(); };
+  Lab.$$('#sM, #sE').forEach(el => el.addEventListener('input', advLabels));
+  Lab.onMode(advLabels);
   Lab.$('#ppPlay').onclick = () => { run = !run; labels(); };
   Lab.$('#ppKill').onclick = () => { F = 0; };
   Lab.$('#ppAdd').onclick = () => { F += 10; };
@@ -456,7 +538,7 @@ Lab.$('#eff').addEventListener('input', e => { App.eff = e.target.value / 100; L
   function loop(now){
     const dt = Math.min(.05, (now - last) / 1000); last = now;
     if (run) step(dt * P.speed);
-    draw(); statT += dt; if (statT > .25){ statT = 0; status(); }
+    draw(); drawPhase(); statT += dt; if (statT > .25){ statT = 0; status(); }
     requestAnimationFrame(loop);
   }
   reset(); labels(); Lab.onLang(() => { labels(); status(); });

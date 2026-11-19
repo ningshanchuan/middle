@@ -40,6 +40,16 @@ select.sel{font:inherit;font-weight:700;border:1px solid var(--line);background:
 .toggle{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px;color:var(--ink-2)}
 .toggle input{width:18px;height:18px;accent-color:var(--brand)}
 @media (max-width:980px){.bench,.fbd,.fall{grid-template-columns:1fr}}
+/* 🚀 Advanced mode */
+.advgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:16px;align-items:start;margin-top:10px}
+.advcol{display:flex;flex-direction:column;gap:10px}
+.fml{font-family:ui-monospace,Consolas,monospace;font-size:13px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;line-height:1.6;overflow-wrap:anywhere}
+.agbox{position:relative;height:250px;background:var(--surface);border-radius:12px;border:1px solid var(--line)}
+.agbox canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.btn.sm{padding:6px 10px;font-size:13px;border-radius:10px}
+.advrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.advrow input[type=number]{width:84px;padding:6px 8px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-weight:800}
+@media (max-width:760px){.advgrid{grid-template-columns:1fr}}
 </style>
 </head>
 <body data-subject="physics" data-topic="forces">
@@ -52,6 +62,7 @@ select.sel{font:inherit;font-weight:700;border:1px solid var(--line);background:
 </header>
 
 <section class="wrap" id="explore" data-nav="3D Forces" data-nav-zh="3D 力学场">
+  <div class="lab-mode" style="margin-bottom:10px"></div>
   <div class="explorer">
     <div class="stage card" id="stage" data-3d>
       <div class="toolbar">
@@ -69,6 +80,7 @@ select.sel{font:inherit;font-weight:700;border:1px solid var(--line);background:
   </div>
   <div class="chips" id="chips"></div>
   <div class="card bench" id="bench"></div>
+  <div class="adv adv-box" id="fAdv" style="margin-top:12px"></div>
 </section>
 
 <section class="wrap" id="fbd" data-nav="Free-body diagrams" data-nav-zh="受力分析">
@@ -160,7 +172,8 @@ const PARTS = {
     mix:o('Friction is not always bad: without it you could not walk, write, or stop a bike.','摩擦力并不总是有害的：没有它，我们无法走路、写字，也无法让自行车停下来。')}
 };
 const ORDER = ['applied','net','balanced','gravity','normal','friction'];
-const SURF = { ice:{ms:.10, mk:.05, color:'#bfe8ff', name:o('Ice','冰面')}, wood:{ms:.50, mk:.30, color:'#b07a4a', name:o('Wood','木板')}, rubber:{ms:.90, mk:.70, color:'#374151', name:o('Rubber','橡胶')} };
+const SURF = { ice:{ms:.10, mk:.05, color:'#bfe8ff', name:o('Ice','冰面')}, wood:{ms:.50, mk:.30, color:'#b07a4a', name:o('Wood','木板')}, rubber:{ms:.90, mk:.70, color:'#374151', name:o('Rubber','橡胶')},
+  custom:{ms:.60, mk:.40, color:'#a78bfa', adv:1, name:o('🔧 Custom μ','🔧 自定义 μ')}, mystery:{ms:.50, mk:.30, color:'#9ca3af', adv:1, name:o('❓ Mystery','❓ 神秘表面')} };   // custom + mystery: Advanced mode only
 
 /* ===== App state + info panel ===== */
 const F = window.FORCES = { sel:null, three:null, mode:1 };
@@ -172,7 +185,14 @@ const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c4/Dinam%C3%B3metro.jpg/960px-Dinam%C3%B3metro.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A spring scale measures force. The harder you pull, the more the spring inside stretches. Scientists measure force in newtons (N).', zh:'弹簧测力计用来测量力的大小。拉得越用力，里面的弹簧伸得越长。力的单位是牛顿（N）。', kind:{en:'Photo', zh:'照片'}, credit:'see source page', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Dinam%C3%B3metro.jpg' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/17/Curling_Stones.jpg/960px-Curling_Stones.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Curling stones on an ice rink in Oregon. Ice gives very little friction, so a stone keeps sliding a long way after a gentle push.', zh:'美国俄勒冈州冰场上的冰壶。冰面的摩擦力很小，所以轻轻一推，冰壶就能滑出很远。', kind:{en:'Photo', zh:'照片'}, credit:'Michael McCullough', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Curling_Stones.jpg' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/73/Skydiver_landing_parachute.jpg/960px-Skydiver_landing_parachute.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A skydiver about to land. The wide parachute catches a lot of air, so air resistance pushes up almost as hard as gravity pulls down, and the fall is slow.', zh:'即将着陆的跳伞者。宽大的降落伞兜住大量空气，向上的空气阻力几乎和向下的重力一样大，所以下落得很慢。', kind:{en:'Photo', zh:'照片'}, credit:'SkydivePhoto', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Skydiver_landing_parachute.jpg' },
-  { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/b/bb/Friction_example.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bb/Friction_example.webm/960px--Friction_example.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bb/Friction_example.webm/960px--Friction_example.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Animation: blocks with different amounts of friction slide on a ramp. Watch which one slows down and stops sooner.', zh:'动画：摩擦力大小不同的木块在斜面上滑动。看看哪一块先慢下来、停住。', kind:{en:'Animation', zh:'动画'}, credit:'see source page', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Friction_example.webm' }
+  { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/b/bb/Friction_example.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bb/Friction_example.webm/960px--Friction_example.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bb/Friction_example.webm/960px--Friction_example.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Animation: blocks with different amounts of friction slide on a ramp. Watch which one slows down and stops sooner.', zh:'动画：摩擦力大小不同的木块在斜面上滑动。看看哪一块先慢下来、停住。', kind:{en:'Animation', zh:'动画'}, credit:'see source page', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Friction_example.webm' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/20/Two_boys_engaged_in_arm_wrestling.jpg/960px-Two_boys_engaged_in_arm_wrestling.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Arm wrestling. While both arms push equally hard, the forces are balanced and the hands stay still. As soon as one push is bigger, the forces are unbalanced and the hands move.', zh:'掰手腕。两只手用力一样大时，力是平衡的，手停在原地不动；只要一边的力更大，力就不平衡了，手就会动起来。', kind:{en:'Photo', zh:'照片'}, credit:'Hector Alejandro', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Two_boys_engaged_in_arm_wrestling.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/12/Michelin_Tire_Tread_%283529289077%29.jpg/960px-Michelin_Tire_Tread_%283529289077%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The tread of a car tire. The rubber and its grooves give lots of friction with the road, so the car can speed up, turn and stop without sliding. The grooves also push water away in the rain.', zh:'汽车轮胎的花纹。橡胶和花纹让轮胎和路面之间有很大的摩擦力，汽车才能加速、转弯和刹车而不打滑。下雨时，花纹的沟槽还能把水排开。', kind:{en:'Photo', zh:'照片'}, credit:'ryan harvey from Portland, OR', license:'CC BY-SA 2.0', page:'https://commons.wikimedia.org/wiki/File:Michelin_Tire_Tread_(3529289077).jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a1/Air_hockey_table_with_puck_and_paddles.jpg/960px-Air_hockey_table_with_puck_and_paddles.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'An air hockey table. Tiny holes blow air up under the puck, so it floats on a thin cushion of air. With almost no friction, one tap sends it gliding all the way across.', zh:'桌上空气曲棍球。台面上的小孔向上吹气，冰球浮在一层薄薄的空气垫上。几乎没有摩擦力，轻轻一碰它就能一直滑到对面。', kind:{en:'Photo', zh:'照片'}, credit:'N734LQ', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Air_hockey_table_with_puck_and_paddles.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8d/Apollo_15_F%26H.jpg/960px-Apollo_15_F%26H.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The hammer and the falcon feather lying on the Moon after astronaut David Scott dropped them together in 1971. With no air on the Moon there is no air resistance, so they hit the ground at the same moment.', zh:'1971年，宇航员大卫·斯科特在月球上同时放下锤子和猎鹰羽毛，这是它们落地后的样子。月球上没有空气，也就没有空气阻力，所以它们同时落地。', kind:{en:'Photo from the Moon', zh:'月球上拍摄'}, credit:'NASA', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Apollo_15_F%26H.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/37/2018-10-11_Clean_%26_Jerk_%28Weightlifting_Girls%27_58kg%29_at_2018_Summer_Youth_Olympics_by_Sandro_Halank%E2%80%93278.jpg/960px-2018-10-11_Clean_%26_Jerk_%28Weightlifting_Girls%27_58kg%29_at_2018_Summer_Youth_Olympics_by_Sandro_Halank%E2%80%93278.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A weightlifter at the 2018 Youth Olympics. To lift the bar, she must push up harder than gravity pulls it down (unbalanced forces). To hold it still, her push must equal gravity’s pull (balanced forces).', zh:'2018年青年奥运会上的一位举重运动员。要把杠铃举起来，她向上的推力必须大于重力（力不平衡）；要让杠铃停住不动，推力就要正好等于重力（力平衡）。', kind:{en:'Photo', zh:'照片'}, credit:'Sandro Halank', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:2018-10-11_Clean_%26_Jerk_(Weightlifting_Girls%27_58kg)_at_2018_Summer_Youth_Olympics_by_Sandro_Halank%E2%80%93278.jpg' },
+  { type:'youtube', yt:'E43-CfukEgs', en:'BBC: Brian Cox drops a bowling ball and a feather in the world’s biggest vacuum chamber. With no air resistance, gravity pulls them down together.', zh:'BBC：布莱恩·考克斯在世界上最大的真空室里同时放下保龄球和羽毛。没有空气阻力，重力让它们一起落下。', kind:{en:'Video', zh:'视频'}, credit:'BBC (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'IkmAnLmXENo', en:'FreeSchool: An introduction to friction, the force that slows sliding things down.', zh:'FreeSchool：认识摩擦力——让滑动的东西慢下来的力。', kind:{en:'Video', zh:'视频'}, credit:'Free School (YouTube)', license:'YouTube' }
 ];
 LabPhotos.render('#gallery', PHOTOS, { title:{en:'See the real thing', zh:'看看真实的样子'}, sub:{en:'Real photos of this physics in everyday life and in the lab. Click any picture to enlarge it; nothing plays until you press play.', zh:'生活中和实验室里的真实照片。点击图片可以放大；视频和音频不会自动播放。'} });
 /* photos shown inside the info panel */
@@ -259,11 +279,11 @@ function renderBench(){
       <h3>${Lab.L(o('Block on a ramp: gravity, normal force and friction','斜面上的木块：重力、支持力与摩擦力'))}</h3>
       <div class="law">${Lab.L(o('Raise the ramp slowly. When does static friction lose?','慢慢抬高斜面。静摩擦力什么时候“输”？'))}</div>
       <label class="ctl"><span>${Lab.L(o('Ramp angle θ','斜面倾角 θ'))}: <b id="bDv"></b></span><input type="range" id="bD" min="0" max="50" step="1" value="${R.deg}"></label>
-      <div><span class="muted" style="font-size:14px;font-weight:700">${Lab.L(o('Surface','表面材料'))}</span><div class="pills" id="bS" style="margin-top:6px">${Object.keys(SURF).map(k => `<button data-s="${k}" class="${R.surf === k ? 'on' : ''}">${Lab.L(SURF[k].name)}</button>`).join('')}</div></div>
+      <div><span class="muted" style="font-size:14px;font-weight:700">${Lab.L(o('Surface','表面材料'))}</span><div class="pills" id="bS" style="margin-top:6px">${Object.keys(SURF).map(k => `<button data-s="${k}" class="${R.surf === k ? 'on' : ''}${SURF[k].adv ? ' adv' : ''}">${Lab.L(SURF[k].name)}</button>`).join('')}</div></div>
       <label class="ctl"><span>${Lab.L(o('Block mass m','木块质量 m'))}: <b id="bMv"></b></span><input type="range" id="bM" min="1" max="10" step="1" value="${R.m}"></label>
       <div class="btnrow"><button class="btn" id="bBack">${Lab.L(o('↺ Put the block back on top','↺ 把木块放回顶端'))}</button></div></div>
     <div><div class="rgrid">${RD('rW', o('weight W = mg','重力 G = mg'), '#22c55e')}${RD('rN', o('normal force N','支持力 N'), '#0ea5e9')}${RD('rF', o('friction','摩擦力'), '#ef4444')}${RD('rP', o('downhill pull (mg sin θ)','沿斜面向下的分力（mg sin θ）'))}${RD('rMax', o('max static friction (μs N)','最大静摩擦力（μ静 N）'))}${RD('rNet2', o('net force','合力'), '#a855f7')}${RD('rA2', o('acceleration','加速度'))}${RD('rV2', o('speed','速度'))}${RD('rC', o('critical angle (tan θ = μs)','临界角（tan θ = μ静）'))}</div><div class="result" id="rMsg2" style="margin-top:8px"></div></div>`;
-  wire(); updateBench();
+  wire(); renderAdvF(); updateBench();
 }
 function wire(){
   const on = (id, ev, fn) => { const e = Lab.$('#' + id); if (e) e[ev] = fn; };
@@ -293,8 +313,9 @@ function updateBench(){
     set('bDv', R.deg + '°'); set('bMv', R.m + ' kg');
     set('rW', f1(r.W) + ' N'); set('rN', f1(r.N) + ' N');
     set('rF', f1(r.f) + ' N ' + (r.fType === 's' ? Lab.L(o('(static)','（静摩擦）')) : r.fType === 'k' ? Lab.L(o('(kinetic)','（滑动摩擦）')) : ''));
-    set('rP', f1(r.par) + ' N'); set('rMax', f1(S.ms * r.N) + ' N'); set('rNet2', f1(Math.abs(r.net)) + ' N'); set('rA2', f2(r.a) + ' m/s²'); set('rV2', f2(R.v) + ' m/s');
-    set('rC', f1(Math.atan(S.ms) * 180 / Math.PI) + '°');
+    const myst = R.surf === 'mystery';
+    set('rP', f1(r.par) + ' N'); set('rMax', myst ? '? N' : f1(S.ms * r.N) + ' N'); set('rNet2', f1(Math.abs(r.net)) + ' N'); set('rA2', f2(r.a) + ' m/s²'); set('rV2', f2(R.v) + ' m/s');
+    set('rC', myst ? '?' : f1(Math.atan(S.ms) * 180 / Math.PI) + '°');
     let m;
     if (R.phase === 'slope' && r.fType === 's') m = [Lab.L(o(`Balanced: static friction (${f1(r.f)} N) exactly cancels the downhill pull. The block stays still.`, `平衡:静摩擦力 (${f1(r.f)} N) 恰好抵消沿斜面向下的分力,木块保持静止。`)), ''];
     else if (R.phase === 'slope') m = [Lab.L(o(`Unbalanced: the downhill pull (${f1(r.par)} N) is bigger than kinetic friction (${f1(r.f)} N), so the block accelerates down the ramp.`, `不平衡:沿斜面向下的分力 (${f1(r.par)} N) 大于滑动摩擦力 (${f1(r.f)} N),木块沿斜面加速下滑。`)), 'bad'];
@@ -303,6 +324,7 @@ function updateBench(){
     msgSet('rMsg2', m[0], m[1]);
   }
   set('netPill', f1(Math.abs(net)) + ' N');
+  if (Lab.adv()) updateAdvF();
 }
 F.setMode = (m, keepSel) => {
   F.mode = m; Lab.$$('#modeSeg button').forEach(b => b.classList.toggle('on', +b.dataset.m === m));
@@ -477,8 +499,119 @@ const Fall = (function(){
   return { frame, draw, reset, opts };
 })();
 
+/* ===== 🚀 Advanced mode: tug-of-war mass + F = ma; ramp μ sliders, force components with numbers, friction–angle graph, challenges ===== */
+const ADV = { goals:[2, 3, 1.5, 4], gi:0 };
+function newMystery(){ const M = SURF.mystery; M.ms = Math.round((.3 + Math.random() * .5) * 100) / 100; M.mk = Math.round(M.ms * 60) / 100; }
+newMystery();
+const hset = (id, h) => { const e = Lab.$('#' + id); if (e && e._h !== h){ e._h = h; e.innerHTML = h; } };
+function renderAdvF(){
+  const el = Lab.$('#fAdv'); if (!el) return;
+  const ch = Lab.L(o('🎯 Challenge','🎯 挑战'));
+  if (F.mode === 1) el.innerHTML = `<b>${Lab.L(o('🚀 Advanced: mass and Newton’s 2nd law (F = ma)','🚀 进阶：质量与牛顿第二定律（F = ma）'))}</b>
+    <div class="advgrid"><div class="advcol">
+      <label class="ctl"><span>${Lab.L(o('Mass of the rope + both teams m','绳子和两队的总质量 m'))}: <b id="aMv"></b></span><input type="range" id="aM" min="100" max="600" step="50" value="${T.M}" aria-label="mass"></label>
+      <div class="fml" id="aTF"></div></div>
+      <div class="advcol"><div><b>${ch}</b> <span id="aTQ"></span> <button class="btn ghost sm" id="aTNew">${Lab.L(o('New ↻','换一个 ↻'))}</button></div><div class="result" id="aTC"></div>
+      <small class="muted">${Lab.L(o('The knot starts at rest, so s = ½at². A team wins when the knot has moved 1.5 m (to its colored line).','绳结从静止开始运动，所以 s = ½at²。绳结移动 1.5 m（到达彩色线）时，这一队获胜。'))}</small></div></div>`;
+  else el.innerHTML = `<b>${Lab.L(o('🚀 Advanced: friction coefficient μ and the forces in numbers','🚀 进阶：摩擦因数 μ 与力的计算'))}</b>
+    <div class="advgrid"><div class="advcol">
+      <label class="ctl"><span>${Lab.L(o('Static friction coefficient μs','静摩擦因数 μ静'))}: <b id="aMsv"></b></span><input type="range" id="aMs" min="0.05" max="1.2" step="0.05" value="${SURF[R.surf].ms}" aria-label="static friction coefficient"></label>
+      <label class="ctl"><span>${Lab.L(o('Kinetic friction coefficient μk','动摩擦因数 μ动'))}: <b id="aMkv"></b></span><input type="range" id="aMk" min="0.01" max="1.2" step="0.01" value="${SURF[R.surf].mk}" aria-label="kinetic friction coefficient"></label>
+      <small class="muted">${Lab.L(o('Moving a slider picks 🔧 Custom μ. μk is kept ≤ μs: keeping something sliding is easier than getting it started.','拖动滑块会选中“🔧 自定义 μ”。μ动 不会大于 μ静：让物体保持滑动比让它开始滑动更容易。'))}</small>
+      <div class="fml" id="aRF"></div>
+      <div><b>${ch}</b> ${Lab.L(o('Pick ❓ Mystery. Raise the ramp 1° at a time until the block JUST starts to slide (put it back on top after each slide). Then μs ≈ tan θ. What is μs?','选择“❓ 神秘表面”。每次把斜面抬高 1°，直到木块刚好开始下滑（每次滑下后把它放回顶端）。此时 μ静 ≈ tan θ。μ静 是多少？'))}</div>
+      <div class="advrow"><span>${Lab.L(o('μs ≈','μ静 ≈'))}</span><input type="number" id="aRin" min="0" max="2" step="0.01" aria-label="your value of the static friction coefficient"><button class="btn sm" id="aRgo">${Lab.L(o('✔ Check','✔ 检查'))}</button><button class="btn ghost sm" id="aRnew">${Lab.L(o('New mystery ↻','换一个 ↻'))}</button></div>
+      <div class="result" id="aRC"></div></div>
+      <div><div class="agbox" data-nofs><canvas id="aRcv" aria-label="friction versus ramp angle graph"></canvas></div>
+      <small class="muted">${Lab.L(o('Friction on this block vs ramp angle. Static friction grows with the downhill pull, up to its maximum μs·N. Past the critical angle θc the block slides and friction drops to μk·N. Dot = now.','这块木块受到的摩擦力随斜面倾角的变化。静摩擦力随沿斜面向下的分力一起增大，最大到 μ静·N；超过临界角 θc 后木块下滑，摩擦力降为 μ动·N。圆点 = 现在。'))}</small></div></div>`;
+  wireAdvF(); updateAdvF();
+}
+function wireAdvF(){
+  const on = (id, ev, fn) => { const e = Lab.$('#' + id); if (e) e[ev] = fn; };
+  on('aM', 'oninput', e => { T.M = +e.target.value; resetTug(); updateBench(); });
+  on('aTNew', 'onclick', () => { ADV.gi = (ADV.gi + 1) % ADV.goals.length; resetTug(); updateBench(); });
+  const toCustom = () => { if (R.surf === 'custom') return; const S = SURF[R.surf], C = SURF.custom; if (R.surf !== 'mystery'){ C.ms = S.ms; C.mk = S.mk; } R.surf = 'custom'; Lab.$$('#bS button').forEach(x => x.classList.toggle('on', x.dataset.s === 'custom')); };
+  on('aMs', 'oninput', e => { toCustom(); const C = SURF.custom; C.ms = +e.target.value; if (C.mk > C.ms) C.mk = C.ms; updateBench(); });
+  on('aMk', 'oninput', e => { toCustom(); const C = SURF.custom; C.mk = Math.min(+e.target.value, C.ms); updateBench(); });
+  on('aRgo', 'onclick', () => {
+    const v = parseFloat(Lab.$('#aRin').value), M = SURF.mystery, r = Lab.$('#aRC'), tc = f1(Math.atan(M.ms) * 180 / Math.PI);
+    if (!(v >= 0)){ r.textContent = Lab.L(o('Type a number first, for example 0.45.','先输入一个数，例如 0.45。')); r.className = 'result'; return; }
+    if (Math.abs(v - M.ms) <= .04){ r.textContent = Lab.L(o(`✅ Yes! μs = ${M.ms.toFixed(2)}. At the critical angle (about ${tc}°) the downhill pull mg sin θ just equals the maximum static friction μs mg cos θ, so tan θ = μs. (Its μk = ${M.mk.toFixed(2)}.)`, `✅ 对了！μ静 = ${M.ms.toFixed(2)}。在临界角（约 ${tc}°）时，沿斜面向下的分力 mg sin θ 恰好等于最大静摩擦力 μ静 mg cos θ，所以 tan θ = μ静。（它的 μ动 = ${M.mk.toFixed(2)}。）`)); r.className = 'result good'; }
+    else { r.textContent = Lab.L(o(`Not quite: ${v > M.ms ? 'too big' : 'too small'}. Find the FIRST angle where the block slides, then use a calculator: μs ≈ tan θ.`, `还不对：${v > M.ms ? '偏大' : '偏小'}。找到木块开始下滑的第一个角度，再用计算器算：μ静 ≈ tan θ。`)); r.className = 'result bad'; }
+  });
+  on('aRnew', 'onclick', () => { newMystery(); Lab.$('#aRC').textContent = ''; Lab.$('#aRin').value = ''; if (R.surf === 'mystery') resetBlock(); updateBench(); });
+}
+function updateAdvF(){
+  if (!Lab.$('#aTF') && !Lab.$('#aRF')) return;
+  if (F.mode === 1){
+    if (!Lab.$('#aTF')) return;
+    const net = T.R - T.L, a = Math.abs(net) / T.M, goal = ADV.goals[ADV.gi], need = f2(3 / goal / goal);
+    set('aMv', T.M + ' kg');
+    let h = `${Lab.L(o('F_net = F_red − F_blue','F合 = F红 − F蓝'))} = ${T.R} N − ${T.L} N = ${net} N${net ? ' (' + Lab.L(net > 0 ? o('toward red →','指向红队 →') : o('← toward blue','← 指向蓝队')) + ')' : ''}<br>`;
+    h += `a = ${Lab.L(o('F_net','F合'))} ÷ m = ${Math.abs(net)} N ÷ ${T.M} kg = ${f2(a)} m/s²<br>`;
+    if (net){ h += `s = ½at² → t = √(2s ÷ a) = √(2 × 1.5 m ÷ ${f2(a)} m/s²) ≈ ${f2(Math.sqrt(3 / a))} s`;
+      if (T.run) h += `<br>${Lab.L(o('Now','现在'))}: t = ${f2(T.t)} s, v = a·t = ${f2(a)} × ${f2(T.t)} ≈ ${f2(Math.abs(T.v))} m/s`; }
+    else h += Lab.L(o('a = 0, so the knot never starts to move (balanced forces).','a = 0，绳结不会开始运动（平衡力）。'));
+    hset('aTF', h);
+    set('aTQ', Lab.L(o(`Make the winning team pull the knot 1.5 m in ${goal} s (±0.1 s). Set the pulls and the mass, then press 📣 Start pulling!`, `让获胜的一队用 ${goal} s（误差 ±0.1 s）把绳结拉动 1.5 m。调好拉力和质量，再按“📣 开始拔河！”`)));
+    let m = '', cls = '';
+    if (T.done && T.winner === 'tie'){ m = Lab.L(o('Balanced forces: nobody wins. You need a net force!','平衡力：谁也赢不了。需要有合力！')); cls = 'bad'; }
+    else if (T.done && Math.abs(T.t - goal) <= .1){ m = Lab.L(o(`✅ ${f2(T.t)} s! a = ${f2(a)} m/s², and √(2 × 1.5 ÷ ${f2(a)}) ≈ ${goal} s.`, `✅ ${f2(T.t)} s！a = ${f2(a)} m/s²，√(2 × 1.5 ÷ ${f2(a)}) ≈ ${goal} s。`)); cls = 'good'; }
+    else if (T.done){ m = Lab.L(o(`It took ${f2(T.t)} s: ${T.t > goal ? 'too slow. Use more net force or less mass' : 'too fast. Use less net force or more mass'}. You need a = 2s ÷ t² = 3 ÷ ${goal}² ≈ ${need} m/s².`, `用了 ${f2(T.t)} s：${T.t > goal ? '太慢了，增大合力或减小质量' : '太快了，减小合力或增大质量'}。需要 a = 2s ÷ t² = 3 ÷ ${goal}² ≈ ${need} m/s²。`)); cls = 'bad'; }
+    msgSet('aTC', m, cls);
+    return;
+  }
+  if (!Lab.$('#aRF')) return;
+  const r = rampForces(), S = SURF[R.surf], myst = R.surf === 'mystery', th = R.deg, ae = document.activeElement, mu = v => myst ? '?' : v.toFixed(2);
+  if (!myst){ if (ae !== Lab.$('#aMs')) Lab.$('#aMs').value = S.ms; if (ae !== Lab.$('#aMk')) Lab.$('#aMk').value = S.mk; }
+  set('aMsv', mu(S.ms)); set('aMkv', mu(S.mk));
+  let h = `G = mg = ${R.m} kg × 9.8 N/kg = ${f1(r.W)} N<br>`;
+  if (!r.flat){
+    h += `F∥ = G·sin θ = ${f1(r.W)} N × sin ${th}° = ${f1(r.par)} N (${Lab.L(o('down the ramp','沿斜面向下'))})<br>`;
+    h += `N = G·cos θ = ${f1(r.W)} N × cos ${th}° = ${f1(r.N)} N<br>`;
+    if (r.fType === 's') h += `${Lab.L(o('Holding','静止'))}: f_max = μs·N = ${mu(S.ms)} × ${f1(r.N)} N = ${myst ? '?' : f1(S.ms * r.N)} N ≥ F∥ → f = F∥ = ${f1(r.f)} N, a = 0`;
+    else h += `${Lab.L(o('Sliding','滑动'))}: f = μk·N = ${mu(S.mk)} × ${f1(r.N)} N = ${f1(r.f)} N<br>a = (F∥ − f) ÷ m = (${f1(r.par)} − ${f1(r.f)}) N ÷ ${R.m} kg = ${f2(r.a)} m/s²<br><span class="muted">${Lab.L(o('= g(sin θ − μk cos θ): the mass cancels, so heavy and light blocks slide the same way.','= g(sin θ − μ动 cos θ)：质量被约掉了，所以重木块和轻木块下滑得一样快。'))}</span>`;
+  } else {
+    h += `N = G = ${f1(r.N)} N (${Lab.L(o('flat floor','水平地面'))})<br>`;
+    h += R.v > 0 ? `f = μk·N = ${mu(S.mk)} × ${f1(r.N)} N = ${f1(r.f)} N → a = −f ÷ m = ${f2(r.a)} m/s²` : Lab.L(o(`Stopped: nothing is sliding, so friction is now 0 N. It slid ${f2(R.x)} m along the floor.`, `已停下：不再滑动，摩擦力变为 0 N。它在地面上滑行了 ${f2(R.x)} m。`));
+  }
+  hset('aRF', h);
+  drawFA(r, S, myst);
+}
+function drawFA(r, S, myst){
+  const cv = Lab.$('#aRcv'); if (!cv) return;
+  const { g, W, H:Ht } = fit(cv); if (W < 40) return;
+  const ink = css('--ink'), ink2 = css('--ink-2'), line = css('--line'), Wt = R.m * G, rd = Math.PI / 180;
+  const pull = t => Wt * Math.sin(t * rd), fmax = t => S.ms * Wt * Math.cos(t * rd), tc = Math.atan(S.ms) / rd;
+  const fr = t => t <= tc ? pull(t) : S.mk * Wt * Math.cos(t * rd);
+  const raw = Math.max(pull(50), myst ? 0 : S.ms * Wt) * 1.08, st = raw > 60 ? 20 : raw > 30 ? 10 : raw > 12 ? 5 : 2, ymax = Math.ceil(raw / st) * st;
+  const L = 44, Rr = 12, Tp = 12, B = 34, w = W - L - Rr, h = Ht - Tp - B, X = t => L + t / 50 * w, Y = v => Tp + h - v / ymax * h;
+  g.clearRect(0, 0, W, Ht); g.font = '700 10px Nunito, sans-serif'; g.lineWidth = 1;
+  g.strokeStyle = line; g.fillStyle = ink2; g.textAlign = 'center'; g.textBaseline = 'top';
+  for (let t = 0; t <= 50; t += 10){ g.beginPath(); g.moveTo(X(t), Tp); g.lineTo(X(t), Tp + h); g.stroke(); g.fillText(t + '°', X(t), Tp + h + 4); }
+  g.textAlign = 'right'; g.textBaseline = 'middle';
+  for (let v = 0; v <= ymax + 1e-9; v += st){ g.beginPath(); g.moveTo(L, Y(v)); g.lineTo(L + w, Y(v)); g.stroke(); g.fillText(v, L - 5, Y(v)); }
+  g.textAlign = 'center'; g.textBaseline = 'bottom'; g.fillText(Lab.L(o('ramp angle θ','斜面倾角 θ')), L + w / 2, Ht - 2);
+  g.save(); g.translate(11, Tp + h / 2); g.rotate(-Math.PI / 2); g.textBaseline = 'middle'; g.fillText(Lab.L(o('force (N)','力（N）')), 0, 0); g.restore();
+  const curve = (fn, col, dash, lw) => { g.strokeStyle = col; g.lineWidth = lw; g.setLineDash(dash); g.beginPath(); for (let t = 0; t <= 50.01; t += .5){ const p = [X(t), Y(fn(t))]; t ? g.lineTo(...p) : g.moveTo(...p); } g.stroke(); g.setLineDash([]); };
+  curve(pull, '#22c55e', [6, 4], 2);
+  if (!myst){
+    curve(fmax, '#f59e0b', [3, 4], 2);
+    const pts = [];
+    for (let t = 0; t <= 50; t += .5){ if (t > tc && (!pts.length || pts[pts.length - 1][0] < tc)){ pts.push([tc, pull(tc)], [tc, S.mk * Wt * Math.cos(tc * rd)]); } pts.push([t, fr(t)]); }
+    g.strokeStyle = '#ef4444'; g.lineWidth = 3; g.beginPath(); pts.forEach(([t, v], i) => i ? g.lineTo(X(t), Y(v)) : g.moveTo(X(t), Y(v))); g.stroke();
+    if (tc < 50){ g.fillStyle = ink; g.textAlign = 'left'; g.textBaseline = 'bottom'; g.fillText('θc ≈ ' + f1(tc) + '°', X(tc) + 4, Y(pull(tc)) - 3); }
+  } else { g.fillStyle = ink; g.textAlign = 'left'; g.textBaseline = 'top'; g.font = '800 12px Nunito, sans-serif'; g.fillText(Lab.L(o('❓ Friction curve hidden: find θc by experiment!','❓ 摩擦力曲线已隐藏：用实验找出 θc！')), L + 8, Tp + 6); }
+  // legend
+  g.font = '700 10px Nunito, sans-serif'; g.textAlign = 'left'; g.textBaseline = 'middle';
+  const leg = [['#22c55e', Lab.L(o('downhill pull G sin θ','下滑分力 G sin θ'))]].concat(myst ? [] : [['#f59e0b', Lab.L(o('max static μs·N','最大静摩擦力 μ静·N'))], ['#ef4444', Lab.L(o('friction f','摩擦力 f'))]]);
+  leg.forEach(([c, t], i) => { const y = Tp + (myst ? 28 : 10) + i * 14; g.fillStyle = c; g.fillRect(L + 8, y - 2, 14, 4); g.fillStyle = ink2; g.fillText(t, L + 26, y); });
+  if (!r.flat){ g.fillStyle = '#ef4444'; g.strokeStyle = ink; g.lineWidth = 2; g.beginPath(); g.arc(X(R.deg), Y(r.f), 5.5, 0, 6.283); g.fill(); g.stroke(); }
+}
+
 /* ===== Language / theme ===== */
 Lab.onLang(() => { renderInfo(); renderChips(); Lab.$$('#modeSeg button').forEach(b => b.classList.toggle('on', +b.dataset.m === F.mode)); renderBench(); fbdRender(); Fall.opts(); Fall.draw(); });
+Lab.onMode(adv => { if (!adv){ T.M = 300; resetTug(); if (SURF[R.surf].adv){ R.surf = 'wood'; resetBlock(); } } renderBench(); });
 window.addEventListener('labtheme', () => Fall.draw());
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => Fall.draw());
 Fall.reset();

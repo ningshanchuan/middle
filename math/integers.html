@@ -49,10 +49,22 @@
   <div class="ma-explore">
     <div class="ma-stage explore-stage" id="exStage" data-fs></div>
     <div class="card ctl">
+      <div class="lab-mode" style="align-self:flex-start"></div>
       <label class="ctl"><span><span data-zh="楼层 n = ">Floor n = </span><b id="nVal">3</b></span><input id="nIn" type="range" min="-6" max="6" step="1" value="3"></label>
       <div class="ma-big sm" id="nOut"></div>
       <div class="verdict" id="nMsg"></div>
       <p class="muted" style="margin:0" data-zh="试一试：哪两层的绝对值相同？0 层的相反数是什么？">Try it: which two floors have the same absolute value? What is the opposite of floor 0?</p>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:10px">
+        <b data-zh="进阶：第二部电梯——比较大小、两点间的距离">Advanced: a second elevator — compare and find the distance</b>
+        <label class="ctl"><span><span data-zh="橙色电梯 m = ">Orange elevator m = </span><b id="mVal">−2</b></span><input id="mIn" type="range" min="-6" max="6" step="1" value="-2"></label>
+        <div id="dOut" style="text-align:center;font-size:18px;line-height:1.9"></div>
+        <div id="dFacts" class="muted" style="font-size:14px"></div>
+        <div style="border-top:1px solid var(--line);padding-top:8px">
+          <b data-zh="🎯 挑战">🎯 Challenge</b> <span id="chTxt"></span>
+          <div class="btnrow" style="margin-top:6px"><button class="btn" id="chCheck" data-zh="检查">Check</button><button class="btn ghost" id="chNew" data-zh="换一题">New challenge</button></div>
+          <div class="result" id="chMsg"></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -314,12 +326,59 @@ const font = (S, s) => `800 ${Math.max(11, S.px(s))}px Nunito, "PingFang SC", "M
     const bx = 1.9, y0 = fy(0), y1 = fy(n);
     if (n !== 0){ line(bx, y0, bx, y1, C.green, 3); line(bx - .12, y1, bx + .12, y1, C.green, 3); line(bx - .12, y0, bx + .12, y0, C.green, 3); }
     txt(`|${mn(n)}| = ${Math.abs(n)}`, bx + .3, n ? (y0 + y1) / 2 : .35, C.green, .36, 'left');
+    if (!Lab.adv()) return;
+    /* ---- Advanced: second (orange) elevator m and the distance |n − m| ---- */
+    rect(-4.3, fy(-6) - .3, 1.4, fy(6) - fy(-6) + .6, C.grey, 'rgba(236,230,226,.04)');
+    rect(-4.15, fy(m) - .26, 1.1, .52, C.white, 'rgba(255,159,67,.8)');
+    txt(mn(m), -3.6, fy(m), C.bg, .34);
+    txt('m', -3.6, fy(6) + .65, C.orange, .3); txt('n', 0, fy(6) + .65, C.white, .3);
+    const ym = fy(m), dx = -4.75;
+    line(-3.05, y1, -1.3, y1, 'rgba(236,230,226,.35)', 1.5, [4, 4]);
+    if (m !== n){
+      line(dx, ym, dx, y1, C.orange, 3); line(dx - .12, ym, dx + .12, ym, C.orange, 3); line(dx - .12, y1, dx + .12, y1, C.orange, 3);
+      line(dx, y1, -4.3, y1, C.orange, 1.5, [4, 4]);
+    }
+    txt(String(Math.abs(n - m)), dx - .2, (ym + y1) / 2, C.orange, .38, 'right');
   });
+  /* ---- Advanced mode data ---- */
+  let m = -2, chI = 0;
+  const CH = [   // each challenge is checked by a rule, so there can be more than one right answer
+    { en:'Put the two elevators on opposite floors that are 8 floors apart.', zh:'让两部电梯停在互为相反数、并且相距 8 层的楼层。', ok:() => n === -m && Math.abs(n - m) === 8 },
+    { en:'Make n > m, but |n| < |m|. (Bigger number, smaller absolute value!)', zh:'让 n > m，但是 |n| < |m|。（数更大，绝对值却更小！）', ok:() => n > m && Math.abs(n) < Math.abs(m) },
+    { en:'Both elevators underground (below 0) and exactly 5 floors apart.', zh:'两部电梯都在地下（小于 0），并且正好相距 5 层。', ok:() => n < 0 && m < 0 && Math.abs(n - m) === 5 },
+    { en:'The orange elevator m goes DOWN 7 floors and arrives at floor n = −3. Where did it start?', zh:'橙色电梯 m 向下走了 7 层，到达 n = −3 层。它是从哪一层出发的？', ok:() => n === -3 && n - m === -7 },
+    { en:'Two floors 6 apart whose midpoint (halfway floor) is −1.', zh:'两个楼层相距 6 层，它们正中间的楼层是 −1。', ok:() => Math.abs(n - m) === 6 && n + m === -2 },
+    { en:'Make |n − m| = |n| + |m| with n ≠ 0 and m ≠ 0. When does that happen?', zh:'让 |n − m| = |n| + |m|，并且 n ≠ 0、m ≠ 0。什么时候会这样？', ok:() => n !== 0 && m !== 0 && Math.abs(n - m) === Math.abs(n) + Math.abs(m) }
+  ];
+  function advUpdate(){
+    if (!Lab.adv()) return;
+    m = +Lab.$('#mIn').value; Lab.$('#mVal').textContent = mn(m);
+    const rel = n > m ? '>' : n < m ? '<' : '=', p = v => v < 0 ? `(${v})` : v;
+    Lab.$('#dOut').innerHTML = MathAnim.tex(`${K(dsc(n), n)} ${rel} ${K('#d9761b', m)}`) + '<br>'
+      + MathAnim.tex(`\\lvert n - m \\rvert = \\lvert ${n} - ${p(m)} \\rvert = \\lvert ${n - m} \\rvert = \\textcolor{#d9761b}{${Math.abs(n - m)}}`);
+    const d = n - m;
+    Lab.$('#dFacts').innerHTML = Lab.L({ en:'The distance between two numbers on a number line is the absolute value of their difference.', zh:'数轴上两个数之间的距离，等于它们的差的绝对值。' }) + '<br>'
+      + Lab.L(d === 0 ? { en:'Same floor: distance 0.', zh:'同一层：距离为 0。' }
+        : { en:`From m to n: n − m = ${mn(d)}, so the elevator goes ${d > 0 ? 'up' : 'down'} ${Math.abs(d)} floor${Math.abs(d) > 1 ? 's' : ''}.`, zh:`从 m 到 n：n − m = ${mn(d)}，电梯${d > 0 ? '向上' : '向下'}走 ${Math.abs(d)} 层。` })
+      + (n * m < 0 ? '<br>' + Lab.L({ en:`Opposite sides of 0: distance = |n| + |m| = ${Math.abs(n)} + ${Math.abs(m)}.`, zh:`在 0 的两侧：距离 = |n| + |m| = ${Math.abs(n)} + ${Math.abs(m)}。` }) : '');
+    Lab.$('#chTxt').textContent = Lab.L(CH[chI]);
+  }
+  Lab.$('#mIn').oninput = advUpdate;
+  Lab.$('#chNew').onclick = () => { chI = (chI + 1) % CH.length; Lab.$('#chMsg').textContent = ''; Lab.$('#chMsg').className = 'result'; advUpdate(); };
+  Lab.$('#chCheck').onclick = () => {
+    const ok = CH[chI].ok(), msg = Lab.$('#chMsg');
+    msg.textContent = Lab.L(ok ? { en:`🎉 Yes! n = ${mn(n)}, m = ${mn(m)}, distance ${Math.abs(n - m)}.`, zh:`🎉 对了！n = ${mn(n)}，m = ${mn(m)}，距离 ${Math.abs(n - m)}。` }
+                              : { en:'Not yet. Move the white (n) and orange (m) elevators and read the numbers below.', zh:'还不对。移动白色电梯 n 和橙色电梯 m，再看看下面的数。' });
+    msg.className = 'result ' + (ok ? 'good' : 'bad');
+  };
+  Lab.onMode(advUpdate);
+  const setM = v => { Lab.$('#mIn').value = Math.max(-6, Math.min(6, v)); advUpdate(); };
   const set = v => { n = Math.max(-6, Math.min(6, v)); Lab.$('#nIn').value = n; update(); };
   const cv = E.cv, toW = e => { const r = cv.getBoundingClientRect(); return [E.wx(e.clientX - r.left), E.wy(e.clientY - r.top)]; };
   cv.style.touchAction = 'none'; cv.style.cursor = 'grab';
-  cv.addEventListener('pointerdown', e => { const [x, y] = toW(e); if (Math.abs(x) < 1.4 && Math.abs(y) < 4){ drag = true; cv.setPointerCapture(e.pointerId); set(Math.round(y / .6)); } });
-  cv.addEventListener('pointermove', e => { if (drag) set(Math.round(toW(e)[1] / .6)); });
+  cv.addEventListener('pointerdown', e => { const [x, y] = toW(e); if (Math.abs(x) < 1.4 && Math.abs(y) < 4){ drag = true; cv.setPointerCapture(e.pointerId); set(Math.round(y / .6)); }
+    else if (Lab.adv() && x > -4.4 && x < -2.8 && Math.abs(y) < 4){ drag = 'm'; cv.setPointerCapture(e.pointerId); setM(Math.round(y / .6)); } });
+  cv.addEventListener('pointermove', e => { if (drag === 'm') setM(Math.round(toW(e)[1] / .6)); else if (drag) set(Math.round(toW(e)[1] / .6)); });
   cv.addEventListener('pointerup', () => { drag = false; });
   function update(){
     n = +Lab.$('#nIn').value; Lab.$('#nVal').textContent = mn(n);
@@ -329,6 +388,7 @@ const font = (S, s) => `800 ${Math.max(11, S.px(s))}px Nunito, "PingFang SC", "M
                      : n < 0 ? { en:`${-n} floor${n < -1 ? 's' : ''} below the ground (a basement). Same distance as floor ${-n}, so |${mn(n)}| = |${-n}| = ${-n}.`, zh:`地面以下 ${-n} 层(地下室)。它和 ${-n} 层离地面一样远，所以 |${mn(n)}| = |${-n}| = ${-n}。` }
                      : { en:'Ground floor: 0 is its own opposite, and |0| = 0.', zh:'地面层：0 的相反数就是 0 本身，而且 |0| = 0。' });
     m.style.color = n > 0 ? DK.yellow : n < 0 ? DK.blue : 'var(--ink)';
+    advUpdate();
   }
   Lab.$('#nIn').oninput = update;
   Lab.onLang(update); update();
@@ -410,6 +470,7 @@ Lab.sort(Lab.$('#sort'), {
 /* ================= Where you see this: real photos (Wikimedia Commons, freely licensed) ================= */
 (function(){
 const o = (en, zh) => ({ en, zh });
+const VID = o('Video', '视频');
 const PHOTOS = [
   { src:'https://upload.wikimedia.org/wikipedia/commons/7/78/Badwater_elevation_sign.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled',
     en:'Badwater Basin in Death Valley: 282 feet below sea level. How would you write that elevation as an integer?',
@@ -425,10 +486,20 @@ const PHOTOS = [
     credit:'Tdorante10', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Elevator_buttons_in_Salem_station_garage,_December_2018.jpg' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9d/Thermometer_on_Mt._Howard_%2812645517404%29.jpg/960px-Thermometer_on_Mt._Howard_%2812645517404%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'A thermometer on top of Mt. Howard, Oregon, on a December day when it read below zero. Which is colder, −5°F or −12°F?',
-    zh:'ç¾å½ä¿ååå·éåå¾·å±±å±±é¡¶çæ¸©åº¦è®¡ï¼é£å¤©æ°æ¸©ä½äºé¶åº¦ã−5°F å −12°F åªä¸ªæ´å·ï¼',
-    credit:'Oregon Department of Transportation', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Thermometer_on_Mt._Howard_(12645517404).jpg' }
+    zh:'美国俄勒冈州霍华德山山顶的温度计，那天气温低于零度。−5°F 和 −12°F 哪个更冷？',
+    credit:'Oregon Department of Transportation', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Thermometer_on_Mt._Howard_(12645517404).jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/54/Dead_Sea.jpg/960px-Dead_Sea.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'Floating in the Dead Sea, the lowest water on land: its surface is about 430 m below sea level. Is −430 m lower or higher than Badwater Basin (about −86 m)?',
+    zh:'在死海上漂浮。死海是陆地上最低的水面，大约在海平面以下 430 米。−430 米比恶水盆地（约 −86 米）低还是高？',
+    credit:'Antoine Taveneaux', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Dead_Sea.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/e/e3/Shushu_jiu_zhang_rod_calculus.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled',
+    en:'Chinese counting-rod numbers in Qin Jiushao’s book 数书九章 (1247). Chinese mathematicians used negative numbers about 2,000 years ago, in 九章算术: red rods for positive, black rods for negative.',
+    zh:'秦九韶《数书九章》（1247 年）里用算筹摆出的数字。早在约 2000 年前的《九章算术》里，中国数学家就已经使用负数：红色算筹表示正数，黑色算筹表示负数。',
+    kind:o('Math history','数学史'), credit:'Qin Jiushao (1247)', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Shushu_jiu_zhang_rod_calculus.jpg' },
+  { type:'youtube', yt:'OAoLCXpao6s', en:'Video: “Negative Numbers” — numbers below zero on the number line, with sea level as an example.', zh:'视频：《负数》——数轴上比零小的数，用海平面来举例（英文）。', kind:VID, credit:'Math Antics (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'VmWVXOIQblM', en:'Video: “A brief history of banned numbers” — a TED-Ed lesson: for centuries, many people refused to accept negative numbers and zero!', zh:'视频：《“被禁止”的数简史》——TED-Ed 课程：很多世纪里，不少人都不肯接受负数和零！（英文）', kind:VID, credit:'TED-Ed (YouTube)', license:'YouTube' }
 ];
-LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos. Each one comes with a question this lesson helps you answer. Click a picture to enlarge it.','真实照片。每张都带着一个这节课能帮你回答的问题。点击图片可放大。') });
+LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos and short videos. Each photo comes with a question this lesson helps you answer. Click a picture to enlarge it or to play a video.','真实照片和短视频。每张照片都带着一个这节课能帮你回答的问题。点击图片可放大，点击视频可播放。') });
 })();
 </script>
 <!-- /real-world gallery script -->

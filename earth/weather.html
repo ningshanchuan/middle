@@ -32,6 +32,15 @@
 .fc .clue li{margin:2px 0}
 .fcopts{display:grid;gap:10px}
 .fcopts button{text-align:left}
+.dewgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-top:10px}
+.dewl{display:flex;flex-direction:column;gap:10px}
+.dewl .counter b{font-size:20px}
+.dewcv{position:relative;min-height:240px;background:var(--surface-2);border-radius:12px}
+.dewcv canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.dewch{margin-top:12px;font-size:14.5px;line-height:1.5}
+.dewin{display:inline-flex;gap:6px;align-items:center;margin-left:6px;white-space:nowrap}
+.dewin input{width:90px;padding:6px 8px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit}
+@media (max-width:760px){.dewgrid{grid-template-columns:1fr}}
 @media (max-width:980px){.symgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:560px){.inst{grid-template-columns:1fr 1fr}.symgrid{grid-template-columns:1fr 1fr}}
 </style>
@@ -84,11 +93,27 @@
   <div class="sim">
     <div class="card simbox" style="min-height:470px"><canvas id="wmap"></canvas></div>
     <div class="card simside">
+      <div class="lab-mode"></div>
       <label class="ctl"><span><span data-zh="🕒 时间">🕒 Time</span>: <b id="hVal">0 h</b></span><input id="hour" type="range" min="0" max="48" step="0.1" value="0"></label>
       <div class="btnrow"><button class="btn" id="wPlay" data-zh="▶ 播放">▶ Play</button><button class="btn ghost" id="wReset" data-zh="↺ 重新开始">↺ Restart</button></div>
       <div class="sky"><span class="em" id="skyEm">🌤</span><span id="skyTxt"></span></div>
       <div class="inst" id="inst"></div>
     </div>
+  </div>
+  <div class="adv adv-box" id="dewBox" style="margin-top:12px">
+    <b data-zh="🚀 湿度与露点：空气还能容纳多少水汽？">🚀 Humidity &amp; dew point: how much water vapor can the air hold?</b>
+    <div class="dewgrid">
+      <div class="dewl">
+        <div class="counters" id="dewNums"></div>
+        <label class="ctl"><span><span data-zh="❄️ 让城市的空气降温">❄️ Cool the town’s air by</span>: <b id="coolVal">0 °C</b></span><input id="cool" type="range" min="0" max="20" step="0.5" value="0"></label>
+        <div class="result" id="dewState" style="font-size:14px"></div>
+        <p class="muted" id="dewFormula" style="margin:0;font-size:13.5px;line-height:1.5"></p>
+      </div>
+      <div class="dewcv" data-nofs><canvas id="dewCv"></canvas></div>
+    </div>
+    <div class="dewch"><span data-zh-html="&lt;b&gt;🎯 挑战：&lt;/b&gt;上升的空气每升高 1 千米大约降温 10 °C，而它的露点只下降约 2 °C，所以气温与露点的差每千米缩小约 8 °C。由此可得：云底高度 ≈ 125 米 ×（气温 − 露点）。算一算：现在这个时刻，云底大约有多高？"><b>🎯 Challenge:</b> Rising air cools about 10 °C per km, but its dew point drops only about 2 °C per km, so the gap closes by about 8 °C per km. That gives: cloud base ≈ 125 m × (temperature − dew point). About how high is the cloud base at the time shown now?</span>
+      <span class="dewin"><input id="dewAns" type="number" step="10" min="0" inputmode="numeric"> <span data-zh="米">m</span> <button class="btn" id="dewCheck" data-zh="检查">Check</button></span>
+      <div class="result" id="dewMsg"></div></div>
   </div>
   <div class="symgrid" id="symGrid"></div>
   <div class="card fc">
@@ -125,6 +150,8 @@ const o = (en, zh) => ({en, zh});
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 function fit(cv){ const r = cv.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); cv.width = Math.max(1, r.width * d); cv.height = Math.max(1, r.height * d); const g = cv.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0); return [g, r.width, r.height]; }
 const sig = x => 1 / (1 + Math.exp(-x));
+const es = T => 6.112 * Math.exp(17.67 * T / (T + 243.5));          // saturation vapor pressure, hPa (Bolton 1980)
+const dewPt = (T, rh) => { const g = Math.log(Math.max(1, rh) / 100) + 17.67 * T / (T + 243.5); return 243.5 * g / (17.67 - g); };
 
 /* ===== Parts (bilingual) ===== */
 const PARTS = {
@@ -312,6 +339,7 @@ Lab.onLang(renderSyms);
       ['🌧️', o('Rain gauge','雨量器'), rainTotal(t).toFixed(1) + ' mm', o('total rainfall','累计降雨量')]
     ];
     Lab.$('#inst').innerHTML = I.map(([ic, n, v, d]) => `<div class="counter"><small>${ic} ${Lab.L(n)}</small><b>${v}</b><span>${Lab.L(d)}</span></div>`).join('');
+    if (Lab.adv()) dewUpdate();
   }
   function frontPath(g, P, x0, y0, dir, len, color, kind){
     g.strokeStyle = color; g.fillStyle = color; g.lineWidth = 4; g.beginPath(); g.moveTo(...P(x0, y0)); g.lineTo(...P(x0 + dir[0] * len, y0 + dir[1] * len)); g.stroke();
@@ -359,6 +387,10 @@ Lab.onLang(renderSyms);
     for (const [fn, col] of [[h => YT(wx(h).temp), '#e5484d'], [h => YP(wx(h).pres), '#8b5cf6']]){ g.strokeStyle = col; g.lineWidth = 2.5; g.beginPath(); for (let h = 0; h <= t + .01; h += .25) h === 0 ? g.moveTo(X(h), fn(h)) : g.lineTo(X(h), fn(h)); g.stroke(); }
     g.strokeStyle = ink; g.setLineDash([4, 4]); g.beginPath(); g.moveTo(X(t), top); g.lineTo(X(t), bot); g.stroke(); g.setLineDash([]);
     g.textAlign = 'left'; g.font = '800 12px Nunito, sans-serif'; g.fillStyle = '#e5484d'; g.fillText('— ' + Lab.L(o('temperature','气温')), left + 8, top + 14); g.fillStyle = '#8b5cf6'; g.fillText('— ' + Lab.L(o('pressure','气压')), left + 100, top + 14);
+    if (Lab.adv()){   // 🚀 dew point line (same °C scale as temperature)
+      g.strokeStyle = '#16a34a'; g.lineWidth = 2; g.setLineDash([6, 4]); g.beginPath(); for (let h = 0; h <= t + .01; h += .25){ const w = wx(h), y = YT(Math.max(0, dewPt(w.temp, w.hum))); h === 0 ? g.moveTo(X(h), y) : g.lineTo(X(h), y); } g.stroke(); g.setLineDash([]);
+      g.fillStyle = '#16a34a'; g.fillText('-- ' + Lab.L(o('dew point','露点')), left + 180, top + 14);
+    }
   }
   let last = performance.now();
   (function loop(){ requestAnimationFrame(loop); const now = performance.now(), dt = Math.min(.05, (now - last) / 1000); last = now;
@@ -368,6 +400,54 @@ Lab.onLang(renderSyms);
   Lab.$('#wPlay').onclick = () => { if (t >= 48) t = 0; playing = !playing; lbl(); };
   Lab.$('#wReset').onclick = () => { t = 0; playing = false; Lab.$('#hour').value = 0; lbl(); side(); draw(); };
   addEventListener('resize', draw); addEventListener('labtheme', draw);
+  /* 🚀 Advanced: humidity & dew point */
+  function dewUpdate(){
+    const w = wx(t), T0 = w.temp, e = es(T0) * w.hum / 100, Td = dewPt(T0, w.hum), c = +Lab.$('#cool').value, T = T0 - c;
+    const sat = T <= Td + 1e-9, eNow = sat ? es(T) : e, rh = sat ? 100 : e / es(T) * 100, zh = Lab.lang === 'zh', f = n => n.toFixed(1);
+    Lab.$('#coolVal').textContent = c.toFixed(1) + ' °C';
+    const N = [[o('🌡️ Air temperature','🌡️ 气温'), f(T) + ' °C'], [o('💧 Relative humidity','💧 相对湿度'), Math.round(rh) + '%'],
+      [o('🌫️ Dew point','🌫️ 露点'), f(Td) + ' °C'], [o('♨️ Water vapor / most it can hold','♨️ 实际水汽压 / 饱和水汽压'), f(eNow) + ' / ' + f(es(T)) + ' hPa']];
+    Lab.$('#dewNums').innerHTML = N.map(([n, v]) => `<div class="counter"><span>${Lab.L(n)}</span><b>${v}</b></div>`).join('');
+    const st = Lab.$('#dewState');
+    st.className = 'result' + (sat ? ' good' : '');
+    st.textContent = sat ? Lab.L(o('💧 Saturated! The air cooled to its dew point, so the extra water vapor condenses into dew, fog or cloud droplets (about ' + f(e - eNow) + ' hPa of vapor condensed).', '💧 饱和了！空气降温到露点，多余的水汽凝结成露、雾或云滴（约 ' + f(e - eNow) + ' hPa 的水汽凝结了）。'))
+      : Lab.L(o('Cool it ' + f(T - Td) + ' °C more and dew forms.', '再降温 ' + f(T - Td) + ' °C 就会结露。'));
+    Lab.$('#dewFormula').innerHTML = zh
+      ? `饱和水汽压 e<sub>s</sub>(T) ≈ 6.11 × e<sup>17.67T/(T+243.5)</sup> hPa（气温越高，空气能容纳的水汽越多）<br>e<sub>s</sub>(${f(T)} °C) ≈ ${f(es(T))} hPa · 相对湿度 = e ÷ e<sub>s</sub> = ${f(eNow)} ÷ ${f(es(T))} ≈ ${Math.round(rh)}%<br>露点 = 使 e<sub>s</sub> 等于 e（${f(e)} hPa）的温度 ≈ ${f(Td)} °C`
+      : `Most vapor the air can hold: e<sub>s</sub>(T) ≈ 6.11 × e<sup>17.67T/(T+243.5)</sup> hPa (warmer air holds more)<br>e<sub>s</sub>(${f(T)} °C) ≈ ${f(es(T))} hPa · RH = e ÷ e<sub>s</sub> = ${f(eNow)} ÷ ${f(es(T))} ≈ ${Math.round(rh)}%<br>Dew point = the temperature where e<sub>s</sub> equals e (${f(e)} hPa) ≈ ${f(Td)} °C`;
+    dewDraw(T0, T, e, Td, eNow);
+  }
+  function dewDraw(T0, T, e, Td, eNow){
+    const dc = Lab.$('#dewCv'); if (!dc.getBoundingClientRect().width) return;
+    const [g, W, H] = fit(dc), L = 42, R = W - 12, Tp = 12, B = H - 32, X = v => L + (v + 10) / 50 * (R - L), Y = v => B - v / 75 * (B - Tp), ink2 = css('--ink-2');
+    g.clearRect(0, 0, W, H); g.strokeStyle = css('--line'); g.lineWidth = 1; g.strokeRect(L, Tp, R - L, B - Tp);
+    g.font = '700 11px Nunito, sans-serif'; g.fillStyle = ink2; g.textAlign = 'center';
+    for (let v = -10; v <= 40; v += 10) g.fillText(v + '°C', X(v), B + 14);
+    g.fillText(Lab.L(o('air temperature','气温')), (L + R) / 2, H - 4);
+    g.textAlign = 'right'; for (let v = 0; v <= 75; v += 25) g.fillText(v, L - 4, Y(v) + 4);
+    g.save(); g.translate(12, (Tp + B) / 2); g.rotate(-Math.PI / 2); g.textAlign = 'center'; g.fillText(Lab.L(o('water vapor (hPa)','水汽压 (hPa)')), 0, 0); g.restore();
+    g.fillStyle = 'rgba(34,197,94,.10)'; g.beginPath(); g.moveTo(X(-10), Tp); for (let v = -10; v <= 40.01; v += .5) g.lineTo(X(v), Math.max(Tp, Y(es(v)))); g.lineTo(X(40), Tp); g.closePath(); g.fill();
+    g.strokeStyle = '#16a34a'; g.lineWidth = 2.5; g.beginPath(); for (let v = -10; v <= 40.01; v += .5){ const y = Math.max(Tp, Y(es(v))); v === -10 ? g.moveTo(X(v), y) : g.lineTo(X(v), y); } g.stroke();
+    g.fillStyle = '#16a34a'; g.textAlign = 'left'; g.font = '800 11.5px Nunito, sans-serif'; g.fillText(Lab.L(o('saturated (100%) curve','饱和 (100%) 曲线')), X(-8), Tp + 16);
+    g.fillStyle = ink2; g.textAlign = 'right'; g.fillText(Lab.L(o('below the curve: not saturated','曲线下方：未饱和')), R - 6, Y(12));
+    // cooling path: sideways at constant vapor until the curve, then down along it
+    g.strokeStyle = '#3b82f6'; g.lineWidth = 2; g.setLineDash([5, 4]); g.beginPath(); g.moveTo(X(T0), Y(e)); g.lineTo(X(Math.max(T, Td)), Y(e)); if (T < Td){ for (let v = Td; v >= T; v -= .25) g.lineTo(X(v), Y(es(v))); g.lineTo(X(T), Y(es(T))); } g.stroke();
+    g.strokeStyle = '#16a34a'; g.setLineDash([2, 3]); g.beginPath(); g.moveTo(X(Td), Y(e)); g.lineTo(X(Td), B); g.stroke(); g.setLineDash([]);
+    g.fillStyle = '#16a34a'; g.textAlign = 'center'; g.fillText(Lab.L(o('dew point','露点')), X(Td), B - 6);
+    g.strokeStyle = '#e5484d'; g.lineWidth = 2; g.beginPath(); g.arc(X(T0), Y(e), 5, 0, 7); g.stroke();
+    g.fillStyle = '#3b82f6'; g.beginPath(); g.arc(X(T), Y(eNow), 6, 0, 7); g.fill();
+  }
+  Lab.$('#cool').oninput = dewUpdate;
+  Lab.$('#dewCheck').onclick = () => {
+    const w = wx(t), Td = dewPt(w.temp, w.hum), base = 125 * (w.temp - Td), v = parseFloat(Lab.$('#dewAns').value), m = Lab.$('#dewMsg');
+    if (isNaN(v)){ m.className = 'result bad'; m.textContent = Lab.L(o('Type a height in meters first.','请先输入高度（米）。')); return; }
+    const ok = Math.abs(v - base) <= Math.max(60, base * .1), calc = Math.round(base) + ' m = 125 × (' + w.temp.toFixed(1) + ' − ' + Td.toFixed(1) + ')';
+    m.className = 'result ' + (ok ? 'good' : 'bad');
+    m.textContent = ok ? Lab.L(o('✅ Yes! About ' + calc + '. ' + (base < 500 ? 'Very low clouds: rain or fog is likely.' : 'Now move the time slider: when are the clouds lowest?'), '✅ 对了！约 ' + calc.replace(' m', ' 米') + '。' + (base < 500 ? '云底很低，很可能下雨或起雾。' : '再拖动时间滑块：什么时候云底最低？')))
+      : Lab.L(o('❌ Not quite. Use the air temperature and dew point above (set extra cooling to 0): 125 × (T − dew point).', '❌ 还不对。用上面的气温和露点（降温滑块设为 0）计算：125 ×（气温 − 露点）。'));
+  };
+  Lab.onMode(adv => { requestAnimationFrame(() => { draw(); if (adv) dewUpdate(); }); });
+  addEventListener('resize', () => { if (Lab.adv()) requestAnimationFrame(dewUpdate); });
   Lab.onLang(() => { lbl(); side(); draw(); });
 })();
 
@@ -428,7 +508,12 @@ const PHOTOS = [
   { kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1d/Supercell_with_Tornado.jpg/960px-Supercell_with_Tornado.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A supercell thunderstorm producing a tornado near Stratton, Colorado.', zh:'美国科罗拉多州斯特拉顿附近，一个超级单体雷暴生成了龙卷风。', scale:{en:'Colorado, USA',zh:'美国科罗拉多州'}, credit:'BusyWikipedian', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Supercell_with_Tornado.jpg' },
   { part:'rainbands', kind:{en:'Satellite image',zh:'卫星影像'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/Katrina_2005-08-28_1702Z.jpg/960px-Katrina_2005-08-28_1702Z.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Hurricane Katrina over the Gulf of Mexico on August 28, 2005, seen by a NASA satellite. Find the eye and the spiral rain bands.', zh:'2005 年 8 月 28 日墨西哥湾上空的飓风“卡特里娜”，由美国国家航空航天局的卫星拍摄。找一找风眼和螺旋雨带。', scale:{en:'Gulf of Mexico',zh:'墨西哥湾'}, credit:'Jeff Schmaltz, MODIS Rapid Response Team, NASA/GSFC', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Katrina_2005-08-28_1702Z.jpg' },
   { part:'eye', kind:{en:'Astronaut photo',zh:'宇航员拍摄'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ac/Hurricane_Isabel_eye_from_ISS.jpg/960px-Hurricane_Isabel_eye_from_ISS.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Looking down into the eye of Hurricane Isabel from the International Space Station in 2003. Inside the eye the air is calm and nearly clear.', zh:'2003 年从国际空间站俯视飓风“伊莎贝尔”的风眼。风眼里面风平浪静，几乎没有云。', scale:{en:'Atlantic Ocean',zh:'大西洋'}, credit:'NASA astronaut Ed Lu', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Hurricane_Isabel_eye_from_ISS.jpg' },
-  { type:'video', kind:{en:'Satellite video',zh:'卫星影片'}, media:'https://upload.wikimedia.org/wikipedia/commons/b/b6/Hurricane_Larry_persists_as_a_major_hurricane_for_four_straight_days_%28CIRA_2021-09-08%29.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b6/Hurricane_Larry_persists_as_a_major_hurricane_for_four_straight_days_%28CIRA_2021-09-08%29.webm/500px--Hurricane_Larry_persists_as_a_major_hurricane_for_four_straight_days_%28CIRA_2021-09-08%29.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b6/Hurricane_Larry_persists_as_a_major_hurricane_for_four_straight_days_%28CIRA_2021-09-08%29.webm/500px--Hurricane_Larry_persists_as_a_major_hurricane_for_four_straight_days_%28CIRA_2021-09-08%29.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Watch: Hurricane Larry (2021) filmed by a weather satellite. See how the whole storm spins around its eye.', zh:'看一看：气象卫星拍下的飓风“拉里”（2021 年）。注意整个风暴是怎样绕着风眼旋转的。', credit:'GOES imagery: CSU/CIRA & NOAA', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Hurricane_Larry_persists_as_a_major_hurricane_for_four_straight_days_(CIRA_2021-09-08).webm' }
+  { type:'video', kind:{en:'Satellite video',zh:'卫星影片'}, media:'https://upload.wikimedia.org/wikipedia/commons/b/b6/Hurricane_Larry_persists_as_a_major_hurricane_for_four_straight_days_%28CIRA_2021-09-08%29.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b6/Hurricane_Larry_persists_as_a_major_hurricane_for_four_straight_days_%28CIRA_2021-09-08%29.webm/500px--Hurricane_Larry_persists_as_a_major_hurricane_for_four_straight_days_%28CIRA_2021-09-08%29.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b6/Hurricane_Larry_persists_as_a_major_hurricane_for_four_straight_days_%28CIRA_2021-09-08%29.webm/500px--Hurricane_Larry_persists_as_a_major_hurricane_for_four_straight_days_%28CIRA_2021-09-08%29.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Watch: Hurricane Larry (2021) filmed by a weather satellite. See how the whole storm spins around its eye.', zh:'看一看：气象卫星拍下的飓风“拉里”（2021 年）。注意整个风暴是怎样绕着风眼旋转的。', credit:'GOES imagery: CSU/CIRA & NOAA', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Hurricane_Larry_persists_as_a_major_hurricane_for_four_straight_days_(CIRA_2021-09-08).webm' },
+  { kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/16/Hailstorm.jpg/960px-Hailstorm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'After a severe thunderstorm, hail covers a street like snow. Strong updrafts inside a cumulonimbus cloud toss ice pellets up and down until they grow too heavy and fall.', zh:'一场强雷暴过后，冰雹像雪一样铺满了街道。积雨云里强劲的上升气流把小冰粒上下抛来抛去，冰粒越长越大，重到托不住时就落了下来。', credit:'NOAA Photo Library (NSSL)', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Hailstorm.jpg' },
+  { kind:{en:'Weather instrument',zh:'气象仪器'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1b/Anemometer.jpg/960px-Anemometer.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A cup anemometer measures wind speed. The wind pushes the three cups around; the faster they spin, the stronger the wind.', zh:'杯式风速计用来测量风速。风推着三个风杯转动，转得越快，风就越大。', credit:'Stefan Kühn', license:'CC BY 3.0', page:'https://commons.wikimedia.org/wiki/File:Anemometer.jpg' },
+  { part:'eyewall', kind:{en:'Historic radar image',zh:'历史雷达图像'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/96/Weather_radar.jpg/960px-Weather_radar.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'An early weather-radar screen showing Hurricane Abby approaching the coast of British Honduras (today’s Belize) in 1960. The radar sees rain: the bright ring around the dark eye is the eyewall, and spiral rainbands curl outward.', zh:'早期气象雷达屏幕上的飓风“艾比”，1960 年它正逼近英属洪都拉斯（今伯利兹）海岸。雷达“看”到的是雨：围着黑色风眼的亮环就是眼墙，螺旋雨带向外弯曲伸展。', scale:{en:'1960',zh:'1960 年'}, credit:'NOAA National Weather Service', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Weather_radar.jpg' },
+  { type:'youtube', yt:'-s3UwOq1P1E', kind:{en:'Video',zh:'视频'}, en:'SciShow Kids: what is a tornado? Where tornadoes come from, how fast their winds spin, and how scientists study them.', zh:'SciShow Kids：什么是龙卷风？龙卷风从哪里来、风转得有多快，科学家又是怎样研究它们的。', credit:'SciShow Kids (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'pSajNLBH7cA', kind:{en:'Video',zh:'视频'}, en:'National Geographic, “Tornadoes 101”: how tornadoes form inside big thunderstorms, how they are rated, and how to stay safe.', zh:'美国国家地理《龙卷风 101》：龙卷风怎样在强雷暴中形成、怎样划分等级，以及怎样保护自己。', credit:'National Geographic (YouTube)', license:'YouTube' }
 ];
 PHOTOS.forEach(it => { if (it.part && PARTS[it.part]) PARTS[it.part].photo = it; });
 LabPhotos.render(Lab.$('#gallery'), PHOTOS);

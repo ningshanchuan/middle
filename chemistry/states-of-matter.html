@@ -44,6 +44,14 @@
 .phasemap .pc.on path{stroke-width:8}
 .phasemap .pc.on circle{stroke:var(--ink);stroke-width:4}
 .sublabel{font-weight:800;color:var(--ink-2);font-size:13px;letter-spacing:.05em;text-transform:uppercase;margin:26px 0 10px}
+/* 🚀 Advanced mode */
+.advgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:16px;align-items:start;margin-top:10px}
+.advgrid .pd{position:relative;height:260px;background:var(--surface);border-radius:12px;border:1px solid var(--line)}
+.advgrid .pd canvas{position:absolute;inset:0;width:100%;height:100%}
+.advcol{display:flex;flex-direction:column;gap:10px}
+.fml{font-family:ui-monospace,Consolas,monospace;font-size:13px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;line-height:1.55;overflow-wrap:anywhere}
+.btn.sm{padding:6px 10px;font-size:13px;border-radius:10px}
+@media (max-width:760px){.advgrid{grid-template-columns:1fr}}
 @media (max-width:980px){.statecards{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:560px){.readout{width:140px;padding:8px;top:96px}.readout .mini,.readout small{display:none}.readout .temp{font-size:28px}#stage .lab-caption{max-width:calc(100% - 170px)}.pill.heat input[type=range]{width:120px}.statecards{grid-template-columns:1fr}}
 </style>
@@ -58,6 +66,7 @@
 </header>
 
 <section class="wrap" id="explore" data-nav="3D Particle Box" data-nav-zh="3D 粒子盒">
+  <div class="lab-mode" style="margin-bottom:10px"></div>
   <div class="explorer">
     <div class="stage card" id="stage" data-3d>
       <div class="toolbar">
@@ -73,6 +82,31 @@
       </div>
     </div>
     <aside class="info card" id="info" aria-live="polite"></aside>
+  </div>
+  <div class="adv adv-box" style="margin-top:12px">
+    <b data-zh="🚀 进阶：气压、沸点和分子速度">🚀 Advanced: air pressure, boiling point and molecule speed</b>
+    <div class="advgrid">
+      <div class="advcol">
+        <label class="ctl"><span><span data-zh="盒子上方的气压">Air pressure on the box</span>: <b id="aPv">1.00 atm</b></span><input id="aP" type="range" min="-1" max="0.477" step="0.001" value="0" aria-label="air pressure"></label>
+        <div class="btnrow" id="aPre">
+          <button class="btn ghost sm" data-p="0.33" data-zh="珠峰顶 ≈0.33 atm">Everest top ≈0.33 atm</button>
+          <button class="btn ghost sm" data-p="0.83" data-zh="丹佛 ≈0.83 atm">Denver ≈0.83 atm</button>
+          <button class="btn ghost sm" data-p="1" data-zh="海平面 1 atm">Sea level 1 atm</button>
+          <button class="btn ghost sm" data-p="2" data-zh="高压锅 ≈2 atm">Pressure cooker ≈2 atm</button>
+        </div>
+        <div class="counters">
+          <div class="counter"><b id="aBP">100 °C</b><span data-zh="此气压下的沸点">boiling point at this pressure</span></div>
+          <div class="counter"><b id="aV">—</b><span data-zh="水分子的平均速率">average speed of a water molecule</span></div>
+        </div>
+        <div class="fml" id="aF"></div>
+        <div><b data-zh="🎯 挑战">🎯 Challenge</b> <span id="aChQ"></span> <button class="btn ghost sm" id="aChNew" data-zh="换一个 ↻">New ↻</button></div>
+        <div class="result" id="aCh"></div>
+      </div>
+      <div>
+        <div class="pd"><canvas id="pdCv" aria-label="phase diagram of water"></canvas></div>
+        <small class="muted" data-zh="水的相图（压强用对数坐标）。虚线 = 当前气压；加热时圆点沿虚线向右移动，碰到曲线就发生物态变化。临界点在 374 °C、218 atm（图外）。">Phase diagram of water (pressure on a log scale). Dashed line = your pressure; heating moves the dot right along it, and it changes state where it crosses a curve. The critical point is at 374 °C and 218 atm (off the chart).</small>
+      </div>
+    </div>
   </div>
   <div class="chips" id="chips"></div>
 </section>
@@ -138,6 +172,7 @@
         <div class="counter"><b id="pV">1.00</b><span data-zh="压强（相对值）">pressure (relative)</span></div>
         <div class="counter"><b id="hitV">0</b><span data-zh="每秒撞击器壁次数">wall hits per second</span></div>
       </div>
+      <div class="adv fml" id="gasLaw"></div>
       <div class="result" id="gasMsg"></div>
     </div>
   </div>
@@ -194,24 +229,44 @@ const RP = {
     media:'https://upload.wikimedia.org/wikipedia/commons/7/75/Melting_Ice_time_lapse.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original',
     poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/75/Melting_Ice_time_lapse.webm/960px--Melting_Ice_time_lapse.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo',
     en:'Video (9 seconds): ice melting in time-lapse. Solid → liquid. The real melting took about 20 minutes. Watch the ice lose its shape.',
-    zh:'视频（9 秒）：冰融化的延时摄影。固体 → 液体。真实的融化过程大约用了 20 分钟。看冰是怎样一点点失去形状的。' }
+    zh:'视频（9 秒）：冰融化的延时摄影。固体 → 液体。真实的融化过程大约用了 20 分钟。看冰是怎样一点点失去形状的。' },
+  snowflakes:lpS('c/c2', 'SnowflakesWilsonBentley.jpg', { kind:{en:'Historic photo', zh:'历史照片'}, credit:'Wilson Bentley', license:'Public domain',
+    en:'Snowflakes photographed through a microscope by Wilson Bentley, a Vermont farmer, around 1900. In a cloud, water vapor turns straight into ice (deposition), and the molecules lock into six-sided crystals.',
+    zh:'美国佛蒙特州的农民威尔逊·本特利在 1900 年前后用显微镜拍下的雪花。在云里，水蒸气直接变成冰（凝华），水分子排成六边形的晶体。' }),
+  gallium:lpS('9/92', 'Gallium_crystals.jpg', { kind:LPK.photo, credit:'Foobar', license:'CC BY-SA 3.0',
+    en:'Crystals of gallium, a metal that melts at about 30 °C (86 °F). Held in a warm hand, this solid metal would slowly turn into a silvery liquid.',
+    zh:'镓的晶体。这种金属大约在 30 °C 就会熔化。握在温暖的手心里，这块固体金属会慢慢变成银白色的液体。' }),
+  mercury:lpS('9/99', 'Pouring_liquid_mercury_bionerd.jpg', { kind:LPK.photo, credit:'Bionerd', license:'CC BY 3.0',
+    en:'Mercury, a metal that is liquid at room temperature: it freezes at about −39 °C and boils at about 357 °C. Every substance has its own melting and boiling points. Mercury is poisonous: never touch it.',
+    zh:'汞（水银）是常温下呈液态的金属：它大约在 −39 °C 凝固、357 °C 沸腾。每种物质都有自己的熔点和沸点。汞有毒，千万不要用手碰。' }),
+  lava:{ src:'https://upload.wikimedia.org/wikipedia/commons/8/82/Pahoehoe_toe.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', page:LPP + 'Pahoehoe_toe.jpg',
+    kind:LPK.photo, credit:'Hawaiian Volcano Observatory (USGS)', license:'Public domain',
+    en:'Liquid rock! Glowing lava oozes out at Kīlauea volcano, Hawaii, at over 1,000 °C. As its edges cool, the liquid freezes into solid rock: freezing does not always mean cold.',
+    zh:'液态的岩石！夏威夷基拉韦厄火山流出的熔岩，温度超过 1000 °C，正发着光。它的边缘一冷却，液体就凝固成了坚硬的岩石：凝固并不一定意味着寒冷。' },
+  tedPlasma:{ type:'youtube', yt:'tJplytSR-ww', kind:{en:'Video · animated lesson', zh:'视频 · 动画课'}, credit:'TED-Ed (YouTube)', license:'YouTube',
+    en:'TED-Ed video (a few minutes): solid, liquid, gas and … plasma? Meet the fourth state of matter, found in lightning, neon signs and the Sun.',
+    zh:'TED-Ed 视频（几分钟）：固体、液体、气体，还有……等离子体？认识物质的第四种状态，闪电、霓虹灯和太阳里都有它。（英文，可开字幕）' }
 };
 const REAL_PIC = { solid:RP.ice, vaporization:RP.boiling, condensation:RP.bottle, deposition:RP.frost, sublimation:RP.dryIce, plasma:RP.lightning };
 const realFig = k => REAL_PIC[k] ? LabPhotos.figure(REAL_PIC[k]) : '';
-LabPhotos.render('#gallery', [RP.ice, RP.meltVideo, RP.boiling, RP.bottle, RP.frost, RP.dryIce, RP.nitrogen, RP.plasmaLamp, RP.lightning], {
+LabPhotos.render('#gallery', [RP.ice, RP.meltVideo, RP.gallium, RP.mercury, RP.lava, RP.boiling, RP.bottle, RP.frost, RP.snowflakes, RP.dryIce, RP.nitrogen, RP.plasmaLamp, RP.lightning, RP.tedPlasma], {
   title:{en:'See the real thing', zh:'看看真实的样子'},
   sub:{en:'The particle box shows what the molecules are doing. This is what you actually see when matter changes state. Click a picture to enlarge it; the video plays only when you press play.', zh:'粒子盒让你看到分子在做什么。而物态变化时，你真正能看到的是这些。点击图片可放大；视频只有按下播放键才会播放。'} });
 /* ===== end real photos ===== */
 const o = (en, zh) => ({en, zh});
 /* ===== Water heating data (per gram): ice from −40 °C to steam at 150 °C ===== */
 const W = { c_ice:2.09, c_liq:4.18, c_gas:2.01, Lf:334, Lv:2260, T0:-40, T1:150 };
-const E1 = W.c_ice * (0 - W.T0), E2 = E1 + W.Lf, E3 = E2 + W.c_liq * 100, E4 = E3 + W.Lv, EMAX = E4 + W.c_gas * (W.T1 - 100);
+/* Boiling point BP and heat of vaporization LV depend on the air pressure PATM (🚀 Advanced mode only; Basic is always 1 atm → 100 °C, 2260 J/g) */
+let PATM = 1, BP = 100, LV = W.Lv, E1, E2, E3, E4, EMAX;
+function setEnergies(){ E1 = W.c_ice * (0 - W.T0); E2 = E1 + W.Lf; E3 = E2 + W.c_liq * BP; E4 = E3 + LV; EMAX = E4 + W.c_gas * (W.T1 - BP); }
+setEnergies();
+const bpAt = atm => 1730.63 / (8.07131 - Math.log10(atm * 760)) - 233.426;      // Antoine equation for water (P in mmHg)
 function phaseAt(E){
   if (E < E1) return { T:W.T0 + E / W.c_ice, phase:'solid', f:0 };
   if (E < E2) return { T:0, phase:'melting', f:(E - E1) / W.Lf };
   if (E < E3) return { T:(E - E2) / W.c_liq, phase:'liquid', f:0 };
-  if (E < E4) return { T:100, phase:'boiling', f:(E - E3) / W.Lv };
-  return { T:100 + (E - E4) / W.c_gas, phase:'gas', f:0 };
+  if (E < E4) return { T:BP, phase:'boiling', f:(E - E3) / LV };
+  return { T:BP + (E - E4) / W.c_gas, phase:'gas', f:0 };
 }
 const COL = { particle:'#e5484d', temperature:'#f59f00', solid:'#8ecbff', liquid:'#4d8dff', gas:'#ff9f6b', plasma:'#c77dff',
   melting:'#3fbf9a', freezing:'#4dabf7', vaporization:'#ff8a5c', condensation:'#74c0fc', sublimation:'#f783ac', deposition:'#b197fc' };
@@ -347,20 +402,20 @@ Lab.$$('.phasemap .pc').forEach(g => g.addEventListener('click', () => { SOM.sel
 /* ===== Readout card with a live mini heating curve ===== */
 Lab.$('#readout').innerHTML = `<div class="temp" id="rT"></div><span class="phase" id="rP"></span><small id="rE"></small><div class="mini"><canvas id="miniCv"></canvas></div><small id="rNote"></small>`;
 function curvePts(){ const pts = []; for (let i = 0; i <= 200; i++){ const E = i / 200 * EMAX; pts.push([E, phaseAt(E).T]); } return pts; }
-const CURVE = curvePts();
+let CURVE = curvePts();
 function renderReadout(){
   const p = SOM.state(), key = SOM.plasma ? 'plasma' : p.phase;
   Lab.$('#rT').textContent = SOM.plasma ? '> 10 000 °C' : `${p.T.toFixed(p.T % 1 && Math.abs(p.T) < 100 ? 1 : 0)} °C`;
   const pe = Lab.$('#rP'); pe.textContent = SOM.sub > 0 && !SOM.plasma ? Lab.L(SOM.subTarget >= SOM.sub ? PARTS.sublimation.name : PARTS.deposition.name) : Lab.L(phaseName[key]); pe.style.background = phaseCol[key];
   Lab.$('#rE').textContent = Lab.L(o('Heat added: ','已加入热量：')) + Math.round(SOM.E) + ' J/g';
-  const note = SOM.plasma ? o('Electrons torn off: ions + free electrons','电子被剥离：离子 + 自由电子') : p.phase === 'melting' ? o(`Plateau! ${Math.round(p.f * 100)}% melted, still 0 °C`, `平台!已熔化 ${Math.round(p.f * 100)}%,仍为 0 °C`) : p.phase === 'boiling' ? o(`Plateau! ${Math.round(p.f * 100)}% boiled away, still 100 °C`, `平台!已汽化 ${Math.round(p.f * 100)}%,仍为 100 °C`) : o('Temperature rising or falling with heat','温度随热量升高或降低');
+  const note = SOM.plasma ? o('Electrons torn off: ions + free electrons','电子被剥离：离子 + 自由电子') : p.phase === 'melting' ? o(`Plateau! ${Math.round(p.f * 100)}% melted, still 0 °C`, `平台!已熔化 ${Math.round(p.f * 100)}%,仍为 0 °C`) : p.phase === 'boiling' ? o(`Plateau! ${Math.round(p.f * 100)}% boiled away, still ${+BP.toFixed(1)} °C`, `平台!已汽化 ${Math.round(p.f * 100)}%,仍为 ${+BP.toFixed(1)} °C`) : o('Temperature rising or falling with heat','温度随热量升高或降低');
   Lab.$('#rNote').textContent = Lab.L(note);
   const cv = Lab.$('#miniCv'), b = cv.getBoundingClientRect(); if (!b.width) return;
   const d = Math.min(devicePixelRatio || 1, 2); if (cv.width !== Math.round(b.width * d)){ cv.width = Math.round(b.width * d); cv.height = Math.round(b.height * d); }
   const g = cv.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, b.width, b.height);
   const css = getComputedStyle(document.documentElement), X = E => 6 + E / EMAX * (b.width - 12), Y = T => b.height - 8 - (T - W.T0) / (W.T1 - W.T0) * (b.height - 16);
-  g.strokeStyle = css.getPropertyValue('--line').trim(); g.setLineDash([3, 3]); [0, 100].forEach(T => { g.beginPath(); g.moveTo(4, Y(T)); g.lineTo(b.width - 4, Y(T)); g.stroke(); }); g.setLineDash([]);
-  g.fillStyle = css.getPropertyValue('--ink-2').trim(); g.font = '700 9px Nunito, sans-serif'; g.fillText('0 °C', 8, Y(0) - 3); g.fillText('100 °C', 8, Y(100) - 3);
+  g.strokeStyle = css.getPropertyValue('--line').trim(); g.setLineDash([3, 3]); [0, BP].forEach(T => { g.beginPath(); g.moveTo(4, Y(T)); g.lineTo(b.width - 4, Y(T)); g.stroke(); }); g.setLineDash([]);
+  g.fillStyle = css.getPropertyValue('--ink-2').trim(); g.font = '700 9px Nunito, sans-serif'; g.fillText('0 °C', 8, Y(0) - 3); g.fillText(Math.round(BP) + ' °C', 8, Y(BP) - 3);
   g.lineWidth = 2.5; g.strokeStyle = css.getPropertyValue('--brand').trim(); g.beginPath(); CURVE.forEach(([E, T], i) => i ? g.lineTo(X(E), Y(T)) : g.moveTo(X(E), Y(T))); g.stroke();
   if (!SOM.plasma){ g.fillStyle = '#ff7a59'; g.beginPath(); g.arc(X(SOM.E), Y(p.T), 5, 0, 6.283); g.fill(); }
 }
@@ -375,9 +430,82 @@ function renderReadout(){
     if (SOM.sub !== SOM.subTarget){ const d = SOM.subTarget - SOM.sub; SOM.sub += Math.sign(d) * Math.min(Math.abs(d), dt * .12); if (SOM.sub <= 0 && SOM.subTarget === 0) SOM.sub = 0; }
     if (document.activeElement !== slider) slider.value = Math.round(SOM.E / EMAX * 1000);
     renderReadout();
+    if (Lab.adv() && (++advTick % 6) === 0) renderAdv();
   }
   requestAnimationFrame(loop);
 })();
+
+/* ===== 🚀 Advanced: air pressure → boiling point, phase diagram, molecule speed, energy bookkeeping ===== */
+let advTick = 0, chTarget = 70;
+const aP = Lab.$('#aP'), num = (x, dp) => (+x.toFixed(dp)).toLocaleString('en-US');
+function setPressure(atm){
+  PATM = atm; BP = atm === 1 ? 100 : Math.round(bpAt(atm) * 10) / 10;
+  LV = Math.round(W.Lv + 2.4 * (100 - BP));                  // heat of vaporization is about 2.4 J/g larger per °C lower
+  setEnergies(); CURVE = curvePts(); SOM.E = Math.min(SOM.E, EMAX);
+  if (SOM.target != null) SOM.target = Math.min(SOM.target, EMAX);
+  Lab.$('#aPv').textContent = atm.toFixed(2) + ' atm  (' + Math.round(atm * 101.3) + ' kPa)';
+  renderAdv();
+}
+aP.oninput = () => setPressure(10 ** +aP.value);
+Lab.$$('#aPre button').forEach(b => b.onclick = () => { aP.value = Math.log10(+b.dataset.p); setPressure(+b.dataset.p); });
+const CH = [70, 85, 120, 50, 110];
+function newChallenge(){ chTarget = CH[(CH.indexOf(chTarget) + 1) % CH.length]; renderAdv(); }
+Lab.$('#aChNew').onclick = newChallenge;
+function renderAdv(){
+  const p = SOM.state(), T = p.T;
+  Lab.$('#aBP').textContent = num(BP, 1) + ' °C';
+  const TK = T + 273.15, v = Math.sqrt(3 * 8.314 * TK / 0.018);
+  Lab.$('#aV').textContent = SOM.plasma ? '—' : '≈ ' + Math.round(v) + ' m/s';
+  // energy per gram so far: Q = c·ΔT for warming, Q = L for changing state
+  const t1 = `2.09×${p.phase === 'solid' ? num(T - W.T0, 1) : 40}`, parts = [t1];
+  if (p.phase !== 'solid') parts.push(p.phase === 'melting' ? `334×${p.f.toFixed(2)}` : '334');
+  if (['liquid', 'boiling', 'gas'].includes(p.phase)) parts.push(`4.18×${p.phase === 'liquid' ? num(T, 1) : num(BP, 1)}`);
+  if (p.phase === 'boiling') parts.push(`${LV}×${p.f.toFixed(2)}`);
+  if (p.phase === 'gas') parts.push(`${LV} + 2.01×${num(T - BP, 1)}`);
+  Lab.$('#aF').innerHTML = SOM.plasma ? Lab.L(o('Plasma: above about 10 000 °C, collisions knock electrons off the atoms.','等离子体：温度高于约 10 000 °C 时，碰撞会把电子从原子上撞下来。')) :
+    `${Lab.L(o('Heat per gram','每克吸收的热量'))}: Q = ${parts.join(' + ')} ≈ ${Math.round(SOM.E)} J/g<br>` +
+    `<span class="muted">${Lab.L(o('warming: Q = c·m·Δt · changing state: Q = L·m (m = 1 g)','升温：Q = c·m·Δt · 物态变化：Q = L·m（m = 1 g）'))}</span><br>` +
+    `${Lab.L(o('Speed','速率'))}: v = √(3RT/M) = √(3×8.31×${num(TK, 0)} K ÷ 0.018 kg/mol) ≈ ${Math.round(v)} m/s`;
+  Lab.$('#aChQ').textContent = Lab.L(o(`Make the water boil at about ${chTarget} °C: set the pressure, then heat it.`, `让水在约 ${chTarget} °C 时沸腾：先调气压，再加热。`));
+  const r = Lab.$('#aCh');
+  if (SOM.plasma || SOM.sub > 0 || p.phase !== 'boiling'){ r.textContent = Lab.L(o(`Not boiling yet. Boiling point now: ${num(BP, 1)} °C.`, `还没有沸腾。现在的沸点：${num(BP, 1)} °C。`)); r.className = 'result'; }
+  else if (Math.abs(BP - chTarget) <= 2){ r.textContent = Lab.L(o(`✅ Boiling at ${num(BP, 1)} °C under ${PATM.toFixed(2)} atm. ${chTarget < 100 ? 'Lower pressure → lower boiling point (mountain cooking is slow!).' : 'Higher pressure → higher boiling point (that is how a pressure cooker cooks faster).'}`, `✅ 在 ${PATM.toFixed(2)} atm 下于 ${num(BP, 1)} °C 沸腾。${chTarget < 100 ? '气压越低，沸点越低（高山上煮饭不容易熟）。' : '气压越高，沸点越高（高压锅就是这样把饭煮熟得更快）。'}`)); r.className = 'result good'; }
+  else { const up = BP < chTarget; r.textContent = Lab.L(o(`Boiling at ${num(BP, 1)} °C, not ${chTarget} °C. ${up ? 'Raise' : 'Lower'} the pressure.`, `现在在 ${num(BP, 1)} °C 沸腾，不是 ${chTarget} °C。把气压调${up ? '高' : '低'}一些。`)); r.className = 'result bad'; }
+  drawPD(p);
+}
+function drawPD(p){
+  const cv = Lab.$('#pdCv'), b = cv.getBoundingClientRect(); if (!b.width) return;
+  const d = Math.min(devicePixelRatio || 1, 2); if (cv.width !== Math.round(b.width * d) || cv.height !== Math.round(b.height * d)){ cv.width = Math.round(b.width * d); cv.height = Math.round(b.height * d); }
+  const g = cv.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, b.width, b.height);
+  const css = getComputedStyle(document.documentElement), ink = css.getPropertyValue('--ink').trim(), ink2 = css.getPropertyValue('--ink-2').trim(), brand = css.getPropertyValue('--brand').trim();
+  const L = 52, R = 12, Tp = 12, B = 34, w = b.width - L - R, h = b.height - Tp - B;
+  const X = t => L + (t + 40) / 200 * w, Y = q => Tp + (1 - (Math.log10(q) + 4) / 5) * h;      // −40…160 °C · 0.0001…10 atm
+  const vap = t => 10 ** (8.07131 - 1730.63 / (t + 233.426)) / 760, subl = t => .006037 * Math.exp(-6141 * (1 / (t + 273.15) - 1 / 273.16));
+  const top = Y(10), bot = Y(1e-4);
+  g.globalAlpha = .3;
+  g.fillStyle = COL.gas; g.beginPath(); g.moveTo(X(-40), bot); for (let t = -40; t < 0; t += 2) g.lineTo(X(t), Y(subl(t))); for (let t = .01; t <= 160; t += 2) g.lineTo(X(t), Y(vap(t))); g.lineTo(X(160), Y(vap(160))); g.lineTo(X(160), bot); g.closePath(); g.fill();
+  g.fillStyle = COL.solid; g.beginPath(); g.moveTo(X(-40), top); g.lineTo(X(0), top); g.lineTo(X(0), Y(subl(0))); for (let t = 0; t >= -40; t -= 2) g.lineTo(X(t), Y(subl(t))); g.closePath(); g.fill();
+  g.fillStyle = COL.liquid; g.beginPath(); g.moveTo(X(0), top); g.lineTo(X(160), top); for (let t = 160; t >= .01; t -= 2) g.lineTo(X(t), Y(vap(t))); g.lineTo(X(0), Y(vap(.01))); g.closePath(); g.fill();
+  g.globalAlpha = 1;
+  // axes and ticks
+  g.font = '700 10px Nunito, sans-serif'; g.fillStyle = ink2; g.strokeStyle = ink2; g.lineWidth = 1;
+  g.textAlign = 'right'; g.textBaseline = 'middle'; [1e-4, 1e-3, .01, .1, 1, 10].forEach(q => g.fillText(String(q), L - 5, Y(q)));
+  g.textAlign = 'center'; g.textBaseline = 'top'; [-40, 0, 40, 80, 120, 160].forEach(t => g.fillText(t, X(t), bot + 4));
+  g.fillText(Lab.L(o('temperature (°C)','温度（°C）')), L + w / 2, bot + 18);
+  g.save(); g.translate(11, Tp + h / 2); g.rotate(-Math.PI / 2); g.textBaseline = 'middle'; g.fillText(Lab.L(o('pressure (atm)','压强（atm）')), 0, 0); g.restore();
+  g.strokeRect(L, Tp, w, h);
+  // phase boundaries
+  g.strokeStyle = ink; g.lineWidth = 2; g.beginPath(); for (let t = -40; t <= 0; t += 2) t === -40 ? g.moveTo(X(t), Y(subl(t))) : g.lineTo(X(t), Y(subl(t))); for (let t = .01; t <= 160; t += 2) g.lineTo(X(t), Y(vap(t))); g.stroke();
+  g.beginPath(); g.moveTo(X(0), Y(subl(0))); g.lineTo(X(-.4), top); g.stroke();
+  g.fillStyle = ink; g.beginPath(); g.arc(X(.01), Y(.006), 3.5, 0, 6.283); g.fill();
+  g.font = '700 10px Nunito, sans-serif'; g.textAlign = 'left'; g.textBaseline = 'top'; g.fillText(Lab.L(o('triple point','三相点')), X(3), Y(.006) + 2);
+  g.font = '800 13px Nunito, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(Lab.L(o('Solid','固态')), X(-20), Y(3)); g.fillText(Lab.L(o('Liquid','液态')), X(80), Y(3)); g.fillText(Lab.L(o('Gas','气态')), X(90), Y(.003));
+  // your pressure (dashed) and the box state (dot)
+  g.setLineDash([5, 4]); g.strokeStyle = brand; g.lineWidth = 2; g.beginPath(); g.moveTo(L, Y(PATM)); g.lineTo(L + w, Y(PATM)); g.stroke(); g.setLineDash([]);
+  if (!SOM.plasma){ const tx = Math.max(-40, Math.min(160, p.T)); g.fillStyle = '#ff7a59'; g.strokeStyle = ink; g.lineWidth = 2; g.beginPath(); g.arc(X(tx), Y(PATM), 6, 0, 6.283); g.fill(); g.stroke(); }
+}
+Lab.onMode(adv => { setPressure(adv ? 10 ** +aP.value : 1); if (adv) requestAnimationFrame(renderAdv); });
 
 /* ===== State comparison cards (animated mini particle views) ===== */
 const CARDS = [
@@ -560,6 +688,8 @@ const onScreen = el => { const b = el.getBoundingClientRect(); return b.bottom >
   }
   function report(){
     Lab.$('#pV').textContent = S.P.toFixed(2); Lab.$('#hitV').textContent = Math.round(S.hitRate);
+    if (Lab.adv()){ const TK = S.T + 273.15, kPa = 101.3 / S.vol * TK / 298.15;   // ideal gas, starting at 101.3 kPa, 100 %, 25 °C
+      Lab.$('#gasLaw').innerHTML = `🚀 ${Lab.L(o('Gas law','气体定律'))}: p₂ = p₁ × V₁/V₂ × T₂/T₁<br>= 101.3 kPa × 100/${Math.round(S.vol * 100)} × ${TK.toFixed(0)} K/298 K ≈ <b>${kPa.toFixed(0)} kPa</b> (${(kPa / 101.3).toFixed(2)} atm)<br><span class="muted">${Lab.L(o('T in kelvin: K = °C + 273. The counter above comes from counting particle hits in a simple 2D model, so it only roughly follows this.','T 用开尔文温度：K = °C + 273。上面的压强数值来自简化二维模型中粒子撞击的计数，只大致符合这个结果。'))}</span>`; }
     const m = Lab.$('#gasMsg');
     if (S.vol < .95 && S.T > 60){ m.textContent = Lab.L(o('Smaller AND hotter: particles are faster and the walls are closer, so pressure soars!','体积更小、温度更高：粒子更快、器壁更近，压强大幅升高！')); m.className = 'result bad'; }
     else if (S.vol < .95){ m.textContent = Lab.L(o('Less space: particles hit the walls more often, so the pressure goes up.','空间变小：粒子撞击器壁更频繁，所以压强增大。')); m.className = 'result good'; }

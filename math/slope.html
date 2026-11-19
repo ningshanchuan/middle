@@ -45,6 +45,7 @@
   <div class="ma-explore">
     <div class="ma-stage explore-stage" id="exStage" data-fs></div>
     <div class="card ctl">
+      <div class="lab-mode" style="align-self:flex-start"></div>
       <label class="ctl"><span><span data-zh="斜率 m = ">Slope m = </span><b id="mVal">0.5</b></span><input id="mIn" type="range" min="-4" max="4" step="0.25" value="0.5"></label>
       <label class="ctl"><span><span data-zh="截距 b = ">Intercept b = </span><b id="bVal">1</b></span><input id="bIn" type="range" min="-4" max="4" step="0.5" value="1"></label>
       <div class="ma-big" id="eqOut"></div>
@@ -54,6 +55,19 @@
         <button class="btn ghost" data-mb="2,-1">y = 2x − 1</button>
         <button class="btn ghost" data-mb="-0.5,3">y = −½x + 3</button>
         <button class="btn ghost" data-mb="0,2">y = 2</button>
+      </div>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:10px">
+        <b data-zh="进阶：代入求值、函数值表、垂直的直线">Advanced: plug in, table of values, perpendicular lines</b>
+        <label class="ctl"><span><span data-zh="选一个 x = ">Pick an x = </span><b id="xVal">2</b> <span data-zh="（白点）">(white dot)</span></span><input id="xIn" type="range" min="-5" max="5" step="0.5" value="2"></label>
+        <div id="plugOut" style="text-align:center;font-size:18px"></div>
+        <div id="advTab" style="text-align:center;overflow-x:auto"></div>
+        <div id="advFacts" class="muted" style="font-size:14px"></div>
+        <label style="font-weight:700;font-size:14px"><input type="checkbox" id="perpIn"> <span data-zh="显示过 (0, b) 的垂线（紫色）">Show the perpendicular line through (0, b) (purple)</span></label>
+        <div style="border-top:1px solid var(--line);padding-top:8px">
+          <b data-zh="🎯 挑战">🎯 Challenge</b> <span id="chTxt"></span>
+          <div class="btnrow" style="margin-top:6px"><button class="btn" id="chCheck" data-zh="检查">Check</button><button class="btn ghost" id="chNew" data-zh="换一题">New challenge</button></div>
+          <div class="result" id="chMsg"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -332,7 +346,63 @@ function eqTex(mn, md, bn, bd){               // y = (mn/md)x + (bn/bd), colour-
     if (m){ ctx.fillStyle = RISE; ctx.textAlign = 'left'; ctx.fillText(fmt(m), S.sx(1.15), S.sy(b + m / 2)); }
     ctx.beginPath(); ctx.arc(S.sx(0), S.sy(b), 8, 0, 7); ctx.fillStyle = C.pink; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke();
     ctx.fillStyle = C.pink; ctx.textAlign = 'right'; ctx.fillText('b', S.sx(-.25), S.sy(b + .3));
+    if (!Lab.adv()) return;
+    /* ---- Advanced: perpendicular line, the plugged-in point, challenge points ---- */
+    if (perp){
+      ctx.setLineDash([9, 7]);
+      if (m === 0) seg(0, -6, 0, 6, C.purple, 3);
+      else { const q = -1 / m; seg(-7, q * -7 + b, 7, q * 7 + b, C.purple, 3); }
+      ctx.setLineDash([]);
+    }
+    const yx = m * px + b;
+    if (Math.abs(yx) < 4.4){
+      ctx.setLineDash([5, 5]); seg(px, 0, px, yx, C.grey, 2); seg(px, yx, 0, yx, C.grey, 2); ctx.setLineDash([]);
+      ctx.beginPath(); ctx.arc(S.sx(px), S.sy(yx), 7, 0, 7); ctx.fillStyle = C.white; ctx.fill();
+      ctx.fillStyle = C.white; ctx.textAlign = 'left'; ctx.fillText(`(${fmt(px)}, ${fmt(yx)})`, S.sx(px + .2), S.sy(yx - .35));
+    }
+    const ch = CH[chI];
+    (ch.pts || []).forEach(p => { ctx.beginPath(); ctx.arc(S.sx(p[0]), S.sy(p[1]), 9, 0, 7); ctx.lineWidth = 3; ctx.strokeStyle = C.yellow; ctx.stroke(); });
+    if (ch.ref){ ctx.setLineDash([3, 6]); seg(-7, ch.ref[0] * -7 + ch.ref[1], 7, ch.ref[0] * 7 + ch.ref[1], C.yellow, 2.5); ctx.setLineDash([]); }
   });
+  /* ---- Advanced mode data ---- */
+  let px = 2, perp = false, chI = 0;
+  const CH = [   // answers m, b are reachable with the sliders (m step ¼, b step ½); pts / ref are drawn in yellow
+    { en:'Make the line parallel to the dotted line y = 2x − 3 that passes through (1, 4).', zh:'作一条与黄色点线 y = 2x − 3 平行、并经过点 (1, 4) 的直线。', m:2, b:2, pts:[[1, 4]], ref:[2, -3] },
+    { en:'Make the line perpendicular to the dotted line y = 2x + 1 that crosses the y-axis at −2.', zh:'作一条与黄色点线 y = 2x + 1 垂直、并与 y 轴交于 −2 的直线。', m:-.5, b:-2, ref:[2, 1] },
+    { en:'Make the line through the points (−2, 0) and (2, 2).', zh:'作一条经过点 (−2, 0) 和 (2, 2) 的直线。', m:.5, b:1, pts:[[-2, 0], [2, 2]] },
+    { en:'Make the line through (1, 1) and (3, −3).', zh:'作一条经过点 (1, 1) 和 (3, −3) 的直线。', m:-2, b:3, pts:[[1, 1], [3, -3]] },
+    { en:'Make a line whose x-intercept is 3 and whose y-intercept is −1.5.', zh:'作一条与 x 轴交于 (3, 0)、与 y 轴交于 (0, −1.5) 的直线。', m:.5, b:-1.5, pts:[[3, 0], [0, -1.5]] },
+    { en:'Make the line perpendicular to the dotted line y = −¼x that passes through the origin.', zh:'作一条与黄色点线 y = −¼x 垂直、并经过原点的直线。', m:4, b:0, ref:[-.25, 0] },
+    { en:'Make the line parallel to the dotted line y = −0.75x + 2 whose x-intercept is 4.', zh:'作一条与黄色点线 y = −0.75x + 2 平行、并与 x 轴交于 (4, 0) 的直线。', m:-.75, b:3, pts:[[4, 0]], ref:[-.75, 2] }
+  ];
+  function advUpdate(){
+    if (!Lab.adv()) return;
+    px = +Lab.$('#xIn').value; Lab.$('#xVal').textContent = fmt(px);
+    const yx = m * px + b, p = v => v < 0 ? `(${fmt(v)})` : fmt(v);
+    Lab.$('#plugOut').innerHTML = MathAnim.tex(`y = \\textcolor{#d49a1c}{${fmt(m)}}\\cdot ${p(px)} \\textcolor{#d6458b}{${b < 0 ? '-' : '+'} ${fmt(Math.abs(b))}} = \\mathbf{${fmt(yx)}}`);
+    const xs = [-2, -1, 0, 1, 2], ys = xs.map(x => m * x + b);
+    Lab.$('#advTab').innerHTML = MathAnim.tex(`\\begin{array}{c|ccccc} x & ${xs.map(fmt).join(' & ')} \\\\ \\hline y & ${ys.map(fmt).join(' & ')} \\\\ \\Delta y & & ${ys.slice(1).map((y, i) => { const d = y - ys[i]; return '\\textcolor{#e0761b}{' + (d < 0 ? '' : '+') + fmt(d) + '}'; }).join(' & ')} \\end{array}`);
+    const xi = m === 0 ? (b === 0 ? o2('every point (the line is the x-axis)', '处处都在 x 轴上（这条线就是 x 轴）') : o2('none (parallel to the x-axis)', '没有（与 x 轴平行）')) : o2(`x = −b ÷ m = ${fmt(-b / m)}`, `x = −b ÷ m = ${fmt(-b / m)}`);
+    const ang = Math.atan(m) * 180 / Math.PI, q = m === 0 ? null : -1 / m;
+    Lab.$('#advFacts').innerHTML = Lab.L(o2('Δy is always m: equal steps in x give equal steps in y.', 'Δy 总等于 m：x 每次增加相同的量，y 也增加相同的量。'))
+      + '<br>' + Lab.L(o2('x-intercept (where y = 0): ', '与 x 轴的交点（y = 0 处）：')) + Lab.L(xi)
+      + '<br>' + Lab.L(o2(`Angle with the x-axis ≈ ${fmt(Math.round(ang * 10) / 10)}° (tan θ = m, a high-school preview)`, `直线与 x 轴的夹角（倾斜角）≈ ${fmt(Math.round(ang * 10) / 10)}°（k = tan α，高中会学）`))
+      + (perp ? '<br>' + Lab.L(q === null ? o2('Perpendicular to a horizontal line: a vertical line x = 0 (slope undefined).', '与水平线垂直的是竖直线 x = 0（斜率不存在）。')
+                                     : o2(`Perpendicular slope = −1 ÷ m = ${fmt(q)}; check: m × (−1/m) = −1.`, `垂线的斜率 = −1 ÷ m = ${fmt(q)}；验证：m × (−1/m) = −1。`)) : '');
+    Lab.$('#chTxt').textContent = Lab.L(CH[chI]);
+  }
+  Lab.$('#xIn').oninput = advUpdate;
+  Lab.$('#perpIn').onchange = () => { perp = Lab.$('#perpIn').checked; advUpdate(); };
+  Lab.$('#chNew').onclick = () => { chI = (chI + 1) % CH.length; Lab.$('#chMsg').textContent = ''; Lab.$('#chMsg').className = 'result'; advUpdate(); };
+  Lab.$('#chCheck').onclick = () => {
+    const ch = CH[chI], okM = Math.abs(m - ch.m) < 1e-9, okB = Math.abs(b - ch.b) < 1e-9, msg = Lab.$('#chMsg');
+    msg.textContent = Lab.L(okM && okB ? o2(`🎉 Yes! y = ${fmt(ch.m)}x ${ch.b < 0 ? '−' : '+'} ${fmt(Math.abs(ch.b))}`, `🎉 对了！y = ${fmt(ch.m)}x ${ch.b < 0 ? '−' : '+'} ${fmt(Math.abs(ch.b))}`)
+      : okM ? o2('The slope is right — now fix the intercept b.', '斜率对了——再调一调截距 b。')
+      : okB ? o2('The intercept is right — now fix the slope m.', '截距对了——再调一调斜率 m。')
+      : o2('Not yet. Find the slope first (rise ÷ run, parallel = same m, perpendicular = −1/m).', '还不对。先求斜率（上升 ÷ 前进；平行：k 相同；垂直：k 互为负倒数）。'));
+    msg.className = 'result ' + (okM && okB ? 'good' : 'bad');
+  };
+  Lab.onMode(advUpdate);
   const kindTxt = () => {
     if (m === 0) return o2('Horizontal line: slope 0 — y never changes.', '水平线：斜率为 0,y 始终不变。');
     const dir = m > 0 ? o2('Rising', '上升') : o2('Falling', '下降'), steep = Math.abs(m) > 1 ? o2('steep', '较陡') : Math.abs(m) < 1 ? o2('gentle', '较平缓') : o2('45°', '45°');
@@ -344,6 +414,7 @@ function eqTex(mn, md, bn, bd){               // y = (mn/md)x + (bn/bd), colour-
     Lab.$('#mVal').textContent = fmt(m); Lab.$('#bVal').textContent = fmt(b);
     Lab.$('#eqOut').innerHTML = MathAnim.tex(eqTex(Math.round(m * 4), 4, Math.round(b * 2), 2));
     const k = Lab.$('#kind'); k.textContent = Lab.L(kindTxt()); k.style.color = m > 0 ? 'var(--brand)' : m < 0 ? 'var(--bad)' : 'var(--ink-2)';
+    advUpdate();
   }
   Lab.$('#mIn').oninput = update; Lab.$('#bIn').oninput = update;
   Lab.$('#stairBtn').onclick = () => { stairs = !stairs; Lab.$('#stairBtn').classList.toggle('alt', stairs); };
@@ -437,6 +508,7 @@ Lab.sort(Lab.$('#sort'), {
 /* ================= Where you see this: real photos (Wikimedia Commons, freely licensed) ================= */
 (function(){
 const o = (en, zh) => ({ en, zh });
+const VID = o('Video', '视频');
 const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8a/Winchester_Center_station_track_1_wheelchair_ramp_August_2025.jpg/960px-Winchester_Center_station_track_1_wheelchair_ramp_August_2025.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'A wheelchair ramp at a train station in Massachusetts. US rules allow at most 1 inch of rise for every 12 inches of run. What slope is that?',
@@ -453,9 +525,31 @@ const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1e/Skateboard_ramp_at_Sonoma_Surf_%26_Skate_-_2021_-_Sarah_Stierch.jpg/960px-Skateboard_ramp_at_Sonoma_Surf_%26_Skate_-_2021_-_Sarah_Stierch.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
     en:'A skateboard ramp in Sonoma, California. Which part of the ramp has the biggest rise for each foot of run?',
     zh:'美国加州索诺马的滑板坡道。坡道哪一段每前进 1 英尺上升得最多？',
-    credit:'Missvain', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Skateboard_ramp_at_Sonoma_Surf_%26_Skate_-_2021_-_Sarah_Stierch.jpg' }
+    credit:'Missvain', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Skateboard_ramp_at_Sonoma_Surf_%26_Skate_-_2021_-_Sarah_Stierch.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/97/13_percent_grade_sign_on_Pensacola_Street%2C_Tallahassee.jpg/960px-13_percent_grade_sign_on_Pensacola_Street%2C_Tallahassee.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'A road sign in Tallahassee, Florida warns of a 13% grade. That is a slope of 13/100: the road drops 13 feet for every 100 feet you drive forward.',
+    zh:'美国佛罗里达州塔拉哈西的路牌，提醒前方是 13% 的坡。也就是斜率 13/100：每向前 100 英尺，路面下降 13 英尺。',
+    credit:'The Bushranger', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:13_percent_grade_sign_on_Pensacola_Street,_Tallahassee.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/51/Lombard_Street_SF.jpg/960px-Lombard_Street_SF.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'Lombard Street in San Francisco. The hill was too steep to drive straight down, so the road zigzags. A longer run for the same rise means a gentler slope.',
+    zh:'旧金山的九曲花街（伦巴底街）。山坡太陡，车没法直着开下去，所以路修成了“之”字形。上升高度不变、水平路程变长，坡度就变缓了。',
+    credit:'Bernard Gagnon', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Lombard_Street_SF.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fa/Great_Wall_of_China_July_2006.JPG/960px-Great_Wall_of_China_July_2006.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'The Great Wall (长城) at Mutianyu near Beijing climbs up and down the mountain ridges. Which part of the wall in the photo has the steepest slope?',
+    zh:'北京慕田峪长城沿着山脊上上下下。照片里哪一段城墙的坡度最陡？',
+    credit:'Velatrix', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Great_Wall_of_China_July_2006.JPG' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/37/Falls_Incline_Railway.jpg/960px-Falls_Incline_Railway.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'The Falls Incline Railway at Niagara Falls, Canada, carries people up a steep straight track. A straight track means one constant slope from bottom to top.',
+    zh:'加拿大尼亚加拉瀑布的斜坡缆车，沿着一条笔直的陡轨道把人送上坡。轨道是直的，所以从下到上斜率都一样。',
+    credit:'Peter Broster', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Falls_Incline_Railway.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e3/Kheops-Pyramid.jpg/960px-Kheops-Pyramid.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    en:'The Great Pyramid of Giza. Egyptian builders described a pyramid’s slope with the “seked”: how many palms the face moves in for each cubit it rises. The Rhind papyrus has problems about it!',
+    zh:'埃及吉萨大金字塔。古埃及工匠用“塞克德”（seked）描述金字塔的坡度：每升高 1 肘，斜面向内收进多少掌。莱因德纸草书里就有这样的题目！',
+    kind:o('Ancient math','古代数学'), credit:'Nina', license:'CC BY 2.5', page:'https://commons.wikimedia.org/wiki/File:Kheops-Pyramid.jpg' },
+  { type:'youtube', yt:'rpMu98yRk40', en:'Video: “Slope and Distance” — slope as rise over run on the coordinate plane.', zh:'视频：《斜率与距离》——在坐标平面上，斜率就是“上升 ÷ 前进”（英文）。', kind:VID, credit:'Math Antics (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'MXV65i9g1Xg', en:'Video: “Basic Linear Functions” — how the slope and the starting value shape a straight-line graph.', zh:'视频：《基础一次函数》——斜率和起始值怎样决定一条直线（英文）。', kind:VID, credit:'Math Antics (YouTube)', license:'YouTube' }
 ];
-LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos. Each one comes with a question this lesson helps you answer. Click a picture to enlarge it.','真实照片。每张都带着一个这节课能帮你回答的问题。点击图片可放大。') });
+LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos and short videos. Each photo comes with a question this lesson helps you answer. Click a picture to enlarge it or to play a video.','真实照片和短视频。每张照片都带着一个这节课能帮你回答的问题。点击图片可放大，点击视频可播放。') });
 })();
 </script>
 <!-- /real-world gallery script -->

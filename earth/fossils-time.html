@@ -34,6 +34,9 @@
 .evcard small{color:var(--ink-2);font-weight:800}
 @media (max-width:980px){.ftypes{grid-template-columns:repeat(2,minmax(0,1fr))}.steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:560px){.ftypes,.steps,.tstat{grid-template-columns:1fr}}
+.hlwrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.hlcol{display:flex;flex-direction:column;gap:10px}
+@media (max-width:760px){.hlwrap{grid-template-columns:1fr}}
 </style>
 </head>
 <body data-subject="earth" data-topic="fossils-time">
@@ -94,6 +97,7 @@
   <div class="sim">
     <div class="card simbox" id="puzBox"><canvas id="puzCv"></canvas></div>
     <div class="card simside">
+      <div class="lab-mode"></div>
       <h3 id="puzTitle"></h3>
       <p id="puzText"></p>
       <div class="letters" id="letters"></div>
@@ -101,6 +105,24 @@
       <div class="result" id="puzMsg"></div>
       <div class="counters"><div class="counter"><b id="pSolved">0</b><span data-zh="已解决">solved</span></div><div class="counter"><b id="pBad">0</b><span data-zh="出错次数">mistakes</span></div></div>
       <div class="btnrow"><button class="btn" id="puzNext" data-zh="下一题 ▶">Next puzzle ▶</button><button class="btn ghost" id="puzHint" data-zh="提示">Hint</button></div>
+    </div>
+  </div>
+  <div class="adv adv-box hlwrap" style="margin-top:18px">
+    <div class="hlcol">
+      <b data-zh="🚀 进阶：用半衰期测年龄（绝对年代）">🚀 Advanced: dating with half-lives (absolute age)</b>
+      <p class="muted" style="margin:0;font-size:14px" data-zh="放射性的“母体”原子以固定的速度衰变成“子体”原子。每经过一个半衰期，剩下的母体原子就有一半发生衰变。">Radioactive “parent” atoms decay into “daughter” atoms at a steady rate. In each half-life, half of the parent atoms that are left decay.</p>
+      <div class="seg" id="hlIso" style="align-self:flex-start;flex-wrap:wrap"></div>
+      <label class="ctl"><span><span data-zh="经过的时间 t = ">Time passed t = </span><b id="hlT">0</b></span><input id="hlIn" type="range" min="0" max="600" value="100"></label>
+      <div class="counters"><div class="counter"><b id="hlP" style="color:#3f7fd0">50%</b><span data-zh="剩下的母体原子">parent atoms left</span></div><div class="counter"><b id="hlD" style="color:#d4862a">50%</b><span data-zh="生成的子体原子">daughter atoms made</span></div></div>
+      <div id="hlF" style="font-size:15px;overflow-x:auto"></div>
+    </div>
+    <div class="hlcol">
+      <div id="hlBox" data-nofs style="position:relative;overflow:hidden;min-height:200px;border-radius:12px;background:var(--surface-2)"><canvas id="hlCv" style="position:absolute;inset:0;width:100%;height:100%"></canvas></div>
+      <div style="border-top:1px solid var(--line);padding-top:8px">
+        <b data-zh="🎯 挑战">🎯 Challenge</b> <span id="hlCh"></span>
+        <div class="btnrow" style="margin-top:6px"><button class="btn" id="hlCheck" data-zh="检查">Check</button><button class="btn ghost" id="hlNew" data-zh="换一题">New sample</button></div>
+        <div class="result" id="hlMsg"></div>
+      </div>
     </div>
   </div>
   <div class="grid2" style="margin-top:18px">
@@ -333,6 +355,81 @@ Lab.onLang(() => { renderInfo(); renderChips(); });
   window.addEventListener('labtheme', draw);
 })();
 
+/* ===== 🚀 Advanced: half-life (radiometric) dating ===== */
+(function(){
+  const cv = Lab.$('#hlCv'), g = cv.getContext('2d'), box = Lab.$('#hlBox'), sl = Lab.$('#hlIn');
+  const ISO = {
+    c14:{ p:{en:'Carbon-14',zh:'碳-14'}, d:{en:'nitrogen-14',zh:'氮-14'}, T:5730, use:{en:'Clock for things that were once alive (bone, wood, shell), up to about 50,000 years.',zh:'适合测曾经活过的东西（骨头、木头、贝壳），最多约 5 万年。'},
+      ch:{en:'A mammoth bone still has {p}% of its carbon-14.',zh:'一块猛犸象骨头还剩 {p}% 的碳-14。'} },
+    u235:{ p:{en:'Uranium-235',zh:'铀-235'}, d:{en:'lead-207',zh:'铅-207'}, T:7.04e8, use:{en:'Clock for igneous rock crystals (zircon): millions to billions of years.',zh:'适合测岩浆岩中的晶体（锆石）：几百万年到几十亿年。'},
+      ch:{en:'A zircon crystal from granite has {p}% of its uranium-235 left.',zh:'花岗岩里的一颗锆石晶体还剩 {p}% 的铀-235。'} },
+    u238:{ p:{en:'Uranium-238',zh:'铀-238'}, d:{en:'lead-206',zh:'铅-206'}, T:4.47e9, use:{en:'Clock for the oldest rocks and meteorites (Earth is about 4.5 billion years old).',zh:'适合测最古老的岩石和陨石（地球年龄约 45 亿年）。'},
+      ch:{en:'A meteorite has {p}% of its uranium-238 left.',zh:'一块陨石还剩 {p}% 的铀-238。'} }
+  };
+  const KEYS = ['c14', 'u235', 'u238'];
+  let iso = 'c14', W = 0, H = 0, ch = null;
+  const ORD = Lab.shuffle(Array.from({length:100}, (_, i) => i));   // which of the 100 atoms decay first
+  const sig = v => +(+v).toPrecision(3);
+  const fmtY = y => {
+    if (Lab.lang === 'zh') return y < 1e4 ? Math.round(y) + ' 年' : y < 1e8 ? sig(y / 1e4) + ' 万年' : sig(y / 1e8) + ' 亿年';
+    return y < 1e6 ? sig(y).toLocaleString('en-US') + ' years' : y < 1e9 ? sig(y / 1e6) + ' million years' : sig(y / 1e9) + ' billion years';
+  };
+  const nHalf = () => +sl.value / 100, frac = () => Math.pow(0.5, nHalf());
+  function render(){
+    const I = ISO[iso], n = nHalf(), f = frac(), t = n * I.T;
+    Lab.$('#hlIso').innerHTML = KEYS.map(k => `<button data-k="${k}" class="${k === iso ? 'on' : ''}">${Lab.L(ISO[k].p)}</button>`).join('');
+    Lab.$$('#hlIso button').forEach(b => b.onclick = () => { iso = b.dataset.k; render(); });
+    Lab.$('#hlT').textContent = fmtY(t) + ' (' + n.toFixed(2) + ' × T½)';
+    Lab.$('#hlP').textContent = (f * 100).toFixed(1) + '%';
+    Lab.$('#hlD').textContent = ((1 - f) * 100).toFixed(1) + '%';
+    const zh = Lab.lang === 'zh';
+    Lab.$('#hlF').innerHTML = `<div>${zh ? '半衰期' : 'Half-life'} T½ (${Lab.L(I.p)} → ${Lab.L(I.d)}) ${zh ? '约' : '≈'} <b>${fmtY(I.T)}</b></div>
+      <div style="margin-top:4px"><i>N</i> / <i>N</i>₀ = (½)<sup><i>t</i> / T½</sup> = (½)<sup>${n.toFixed(2)}</sup> = <b>${f.toFixed(3)}</b></div>
+      <div style="margin-top:4px">${zh ? '年龄' : 'Age'} <i>t</i> = T½ × ${n.toFixed(2)} = <b>${fmtY(t)}</b></div>
+      <div class="muted" style="margin-top:4px;font-size:13.5px">${Lab.L(I.use)}</div>`;
+    if (ch) Lab.$('#hlCh').textContent = Lab.fmt(ISO[ch.k].ch, {p:ch.p}) + (Lab.lang === 'zh' ? '' : ' ') + Lab.L({en:'Pick the right clock and set the slider to its age.',zh:'选对“时钟”，再把滑块拖到它的年龄。'});
+    draw();
+  }
+  function draw(){
+    if (!W) return;
+    const css = getComputedStyle(document.documentElement), ink = css.getPropertyValue('--ink').trim(), ink2 = css.getPropertyValue('--ink-2').trim(), line = css.getPropertyValue('--line').trim();
+    g.clearRect(0, 0, W, H);
+    const gw = Math.min(110, W * .3), x0 = 36, x1 = W - gw - 26, y0 = 14, y1 = H - 28, X = n => x0 + n / 6 * (x1 - x0), Y = p => y1 - p * (y1 - y0);
+    g.strokeStyle = line; g.lineWidth = 1; g.font = '700 11px Nunito, sans-serif'; g.fillStyle = ink2;
+    for (let k = 0; k <= 6; k++){ g.beginPath(); g.moveTo(X(k), y0); g.lineTo(X(k), y1); g.stroke(); g.textAlign = 'center'; g.fillText(k, X(k), y1 + 14); }
+    [1, .5, .25, .125].forEach(p => { g.beginPath(); g.moveTo(x0, Y(p)); g.lineTo(x1, Y(p)); g.stroke(); g.textAlign = 'right'; if (p > .2) g.fillText(+(p * 100).toFixed(1) + '%', x0 - 4, Y(p) + 4); });
+    g.textAlign = 'center'; g.fillText(Lab.L({en:'number of half-lives',zh:'经过的半衰期个数'}), (x0 + x1) / 2, H - 2);
+    const curve = (fn, col) => { g.strokeStyle = col; g.lineWidth = 2.5; g.beginPath(); for (let i = 0; i <= 120; i++){ const n = i / 20; i ? g.lineTo(X(n), Y(fn(n))) : g.moveTo(X(n), Y(fn(n))); } g.stroke(); };
+    curve(n => Math.pow(.5, n), '#3f7fd0'); curve(n => 1 - Math.pow(.5, n), '#d4862a');
+    const n = nHalf(), f = frac();
+    g.strokeStyle = ink; g.lineWidth = 2; g.beginPath(); g.moveTo(X(n), y0); g.lineTo(X(n), y1); g.stroke();
+    [[f, '#3f7fd0'], [1 - f, '#d4862a']].forEach(([p, c]) => { g.fillStyle = c; g.beginPath(); g.arc(X(n), Y(p), 5, 0, 6.283); g.fill(); });
+    // 100 atoms: blue = parent left, orange = daughter
+    const dec = Math.round((1 - f) * 100), cs = Math.min(gw / 10, (y1 - y0) / 10), gx = W - gw - 8 + (gw - cs * 10) / 2;
+    const done = new Set(ORD.slice(0, dec));
+    for (let i = 0; i < 100; i++){ g.fillStyle = done.has(i) ? '#d4862a' : '#3f7fd0'; g.beginPath(); g.arc(gx + (i % 10 + .5) * cs, y0 + (Math.floor(i / 10) + .5) * cs, cs * .38, 0, 6.283); g.fill(); }
+    g.fillStyle = ink2; g.textAlign = 'center'; g.fillText(Lab.L({en:'100 atoms',zh:'100 个原子'}), gx + cs * 5, y0 + cs * 10 + 14);
+  }
+  function newCh(){
+    const k = KEYS[Math.random() * 3 | 0], p = 8 + (Math.random() * 85 | 0);
+    ch = { k, p }; const m = Lab.$('#hlMsg'); m.textContent = ''; m.className = 'result'; render();
+  }
+  Lab.$('#hlNew').onclick = newCh;
+  Lab.$('#hlCheck').onclick = () => {
+    const m = Lab.$('#hlMsg'), f = frac() * 100, need = Math.log2(100 / ch.p);
+    if (iso !== ch.k){ m.textContent = '❌ ' + Lab.fmt({en:'Use the {i} clock for this sample.',zh:'这个样品要用{i}来测。'}, {i:Lab.L(ISO[ch.k].p)}); m.className = 'result bad'; return; }
+    if (Math.abs(f - ch.p) <= 2){ m.textContent = '✅ ' + Lab.fmt({en:'Yes! {n} half-lives, so the age is about {a}.',zh:'对了！经过了 {n} 个半衰期，年龄约为 {a}。'}, {n:need.toFixed(2), a:fmtY(need * ISO[ch.k].T)}); m.className = 'result good'; }
+    else { m.textContent = '❌ ' + Lab.fmt(f > ch.p ? {en:'Your setting leaves {x}% of the parent, but the sample has {p}%. Older: move right.',zh:'按你的设置还剩 {x}% 母体，但样品只剩 {p}%。应该更老：往右拖。'} : {en:'Your setting leaves {x}% of the parent, but the sample has {p}%. Younger: move left.',zh:'按你的设置只剩 {x}% 母体，但样品还有 {p}%。应该更年轻：往左拖。'}, {x:f.toFixed(1), p:ch.p}); m.className = 'result bad'; }
+  };
+  sl.oninput = render;
+  function resize(){ const b = box.getBoundingClientRect(), d = Math.min(devicePixelRatio, 2); W = b.width; H = b.height; if (!W) return; cv.width = W * d; cv.height = H * d; g.setTransform(d, 0, 0, d, 0, 0); draw(); }
+  new ResizeObserver(() => requestAnimationFrame(resize)).observe(box);
+  window.addEventListener('labtheme', draw);
+  newCh();
+  Lab.onLang(render);
+  Lab.onMode(adv => { if (adv) requestAnimationFrame(resize); });
+})();
+
 /* ===== Geologic time machine ===== */
 (function(){
   const cv = Lab.$('#timeCv'), g = cv.getContext('2d'), box = Lab.$('#timeBox'), sl = Lab.$('#tSlider');
@@ -427,13 +524,22 @@ const o = (en, zh) => ({en, zh});
 /* ===== Real photos (Wikimedia Commons; licences checked with the Commons API helper, URLs exactly as returned) ===== */
 const PHOTOS = [
   { kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9a/View_from_Grandview_Point_%2853910533991%29.jpg/960px-View_from_Grandview_Point_%2853910533991%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The Grand Canyon from Grandview Point. The rock layers are stacked like pages: the lowest layers are the oldest, the top ones the youngest.', zh:'从格兰德维尤观景点看科罗拉多大峡谷。岩层像书页一样叠在一起：最下面的最古老，最上面的最年轻。', scale:{en:'Grand Canyon National Park, Arizona, USA',zh:'美国亚利桑那州大峡谷国家公园'}, credit:'Grand Canyon NPS', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:View_from_Grandview_Point_(53910533991).jpg' },
-  { part:'cam', kind:{en:'Fossil specimen',zh:'化石标本'}, src:'https://upload.wikimedia.org/wikipedia/commons/1/1b/Isotelus_maximus_fossil_trilobite_%28Flat_Run_Trilobite_Lagerstatte%2C_Arnheim_Formation%2C_Upper_Ordovician%3B_Flat_Run_Quarry%2C_far-southwestern_Highland_County%2C_southwestern_Ohio%2C_USA%29_3_%2815076202450%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'A real trilobite (Isotelus maximus) found in Ohio. Trilobites crawled on ancient sea floors; this one lived in the Ordovician Period.', zh:'在美国俄亥俄州发现的真三叶虫化石（大等称虫）。三叶虫生活在远古的海底，这一只生活在奥陶纪。', scale:{en:'about 11 cm (4.4 in) long',zh:'长约 11 厘米'}, credit:'James St. John', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Isotelus_maximus_fossil_trilobite_(Flat_Run_Trilobite_Lagerstatte,_Arnheim_Formation,_Upper_Ordovician;_Flat_Run_Quarry,_far-southwestern_Highland_County,_southwestern_Ohio,_USA)_3_(15076202450).jpg' },
+  { part:'cam', kind:{en:'Fossil specimen',zh:'化石标本'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d5/Elrathia_kingii_%28fossil_trilobite%29_%28Wheeler_Formation%2C_Middle_Cambrian%3B_House_Range%2C_western_Utah%2C_USA%29_1.jpg/960px-Elrathia_kingii_%28fossil_trilobite%29_%28Wheeler_Formation%2C_Middle_Cambrian%3B_House_Range%2C_western_Utah%2C_USA%29_1.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A real Cambrian trilobite (Elrathia kingii) in shale from the Wheeler Formation, Utah, about 505 million years old. It is one of the most common trilobite fossils on Earth.', zh:'一只真正的寒武纪三叶虫化石（金氏埃尔拉西虫），保存在美国犹他州惠勒组的页岩中，距今约 5.05 亿年。它是地球上数量最多的三叶虫化石之一。', scale:{en:'rock about 3.4 cm across',zh:'岩块宽约 3.4 厘米'}, credit:'James St. John', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Elrathia_kingii_(fossil_trilobite)_(Wheeler_Formation,_Middle_Cambrian;_House_Range,_western_Utah,_USA)_1.jpg' },
+  { kind:{en:'Fossil specimen',zh:'化石标本'}, src:'https://upload.wikimedia.org/wikipedia/commons/1/1b/Isotelus_maximus_fossil_trilobite_%28Flat_Run_Trilobite_Lagerstatte%2C_Arnheim_Formation%2C_Upper_Ordovician%3B_Flat_Run_Quarry%2C_far-southwestern_Highland_County%2C_southwestern_Ohio%2C_USA%29_3_%2815076202450%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'A real trilobite (Isotelus maximus) found in Ohio. Trilobites crawled on ancient sea floors; this one lived in the Ordovician Period.', zh:'在美国俄亥俄州发现的真三叶虫化石（大等称虫）。三叶虫生活在远古的海底，这一只生活在奥陶纪。', scale:{en:'about 11 cm (4.4 in) long',zh:'长约 11 厘米'}, credit:'James St. John', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:Isotelus_maximus_fossil_trilobite_(Flat_Run_Trilobite_Lagerstatte,_Arnheim_Formation,_Upper_Ordovician;_Flat_Run_Quarry,_far-southwestern_Highland_County,_southwestern_Ohio,_USA)_3_(15076202450).jpg' },
   { part:'carb', kind:{en:'Fossil specimen',zh:'化石标本'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fd/FossilFernLeavesPennsylvanianOhio.jpg/960px-FossilFernLeavesPennsylvanianOhio.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Leaves of a seed fern (Neuropteris) pressed into rock in the Late Carboniferous, when swampy forests covered what is now Ohio.', zh:'晚石炭世的种子蕨（脉羊齿）叶片，印在了岩石里。那时，今天的俄亥俄州一带覆盖着沼泽森林。', scale:{en:'northeastern Ohio, USA',zh:'美国俄亥俄州东北部'}, credit:'Wilson44691', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:FossilFernLeavesPennsylvanianOhio.jpg' },
   { part:'jur', kind:{en:'Trace fossil',zh:'遗迹化石'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d5/Multiple_dinosaur_trackways.jpg/960px-Multiple_dinosaur_trackways.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Dinosaur trackways in Portugal. Long lines of footprints from giant sauropods were pressed into mud that later hardened into rock.', zh:'葡萄牙的恐龙行迹。巨大的蜥脚类恐龙在泥地上踩出一长串脚印，泥后来变成了岩石。', scale:{en:'Serra de Aire, Portugal',zh:'葡萄牙艾尔山'}, credit:'Britoca', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Multiple_dinosaur_trackways.jpg' },
   { part:'cret', kind:{en:'Fossil specimen',zh:'化石标本'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/13/Ammonite_fossil_3.jpg/960px-Ammonite_fossil_3.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'An ammonite fossil in the Natural History Museum, London. Ammonites were sea animals with coiled shells, relatives of today’s squid.', zh:'伦敦自然历史博物馆里的菊石化石。菊石是有螺旋形外壳的海洋动物，是今天乌贼的亲戚。', scale:{en:'Natural History Museum, London',zh:'伦敦自然历史博物馆'}, credit:'Michael Rowe', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Ammonite_fossil_3.jpg' },
   { kind:{en:'Museum skeleton',zh:'博物馆骨架'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/58/FMNH_Tyrannosaurus_rex_Sue.jpg/960px-FMNH_Tyrannosaurus_rex_Sue.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'“Sue”, a Tyrannosaurus rex skeleton at the Field Museum in Chicago. The bones turned to stone over millions of years.', zh:'芝加哥菲尔德博物馆里的霸王龙骨架“苏”。这些骨头在几千万年里变成了石头。', scale:{en:'Field Museum, Chicago, USA',zh:'美国芝加哥菲尔德博物馆'}, credit:'Zissoudisctrucker', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:FMNH_Tyrannosaurus_rex_Sue.jpg' },
-  { part:'ceno', kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f3/PetrifiedWood.jpg/960px-PetrifiedWood.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A petrified log in Petrified Forest National Park. Minerals slowly replaced the wood, so the tree is now solid stone. These trees grew more than 200 million years ago, in the Triassic.', zh:'石化林国家公园里的一段硅化木。矿物质慢慢取代了木头，这棵树现在已是一块石头。这些树生长在 2 亿多年前的三叠纪。', scale:{en:'Arizona, USA',zh:'美国亚利桑那州'}, credit:'Jon Sullivan', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:PetrifiedWood.jpg' },
-  { kind:{en:'Close-up photo',zh:'特写照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c5/Palaeomyopa_Fossil_insect_in_baltic_amber_1982_a.jpg/960px-Palaeomyopa_Fossil_insect_in_baltic_amber_1982_a.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A fly trapped in Baltic amber. Sticky tree resin covered the insect and hardened, preserving its whole body.', zh:'困在波罗的海琥珀里的一只蝇。黏稠的树脂把昆虫包住后变硬，完整地保存了它的身体。', scale:{en:'Baltic amber',zh:'波罗的海琥珀'}, credit:'Jonas Damzen (amberinclusions.eu)', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Palaeomyopa_Fossil_insect_in_baltic_amber_1982_a.jpg' }
+  { part:'ceno', kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f3/PetrifiedWood.jpg/960px-PetrifiedWood.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A petrified log in Petrified Forest National Park. Minerals slowly replaced the wood, so the tree is now solid stone. These trees grew more than 200 million years ago, in the Triassic: petrified wood forms in rocks of many ages, and this log is much older than layer 7.', zh:'石化林国家公园里的一段硅化木。矿物质慢慢取代了木头，这棵树现在已是一块石头。这些树生长在 2 亿多年前的三叠纪。硅化木可以出现在不同年代的岩层中，这一段比第 7 层古老得多。', scale:{en:'Arizona, USA',zh:'美国亚利桑那州'}, credit:'Jon Sullivan', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:PetrifiedWood.jpg' },
+  { kind:{en:'Close-up photo',zh:'特写照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c5/Palaeomyopa_Fossil_insect_in_baltic_amber_1982_a.jpg/960px-Palaeomyopa_Fossil_insect_in_baltic_amber_1982_a.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A fly trapped in Baltic amber. Sticky tree resin covered the insect and hardened, preserving its whole body.', zh:'困在波罗的海琥珀里的一只蝇。黏稠的树脂把昆虫包住后变硬，完整地保存了它的身体。', scale:{en:'Baltic amber',zh:'波罗的海琥珀'}, credit:'Jonas Damzen (amberinclusions.eu)', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Palaeomyopa_Fossil_insect_in_baltic_amber_1982_a.jpg' },
+  { kind:{en:'Photo · living fossils',zh:'实地照片 · 活化石'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1b/Stromatolites_in_Sharkbay.jpg/960px-Stromatolites_in_Sharkbay.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Living stromatolites in Shark Bay, Australia. Tiny microbes build these rocky mounds one thin layer at a time. Fossil stromatolites are among the oldest signs of life on Earth, about 3.5 billion years old.', zh:'澳大利亚鲨鱼湾里“活着的”叠层石。微小的微生物一层一层地堆出这些石头小丘。叠层石化石是地球上最古老的生命痕迹之一，大约有 35 亿年。', scale:{en:'Hamelin Pool, Western Australia',zh:'西澳大利亚哈梅林池'}, credit:'Paul Harrison', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Stromatolites_in_Sharkbay.jpg' },
+  { kind:{en:'Fossil specimen',zh:'化石标本'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5a/Retifacies_abnormalis%2C_Chengjiang_biota.jpg/960px-Retifacies_abnormalis%2C_Chengjiang_biota.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Retifacies, an early arthropod from Chengjiang in Yunnan, China, about 518 million years old. Fine mud buried these Cambrian animals so fast that even soft legs and antennae were preserved.', zh:'来自中国云南澄江的网面虫，一种早期节肢动物，距今约 5.18 亿年。细泥极快地掩埋了这些寒武纪动物，连柔软的腿和触角都保存了下来。', scale:{en:'Chengjiang biota, Yunnan, China',zh:'中国云南澄江生物群'}, credit:'Woudloper', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Retifacies_abnormalis,_Chengjiang_biota.jpg' },
+  { part:'dev', kind:{en:'Fossil specimen',zh:'化石标本'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/80/Dunkleosteus_terrelli_fossil_3.jpg/960px-Dunkleosteus_terrelli_fossil_3.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The bony head armour of Dunkleosteus, a giant fish of the Devonian Period, the “Age of Fishes”. Its fossils come from rocks in Ohio that are about 360 million years old.', zh:'邓氏鱼骨质的头甲。邓氏鱼是泥盆纪（“鱼类时代”）的一种巨型鱼，它的化石发现于美国俄亥俄州约 3.6 亿年前的岩层中。', scale:{en:'Late Devonian',zh:'晚泥盆世'}, credit:'Ghedo', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Dunkleosteus_terrelli_fossil_3.jpg' },
+  { kind:{en:'Fossil specimen',zh:'化石标本'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/Sinosauropteryx_prima.JPG/960px-Sinosauropteryx_prima.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Sinosauropteryx, found in Liaoning, China, in 1996: the first dinosaur fossil discovered with a coat of fuzzy, feather-like fibres. It lived about 125 million years ago, in the Cretaceous.', zh:'1996 年在中国辽宁发现的中华龙鸟，它是第一件被发现身上带有绒毛状“原始羽毛”的恐龙化石，生活在约 1.25 亿年前的白垩纪。', scale:{en:'shown at the Hong Kong Science Museum',zh:'展于香港科学馆'}, credit:'Laikayiu', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Sinosauropteryx_prima.JPG' },
+  { kind:{en:'Field work',zh:'野外工作'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1d/Plaster_Dinosaur_Jackets_to_protect_the_fossils_for_transport_%2848405254252%29.jpg/960px-Plaster_Dinosaur_Jackets_to_protect_the_fossils_for_transport_%2848405254252%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'How do you move a dinosaur bone? Paleontologists in Utah wrap fossils in plaster “jackets”, like a cast on a broken arm, so they do not crack on the way to the museum.', zh:'恐龙骨头怎么搬运？美国犹他州的古生物学家给化石裹上石膏“外套”，就像给骨折的手臂打石膏一样，这样运往博物馆的路上就不会裂开。', scale:{en:'Utah, USA',zh:'美国犹他州'}, credit:'Bureau of Land Management Utah', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Plaster_Dinosaur_Jackets_to_protect_the_fossils_for_transport_(48405254252).jpg' },
+  { kind:{en:'Historic portrait',zh:'历史肖像'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/05/Mary_Anning_by_B._J._Donne.jpg/960px-Mary_Anning_by_B._J._Donne.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Mary Anning (1799–1847) of Lyme Regis, England. As a young woman she dug up some of the first ichthyosaur and plesiosaur skeletons ever found, helping prove that animals can go extinct.', zh:'英国莱姆里吉斯的玛丽·安宁（1799—1847）。她年轻时就挖出了最早被发现的几具鱼龙和蛇颈龙骨架，帮助人们证明了生物是会灭绝的。', scale:{en:'painted after her death',zh:'在她去世后绘制'}, credit:'B. J. Donne', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Mary_Anning_by_B._J._Donne.jpg' },
+  { type:'youtube', yt:'87E8bQrX4Wg', kind:{en:'Video',zh:'视频'}, en:'Natural History Museum (London): how does a dinosaur become a fossil? An animation of burial, mineral replacement and discovery, and why dinosaur fossils are so rare.', zh:'英国伦敦自然历史博物馆：恐龙是怎样变成化石的？动画展示了掩埋、矿物替换和被人发现的过程，也解释了恐龙化石为什么这么稀少。', credit:'Natural History Museum (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'iWUp2kMCv6o', kind:{en:'Video',zh:'视频'}, en:'Crash Course Geology (for older students): how do fossils form, what kinds of fossils are there, and why are they so rare?', zh:'Crash Course 地质学（适合稍大一些的学生）：化石是怎样形成的？化石有哪些种类？为什么这么少见？', credit:'CrashCourse (YouTube)', license:'YouTube' }
 ];
 PHOTOS.forEach(it => { if (it.part && PARTS[it.part]) PARTS[it.part].photo = it; });
 LabPhotos.render(Lab.$('#gallery'), PHOTOS);

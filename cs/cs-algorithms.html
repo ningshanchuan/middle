@@ -72,6 +72,13 @@
 @media (max-width:860px){.sgrid,.mzwrap{grid-template-columns:1fr}}
 @media (max-width:560px){#gCounters{grid-template-columns:1fr 1fr!important}.ms .counters{grid-template-columns:1fr 1fr}.wbox{width:58px;height:70px;font-size:23px}.beam{width:160px}#raceStage .lane canvas{height:80px}}
 label.ctl span{white-space:nowrap}
+/* advanced mode */
+.atab{border-collapse:collapse;font-size:13.5px;width:100%}
+.atab th,.atab td{padding:4px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+.atab th:first-child,.atab td:first-child{text-align:left}
+.atab th{color:var(--ink-2);font-size:12.5px}
+html.lab-adv #raceStage .lane canvas{height:72px}
+#raChart svg{width:100%;max-width:620px;height:auto;display:block}
 </style>
 </head>
 <body data-subject="cs" data-topic="cs-algorithms">
@@ -91,9 +98,15 @@ label.ctl span{white-space:nowrap}
   </div>
   <div class="explorer">
     <div class="stage card" id="raceStage">
+      <div class="lab-mode"></div>
       <div class="ctlrow">
         <label class="ctl"><span data-zh="条数">Bars</span> <b id="nOut">24</b><input type="range" id="nIn" min="8" max="64" value="24" aria-label="Bars"></label>
-        <button class="tbtn on" data-shape="random" data-zh="🎲 随机">🎲 Random</button><button class="tbtn" data-shape="nearly" data-zh="📈 几乎排好">📈 Nearly sorted</button><button class="tbtn" data-shape="reversed" data-zh="📉 倒序">📉 Reversed</button>
+        <button class="tbtn on" data-shape="random" data-zh="🎲 随机">🎲 Random</button><button class="tbtn" data-shape="nearly" data-zh="📈 几乎排好">📈 Nearly sorted</button><button class="tbtn" data-shape="reversed" data-zh="📉 倒序">📉 Reversed</button><button class="tbtn adv" data-shape="sorted" data-zh="✅ 已排好">✅ Already sorted</button>
+      </div>
+      <div class="adv ctlrow" style="font-size:14px;font-weight:700">
+        <span data-zh="🚀 再加两条跑道：">🚀 Extra lanes:</span>
+        <label><input type="checkbox" id="raIns" checked> <span data-zh="插入排序">Insertion sort</span></label>
+        <label><input type="checkbox" id="raQuick" checked> <span data-zh="快速排序">Quick sort</span></label>
       </div>
       <div class="lanes" id="lanes"></div>
       <div class="ctlrow">
@@ -101,6 +114,25 @@ label.ctl span{white-space:nowrap}
         <label class="ctl" style="margin-left:auto"><span data-zh="速度">Speed</span><input type="range" id="rSpeed" min="1" max="10" value="5" aria-label="Speed"></label>
       </div>
       <div class="result" id="rMsg"></div>
+      <div class="adv adv-box" id="raceAdv">
+        <b data-zh="进阶：比较次数、公式与“大O”记号">Advanced: comparisons, formulas and Big-O</b>
+        <div id="raTable" style="overflow-x:auto;margin-top:8px"></div>
+        <p class="muted" id="raRule" style="font-size:13.5px;margin:6px 0 0"></p>
+        <div style="border-top:1px solid var(--line);margin-top:10px;padding-top:8px">
+          <b data-zh="📏 实验：n 变大时，比较次数怎样增长？">📏 Experiment: how do comparisons grow with n?</b>
+          <p class="muted" style="font-size:13.5px;margin:4px 0 6px" data-zh="计算机会用当前的数据类型，把每种算法在 n = 8、16、32、64、128 时各运行一遍（随机数据取3次的平均），数出比较次数。虚线是公式 n(n−1)/2 和 n·log₂n。">The computer runs each algorithm on the current kind of data at n = 8, 16, 32, 64 and 128 (random data: average of 3 runs) and counts the comparisons. Dashed lines are the formulas n(n−1)/2 and n·log₂n.</p>
+          <div class="btnrow"><button class="btn ghost" id="raMeasure" data-zh="📏 测量">📏 Measure</button></div>
+          <div id="raChart" data-nofs style="margin-top:6px"></div>
+          <div class="legendrow" id="raLegend"></div>
+          <p id="raGrow" style="font-size:14px;margin:6px 0 0"></p>
+        </div>
+        <div style="border-top:1px solid var(--line);margin-top:10px;padding-top:8px">
+          <b data-zh="🎯 挑战">🎯 Challenge</b> <span id="raChTxt"></span>
+          <div class="guessrow" id="raChRow" style="margin-top:6px"><input type="number" id="raChIn" min="0" aria-label="Prediction" data-zh-placeholder="你的预测" placeholder="your prediction"></div>
+          <div class="btnrow" style="margin-top:6px"><button class="btn" id="raChCheck" data-zh="检查">Check</button><button class="btn ghost" id="raChNew" data-zh="换一题">New challenge</button></div>
+          <div class="result" id="raChMsg"></div>
+        </div>
+      </div>
     </div>
     <aside class="info card" id="info" aria-live="polite"></aside>
   </div>
@@ -113,13 +145,20 @@ label.ctl span{white-space:nowrap}
   </div>
   <div class="sgrid">
     <div class="card scard">
+      <div class="lab-mode"></div>
       <h3 data-zh="🎯 你来找">🎯 You search</h3>
-      <div class="btnrow"><button class="tbtn on" data-max="100" data-zh="1—100">1–100</button><button class="tbtn" data-max="1000" data-zh="1—1000">1–1000</button><button class="tbtn" data-max="1000000" data-zh="1—1000000">1–1,000,000</button></div>
+      <div class="btnrow"><button class="tbtn on" data-max="100" data-zh="1—100">1–100</button><button class="tbtn" data-max="1000" data-zh="1—1000">1–1000</button><button class="tbtn" data-max="1000000" data-zh="1—1000000">1–1,000,000</button><button class="tbtn adv" data-max="1000000000" data-zh="1—10亿">1–1 billion</button></div>
       <div class="rangebar"><i id="yBar"></i><em id="yMark" hidden></em></div>
       <div class="rangelbl"><span id="yLo">1</span><span id="yLeft"></span><span id="yHi">100</span></div>
       <div class="guessrow"><input type="number" id="yIn" min="1" aria-label="Your guess" data-zh-placeholder="你的猜测" placeholder="your guess"><button class="btn" id="yGo" data-zh="猜！">Guess!</button><button class="btn ghost" id="yNew" data-zh="新游戏">New game</button></div>
       <div class="result" id="yMsg"></div>
       <div class="log" id="yLog"></div>
+      <div class="adv adv-box" id="yAdv">
+        <b data-zh="进阶：追踪表——二分查找 vs. 顺序查找">Advanced: trace table — binary vs. linear search</b>
+        <div id="yRule" style="font-size:14px;margin-top:6px"></div>
+        <div id="yTrace" style="overflow-x:auto;margin-top:6px"></div>
+        <div id="yCmp" style="font-size:14px;margin-top:6px"></div>
+      </div>
     </div>
     <div class="card scard">
       <h3 data-zh="🤖 计算机来找">🤖 The computer searches</h3>
@@ -222,6 +261,12 @@ const ALGO = {
   merge:{ n:o('Merge sort','归并排序'), c:'#15803d', job:o('Split the list into tiny pieces, then merge pieces back together in order — two sorted piles merge quickly.','把列表拆成很小的块，再把块按顺序合并回去——两堆已经排好的数合并起来很快。'),
     steps:{ en:['A list of 1 item is already sorted.','Merge pairs of 1 into sorted 2s, then 2s into 4s, 4s into 8s…','To merge, compare the fronts of two piles and take the smaller.','About n·log₂n comparisons: 1,000 items ≈ 10,000 instead of 500,000.'], zh:['只有1个数的列表本来就是有序的。','把1个1个合并成有序的2个，再把2个合并成4个，4个合并成8个……','合并时，比较两堆最前面的数，取小的那个。','大约n·log₂n次比较：1000个数约1万次，而不是50万次。'] },
     mem:o('Divide and conquer: split, then merge.','分而治之：先拆分，再合并。'), mix:o('Merge sort needs extra space for the merged piles; simple sorts work “in place”.','归并排序需要额外的空间来放合并的数；简单排序在原地就能完成。') },
+  insertion:{ adv:true, n:o('Insertion sort','插入排序'), c:'#0891b2', job:o('Like sorting playing cards in your hand: take the next card and slide it left until it sits in the right place.','就像整理手里的扑克牌：拿起下一张，把它往左挪，直到放进正确的位置。'),
+    steps:{ en:['The left part is always sorted; it starts with 1 item.','Take the next item and compare it with its left neighbour; swap while the neighbour is bigger.','Already sorted list: only n−1 comparisons and 0 moves — the best case.','Reversed list: n(n−1)/2 comparisons — the worst case, O(n²).'], zh:['左边部分始终是排好的，一开始只有1个数。','拿出下一个数，和左边的邻居比较；邻居更大就交换，一直往左挪。','已经排好的列表：只要n−1次比较、0次移动——最好情况。','完全倒序的列表：n(n−1)/2次比较——最坏情况，O(n²)。'] },
+    mem:o('Pick a card, slide it home.','拿一张牌，插到位。'), mix:o('Insertion sort and selection sort are both O(n²), but insertion sort gets much faster when the data is nearly sorted; selection sort never does.','插入排序和选择排序都是O(n²)，但数据几乎排好时插入排序会快很多，选择排序却不会。') },
+  quick:{ adv:true, n:o('Quick sort','快速排序'), c:'#dc2626', job:o('Pick a “pivot” (here: the last item). Move everything smaller to its left, everything bigger to its right. Then quick-sort each side.','选一个“基准”（这里选最后一个数）。比它小的都放到左边，比它大的都放到右边。再分别对两边做快速排序。'),
+    steps:{ en:['One pass around the pivot puts the pivot in its final place.','Each side is a smaller problem: divide and conquer, like merge sort, but in place.','Average: about 1.4·n·log₂n comparisons — O(n log n).','Bad luck: if the pivot is always the biggest or smallest (try Already sorted!), it needs n(n−1)/2 — O(n²).'], zh:['围绕基准分一次，基准就到了它最终的位置。','两边各是一个更小的问题：和归并排序一样分而治之，但不需要额外空间。','平均：大约1.4·n·log₂n次比较——O(n log n)。','运气不好：如果基准总是最大或最小的（试试“已排好”！），就要n(n−1)/2次——O(n²)。'] },
+    mem:o('Pick a pivot, split the crowd.','选个基准，分成两拨。'), mix:o('“Quick” is only on average. Real libraries pick the pivot more cleverly (e.g. the middle of three) to avoid the slow case.','“快速”只是平均而言。真正的程序库会更聪明地选基准（例如三个数取中间那个），避开最慢的情况。') },
   linear:{ n:o('Linear search','顺序查找'), c:'#be185d', job:o('Check items one by one from the start until you find what you want.','从头开始一个一个地检查，直到找到要找的东西。'),
     steps:{ en:['Works on any list, sorted or not.','Worst case: n looks (the item is last or missing).','Ctrl+F in a document is a kind of linear search.'], zh:['任何列表都能用，排没排序都行。','最坏情况：要看n次（要找的在最后或根本不在）。','在文档里按Ctrl+F查找，就是一种顺序查找。'] },
     mem:o('One by one, start to end.','从头到尾，一个一个。'), mix:o('Linear search is not “wrong” — for a short or unsorted list it is the best you can do.','顺序查找并不“错”——对于很短或没排序的列表，它就是最好的办法。') },
@@ -234,7 +279,8 @@ const ALGO = {
 };
 let ALSEL = 'intro';
 function info(){
-  const p = ALGO[ALSEL], box = Lab.$('#info'), keys = Object.keys(ALGO), i = keys.indexOf(ALSEL);
+  if (ALGO[ALSEL].adv && !Lab.adv()) ALSEL = 'intro';
+  const p = ALGO[ALSEL], box = Lab.$('#info'), keys = Object.keys(ALGO).filter(k => !ALGO[k].adv || Lab.adv()), i = keys.indexOf(ALSEL);
   box.innerHTML = `<span class="tag" style="color:${p.c};background:color-mix(in srgb,${p.c} 15%,transparent)">${Lab.L(o('Algorithm', '算法'))}</span>
     <h3><span class="dot" style="background:${p.c}"></span>${Lab.L(p.n)}</h3><p class="job">${Lab.L(p.job)}</p>
     <ol class="steps">${Lab.L(p.steps).map(f => `<li>${f}</li>`).join('')}</ol>
@@ -253,22 +299,35 @@ function* selectionG(a){ for (let i = 0; i < a.length - 1; i++){ let m = i; for 
 function* mergeG(a){ const n = a.length; for (let w = 1; w < n; w *= 2){ for (let lo = 0; lo < n - w; lo += 2 * w){ const mid = lo + w, hi = Math.min(lo + 2 * w, n), L = a.slice(lo, mid), R = a.slice(mid, hi); let i = 0, j = 0, k = lo;
   while (i < L.length && j < R.length){ yield { t:'cmp', i:k, j:mid + j }; a[k] = L[i] <= R[j] ? L[i++] : R[j++]; yield { t:'mov', i:k, j:k }; k++; }
   while (i < L.length){ a[k] = L[i++]; yield { t:'mov', i:k, j:k }; k++; } while (j < R.length){ a[k] = R[j++]; yield { t:'mov', i:k, j:k }; k++; } } } }
+/* Advanced-mode extra lanes */
+function* insertionG(a){ for (let i = 1; i < a.length; i++){ let j = i; while (j > 0){ yield { t:'cmp', i:j - 1, j }; if (a[j - 1] > a[j]){ [a[j - 1], a[j]] = [a[j], a[j - 1]]; yield { t:'mov', i:j - 1, j }; j--; } else break; } } }
+function* quickG(a){ const st = [[0, a.length - 1]]; while (st.length){ const [lo, hi] = st.pop(); if (lo >= hi) continue; const p = a[hi]; let i = lo;   // Lomuto partition, pivot = last item
+  for (let j = lo; j < hi; j++){ yield { t:'cmp', i:j, j:hi }; if (a[j] < p){ if (i !== j){ [a[i], a[j]] = [a[j], a[i]]; yield { t:'mov', i, j }; } i++; } }
+  if (i !== hi){ [a[i], a[hi]] = [a[hi], a[i]]; yield { t:'mov', i, j:hi }; } st.push([lo, i - 1], [i + 1, hi]); } }
 let Race = null;
 (function(){
-  const LN = [ { k:'bubble', g:bubbleG }, { k:'selection', g:selectionG }, { k:'merge', g:mergeG } ];
+  const LN_ALL = [ { k:'bubble', g:bubbleG }, { k:'selection', g:selectionG }, { k:'merge', g:mergeG }, { k:'insertion', g:insertionG, adv:'#raIns' }, { k:'quick', g:quickG, adv:'#raQuick' } ];
+  const activeLN = () => LN_ALL.filter(l => !l.adv || (Lab.adv() && Lab.$(l.adv).checked));
+  let LN = activeLN();
   const R = { n:24, shape:'random', data:[], lanes:[], timer:null, place:0 };
-  Lab.$('#lanes').innerHTML = LN.map(l => `<div class="lane" data-k="${l.k}"><div class="lane-h"><b>${''}</b><span class="c"></span><span class="m"></span><span class="s"></span><span class="medal"></span></div><canvas></canvas></div>`).join('');
-  function makeData(){ const n = R.n; let a = Array.from({ length:n }, (_, i) => i + 1);
-    if (R.shape === 'random') a = Lab.shuffle(a); else if (R.shape === 'reversed') a.reverse();
-    else { for (let k = 0; k < Math.max(1, Math.round(n / 10)); k++){ const i = Math.floor(Math.random() * (n - 1)); [a[i], a[i + 1]] = [a[i + 1], a[i]]; } }
-    R.data = a; reset(); }
+  function buildLanes(){
+    Lab.$('#lanes').innerHTML = LN.map(l => `<div class="lane" data-k="${l.k}"><div class="lane-h"><b>${''}</b><span class="c"></span><span class="m"></span><span class="s"></span><span class="medal"></span></div><canvas></canvas></div>`).join('');
+    Lab.$$('#lanes .lane').forEach(el => el.onclick = () => { ALSEL = el.dataset.k; info(); draw(); });
+  }
+  buildLanes();
+  function makeArr(n, shape){ let a = Array.from({ length:n }, (_, i) => i + 1);
+    if (shape === 'random') a = Lab.shuffle(a); else if (shape === 'reversed') a.reverse();
+    else if (shape === 'nearly'){ for (let k = 0; k < Math.max(1, Math.round(n / 10)); k++){ const i = Math.floor(Math.random() * (n - 1)); [a[i], a[i + 1]] = [a[i + 1], a[i]]; } }
+    return a; }
+  function makeData(){ R.data = makeArr(R.n, R.shape); reset(); }
   function reset(){ stop(); R.place = 0; R.lanes = LN.map(l => { const arr = R.data.slice(); return { ...l, arr, it:l.g(arr), cmp:0, mov:0, done:false, hi:[], medal:'' }; }); Lab.$('#rMsg').textContent = ''; draw(); }
   function tick(){ let any = false;
     R.lanes.forEach(L => { if (L.done) return; const r = L.it.next(); if (r.done){ L.done = true; L.hi = []; R.place++; L.medal = ['🥇', '🥈', '🥉'][R.place - 1] || ''; L.steps = L.cmp + L.mov; } else { any = true; L.hi = [r.value.i, r.value.j]; if (r.value.t === 'cmp') L.cmp++; else L.mov++; } });
     if (!any){ stop(); const s = R.lanes.slice().sort((a, b) => (a.cmp + a.mov) - (b.cmp + b.mov));
       Lab.$('#rMsg').className = 'result good';
-      Lab.$('#rMsg').textContent = Lab.L(o(`🏁 Finished! Fewest steps: ${s[0].k === 'bubble' ? 'bubble sort' : s[0].k === 'selection' ? 'selection sort' : 'merge sort'} (${s[0].cmp + s[0].mov}). Most: ${s[2].cmp + s[2].mov}. Try ${R.shape === 'nearly' ? 'random' : 'nearly sorted'} data next.`,
-        `🏁 跑完了！步数最少：${Lab.L(ALGO[s[0].k].n)}（${s[0].cmp + s[0].mov}步）；最多：${s[2].cmp + s[2].mov}步。下一次试试${R.shape === 'nearly' ? '随机' : '几乎排好'}的数据。`)); }
+      const z = s[s.length - 1];
+      Lab.$('#rMsg').textContent = Lab.L(o(`🏁 Finished! Fewest steps: ${ALGO[s[0].k].n.en.toLowerCase()} (${s[0].cmp + s[0].mov}). Most: ${z.cmp + z.mov}. Try ${R.shape === 'nearly' ? 'random' : 'nearly sorted'} data next.`,
+        `🏁 跑完了！步数最少：${Lab.L(ALGO[s[0].k].n)}（${s[0].cmp + s[0].mov}步）；最多：${z.cmp + z.mov}步。下一次试试${R.shape === 'nearly' ? '随机' : '几乎排好'}的数据。`)); }
     draw(); return any; }
   function stop(){ if (R.timer){ clearInterval(R.timer); R.timer = null; } Lab.$('#rGo').textContent = Lab.L(o('Race ▶', '开跑 ▶')); }
   function draw(){
@@ -284,9 +343,9 @@ let Race = null;
       cv.width = r.width * d; cv.height = r.height * d; const g = cv.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, r.width, r.height);
       const n = L.arr.length, bw = r.width / n;
       L.arr.forEach((v, k) => { const h = v / n * (r.height - 4); g.fillStyle = L.done ? good : L.hi.includes(k) ? warn : brand; g.fillRect(k * bw + 1, r.height - h, Math.max(1, bw - 2), h); }); });
+    advRender();
   }
   Race = { mark:draw };
-  Lab.$$('#lanes .lane').forEach(el => el.onclick = () => { ALSEL = el.dataset.k; info(); draw(); });
   Lab.$('#nIn').oninput = e => { R.n = +e.target.value; Lab.$('#nOut').textContent = R.n; makeData(); };
   Lab.$$('[data-shape]').forEach(b => b.onclick = () => { Lab.$$('[data-shape]').forEach(x => x.classList.toggle('on', x === b)); R.shape = b.dataset.shape; makeData(); });
   const go = () => { const sp = +Lab.$('#rSpeed').value; clearInterval(R.timer); R.timer = setInterval(() => { for (let k = 0; k < Math.max(1, sp - 4); k++) if (!tick()) return; }, sp >= 5 ? 30 : 260 - sp * 45); Lab.$('#rGo').textContent = Lab.L(o('Pause ⏸', '暂停 ⏸')); };
@@ -296,7 +355,98 @@ let Race = null;
   Lab.$('#rNew').onclick = makeData;
   new ResizeObserver(() => requestAnimationFrame(draw)).observe(Lab.$('#lanes'));
   window.__race = { R, tick };
-  makeData(); Lab.onLang(() => { info(); stop(); draw(); });
+
+  /* ---------- Advanced: formula table, steps-vs-n experiment, challenges ---------- */
+  const f1 = v => (Math.round(v * 10) / 10).toLocaleString('en-US'), nn = v => v.toLocaleString('en-US');
+  const quad = n => n * (n - 1) / 2, nlog = n => n * Math.log2(n);
+  const BIGO = { bubble:o('O(n²)', 'O(n²)'), selection:o('O(n²)', 'O(n²)'), insertion:o('O(n²)', 'O(n²)'), merge:o('O(n log n)', 'O(n log n)'), quick:o('O(n log n) average · O(n²) worst', '平均 O(n log n) · 最坏 O(n²)') };
+  const FORM = (k, n) => k === 'merge' ? o(`about n·log₂n ≈ ${nn(Math.round(nlog(n)))}`, `约 n·log₂n ≈ ${nn(Math.round(nlog(n)))}`)
+    : k === 'quick' ? o(`average ≈ 1.39·n·log₂n ≈ ${nn(Math.round(1.39 * nlog(n)))}, worst ${nn(quad(n))}`, `平均 ≈ 1.39·n·log₂n ≈ ${nn(Math.round(1.39 * nlog(n)))}，最坏 ${nn(quad(n))}`)
+    : k === 'selection' ? o(`always n(n−1)/2 = ${nn(quad(n))}`, `总是 n(n−1)/2 = ${nn(quad(n))}`)
+    : k === 'insertion' ? o(`worst n(n−1)/2 = ${nn(quad(n))}, best n−1 = ${n - 1}`, `最坏 n(n−1)/2 = ${nn(quad(n))}，最好 n−1 = ${n - 1}`)
+    : o(`worst n(n−1)/2 = ${nn(quad(n))}, best n−1 = ${n - 1}`, `最坏 n(n−1)/2 = ${nn(quad(n))}，最好 n−1 = ${n - 1}`);
+  function advRender(){
+    if (!Lab.adv()) return;
+    const n = R.n;
+    Lab.$('#raTable').innerHTML = `<table class="atab"><tr><th>${Lab.L(o('Algorithm', '算法'))}</th><th>${Lab.L(o('comparisons', '比较'))}</th><th>${Lab.L(o('moves', '移动'))}</th><th>${Lab.L(o('formula for comparisons (n = ' + n + ')', '比较次数公式（n = ' + n + '）'))}</th><th>Big-O</th></tr>`
+      + R.lanes.map(L => `<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${ALGO[L.k].c};margin-right:6px"></span>${Lab.L(ALGO[L.k].n)}${L.done ? ' ✔' : ''}</td><td><b>${nn(L.cmp)}</b></td><td>${nn(L.mov)}</td><td>${Lab.L(FORM(L.k, n))}</td><td>${Lab.L(BIGO[L.k])}</td></tr>`).join('') + '</table>';
+    Lab.$('#raRule').textContent = Lab.L(o(`n = ${n}: n(n−1)/2 = ${n}×${n - 1}÷2 = ${nn(quad(n))} · n·log₂n = ${n}×${f1(Math.log2(n))} ≈ ${nn(Math.round(nlog(n)))}. Big-O keeps only the fastest-growing part: when n doubles, n² grows ×4 but n·log n only a bit more than ×2.`,
+      `n = ${n}：n(n−1)/2 = ${n}×${n - 1}÷2 = ${nn(quad(n))} · n·log₂n = ${n}×${f1(Math.log2(n))} ≈ ${nn(Math.round(nlog(n)))}。大O记号只保留增长最快的部分：n 变成2倍时，n² 变成4倍，而 n·log n 只比2倍多一点。`));
+    chText();
+  }
+  /* steps-vs-n experiment */
+  const MNS = [8, 16, 32, 64, 128]; let MEAS = null;
+  function measure(){
+    const shape = R.shape, runs = shape === 'random' || shape === 'nearly' ? 3 : 1;
+    MEAS = { shape, rows:LN.map(l => ({ k:l.k, v:MNS.map(n => { let t = 0; for (let r = 0; r < runs; r++){ const it = l.g(makeArr(n, shape)); for (let s = it.next(); !s.done; s = it.next()) if (s.value.t === 'cmp') t++; } return t / runs; }) })) };
+    renderChart();
+  }
+  const SHN = { random:o('random', '随机'), nearly:o('nearly sorted', '几乎排好'), reversed:o('reversed', '倒序'), sorted:o('already sorted', '已排好') };
+  function renderChart(){
+    if (!MEAS){ Lab.$('#raChart').innerHTML = ''; Lab.$('#raLegend').innerHTML = ''; Lab.$('#raGrow').textContent = ''; return; }
+    const W = 640, H = 200, PL = 52, PR = 14, PT = 10, PB = 26, ymax = Math.max(quad(128), ...MEAS.rows.flatMap(r => r.v)) * 1.05;
+    const X = n => PL + n / 128 * (W - PL - PR), Y = v => PT + (1 - v / ymax) * (H - PT - PB);
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${Lab.L(o('Measured comparisons against n', '实测比较次数随 n 的变化'))}">`;
+    for (let v = 0; v <= ymax; v += 2000) s += `<line x1="${PL}" x2="${W - PR}" y1="${Y(v)}" y2="${Y(v)}" style="stroke:var(--line)"/><text x="${PL - 6}" y="${Y(v) + 4}" text-anchor="end" font-size="11" style="fill:var(--ink-2)">${nn(v)}</text>`;
+    MNS.forEach(n => s += `<text x="${X(n)}" y="${H - 8}" text-anchor="${n === 128 ? 'end' : 'middle'}" font-size="11" style="fill:var(--ink-2)">n=${n}</text>`);
+    const curve = (f, lbl) => { const p = []; for (let n = 2; n <= 128; n += 2) p.push(X(n) + ',' + Y(f(n))); return `<polyline fill="none" style="stroke:var(--ink-2)" stroke-width="1.5" stroke-dasharray="5 5" points="${p.join(' ')}"/><text x="${X(128) - 4}" y="${Y(f(128)) - 6}" text-anchor="end" font-size="11" style="fill:var(--ink-2)">${lbl}</text>`; };
+    s += curve(quad, 'n(n−1)/2') + curve(nlog, 'n·log₂n');
+    MEAS.rows.forEach(r => { s += `<polyline fill="none" stroke="${ALGO[r.k].c}" stroke-width="2.5" points="${r.v.map((v, j) => X(MNS[j]) + ',' + Y(v)).join(' ')}"/>` + r.v.map((v, j) => `<circle cx="${X(MNS[j])}" cy="${Y(v)}" r="3.5" fill="${ALGO[r.k].c}"><title>${Lab.L(ALGO[r.k].n)} n=${MNS[j]}: ${nn(Math.round(v))}</title></circle>`).join(''); });
+    Lab.$('#raChart').innerHTML = s + '</svg>';
+    Lab.$('#raLegend').innerHTML = MEAS.rows.map(r => `<span><i style="background:${ALGO[r.k].c}"></i>${Lab.L(ALGO[r.k].n)}</span>`).join('');
+    Lab.$('#raGrow').innerHTML = Lab.L(o(`Data: ${SHN[MEAS.shape].en}. At n = 128: `, `数据：${SHN[MEAS.shape].zh}。n = 128 时：`))
+      + MEAS.rows.map(r => `<b style="color:${ALGO[r.k].c}">${Lab.L(ALGO[r.k].n)}</b> ${nn(Math.round(r.v[4]))} (×${f1(r.v[4] / r.v[3])})`).join(' · ')
+      + '<br><span class="muted">' + Lab.L(o('(×… = how many times more comparisons than at n = 64. Doubling n: O(n²) ≈ ×4, O(n log n) ≈ ×2.3, O(n) = ×2.)', '（×… 表示比 n = 64 时多几倍。n 变成2倍：O(n²) 约 ×4，O(n log n) 约 ×2.3，O(n) 为 ×2。）')) + '</span>';
+  }
+  Lab.$('#raMeasure').onclick = measure;
+  /* challenges */
+  const lane = k => R.lanes.find(L => L.k === k), finished = () => R.lanes.length && R.lanes.every(L => L.done);
+  const CH = [
+    { input:true, t:() => o(`Choose 📉 Reversed data with ${R.n} bars. Before you race: how many comparisons will bubble sort make? Type your prediction, then check.`, `选择“📉 倒序”数据，${R.n}条。开跑之前先预测：冒泡排序要比较多少次？输入你的预测，再检查。`),
+      check:() => { const n = R.n, p = Math.round(+Lab.$('#raChIn').value), ans = quad(n);
+        if (R.shape !== 'reversed') return ['bad', o('First choose 📉 Reversed data.', '先选择“📉 倒序”数据。')];
+        if (!Lab.$('#raChIn').value) return ['bad', o('Type a number first.', '先输入一个数。')];
+        if (p === ans) return ['good', o(`🎉 Right! Pass 1 makes ${n - 1} comparisons, pass 2 makes ${n - 2}, … down to 1: (n−1)+(n−2)+…+1 = n(n−1)/2 = ${nn(ans)}. Now race and watch the counter hit it exactly.`, `🎉 对了！第1趟比较${n - 1}次，第2趟${n - 2}次……最后1次：(n−1)+(n−2)+…+1 = n(n−1)/2 = ${nn(ans)}。现在开跑，看计数器是不是正好停在这个数。`)];
+        return ['bad', o(`Not ${nn(p)}. ${p > ans ? 'Too many' : 'Too few'} — hint: on reversed data every pass is one comparison shorter than the last.`, `不是${nn(p)}，${p > ans ? '多了' : '少了'}。提示：倒序时每一趟都比上一趟少比较一次。`)]; } },
+    { t:() => o('Make bubble sort finish with FEWER steps than merge sort. (Hint: what kind of data lets bubble sort stop early?)', '让冒泡排序的总步数比归并排序还少！（提示：什么样的数据能让冒泡排序提前停下？）'),
+      check:() => { if (!finished()) return ['bad', o('Run the race to the finish first, then press Check.', '先把比赛跑完，再按“检查”。')];
+        const b = lane('bubble'), m = lane('merge'), bs = b.cmp + b.mov, ms = m.cmp + m.mov;
+        return bs < ms ? ['good', o(`🎉 Yes! Bubble ${nn(bs)} vs merge ${nn(ms)} steps. On nearly sorted data bubble sort is close to O(n), while merge sort always does all log₂n rounds of merging.`, `🎉 成功！冒泡${nn(bs)}步，归并${nn(ms)}步。数据几乎排好时，冒泡排序接近 O(n)；归并排序却总要做完 log₂n 轮合并。`)]
+          : ['bad', o(`Bubble ${nn(bs)} vs merge ${nn(ms)} steps — not yet. Try other data.`, `冒泡${nn(bs)}步，归并${nn(ms)}步——还没成功。换一种数据试试。`)]; } },
+    { t:() => o('With 🎲 Random data, find a number of bars where merge sort needs less than 1/5 of bubble sort’s steps.', '用“🎲 随机”数据，找到一个条数，让归并排序的步数不到冒泡排序的1/5。'),
+      check:() => { if (R.shape !== 'random') return ['bad', o('Use 🎲 Random data for this one.', '这一题要用“🎲 随机”数据。')];
+        if (!finished()) return ['bad', o('Run the race to the finish first, then press Check.', '先把比赛跑完，再按“检查”。')];
+        const b = lane('bubble'), m = lane('merge'), r = (m.cmp + m.mov) / (b.cmp + b.mov);
+        return r < .2 ? ['good', o(`🎉 Merge sort used only ${Math.round(r * 100)}% of bubble sort’s steps at n = ${R.n}. The bigger n gets, the bigger the gap between n² and n·log n.`, `🎉 n = ${R.n}时，归并排序只用了冒泡排序${Math.round(r * 100)}%的步数。n 越大，n² 和 n·log n 的差距越大。`)]
+          : ['bad', o(`Merge sort used ${Math.round(r * 100)}% of bubble sort’s steps at n = ${R.n}. Try more bars.`, `n = ${R.n}时，归并排序用了冒泡排序${Math.round(r * 100)}%的步数。试试更多的条数。`)]; } },
+    { t:() => o('Make quick sort as slow as selection sort: find data where quick sort needs at least as many comparisons. Why does it happen?', '让快速排序变得和选择排序一样慢：找到一种数据，使快速排序的比较次数不少于选择排序。想想为什么？'),
+      check:() => { if (!lane('quick')) return ['bad', o('Switch on the Quick sort lane first.', '先打开“快速排序”跑道。')];
+        if (!finished()) return ['bad', o('Run the race to the finish first, then press Check.', '先把比赛跑完，再按“检查”。')];
+        const q = lane('quick'), s = lane('selection');
+        return q.cmp >= s.cmp ? ['good', o(`🎉 Quick sort ${nn(q.cmp)} = selection sort ${nn(s.cmp)} comparisons. The pivot (the last item) was always the biggest or smallest, so each split only removed ONE item: n(n−1)/2, O(n²).`, `🎉 快速排序${nn(q.cmp)}次，选择排序${nn(s.cmp)}次。基准（最后一个数）总是最大或最小的，每次只分出去一个数：n(n−1)/2，O(n²)。`)]
+          : ['bad', o(`Quick sort ${nn(q.cmp)} vs selection sort ${nn(s.cmp)} comparisons. Try data that is already in order (either way).`, `快速排序${nn(q.cmp)}次，选择排序${nn(s.cmp)}次。试试本来就有顺序的数据（正序或倒序）。`)]; } },
+    { t:() => o('Find data where insertion sort makes 0 moves. How many comparisons does it need then?', '找到一种数据，让插入排序一次都不用移动。这时它要比较多少次？'),
+      check:() => { const L = lane('insertion'); if (!L) return ['bad', o('Switch on the Insertion sort lane first.', '先打开“插入排序”跑道。')];
+        if (!finished()) return ['bad', o('Run the race to the finish first, then press Check.', '先把比赛跑完，再按“检查”。')];
+        return L.mov === 0 ? ['good', o(`🎉 0 moves, ${L.cmp} comparisons = n − 1. Each new item only checks its left neighbour once: best case O(n).`, `🎉 0次移动，${L.cmp}次比较 = n − 1。每个新数只和左边的邻居比一次：最好情况 O(n)。`)]
+          : ['bad', o(`Insertion sort made ${nn(L.mov)} moves. What data needs no sliding at all?`, `插入排序移动了${nn(L.mov)}次。什么样的数据完全不用挪？`)]; } }
+  ];
+  let chI = 0, chM = null;
+  function chText(){ const c = CH[chI]; Lab.$('#raChTxt').textContent = Lab.L(c.t()); Lab.$('#raChRow').style.display = c.input ? '' : 'none';
+    const el = Lab.$('#raChMsg'); el.className = 'result ' + (chM ? chM[0] : ''); el.textContent = chM ? Lab.L(chM[1]) : ''; }
+  Lab.$('#raChCheck').onclick = () => { chM = CH[chI].check(); chText(); };
+  Lab.$('#raChNew').onclick = () => { chI = (chI + 1) % CH.length; chM = null; Lab.$('#raChIn').value = ''; chText(); };
+  ['#raIns', '#raQuick'].forEach(id => Lab.$(id).onchange = () => { LN = activeLN(); buildLanes(); reset(); });
+  let wasAdv = null;
+  Lab.onMode(adv => {
+    const nIn = Lab.$('#nIn'); nIn.max = adv ? 128 : 64;
+    if (!adv && R.n > 64){ R.n = 64; nIn.value = 64; Lab.$('#nOut').textContent = 64; }
+    if (!adv && R.shape === 'sorted'){ R.shape = 'random'; Lab.$$('[data-shape]').forEach(x => x.classList.toggle('on', x.dataset.shape === 'random')); }
+    const sig = activeLN().map(l => l.k).join();
+    if (wasAdv !== null && (sig !== LN.map(l => l.k).join() || adv !== wasAdv)){ LN = activeLN(); buildLanes(); makeData(); }
+    wasAdv = adv; if (adv && !MEAS) measure(); else renderChart(); info(); draw();
+  });
+  makeData(); Lab.onLang(() => { info(); stop(); draw(); renderChart(); });
 })();
 
 /* ================= Binary search games ================= */
@@ -309,14 +459,29 @@ let Race = null;
     const mk = Lab.$('#yMark'); mk.hidden = Y.last == null; if (Y.last != null) mk.style.left = `calc(${(Y.last - .5) / W * 100}% - 1px)`;
     Lab.$('#yLo').textContent = Y.lo.toLocaleString('en-US'); Lab.$('#yHi').textContent = Y.hi.toLocaleString('en-US');
     Lab.$('#yLeft').textContent = Lab.L(o(`${(Y.hi - Y.lo + 1).toLocaleString('en-US')} possible · guesses: ${Y.n}`, `还剩${(Y.hi - Y.lo + 1)}种可能 · 已猜${Y.n}次`));
-    Lab.$('#yLog').innerHTML = Y.log.map(x => `<span>${x.g.toLocaleString('en-US')} ${x.r}</span>`).join(''); if (M) msg(...M); }
+    Lab.$('#yLog').innerHTML = Y.log.map(x => `<span>${x.g.toLocaleString('en-US')} ${x.r}</span>`).join(''); if (M) msg(...M); advRender(); }
+  /* Advanced: rule with numbers, trace table, binary vs linear */
+  function advRender(){
+    if (!Lab.adv()) return;
+    const N = Y.max, k = best(N), nn = v => v.toLocaleString('en-US'), seq = []; for (let r = N; r >= 1; r = Math.floor(r / 2)) seq.push(r);
+    const sq = seq.length > 9 ? seq.slice(0, 5).map(nn).join(' → ') + ' → … → ' + seq.slice(-2).map(nn).join(' → ') : seq.map(nn).join(' → ');
+    Lab.$('#yRule').innerHTML = Lab.L(o(`Worst case, each middle guess leaves the bigger half: ${sq} — that’s <b>${seq.length}</b> guesses. Rule: max guesses = log₂(N + 1) rounded up = log₂(${nn(N + 1)}) ≈ ${(Math.log2(N + 1)).toFixed(2)} → <b>${k}</b>, because 2<sup>${k}</sup> = ${nn(2 ** k)} ≥ ${nn(N + 1)}.`,
+      `最坏情况下，每次猜中间都剩下较大的一半：${sq}——共 <b>${seq.length}</b> 次。规律：最多猜的次数 = log₂(N + 1) 向上取整 = log₂(${N + 1}) ≈ ${(Math.log2(N + 1)).toFixed(2)} → <b>${k}</b>，因为 2<sup>${k}</sup> = ${2 ** k} ≥ ${N + 1}。`));
+    const th = s => `<th>${Lab.L(s)}</th>`;
+    Lab.$('#yTrace').innerHTML = !Y.log.length ? '' : `<table class="atab"><tr>${th(o('#', '#'))}${th(o('range before', '猜之前的范围'))}${th(o('middle', '中间数'))}${th(o('your guess', '你猜'))}${th(o('answer', '回答'))}${th(o('left', '剩下'))}</tr>`
+      + Y.log.map((x, i) => `<tr><td>${i + 1}</td><td>${nn(x.lo)}–${nn(x.hi)}</td><td>${nn(Math.floor((x.lo + x.hi) / 2))}</td><td><b style="color:${x.g < x.lo || x.g > x.hi || Math.abs(x.g - Math.floor((x.lo + x.hi) / 2)) > 1 ? 'var(--bad)' : 'inherit'}">${nn(x.g)}</b></td><td>${x.r}</td><td>${nn(x.left)}</td></tr>`).join('') + '</table>';
+    Lab.$('#yCmp').innerHTML = (Y.log.length ? '<span class="muted" style="font-size:13px">' + Lab.L(o('Red guess = not the middle: it may throw away less than half.', '红色的猜测 = 没猜中间：可能扔掉不到一半。')) + '</span><br>' : '') + Lab.L(Y.over ? o(`🔍 Binary search (you): <b>${Y.n}</b> guesses. Linear search 1, 2, 3, … would have needed <b>${nn(Y.secret)}</b> looks for this number (average about ${nn(Math.round(N / 2))}, worst ${nn(N)}).`, `🔍 二分查找（你）：<b>${Y.n}</b> 次。顺序查找 1、2、3……找这个数要看 <b>${Y.secret}</b> 次（平均约 ${Math.round(N / 2)} 次，最坏 ${N} 次）。`)
+      : o(`🔍 Linear search 1, 2, 3, … needs up to ${nn(N)} looks (about ${nn(Math.round(N / 2))} on average) — binary search at most ${k}. At 1 billion looks per second: linear up to ${N >= 1e9 ? 'about 1 second' : N >= 1e6 ? 'about 1 millisecond' : 'about 1 microsecond or less'}, binary a few nanoseconds.`, `🔍 顺序查找 1、2、3……最多要看 ${N} 次（平均约 ${Math.round(N / 2)} 次）——二分查找最多 ${k} 次。按每秒10亿次计算：顺序查找最多${N >= 1e9 ? '约1秒' : N >= 1e6 ? '约1毫秒' : '约1微秒或更短'}，二分查找只要几纳秒。`));
+  }
+  Lab.onMode(adv => { if (!adv && Y.max > 1e6){ Lab.$$('[data-max]').forEach(x => x.classList.toggle('on', x.dataset.max === '100')); Y.max = 100; newGame(); } else render(); });
   function guess(){ if (Y.over) return; const g = Math.round(+Lab.$('#yIn').value); if (!g || g < 1 || g > Y.max){ msg('bad', o(`Type a whole number from 1 to ${Y.max.toLocaleString('en-US')}.`, `请输入1到${Y.max}之间的整数。`)); return; }
+    const lo0 = Y.lo, hi0 = Y.hi;
     Y.n++; Y.last = g; const mid = Math.floor((Y.lo + Y.hi) / 2), wasMid = Math.abs(g - mid) <= 1 && g >= Y.lo && g <= Y.hi;
     if (g === Y.secret){ Y.over = true; Y.log.push({ g, r:'✔' }); const ok = Y.n <= best(Y.max);
       msg('good', ok ? o(`🎉 ${g}! Found in ${Y.n} guesses — that’s binary-search speed (max ${best(Y.max)}).`, `🎉 就是${g}！你用了${Y.n}次——这是二分查找的速度（最多${best(Y.max)}次）。`) : o(`✅ ${g}! ${Y.n} guesses. Always guessing the middle guarantees ${best(Y.max)} or fewer.`, `✅ 就是${g}！用了${Y.n}次。每次都猜正中间，保证不超过${best(Y.max)}次。`)); }
     else if (g < Y.secret){ Y.lo = Math.max(Y.lo, g + 1); Y.log.push({ g, r:'⬆' }); msg('', wasMid ? o('⬆ Higher — and that was a perfect middle guess!', '⬆ 大一点——这次正好猜在中间，漂亮！') : o(`⬆ Higher. (Middle of what’s left would be ${Math.floor((Y.lo + Y.hi) / 2).toLocaleString('en-US')}.)`, `⬆ 大一点。（剩下范围的正中间是${Math.floor((Y.lo + Y.hi) / 2)}。）`)); }
     else { Y.hi = Math.min(Y.hi, g - 1); Y.log.push({ g, r:'⬇' }); msg('', wasMid ? o('⬇ Lower — perfect middle guess!', '⬇ 小一点——正好猜在中间！') : o(`⬇ Lower. (Middle of what’s left would be ${Math.floor((Y.lo + Y.hi) / 2).toLocaleString('en-US')}.)`, `⬇ 小一点。（剩下范围的正中间是${Math.floor((Y.lo + Y.hi) / 2)}。）`)); }
-    Lab.$('#yIn').value = ''; render(); }
+    Object.assign(Y.log[Y.log.length - 1], { lo:lo0, hi:hi0, left:Y.over ? 0 : Math.max(0, Y.hi - Y.lo + 1) }); Lab.$('#yIn').value = ''; render(); }
   Lab.$('#yGo').onclick = guess; Lab.$('#yIn').addEventListener('keydown', e => { if (e.key === 'Enter') guess(); });
   Lab.$('#yNew').onclick = newGame;
   Lab.$$('[data-max]').forEach(b => b.onclick = () => { Lab.$$('[data-max]').forEach(x => x.classList.toggle('on', x === b)); Y.max = +b.dataset.max; newGame(); });
@@ -494,9 +659,15 @@ const PHOTOS = [
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/55/Hollerith_census_machine_at_CHM_by_Tomwsulcer.jpg/960px-Hollerith_census_machine_at_CHM_by_Tomwsulcer.jpg', en:'A replica of the Hollerith census machine at the Computer History Museum.', zh:'计算机历史博物馆里的霍尔瑞斯人口普查机复制品。', kind:o('Museum object','博物馆藏品'), credit:'Tomwsulcer', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Hollerith_census_machine_at_CHM_by_Tomwsulcer.jpg' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/81/IBM_Type_80_Card_Sorter_at_CHM.jpg/960px-IBM_Type_80_Card_Sorter_at_CHM.jpg', en:'An IBM Type 80 card sorter (1925) at the Computer History Museum — a machine whose only job was sorting punched cards.', zh:'计算机历史博物馆里的IBM 80型卡片分类机（1925年）——它唯一的工作就是给穿孔卡片排序。', kind:o('Museum object','博物馆藏品'), credit:'Tomwsulcer', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:IBM_Type_80_Card_Sorter_at_CHM.jpg' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e8/Wooden_Card_Catalog_Furniture.jpg/960px-Wooden_Card_Catalog_Furniture.jpg', en:'A wooden library card catalog in Nashua, New Hampshire. Cards were kept in A–Z order so anyone could find a book fast — a sorted list you search by hand.', zh:'美国新罕布什尔州纳舒厄一家图书馆的木制卡片目录柜。卡片按字母顺序排列，谁都能很快找到书——这就是一个用手查找的“已排序列表”。', kind:o('Photo','照片'), credit:'MarkBuckawicki', license:'CC0', page:'https://commons.wikimedia.org/wiki/File:Wooden_Card_Catalog_Furniture.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8d/P._Oxy._I_29.jpg/960px-P._Oxy._I_29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A scrap of papyrus from Oxyrhynchus, Egypt, with part of Euclid’s “Elements” (about 100 CE). The Elements also contains Euclid’s algorithm for the greatest common divisor — one of the oldest algorithms still used today.', zh:'埃及俄克喜林库斯出土的一片纸草，上面写着欧几里得《几何原本》的片段（约公元100年）。《几何原本》里还有求最大公约数的“欧几里得算法”（辗转相除法）——至今仍在使用的最古老算法之一。', kind:o('Ancient text','古代文献'), credit:'Euclid (papyrus, public domain)', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:P._Oxy._I_29.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/27/Chinese-abacus.jpg/960px-Chinese-abacus.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A Chinese abacus (算盘, suànpán). Users learn short rhymes (珠算口诀) that tell them exactly which beads to move — a step-by-step algorithm done with your fingers.', zh:'中国算盘。打算盘的人要背珠算口诀，口诀一步一步告诉你该拨哪颗珠子——这就是用手指执行的算法。', kind:o('Calculating tool','计算工具'), credit:'Shieldforyoureyes Dave Fischer', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Chinese-abacus.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/6/6a/Sorting_quicksort_anim.gif?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Quicksort in action: pick a “pivot”, put smaller values on one side and bigger ones on the other, then do the same to each side. It is one of the fastest sorting algorithms.', zh:'快速排序的动画：选一个“基准”，比它小的放一边，比它大的放另一边，再对两边分别重复这一步。它是最快的排序算法之一。', kind:o('Animation','动画'), credit:'RolandH (English Wikipedia)', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Sorting_quicksort_anim.gif' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/64/Binary_search_into_array_-_example.svg/960px-Binary_search_into_array_-_example.svg.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Binary search in a sorted list: check the middle, throw away the half that can’t hold the answer, and repeat. Each step cuts the list in half.', zh:'在有序列表里做二分查找：先看中间那个，把不可能有答案的一半扔掉，再重复。每一步都把列表缩小一半。', kind:o('Diagram','示意图'), credit:'LoStrangolatore', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Binary_search_into_array_-_example.svg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d9/Edsger_Wybe_Dijkstra.jpg/960px-Edsger_Wybe_Dijkstra.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Edsger W. Dijkstra, the Dutch computer scientist who in 1956 invented a famous algorithm for finding the shortest route between two places — the idea behind map apps.', zh:'荷兰计算机科学家艾兹格·迪杰斯特拉。1956年，他发明了一个找出两地之间最短路线的著名算法——地图导航软件就用到了这个思路。', kind:o('Portrait','肖像'), credit:'Hamilton Richards', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Edsger_Wybe_Dijkstra.jpg' },
   { type:'youtube', yt:'6hfOvs8pY1k', en:'Video: “What’s an algorithm?” — TED-Ed lesson by David J. Malan.', zh:'视频：《什么是算法？》——TED-Ed课程，大卫·马兰（英文）。', kind:{en:'Video',zh:'视频'}, credit:'TED-Ed (YouTube)', license:'YouTube' },
   { type:'youtube', yt:'WaNLJf8xzC4', en:'Video: “What’s the fastest way to alphabetize your bookshelf?” — TED-Ed lesson by Chand John.', zh:'视频：《怎样最快地把书架上的书按字母排好？》——TED-Ed课程，钱德·约翰（英文）。', kind:{en:'Video',zh:'视频'}, credit:'TED-Ed (YouTube)', license:'YouTube' },
-  { type:'youtube', yt:'rL8X2mlNHPM', en:'Video: “Intro to Algorithms” — Crash Course Computer Science #13.', zh:'视频：《算法入门》——Crash Course计算机科学第13集（英文）。', kind:{en:'Video',zh:'视频'}, credit:'CrashCourse (YouTube)', license:'YouTube' }
+  { type:'youtube', yt:'rL8X2mlNHPM', en:'Video: “Intro to Algorithms” — Crash Course Computer Science #13.', zh:'视频：《算法入门》——Crash Course计算机科学第13集（英文）。', kind:{en:'Video',zh:'视频'}, credit:'CrashCourse (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'DuDz6B4cqVc', en:'Video: “Data Structures” — Crash Course Computer Science #14: arrays, lists, trees and graphs that algorithms work on.', zh:'视频：《数据结构》——Crash Course计算机科学第14集：算法要处理的数组、列表、树和图（英文）。', kind:{en:'Video',zh:'视频'}, credit:'CrashCourse (YouTube)', license:'YouTube' }
 ];
 LabPhotos.render('#gallery', PHOTOS, { title:o('See the real thing', '看一看真实的样子'), sub:o('Sorting and searching machines from before electronic computers, the people behind the ideas, and short videos. Click a picture to enlarge it.', '电子计算机出现之前的排序与查找机器、提出这些思想的人，以及短视频。点击图片可放大。') });
 function renderLinks(){ Lab.$('#links').innerHTML = LINKS.map(l => `<a class="linkcard" href="${l.u}" target="_blank" rel="noopener"><b>${Lab.L(l.t)}</b><span>${Lab.L(l.d)}</span><small>${l.s} ↗</small></a>`).join(''); }

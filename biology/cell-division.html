@@ -44,6 +44,12 @@
 .predict input{width:110px;font:inherit;font-weight:800;padding:9px 12px;border-radius:12px;border:2px solid var(--line);background:var(--surface);color:var(--ink)}
 .ctlrow{display:flex;flex-wrap:wrap;gap:6px}
 .ctlrow .chip.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand);box-shadow:none}
+.advt{width:100%;border-collapse:collapse;font-size:13.5px}
+.advt td,.advt th{padding:3px 5px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+.advt :is(td,th):first-child{text-align:left;white-space:normal}
+.advt th{white-space:normal;vertical-align:bottom;font-size:12.5px;color:var(--ink-2)}
+.advt td{font-family:Fredoka;font-weight:600}
+.advt td:first-child{font-family:inherit;font-weight:700;color:var(--ink-2)}
 @media (max-width:980px){.slots,.pool2{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:560px){.pill input#phase{width:120px}}
 </style>
@@ -61,6 +67,7 @@
   <div class="explorer">
     <div class="stage card" id="stage" data-3d>
       <div class="toolbar">
+        <div class="lab-mode"></div>
         <button class="tbtn mode on" data-mode="mito" data-zh="有丝分裂">Mitosis</button>
         <button class="tbtn mode" data-mode="meio" data-zh="减数分裂">Meiosis</button>
         <button class="tbtn" id="playBtn" data-zh="▶ 播放">▶ Play</button>
@@ -102,8 +109,14 @@
     <div class="card counterbox">
       <div class="cellrow" id="cellRow"></div>
       <div class="result" id="countMsg" style="text-align:center"></div>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:8px">
+        <b id="stepTitle" style="padding-right:24px"></b>
+        <div style="position:relative;height:150px"><canvas id="stepCv" style="position:absolute;inset:0;width:100%;height:100%" aria-label="Chromosomes and DNA per cell"></canvas></div>
+        <div style="overflow-x:auto"><table class="advt" id="stepTable"></table></div>
+      </div>
     </div>
     <div class="card simside">
+      <div class="lab-mode"></div>
       <h3 data-zh="生物">Organism</h3>
       <div class="ctlrow" id="orgRow"></div>
       <h3 data-zh="分裂方式">Type of division</h3>
@@ -112,6 +125,12 @@
       <div class="counters">
         <div class="counter"><b id="cKids">—</b><span data-zh="子细胞数">new cells</span></div>
         <div class="counter"><b id="cEach">—</b><span data-zh="每个细胞的染色体数">chromosomes in each</span></div>
+      </div>
+      <div class="adv adv-box" style="display:flex;flex-direction:column;gap:8px">
+        <label class="ctl"><span><span data-zh="🧬 自定义生物：体细胞染色体数 2n =">🧬 Custom organism: body-cell chromosomes 2n =</span> <b id="custVal">46</b></span><input id="cust" type="range" min="2" max="100" step="2" value="46"></label>
+        <div id="varNums" style="font-size:14px;color:var(--ink-2);line-height:1.5"></div>
+        <div style="font-size:14px;color:var(--ink-2)"><b style="color:var(--ink)" data-zh="🎯 挑战：">🎯 Challenge:</b> <span data-zh="只靠自由组合（不算交叉互换），一个亲本要能产生 100 万种以上不同的生殖细胞，2n 最小是多少？用自定义滑块找出来。">By independent assortment alone (no crossing over), what is the SMALLEST 2n that lets one parent make more than 1 million different kinds of sex cells? Find it with the custom slider.</span></div>
+        <div class="result" id="varCh"></div>
       </div>
       <div class="mix"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="减数分裂前 DNA 也只复制一次，但细胞要连续分裂两次，所以染色体数目减半。">Before meiosis the DNA is copied only ONCE, but the cell divides TWICE, so the chromosome number is cut in half.</span></div>
     </div>
@@ -150,7 +169,12 @@ const P = [
   { src:'https://upload.wikimedia.org/wikipedia/commons/1/1b/HumanChromosomesChromomycinA3.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Real chromosomes from a human white blood cell (a female lymphocyte) in metaphase, stained so that they glow under the microscope.', zh:'一位女性淋巴细胞（一种白细胞）在中期时的真实染色体，染色后在显微镜下发出荧光。', kind:{en:'Fluorescence micrograph',zh:'荧光显微镜照片'}, credit:'Steffen Dietzel', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:HumanChromosomesChromomycinA3.jpg' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/df/Human_male_karyotpe_high_resolution.jpg/960px-Human_male_karyotpe_high_resolution.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A karyotype: all the chromosomes of a human male, photographed and lined up in matching pairs. Count the pairs!', zh:'核型图：把一位男性的全部染色体拍下来，再按相同的一对一对排好。数一数有多少对！', kind:{en:'Light micrograph',zh:'光学显微镜照片'}, scale:{en:'46 chromosomes = 23 pairs',zh:'46 条染色体 = 23 对'}, credit:'National Human Genome Research Institute', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Human_male_karyotpe_high_resolution.jpg' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/37/Wilson1900Fig2.jpg/960px-Wilson1900Fig2.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Before photography was easy, scientists drew what they saw. This 1900 drawing by Edmund B. Wilson shows cells in a growing onion root tip.', zh:'在照相还不方便的年代，科学家把看到的东西画下来。这是埃德蒙·威尔逊 1900 年画的洋葱根尖生长区细胞。', kind:{en:'Historical drawing',zh:'历史手绘图'}, scale:{en:'enlarged 800 times',zh:'放大 800 倍'}, credit:'Edmund Beecher Wilson', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Wilson1900Fig2.jpg' },
-  { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/a/a8/Video_20220223_125657.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a8/Video_20220223_125657.webm/960px--Video_20220223_125657.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a8/Video_20220223_125657.webm/960px--Video_20220223_125657.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Video: onion cells in mitosis, filmed through a classroom-style microscope. Look for cells whose chromosomes are bunched up or being pulled apart.', zh:'视频：透过显微镜拍到的洋葱细胞有丝分裂。找一找染色体聚成一团或正被拉开的细胞。', kind:{en:'Microscope video',zh:'显微镜视频'}, credit:'Tnadafwork', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Video_20220223_125657.webm' }
+  { type:'video', media:'https://upload.wikimedia.org/wikipedia/commons/a/a8/Video_20220223_125657.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a8/Video_20220223_125657.webm/960px--Video_20220223_125657.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a8/Video_20220223_125657.webm/960px--Video_20220223_125657.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Video: onion cells in mitosis, filmed through a classroom-style microscope. Look for cells whose chromosomes are bunched up or being pulled apart.', zh:'视频：透过显微镜拍到的洋葱细胞有丝分裂。找一找染色体聚成一团或正被拉开的细胞。', kind:{en:'Microscope video',zh:'显微镜视频'}, credit:'Tnadafwork', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Video_20220223_125657.webm' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/07/Walther_Flemming.jpg/960px-Walther_Flemming.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Walther Flemming (1843–1905), the German scientist who first described mitosis. He stained cells with dyes and named the thread-like material inside the nucleus “chromatin”.', zh:'瓦尔特·弗莱明（1843—1905），第一个描述有丝分裂的德国科学家。他用染料给细胞染色，并把细胞核里丝状的物质命名为“染色质”。', kind:{en:'Historical photo',zh:'历史照片'}, credit:'Unknown photographer', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Walther_Flemming.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/b/b8/Flemming1882Tafel4Fig71-73.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled', en:'Flemming’s own drawings from his 1882 book, possibly the oldest pictures of human chromosomes. He drew dividing cells by hand while looking through his microscope.', zh:'弗莱明 1882 年著作中的亲手绘图，可能是最早的人类染色体图。他一边看显微镜，一边把正在分裂的细胞画下来。', kind:{en:'Historical drawing',zh:'历史手绘图'}, credit:'Walther Flemming', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Flemming1882Tafel4Fig71-73.jpg' },
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7c/Onion_root_cells.png/960px-Onion_root_cells.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Challenge: real onion root tip cells, enhanced so the chromosomes stand out. Most cells are in interphase (a round nucleus). Can you find one in prophase, metaphase (a line), anaphase (two groups) and telophase?', zh:'挑战：真实的洋葱根尖细胞，图像经过增强，让染色体更清楚。大多数细胞处在分裂间期（圆圆的细胞核）。你能分别找到前期、中期（排成一条线）、后期（分成两团）和末期的细胞吗？', kind:{en:'Light micrographs (composite)',zh:'光学显微镜照片（拼图）'}, credit:'ELaurent', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Onion_root_cells.png' },
+  { type:'youtube', yt:'QVCjdNxJreE', kind:{en:'Video',zh:'视频'}, en:'Amoeba Sisters: the cell cycle, including interphase and mitosis, and what happens when cells divide out of control (cancer).', zh:'Amoeba Sisters（阿米巴姐妹）：细胞周期，包括分裂间期和有丝分裂，以及细胞失控地分裂时会发生什么（癌症）。', credit:'Amoeba Sisters (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'zrKdz93WlVk', kind:{en:'Video',zh:'视频'}, en:'Amoeba Sisters: mitosis and meiosis side by side. One makes two identical body cells; the other makes four sex cells with half the chromosomes.', zh:'Amoeba Sisters（阿米巴姐妹）：有丝分裂和减数分裂并排对比。一个产生两个相同的体细胞，另一个产生四个染色体数目减半的生殖细胞。', credit:'Amoeba Sisters (YouTube)', license:'YouTube' }
 ];
 window.REALFIG = { chromosome:P[0], homologs:P[5], spindle:P[2] };
 if (window.LabPhotos) LabPhotos.render('#gallery', P.filter(p => !p._x), { title:{en:'See the real thing',zh:'看看真实的样子'}, sub:{en:'The 3D model shows one tidy cell. Here are real dividing cells, caught in the act under the microscope. Click any picture to enlarge it; the video plays only when you press play.',zh:'3D 模型里只有一个整齐的细胞。下面是显微镜下正在分裂的真实细胞。点击图片可以放大；视频要按下播放键才会播放。'} });
@@ -168,7 +192,7 @@ function makeExplorer(cfg){
     if (!k){
       box.innerHTML = `<span class="tag">${Lab.L(I.tag)}</span><h3>${Lab.L(I.title)}</h3>
         <p class="muted" style="margin:0">${Lab.L(I.text)}</p>
-        <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(I.big)}</div>
+        <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(I.big)}</div>${cfg.adv || ''}
         <div class="nav"><button data-a="start">${Lab.L(I.start)}</button></div>`;
       box.querySelector('[data-a=start]').onclick = () => E.select(cfg.order[0]);
     } else {
@@ -179,7 +203,7 @@ function makeExplorer(cfg){
         <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>${window.REALFIG && REALFIG[k] ? LabPhotos.figure(REALFIG[k]) : ''}
         <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(p.hint)}</div>
         ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
-        <button class="speak" data-a="speak">${Lab.L(Lab.UI.listen)}</button>
+        <button class="speak" data-a="speak">${Lab.L(Lab.UI.listen)}</button>${cfg.adv || ''}
         <div class="nav"><button data-a="prev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button data-a="next">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
       box.querySelector('[data-a=speak]').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. ').replace(/<[^>]+>/g, ''));
       box.querySelector('[data-a=prev]').onclick = () => E.select(cfg.order[(i - 1 + n) % n]);
@@ -187,6 +211,7 @@ function makeExplorer(cfg){
     }
     Lab.$(cfg.chips).innerHTML = cfg.order.map(c => `<button class="chip ${E.sel === c ? 'on' : ''}" data-k="${c}"><i style="background:${cfg.parts[c].color}"></i>${Lab.L(cfg.parts[c].name)}</button>`).join('');
     Lab.$$(cfg.chips + ' .chip').forEach(c => c.onclick = () => E.select(c.dataset.k));
+    cfg.afterRender && cfg.afterRender();
   }
   E.render = render;
   Lab.onLang(render);
@@ -255,7 +280,25 @@ const PH = {
   ]
 };
 const APP = window.APP = { mode:'mito', setU:null, setMode:null };
+/* ===== Advanced: zoom deeper in the info panel (numbers for the phase on screen) ===== */
+const PHN = { mito:[[2,2],[2,4],[2,4],[2,4],[4,4],[4,4],[2,2]], meio:[[2,2],[2,4],[2,4],[2,4],[2,4],[1,2],[1,2],[2,2],[1,1]] };   // [chromosomes, DNA molecules] per cell, in units of n
+let advPh = 0, advBest = false;
+APP.advTick = ph => {
+  if (ph != null) advPh = ph;
+  const box = Lab.$('#divAdv'); if (!box || !Lab.adv()) return;
+  const zh = Lab.lang === 'zh', m = APP.mode, P = PH[m][advPh] || PH[m][0], [c, d] = PHN[m][advPh] || PHN[m][0];
+  const win = m === 'mito' && (advPh === 4 || advPh === 5); if (win) advBest = true;
+  const row = (a, b, e) => `<tr><td>${a}</td><td>${b}</td><td>${e}</td></tr>`;
+  box.innerHTML = `<b>${zh ? '🔬 再深入一点：' : '🔬 Zoom deeper: '}${Lab.L(P.n)}</b>
+    <table class="advt"><tr><th></th><th>${zh ? "模型 2n = 4" : "Model 2n = 4"}</th><th>${zh ? "人 2n = 46" : "Human 2n = 46"}</th></tr>
+    ${row(zh ? '每个细胞的染色体' : 'Chromosomes per cell', c * 2, c * 23)}${row(zh ? '每个细胞的 DNA 分子' : 'DNA molecules per cell', d * 2, d * 23)}</table>
+    <span style="font-size:14px;color:var(--ink-2)">${zh ? '数染色体就数着丝粒；一条复制后的染色体含 2 个 DNA 分子（2 条姐妹染色单体）。人的细胞周期约 24 小时：G1 约 11 小时，S 约 8 小时，G2 约 4 小时，分裂期只有约 1 小时。' : 'Count chromosomes by counting centromeres; a copied chromosome holds 2 DNA molecules (2 sister chromatids). A human cell cycle takes about 24 h: G1 about 11 h, S about 8 h, G2 about 4 h, and mitosis itself only about 1 h.'}</span>
+    <span style="font-size:14px;color:var(--ink-2)"><b style="color:var(--ink)">${zh ? '🎯 挑战：' : '🎯 Challenge:'}</b> ${zh ? '在两种分裂方式中，找出一个细胞里染色体数目“最多”的时期，把时间轴停在那里。' : 'In either kind of division, find the stage when one cell holds the MOST chromosomes, and stop the timeline there.'}</span>
+    <div class="result ${win ? 'good' : ''}">${win ? (zh ? `✅ 对了！有丝分裂后期着丝粒分裂，染色体暂时变成 4n（人：92 条），随后平分到两个子细胞。` : `✅ Yes! In mitosis anaphase the centromeres split, so for a moment the cell holds 4n chromosomes (92 in a human) before they are shared out.`) : advBest ? (zh ? '✅ 已完成。' : '✅ Done.') : (zh ? `现在：${c * 2} 条。继续找！` : `Now: ${c * 2}. Keep looking!`)}</div>`;
+};
+Lab.onMode(() => APP.advTick());
 const EX = makeExplorer({ info:'#info', chips:'#chips', parts:PARTS, order:ORDER, tag:o('Cell division','细胞分裂'),
+  adv:'<div class="adv adv-box" id="divAdv" style="display:flex;flex-direction:column;gap:6px"></div>', afterRender:() => APP.advTick(),
   intro:{ tag:o('Cell cycle','细胞周期'), title:o('One cell becomes two','一个细胞变成两个'),
     text:o('Drag the Phase slider (or press Play) to watch a cell divide. Switch between Mitosis and Meiosis. Red chromosomes came from mom, blue from dad.','拖动“时期”滑块（或点“播放”）观察细胞分裂。可以在有丝分裂和减数分裂之间切换。红色染色体来自母亲，蓝色来自父亲。'),
     big:o('Mitosis: 1 cell → 2 identical body cells (growth & repair). Meiosis: 1 cell → 4 different sex cells with half the chromosomes.','有丝分裂：1 个细胞 → 2 个相同的体细胞（生长和修复）。减数分裂：1 个细胞 → 4 个各不相同、染色体数目减半的生殖细胞。'),
@@ -318,8 +361,50 @@ function drawPhase(cv, i){
     {k:'fly', n:8, ico:'🪰', name:o('Fruit fly','果蝇')}, {k:'pea', n:14, ico:'🫛', name:o('Pea plant','豌豆')}, {k:'corn', n:20, ico:'🌽', name:o('Corn','玉米')}];
   const PROC = { mito:o('Mitosis','有丝分裂'), meio:o('Meiosis','减数分裂') };
   const st = { org:0, proc:'mito', shown:false, guess:null };
+  const custom = () => ({ k:'custom', n:+Lab.$('#cust').value, ico:'🧬', name:o('Custom','自定义') });
+  Lab.$('#cust').oninput = () => { Lab.$('#custVal').textContent = Lab.$('#cust').value; st.org = -1; st.shown = false; render(); };
+  Lab.onMode(adv => { if (!adv && st.org < 0){ st.org = 0; st.shown = false; } render(); });
+  /* Advanced: chromosomes and DNA molecules per cell through every stage (in units of n) */
+  const STEPS = {
+    mito:[[o('G1','G1 期'),2,2],[o('S & G2','S、G2 期'),2,4],[o('Prophase','前期'),2,4],[o('Metaphase','中期'),2,4],[o('Anaphase','后期'),4,4],[o('Telophase','末期'),4,4],[o('Each new cell','每个子细胞'),2,2]],
+    meio:[[o('G1','G1 期'),2,2],[o('S & G2','S、G2 期'),2,4],[o('Metaphase I','中期 I'),2,4],[o('Anaphase I','后期 I'),2,4],[o('After meiosis I','减数第一次分裂后'),1,2],[o('Metaphase II','中期 II'),1,2],[o('Anaphase II','后期 II'),2,2],[o('Each sex cell','每个生殖细胞'),1,1]]
+  };
+  const big = x => x < 1e15 ? Math.round(x).toLocaleString('en-US') : x.toExponential(1).replace('e+', ' × 10^');
+  function advRender(O){
+    if (!Lab.adv()) return;
+    const zh = Lab.lang === 'zh', n = O.n / 2, rows = STEPS[st.proc];
+    Lab.$('#stepTitle').textContent = zh ? `🔬 再深入一点：每个细胞里的染色体数和 DNA 分子数（${Lab.L(O.name)}，2n = ${O.n}）` : `🔬 Zoom deeper: chromosomes and DNA molecules per cell (${Lab.L(O.name)}, 2n = ${O.n})`;
+    Lab.$('#stepTable').innerHTML = `<tr><th>${zh ? '时期' : 'Stage'}</th>${rows.map(r => `<th>${Lab.L(r[0])}</th>`).join('')}</tr>`
+      + `<tr><td style="color:#e5484d;font-weight:800">${zh ? '染色体' : 'Chromosomes'}</td>${rows.map(r => `<td>${r[1] * n}</td>`).join('')}</tr>`
+      + `<tr><td style="color:#3f7ee8;font-weight:800">${zh ? 'DNA 分子' : 'DNA molecules'}</td>${rows.map(r => `<td>${r[2] * n}</td>`).join('')}</tr>`;
+    /* step graph */
+    const cv = Lab.$('#stepCv'), b = cv.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2);
+    if (b.width){ cv.width = Math.round(b.width * d); cv.height = Math.round(b.height * d);
+      const g = cv.getContext('2d'), w = cv.width, h = cv.height, css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+      const L = 30 * d, R = w - 8 * d, T = 22 * d, B = h - 18 * d, X = i => L + (R - L) * i / rows.length, Y = v => B - (B - T) * v / 4;
+      g.clearRect(0, 0, w, h); g.strokeStyle = css('--line'); g.lineWidth = d; g.beginPath(); g.moveTo(L, T); g.lineTo(L, B); g.lineTo(R, B); g.stroke();
+      g.fillStyle = css('--ink-2'); g.font = `700 ${10 * d}px Nunito, sans-serif`; g.textAlign = 'right';
+      [1, 2, 4].forEach(v => { g.fillText(v === 1 ? 'n' : v + 'n', L - 4 * d, Y(v) + 4 * d); g.strokeStyle = css('--line'); g.setLineDash([3 * d, 3 * d]); g.beginPath(); g.moveTo(L, Y(v)); g.lineTo(R, Y(v)); g.stroke(); g.setLineDash([]); });
+      g.textAlign = 'center'; rows.forEach((r, i) => g.fillText(String(i + 1), (X(i) + X(i + 1)) / 2, h - 5 * d));
+      [[1, '#e5484d', 0], [2, '#3f7ee8', 2.5 * d]].forEach(([k, col, off]) => { g.strokeStyle = col; g.lineWidth = 3 * d; g.beginPath();
+        rows.forEach((r, i) => { const y = Y(r[k]) + off; i ? g.lineTo(X(i), y) : g.moveTo(X(i), y); g.lineTo(X(i + 1), y); }); g.stroke(); });
+      g.textAlign = 'left'; g.fillStyle = '#e5484d'; g.fillText(zh ? "— 染色体" : "— chromosomes", L + 6 * d, 11 * d); g.fillStyle = '#3f7ee8'; g.fillText(zh ? "— DNA 分子" : "— DNA molecules", L + 96 * d, 11 * d);
+    }
+    /* variety from independent assortment */
+    const kinds = Math.pow(2, n), zyg = kinds * kinds;
+    Lab.$('#varNums').innerHTML = zh
+      ? `${O.n / 2} 对同源染色体 → 每对随机分向一极，一个亲本能产生 <b>2<sup>${n}</sup> = ${big(kinds)}</b> 种不同的生殖细胞；父母双方结合，受精卵约有 <b>${big(zyg)}</b> 种组合。再加上交叉互换，几乎不可能出现两个一样的配子。`
+      : `${n} homologous pairs, each lining up at random → one parent can make <b>2<sup>${n}</sup> = ${big(kinds)}</b> different kinds of sex cells; two parents together → about <b>${big(zyg)}</b> possible zygotes. Add crossing over and no two gametes are ever really alike.`;
+    const c = Lab.$('#varCh'); let msg = '', cls = '';
+    if (st.org < 0){ if (O.n === 40){ msg = o('✅ Yes! 2n = 40 → 20 pairs → 2²⁰ = 1,048,576 kinds. (A cat, 2n = 38, gets only 2¹⁹ = 524,288.)', '✅ 对了！2n = 40 → 20 对 → 2²⁰ = 1,048,576 种。（猫的 2n = 38，只有 2¹⁹ = 524,288 种。）'); cls = 'good'; }
+      else if (O.n > 40) msg = o(`That works (${big(kinds)} kinds), but is it the smallest?`, `可以（${big(kinds)} 种），但这是最小的吗？`);
+      else { msg = o(`Not yet: only ${big(kinds)} kinds. Each extra pair DOUBLES the number.`, `还不够：只有 ${big(kinds)} 种。每多一对同源染色体，种类就翻一倍。`); cls = 'bad'; } }
+    else msg = o('Move the custom slider to start.', '拖动自定义滑块开始挑战。');
+    c.textContent = Lab.L(msg); c.className = 'result ' + cls;
+  }
   function render(){
-    const O = ORGS[st.org], meio = st.proc === 'meio', kids = meio ? 4 : 2, each = meio ? O.n / 2 : O.n;
+    const O = st.org < 0 ? custom() : ORGS[st.org], meio = st.proc === 'meio', kids = meio ? 4 : 2, each = meio ? O.n / 2 : O.n;
+    advRender(O);
     Lab.$('#orgRow').innerHTML = ORGS.map((g, i) => `<button class="chip ${i === st.org ? 'on' : ''}" data-i="${i}">${g.ico} ${Lab.L(g.name)}</button>`).join('');
     Lab.$$('#orgRow .chip').forEach(b => b.onclick = () => { st.org = +b.dataset.i; st.shown = false; render(); });
     Lab.$('#procRow').innerHTML = Object.keys(PROC).map(k => `<button class="chip ${k === st.proc ? 'on' : ''}" data-p="${k}">${Lab.L(PROC[k])}</button>`).join('');
@@ -527,6 +612,7 @@ function readout(i){
   const p = PH[S.mode][i];
   Lab.$('#phaseRead').textContent = Lab.lang === 'zh' ? `${Lab.L(p.n)} · ${p.cells} 个细胞 · 染色体 ${p.chr}` : `${Lab.L(p.n)} · ${p.cells} cell${p.cells > 1 ? 's' : ''} · chromosomes ${p.chr}`;
   APP.renderPhasebar(i);
+  APP.advTick(i);
 }
 /* =================== per-frame =================== */
 ctx.onFrame((dt, t) => {

@@ -35,6 +35,8 @@
 .lp-cap .sc{padding:0;display:block} /* gallery scale line: undo the scenario-card .sc padding */
 .stars{font-size:28px;letter-spacing:4px}
 .steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.nra{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px;margin-top:10px;align-items:start}
+@media (max-width:860px){.nra{grid-template-columns:1fr}}
 .steps .box .num{font-family:Fredoka;font-weight:700;color:var(--brand);font-size:15px}
 @media (max-width:980px){.planner{grid-template-columns:1fr}.readouts,.steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:560px){.src{grid-template-columns:110px 1fr 60px;font-size:14px}.scen{grid-template-columns:1fr}.pc{grid-template-columns:1fr}}
@@ -84,6 +86,7 @@
     <h2 data-zh="模拟：为小镇规划能源">Simulation: plan the town’s energy</h2>
     <p data-zh="白天小镇需要 1000 兆瓦电力，夜间需要 700 兆瓦。用滑块组合各种能源，让四种天气情况都不停电，同时尽量减少二氧化碳排放和成本。提示：太阳能晚上不发电，风小时风电也很少，储能电池可以把白天的太阳能存到晚上用。">The town needs 1,000 megawatts (MW) in the day and 700 MW at night. Mix energy sources with the sliders so the lights stay on in all four weather cases, while keeping CO₂ and cost low. Hint: solar makes nothing at night, wind makes little when it is calm, and batteries can store daytime solar power for the night.</p>
   </div>
+  <div class="lab-mode" style="margin-bottom:10px"></div>
   <div class="planner">
     <div class="card srcs" id="srcs"></div>
     <div style="display:flex;flex-direction:column;gap:12px">
@@ -98,6 +101,21 @@
         <div class="result" id="pMsg"></div>
       </div>
     </div>
+  </div>
+  <div class="adv adv-box" id="nrAdv" style="margin-top:14px">
+    <b data-zh="🚀 进阶：一天 24 小时的能量账（能量 = 功率 × 时间）">🚀 Advanced: the energy over 24 hours (energy = power × time)</b>
+    <div class="nra" data-nofs>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <label class="ctl"><span><span data-zh="🌬 有风天的风速">🌬 Wind speed on windy days</span>: <b id="aWindV"></b></span><input id="aWind" type="range" min="3" max="15" step="0.2" value="11.6"></label>
+        <label class="ctl"><span><span data-zh="🔋 电池储能时长（满功率能放电几小时）">🔋 Battery storage (hours at full power)</span>: <b id="aBatV"></b></span><input id="aBat" type="range" min="1" max="12" step="1" value="12"></label>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><b style="font-size:14px" data-zh="📊 一天的供电：">📊 One day of power:</b><div class="seg" id="aDay"></div></div>
+        <canvas id="aChart" style="display:block;width:100%;height:190px" role="img"></canvas>
+        <div id="aLeg" style="display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12.5px;font-weight:700;color:var(--ink-2)"></div>
+      </div>
+      <div id="nrForm" style="font-size:14px;line-height:1.6"></div>
+    </div>
+    <div class="btnrow" style="align-items:center;margin-top:10px"><span id="nrGoal" style="font-weight:700;font-size:14.5px;flex:1 1 260px"></span><button class="btn ghost" id="nrCheck" data-zh="🎯 检查">🎯 Check</button></div>
+    <div class="result" id="nrMsg" style="margin-top:6px"></div>
   </div>
 </section>
 
@@ -257,8 +275,12 @@ Lab.onLang(() => { Lab.$('#steps').innerHTML = STEPS.map(([i, t, d]) => `<div cl
     Lab.$('#pFossil').onclick = () => { Object.assign(v, { coal:600, gas:500, nuclear:0, hydro:0, wind:0, solar:0, battery:0 }); build(); calc(); };
     Lab.$('#pGreen').onclick = () => { Object.assign(v, { coal:0, gas:100, nuclear:200, hydro:200, wind:400, solar:700, battery:300 }); build(); calc(); };
   }
+  /* 🚀 Advanced: windy-day output follows the cube law (P ∝ v³, cut-in 3 m/s, full power from 12 m/s); batteries hold only P × hours of energy for a 12-hour night */
+  const windF = s => s < 3 ? 0 : Math.min(1, (s ** 3 - 27) / (12 ** 3 - 27));
+  const adv = () => Lab.adv(), aWind = () => +Lab.$('#aWind').value, aBat = () => +Lab.$('#aBat').value;
   function supply(sc){
-    const out = { coal:v.coal, gas:v.gas, nuclear:v.nuclear, hydro:v.hydro, wind:v.wind * (sc.windy ? .9 : .1), solar:sc.day ? v.solar * .8 : 0, battery:sc.day ? 0 : Math.min(v.battery, v.solar * .8) };
+    const wf = sc.windy ? (adv() ? windF(aWind()) : .9) : .1, bat = adv() ? Math.min(v.battery, v.battery * aBat() / 12, v.solar * .8) : Math.min(v.battery, v.solar * .8);
+    const out = { coal:v.coal, gas:v.gas, nuclear:v.nuclear, hydro:v.hydro, wind:v.wind * wf, solar:sc.day ? v.solar * .8 : 0, battery:sc.day ? 0 : bat };
     out.total = Object.values(out).reduce((a, b) => a + b, 0); return out;
   }
   function calc(){
@@ -282,8 +304,65 @@ Lab.onLang(() => { Lab.$('#steps').innerHTML = STEPS.map(([i, t, d]) => `<div cl
       : stars === 2 ? o('Lights stay on! Can you cut CO₂ below 100 tonnes per hour?','灯一直亮着！你能把二氧化碳排放降到每小时 100 吨以下吗？')
       : o('Reliable, but lots of CO₂ from fossil fuels, which will also run out someday. Try swapping in renewables.','供电可靠，但化石燃料排放大量二氧化碳，而且终会耗尽。试着换成可再生能源。'));
     m.className = 'result ' + (allOk ? 'good' : 'bad');
+    App.plan = { allOk, co2 };
+    advRender();
   }
+  /* ---- 🚀 Advanced panel ---- */
+  const cv = Lab.$('#aChart'), g = cv.getContext('2d');
+  let dayWindy = false, nrChecked = false;
+  const nf = (x, d = 0) => x.toLocaleString(Lab.lang === 'zh' ? 'zh-CN' : 'en-US', { minimumFractionDigits:d, maximumFractionDigits:d });
+  function drawChart(){
+    const w = cv.clientWidth, h = cv.clientHeight; if (!w || !h) return;
+    const dd = Math.min(devicePixelRatio, 2); if (cv.width !== Math.round(w * dd)){ cv.width = Math.round(w * dd); cv.height = Math.round(h * dd); }
+    g.setTransform(dd, 0, 0, dd, 0, 0); g.clearRect(0, 0, w, h);
+    const css = getComputedStyle(document.documentElement), ink = css.getPropertyValue('--ink').trim(), ink2 = css.getPropertyValue('--ink-2').trim(), line = css.getPropertyValue('--line').trim();
+    const L = 40, R = w - 6, T = 8, B = h - 22, maxMW = 1600, Y = mw => B - mw / maxMW * (B - T), bw = (R - L) / 24;
+    g.strokeStyle = line; g.lineWidth = 1; g.font = '700 11px Nunito, sans-serif'; g.fillStyle = ink2; g.textAlign = 'right';
+    for (let mw = 0; mw <= maxMW; mw += 400){ g.beginPath(); g.moveTo(L, Y(mw)); g.lineTo(R, Y(mw)); g.stroke(); g.fillText(mw, L - 4, Y(mw) + 4); }
+    g.textAlign = 'center'; [0, 6, 12, 18, 24].forEach(hh => g.fillText(hh + ':00', Math.min(R - 14, Math.max(L + 14, L + hh * bw)), h - 6));
+    const order = ['nuclear', 'hydro', 'coal', 'gas', 'wind', 'solar', 'battery'];
+    for (let hr = 0; hr < 24; hr++){
+      const day = hr >= 6 && hr < 18, s = supply({ day, windy:dayWindy }), dem = day ? 1000 : 700; let y = 0;
+      order.forEach(k => { const mw = Math.min(s[k], maxMW - y); if (mw <= 0) return; g.fillStyle = col(S.find(x => x.k === k)); g.fillRect(L + hr * bw + 1, Y(y + mw), bw - 2, Y(y) - Y(y + mw)); y += mw; });
+      g.strokeStyle = ink; g.lineWidth = 2; g.beginPath(); g.moveTo(L + hr * bw, Y(dem)); g.lineTo(L + (hr + 1) * bw, Y(dem)); g.stroke();
+      if (s.total < dem){ g.fillStyle = 'rgba(224,71,91,.85)'; g.fillRect(L + hr * bw + 1, B + 1, bw - 2, 4); }
+    }
+    g.fillStyle = ink; g.textAlign = 'left'; g.font = '800 11px Nunito, sans-serif'; g.fillText(Lab.L(o('— demand (MW)','— 用电需求（兆瓦）')), L + 4, T + 10);
+    cv.setAttribute('aria-label', Lab.L(o('Stacked bars: power from each source for every hour of the day; black line: demand','堆叠柱：一天中每小时各电源的发电功率；黑线：用电需求')));
+  }
+  function nrCheck(){
+    const p = App.plan, m = Lab.$('#nrMsg'); let ok = false, t;
+    if (v.coal > 0 || v.nuclear > 0) t = o('Set coal and nuclear to 0 for this challenge.','这个挑战要把煤电和核电都设为 0。');
+    else if (aBat() > 4) t = o('Real grid batteries today usually store about 4 hours. Set battery storage to 4 h or less.','现在电网里的电池一般只能储存约 4 小时的电。把储能时长设为 4 小时或更短。');
+    else if (!p.allOk) t = o('There is still a blackout. Look at the 24-hour chart (try both weathers): which hours are short?','还有停电的情况。看看 24 小时图（两种天气都看看）：哪几个小时电不够？');
+    else if (p.co2 > 150) t = o(`CO₂ is ${Math.round(p.co2)} t/h. Get it down to 150 or less.`,`二氧化碳是每小时 ${Math.round(p.co2)} 吨，要降到 150 以下。`);
+    else { ok = true; t = o(`🎉 Lights on day and night with only ${Math.round(p.co2)} t of CO₂ per hour, using short-storage batteries. Real power grids balance exactly like this, hour by hour.`,`🎉 只排放每小时 ${Math.round(p.co2)} 吨二氧化碳，用短时储能电池也能日夜不停电。真实的电网就是这样一小时一小时地平衡供需的。`); }
+    m.textContent = Lab.L(t); m.className = 'result ' + (ok ? 'good' : 'bad');
+  }
+  function advRender(){
+    const zh = Lab.lang === 'zh', ws = aWind(), bh = aBat(), wf = windF(ws), half = windF(ws / 2);
+    Lab.$('#aWindV').textContent = nf(ws, 1) + ' m/s'; Lab.$('#aBatV').textContent = bh + (zh ? ' 小时' : ' h');
+    Lab.$('#aDay').innerHTML = [[true, o('🌬 Windy','🌬 有风')], [false, o('🍃 Calm','🍃 无风')]].map(([w, n]) => `<button class="${w === dayWindy ? 'on' : ''}" data-w="${w ? 1 : 0}">${Lab.L(n)}</button>`).join('');
+    Lab.$$('#aDay button').forEach(b => b.onclick = () => { dayWindy = b.dataset.w === '1'; advRender(); });
+    Lab.$('#aLeg').innerHTML = ['nuclear', 'hydro', 'coal', 'gas', 'wind', 'solar', 'battery'].map(k => { const s = S.find(x => x.k === k); return `<span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;background:${col(s)}"></i>${Lab.L(nm(s)).replace('🔋 ', '')}</span>`; }).join('') + `<span style="color:var(--bad)">▬ ${Lab.L(o('blackout hour','停电的小时'))}</span>`;
+    const bE = v.battery * bh, bNight = Math.min(v.battery, bE / 12, v.solar * .8), co2y = (v.coal + v.gas * .45) * 8760, coalT = v.coal * .45;
+    const rows = [
+      zh ? `📅 每天用电：1000 MW × 12 h + 700 MW × 12 h = <b>20,400 MWh</b>（约 2040 万度电，够美国约 68 万户家庭用一天）` : `📅 Energy per day: 1,000 MW × 12 h + 700 MW × 12 h = <b>20,400 MWh</b> (about what 680,000 US homes use in a day)`,
+      zh ? `🔋 电池储能：${v.battery} MW × ${bh} h = <b>${nf(bE)} MWh</b> → 分摊到 12 小时的夜晚 ≈ <b>${nf(bNight)} MW</b>${bNight < Math.min(v.battery, bE / 12) - .5 ? '（白天的太阳能不够给它充满）' : ''}` : `🔋 Battery energy: ${v.battery} MW × ${bh} h = <b>${nf(bE)} MWh</b> → spread over a 12-hour night ≈ <b>${nf(bNight)} MW</b>${bNight < Math.min(v.battery, bE / 12) - .5 ? ' (not enough daytime solar to fill it)' : ''}`,
+      zh ? `🌬 风电功率 ∝ 风速³：${nf(ws, 1)} m/s 时约为满功率的 <b>${Math.round(wf * 100)}%</b>；风速减半（${nf(ws / 2, 1)} m/s）只剩约 <b>${Math.round(half * 100)}%</b>。` : `🌬 Wind power ∝ (wind speed)³: at ${nf(ws, 1)} m/s the turbines give about <b>${Math.round(wf * 100)}%</b> of full power; at half the speed (${nf(ws / 2, 1)} m/s) only about <b>${Math.round(half * 100)}%</b>.`,
+      zh ? `🏭 一年的二氧化碳：(${v.coal} × 1.0 + ${v.gas} × 0.45) t/h × 8760 h ≈ <b>${nf(co2y / 1e6, 1)} 百万吨</b>` : `🏭 CO₂ in a year: (${v.coal} × 1.0 + ${v.gas} × 0.45) t/h × 8,760 h ≈ <b>${nf(co2y / 1e6, 1)} million t</b>`,
+      v.coal ? (zh ? `⛏ ${v.coal} MW 煤电每小时烧掉约 <b>${nf(coalT)} 吨煤</b>（每 MWh 约 0.45 吨），一天约 ${nf(coalT * 24 / 100)} 节 100 吨的运煤车皮。` : `⛏ ${v.coal} MW of coal power burns about <b>${nf(coalT)} t of coal</b> every hour (about 0.45 t per MWh): about ${nf(coalT * 24 / 100)} 100-ton rail cars a day.`) : ''
+    ];
+    Lab.$('#nrForm').innerHTML = rows.filter(Boolean).map(x => `<div>${x}</div>`).join('') + `<div class="muted" style="font-size:13px">${Lab.L(o('MW = power (how fast energy flows); MWh = energy (power × hours). 1 MWh = 1,000 kWh. Numbers are simplified and approximate.','MW（兆瓦）是功率，表示能量流动的快慢；MWh（兆瓦时）是能量 = 功率 × 小时。1 MWh = 1000 千瓦时（度）。数字为简化的近似值。'))}</div>`;
+    Lab.$('#nrGoal').textContent = Lab.L(o('🎯 Challenge: no coal, no nuclear, batteries that store only 4 hours, no blackouts in all four cases, and CO₂ of 150 t/h or less.','🎯 挑战：不用煤电和核电，电池只能储存 4 小时，四种情况都不停电，并且二氧化碳不超过每小时 150 吨。'));
+    if (nrChecked) nrCheck();
+    requestAnimationFrame(drawChart);
+  }
+  ['aWind', 'aBat'].forEach(id => Lab.$('#' + id).addEventListener('input', calc));
+  Lab.$('#nrCheck').onclick = () => { nrChecked = true; nrCheck(); };
+  window.addEventListener('labtheme', () => requestAnimationFrame(drawChart));
   Lab.onLang(() => { build(); calc(); });
+  Lab.onMode(() => calc());
 })();
 
 /* ===== Quiz ===== */
@@ -297,7 +376,12 @@ const PHOTOS = [
   { part:'coal', kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/da/TurowCoalMine.jpg/960px-TurowCoalMine.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The Turów open-pit coal mine in Poland, with its power station behind. Coal is dug here and burned next door to make electricity.', zh:'波兰的图罗露天煤矿，后面就是发电站。煤在这里挖出来，运到旁边烧掉发电。', scale:{en:'Lower Silesia, Poland',zh:'波兰下西里西亚省'}, credit:'Petr Vodička', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:TurowCoalMine.jpg' },
   { part:'oil', kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/Oil_pumpjack_in_the_Permian_Basin.jpg/960px-Oil_pumpjack_in_the_Permian_Basin.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'A pumpjack lifting oil out of a well in the Permian Basin near Monahans, Texas, one of the most productive oil regions in the United States.', zh:'美国得克萨斯州莫纳汉斯附近二叠纪盆地的一台抽油机，正把石油从井里抽上来。这里是美国产油最多的地区之一。', scale:{en:'Texas, USA',zh:'美国得克萨斯州'}, credit:'Quintin Soloviev', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Oil_pumpjack_in_the_Permian_Basin.jpg' },
   { part:'nuclear', kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/ff/Cooling_towers_of_a_nuclear_power_plant.jpg/960px-Cooling_towers_of_a_nuclear_power_plant.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Cooling towers of the Kalinin nuclear power plant. The white plume is water vapor, not smoke.', zh:'加里宁核电站的冷却塔。冒出的白色“烟”其实是水蒸气，不是烟。', scale:{en:'Russia',zh:'俄罗斯'}, credit:'Vsatinet', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Cooling_towers_of_a_nuclear_power_plant.jpg' },
-  { type:'video', kind:{en:'Video',zh:'影片'}, media:'https://upload.wikimedia.org/wikipedia/commons/4/44/Lawrence_Weston_Wind_Turbine_-_February_2026.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/44/Lawrence_Weston_Wind_Turbine_-_February_2026.webm/330px--Lawrence_Weston_Wind_Turbine_-_February_2026.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/44/Lawrence_Weston_Wind_Turbine_-_February_2026.webm/330px--Lawrence_Weston_Wind_Turbine_-_February_2026.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Watch: a real wind turbine turning at Avonmouth, Bristol, in England. Look how slowly the giant blades seem to move.', zh:'看一看：英国布里斯托尔埃文茅斯一台正在转动的真实风力发电机。看，巨大的叶片转得好像很慢。', credit:'Captain Galaxy', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Lawrence_Weston_Wind_Turbine_-_February_2026.webm' }
+  { type:'video', kind:{en:'Video',zh:'影片'}, media:'https://upload.wikimedia.org/wikipedia/commons/4/44/Lawrence_Weston_Wind_Turbine_-_February_2026.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/44/Lawrence_Weston_Wind_Turbine_-_February_2026.webm/330px--Lawrence_Weston_Wind_Turbine_-_February_2026.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/44/Lawrence_Weston_Wind_Turbine_-_February_2026.webm/330px--Lawrence_Weston_Wind_Turbine_-_February_2026.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Watch: a real wind turbine turning at Avonmouth, Bristol, in England. Look how slowly the giant blades seem to move.', zh:'看一看：英国布里斯托尔埃文茅斯一台正在转动的真实风力发电机。看，巨大的叶片转得好像很慢。', credit:'Captain Galaxy', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Lawrence_Weston_Wind_Turbine_-_February_2026.webm' },
+  { kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/ThreeGorgesDam-China2009.jpg/960px-ThreeGorgesDam-China2009.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The Three Gorges Dam on the Yangtze River in Hubei, China. It is the largest hydroelectric power station in the world: falling water spins its turbines to make electricity.', zh:'中国湖北长江上的三峡大坝。它是世界上装机容量最大的水电站：落下的水推动水轮机发电。', scale:{en:'Yichang, Hubei, China',zh:'中国湖北宜昌'}, credit:'Le Grand Portage (edit: Rehman)', license:'CC BY 2.0', page:'https://commons.wikimedia.org/wiki/File:ThreeGorgesDam-China2009.jpg' },
+  { kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/Oil_platform_P-51_%28Brazil%29.jpg/960px-Oil_platform_P-51_%28Brazil%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'An offshore oil platform off the coast of Brazil. Much of the world’s oil and natural gas lies in rock under the sea floor, so it is pumped up from platforms like this one.', zh:'巴西海岸外的一座海上石油平台。世界上很多石油和天然气埋藏在海底的岩层里，要靠这样的平台抽上来。', scale:{en:'Atlantic Ocean, off Brazil',zh:'巴西近海，大西洋'},credit:'Petrobras / Agência Brasil', license:'CC BY 3.0 br', page:'https://commons.wikimedia.org/wiki/File:Oil_platform_P-51_(Brazil).jpg' },
+  { kind:{en:'Photo',zh:'实地照片'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/54/Bingham_Canyon_April_2005.jpg/960px-Bingham_Canyon_April_2005.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'The Bingham Canyon copper mine in Utah, one of the largest open-pit mines on Earth. Metals are natural resources too, and they are nonrenewable: once the ore is dug out, it is gone.', zh:'美国犹他州的宾厄姆峡谷铜矿，地球上最大的露天矿之一。金属也是自然资源，而且是不可再生的：矿石挖出来就没有了。', scale:{en:'about 1 km deep and 4 km across',zh:'深约 1 千米，宽约 4 千米'}, credit:'Tim Jarrett', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Bingham_Canyon_April_2005.jpg' },
+  { type:'youtube', yt:'xKxrkht7CpY', kind:{en:'Video',zh:'视频'}, en:'TED-Ed: how do solar panels work? How a solar cell turns sunlight into an electric current, and why it is hard to capture all of the Sun’s energy.', zh:'TED-Ed：太阳能电池板是怎样工作的？太阳能电池怎样把阳光变成电流，为什么很难把太阳的能量全部收集起来。', credit:'TED-Ed (YouTube)', license:'YouTube' },
+  { type:'youtube', yt:'RnvCbquYeIM', kind:{en:'Video',zh:'视频'}, en:'TED-Ed: can 100% renewable energy power the world? Comparing sun, wind, water and other sources with the fossil fuels we use today.', zh:'TED-Ed：百分之百的可再生能源能为全世界供电吗？把太阳能、风能、水能等能源和我们今天使用的化石燃料作个比较。', credit:'TED-Ed (YouTube)', license:'YouTube' }
 ];
 PHOTOS.forEach(it => { if (it.part && PARTS[it.part]) PARTS[it.part].photo = it; });
 LabPhotos.render(Lab.$('#gallery'), PHOTOS);

@@ -47,6 +47,16 @@
 .goalbox{background:var(--surface-2);border-radius:14px;padding:12px 14px;font-weight:700}
 .goalbox b{color:var(--brand)}
 @media (max-width:980px){.idlab,.cyclewrap{grid-template-columns:1fr}}
+/* 🚀 Advanced mode */
+#rmAdv h4{margin:0 0 6px;font-size:17px}
+.advrow{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px;margin:8px 0}
+.advrow input{flex:1;min-width:0}
+.advrow b{min-width:78px;text-align:right}
+.advf{font-family:ui-monospace,Consolas,monospace;font-size:13.5px;background:var(--surface-2);border-radius:10px;padding:8px 10px;margin:6px 0;overflow-wrap:anywhere;line-height:1.5}
+.advnote{font-size:14px;margin:4px 0;color:var(--ink-2)}
+.coolrow{display:grid;grid-template-columns:110px minmax(0,1fr);gap:10px;align-items:center}
+#texCv{width:110px;height:110px;border-radius:12px;display:block}
+#burCv{width:100%;height:34px;border-radius:8px;display:block;margin-top:4px}
 </style>
 </head>
 <body data-subject="earth" data-topic="rocks-minerals">
@@ -75,6 +85,27 @@
     <aside class="info card" id="info" aria-live="polite"></aside>
   </div>
   <div class="chips" id="chips"></div>
+  <div class="adv adv-box" id="rmAdv" style="margin-top:12px">
+    <div class="grid2" style="align-items:start">
+      <div>
+        <h4 data-zh="🚀 冷却速度与晶体大小">🚀 Cooling time &amp; crystal size</h4>
+        <label class="advrow"><span data-zh="岩浆体大小 L">Magma body size L</span><input id="aL" type="range" min="-1" max="4" step="0.05" value="0"><b id="aLo"></b></label>
+        <div class="coolrow"><canvas id="texCv" aria-label="Rock texture preview" data-nofs></canvas><div><div class="advf" id="aCool"></div><p class="advnote" id="aCoolTxt"></p></div></div>
+      </div>
+      <div>
+        <h4 data-zh="🚀 埋藏：温度与压力">🚀 Burial: heat &amp; pressure</h4>
+        <label class="advrow"><span data-zh="深度 h">Depth h</span><input id="aZ" type="range" min="0" max="40" step="0.5" value="2"><b id="aZo"></b></label>
+        <label class="advrow"><span data-zh="地温梯度">Heating rate</span><input id="aG" type="range" min="10" max="50" step="1" value="25"><b id="aGo"></b></label>
+        <div class="advf" id="aBur"></div>
+        <canvas id="burCv" aria-label="What happens to rock at this temperature" data-nofs></canvas>
+        <p class="advnote" id="aBurTxt"></p>
+      </div>
+    </div>
+    <h4 style="margin-top:10px" data-zh="🎯 挑战">🎯 Challenge</h4>
+    <div class="goalbox" id="rmTask">—</div>
+    <div class="btnrow" style="margin-top:8px"><button class="btn" id="rmCheck" data-zh="✔ 检查">✔ Check</button><button class="btn ghost" id="rmNext" data-zh="换一题 ▶">Next task ▶</button></div>
+    <div class="result" id="rmMsg"></div>
+  </div>
 </section>
 
 <section class="wrap" id="types" data-nav="Rock types" data-nav-zh="三大类岩石">
@@ -228,16 +259,16 @@ App.select = (k, from3D) => { App.sel = k; renderInfo(); renderChips(); if (!fro
 function renderInfo(){
   const box = Lab.$('#info'), k = App.sel;
   if (!k){
-    box.innerHTML = `<span class="tag">${Lab.L(o('Rock cycle','岩石循环'))}</span>
+    box.innerHTML = `<div class="lab-mode"></div><span class="tag">${Lab.L(o('Rock cycle','岩石循环'))}</span>
       <h3>${Lab.L(o('Rocks are always changing','岩石一直在变化'))}</h3>
       <p class="muted" style="margin:0">${Lab.L(o('Earth’s heat drives melting and metamorphism from below, while the Sun’s energy drives weathering, erosion and deposition at the surface. Drag the grain slider or click any part of the landscape or the cutaway.','地球内部的热量在地下驱动熔化和变质作用，太阳能在地表驱动风化、侵蚀和沉积作用。拖动“石头的旅程”滑块，或点击地表和剖面的任何部分。'))}</p>
       <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(o('Rocks are classified by HOW they form: igneous (cooling), sedimentary (compaction and cementation), metamorphic (heat and pressure).','岩石按“怎样形成”分类：岩浆岩（冷却凝固）、沉积岩（压实胶结）、变质岩（高温高压）。'))}</div>
       <div class="nav"><button id="startBtn">${Lab.L(o('Start with magma ▶','从岩浆开始 ▶'))}</button></div>`;
     Lab.$('#startBtn').onclick = () => App.select('magma');
-    return;
+    Lab.modes(box); return;
   }
   const p = PARTS[k], i = ORDER.indexOf(k);
-  box.innerHTML = `<span class="tag">${Lab.L(o('Rock cycle','岩石循环'))}</span>
+  box.innerHTML = `<div class="lab-mode"></div><span class="tag">${Lab.L(o('Rock cycle','岩石循环'))}</span>
     <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
     <div class="job">${Lab.L(p.job)}</div>
     ${p.photo ? LabPhotos.figure(p.photo) : ''}
@@ -249,6 +280,7 @@ function renderInfo(){
   Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. '));
   Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
   Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
+  Lab.modes(box);
 }
 function renderChips(){
   Lab.$('#chips').innerHTML = ORDER.map(k => `<button class="chip ${App.sel===k?'on':''}" data-k="${k}"><i style="background:${PARTS[k].color}"></i>${Lab.L(PARTS[k].name)}</button>`).join('');
@@ -256,6 +288,96 @@ function renderChips(){
 }
 App.renderTime = () => { Lab.$('#tLbl').textContent = '🪨 ' + Lab.L(PARTS[stageAt(App.u)].name); };
 Lab.onLang(() => { renderInfo(); renderChips(); App.renderTime(); });
+
+/* ===== 🚀 Advanced: cooling time → crystal size, burial → temperature & pressure ===== */
+(function(){
+  const $ = Lab.$, zh = () => Lab.lang === 'zh';
+  const nf = (x, d = 0) => x.toLocaleString('en-US', { minimumFractionDigits:d, maximumFractionDigits:d, useGrouping:!zh() });
+  const KAPPA = 1e-6, YR = 3.156e7;           // heat diffuses through rock at about 1 × 10⁻⁶ m²/s
+  const A = { lg:0, h:2, g:25, task:0 };
+  const L = () => Math.pow(10, A.lg), tYr = () => L() * L() / KAPPA / YR;
+  const fmtLen = m => m >= 1000 ? nf(m / 1000, m < 1e4 ? 1 : 0) + (zh() ? ' 千米' : ' km') : nf(m, m < 10 ? 1 : 0) + (zh() ? ' 米' : ' m');
+  const fmtT = y => { const h = y * 365.25 * 24;
+    if (h < 48) return nf(h, h < 10 ? 1 : 0) + (zh() ? ' 小时' : ' hours');
+    if (y < 1) return nf(h / 24) + (zh() ? ' 天' : ' days');
+    if (zh()) return y < 1e4 ? nf(+y.toPrecision(2)) + ' 年' : y < 1e8 ? nf(+(y / 1e4).toPrecision(2)) + ' 万年' : nf(+(y / 1e8).toPrecision(2)) + ' 亿年';
+    return y < 1e4 ? nf(+y.toPrecision(2)) + ' years' : y < 1e6 ? nf(+y.toPrecision(2)) + ' years' : nf(+(y / 1e6).toPrecision(2)) + ' million years'; };
+  const TEX = [
+    { max:7 / 365, k:'glass', n:o('Glassy: no time to grow crystals (obsidian, pumice). Happens when lava is chilled fast, for example in water or in thin splashes.','玻璃质：来不及长出晶体（黑曜岩、浮石）。熔岩被迅速冷却时形成，比如流进水里或溅出的薄层。') },
+    { max:100, k:'fine', n:o('Fine-grained: crystals smaller than about 1 mm (basalt). Typical of lava flows at the surface: extrusive rock.','细粒：晶体小于约 1 毫米（玄武岩）。地表熔岩流中常见：喷出岩。') },
+    { max:1e4, k:'medium', n:o('Medium-grained: crystals about 1 mm (diabase). Typical of magma that squeezed into cracks (dikes and sills) not far underground.','中粒：晶体约 1 毫米（辉绿岩）。常见于挤进浅处岩石裂缝里的岩浆（岩墙、岩床）。') },
+    { max:Infinity, k:'coarse', n:o('Coarse-grained: crystals from a few mm to over 1 cm (granite). Big magma bodies deep underground, like Georgia’s Stone Mountain: intrusive rock.','粗粒：晶体几毫米到一厘米以上（花岗岩）。地下深处的大岩体，比如佐治亚州的石山：侵入岩。') } ];
+  const tex = () => TEX.find(x => tYr() < x.max);
+  const ZONES = [
+    { max:200, c:'#c9a26b', n:o('Sedimentary rock: sediment is compacted and cemented (in the top few km).','沉积岩：沉积物被压实、胶结（发生在地下几千米以内）。') },
+    { max:400, c:'#9aa5b1', n:o('Low-grade metamorphism: shale → slate.','低级变质：页岩 → 板岩。') },
+    { max:600, c:'#8e7cc3', n:o('Medium-grade metamorphism: slate → schist with shiny mica flakes.','中级变质：板岩 → 片岩（有闪亮的云母片）。') },
+    { max:700, c:'#6a4fb0', n:o('High-grade metamorphism: schist → gneiss with light and dark bands.','高级变质：片岩 → 片麻岩（深浅相间的条带）。') },
+    { max:Infinity, c:'#ff5a1f', n:o('Melting begins! With some water, granite-type rock starts to melt at about 650–700 °C → magma.','开始熔化！含少量水时，花岗岩类岩石在约 650~700 °C 开始熔化 → 岩浆。') } ];
+  const Tz = () => 15 + A.g * A.h, zone = () => ZONES.find(z => Tz() < z.max);
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  let seed = 1; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  function drawTex(){
+    const cv = $('#texCv'), w = cv.clientWidth, h = cv.clientHeight; if (!w) return;
+    const r = devicePixelRatio || 1; cv.width = w * r; cv.height = h * r; const c = cv.getContext('2d'); c.setTransform(r, 0, 0, r, 0, 0);
+    const k = tex().k; seed = 7;
+    if (k === 'glass'){ const gr = c.createLinearGradient(0, 0, w, h); gr.addColorStop(0, '#2b2b33'); gr.addColorStop(.45, '#111116'); gr.addColorStop(1, '#30303a'); c.fillStyle = gr; c.fillRect(0, 0, w, h);
+      c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = 2; for (let i = 0; i < 3; i++){ c.beginPath(); c.arc(w * .2, h * 1.1, 40 + i * 22, -1.2, -.5); c.stroke(); } return; }
+    const s = Math.max(1.2, Math.min(18, 1.2 + 2.6 * (Math.log10(tYr()) + 1)));
+    c.fillStyle = k === 'coarse' ? '#d9c7b8' : '#4a4a4f'; c.fillRect(0, 0, w, h);
+    const pal = k === 'coarse' ? ['#e7a98f', '#f2ece4', '#cfcac4', '#1f1f22', '#e0b49c'] : ['#3b3b40', '#55555c', '#2a2a2e', '#6b6b70', '#8a8a88'];
+    const n = Math.min(2500, Math.round(w * h / (s * s) * 1.6));
+    for (let i = 0; i < n; i++){ const x = rnd() * w, y = rnd() * h, a = rnd() * Math.PI, l = s * (.6 + rnd() * .9), b = l * (.45 + rnd() * .4);
+      c.save(); c.translate(x, y); c.rotate(a); c.fillStyle = pal[(rnd() * pal.length) | 0]; c.fillRect(-l / 2, -b / 2, l, b); c.restore(); }
+  }
+  function drawBur(){
+    const cv = $('#burCv'), w = cv.clientWidth, h = cv.clientHeight; if (!w) return;
+    const r = devicePixelRatio || 1; cv.width = w * r; cv.height = h * r; const c = cv.getContext('2d'); c.setTransform(r, 0, 0, r, 0, 0);
+    const X = t => Math.min(1000, t) / 1000 * w; let t0 = 0;
+    ZONES.forEach(z => { const t1 = Math.min(1000, z.max); c.fillStyle = z.c; c.globalAlpha = .55; c.fillRect(X(t0), 0, X(t1) - X(t0), h - 12); c.globalAlpha = 1; t0 = t1; });
+    c.fillStyle = css('--ink-2'); c.font = '700 10px Nunito,sans-serif'; c.textAlign = 'center';
+    [0, 200, 400, 600, 800, 1000].forEach(t => { c.textAlign = t ? (t === 1000 ? 'right' : 'center') : 'left'; c.fillText(t + (t === 1000 ? ' °C' : ''), X(t), h - 1); });
+    const x = X(Tz()); c.fillStyle = css('--ink'); c.fillRect(x - 2, 0, 4, h - 12);
+  }
+  function upd(){
+    if (!Lab.adv()) return;
+    const l = L(), t = tYr(), tx = tex();
+    $('#aLo').textContent = fmtLen(l);
+    $('#aCool').textContent = zh() ? `t ≈ L² ÷ κ = (${fmtLen(l)})² ÷ (1×10⁻⁶ 米²/秒) ≈ ${fmtT(t)}` : `t ≈ L² ÷ κ = (${fmtLen(l)})² ÷ (1×10⁻⁶ m²/s) ≈ ${fmtT(t)}`;
+    $('#aCoolTxt').textContent = Lab.L(tx.n) + ' ' + Lab.L(o('Twice as big → about 4 × as long to cool.','岩体大一倍 → 冷却时间约长 4 倍。'));
+    const T = Tz(), P = 26.5 * A.h;
+    $('#aZo').textContent = zh() ? nf(A.h, 1) + ' 千米' : nf(A.h, 1) + ' km';
+    $('#aGo').textContent = zh() ? A.g + ' °C/千米' : A.g + ' °C/km';
+    $('#aBur').innerHTML = zh() ? `T ≈ 15 °C + ${A.g} °C/千米 × ${nf(A.h, 1)} 千米 = ${nf(T)} °C<br>p = ρgh ≈ 2700 千克/米³ × 9.8 牛/千克 × ${nf(A.h * 1000)} 米 ≈ ${nf(P)} 兆帕（约 ${nf(+(P / 0.1013).toPrecision(2))} 个大气压）`
+      : `T ≈ 15 °C + ${A.g} °C/km × ${nf(A.h, 1)} km = ${nf(T)} °C<br>p = ρgh ≈ 2,700 kg/m³ × 9.8 m/s² × ${nf(A.h * 1000)} m ≈ ${nf(P)} MPa (about ${nf(+(P / 0.1013).toPrecision(2))} × air pressure)`;
+    $('#aBurTxt').textContent = Lab.L(zone().n) + ' ' + Lab.L(o('Most places heat up by about 25–30 °C per km; near magma it can be much more.','大多数地方每深 1 千米升温约 25~30 °C，靠近岩浆处会高得多。'));
+    drawTex(); drawBur(); task();
+  }
+  const TASKS = [
+    { q:o('Make <b>obsidian</b> (volcanic glass): choose a magma body that cools in less than about a week.','做出<b>黑曜岩</b>（火山玻璃）：选一个不到约一周就冷却的岩浆体。'), ok:() => tex().k === 'glass' },
+    { q:o('Make <b>basalt</b> with tiny crystals, like a lava flow that cools in days to decades.','做出晶体细小的<b>玄武岩</b>，像几天到几十年就冷却的熔岩流。'), ok:() => tex().k === 'fine' },
+    { q:o('Make <b>granite</b> with crystals you can see: it must cool for more than about 10,000 years.','做出肉眼能看清晶体的<b>花岗岩</b>：它要冷却约 1 万年以上。'), ok:() => tex().k === 'coarse' },
+    { q:o('Turn <b>shale into slate</b>: bury it until it is about 200–400 °C.','把<b>页岩变成板岩</b>：把它埋到约 200~400 °C 的地方。'), ok:() => Tz() >= 200 && Tz() < 400 },
+    { q:o('Keep the heating rate at <b>25 °C per km</b>. Find the shallowest depth where rock starts to <b>melt</b> (about 700 °C).','保持地温梯度为<b>每千米 25 °C</b>，找出岩石开始<b>熔化</b>（约 700 °C）的最浅深度。'), ok:() => A.g === 25 && Tz() >= 685 && Tz() <= 720 },
+    { q:o('Near a magma body the ground heats up <b>40 °C per km</b>. How deep must rock go to become <b>gneiss</b> (about 600–700 °C)?','靠近岩浆体的地方每千米升温 <b>40 °C</b>。岩石要埋多深才能变成<b>片麻岩</b>（约 600~700 °C）？'), ok:() => A.g === 40 && Tz() >= 600 && Tz() < 700 } ];
+  function task(){ $('#rmTask').innerHTML = (zh() ? `第 ${A.task + 1} 题（共 ${TASKS.length} 题）：` : `Task ${A.task + 1} of ${TASKS.length}: `) + Lab.L(TASKS[A.task].q); }
+  $('#rmCheck').onclick = () => { const m = $('#rmMsg'), T = TASKS[A.task];
+    if (T.ok()){ m.textContent = Lab.L(o('✅ Yes! ','✅ 对了！')) + (A.task < 3 ? Lab.fmt(o('Cooling took about {t}.','冷却用了约 {t}。'), { t:fmtT(tYr()) }) : Lab.fmt(o('At {h} km the rock is about {T} °C.','在 {h} 千米深处，岩石约 {T} °C。'), { h:nf(A.h, 1), T:nf(Tz()) })) + ' ' + Lab.L(o('Press “Next task”.','按“换一题”继续。')); m.className = 'result good'; }
+    else { m.textContent = A.task < 3 ? Lab.fmt(o('❌ Not yet: your magma body cools in about {t}. {d}','❌ 还不对：你的岩浆体约 {t} 冷却。{d}'), { t:fmtT(tYr()), d:Lab.L(tex().n).split(/[:：]/)[0] })
+                                      : Lab.fmt(o('❌ Not yet: the rock is about {T} °C at {h} km with {g} °C/km. Adjust the sliders.','❌ 还不对：地温梯度 {g} °C/千米时，{h} 千米深处约 {T} °C。再调一调滑块。'), { T:nf(Tz()), h:nf(A.h, 1), g:A.g }); m.className = 'result bad'; } };
+  $('#rmNext').onclick = () => { A.task = (A.task + 1) % TASKS.length; $('#rmMsg').textContent = ''; task(); };
+  $('#aL').oninput = e => { A.lg = +e.target.value; upd(); };
+  $('#aZ').oninput = e => { A.h = +e.target.value; upd(); };
+  $('#aG').oninput = e => { A.g = +e.target.value; upd(); };
+  // picking a part of the 3D landscape loads a matching example into the sliders
+  const PRE = { lava:{ lg:1 }, intrusive:{ lg:3.5 }, sedimentary:{ h:2 }, metamorphic:{ h:15 }, magma:{ h:30 } };
+  const sel0 = App.select;
+  App.select = (k, from3D) => { sel0(k, from3D); const p = PRE[k]; if (p && !from3D && Lab.adv()){ if (p.lg != null){ A.lg = p.lg; $('#aL').value = p.lg; } if (p.h != null){ A.h = p.h; $('#aZ').value = p.h; } upd(); } };
+  addEventListener('resize', () => requestAnimationFrame(upd)); addEventListener('labtheme', () => requestAnimationFrame(upd));
+  Lab.onLang(() => { $('#rmMsg').textContent = ''; upd(); });
+  Lab.onMode(adv => { if (adv) requestAnimationFrame(upd); });
+  App.advState = A;
+})();
 
 /* ===== Mineral ID lab ===== */
 const MIN = [
@@ -404,7 +526,8 @@ const PHOTOS = [
   { kind:{en:'Igneous · extrusive',zh:'岩浆岩 · 喷出岩'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/24/Columnar_basalt_at_Dagushan%2C_Yitong%2C_China.jpg/960px-Columnar_basalt_at_Dagushan%2C_Yitong%2C_China.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Basalt columns on Dagushan hill in Yitong County, Jilin Province, China, part of the Yitong group of old volcanoes. When a thick layer of lava cools, it shrinks and cracks into many-sided columns, often with six sides.', zh:'中国吉林省伊通满族自治县大孤山上的柱状玄武岩，大孤山属于伊通火山群。厚厚的熔岩冷却时会收缩、开裂，形成多边形的石柱，常常是六边形。', scale:{en:'Yitong, Jilin, China',zh:'中国吉林伊通'}, credit:'jlyanghu (uploaded by Zhangmoon618)', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Columnar_basalt_at_Dagushan,_Yitong,_China.jpg' },
   { kind:{en:'Igneous · intrusive',zh:'岩浆岩 · 侵入岩'}, src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d6/Half_Dome_from_Glacier_Point%2C_Yosemite_NP_-_Diliff.jpg/960px-Half_Dome_from_Glacier_Point%2C_Yosemite_NP_-_Diliff.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail', en:'Half Dome in Yosemite National Park, California, seen from Glacier Point. This whole mountain is granite-type rock: magma that cooled slowly deep underground. Uplift and erosion later brought it up to the surface.', zh:'从冰川点眺望美国加利福尼亚州约塞米蒂国家公园的半穹顶。整座山都是花岗岩类岩石，是岩浆在地下深处慢慢冷却形成的。后来地壳抬升和侵蚀把它带到了地表。', scale:{en:'Yosemite, California, USA',zh:'美国加利福尼亚州约塞米蒂'}, credit:'Diliff', license:'CC BY-SA 3.0', page:'https://commons.wikimedia.org/wiki/File:Half_Dome_from_Glacier_Point,_Yosemite_NP_-_Diliff.jpg' },
   { type:'youtube', yt:'2lb-PzttQl8', kind:{en:'Video',zh:'视频'}, en:'CGTN Nature: the magnificent Danxia landforms of Zhangye in Gansu, northwest China. Look for the stripes of sedimentary rock.', zh:'CGTN 自然频道：中国西北甘肃张掖壮观的丹霞地貌。找一找一条条沉积岩层。', credit:'CGTN Nature (YouTube)', license:'YouTube' },
-  { type:'video', kind:{en:'Video · 14 MB',zh:'影片 · 14 MB'}, media:'https://upload.wikimedia.org/wikipedia/commons/f/f1/Helicopter_overflight_of_a_fast-moving_lava_flow_emerging_from_fissure_20_on_....webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f1/Helicopter_overflight_of_a_fast-moving_lava_flow_emerging_from_fissure_20_on_....webm/960px--Helicopter_overflight_of_a_fast-moving_lava_flow_emerging_from_fissure_20_on_....webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f1/Helicopter_overflight_of_a_fast-moving_lava_flow_emerging_from_fissure_20_on_....webm/960px--Helicopter_overflight_of_a_fast-moving_lava_flow_emerging_from_fissure_20_on_....webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Watch: a river of lava seen from a helicopter (filmed by USGS volcano scientists). Lava is melted rock; when it cools and hardens it becomes new igneous rock.', zh:'看一看：从直升机上拍到的熔岩河（由美国地质调查局的火山学家拍摄）。熔岩就是熔化的岩石，冷却变硬以后就成了新的岩浆岩。', credit:'USGS Volcanoes', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Helicopter_overflight_of_a_fast-moving_lava_flow_emerging_from_fissure_20_on_....webm' }
+  { type:'video', kind:{en:'Video · 14 MB',zh:'影片 · 14 MB'}, media:'https://upload.wikimedia.org/wikipedia/commons/f/f1/Helicopter_overflight_of_a_fast-moving_lava_flow_emerging_from_fissure_20_on_....webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original', poster:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f1/Helicopter_overflight_of_a_fast-moving_lava_flow_emerging_from_fissure_20_on_....webm/960px--Helicopter_overflight_of_a_fast-moving_lava_flow_emerging_from_fissure_20_on_....webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f1/Helicopter_overflight_of_a_fast-moving_lava_flow_emerging_from_fissure_20_on_....webm/960px--Helicopter_overflight_of_a_fast-moving_lava_flow_emerging_from_fissure_20_on_....webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo', en:'Watch: a river of lava seen from a helicopter (filmed by USGS volcano scientists). Lava is melted rock; when it cools and hardens it becomes new igneous rock.', zh:'看一看：从直升机上拍到的熔岩河（由美国地质调查局的火山学家拍摄）。熔岩就是熔化的岩石，冷却变硬以后就成了新的岩浆岩。', credit:'USGS Volcanoes', license:'Public domain', page:'https://commons.wikimedia.org/wiki/File:Helicopter_overflight_of_a_fast-moving_lava_flow_emerging_from_fissure_20_on_....webm' },
+  { type:'youtube', yt:'7Bxw4kkeHJ8', kind:{en:'Video',zh:'视频'}, en:'Crash Course Geography (for older students): what are rocks and how do they form? Follow the rock cycle through igneous, sedimentary and metamorphic rock.', zh:'Crash Course 地理（适合稍大一些的学生）：岩石是什么？它们是怎样形成的？沿着岩石循环认识岩浆岩、沉积岩和变质岩。', credit:'CrashCourse (YouTube)', license:'YouTube' }
 ];
 PHOTOS.forEach(it => { if (it.part && PARTS[it.part]) PARTS[it.part].photo = it; });
 LabPhotos.render(Lab.$('#gallery'), PHOTOS);
