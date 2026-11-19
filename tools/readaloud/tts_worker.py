@@ -381,7 +381,8 @@ class Worker:
     def do_lesson(self, e, mode):
         lid, repo = e["id"], self.repos[e["repo"]]
         st = repo.lessons.get(lid, {})
-        b = fetch(self.cfg["transcripts"] + lid + ".json")
+        # the site cannot publish names starting with "_" (Jekyll): the _shared bucket's transcript is readaloud/shared.json
+        b = fetch(self.cfg["transcripts"] + ("shared" if lid == "_shared" else lid) + ".json")
         if b is None or fp12(b) != e["fingerprint"]:
             log(f"{lid}: transcript not available yet (Pages still deploying?) - later"); return
         tr = json.loads(b.decode("utf-8"))
@@ -500,7 +501,7 @@ class Worker:
         while True:
             entries = self.index()
             if mode == "migrate":
-                self.migrated_serena = {l: set((fetch(f"{self.cfg['transcripts']}_migrate/serena_{l}.txt") or b"")
+                self.migrated_serena = {l: set((fetch(f"{self.cfg['transcripts']}migrate/serena_{l}.txt") or b"")
                                                .decode("utf-8").split()) for l in ("en", "zh")}
             for e in entries:
                 if self.args.lesson and e["id"] != self.args.lesson:

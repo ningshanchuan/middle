@@ -23,6 +23,7 @@ content PC                                      TTS PC (you)
 edits lessons                                   python tts_worker.py run --loop
 readaloud_sync.ps1  --publishes-->  https://shanchuan.org/middle/readaloud/index.json        (every lesson + fingerprint)
                                     https://shanchuan.org/middle/readaloud/<subject>/<topic>.json   (the lesson's clips)
+                                    https://shanchuan.org/middle/readaloud/shared.json   (the "_shared" bucket's clips)
                                                    |  download (HTTPS, public)
                                                    v
                                     record changed lessons, one clip at a time
@@ -129,7 +130,7 @@ python tts_worker.py migrate
 - **What it does.** It copies the site's current MP3s (about 450 MB, from `https://shanchuan.org/middle/audio/<lang>/<key>.mp3`)
   into the lesson folders and pushes them lesson by lesson. It does no TTS.
 - **Labels after migration.**
-  - Clips listed in `readaloud/_migrate/serena_<lang>.txt` (282 en, 364 zh) were already recorded in Serena on the old
+  - Clips listed in `readaloud/migrate/serena_<lang>.txt` (282 en, 364 zh) were already recorded in Serena on the old
     server, at 32 kbps. They become **done**.
   - The 10 biology lessons published so far should come out as **finished** and print `VERIFIED`. These are
     characteristics-of-life, cell-organelles, cell-theory, cell-city, cell-transport, osmosis, tonicity-labs, exocytosis,

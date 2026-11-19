@@ -1,10 +1,11 @@
 # CONTENT PC ONLY. Publish the read-aloud transcripts the TTS PC downloads (see tools/readaloud/HANDOFF.md).
 #   science-lab/readaloud/index.json                 every lesson (catalog order): id, titles, page URL, clip counts, fingerprint
 #   science-lab/readaloud/<subject>/<topic>.json     the lesson's clips: {key, lang, send, text}
-#   science-lab/readaloud/_shared.json               clips no single lesson owns (place-book sentences, speed-panel test ...)
+#   science-lab/readaloud/shared.json               clips no single lesson owns (place-book sentences, speed-panel test ...)
 #     key  = FNV-1a 32 of "<lang>|<text>" (same as Lab.speechKey in shared/lab.js) = the clip's file name <key>.mp3
 #     send = exactly what to send to the TTS (symbols as words, glued pinyin removed, maths in words); text = what the page shows
 #     fingerprint = first 12 hex of SHA-1 of the lesson file: changes only when the lesson's clips change
+# No file or folder name here may start with "_": the site's GitHub Pages (Jekyll) does not publish those.
 # Transcripts say WHAT a lesson needs, never what is recorded (that is the audio repos' status/).
 # Needs the crawler output .labtmp\tts\texts_<lang>.jsonl (collect_all.ps1; readaloud_sync.ps1 runs both).
 param([string]$Out = 'F:\Shanchuan\Biology_study\science-lab\readaloud')
@@ -51,8 +52,8 @@ $src = [IO.File]::ReadAllText("$root\shared\audio-sources.js", [Text.Encoding]::
 $src = ($src.Substring($src.IndexOf('{', $src.IndexOf('LAB_AUDIO_SOURCES')), $src.LastIndexOf('}') - $src.IndexOf('{', $src.IndexOf('LAB_AUDIO_SOURCES')) + 1)) | ConvertFrom-Json
 function Repo-Of([string]$id) { $s = ($id -split '/')[0]; if ($id -eq '_shared') { return $src.shared }; $r = $src.subjects.$s; if ($r) { return $r }; Write-Warning "subject '$s' is not in audio-sources.js -> $($src.fallback)"; return $src.fallback }
 # one-time migration help: clips this PC already recorded in serena (their MP3s are on the site under audio/<lang>/)
-New-Item -ItemType Directory -Force "$Out\_migrate" | Out-Null
-foreach ($l in 'en', 'zh') { Copy-Item "$tts\done_qwen3_$l.txt" "$Out\_migrate\serena_$l.txt" -Force }
+New-Item -ItemType Directory -Force "$Out\migrate" | Out-Null
+foreach ($l in 'en', 'zh') { Copy-Item "$tts\done_qwen3_$l.txt" "$Out\migrate\serena_$l.txt" -Force }
 $index = New-Object Collections.Generic.List[object]; $nEn = 0; $nZh = 0
 foreach ($les in $lessons.Values) {
   if (-not $les.clips.Count) { continue }
@@ -61,7 +62,7 @@ foreach ($les in $lessons.Values) {
   $fp = Save-Json (Join-Path $Out ($les.id + '.json')) ([pscustomobject]@{ id = $les.id; title = [pscustomobject]@{ en = $les.en; zh = $les.zh }; url = "https://shanchuan.org/middle/$($les.id).html"; clips = $clips })
   $index.Add([pscustomobject]@{ id = $les.id; en = $les.en; zh = $les.zh; url = "https://shanchuan.org/middle/$($les.id).html"; repo = (Repo-Of $les.id); clips = [pscustomobject]@{ en = $en; zh = $zh }; fingerprint = $fp })
 }
-$sfp = Save-Json "$Out\_shared.json" ([pscustomobject]@{ id = '_shared'; clips = $shared.ToArray() })
+$sfp = Save-Json "$Out\shared.json" ([pscustomobject]@{ id = '_shared'; clips = $shared.ToArray() })
 $idx = [pscustomobject]@{ format = 1; generated = (Get-Date -Format 'yyyy-MM-ddTHH:mm:ssK'); voice = 'serena'; repos = $src.repos; lessons = $index.ToArray(); shared = [pscustomobject]@{ id = '_shared'; repo = (Repo-Of '_shared'); clips = $shared.Count; fingerprint = $sfp } }
 $null = Save-Json "$Out\index.json" $idx
 "lessons with read-aloud: $($index.Count)  (en $nEn, zh $nZh clips)  shared: $($shared.Count)  -> $Out"
