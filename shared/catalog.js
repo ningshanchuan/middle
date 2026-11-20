@@ -30,6 +30,7 @@ window.LAB_CATALOG = [
    {id:'body-systems', std:'S7L2', en:'Human Body Systems', zh:'人体系统', d:{en:'How body systems work together.',zh:'人体各系统如何协同工作。'}},
    {id:'food-webs', std:'S7L4', en:'Food Webs & Energy Pyramids', zh:'食物网与能量金字塔', d:{en:'Producers, consumers and decomposers.',zh:'生产者、消费者与分解者。'}},
    {id:'ecosystems', std:'S7L4', en:'Biomes & Ecosystems', zh:'生物群落与生态系统', d:{en:'Biomes, aquatic ecosystems and symbiosis.',zh:'生物群落、水生生态系统与共生关系。'}},
+   {id:'habitat-niche', std:'S7L4', en:'Habitat, Niche & Population Limits', zh:'栖息地、生态位与种群的限制', d:{en:'Levels of organization, habitat vs. niche, limiting factors and carrying capacity.',zh:'生态系统的组织层次、栖息地与生态位、限制因素与环境容纳量。'}},
    {id:'evolution', std:'S7L5', en:'Natural Selection & Evolution', zh:'自然选择与进化', d:{en:'Adaptation, variation and fossil evidence.',zh:'适应、变异与化石证据。'}}
  ]},
  { id:'earth', icon:'🌋', color:'#c2622d', en:'Earth Science', zh:'地球科学',
@@ -199,12 +200,14 @@ window.LAB_CATALOG = [
    {id:'population', std:'SS6G/SS7G', en:'Population & Human Geography', zh:'人口与人文地理', d:{en:'Where people live and why.',zh:'人们居住在哪里，为什么。'}},
    {id:'americas', std:'SS6G', en:'Latin America & Canada', zh:'拉丁美洲与加拿大', d:{en:'Physical features, countries and environment.',zh:'自然特征、国家与环境。'}},
    {id:'europe-oceania', std:'SS6G', en:'Europe & Australia', zh:'欧洲与澳大利亚', d:{en:'Physical features, countries and environment.',zh:'自然特征、国家与环境。'}},
-   {id:'africa-asia', std:'SS7G', en:'Africa & Asia', zh:'非洲与亚洲', d:{en:'Africa, Southwest Asia, and Southern & Eastern Asia.',zh:'非洲、西南亚以及南亚和东亚。'}}
+   {id:'africa-asia', std:'SS7G', en:'Africa & Asia', zh:'非洲与亚洲', d:{en:'Africa, Southwest Asia, and Southern & Eastern Asia.',zh:'非洲、西南亚以及南亚和东亚。'}},
+   {id:'world-religions', std:'SS7G8 / SS7G12', en:'World Religions & Ethnic Groups', zh:'世界宗教与民族', d:{en:'Judaism, Christianity, Islam, Hinduism, Buddhism, Confucianism, Shinto — and religion vs. ethnicity.',zh:'犹太教、基督教、伊斯兰教、印度教、佛教、儒家、神道教，以及宗教与民族的区别。'}}
  ]},
  { id:'ela', icon:'📖', color:'#7a4cc2', en:'English Language Arts', zh:'英语语言艺术',
    blurb:{en:'Reading stories and nonfiction, writing arguments and narratives, grammar, vocabulary and media literacy (Georgia ELA, grades 6–8).',zh:'阅读文学与非虚构文本，写议论文和记叙文，语法、词汇与媒介素养（佐治亚州 ELA，6–8 年级）。'},
    topics:[
    {id:'theme-plot', std:'ELA 6–8 · Reading Literature', en:'Plot, Conflict & Theme', zh:'情节、冲突与主题', d:{en:'Map a story’s plot and find the message under it.',zh:'画出故事情节图，找到故事背后的主题。'}},
+   {id:'narrative-techniques', std:'ELA 6–8 · Reading Literature', en:'Narrative Techniques: Flashback, Foreshadowing & More', zh:'记叙技巧：倒叙、伏笔与更多', d:{en:'How authors order events, build suspense and reveal characters.',zh:'作者怎样安排事件顺序、制造悬念、塑造人物。'}},
    {id:'character-pov', std:'ELA 6–8 · Reading Literature', en:'Characters & Point of View', zh:'人物与叙述视角', d:{en:'How characters change, and who is telling the story.',zh:'人物如何变化，故事由谁来讲述。'}},
    {id:'figurative-language', std:'ELA 6–8 · Reading Literature', en:'Figurative Language & Poetry', zh:'修辞语言与诗歌', d:{en:'Similes, metaphors, imagery, rhyme and rhythm.',zh:'明喻、暗喻、意象、押韵与节奏。'}},
    {id:'central-idea', std:'ELA 6–8 · Reading Informational', en:'Central Idea & Summary', zh:'中心思想与概括', d:{en:'Find the main idea and write a short, objective summary.',zh:'找出中心思想，写出简短客观的概括。'}},
