@@ -79,3 +79,8 @@ Do NOT commit or push. Final answer, in English and concise:
 ## Read-aloud unit length (TTS PC test, 2026-11-20)
 - One read-aloud unit (one Lab.speak / utterance) must be at most about **150 Chinese characters** (title and author included) or about **400 English characters**; longer clips often stop part-way. Split longer texts at stanza, paragraph or sentence-group boundaries.
 - Whole poems (绝句, 律诗, most 词) are read as one unit — much better than line by line.
+
+## Links, popular culture and games (user rule, 2026-11-20)
+- Video links and embeds may come from **YouTube and bilibili (哔哩哔哩)** — official or clearly reliable uploaders (museums, orchestras, theaters, broadcasters such as CCTV, schools, the artists themselves). Give both when both exist; Chinese-language performances often have the best copy on bilibili.
+- **Popular culture and video games** may appear, with restraint, where they show real beauty or craft (music, visual art, storytelling, design, cultural heritage) — aesthetic education stays the main aim.
+- **Never use** violent works or works with large public controversy (content, monetization, politics). **Never bring social controversies or culture-war debates into the teaching material.**
