@@ -335,6 +335,9 @@
         if (!box.getClientRects().length) continue;
         const card = box.closest('.info,.card,.panel,.box,.detail,.sidebar') || box.parentElement;
         if (!card || !textOf(card).includes(head)) continue;
+        // a step player (mathanim) shares this card: read the mix-up box once, after the narration of the LAST step
+        const step = card.querySelector('.ma-narration .ma-step');
+        if (step){ const m = /(\d+)\s*\/\s*(\d+)/.exec(step.textContent || ''); if (!m || m[1] !== m[2]) return ''; }
         const b = box.querySelector('b'), label = b ? textOf(b) : '';
         const body = textOf(box).slice(label.length).trim();
         if (!body || t.includes(body.slice(0, 15))) return '';
