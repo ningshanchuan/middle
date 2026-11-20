@@ -50,7 +50,7 @@
     let lastErr;
     for (const url of CM.SOURCES){
       try {
-        const r = await fetch(url); if (!r.ok) throw new Error(r.status);
+        const r = await fetch(url, { referrerPolicy: 'no-referrer' }); if (!r.ok) throw new Error(r.status);   // no referrer: DataV answers 403 to our site
         const j = decodeEcharts(await r.json());
         j.features = j.features.filter(f => f.geometry && (f.geometry.coordinates || []).length);
         j.features.forEach(f => { const p = f.properties; if (!p.adcode && ZH2CODE[p.name]) p.adcode = ZH2CODE[p.name];

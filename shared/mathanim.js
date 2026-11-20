@@ -262,6 +262,8 @@
       speak(); st.running = true;
       try { if (steps[i].run) await steps[i].run(S); } catch(e){ if (!(e instanceof Abort)){ console.error(e); setTimeout(() => { throw e; }); } return; }   // surface real bugs to error monitors
       st.running = false;
+      // read-aloud on: wait until the step's narration has ended (and while it is paused) before moving on
+      if (g === S.gen && st.autoplay && st.voice && window.Lab && Lab.whenSpoken) await Lab.whenSpoken();
       if (g === S.gen && st.autoplay){ if (i < steps.length - 1){ await new Promise(r => setTimeout(r, 900 / S.speed)); if (g === S.gen && st.autoplay) go(i + 1); } else { st.autoplay = false; renderBar(); } }
       if (cfg.onStep) cfg.onStep(i);
     }

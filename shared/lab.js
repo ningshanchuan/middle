@@ -213,7 +213,7 @@
   let player = null, cur = null, gen = 0;   // one shared <audio> (stays unlocked on iOS after the first tap)
   let speakHook = null;                     // set by the auto-read block: sees every Lab.speak call first
   const audioRate = rate => Math.max(.3, Math.min(2.5, (rate || .95) / .95 * Lab.speakRate()));
-  Lab.stopSpeech = () => { gen++; const c = cur; cur = null; pb.playing = pb.paused = false; pbRender(); if (c){ try { player.pause(); } catch(e){} if (c.done) c.done(false); } nativeCancel(); };
+  Lab.stopSpeech = () => { gen++; const c = cur; cur = null; pend = null; pb.playing = pb.paused = false; pbRender(); if (c){ try { player.pause(); } catch(e){} if (c.done) c.done(false); } nativeCancel(); };
   /* floating read-aloud bar: ⏸ pause / ▶ resume (from the same place, so a teacher can stop and explain) and ⏹ stop.
      Shown while a longer clip plays, while it is paused, and while auto-play runs (its ⏹ then also ends auto-play). */
   const PB_T = { pause:{ en:'⏸ Pause', zh:'⏸ 暂停' }, resume:{ en:'▶ Resume', zh:'▶ 继续' }, stop:{ en:'⏹ Stop', zh:'⏹ 停止' }, stopAuto:{ en:'⏹ Stop auto-play', zh:'⏹ 停止自动播放' } };
@@ -232,6 +232,21 @@
   }
   const pbSet = (k, v) => { if (pb[k] !== v){ pb[k] = v; pbRender(); } };
   Lab.speechPaused = () => pb.paused;
+  // Is anything being read (or about to be: a Lab.speak whose recording list is still loading), or paused?
+  let pend = null;
+  Lab.speaking = () => !!pend || !!cur || pb.paused || !!(ss && (ss.speaking || ss.pending));
+  // Promise that resolves when the narration has ended or was stopped; waits while paused; resolves at once when
+  // nothing is being read. Anything that moves on by itself (step players, tours, auto-play) awaits it, so the end of
+  // a recording is never cut off. Safety cap (some browsers never report the end of a long utterance), not while paused.
+  Lab.whenSpoken = (cap = 180000) => new Promise(res => {
+    const t0 = Date.now(); let quiet = 0;
+    const tick = () => {
+      if (Lab.speaking()){ quiet = 0; if (!pb.paused && Date.now() - t0 > cap) return res(); }
+      else if (++quiet >= 2) return res();        // two quiet checks: no gap between a failed clip and its browser-voice fallback
+      setTimeout(tick, 150);
+    };
+    tick();
+  });
   Lab.pauseSpeech = () => {
     if (!pb.playing) return;
     if (cur && player) try { player.pause(); } catch(e){}
@@ -312,7 +327,9 @@
     if (speakHook){ const r = speakHook(clean, lang, o); if (r === false) return null; if (r) o = r; }   // auto-read / auto-play (below)
     Lab.stopSpeech();
     let out = { pending:true };
+    const tok = pend = {};
     withRec(lang, get => {
+      if (pend === tok) pend = null;
       const k = Lab.speechKey(clean, lang), url = get && get(lang, k);
       out = url ? playRec(url, k, o.rate, () => speakTTS(clean, lang, o.rate, o.onend), o.onend) : speakTTS(clean, lang, o.rate, o.onend);
     });
