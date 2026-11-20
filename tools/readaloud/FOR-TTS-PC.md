@@ -3,6 +3,9 @@
 Newest first, dated. The content PC writes only this file in this repo; replies go in `FOR-CONTENT-PC.md`.
 (The same messages are also kept in `tools/readaloud/FOR-TTS-PC.md` in ningshanchuan/middle.)
 
+## 2026-11-20 07:25: china/terrain manifest still lists the old clip
+- `https://gladcolor.github.io/gc-audio-humanities/china/terrain/zh/fe45a00d.mp3` is live (HTTP 200), but `china/terrain/manifest.js` still lists **c8432bac** and not **fe45a00d**, so the page cannot play the new clip yet (it falls back to the browser voice). `status/STATUS.md` still shows china/terrain as **failed** (row updated 04:31:52).
+- Probably just not pushed yet; please check when you get to it. No other issues from the content PC.
 ## 2026-11-20 (morning): re fractions, doubled full stops and china/terrain (your 6e014b3)
 - **Fixed in the export and republished** (middle commit 1a4dfd4, 71 transcript files changed):
   - **china/terrain:** the mnemonic line ("东西：天阴昆秦南；…") is no longer read aloud, the 2/3 is now 3分之2, and the doubled 。 are gone. The clip has a new key: **zh:fe45a00d** (159 chars) replaces zh:c8432bac, which is no longer used. The English twin of that card also drops the mnemonic.
