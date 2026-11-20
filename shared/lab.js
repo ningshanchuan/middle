@@ -321,10 +321,42 @@
     return a;
   }
   // o: {lang, rate (browser-voice rate, default .95), onend(ok)}. Returns the <audio> (recording) or the utterance.
+  // A card's "⚠️ Common mix-up / 容易混淆 / 易错点" box (class "mix") is read right after the card's own text, as its own
+  // short clip (so the card keeps its existing recording). mixFor finds the visible mix box whose card also shows the
+  // first phrase of the spoken text and returns "label: text", or '' (no box, or the page already reads it).
+  // Deterministic (same DOM → same text), so the read-aloud crawler (pre.js) captures exactly the same string.
+  Lab.mixFor = (text, lang) => {
+    try {
+      const flat = s => String(s || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+      const textOf = el => { const c = el.cloneNode(true); c.querySelectorAll('rt,rp,.py,script,style').forEach(n => n.remove()); return flat(c.textContent); };   // never the pinyin annotations
+      const t = flat(text), head = t.split(/[。．.!?！？:：;；,，]/)[0].trim();
+      if (head.length < 2) return '';
+      for (const box of document.querySelectorAll('.mix')){
+        if (!box.getClientRects().length) continue;
+        const card = box.closest('.info,.card,.panel,.box,.detail,.sidebar') || box.parentElement;
+        if (!card || !textOf(card).includes(head)) continue;
+        const b = box.querySelector('b'), label = b ? textOf(b) : '';
+        const body = textOf(box).slice(label.length).trim();
+        if (!body || t.includes(body.slice(0, 15))) return '';
+        const name = label.replace(/[^\p{L}\p{N}\s-]/gu, '').trim(), zh = (lang || Lab.lang) === 'zh';
+        return (name ? name + (zh ? '：' : ': ') : '') + body;
+      }
+    } catch(e){}
+    return '';
+  };
   Lab.speak = (text, o = {}) => {
     if (!text) return null;
     const lang = o.lang || Lab.lang, clean = String(text).replace(/<[^>]+>/g, '');
-    if (speakHook){ const r = speakHook(clean, lang, o); if (r === false) return null; if (r) o = r; }   // auto-read / auto-play (below)
+    if (speakHook && !o.inner){ const r = speakHook(clean, lang, o); if (r === false) return null; if (r) o = r; }   // auto-read / auto-play (below)
+    const mix = o.inner ? '' : Lab.mixFor(clean, lang);
+    if (mix){   // card first, then (after a short breath) its mix-up warning; the caller's onend fires after both
+      const done0 = o.onend, rate = o.rate;
+      o = Object.assign({}, o, { onend: ok => {
+        if (!ok){ if (done0) done0(false); return; }
+        const t2 = pend = {}, g2 = gen;
+        setTimeout(() => { if (pend === t2) pend = null; if (g2 !== gen) return; Lab.speak(mix, { lang, rate, onend: done0, inner: true }); }, 450);
+      } });
+    }
     Lab.stopSpeech();
     let out = { pending:true };
     const tok = pend = {};
