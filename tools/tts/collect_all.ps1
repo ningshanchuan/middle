@@ -2,8 +2,9 @@
 # Incremental: a lesson is skipped when its capture is newer than the lesson file (use -Force to redo all).
 # Usage: powershell -ExecutionPolicy Bypass -File collect_all.ps1 [-Workers 6] [-BasePort 9921] [-MaxSec 45]
 #        [-Only "biology/dna,math/area"] [-Subjects "yuwen,ela"] [-Force] [-Lang zh]
-param([int]$Workers = 6, [int]$BasePort = 9921, [int]$MaxSec = 45, [string]$Only = "", [string]$Subjects = "",
+param([int]$Workers = 3, [int]$BasePort = 9921, [int]$MaxSec = 120, [string]$Only = "", [string]$Subjects = "",
       [switch]$Force, [string]$Lang = "zh", [string]$Root = "", [string]$Work = "")
+$__jg = Join-Path $PSScriptRoot 'jobguard.ps1'; if (Test-Path $__jg) { . $__jg } else { try { (Get-Process -Id $PID).PriorityClass = 'Idle' } catch {} }   # idle CPU only; started Chrome/Codex die with this script
 . (Join-Path $PSScriptRoot "paths.ps1")
 $cat = [IO.File]::ReadAllText((Join-Path $Root "shared\catalog.js"), [Text.Encoding]::UTF8)
 $all = @(); $sid = $null

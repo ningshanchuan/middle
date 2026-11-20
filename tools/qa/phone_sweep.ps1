@@ -1,7 +1,8 @@
 ﻿# Phone-width sweep of every lesson page in one headless Chrome (iPhone-like 390x844, mobile, touch).
 # For each page: horizontal overflow (document wider than the screen, or elements sticking out that no scroll box clips) + JS errors.
 # Usage: powershell -File phone_sweep.ps1 [-Only "biology/dna,ela/x"] [-Lang en|zh] [-Out result.tsv] [-Port 9950] [-W 390]
-param([string]$Only = "", [string]$Lang = "en", [string]$Out = "", [int]$Port = 9950, [int]$W = 390, [int]$H = 844, [int]$Wait = 3)
+param([string]$Only = "", [string]$Lang = "en", [string]$Out = "", [int]$Port = 9950, [int]$W = 390, [int]$H = 844, [int]$Wait = 3, [string]$ProbeJs = "")   # -ProbeJs "js": run your own probe instead; its value is written per page
+$__jg = Join-Path $PSScriptRoot 'jobguard.ps1'; if (Test-Path $__jg) { . $__jg } else { try { (Get-Process -Id $PID).PriorityClass = 'Idle' } catch {} }   # idle CPU only; started Chrome/Codex die with this script
 $site = 'F:\Shanchuan\Biology_study\science-lab'
 $chrome = "C:\Program Files\Google\Chrome\Application\chrome.exe"
 $udd = "F:\Shanchuan\Biology_study\.labtmp\labsweep_$Port"
@@ -39,11 +40,13 @@ document.querySelectorAll('body *').forEach(e=>{const b=e.getBoundingClientRect(
  const cs=getComputedStyle(e);if(!clip&&cs.position!=='fixed'&&cs.visibility!=='hidden')r.push(e.tagName.toLowerCase()+(e.id?'#'+e.id:'')+(typeof e.className==='string'&&e.className?'.'+e.className.split(' ')[0]:'')+'['+Math.round(b.left)+'..'+Math.round(b.right)+']')}});
 return JSON.stringify({sw:document.documentElement.scrollWidth,vw,n:r.length,el:r.slice(0,4),err:(window.__labErr||[]).slice(0,3).concat(window.__jit>4?['JUMPING: '+window.__jit+' layout shifts after load']:[])})})()
 '@
+if ($ProbeJs) { $probe = $ProbeJs }
 $rows = @("page`tscrollWidth`toverflowEls`terrors`tsample")
 foreach ($p in $pages) {
   $url = "file:///" + ($site -replace '\\','/') + "/$p.html" + $(if ($Lang -eq 'zh') { '?lang=zh' } else { '' })
   try {
     [void](Send "Page.navigate" @{ url = $url }); Start-Sleep -Seconds $Wait
+    if ($ProbeJs) { $rows += "$p`t" + (Send "Runtime.evaluate" @{ expression = $probe; returnByValue = $true }).result.result.value; continue }
     $v = (Send "Runtime.evaluate" @{ expression = $probe; returnByValue = $true }).result.result.value | ConvertFrom-Json
     $rows += "$p`t$($v.sw)`t$($v.n)`t$(@($v.err).Count)`t$((@($v.el) + @($v.err)) -join ' | ')"
   } catch { $rows += "$p`t?`t?`t?`t$($_.Exception.Message)" }

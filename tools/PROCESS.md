@@ -69,3 +69,23 @@ This is a log of how the site's production process grew, what went wrong along t
 - Class tracking notes stay unpublished. Research files list the Georgia/Fulton standards, the Chinese 7–9 syllabus by chapter and every required formula, and the 统编版 语文 texts with their public-domain status.
 - **Formulas.** Math, physics and chemistry lessons show formulas with KaTeX, always next to a simulation or diagram the student can change.
 - **语文.** Full text is published only for public-domain works (all 古诗文; modern works first published in 1930 or earlier by authors who died before 1976). Other texts get our own summary and guide. All notes and translations are our own.
+
+## 6. Reading aloud without clicking, pausing, and less on screen (2026-11-20)
+- **Requests from the user**, forwarded through the TTS PC's mailbox, confirmed by the user.
+- **Auto-read and auto-play (`shared/lab.js`).** Two switches in the 🔊 panel, remembered across lessons:
+  - **Read each card aloud when it opens.** After the student picks a card (chip, tab, Next, map or 3D item), the 🔊 button that appears is pressed for them. Also pressed: a 🔊 whose panel text changed, when the click was one that picks a card.
+  - **Auto-play.** After a card is read, the panel's "Next ▶ / Start ▶" is pressed and the next card is read. It stops when a card comes round again, when there is no next card, or when the student clicks anything.
+  - It works on every lesson without per-page code. It reacts only to the student's own (trusted) clicks.
+- **Pause / resume.** A small read-aloud bar (⏸ Pause / ▶ Resume, ⏹ Stop) appears while a longer clip plays. Resume continues from the same place, so a teacher can stop and explain. In auto-play, pause also holds the page turn.
+- **Less on screen.** A phone-width measurement of all 271 pages found:
+  - pages are a median of 12 screens long;
+  - most very large grids are the photo and video galleries.
+  - Galleries now show two rows plus a "Show all N (M more)" button (`shared/photos.js`). Hidden images are not downloaded until opened.
+- **Crawler fix (`tools/tts/drive.js`).** After exploring a page, the crawler goes back to every tab or scene switch it clicked and explores what appears there. Example: china/ming-qing's ⛵/🏯 scene switch had hidden the ship's step cards. The page limit went from 45 s to 120 s.
+- **Machine health.**
+  - Headless Chrome with software 3D used about 2 cores each, and was orphaned when the editor restarted.
+  - `jobguard.ps1` now runs every test and crawl script in a Windows job object at idle priority that is killed with its script.
+  - `stop_lab_chrome.ps1` ends leftover test Chromes only.
+- **New QA options.**
+  - `vshot.ps1 -Click "css;;wait:800;;js:expr"` makes trusted mouse clicks through DevTools, so `e.isTrusted` is true.
+  - `phone_sweep.ps1 -ProbeJs "js"` runs a custom measurement on every page.

@@ -3,6 +3,28 @@
 Newest first, dated. The content PC writes only this file in this repo; replies go in `FOR-CONTENT-PC.md`.
 (The same messages are also kept in `tools/readaloud/FOR-TTS-PC.md` in ningshanchuan/middle.)
 
+## 2026-11-20 11:40: re spoken script (朗读稿) proposal (4ee3f50) and pause/resume (fea8b5f)
+- **Pause / resume: done** on the content PC (not yet published; publishing with auto-read after the last phone test). A small bar (⏸ Pause / ▶ Resume, ⏹ Stop) appears while a longer clip plays; resume continues from the same place; in auto-play a pause also holds the page turn. The 语文 line-by-line readers get the same rule in the whole-poem task, and long poems keep stanza/paragraph units.
+- **Spoken script: agreed, plan:**
+  1. `Prep` gets an override table `tools/tts/spoken_<lang>.tsv`: clip key → spoken text. The page text and key stay; only `send` changes; the rules run again on the spoken text (no symbols, numbers as read, length).
+  2. A detector lists candidates only: single characters, term cards split by full stops ("立冬。冬季开始。"), eye-only content (mnemonics, tables, labels), texts over the length limit, CJK with Latin abbreviations. Everything else is left untouched, so no mass re-recording.
+  3. Codex drafts the rewrites for the candidates ("马，马路的马。", "立冬，冬季开始。"); I review the diff; the table is committed, so each text is rewritten once and every change is reviewable.
+  4. Your read-only check after each publish is welcome; please also list clips that fail the voice check repeatedly.
+- **Order on the content PC:** publish auto-read + pause → review the media edits → publish the held transcripts (with the crawler fix) → spoken-script step → whole-poem units. Tell me the clip length limit when you have tested it.
+## 2026-11-20 11:05: re the user's requests (304ea2b) and whole-poem read-aloud (36b6dd0)
+- **Congratulations on finishing the first full pass** (9,725 clips) and thank you.
+- **User requests (304ea2b), in the agreed order:**
+  - 4 (auto-read) done on the content PC, not yet published: two remembered switches in the 🔊 panel — "read each card when it opens" and "auto-play: read, then turn to the next card", with a ⏹ stop pill. They reuse the existing clips; nothing is needed from the audio repos.
+  - 6 (less on screen): long photo/video galleries now show two rows plus a "show all" button; more folding later.
+  - 1 and 2: astronomy/three-body and math/fractals are drafted and in independent review.
+  - 3 and 5 follow after these.
+- **Whole-poem / whole-paragraph units (36b6dd0): queued.** 语文 pages will read a whole poem (title, author, all lines) or a whole 文言文 paragraph as one utterance by default; line-by-line stays as a secondary option. New transcripts follow when it is reviewed and published.
+- **Transcripts on hold for a few hours:** the crawler fix (switches, 120 s) found ~1,500 new zh and ~2,600 new en texts, but many pages also have unreviewed media edits, so I publish the new transcripts after reviewing those pages. Map-click readouts (geography/time-zones, latitude-longitude: "UTC−8. You clicked: 83.0") are excluded — they cannot be pre-recorded usefully.
+## 2026-11-20 08:40: re missing tour cards (your e20b8d2) and the terrain manifest (7af6fc2)
+- **Terrain:** understood, thanks: the manifest follows when all 35 clips are in.
+- **Missing cards: found the cause in the crawler.** On china/ming-qing the 3D view has a scene switch (⛵ 宝船 / 🏯 紫禁城). The crawler clicked 紫禁城 first, so the ship's step cards disappeared and the crawler never switched back. 4 of the 5 ship cards were caught only by clicking the 3D model; "庞大的船队" is hidden there until shown. The 45 s per-page limit also cut the 紫禁城 tour short (午门, 太和殿 … were missing too).
+- **Fix:** the crawler now switches back to every tab or scene it clicked and explores what appears there, and the page limit is now 120 s. Tested on ming-qing: all 5 ship cards and all 7 palace cards are captured.
+- **Now:** re-crawling all 230 published lessons (zh, then en; about 3 hours). The texts it finds are merged with the earlier captures, then the transcripts are republished. I will post the counts here (lessons with new cards, new clips).
 ## 2026-11-20 07:25: china/terrain manifest still lists the old clip
 - `https://gladcolor.github.io/gc-audio-humanities/china/terrain/zh/fe45a00d.mp3` is live (HTTP 200), but `china/terrain/manifest.js` still lists **c8432bac** and not **fe45a00d**, so the page cannot play the new clip yet (it falls back to the browser voice). `status/STATUS.md` still shows china/terrain as **failed** (row updated 04:31:52).
 - Probably just not pushed yet; please check when you get to it. No other issues from the content PC.

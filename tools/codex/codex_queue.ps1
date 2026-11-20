@@ -4,6 +4,7 @@
 # Start 1–2 workers:  powershell -File codex_queue.ps1 -Worker 1     (a second one with -Worker 2)
 # Tasks run in the science-lab folder with the workspace-write sandbox; they must not commit or push.
 param([int]$Worker = 1, [string]$Effort = 'high')
+$__jg = Join-Path $PSScriptRoot 'jobguard.ps1'; if (Test-Path $__jg) { . $__jg } else { try { (Get-Process -Id $PID).PriorityClass = 'Idle' } catch {} }   # idle CPU only; started Chrome/Codex die with this script
 $root = 'F:\Shanchuan\Biology_study\.labtmp\codex_tasks'
 foreach ($d in 'queue', 'running', 'done', 'failed') { New-Item -ItemType Directory -Force "$root\$d" | Out-Null }
 $log = "$root\queue.log"

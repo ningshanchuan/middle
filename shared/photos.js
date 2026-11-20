@@ -24,6 +24,7 @@
               ytopen:{en:'Click the picture to watch it on YouTube (opens a new tab).',zh:'点击画面即可在 YouTube 观看（新标签页打开）。'} };
   const css = `
 .lp-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px}
+.lp-gallery .lp-hide{display:none}.lp-morebtn{display:block;margin:14px auto 0}
 .lp-card{background:var(--surface,#fff);border:1px solid var(--line,#d9e2ee);border-radius:18px;overflow:hidden;box-shadow:var(--shadow,0 10px 30px rgba(20,33,61,.08));display:flex;flex-direction:column;cursor:zoom-in;transition:transform .15s,border-color .15s}
 .lp-card:hover{transform:translateY(-3px);border-color:var(--brand,#0f9d8a)}
 .lp-imgwrap{position:relative;aspect-ratio:4/3;background:#0e1422;overflow:hidden}
@@ -142,6 +143,19 @@
     r.el.innerHTML = (r.o.title ? `<div class="sec-head lp-head"><h2>${esc(L(r.o.title))}</h2>${r.o.sub ? `<p>${esc(L(r.o.sub))}</p>` : ''}</div>` : '') +
       `<div class="lp-gallery">${r.items.map((it, k) => `<div class="lp-card" data-lp-id="${ids[k]}" data-lp-set="${ids.join(',')}" title="${esc(L(T.zoom))}">${img(it)}
         <div class="lp-cap"><b>${esc(L(it))}</b>${it.scale ? `<span class="lp-sc">${esc(L(it.scale))}</span>` : ''}<span class="lp-credit">${credit(it)}</span>${it.type === 'video' || it.type === 'audio' || it.type === 'youtube' || it.type === 'model3d' ? extLink(it) : ''}</div></div>`).join('')}</div>`;
+    fold(r);
+  }
+  // Long galleries: show the first two rows, fold the rest behind one button (less on screen at once; hidden images
+  // are not downloaded until opened). The lightbox still steps through every item. o.fold:false turns it off.
+  function fold(r){
+    const g = r.el.querySelector('.lp-gallery'); if (!g || r.o.fold === false) return;
+    const cards = [...g.children], cols = Math.max(1, (getComputedStyle(g).gridTemplateColumns || '').split(' ').filter(Boolean).length);
+    const keep = Math.max(4, cols * 2); if (cards.length <= keep + 1 || r.open) return;
+    cards.slice(keep).forEach(c => c.classList.add('lp-hide'));
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'btn lp-morebtn';
+    b.textContent = L({ en: `Show all ${cards.length} (${cards.length - keep} more)`, zh: `显示全部 ${cards.length} 个（还有 ${cards.length - keep} 个）` });
+    b.onclick = () => { r.open = true; cards.forEach(c => c.classList.remove('lp-hide')); b.remove(); };
+    g.after(b);
   }
   LP.figure = (it, label) => { const id = idOf(it);
     return `<figure class="lp-fig" data-lp-id="${id}" title="${esc(L(T.zoom))}">${img(it)}<figcaption><b>${esc(L(label || T.real))}</b><span>${esc(L(it))}${it.scale ? ' · ' + esc(L(it.scale)) : ''}</span><span class="lp-credit">${credit(it)}</span></figcaption></figure>`; };

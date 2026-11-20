@@ -1,7 +1,8 @@
 # Copy of shot.ps1 for read-aloud checks: -Js runs WITH a user gesture (like a real click), so audio may start. Also prints -Js2 result after -Wait.
 # Usage: powershell -File shot.ps1 -Url "file:///F:/..../page.html" -Out "C:\...\out.png" [-Wait 8] [-W 1400] [-H 1000] [-Js "javascript to run after load"] [-Port 9333]
 # Prints JS errors captured on the page (window.__labErr) plus the result of -Js.
-param([string]$Url, [string]$Out, [int]$Wait = 8, [int]$W = 1400, [int]$H = 1000, [string]$Js = "", [int]$Port = 9333, [string]$Js2 = "")
+param([string]$Url, [string]$Out, [int]$Wait = 8, [int]$W = 1400, [int]$H = 1000, [string]$Js = "", [int]$Port = 9333, [string]$Js2 = "", [string]$Click = "")
+$__jg = Join-Path $PSScriptRoot 'jobguard.ps1'; if (Test-Path $__jg) { . $__jg } else { try { (Get-Process -Id $PID).PriorityClass = 'Idle' } catch {} }   # idle CPU only; started Chrome/Codex die with this script
 $chrome = "C:\Program Files\Google\Chrome\Application\chrome.exe"
 $udd = Join-Path "F:\Shanchuan\Biology_study\.labtmp" ("labvshot_" + $Port)   # Chrome profile on F: (C: is nearly full)
 New-Item -ItemType Directory -Force (Split-Path $udd) | Out-Null
@@ -34,6 +35,15 @@ function Send($method, $params) {
 [void](Send "Page.navigate" @{ url = $Url })
 Start-Sleep -Seconds 3
 if ($Js) { $r = Send "Runtime.evaluate" @{ expression = $Js; returnByValue = $true; userGesture = $true }; "JS: " + ($r.result.result.value | ConvertTo-Json -Compress) }
+# -Click "css;;wait:800;;js:expr;;css2": trusted mouse clicks (Input.dispatchMouseEvent, so e.isTrusted is true) at each element's centre, waits, and JS probes
+if ($Click) { foreach ($st in ($Click -split ';;')) { $st = $st.Trim(); if (-not $st) { continue }
+  if ($st -match '^wait:(\d+)$') { Start-Sleep -Milliseconds ([int]$Matches[1]); continue }
+  if ($st -match '^js:(.*)$') { $r = Send "Runtime.evaluate" @{ expression = $Matches[1]; returnByValue = $true }; "STEP JS: " + ($r.result.result.value | ConvertTo-Json -Compress); continue }
+  $q = "(()=>{const e=document.querySelector(" + ($st | ConvertTo-Json) + ");if(!e)return null;e.scrollIntoView({block:'center',behavior:'instant'});const r=e.getBoundingClientRect();return JSON.stringify([r.left+r.width/2,r.top+r.height/2])})()"
+  $r = Send "Runtime.evaluate" @{ expression = $q; returnByValue = $true }; $v = $r.result.result.value
+  if (-not $v) { "STEP click: NOT FOUND $st"; continue }; $xy = $v | ConvertFrom-Json
+  foreach ($t in 'mousePressed', 'mouseReleased') { [void](Send "Input.dispatchMouseEvent" @{ type = $t; x = $xy[0]; y = $xy[1]; button = 'left'; clickCount = 1 }) }
+  "STEP click: $st" } }
 Start-Sleep -Seconds $Wait
 if ($Js2) { $r2 = Send "Runtime.evaluate" @{ expression = $Js2; returnByValue = $true; userGesture = $true }; Start-Sleep -Seconds 4; $r3 = Send "Runtime.evaluate" @{ expression = "JSON.stringify({log:window.__vlog||null, t:window.__va?window.__va.currentTime:null, paused:window.__va?window.__va.paused:null, rate:window.__va?window.__va.playbackRate:null})"; returnByValue = $true }; "LOG: " + $r3.result.result.value; "JS2: " + ($r2.result.result.value | ConvertTo-Json -Compress) }
 $e = Send "Runtime.evaluate" @{ expression = "JSON.stringify(window.__labErr)"; returnByValue = $true }

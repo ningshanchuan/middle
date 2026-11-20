@@ -2,6 +2,7 @@
 # Usage: powershell -File shot.ps1 -Url "file:///F:/..../page.html" -Out "C:\...\out.png" [-Wait 8] [-W 1400] [-H 1000] [-Js "javascript to run after load"] [-Port 9333]
 # Prints JS errors captured on the page (window.__labErr) plus the result of -Js.
 param([string]$Url, [string]$Out, [int]$Wait = 8, [int]$W = 390, [int]$H = 844, [string]$Js = "", [int]$Port = 9333, [string]$Js2 = "")
+$__jg = Join-Path $PSScriptRoot 'jobguard.ps1'; if (Test-Path $__jg) { . $__jg } else { try { (Get-Process -Id $PID).PriorityClass = 'Idle' } catch {} }   # idle CPU only; started Chrome/Codex die with this script
 $chrome = "C:\Program Files\Google\Chrome\Application\chrome.exe"
 $udd = Join-Path "F:\Shanchuan\Biology_study\.labtmp" ("labphone_" + $Port)   # Chrome profile on F: (C: is nearly full)
 New-Item -ItemType Directory -Force (Split-Path $udd) | Out-Null

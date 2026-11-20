@@ -4,6 +4,7 @@
 #        (-List = text file, one "subject/topic" per line)
 param([int]$Port = 9921, [string]$List, [string]$Lang = "zh", [int]$MaxSec = 45,
       [string]$Root = "", [string]$Work = "")
+$__jg = Join-Path $PSScriptRoot 'jobguard.ps1'; if (Test-Path $__jg) { . $__jg } else { try { (Get-Process -Id $PID).PriorityClass = 'Idle' } catch {} }   # idle CPU only; started Chrome/Codex die with this script
 $ErrorActionPreference = 'Continue'
 . (Join-Path $PSScriptRoot "paths.ps1")
 $utf8 = New-Object Text.UTF8Encoding($false)

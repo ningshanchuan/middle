@@ -104,16 +104,19 @@
     C.phase = 'canvas'; if (!window.__colLite) await canvasSweep(0.6);
     // 3. click everything clickable, round after round (new things appear after tabs / steps open)
     C.phase = 'explore'; if (window.__colLite) C.err.push('lite mode: explore phase skipped (page hung on the first try)');
-    for (let round = 0; round < (window.__colLite ? 0 : 14) && !timeUp(); round++){
-      C.rounds = round + 1;
+    // a "switch" (tab, scene / mode toggle) replaces part of the page: what it hid is reached again by re-clicking it later
+    const switches = [], isSwitch = el => el.matches('[role=tab],.tab,[data-tab],[data-s],[data-mode],[data-scene],[data-view]') || !!el.closest('.seg,.tabs,[role=tablist]');
+    const explore = async (maxRounds, src) => {
+    for (let round = 0; round < maxRounds && !timeUp(); round++){
+      C.rounds++;
       const list = candidates().filter(el => !clicked.has(sig(el)));
       if (!list.length) break;
       for (let el of list){
         if (timeUp()) break;
         if (!el.isConnected || !vis(el)) continue;          // re-rendered: picked up again next round (its signature is not marked yet)
         const s = sig(el); if (clicked.has(s)) continue;
-        clicked.add(s);
-        click(el); await settle(); speakAll('click');
+        clicked.add(s); if (isSwitch(el)) switches.push(s);
+        click(el); await settle(); speakAll(src);
         if (nextLike(el)){
           let still = 0;
           for (let k = 0; k < 150 && still < 4 && !timeUp(); k++){
@@ -124,6 +127,15 @@
           }
         }
       }
+    }
+    };
+    await explore(window.__colLite ? 0 : 14, 'click');
+    // 4. switch back to every tab / scene clicked so far and explore what appears there (e.g. ship scene -> its step cards)
+    C.phase = 'switches';
+    for (let i = 0; i < switches.length && !timeUp() && !window.__colLite; i++){
+      const el = candidates().find(x => sig(x) === switches[i]); if (!el) continue;
+      click(el); await settle(); speakAll('switch');
+      await explore(6, 'switch');
     }
     // canvases shown only after a tab opened: sweep again with the time that is left
     C.phase = 'canvas2'; if (!window.__colLite) await canvasSweep(1);

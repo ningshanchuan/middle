@@ -211,8 +211,40 @@
   const ss = window.speechSynthesis || null;
   const nativeSpeak = ss ? ss.speak.bind(ss) : () => {}, nativeCancel = ss ? ss.cancel.bind(ss) : () => {};
   let player = null, cur = null, gen = 0;   // one shared <audio> (stays unlocked on iOS after the first tap)
+  let speakHook = null;                     // set by the auto-read block: sees every Lab.speak call first
   const audioRate = rate => Math.max(.3, Math.min(2.5, (rate || .95) / .95 * Lab.speakRate()));
-  Lab.stopSpeech = () => { gen++; const c = cur; cur = null; if (c){ try { player.pause(); } catch(e){} if (c.done) c.done(false); } nativeCancel(); };
+  Lab.stopSpeech = () => { gen++; const c = cur; cur = null; pb.playing = pb.paused = false; pbRender(); if (c){ try { player.pause(); } catch(e){} if (c.done) c.done(false); } nativeCancel(); };
+  /* floating read-aloud bar: ⏸ pause / ▶ resume (from the same place, so a teacher can stop and explain) and ⏹ stop.
+     Shown while a longer clip plays, while it is paused, and while auto-play runs (its ⏹ then also ends auto-play). */
+  const PB_T = { pause:{ en:'⏸ Pause', zh:'⏸ 暂停' }, resume:{ en:'▶ Resume', zh:'▶ 继续' }, stop:{ en:'⏹ Stop', zh:'⏹ 停止' }, stopAuto:{ en:'⏹ Stop auto-play', zh:'⏹ 停止自动播放' } };
+  const pb = { el:null, playing:false, paused:false, chain:false, onStop:null };
+  function pbRender(){
+    if (!document.body) return;
+    if (!(pb.playing || pb.paused || pb.chain)){ if (pb.el){ pb.el.remove(); pb.el = null; } return; }
+    if (!pb.el){
+      pb.el = document.createElement('div'); pb.el.className = 'lab-player'; document.body.appendChild(pb.el);
+      pb.el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return;
+        if (b.dataset.a === 'pp'){ (pb.paused ? Lab.resumeSpeech : Lab.pauseSpeech)(); return; }
+        const f = pb.onStop; Lab.stopSpeech(); if (f) f(); });
+    }
+    pb.el.innerHTML = (pb.playing || pb.paused ? `<button type="button" data-a="pp">${Lab.L(pb.paused ? PB_T.resume : PB_T.pause)}</button>` : '') +
+      `<button type="button" data-a="st">${Lab.L(pb.chain ? PB_T.stopAuto : PB_T.stop)}</button>`;
+  }
+  const pbSet = (k, v) => { if (pb[k] !== v){ pb[k] = v; pbRender(); } };
+  Lab.speechPaused = () => pb.paused;
+  Lab.pauseSpeech = () => {
+    if (!pb.playing) return;
+    if (cur && player) try { player.pause(); } catch(e){}
+    else if (ss) try { ss.pause(); } catch(e){}
+    pb.playing = false; pb.paused = true; pbRender();
+  };
+  Lab.resumeSpeech = () => {
+    if (!pb.paused) return;
+    pb.paused = false; pb.playing = true;
+    if (cur && player){ const p = player.play(); if (p && p.catch) p.catch(() => {}); }
+    else if (ss) try { ss.resume(); } catch(e){}
+    pbRender();
+  };
   function withRec(lang, fn){   // fn(url getter or null); waits at most 2 s for manifests that are still loading
     if (!REC_LANGS.includes(lang)) return fn(null);
     const r = loadRec();
@@ -227,7 +259,10 @@
     u.lang = lang === 'zh' ? 'zh-CN' : 'en-US';
     const v = Lab.voiceFor(lang); if (v){ u.voice = v; u.lang = v.lang; }
     u.rate = Math.max(.5, Math.min(1.6, (rate || .95) * Lab.speakRate()));
-    if (done){ u.onend = () => done(true); u.onerror = () => done(false); }
+    const g = gen;
+    if (clean.length > 40) u.onstart = () => { if (g === gen) pbSet('playing', true); };   // the bar only for longer texts
+    u.onend = () => { if (g === gen){ pb.playing = pb.paused = false; pbRender(); } if (done) done(true); };
+    u.onerror = () => { if (g === gen){ pb.playing = pb.paused = false; pbRender(); } if (done) done(false); };
     nativeSpeak(u); return u;
   }
   // Wake the audio output with a short silent Web Audio buffer (started inside the tap). Bluetooth headsets and many
@@ -247,7 +282,7 @@
   // passed, rewind to 0, unmute and play.
   function playRec(url, key, rate, fallback, done){
     const a = player || (player = new Audio()), c = cur = { rate, done, key };
-    const fail = () => { if (cur !== c) return; cur = null; a.muted = false; fallback(); };
+    const fail = () => { if (cur !== c) return; cur = null; a.muted = false; pb.playing = pb.paused = false; pbRender(); fallback(); };
     wakeOutput();
     let timeOk = false, ready = false, started = false;
     const begin = () => {
@@ -255,8 +290,9 @@
       try { a.pause(); a.currentTime = 0; } catch(e){}
       a.muted = false;
       a.defaultPlaybackRate = a.playbackRate = audioRate(rate);
-      a.onended = () => { if (cur !== c) return; cur = null; if (done) done(true); };
+      a.onended = () => { if (cur !== c) return; cur = null; pb.playing = pb.paused = false; pbRender(); if (done) done(true); };
       const p = a.play(); if (p && p.catch) p.catch(e => { if (!e || e.name !== 'AbortError') fail(); });
+      if (!(a.duration > 0 && a.duration < 4)) pbSet('playing', true);   // the bar only for clips longer than a few seconds
     };
     a.onended = () => { ready = true; begin(); };            // a very short clip may end during the muted lead-in
     a.onerror = fail;
@@ -273,6 +309,7 @@
   Lab.speak = (text, o = {}) => {
     if (!text) return null;
     const lang = o.lang || Lab.lang, clean = String(text).replace(/<[^>]+>/g, '');
+    if (speakHook){ const r = speakHook(clean, lang, o); if (r === false) return null; if (r) o = r; }   // auto-read / auto-play (below)
     Lab.stopSpeech();
     let out = { pending:true };
     withRec(lang, get => {
@@ -299,6 +336,81 @@
     } catch(e){}
   }
   if (window.speechSynthesis){ allVoices(); speechSynthesis.addEventListener && speechSynthesis.addEventListener('voiceschanged', () => {}); }
+
+  /* ---------- auto-read and auto-play (settings in the 🔊 panel, remembered across lessons) ----------
+     auto-read: when the student opens a card (chip, tab, "Next", map item …) the 🔊 button that appears — or whose
+                panel text changed — is pressed for them.
+     auto-play: after a card has been read, the "Next ▶" / "Start ▶" button of the same panel is pressed and the new
+                card is read, until there is no next card or a card comes round again. Any click of the student's
+                own, or the ⏹ pill, stops it. Works on every lesson without per-page code. */
+  const AUTO_T = { read:{ en:'Read each card aloud when it opens', zh:'打开卡片时自动朗读' },
+    next:{ en:'Auto-play: read, then turn to the next card', zh:'自动播放：读完自动翻到下一张' },
+    stop:{ en:'⏹ Stop auto-play', zh:'⏹ 停止自动播放' } };
+  const auto = (() => {
+    const read = () => store.get('labAutoRead') === '1' || next(), next = () => store.get('labAutoNext') === '1';
+    const SKIP = '.lab-nav,#lab-nav,.lab-vpanel,.ma-player,.lab-footer,footer,.quiz,.opts,.lab-player';
+    const CONT = '.info,.card,.panel,.box,.detail,.sidebar,section';
+    const isSpk = el => !!el && !el.closest(SKIP) && (el.matches('.speak,.say,[data-a=speak],[data-say],[data-speak]') ||
+      /🔊|朗读|读一读|听一听|Read aloud|Listen/i.test(((el.textContent || '').trim().slice(0, 30)) + (el.title || '') + (el.getAttribute('aria-label') || '')));
+    const vis = el => el.isConnected && el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
+    const speakers = () => [...document.querySelectorAll('button,[role=button],.speak,.say,[data-say],[data-speak]')].filter(el => isSpk(el) && vis(el));
+    const contOf = el => el.closest(CONT) || el.parentElement || el;
+    const isNext = el => { const t = ((el.textContent || '').trim().slice(0, 24)) + ' ' + (el.title || '') + ' ' + (el.id || '');
+      return !isSpk(el) && !el.disabled && !/上一|prev|◀|‹|←|back|返回|播放|play|试听|test|重新|again|reset|重置/i.test(t) && /下一|next|▶|›|→|继续|开始|start/i.test(t); };
+    let chain = null, pill = null, auto = false, gen2 = 0;
+    const showPill = on => { pb.onStop = on ? stop : null; pbSet('chain', !!on); };   // the read-aloud bar's ⏹ ends auto-play
+    const stop = () => { chain = null; gen2++; showPill(false); };
+    // press a 🔊 button for the student; with auto-play on, its text joins the chain and its end turns the page
+    const press = (btn, c) => {
+      if (next()) chain = c || chain || { seen: new Set(), cont: contOf(btn), g: ++gen2 };
+      if (chain) chain.cont = contOf(btn);
+      auto = true; try { btn.click(); } finally { auto = false; }
+    };
+    speakHook = (clean, lang, o) => {
+      if (!chain || !next()) return null;
+      const k = lang + '|' + clean; if (chain.seen.has(k)){ stop(); return false; }   // came round again: done
+      chain.seen.add(k); showPill(true);
+      const c = chain, g = c.g, done0 = o.onend;
+      return Object.assign({}, o, { onend: ok => { if (done0) done0(ok); if (ok && chain === c && c.g === g) setTimeout(() => turn(c, g), 700); } });
+    };
+    // auto-play: press "Next" in the panel of the card just read, then read the card that opens
+    const turn = (c, g) => {
+      if (chain !== c || c.g !== g || !next()) return;
+      if (pb.paused){ setTimeout(() => turn(c, g), 500); return; }   // paused: hold the page turn until resumed
+      let box = c.cont, nb = null;
+      for (let k = 0; k < 3 && box && !nb; k++){ nb = [...box.querySelectorAll('button,[role=button],a[href^="#"]')].find(el => vis(el) && isNext(el)); box = box.parentElement && box.parentElement.closest(CONT); }
+      if (!nb){ stop(); return; }
+      const snap = snapshot(); auto = true; try { nb.click(); } finally { auto = false; }
+      setTimeout(() => { if (chain === c && c.g === g){ const b = changed(snap); if (b) press(b, c); else stop(); } }, 450);
+    };
+    // which 🔊 button belongs to what just opened: a new one, or one whose panel text changed
+    const snapshot = () => { const m = new Map(); speakers().forEach(b => m.set(b, (contOf(b).textContent || '').length + '|' + (contOf(b).textContent || '').slice(0, 200))); return m; };
+    const changed = (snap, picks = true) => {
+      const now = speakers();
+      return now.find(b => !snap.has(b)) || (picks && now.find(b => { const t = contOf(b).textContent || ''; return snap.get(b) !== t.length + '|' + t.slice(0, 200); })) || null;
+    };
+    // clicks that pick a card (not "play", "reset" …): only these may count a changed panel text as a new card
+    const PICK = '[data-k],[data-key],[data-id],[data-i],[data-idx],[data-n],[data-step],[data-tab],[data-p],[data-part],[data-name],.chip,.tab,.pill,[role=tab],canvas,svg';
+    // a silent clip played inside the first tap unlocks the shared player on iOS, so later auto-reads may play
+    const unlock = () => { if (player) return; try { player = new Audio(); player.muted = true;
+      player.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA='; const p = player.play(); if (p && p.catch) p.catch(() => {}); } catch(e){} };
+    document.addEventListener('click', e => {
+      if (!e.isTrusted || auto) return;
+      const t = e.target.closest ? e.target : e.target.parentElement; if (!t) return;
+      if (t.closest('.lab-player,.lab-vpanel,.lab-voice')) return;
+      if (read()) unlock();
+      const sp = t.closest('button,[role=button],.speak,.say,[data-say],[data-speak]');
+      if (sp && isSpk(sp)){   // the student pressed 🔊 themselves: with auto-play on, a new chain starts here
+        stop(); if (next()){ chain = { seen: new Set(), cont: contOf(sp), g: ++gen2 }; }
+        return;
+      }
+      stop();                 // any other click of the student ends auto-play (a card it opens may start a new one)
+      if (!read() || t.closest(SKIP) || t.closest('input,select,textarea,label')) return;
+      const snap = snapshot(), picks = !!t.closest(PICK) || isNext(t.closest('button,[role=button]') || t);
+      setTimeout(() => { const b = changed(snap, picks); if (b && !chain) press(b); }, 350);
+    }, true);
+    return { read, next, stop };
+  })();
   // voice settings popover (opened from the 🔊 nav button)
   Lab.voicePanel = () => {
     let p = $('.lab-vpanel'); if (p){ p.remove(); return; }
@@ -310,8 +422,13 @@
     p = document.createElement('div'); p.className = 'lab-vpanel card';
     p.innerHTML = `<b>${Lab.L(T.h)}</b>${vs.length ? `<select class="lab-vsel">${vs.map(v => `<option value="${v.name.replace(/"/g, '&quot;')}" ${cur && v.name === cur.name ? 'selected' : ''}>${v.name}</option>`).join('')}</select>` : `<p>${Lab.L(T.none)}</p>`}
       <label>${Lab.L(T.rate)} <input type="range" class="lab-vrate" min=".5" max="1.5" step=".05" value="${Lab.speakRate()}"><output>${Lab.speakRate().toFixed(2)}×</output></label>
-      <button type="button" class="btn lab-vtest">${Lab.L(T.test)}</button>${recNote}<small>${Lab.L(T.tip)}</small>`;
+      <button type="button" class="btn lab-vtest">${Lab.L(T.test)}</button>
+      <label class="lab-vauto"><input type="checkbox" class="lab-vread" ${auto.read() ? 'checked' : ''}> ${Lab.L(AUTO_T.read)}</label>
+      <label class="lab-vauto"><input type="checkbox" class="lab-vnext" ${auto.next() ? 'checked' : ''}> ${Lab.L(AUTO_T.next)}</label>
+      ${recNote}<small>${Lab.L(T.tip)}</small>`;
     document.body.appendChild(p);
+    $('.lab-vread', p).onchange = e => store.set('labAutoRead', e.target.checked ? '1' : '0');
+    $('.lab-vnext', p).onchange = e => { store.set('labAutoNext', e.target.checked ? '1' : '0'); if (!e.target.checked) auto.stop(); };
     const sel = $('.lab-vsel', p), rate = $('.lab-vrate', p);
     if (sel) sel.onchange = () => { store.set('labVoice_' + lang, sel.value); Lab.speak(Lab.L(T.sample)); };
     rate.oninput = () => { store.set('labRate', rate.value); $('output', p).textContent = (+rate.value).toFixed(2) + '×'; if (cur && player) player.playbackRate = audioRate(cur.rate); };
