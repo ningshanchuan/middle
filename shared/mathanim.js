@@ -264,6 +264,14 @@
       st.running = false;
       // read-aloud on: wait until the step's narration has ended (and while it is paused) before moving on
       if (g === S.gen && st.autoplay && st.voice && window.Lab && Lab.whenSpoken) await Lab.whenSpoken();
+      // after the LAST step's narration: read this lesson's "⚠️ mix-up" box once (a box in the player's section that is not part of a card)
+      if (g === S.gen && i === steps.length - 1 && st.voice && window.Lab && Lab.whenSpoken && Lab.mixText){
+        await Lab.whenSpoken();
+        const scope = el.closest('section') || el, CARD = '.info,.card,.panel,.box,.detail,.sidebar';
+        const box = [...scope.querySelectorAll('.mix')].find(b => { if (!b.getClientRects().length) return false; const c = b.closest(CARD); return !c || !!c.querySelector('.ma-player,.ma-narration'); });
+        const m = box ? Lab.mixText(box, zh() ? 'zh' : 'en') : '';
+        if (m && g === S.gen){ await new Promise(r => setTimeout(r, 1000)); if (g === S.gen && st.voice) Lab.speak(m, { lang: zh() ? 'zh' : 'en', inner: true }); }
+      }
       // pause before the next step (user rule): about 2.5 s after a narration, 1 s when read-aloud is off
       const rest = st.voice ? 2500 : 1000 / S.speed;
       if (g === S.gen && st.autoplay){ if (i < steps.length - 1){ await new Promise(r => setTimeout(r, rest)); if (g === S.gen && st.autoplay) go(i + 1); } else { st.autoplay = false; renderBar(); } }

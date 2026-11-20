@@ -128,6 +128,10 @@
     applyStatic();
     $$('.lab-lang button').forEach(b => b.classList.toggle('on', b.dataset.lang === Lab.lang));
     if (Lab.topic) document.title = (Lab.lang === 'zh' ? Lab.topic.zh : Lab.topic.en) + ' · ' + Lab.L(UI.home);
+    // search engines: each language version is its own canonical page (same file, ?lang=zh for Chinese); hreflang is in the static <head>
+    try { if (/(^|\.)shanchuan\.org$/.test(location.hostname)){ let c = document.querySelector('link[rel=canonical]');
+      if (!c){ c = document.createElement('link'); c.rel = 'canonical'; document.head.appendChild(c); }
+      c.href = location.origin + location.pathname + (Lab.lang === 'zh' ? '?lang=zh' : ''); } } catch(e){}
     renderModes();
     langFns.forEach(fn => { try { fn(Lab.lang); } catch(e){ cbErr(e); } });
   };
@@ -325,21 +329,30 @@
   // short clip (so the card keeps its existing recording). mixFor finds the visible mix box whose card also shows the
   // first phrase of the spoken text and returns "label: text", or '' (no box, or the page already reads it).
   // Deterministic (same DOM → same text), so the read-aloud crawler (pre.js) captures exactly the same string.
+  const mixFlat = s => String(s || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+  const mixPlain = el => { const c = el.cloneNode(true); c.querySelectorAll('rt,rp,.py,script,style').forEach(n => n.remove()); return mixFlat(c.textContent); };   // never the pinyin annotations
+  // the spoken form of one mix-up box: "label: text" ('' if empty) — shared by mixFor, the step player (mathanim) and the crawler
+  Lab.mixText = (box, lang) => {
+    try {
+      const b = box.querySelector('b'), label = b ? mixPlain(b) : '', body = mixPlain(box).slice(label.length).trim();
+      if (!body) return '';
+      const name = label.replace(/[^\p{L}\p{N}\s-]/gu, '').trim(), zh = (lang || Lab.lang) === 'zh';
+      return (name ? name + (zh ? '：' : ': ') : '') + body;
+    } catch(e){ return ''; }
+  };
   Lab.mixFor = (text, lang) => {
     try {
-      const flat = s => String(s || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
-      const textOf = el => { const c = el.cloneNode(true); c.querySelectorAll('rt,rp,.py,script,style').forEach(n => n.remove()); return flat(c.textContent); };   // never the pinyin annotations
-      const t = flat(text), head = t.split(/[。．.!?！？:：;；,，]/)[0].trim();
+      const t = mixFlat(text), head = t.split(/[。．.!?！？:：;；,，]/)[0].trim();
       if (head.length < 2) return '';
       for (const box of document.querySelectorAll('.mix')){
         if (!box.getClientRects().length) continue;
         const card = box.closest('.info,.card,.panel,.box,.detail,.sidebar') || box.parentElement;
-        if (!card || !textOf(card).includes(head)) continue;
-        const b = box.querySelector('b'), label = b ? textOf(b) : '';
-        const body = textOf(box).slice(label.length).trim();
-        if (!body || t.includes(body.slice(0, 15))) return '';
-        const name = label.replace(/[^\p{L}\p{N}\s-]/gu, '').trim(), zh = (lang || Lab.lang) === 'zh';
-        return (name ? name + (zh ? '：' : ': ') : '') + body;
+        // only a real card: not a whole section, and not one holding a step player (the player reads its box once, at the end)
+        if (!card || card.matches('section,main,article,body') || card.querySelector('.ma-player,.ma-narration')) continue;
+        if (!mixPlain(card).includes(head)) continue;
+        const b = box.querySelector('b'), body = mixPlain(box).slice(b ? mixPlain(b).length : 0).trim();
+        if (!body || t.includes(body.slice(0, 15))) return '';   // empty, or the page already reads it
+        return Lab.mixText(box, lang);
       }
     } catch(e){}
     return '';
