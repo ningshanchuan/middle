@@ -154,43 +154,72 @@
   Lab.voices = lang => allVoices().filter(v => vScore(v, lang) > -1e8).sort((a, b) => vScore(b, lang) - vScore(a, lang));
   Lab.voiceFor = lang => { const saved = store.get('labVoice_' + lang), vs = Lab.voices(lang); return (saved && vs.find(v => v.name === saved)) || vs[0] || null; };
   Lab.speakRate = () => +(store.get('labRate') || 1);
-  /* Pre-recorded read-aloud (OpenAI gpt-4o-mini-tts): science-lab/audio/<lang>/<key>.<ext>, listed in
-     audio/<lang>/manifest.js (a script, not JSON, so it also loads from file://; manifest.json holds the same list).
-     key = FNV-1a 32-bit hex of  lang + '|' + Lab.speechNorm(text). A text without a recording is read by the browser
-     voice. Recorded languages are listed in REC_LANGS (each needs audio/<lang>/manifest.js).
+  /* Pre-recorded read-aloud (Qwen3-TTS, voice Serena), made on the TTS PC and served from the audio repos named in
+     shared/audio-sources.js (see tools/readaloud/HANDOFF.md). The lesson subject/topic (= this page's path) has
+       <repo url><subject>/<topic>/manifest.js  ->  LabAudioManifest({lesson, voice, en:'<key> …', zh:'<key> …'})
+       <repo url><subject>/<topic>/<lang>/<key>.mp3
+     and sentences no single lesson owns (place-book cards …) are in the lesson "_shared". Manifests are scripts, not
+     JSON, so they also load from file://. key = FNV-1a 32-bit hex of  lang + '|' + Lab.speechNorm(text).
+     A text without a recording is read by the browser voice, so the site works with no audio at all.
      Recordings play at  (o.rate||.95)/.95 × the reader's speed (🔊 panel), pitch preserved.
      Pages that drive speechSynthesis directly (zh utterances) get the recording too, with 'end' fired on the utterance.
-     Regenerate with science-lab/tools/tts (see README.txt there) whenever lesson texts change. */
+     Transcripts for the TTS PC: run tools/readaloud/readaloud_sync.ps1 whenever lesson texts change. */
   const REC_LANGS = ['zh', 'en'];
-  const audioBase = (() => { try { return new URL('../audio/', (document.currentScript && document.currentScript.src) || location.href).href; } catch(e){ return ''; } })();
+  const siteBase = (() => { try { return new URL('../', (document.currentScript && document.currentScript.src) || location.href).href; } catch(e){ return ''; } })();
   Lab.speechNorm = t => String(t == null ? '' : t).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
   Lab.speechKey = (text, lang) => {
     const s = lang + '|' + Lab.speechNorm(text); let h = 0x811c9dc5;
     for (let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
     return ('0000000' + h.toString(16)).slice(-8);
   };
-  const rec = {};   // lang -> {state:'loading'|'ready'|'none', ext, keys:Set, waits:[]}
-  window.LabAudioManifest = m => { const r = rec[m.lang] || (rec[m.lang] = { waits:[] }); r.ext = m.ext || 'mp3'; r.keys = new Set(String(m.keys || '').split(/\s+/).filter(Boolean)); r.state = 'ready'; r.waits.splice(0).forEach(f => f()); };
-  function loadRec(lang){   // loads the manifest once per language
-    if (!REC_LANGS.includes(lang) || !audioBase) return null;
-    let r = rec[lang]; if (r && r.state) return r;
-    r = rec[lang] = r || { waits:[] }; r.state = 'loading';
-    const s = document.createElement('script'); s.src = audioBase + lang + '/manifest.js'; s.async = true;
-    s.onerror = () => { r.state = 'none'; r.waits.splice(0).forEach(f => f()); };
-    (document.head || document.documentElement).appendChild(s); return r;
+  // this page's lesson id: <subject>/<topic> from its path below the site root ('' for hub / index pages)
+  Lab.lessonId = (() => { try {
+    const p = decodeURI(new URL(location.href).pathname), b = decodeURI(new URL(siteBase).pathname);
+    const m = p.startsWith(b) && p.slice(b.length).match(/^([a-z0-9-]+)\/([a-z0-9-]+?)(?:\.html?)?$/i);
+    return m && m[2] !== 'index' ? m[1] + '/' + m[2] : '';
+  } catch(e){ return ''; } })();
+  // rec.buckets: [{id, base, keys:{en:Set, zh:Set}}] - this lesson first, then _shared; state: ''|'loading'|'ready'
+  const rec = { state: '', waits: [], buckets: [] };
+  window.LabAudioManifest = m => {
+    const b = m && rec.buckets.find(x => x.id === m.lesson); if (!b) return;
+    REC_LANGS.forEach(l => { b.keys[l] = new Set(String(m[l] || '').split(/\s+/).filter(Boolean)); });
+  };
+  const addScript = (src, done) => {
+    const s = document.createElement('script'); s.src = src; s.async = true;
+    s.onload = s.onerror = () => done();
+    (document.head || document.documentElement).appendChild(s);
+  };
+  function loadRec(){   // loads audio-sources.js (if the page has not), then this lesson's and the shared manifest, once
+    if (rec.state) return rec;
+    rec.state = 'loading';
+    const finish = () => { rec.state = 'ready'; rec.waits.splice(0).forEach(f => f()); };
+    const go = () => {
+      const S = window.LAB_AUDIO_SOURCES; if (!S || !S.repos) return finish();
+      const repoUrl = id => S.repos[id === '_shared' ? S.shared : (S.subjects[id.split('/')[0]] || S.fallback)];
+      const ids = [Lab.lessonId, '_shared'].filter(Boolean);
+      rec.buckets = ids.map(id => ({ id, base: (repoUrl(id) || '') + id + '/', keys: {} })).filter(b => /^https?:|^file:/.test(b.base));
+      let left = rec.buckets.length; if (!left) return finish();
+      rec.buckets.forEach(b => addScript(b.base + 'manifest.js', () => { if (--left === 0) finish(); }));
+    };
+    if (window.LAB_AUDIO_SOURCES || !siteBase) go(); else addScript(siteBase + 'shared/audio-sources.js', go);
+    return rec;
   }
-  Lab.recordings = loadRec;
+  // url of the recording of (lang, key), or '' (then the browser voice reads it)
+  const recUrl = (lang, key) => { const b = rec.buckets.find(x => x.keys[lang] && x.keys[lang].has(key)); return b ? b.base + lang + '/' + key + '.mp3' : ''; };
+  Lab.recordings = () => loadRec();
+  Lab.recordingUrl = (text, lang) => recUrl(lang || Lab.lang, Lab.speechKey(String(text).replace(/<[^>]+>/g, ''), lang || Lab.lang));
   const ss = window.speechSynthesis || null;
   const nativeSpeak = ss ? ss.speak.bind(ss) : () => {}, nativeCancel = ss ? ss.cancel.bind(ss) : () => {};
   let player = null, cur = null, gen = 0;   // one shared <audio> (stays unlocked on iOS after the first tap)
   const audioRate = rate => Math.max(.3, Math.min(2.5, (rate || .95) / .95 * Lab.speakRate()));
   Lab.stopSpeech = () => { gen++; const c = cur; cur = null; if (c){ try { player.pause(); } catch(e){} if (c.done) c.done(false); } nativeCancel(); };
-  function withRec(lang, fn){   // fn(manifest or null); waits at most 1.5 s for a manifest that is still loading
-    const r = loadRec(lang);
-    if (!r || r.state !== 'loading') return fn(r && r.state === 'ready' ? r : null);
+  function withRec(lang, fn){   // fn(url getter or null); waits at most 2 s for manifests that are still loading
+    if (!REC_LANGS.includes(lang)) return fn(null);
+    const r = loadRec();
+    if (r.state !== 'loading') return fn(recUrl);
     const g = gen; let fired = false;
-    const go = () => { if (fired) return; fired = true; if (g === gen) fn(r.state === 'ready' ? r : null); };
-    r.waits.push(go); setTimeout(go, 1500);
+    const go = () => { if (fired) return; fired = true; if (g === gen) fn(recUrl); };
+    r.waits.push(go); setTimeout(go, 2000);
   }
   function speakTTS(clean, lang, rate, done){
     if (!ss) return null;
@@ -201,12 +230,12 @@
     if (done){ u.onend = () => done(true); u.onerror = () => done(false); }
     nativeSpeak(u); return u;
   }
-  function playRec(r, key, lang, rate, fallback, done){
+  function playRec(url, key, rate, fallback, done){
     const a = player || (player = new Audio()), c = cur = { rate, done, key };
     const fail = () => { if (cur !== c) return; cur = null; fallback(); };
     a.onended = () => { if (cur !== c) return; cur = null; if (done) done(true); };
     a.onerror = fail;
-    a.src = audioBase + lang + '/' + key + '.' + r.ext;
+    a.src = url;
     a.preservesPitch = a.mozPreservesPitch = a.webkitPreservesPitch = true;
     a.defaultPlaybackRate = a.playbackRate = audioRate(rate);
     const p = a.play(); if (p && p.catch) p.catch(e => { if (!e || e.name !== 'AbortError') fail(); });
@@ -218,9 +247,9 @@
     const lang = o.lang || Lab.lang, clean = String(text).replace(/<[^>]+>/g, '');
     Lab.stopSpeech();
     let out = { pending:true };
-    withRec(lang, r => {
-      const k = r && Lab.speechKey(clean, lang);
-      out = r && r.keys.has(k) ? playRec(r, k, lang, o.rate, () => speakTTS(clean, lang, o.rate, o.onend), o.onend) : speakTTS(clean, lang, o.rate, o.onend);
+    withRec(lang, get => {
+      const k = Lab.speechKey(clean, lang), url = get && get(lang, k);
+      out = url ? playRec(url, k, o.rate, () => speakTTS(clean, lang, o.rate, o.onend), o.onend) : speakTTS(clean, lang, o.rate, o.onend);
     });
     return out;
   };
@@ -233,9 +262,9 @@
         const ul = u && (/^zh/i.test(u.lang || '') ? 'zh' : /^en/i.test(u.lang || '') ? 'en' : (!u.lang ? Lab.lang : ''));
         if (!ul || !REC_LANGS.includes(ul)) return nativeSpeak(u);
         const ev = ok => { try { u.dispatchEvent(new Event(ok ? 'end' : 'error')); } catch(e){} };
-        withRec(ul, r => {
-          const k = r && Lab.speechKey(u.text, ul);
-          if (r && r.keys.has(k)){ Lab.stopSpeech(); playRec(r, k, ul, u.rate || 1, () => nativeSpeak(u), ev); }
+        withRec(ul, get => {
+          const k = Lab.speechKey(u.text, ul), url = get && get(ul, k);
+          if (url){ Lab.stopSpeech(); playRec(url, k, u.rate || 1, () => nativeSpeak(u), ev); }
           else nativeSpeak(u);
         });
       };
@@ -249,7 +278,7 @@
     const T = { h:{en:'Read-aloud voice',zh:'朗读声音'}, rate:{en:'Speed',zh:'语速'}, test:{en:'▶ Test',zh:'▶ 试听'}, none:{en:'This browser has no voice for this language.',zh:'这个浏览器没有该语言的声音。'},
       tip:{en:'Tip: Microsoft Edge has the most natural voices (names with “Natural”). Chrome’s “Google” voices are good too.',zh:'提示：Microsoft Edge 浏览器的声音最自然（名字带 “Natural” 的）；Chrome 的 “Google” 声音也不错。'},
       sample:{en:'Hello! This is how I will read the lessons to you.',zh:'你好！我会用这个声音为你朗读课文。'} };
-    const r = rec[lang], recNote = r && r.state === 'ready' && r.keys.size ? `<small>${Lab.L({ en:'Lessons are read with a pre-recorded voice; the voice list above is used only for text that has no recording.', zh:'课文使用预先录好的声音朗读；上面的声音选择只用于没有录音的内容。' })}</small>` : '';
+    const recNote = rec.state === 'ready' && rec.buckets.some(b => b.keys[lang] && b.keys[lang].size) ?`<small>${Lab.L({ en:'Lessons are read with a pre-recorded voice; the voice list above is used only for text that has no recording.', zh:'课文使用预先录好的声音朗读；上面的声音选择只用于没有录音的内容。' })}</small>` : '';
     p = document.createElement('div'); p.className = 'lab-vpanel card';
     p.innerHTML = `<b>${Lab.L(T.h)}</b>${vs.length ? `<select class="lab-vsel">${vs.map(v => `<option value="${v.name.replace(/"/g, '&quot;')}" ${cur && v.name === cur.name ? 'selected' : ''}>${v.name}</option>`).join('')}</select>` : `<p>${Lab.L(T.none)}</p>`}
       <label>${Lab.L(T.rate)} <input type="range" class="lab-vrate" min=".5" max="1.5" step=".05" value="${Lab.speakRate()}"><output>${Lab.speakRate().toFixed(2)}×</output></label>
