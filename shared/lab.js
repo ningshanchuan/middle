@@ -388,7 +388,7 @@
       const k = lang + '|' + clean; if (chain.seen.has(k)){ stop(); return false; }   // came round again: done
       chain.seen.add(k); showPill(true);
       const c = chain, g = c.g, done0 = o.onend;
-      return Object.assign({}, o, { onend: ok => { if (done0) done0(ok); if (ok && chain === c && c.g === g) setTimeout(() => turn(c, g), 700); } });
+      return Object.assign({}, o, { onend: ok => { if (done0) done0(ok); if (ok && chain === c && c.g === g) setTimeout(() => turn(c, g), 2500); } });
     };
     // auto-play: press "Next" in the panel of the card just read, then read the card that opens
     const turn = (c, g) => {

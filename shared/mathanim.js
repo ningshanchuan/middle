@@ -264,7 +264,9 @@
       st.running = false;
       // read-aloud on: wait until the step's narration has ended (and while it is paused) before moving on
       if (g === S.gen && st.autoplay && st.voice && window.Lab && Lab.whenSpoken) await Lab.whenSpoken();
-      if (g === S.gen && st.autoplay){ if (i < steps.length - 1){ await new Promise(r => setTimeout(r, 900 / S.speed)); if (g === S.gen && st.autoplay) go(i + 1); } else { st.autoplay = false; renderBar(); } }
+      // pause before the next step (user rule): about 2.5 s after a narration, 1 s when read-aloud is off
+      const rest = st.voice ? 2500 : 1000 / S.speed;
+      if (g === S.gen && st.autoplay){ if (i < steps.length - 1){ await new Promise(r => setTimeout(r, rest)); if (g === S.gen && st.autoplay) go(i + 1); } else { st.autoplay = false; renderBar(); } }
       if (cfg.onStep) cfg.onStep(i);
     }
     function act(a){
