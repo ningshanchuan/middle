@@ -267,6 +267,9 @@ function Prep([string]$t, [string]$raw = "") {
       # "neizhiwang (ER)" -> "neizhiwang, E R," : a pause and spelled letters
       $t = [regex]::Replace($t, '(?<=[' + $cjk + '])\s*[(' + $lpar + ']\s*([A-Za-z]{1,6})\s*[)' + $rpar + ']', { param($m) $w = $m.Groups[1].Value; $comma + $(if ($w -cmatch '^[A-Z]+$') { ($w.ToCharArray()) -join ' ' } else { $w }) + $comma })
       $t = $t -replace ($comma + '\s*([' + (& $c 0xFF1A) + (& $c 0xFF0C) + (& $c 0x3002) + (& $c 0x3001) + '])'), '$1'   # no double punctuation
+      # fractions 2/3 -> san fen zhi er (not dates or units: plain digits on both sides only); 9/11 (the attacks) -> jiu yi yi
+      $t = $t -replace '(?<![\d/.])9/11(?![\d/.])', ((& $c 0x4E5D) + (& $c 0x4E00) + (& $c 0x4E00))
+      $t = [regex]::Replace($t, '(?<![\d/.])(\d+)\s*/\s*(\d+)(?![\d/.])', { param($m) $m.Groups[2].Value + (& $c 0x5206) + (& $c 0x4E4B) + $m.Groups[1].Value })
       # a single dash between two words ("hong-lv") -> enumeration comma; the long dash pair stays
       $t = $t -replace ('(?<=[' + $cjk + '])\s*[' + (& $c 0x2013) + (& $c 0x2014) + '](?![' + (& $c 0x2014) + '])\s*(?=[' + $cjk + '])'), (& $c 0x3001)
     } else {
@@ -278,10 +281,24 @@ function Prep([string]$t, [string]$raw = "") {
       $t = [regex]::Replace($t, '(\w+)\s*\^\s*\(?(-?\w+)\)?', { param($m) $m.Groups[1].Value + ' to the power of ' + $m.Groups[2].Value })
       $t = $t -replace '(?<=[\w\)])\s*<\s*(?=[\w\(-])', ' less than ' -replace '(?<=[\w\)])\s*>\s*(?=[\w\(-])', ' greater than '
       $t = $t.Replace([string](& $c 0x1E41), 'mass flow rate').Replace('v' + (& $c 0x2091), 'exhaust velocity')
+      # fractions 1/6 -> one sixth, 2/3 -> two thirds; other a/b -> "a over b" (digits on both sides only)
+      $t = $t -replace '(?<![\d/.])9/11(?![\d/.])', 'nine eleven'
+      if ($t -match 'time signature|waltz|\bb\S{1,2}ny\S{1,2}n\b') {   # music: 3/4 is read "three four" (time signature), not a fraction
+        $t = [regex]::Replace($t, '(?<![\d/.])([1-9])\s*/\s*([1-9])(?![\d/.])', { param($m) $words[[int]$m.Groups[1].Value - 1] + ' ' + $words[[int]$m.Groups[2].Value - 1] })
+      }
+      $t = [regex]::Replace($t, '(?<![\d/.])(\d+)\s*/\s*(\d+)(?![\d/.])', { param($m)
+        $a = [int64]$m.Groups[1].Value; $b = [int64]$m.Groups[2].Value
+        $ord = @{ 2='half'; 3='third'; 4='quarter'; 5='fifth'; 6='sixth'; 7='seventh'; 8='eighth'; 9='ninth'; 10='tenth'; 12='twelfth'; 100='hundredth'; 1000='thousandth' }
+        if ($a -ge 1 -and $a -le 10 -and $a -lt $b -and $ord.ContainsKey([int]$b)) {
+          $o = $ord[[int]$b]; if ($a -gt 1) { $o = if ($o -eq 'half') { 'halves' } else { $o + 's' } }
+          $words[$a - 1] + ' ' + $o } else { "$a over $b" } })
     }
     $t = $t -replace ('[' + (& $c 0x2090) + '-' + (& $c 0x209C) + ']'), ''      # other subscript letters
   }
   $t = ($t -replace '\s+', ' ').Trim()
+  if ($Lang -eq 'zh') {   # doubled full stops from .join() with a full stop after a sentence that already ends in one
+    $t = $t -replace ('([' + (& $c 0x3002) + (& $c 0xFF01) + (& $c 0xFF1F) + (& $c 0xFF1B) + '])(\s*' + (& $c 0x3002) + ')+'), '$1'
+  }
   if ($Lang -eq 'zh'){   # pinyin.js ruby text glued after a word (e.g. a word followed by its tone-marked pinyin) must not be read aloud
     $tone = ((0x101,0xE1,0x1CE,0xE0,0x113,0xE9,0x11B,0xE8,0x12B,0xED,0x1D0,0xEC,0x14D,0xF3,0x1D2,0xF2,0x16B,0xFA,0x1D4,0xF9,0x1D6,0x1D8,0x1DA,0x1DC,0xFC) | ForEach-Object { & $c $_ }) -join ''
     $t = $t -replace ('(?<=[' + $cjk + '])[A-Za-z' + $tone + ']*[' + $tone + '][A-Za-z' + $tone + ']*'), ''
