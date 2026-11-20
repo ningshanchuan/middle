@@ -17,9 +17,8 @@
 - 不夸大，不回避；
 - 不确定或有争议的地方，如实说明。
 
-**怎样落实：**
-- 每一课都有一个自然的"美在哪里"的时刻。
-- 历史课写到普通人，并在合适时作简短的反思。
+**怎样落实：** 这是网站整体的精神，体现在选题、素材和语气里，不是每一课都要套用的格式，也不说教。
+- 实事求是适用于每一页。
 - 课标内的内容，充实；课标以外的内容，标明"课外拓展"。
 - 每一课都经过独立校对和人工验收，然后才发布。
 
@@ -34,8 +33,7 @@
 4. **History is made by the people.** Besides rulers and generals, we show farmers, workers, craftspeople, scientists, migrants, soldiers, women and children: their work, inventions and lives.
 5. **Seek truth from facts.** Every fact, date, number, quotation and attribution must be verifiable and sourced. We do not exaggerate or leave out inconvenient facts, and we say so when something is uncertain or disputed.
 
-**In practice:**
-- Every lesson has a natural "where is the beauty here?" moment.
-- History lessons include ordinary people, and a short reflection where it fits.
+**In practice:** this is the spirit of the whole site — it shows in the choice of topics, media and tone, not as a formula for every lesson, and never as preaching.
+- Seeking truth from facts applies to every page.
 - Topics in the standards are enriched; topics beyond them are marked *Enrichment · 课外拓展*.
 - Every lesson is independently reviewed and checked by hand before it is published.
