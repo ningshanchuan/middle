@@ -272,6 +272,7 @@ function Prep([string]$t, [string]$raw = "") {
     } else {
       $words = 'one','two','three','four','five','six','seven','eight','nine','ten'
       $t = [regex]::Replace($t, '\s*(' + $circ + ')\s*', { param($m) ' ' + $words[[int][char]$m.Groups[1].Value[0] - 0x2460] + ', ' })
+      $t = $t -replace ',\s*(?=[\)\].,;:!?]|$)', ''                         # "(step one, )." -> "(step one)."
       $t = $t -replace ('\s*' + $fplus + '\s*'), ' plus ' -replace ('\s*' + $feq + '\s*'), ' equals '
       $t = $t -replace ('(\d)\s*[~' + $ftil + ']\s*(?=\d)'), '$1 to ' -replace ('[~' + $ftil + ']\s*(?=\d)'), 'about ' -replace ('\s*[~' + $ftil + ']\s*'), ' to '
       $t = [regex]::Replace($t, '(\w+)\s*\^\s*\(?(-?\w+)\)?', { param($m) $m.Groups[1].Value + ' to the power of ' + $m.Groups[2].Value })

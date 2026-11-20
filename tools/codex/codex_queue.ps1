@@ -1,4 +1,4 @@
-# Codex task queue: runs every task file in codex_tasks\queue\ (name order), one at a time per worker, and keeps the results
+﻿# Codex task queue: runs every task file in codex_tasks\queue\ (name order), one at a time per worker, and keeps the results
 # for later review. Task file = a self-contained brief (.md). Result = codex_tasks\done\<name>.result.md (+ .log);
 # the brief moves to codex_tasks\done\. A failed run moves to codex_tasks\failed\. Status lines go to codex_tasks\queue.log.
 # Start 1–2 workers:  powershell -File codex_queue.ps1 -Worker 1     (a second one with -Worker 2)
@@ -10,7 +10,13 @@ $log = "$root\queue.log"
 function Write-QLog($m) { $l = "{0:yyyy-MM-dd HH:mm:ss} w{1} {2}" -f (Get-Date), $Worker, $m; Add-Content $log $l -Encoding UTF8; $l }
 Write-QLog "worker started"
 while ($true) {
-  $next = Get-ChildItem "$root\queue" -Filter *.md | Sort-Object Name | Select-Object -First 1
+  # ordinal name order (culture sort ignores '-', which put "11p-proof" before "11-pressure"); a review task (NNp-proof-x)
+  # waits until its build task (NN-x) is neither queued nor running
+  $names = [string[]]@(Get-ChildItem "$root\queue" -Filter *.md | ForEach-Object Name); [Array]::Sort($names, [StringComparer]::Ordinal)
+  $busy = @(Get-ChildItem "$root\queue", "$root\running" -Filter *.md | ForEach-Object Name)
+  $pick = $names | Where-Object { -not ($_ -match '^9?(\d\d)p-proof-(.+)$' -and ($busy -contains "$($Matches[1])-$($Matches[2]).md")) } | Select-Object -First 1
+  $next = if ($pick) { Get-Item "$root\queue\$pick" } else { $null }
+  if (-not $next -and $names.Count) { Start-Sleep -Seconds 60; continue }   # only reviews left, their builds still running
   if (-not $next) { Write-QLog "queue empty, worker stops"; break }
   $run = "$root\running\$($next.Name)"
   try { Move-Item $next.FullName $run -ErrorAction Stop } catch { continue }   # another worker took it
@@ -23,3 +29,5 @@ while ($true) {
   if (-not $ok -and (Test-Path "$out.log")) { Move-Item "$out.log" "$root\failed\$base.result.md.log" -Force }
   Write-QLog ("{0} {1} ({2:N0} min)" -f $(if ($ok) { 'done' } else { 'FAILED' }), $base, ((Get-Date) - $t0).TotalMinutes)
 }
+
+
