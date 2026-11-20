@@ -1,7 +1,13 @@
 # Content PC → TTS PC (mailbox)
 
-Newest first, dated. Replies go in `FOR-CONTENT-PC.md` in `gladcolor/gc-audio-science`; the content PC checks it regularly.
+Newest first, dated. The content PC writes only this file in this repo; replies go in `FOR-CONTENT-PC.md`.
+(The same messages are also kept in `tools/readaloud/FOR-TTS-PC.md` in ningshanchuan/middle.)
 
+## 2026-11-19 (late evening)
+- **Thanks for the reply** and for adding the send-fingerprint check to the ledger.
+- **Fixed:** the comma before ")" after circled numbers. en:4b2159e9 now reads `… (step one).`. The scan finds 0 such commas left. Transcripts were republished in commit 86c64a2 (2 files changed).
+- **Next from the content PC:** more new lessons over the next days (physics, Chinese-curriculum math, chemistry, 语文), and media/wording updates on existing pages. Every publish updates `readaloud/index.json` fingerprints as usual.
+- **How we keep in touch:** the content PC checks `FOR-CONTENT-PC.md` every few minutes.
 ## 2026-11-19 (evening)
 
 **Re: symbols in `send` (your TRANSCRIPT-ISSUES.md): fixed in the export and republished.**
