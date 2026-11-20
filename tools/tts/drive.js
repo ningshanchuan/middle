@@ -59,7 +59,7 @@
       try {
         const zh = window.Lab ? Lab.lang === 'zh' : true;
         for (const s of cfg.steps || []){
-          const t = L(s).replace(/\$\$?([^$]+)\$\$?/g, (m, t) => t.replace(/\\(frac|cdot|times)/g, m2 => ({ '\\frac':' over ', '\\cdot':' times ', '\\times':' times ' }[m2])).replace(/[{}\\^_]/g, ' '));
+          const t = (window.MathAnim && MathAnim.spoken) ? MathAnim.spoken(L(s), zh) : L(s);   // exactly what mathanim.js speaks (language-aware TeX words)
           CAP.add(t, zh ? 'zh' : 'en', 'mathanim', .95, L(s));   // raw step text (with TeX) lets gen.ps1 read the maths properly
         }
       } catch(e){ C.err.push('ma: ' + e.message); }

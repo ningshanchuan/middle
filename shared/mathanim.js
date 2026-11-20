@@ -225,6 +225,30 @@
   };
 
   /* ---------- lesson player ---------- */
+  // A narration step as it is read aloud: the $...$ TeX parts in words of the narration's language (Chinese: 乘, 除以,
+  // b分之a, 的n次方 …). The read-aloud crawler (tools/tts/drive.js) calls this too, so the recorded text matches.
+  const TEXW = {
+    zh: { '\\times':'乘', '\\cdot':'乘', '\\div':'除以', '\\pm':'正负', '\\mp':'负正', '\\le':'小于等于', '\\leq':'小于等于', '\\ge':'大于等于', '\\geq':'大于等于',
+          '\\neq':'不等于', '\\ne':'不等于', '\\approx':'约等于', '\\pi':'π', '\\degree':'度', '\\circ':'度', '\\infty':'无穷大', '\\%':'%' },
+    en: { '\\times':'times', '\\cdot':'times', '\\div':'divided by', '\\pm':'plus or minus', '\\mp':'minus or plus', '\\le':'is less than or equal to', '\\leq':'is less than or equal to',
+          '\\ge':'is greater than or equal to', '\\geq':'is greater than or equal to', '\\neq':'is not equal to', '\\ne':'is not equal to', '\\approx':'is about', '\\pi':'pi',
+          '\\degree':'degrees', '\\circ':'degrees', '\\infty':'infinity', '\\%':'%' } };
+  const texWords = (t, zh) => {
+    const W = zh ? TEXW.zh : TEXW.en; let x = String(t);
+    for (let k = 0; k < 3; k++){   // nested fractions / roots, inside out
+      x = x.replace(/\\[dt]?frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, (m, a, b) => zh ? `${b.trim()}分之${a.trim()}` : `${a.trim()} over ${b.trim()}`);
+      x = x.replace(/\\sqrt\s*\{([^{}]*)\}/g, (m, a) => zh ? `根号${a.trim()}` : `the square root of ${a.trim()}`);
+    }
+    x = x.replace(/\^\s*(?:\{([^{}]*)\}|([0-9a-zA-Z]))/g, (m, a, b) => { const n = (a != null ? a : b).trim().replace(/^-\s*/, zh ? '负' : 'negative ');
+      return zh ? (n === '2' ? '的平方' : n === '3' ? '的立方' : `的${n}次方`) : (n === '2' ? ' squared' : n === '3' ? ' cubed' : ` to the power of ${n}`); });
+    x = x.replace(/\\(left|right|,|;|!|quad|qquad|text|mathrm|mathbf)\b/g, ' ').replace(/\\[a-zA-Z]+|\\%/g, c => W[c] != null ? ` ${W[c]} ` : ' ');
+    // signs inside the formula: subtraction (a minus after a number, letter or closing bracket) first, then a negative number, plus and equals
+    x = x.replace(/(?<=[0-9a-zA-Z)\]])\s*-\s*(?=[0-9a-zA-Z(])/g, zh ? ' 减 ' : ' minus ');
+    x = x.replace(/(^|[\s(\[=+,])-\s*(?=[0-9a-zA-Z(])/g, (m, p) => p + (zh ? '负' : 'negative '));
+    x = x.replace(/\s*=\s*/g, zh ? ' 等于 ' : ' equals ').replace(/\s*\+\s*/g, zh ? ' 加 ' : ' plus ');
+    return ' ' + x.replace(/[{}_\\]/g, ' ').replace(/\s+/g, ' ').trim() + ' ';
+  };
+  MA.spoken = (text, zh) => String(text).replace(/\$\$?([^$]+)\$\$?/g, (m, t) => texWords(t, zh));
   MA.lesson = cfg => {
     const el = typeof cfg.el === 'string' ? document.querySelector(cfg.el) : cfg.el, S = cfg.scene, steps = cfg.steps;
     const zh = () => window.Lab && Lab.lang === 'zh';
@@ -250,7 +274,7 @@
       const s = steps[st.i]; nar.innerHTML = `<span class="ma-step">${st.i + 1}/${steps.length}</span>` + MA.rich(L(s));
     }
     function speak(){ if (!st.voice || !window.speechSynthesis || st.i < 0) return; speechSynthesis.cancel();
-      const txt = L(steps[st.i]).replace(/\$\$?([^$]+)\$\$?/g, (m, t) => t.replace(/\\(frac|cdot|times)/g, m2 => ({ '\\frac':' over ', '\\cdot':' times ', '\\times':' times ' }[m2])).replace(/[{}\\^_]/g, ' '));
+      const txt = MA.spoken(L(steps[st.i]), zh());
       if (window.Lab && Lab.speak){ Lab.speak(txt, { lang: zh() ? 'zh' : 'en', rate: .95 * Math.min(1.3, S.speed) }); return; }   // best available voice
       const u = new SpeechSynthesisUtterance(txt); u.lang = zh() ? 'zh-CN' : 'en-US'; u.rate = .95 * Math.min(1.3, S.speed); speechSynthesis.speak(u); }
     async function go(i){
