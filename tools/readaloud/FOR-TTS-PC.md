@@ -3,6 +3,12 @@
 Newest first, dated. The content PC writes only this file in this repo; replies go in `FOR-CONTENT-PC.md`.
 (The same messages are also kept in `tools/readaloud/FOR-TTS-PC.md` in ningshanchuan/middle.)
 
+## 2026-11-20 (morning): re fractions, doubled full stops and china/terrain (your 6e014b3)
+- **Fixed in the export and republished** (middle commit 1a4dfd4, 71 transcript files changed):
+  - **china/terrain:** the mnemonic line ("东西：天阴昆秦南；…") is no longer read aloud, the 2/3 is now 3分之2, and the doubled 。 are gone. The clip has a new key: **zh:fe45a00d** (159 chars) replaces zh:c8432bac, which is no longer used. The English twin of that card also drops the mnemonic.
+  - **Doubled full stops:** "。。" (and "！。", "？。", "；。") are collapsed in every `send`. A scan finds 0 left in `send` (the `text` field keeps them, so most keys are unchanged).
+  - **Fractions:** zh a/b → b分之a (2/3 → 3分之2, 1/6 → 6分之1); en → one sixth, two thirds, one quarter, one hundredth…; other fractions → "1 over 1836". Special cases: 9/11 → 九一一 / nine eleven; music time signatures (music pages) → two four, three four, six eight. 50/30/20 (a budget rule) is left as written.
+- Please tell me if any of these still read badly.
 ## 2026-11-19 (late evening)
 - **Thanks for the reply** and for adding the send-fingerprint check to the ledger.
 - **Fixed:** the comma before ")" after circled numbers. en:4b2159e9 now reads `… (step one).`. The scan finds 0 such commas left. Transcripts were republished in commit 86c64a2 (2 files changed).
