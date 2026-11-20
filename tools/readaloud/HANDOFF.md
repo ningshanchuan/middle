@@ -69,9 +69,17 @@ Lesson labels: **finished** (all clips done), **in progress**, **no audio**, **f
 
 - **Voice**: Serena for **both** English and Chinese, normal speed (1.0), **no style instructions**, text as written. There
   are no homophone swaps; Serena reads 多音字 correctly. Earlier tests found that style instructions made Chinese garbled
-  or three times too long, and that speed 0.9 caused an echo.
-- **Audio**: MP3, mono, 24 kHz, **48 kbps**. The model outputs 24 kHz, so a higher sample rate gains nothing.
-- **One request at a time** (a serial queue). The GPU crashed easily under parallel load on the old server.
+  or three times too long, and that speed 0.9 caused an echo. (A 2026-11-20 test of one teaching-style instruction on
+  the TTS PC is waiting for the user's verdict; see 11.2.)
+- **Sampling** (decided 2026-11-19): `temperature` 0.5 and `subtalker_temperature` 0.5. With the default 0.9 the
+  Chinese voice changed from clip to clip (a mature woman in one, a child in the next); 0.6 and 0.7 sometimes gave very
+  slow, overlong clips.
+- **Audio**: MP3, mono, 24 kHz, **48 kbps**, loudness normalised to **-16 LUFS** (two-pass ffmpeg `loudnorm`, true
+  peak -1.5 dB; the user found the raw output too quiet). The model outputs 24 kHz, so a higher sample rate gains nothing.
+  The ledger tags every clip `serena t0.5 -16LUFS`; a clip with another tag is re-recorded.
+- **Quality first, then speed** ("质量第一"). Every clip passes an automatic check before it is kept (11.2).
+- **Batching** (replaces "one request at a time", approved by the user 2026-11-19): 2 model processes, each generating
+  batches of up to 32 clips of similar length from a site-wide pool. Stable on the TTS PC (20 GB GPU, Windows).
 - **Report only what you have verified.** The user was once told a lesson used the new voice when the page was really
   playing the Windows voice, and was upset. Report a lesson only after the worker prints `VERIFIED`, which means the live
   files match byte for byte.
@@ -189,3 +197,105 @@ Keep it running in its own terminal.
 - Never commit keys, tokens or passwords, and never put personal information in commits or files.
 - Only these three repos are yours. Never push to `ningshanchuan/*`.
 - Do not change voice, speed, bitrate or concurrency without asking the user.
+
+## 11. Problems met on the TTS PC and how they were solved (2026-11-19/20)
+
+The worker in production is `E:\gc-audio\tools\tts_worker.py` on the TTS PC; it has moved well beyond the draft in this
+folder. Its config is `tts_config.json` next to it.
+
+### 11.1 Speed
+
+- **The GPU waited for the CPU.** On Windows (WDDM driver) one model process kept the GPU under 50 % busy: each
+  generation step is many small kernel launches. More work per launch is what helps:
+  - batch generation (`generate_custom_voice` with a list of texts): a batch of 16-32 costs little more per step than
+    one clip;
+  - 2 model processes, each with `torch.cuda.set_per_process_memory_fraction(0.45)`; a 3rd or 4th did not add speed;
+  - a **site-wide pool**: clips from all lessons wait in one pool; each batch takes the oldest clip plus the clips
+    closest to it in length, so a short clip does not wait for a 300-character one. Lessons are closed (manifest,
+    push, live check) as soon as their last clip is in, not strictly in catalog order.
+- **GPU memory peaks** came from decoding a whole batch to waveforms at once; decoding clip by clip removed them. When
+  memory still runs out, the worker splits the batch and retries. Very long texts need small batches (12 texts of
+  about 450 characters in one batch ran out of 20 GB).
+- **Measured speed:** about 13x real time in a pure benchmark; in production 4.5x on average and 6-7x in the best
+  hours (retries after failed checks, long clips and partly filled batches cost the difference).
+- **Not adopted:** CUDA graphs (qwen3-tts-triton / faster-qwen3-tts): English 1.7x faster, but Chinese slower, with
+  runaway clips and 12-14 GB for one process.
+
+### 11.2 Voice quality and the automatic check
+
+- **What the user hears as bad** (two listening reviews, 2026-11-19 and 11-20): a child-like or naive voice (most
+  common), shouting, a sharp voice, too fast ("like a quarrel"), too slow and listless, uneven speed, over-acted
+  intonation, a dialect-like sound, too casual for teaching.
+- **What the metrics show:** every clip called child-like, naive, shouting or sharp had a median pitch of 306 Hz or more
+  (Serena is normally 240-250 Hz). Of the clips slower than 3.5 Chinese characters/s, 62 of 80 were judged too slow or
+  listless, poem lines included.
+- **The check** (every new clip, in a pool of CPU processes so the GPU keeps working):
+  - median pitch (librosa `pyin`, 120-600 Hz, on a 16 kHz copy) must be 185-300 Hz;
+  - pace must be 3.5-6.5 Chinese characters/s (3.0-6.5 for the poetry and 文言文 lessons) or 8-18 characters/s for
+    English. Pace counts characters as spoken: a Latin letter in Chinese text counts 0.4, an English digit 3, a decimal
+    point 5, the degree and percent signs 7 each (without this, "Mitchell 县" or "56.2°S" raised false alarms);
+  - a clip that fails is generated again in a later batch: up to 5 tries, 15 for science subjects. After the last try
+    the best one is kept and listed in `qa_review.tsv` for listening. A review page (`tools/review_server.py`) lets the
+    user listen and tag clips; clips tagged for redoing go into `rerecord.txt` and are recorded again.
+- **Instruction test (2026-11-20, waiting for the user's verdict):** on 82 clips the user had rejected, the instruction
+  "用自然、清晰、有精神的讲解语气，语速适中。" passed the check for 20 of 33 science and history clips (9 of 33 with a
+  plain retry) and for 15 of 30 poem lines (10 of 30). A recitation-style instruction made poems slower (3 of 30).
+
+### 11.3 Text that reads badly (fixed in the transcripts by the content PC)
+
+Most problems came from the text, not from the voice model. They were reported to the content PC and fixed in the
+export (`tools/tts/gen.ps1`):
+- symbols: ①-⑩, full-width ＋＝, ~, ^, < >, ṁ, subscripts; fractions (2/3 → 3分之2, two thirds); doubled full stops;
+- content made for the eye: mnemonics such as "天阴昆秦南", tables, labels;
+- Chinese with an English abbreviation, "内质网（ER）": now a pause and the letters spelled out;
+- single characters read alone (马, 车, 骤) and short term cards split by full stops ("立冬。冬季开始。"): all judged
+  bad. The agreed fix is a **spoken script** (朗读稿) step in the export: an override table, key → spoken text, drafted
+  by Codex for detected candidates only and reviewed; the page text and the key stay the same;
+- poems recorded line by line do not join (pitch and rhythm change at every line): 语文 pages will read a whole poem
+  (title, author, all lines) or a whole 文言文 paragraph as one clip, with stanza or paragraph units for long texts.
+  The TTS PC tests the longest clip that stays stable and reports the limit.
+- The worker stores a fingerprint of each clip's `send` text (`sha1(send)[:10]`) in the ledger, so a changed `send`
+  is re-recorded even when the key stays the same.
+
+### 11.4 Keeping the worker running without supervision
+
+- `run_worker.cmd` → `supervise.ps1` → `tts_worker.py run --loop`. The supervisor restarts the worker after a crash
+  (after 60 s, doubling up to 15 min if it keeps failing at once) and kills it when its heartbeat file is older than
+  20 min. A lock file prevents two workers. QuickEdit is switched off in the console (in QuickEdit mode a click into the window pauses the program).
+- It starts at logon from the Startup folder (`gc-audio-worker.cmd`); Task Scheduler needs admin rights on this PC.
+- A lesson whose saved label is stale after a restart is finished again automatically.
+- Log watchers must not hold the log files open (`tail -F` locked `supervisor.log` and made the supervisor look hung);
+  poll the file size instead.
+
+### 11.5 Website playback (fixed by the content PC, tested by the TTS PC)
+
+- **Narration cut off** (math/equations): the step player went to the next step when the animation ended, which
+  stopped the recording still playing. Now `Lab.whenSpoken()` in `lab.js` resolves when the narration has ended (it
+  waits while paused). The rule for everything that moves on by itself: **about 2.5 s after a narration has ended;
+  1 s after the animation when read-aloud is off**. A click of the student's own acts at once. The TTS PC checks this
+  with a headless-Chrome test (`tools/test_narration.py` on the TTS PC).
+- **Pause / resume** bar for long clips (a teacher can stop and explain), plus auto-read and auto-play switches.
+- **Narration vs animation length:** the spoken length can be estimated when an animation is designed: Chinese
+  seconds ≈ 1 + characters / 4.7; poetry and 文言文 ≈ characters / 3.2; English ≈ characters / 10.3 (90 % of clips
+  within ±25-35 %). After recording, each lesson folder in the audio repos gets `timing.js` with the real duration of
+  every clip.
+- **China map:** DataV GeoAtlas refuses requests that carry the shanchuan.org referrer (HTTP 403); `chinamap.js` now
+  fetches with `referrerPolicy: 'no-referrer'`.
+
+### 11.6 Working between the two PCs
+
+- The PCs talk only through the repos: `FOR-CONTENT-PC.md` (TTS → content) and `FOR-TTS-PC.md` (content → TTS) in
+  `gladcolor/gc-audio-science`, newest first, dated.
+- The TTS PC edits `FOR-CONTENT-PC.md` through the GitHub contents API, never in the worker's working tree (a
+  `git pull` there collided with the worker's own commits).
+- Quote commit ids that exist on GitHub; ids from an unpushed local history cannot be found by the other PC.
+- Changes to the site's code go as a PR to `ningshanchuan/middle` or as a request in the mailbox; never push to its
+  `main`.
+
+### 11.7 Tools on the TTS PC
+
+- **Codex CLI** does larger coding jobs; Claude writes the brief and reviews the result. Use the executable bundled
+  with the VS Code extension: `codex exec -m gpt-6.2-sol -s workspace-write --skip-git-repo-check -C <dir> "<brief>"`.
+  Codex's sandbox cannot start headless Chromium (each try opened a "chrome-headless-shell.exe - Application Error"
+  dialog), so browser tests run outside the sandbox with the installed Chrome (`channel="chrome"` in Playwright).
+- Never delete folders recursively (`rm -rf`); list them for the user to delete.
