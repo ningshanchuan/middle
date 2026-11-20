@@ -4,10 +4,10 @@
 param([string]$Url, [string]$Out, [int]$Wait = 8, [int]$W = 1400, [int]$H = 1000, [string]$Js = "", [int]$Port = 9333, [string]$Js2 = "", [string]$Click = "")
 $__jg = Join-Path $PSScriptRoot 'jobguard.ps1'; if (Test-Path $__jg) { . $__jg } else { try { (Get-Process -Id $PID).PriorityClass = 'Idle' } catch {} }   # idle CPU only; started Chrome/Codex die with this script
 $chrome = "C:\Program Files\Google\Chrome\Application\chrome.exe"
-$udd = Join-Path "F:\Shanchuan\Biology_study\.labtmp" ("labvshot_" + $Port)   # Chrome profile on F: (C: is nearly full)
+$udd = Join-Path "D:\labtmp" ("labvshot_" + $Port)   # Chrome profile on D: (C: and F: are nearly full)
 New-Item -ItemType Directory -Force (Split-Path $udd) | Out-Null
 Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" | Where-Object { $_.CommandLine -like "*labvshot_$Port*" } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
-$__ct = 'F:\Shanchuan\Biology_study\.labtmp\chrometmp'; New-Item -ItemType Directory -Force $__ct | Out-Null; $env:TEMP = $__ct; $env:TMP = $__ct   # headless Chrome leaves scoped_dir* temp folders when it is killed: keep them off the nearly-full C: drive
+$__ct = 'D:\labtmp\chrometmp'; New-Item -ItemType Directory -Force $__ct | Out-Null; $env:TEMP = $__ct; $env:TMP = $__ct   # headless Chrome leaves scoped_dir* temp folders when it is killed: keep them off the nearly-full C: drive
 Get-ChildItem $__ct -Directory -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -lt (Get-Date).AddHours(-1) } | ForEach-Object { try { [IO.Directory]::Delete($_.FullName, $true) } catch {} }
 $proc = Start-Process -FilePath $chrome -ArgumentList "--headless=new","--use-angle=swiftshader","--enable-unsafe-swiftshader","--user-data-dir=$udd","--window-size=$W,$H","--remote-debugging-port=$Port","about:blank" -PassThru
 $tabs = $null

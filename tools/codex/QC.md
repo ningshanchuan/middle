@@ -12,7 +12,8 @@ Codex writes the page (NN-id) and then reviews it independently (NNp-proof-id). 
    - Check 3 formulas or worked examples and 3 quiz answers.
    - Check that the sim really moves the picture, the graph and the formula together.
    - Check that the Chinese terms are right.
-5. **Requirements check.** Simulations and graphics come first; an in-class check after each section; worked examples; Advanced mode; read-aloud; bilingual.
+5. **Core ideas check** (COMMON.md → Core ideas): a natural 美育 moment; history told with the people in it and, where fitting, a short factual reflection; the shared-future outlook; every fact sourced (实事求是).
+5b. **Requirements check.** Simulations and graphics come first; an in-class check after each section; worked examples; Advanced mode; read-aloud; bilingual.
 6. **Problems found:** write a short fix brief and queue it for Codex (`NNf-fix-id.md`). Fix it myself only if it is a one-line fix.
 7. **Publish.**
    - Commit only reviewed pages, with **only their catalog entries** (strip the entries of pages that are not yet published).

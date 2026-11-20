@@ -1,12 +1,12 @@
-﻿# Phone-width sweep of every lesson page in one headless Chrome (iPhone-like 390x844, mobile, touch).
+# Phone-width sweep of every lesson page in one headless Chrome (iPhone-like 390x844, mobile, touch).
 # For each page: horizontal overflow (document wider than the screen, or elements sticking out that no scroll box clips) + JS errors.
 # Usage: powershell -File phone_sweep.ps1 [-Only "biology/dna,ela/x"] [-Lang en|zh] [-Out result.tsv] [-Port 9950] [-W 390]
 param([string]$Only = "", [string]$Lang = "en", [string]$Out = "", [int]$Port = 9950, [int]$W = 390, [int]$H = 844, [int]$Wait = 3, [string]$ProbeJs = "")   # -ProbeJs "js": run your own probe instead; its value is written per page
 $__jg = Join-Path $PSScriptRoot 'jobguard.ps1'; if (Test-Path $__jg) { . $__jg } else { try { (Get-Process -Id $PID).PriorityClass = 'Idle' } catch {} }   # idle CPU only; started Chrome/Codex die with this script
 $site = 'F:\Shanchuan\Biology_study\science-lab'
 $chrome = "C:\Program Files\Google\Chrome\Application\chrome.exe"
-$udd = "F:\Shanchuan\Biology_study\.labtmp\labsweep_$Port"
-$ct = 'F:\Shanchuan\Biology_study\.labtmp\chrometmp'; New-Item -ItemType Directory -Force $ct | Out-Null; $env:TEMP = $ct; $env:TMP = $ct
+$udd = "D:\labtmp\labsweep_$Port"
+$ct = 'D:\labtmp\chrometmp'; New-Item -ItemType Directory -Force $ct | Out-Null; $env:TEMP = $ct; $env:TMP = $ct
 Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" | Where-Object { $_.CommandLine -like "*labsweep_$Port*" } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 if ($Only) { $pages = $Only.Split(',') | ForEach-Object { $_.Trim() } }
 else {

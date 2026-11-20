@@ -7,7 +7,7 @@
 #         powershell -ExecutionPolicy Bypass -File stop_lab_chrome.ps1 -List      (show them, end nothing)
 param([switch]$Orphans, [switch]$List)
 $all = Get-CimInstance Win32_Process
-$lab = @($all | Where-Object { $_.Name -eq 'chrome.exe' -and $_.CommandLine -match '\\\.labtmp\\lab(col|vshot|phone|sweep)' })
+$lab = @($all | Where-Object { $_.Name -eq 'chrome.exe' -and $_.CommandLine -match '\\\.?labtmp\\lab(col|vshot|phone|sweep)' })
 $ids = @($lab | ForEach-Object ProcessId)
 # the browser (main) process of each instance is the one whose parent is not a lab Chrome itself
 $mains = @($lab | Where-Object { $ids -notcontains $_.ParentProcessId })
@@ -24,6 +24,6 @@ foreach ($m in $mains) {
 }
 # leftovers whose browser process already died (renderer / GPU children still spinning)
 if (-not $List -and -not $Orphans) {
-  Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'chrome.exe' -and $_.CommandLine -match '\\\.labtmp\\lab(col|vshot|phone|sweep)' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+  Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'chrome.exe' -and $_.CommandLine -match '\\\.?labtmp\\lab(col|vshot|phone|sweep)' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 }
 if (-not $List) { "ended $n lab Chrome instance(s); the user's own Chrome was not touched" }

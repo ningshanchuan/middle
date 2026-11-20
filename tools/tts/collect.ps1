@@ -14,7 +14,7 @@ $outDir = Join-Path $Work "lessons"; New-Item -ItemType Directory -Force $outDir
 $items = @([IO.File]::ReadAllLines($List, [Text.Encoding]::UTF8) | Where-Object { $_.Trim() })
 $chrome = "C:\Program Files\Google\Chrome\Application\chrome.exe"
 if (-not (Test-Path $chrome)) { $chrome = "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" }
-$uddBase = Join-Path (Split-Path $Work) ("labcol_" + $Port); $script:udd = $uddBase; $script:starts = 0
+$uddBase = Join-Path "D:\labtmp" ("labcol_" + $Port); $script:udd = $uddBase; $script:starts = 0
 $script:proc = $null; $script:ws = $null; $script:id = 0
 
 function Stop-Browser {
@@ -52,7 +52,7 @@ function Eval($js, [int]$timeoutMs = 30000) {
 function Start-Browser1 {
   Stop-Browser
   $script:starts++; $script:udd = "${uddBase}_$($script:starts)"
-$__ct = 'F:\Shanchuan\Biology_study\.labtmp\chrometmp'; New-Item -ItemType Directory -Force $__ct | Out-Null; $env:TEMP = $__ct; $env:TMP = $__ct   # headless Chrome leaves scoped_dir* temp folders when it is killed: keep them off the nearly-full C: drive
+$__ct = 'D:\labtmp\chrometmp'; New-Item -ItemType Directory -Force $__ct | Out-Null; $env:TEMP = $__ct; $env:TMP = $__ct   # headless Chrome leaves scoped_dir* temp folders when it is killed: keep them off the nearly-full C: drive
 Get-ChildItem $__ct -Directory -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -lt (Get-Date).AddHours(-1) } | ForEach-Object { try { [IO.Directory]::Delete($_.FullName, $true) } catch {} }
   $script:proc = Start-Process -FilePath $chrome -ArgumentList "--headless=new","--use-angle=swiftshader","--enable-unsafe-swiftshader","--mute-audio","--autoplay-policy=no-user-gesture-required","--disable-extensions","--no-first-run","--user-data-dir=$($script:udd)","--window-size=1300,900","--remote-debugging-port=$Port","about:blank" -PassThru
   $tabs = $null

@@ -9,6 +9,12 @@ Site: "Genius Classroom" (天才课堂), a bilingual EN/中文 middle-school stu
 - Double-check every fact, formula, unit, worked example and quiz answer. Compute every number you show.
 - If you are unsure of a fact, leave it out or say it is approximate.
 
+## Core ideas of the site (the user's; they come before everything below)
+- **The core is aesthetic education (美育).** Help students discover beauty: the beauty of knowledge, nature, people, society, life, the universe, morality and history — graceful beauty (秀美) and the sublime (壮美). Every lesson should have at least one natural "where is the beauty here?" moment (an elegant law, a pattern in nature, a brave or kind human act, a beautiful work), never forced.
+- **"斯美也，有丑也."** Beauty comes with ugliness. For middle schoolers the main tone is beauty, plus a *small*, age-appropriate, factual reflection on human history where it fits (war, slavery, colonialism, genocide, harm to nature) — restrained, never sensational or graphic.
+- **Outlook: a community with a shared future for mankind (人类命运共同体)** — peoples depend on each other and solve common problems together; show cooperation and mutual learning between civilizations.
+- **View of history: the people's view of history (人民史观)** — the people are the makers of history. Show ordinary people (farmers, workers, craftsmen, scientists, migrants, soldiers, women, children) and their work and lives, not only rulers and generals.
+- **实事求是 (seek truth from facts).** Every fact, date, number, quote and attribution must be verifiable and sourced; do not exaggerate or leave out inconvenient facts; say plainly when something is uncertain or disputed among historians or scientists.
 ## Read first
 - `shared/README.md`, fully: the page skeleton, bilingual rules, and the Lab API (Lab.quiz, Lab.sort, Lab.speak, Lab.onLang, Lab.translate, Lab.L, Lab3D, LabMovie in shared/labmovie.js, photos via shared/photos.js, Advanced mode, read-aloud).
 - `shared/FACTCHECK_BRIEF.md`.
@@ -63,3 +69,8 @@ Do NOT commit or push. Final answer, in English and concise:
 - Estimate the spoken length and time the step's animation to about the same length (Serena, measured on 9,100 clips):
   Chinese ≈ 1 + characters / 4.7 s; Chinese poetry / 文言文 ≈ characters / 3.2 s; English ≈ characters / 10.3 s (spaces and punctuation counted). Shorten the text or lengthen the animation where they differ.
 - At run time anything that moves on by itself must await `Lab.whenSpoken()` when its narration is on (never cut a narration), then pause about 2.5 s; with read-aloud off, pause about 1 s.
+
+## Standards vs enrichment (user rule, 2026-11-20)
+- Topics in the standards (Georgia GSE / Fulton for grades 6–8, or China's 课程标准 / 人教·统编 textbooks for grades 7–9, including 《义务教育艺术课程标准（2022年版）》 for music, art, theater/戏曲, dance and film): enrich them.
+- Topics that are in neither: they may be added, but must be clearly marked as enrichment — a visible badge "课外拓展 · Enrichment" in the page hero, and on any section that goes beyond the standards inside an otherwise in-standard lesson.
+- Cite only standards you can verify (name + code, e.g. a GSE code, or the textbook grade/unit); never invent codes.

@@ -5,6 +5,10 @@
 param([int]$Workers = 3, [int]$BasePort = 9921, [int]$MaxSec = 120, [string]$Only = "", [string]$Subjects = "",
       [switch]$Force, [string]$Lang = "zh", [string]$Root = "", [string]$Work = "")
 $__jg = Join-Path $PSScriptRoot 'jobguard.ps1'; if (Test-Path $__jg) { . $__jg } else { try { (Get-Process -Id $PID).PriorityClass = 'Idle' } catch {} }   # idle CPU only; started Chrome/Codex die with this script
+# keep F: from filling up: remove test-browser profiles and Chrome temp files older than 1 h that no running Chrome uses
+try { $__use = @(Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" | ForEach-Object { if ($_.CommandLine -match 'user-data-dir="?([^" ]+)') { Split-Path $Matches[1] -Leaf } })
+  Get-ChildItem 'F:\Shanchuan\Biology_study\.labtmp', 'D:\labtmp' -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '^lab(shot|qa|vshot|phone|sweep|col)_' -and $__use -notcontains $_.Name -and $_.LastWriteTime -lt (Get-Date).AddHours(-1) } | ForEach-Object { try { [IO.Directory]::Delete($_.FullName, $true) } catch {} }
+  Get-ChildItem 'D:\labtmp\chrometmp' -Force -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -lt (Get-Date).AddHours(-1) } | ForEach-Object { try { if ($_.PSIsContainer) { [IO.Directory]::Delete($_.FullName, $true) } else { Remove-Item $_.FullName -Force } } catch {} } } catch {}
 . (Join-Path $PSScriptRoot "paths.ps1")
 $cat = [IO.File]::ReadAllText((Join-Path $Root "shared\catalog.js"), [Text.Encoding]::UTF8)
 $all = @(); $sid = $null

@@ -2,6 +2,8 @@
 
 This is a log of how the site's production process grew, what went wrong along the way and what we changed. It is for anyone maintaining the site, human or AI.
 
+**Core ideas first:** every step below serves the site's core ideas in [PRINCIPLES.md](PRINCIPLES.md) (美育, a little honest reflection, a shared future for humankind, history made by the people, seek truth from facts).
+
 ## 1. The site
 - Bilingual EN / 中文 middle-school lessons, one self-contained HTML file per lesson (`<subject>/<id>.html`). They share `shared/` (lab.js, lab.css, catalog.js, pinyin.js, labmap.js, labmovie.js, photos.js …).
 - **Purpose:** a supplement to school for Chinese-American middle schoolers to **preview, learn and review**. It covers US (Georgia GSE, metro-Atlanta pacing) and mainland-China (人教版/统编版) content.
