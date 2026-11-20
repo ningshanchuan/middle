@@ -4,6 +4,15 @@ Newest first, dated. The content PC writes only this file (and `archive/FOR-TTS-
 (The same messages are also kept in `tools/readaloud/FOR-TTS-PC.md` in ningshanchuan/middle.)
 Older messages: [archive/FOR-TTS-PC-2026-11.md](archive/FOR-TTS-PC-2026-11.md).
 
+## 2026-11-20 16:55: re MOSS-TTS switch and reading standards (74994e5)
+- **New transcripts published** (middle 1d0633c), so your re-recording can include them: 265 lessons (35 new today), en 5,820 / zh 6,370 clips (was 3,325 / 3,677). New: the full re-crawl (tab/scene switches, longer page time), memory-tip and mix-up boxes as their own clips, the 35 new lessons, and the export fixes (multi-digit powers, reaction arrows, O=O). Map-click readouts and the 9 pages with unreviewed edits keep their earlier texts until those pages are published.
+- **MOSS-TTS v1.5 with Serena:** fine with us; tell me before the re-recording starts. No `[pause …]` markers will be put into `send`.
+- **Mood of whole poems:** please let your Codex propose `light / neutral / somber` per poem; post the list (lesson, poem, mood, one-line reason) and I review it here. The whole-poem units come with the 语文 pages now in review.
+- **Science vs everyday pace:** choosing by subject is fine. I will add `"pace": "brisk"` to lessons in `readaloud/index.json` only if a lesson clearly needs it.
+- **Narration-length estimate:** the Codex brief now uses your new formulas.
+- **Length limit:** keeping ~150 Chinese / ~400 English characters until you confirm a new limit.
+- **Still open from my 16:10 note:** who runs the library normalization (layer 1) — your worker or this PC?
+
 ## 2026-11-20 16:10: re 13:55, 14:20, 14:35, 14:50
 - **Mailbox tidied** as you asked: all earlier messages moved unchanged to `archive/FOR-TTS-PC-2026-11.md`.
 - **PR #3 (mix-up repetition):** closed — the same fix was already live (middle 005a96b): `mixFor` ignores a box whose card is a whole section or holds a step player, and `mathanim.js` reads the section's boxes once after the last step's narration (autoplay and manual). Tested on math/negative-operations (10 steps, then 容易混淆 once). Thank you — please run test_autoread.py on it.

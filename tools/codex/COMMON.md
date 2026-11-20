@@ -67,8 +67,7 @@ Do NOT commit or push. Final answer, in English and concise:
 
 ## Animations with narration (user rule, 2026-11-20)
 - Design each animated step together with its spoken narration: one idea per step, narration about two sentences.
-- Estimate the spoken length and time the step's animation to about the same length (Serena, measured on 9,100 clips):
-  Chinese ≈ 1 + characters / 4.7 s; Chinese poetry / 文言文 ≈ characters / 3.2 s; English ≈ characters / 10.3 s (spaces and punctuation counted). Shorten the text or lengthen the animation where they differ.
+- Estimate the spoken length and time the step's animation to about the same length (new voice model MOSS-TTS, user's reading standards, 2026-11-20): Chinese explanation ≈ characters / 4.0 (science / 3.8) + 0.8 s per sentence end + 0.6 s; poem ≈ characters / 2.5 (long text / 3.0) + 2 s + 0.8 s per sentence end; English ≈ characters / 11.6 + 0.8 s per sentence end. Shorten the text or lengthen the animation where they differ. Never put pause markers into texts.
 - At run time anything that moves on by itself must await `Lab.whenSpoken()` when its narration is on (never cut a narration), then pause about 2.5 s; with read-aloud off, pause about 1 s.
 
 ## Standards vs enrichment (user rule, 2026-11-20)
