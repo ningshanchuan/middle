@@ -68,15 +68,18 @@
     function speak(){
       if (!S.voice || !window.Lab || !Lab.speak || S.spoken === S.i) return;
       S.spoken = S.i; S.speechDone = false; const my = S.i;
-      Lab.speak(L(scenes[S.i].cap), { onend:() => { if (S.i === my) S.speechDone = true; } });
-      setTimeout(() => { if (S.i === my) S.speechDone = true; }, 30000);   // never wait forever
+      const fin = () => { if (S.i === my && !S.speechDone){ S.speechDone = true; S.doneAt = performance.now(); } };
+      Lab.speak(L(scenes[S.i].cap), { onend: fin });
+      // safety net: whenSpoken waits while the read-aloud bar is paused and gives up only after its long cap
+      if (Lab.whenSpoken) setTimeout(() => { if (S.i === my) Lab.whenSpoken().then(fin); }, 300); else setTimeout(fin, 30000);
     }
     function go(i, keepPlaying){ S.i = Math.max(0, Math.min(scenes.length - 1, i)); S.t = 0; S.spoken = -1; S.speechDone = true; if (window.Lab && Lab.stopSpeech) Lab.stopSpeech(); caption(); draw(); if (keepPlaying && S.playing) speak(); }
     function tick(now){
       if (!S.playing) return;
       const dt = Math.min(.1, (now - S.last) / 1000); S.last = now;
       const sc = scenes[S.i]; S.t += dt;
-      if (S.t >= (sc.dur || 6) && (S.speechDone || !S.voice)){
+      // next scene: after the scene's time and, with narration on, about 2.5 s after the narration ended (user rule)
+      if (S.t >= (sc.dur || 6) && (!S.voice || (S.speechDone && (!S.doneAt || performance.now() - S.doneAt >= 2500)))){
         if (S.i < scenes.length - 1){ go(S.i + 1, true); } else { S.t = sc.dur || 6; pause(); draw(); return; }
       }
       draw(); S.raf = requestAnimationFrame(tick);
