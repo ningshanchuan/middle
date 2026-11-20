@@ -251,6 +251,34 @@ function Prep([string]$t, [string]$raw = "") {
     } else {
       $t = $t -replace '\s*&\s*', ' and ' -replace ('\s*' + (& $c 0x2212) + '\s*'), ' minus ' -replace '(\d)\s*%', '$1 percent' -replace '%', 'percent'
     }
+    # symbols Qwen3-TTS skips, slurs or never stops on (TTS PC report TRANSCRIPT-ISSUES.md, 2026-11-19)
+    $circ = '[' + (& $c 0x2460) + '-' + (& $c 0x2469) + ']'                       # circled 1..10
+    $fplus = & $c 0xFF0B; $feq = & $c 0xFF1D; $ftil = & $c 0xFF5E; $lpar = & $c 0xFF08; $rpar = & $c 0xFF09
+    $di = & $c 0x7B2C                                                              # di (ordinal prefix)
+    if ($Lang -eq 'zh') {
+      $num = @(0x4E00,0x4E8C,0x4E09,0x56DB,0x4E94,0x516D,0x4E03,0x516B,0x4E5D,0x5341) | ForEach-Object { & $c $_ }
+      $t = [regex]::Replace($t, '(' + $di + '?)\s*(' + $circ + ')\s*', { param($m) $n = $num[[int][char]$m.Groups[2].Value[0] - 0x2460]; if ($m.Groups[1].Value) { $di + $n } else { $n + (& $c 0x3001) } })
+      $t = $t -replace ('\s*' + $fplus + '\s*'), (& $c 0x52A0) -replace '(?<=[\d\)])\s*\+\s*(?=[\d\(])', (& $c 0x52A0)   # jia (not ion charges like H+)
+      $t = $t -replace ('\s*' + $feq + '\s*'), ((& $c 0x7B49) + (& $c 0x4E8E))     # dengyu
+      $t = $t -replace ('(\d)\s*[~' + $ftil + ']\s*(?=\d)'), ('$1' + (& $c 0x5230)) -replace ('[~' + $ftil + ']\s*(?=\d)'), (& $c 0x7EA6) -replace ('\s*[~' + $ftil + ']\s*'), (& $c 0x5230)
+      $t = [regex]::Replace($t, '(\w+)\s*\^\s*\(?(-?\w+)\)?', { param($m) $m.Groups[1].Value + (& $c 0x7684) + $m.Groups[2].Value + (& $c 0x6B21) + (& $c 0x65B9) })
+      $t = $t -replace '(?<=[\w\)])\s*<\s*(?=[\w\(-])', ((& $c 0x5C0F) + (& $c 0x4E8E)) -replace '(?<=[\w\)])\s*>\s*(?=[\w\(-])', ((& $c 0x5927) + (& $c 0x4E8E))
+      $t = $t.Replace([string](& $c 0x1E41), (& $c 0x8D28) + (& $c 0x91CF) + (& $c 0x6D41) + (& $c 0x91CF)).Replace('v' + (& $c 0x2091), (& $c 0x55B7) + (& $c 0x6C14) + (& $c 0x901F) + (& $c 0x5EA6))
+      # "neizhiwang (ER)" -> "neizhiwang, E R," : a pause and spelled letters
+      $t = [regex]::Replace($t, '(?<=[' + $cjk + '])\s*[(' + $lpar + ']\s*([A-Za-z]{1,6})\s*[)' + $rpar + ']', { param($m) $w = $m.Groups[1].Value; $comma + $(if ($w -cmatch '^[A-Z]+$') { ($w.ToCharArray()) -join ' ' } else { $w }) + $comma })
+      $t = $t -replace ($comma + '\s*([' + (& $c 0xFF1A) + (& $c 0xFF0C) + (& $c 0x3002) + (& $c 0x3001) + '])'), '$1'   # no double punctuation
+      # a single dash between two words ("hong-lv") -> enumeration comma; the long dash pair stays
+      $t = $t -replace ('(?<=[' + $cjk + '])\s*[' + (& $c 0x2013) + (& $c 0x2014) + '](?![' + (& $c 0x2014) + '])\s*(?=[' + $cjk + '])'), (& $c 0x3001)
+    } else {
+      $words = 'one','two','three','four','five','six','seven','eight','nine','ten'
+      $t = [regex]::Replace($t, '\s*(' + $circ + ')\s*', { param($m) ' ' + $words[[int][char]$m.Groups[1].Value[0] - 0x2460] + ', ' })
+      $t = $t -replace ('\s*' + $fplus + '\s*'), ' plus ' -replace ('\s*' + $feq + '\s*'), ' equals '
+      $t = $t -replace ('(\d)\s*[~' + $ftil + ']\s*(?=\d)'), '$1 to ' -replace ('[~' + $ftil + ']\s*(?=\d)'), 'about ' -replace ('\s*[~' + $ftil + ']\s*'), ' to '
+      $t = [regex]::Replace($t, '(\w+)\s*\^\s*\(?(-?\w+)\)?', { param($m) $m.Groups[1].Value + ' to the power of ' + $m.Groups[2].Value })
+      $t = $t -replace '(?<=[\w\)])\s*<\s*(?=[\w\(-])', ' less than ' -replace '(?<=[\w\)])\s*>\s*(?=[\w\(-])', ' greater than '
+      $t = $t.Replace([string](& $c 0x1E41), 'mass flow rate').Replace('v' + (& $c 0x2091), 'exhaust velocity')
+    }
+    $t = $t -replace ('[' + (& $c 0x2090) + '-' + (& $c 0x209C) + ']'), ''      # other subscript letters
   }
   $t = ($t -replace '\s+', ' ').Trim()
   if ($Lang -eq 'zh'){   # pinyin.js ruby text glued after a word (e.g. a word followed by its tone-marked pinyin) must not be read aloud
