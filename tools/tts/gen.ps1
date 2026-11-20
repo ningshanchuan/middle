@@ -217,9 +217,40 @@ function Speak-Symbols([string]$t) {   # plain text: unambiguous maths symbols o
   if ($MS['<']) { $t = $t -replace '(?<=[\w\)])\s+<\s+(?=[\w\(-])', (' ' + $MS['<'] + ' ') -replace '(?<=[\w\)])\s+>\s+(?=[\w\(-])', (' ' + $MS['>'] + ' ') }
   return $t
 }
+# Before the symbol-by-symbol rules (TTS PC text scan, 2026-11-20): multi-digit powers, double bonds, reaction arrows.
+function Prep-Chem([string]$t) {
+  $c = { param($a) [string][char]$a }
+  $supD = @{}; $supD[[char]0x2070] = '0'; $supD[[char]0xB9] = '1'; $supD[[char]0xB2] = '2'; $supD[[char]0xB3] = '3'; 4..9 | ForEach-Object { $supD[[char](0x2070 + $_)] = "$_" }
+  $supCls = (& $c 0x2070) + (& $c 0xB9) + (& $c 0xB2) + (& $c 0xB3) + (& $c 0x2074) + '-' + (& $c 0x2079); $supMinus = & $c 0x207B
+  $zh = $Lang -eq 'zh'
+  # 10^26 written 10 + superscript 2 6 -> 10 de 26 cifang / 10 to the power of 26 (single 2 or 3 keep pingfang / lifang)
+  $t = [regex]::Replace($t, '(?<=[0-9A-Za-z\)])(' + $supMinus + '?)([' + $supCls + ']{2,}|(?<=' + $supMinus + ')[' + $supCls + ']+)', { param($m)
+    $n = -join ($m.Groups[2].Value.ToCharArray() | ForEach-Object { $supD[$_] }); $neg = $m.Groups[1].Value -ne ''
+    if ($zh) { (& $c 0x7684) + $(if ($neg) { (& $c 0x8D1F) } else { '' }) + $n + (& $c 0x6B21) + (& $c 0x65B9) } else { ' to the power of ' + $(if ($neg) { 'minus ' } else { '' }) + $n } })
+  # O=O bond -> yang yang shuangjian / O=O double bond
+  $el = @{ C = 0x78B3; O = 0x6C27; N = 0x6C2E; H = 0x6C22; S = 0x786B }
+  $t = [regex]::Replace($t, '(?<![A-Za-z])([CONHS])\s*=\s*([CONHS])(?![a-z])\s*(' + (& $c 0x952E) + '|bonds?)?', { param($m)
+    if ($zh) { (& $c $el[$m.Groups[1].Value]) + (& $c $el[$m.Groups[2].Value]) + (& $c 0x53CC) + (& $c 0x952E) } else { $m.Groups[1].Value + '=' + $m.Groups[2].Value + ' double bond' } })
+  # reaction arrows: in a clause that also has "+", the arrow means "gives" (and "+" means "and"); a condition "-(light)->" is kept
+  $arrCls = (& $c 0x2192) + (& $c 0x27F6) + (& $c 0x21CC) + (& $c 0x21CB) + (& $c 0x21D2)
+  $dash = (& $c 0x2014) + (& $c 0x2013) + '-'; $lp = '[(' + (& $c 0xFF08) + ']'; $rp = '[)' + (& $c 0xFF09) + ']'
+  $clauseEnd = '[' + (& $c 0x3002) + (& $c 0xFF1B) + (& $c 0xFF0C) + ';,.!?' + (& $c 0xFF01) + (& $c 0xFF1F) + ']'
+  $parts = [regex]::Split($t, '(' + $clauseEnd + ')')
+  for ($i = 0; $i -lt $parts.Count; $i++) {
+    $p = $parts[$i]
+    if ($p -notmatch '[' + $arrCls + ']' -or $p -notmatch '\+') { continue }
+    $p = [regex]::Replace($p, '\s*[' + $dash + ']*\s*' + $lp + '([^)' + (& $c 0xFF09) + ']{1,12})' + $rp + '\s*[' + $dash + ']*\s*[' + $arrCls + ']\s*', { param($m)
+      if ($zh) { ' ' + (& $c 0x5728) + $m.Groups[1].Value + (& $c 0x4F5C) + (& $c 0x7528) + (& $c 0x4E0B) + (& $c 0x751F) + (& $c 0x6210) + ' ' } else { ' with ' + $m.Groups[1].Value + ' react to form ' } })
+    $p = [regex]::Replace($p, '\s*[' + $dash + ']*\s*[' + $arrCls + ']\s*', $(if ($zh) { ' ' + (& $c 0x751F) + (& $c 0x6210) + ' ' } else { ' react to form ' }))
+    $p = [regex]::Replace($p, '(?<=\S)\s*\+\s+|\s+\+\s*(?=\S)', $(if ($zh) { ' ' + (& $c 0x548C) + ' ' } else { ' and ' }))   # + with a space on at least one side (not an attached ion charge)
+    $parts[$i] = $p
+  }
+  return (-join $parts)
+}
 function Prep([string]$t, [string]$raw = "") {
   if ($raw -and $MS.Count) { $t = Speak-Math ($raw -replace '<[^>]+>', '') }   # MathAnim step: read its TeX in words
   $t = (($t -replace '<[^>]+>', '') -replace '\s+', ' ').Trim()
+  $t = Prep-Chem $t
   if ($MS.Count) { $t = Speak-Symbols $t }
   $c = { param($a) [string][char]$a }   # build the character classes at run time (keeps this file pure ASCII)
   $dot = & $c 0x3002; $comma = & $c 0xFF0C

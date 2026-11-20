@@ -16,7 +16,7 @@
     C.t.push(raw ? { key: k, lang, text: n, via, rate: rate || null, src: C.src, raw } : { key: k, lang, text: n, via, rate: rate || null, src: C.src });
   };
   // Lab.speak: trap the property on window.Lab so even calls made during page start-up are captured
-  const capSpeak = (t, o = {}) => { try { const lg = o.lang || (window.Lab && Lab.lang) || 'en'; C.add(t, lg, 'lab', o.rate); const m = (!o.inner && window.Lab && Lab.mixFor) ? Lab.mixFor(norm(t), lg) : ''; if (m) C.add(m, lg, 'mix', o.rate); } catch(e){} return null; };   // a card's mix-up warning is its own clip (lab.js Lab.mixFor)
+  const capSpeak = (t, o = {}) => { try { const lg = o.lang || (window.Lab && Lab.lang) || 'en'; C.add(t, lg, 'lab', o.rate); const ex = (!o.inner && window.Lab && Lab.extrasFor) ? Lab.extrasFor(norm(t), lg) : []; ex.forEach(m => C.add(m, lg, 'mix', o.rate)); } catch(e){} return null; };   // a card's mix-up warning is its own clip (lab.js Lab.mixFor)
   let lab;
   try {
     Object.defineProperty(window, 'Lab', { configurable: true, get(){ return lab; }, set(v){

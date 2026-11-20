@@ -268,9 +268,14 @@
       if (g === S.gen && i === steps.length - 1 && st.voice && window.Lab && Lab.whenSpoken && Lab.mixText){
         await Lab.whenSpoken();
         const scope = el.closest('section') || el, CARD = '.info,.card,.panel,.box,.detail,.sidebar';
-        const box = [...scope.querySelectorAll('.mix')].find(b => { if (!b.getClientRects().length) return false; const c = b.closest(CARD); return !c || !!c.querySelector('.ma-player,.ma-narration'); });
-        const m = box ? Lab.mixText(box, zh() ? 'zh' : 'en') : '';
-        if (m && g === S.gen){ await new Promise(r => setTimeout(r, 1000)); if (g === S.gen && st.voice) Lab.speak(m, { lang: zh() ? 'zh' : 'en', inner: true }); }
+        // its "💡 memory tip" box, then its "⚠️ mix-up" box (boxes of the player's section that are not part of a card)
+        for (const sel of ['.memory', '.mix']){
+          const box = [...scope.querySelectorAll(sel)].find(b => { if (!b.getClientRects().length) return false; const c = b.closest(CARD); return !c || !!c.querySelector('.ma-player,.ma-narration'); });
+          const m = box ? Lab.mixText(box, zh() ? 'zh' : 'en') : '';
+          if (!m || g !== S.gen || !st.voice) continue;
+          await new Promise(r => setTimeout(r, 1000)); if (g !== S.gen || !st.voice) break;
+          Lab.speak(m, { lang: zh() ? 'zh' : 'en', inner: true }); await new Promise(r => setTimeout(r, 300)); await Lab.whenSpoken();
+        }
       }
       // pause before the next step (user rule): about 2.5 s after a narration, 1 s when read-aloud is off
       const rest = st.voice ? 2500 : 1000 / S.speed;

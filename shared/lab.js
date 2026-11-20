@@ -340,35 +340,42 @@
       return (name ? name + (zh ? '：' : ': ') : '') + body;
     } catch(e){ return ''; }
   };
-  Lab.mixFor = (text, lang) => {
+  // The boxes read after a card, in this order: "💡 memory tip" (class memory), then "⚠️ mix-up" (class mix).
+  Lab.extrasFor = (text, lang) => {
+    const out = [];
     try {
       const t = mixFlat(text), head = t.split(/[。．.!?！？:：;；,，]/)[0].trim();
-      if (head.length < 2) return '';
-      for (const box of document.querySelectorAll('.mix')){
-        if (!box.getClientRects().length) continue;
-        const card = box.closest('.info,.card,.panel,.box,.detail,.sidebar') || box.parentElement;
-        // only a real card: not a whole section, and not one holding a step player (the player reads its box once, at the end)
-        if (!card || card.matches('section,main,article,body') || card.querySelector('.ma-player,.ma-narration')) continue;
-        if (!mixPlain(card).includes(head)) continue;
-        const b = box.querySelector('b'), body = mixPlain(box).slice(b ? mixPlain(b).length : 0).trim();
-        if (!body || t.includes(body.slice(0, 15))) return '';   // empty, or the page already reads it
-        return Lab.mixText(box, lang);
+      if (head.length < 2) return out;
+      for (const sel of ['.memory', '.mix']){
+        for (const box of document.querySelectorAll(sel)){
+          if (!box.getClientRects().length) continue;
+          const card = box.closest('.info,.card,.panel,.box,.detail,.sidebar') || box.parentElement;
+          // only a real card: not a whole section, and not one holding a step player (the player reads its boxes once, at the end)
+          if (!card || card.matches('section,main,article,body') || card.querySelector('.ma-player,.ma-narration')) continue;
+          if (!mixPlain(card).includes(head)) continue;
+          const b = box.querySelector('b'), body = mixPlain(box).slice(b ? mixPlain(b).length : 0).trim();
+          if (body && !t.includes(body.slice(0, 15))) out.push(Lab.mixText(box, lang));   // skip empty boxes and ones the page already reads
+          break;
+        }
       }
     } catch(e){}
-    return '';
+    return out.filter(Boolean);
   };
+  Lab.mixFor = (text, lang) => Lab.extrasFor(text, lang).join(' ');   // kept for older callers
   Lab.speak = (text, o = {}) => {
     if (!text) return null;
     const lang = o.lang || Lab.lang, clean = String(text).replace(/<[^>]+>/g, '');
     if (speakHook && !o.inner){ const r = speakHook(clean, lang, o); if (r === false) return null; if (r) o = r; }   // auto-read / auto-play (below)
-    const mix = o.inner ? '' : Lab.mixFor(clean, lang);
-    if (mix){   // card first, then (after a short breath) its mix-up warning; the caller's onend fires after both
+    const extras = o.inner ? [] : Lab.extrasFor(clean, lang);
+    if (extras.length){   // card first, then (after a short breath each) its memory tip and mix-up warning; the caller's onend fires after all
       const done0 = o.onend, rate = o.rate;
-      o = Object.assign({}, o, { onend: ok => {
+      const next = k => ok => {
         if (!ok){ if (done0) done0(false); return; }
+        if (k >= extras.length){ if (done0) done0(true); return; }
         const t2 = pend = {}, g2 = gen;
-        setTimeout(() => { if (pend === t2) pend = null; if (g2 !== gen) return; Lab.speak(mix, { lang, rate, onend: done0, inner: true }); }, 450);
-      } });
+        setTimeout(() => { if (pend === t2) pend = null; if (g2 !== gen) return; Lab.speak(extras[k], { lang, rate, onend: next(k + 1), inner: true }); }, 450);
+      };
+      o = Object.assign({}, o, { onend: next(0) });
     }
     Lab.stopSpeech();
     let out = { pending:true };
