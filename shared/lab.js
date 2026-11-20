@@ -230,15 +230,43 @@
     if (done){ u.onend = () => done(true); u.onerror = () => done(false); }
     nativeSpeak(u); return u;
   }
+  // Wake the audio output with a short silent Web Audio buffer (started inside the tap). Bluetooth headsets and many
+  // PCs drop the first ~0.2 s of sound after the output was idle; the context is kept, so the output stays awake.
+  let actx = null, warmed = false;
+  function wakeOutput(){
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+      if (!actx) actx = new AC();
+      if (actx.state === 'suspended') actx.resume();
+      const s = actx.createBufferSource(); s.buffer = actx.createBuffer(1, actx.sampleRate * 0.4 | 0, actx.sampleRate);
+      s.connect(actx.destination); s.start();
+    } catch(e){}
+  }
+  // Play a recording without losing its first syllables: start it MUTED inside the tap (this also keeps the player
+  // unlocked on iOS) so it buffers while the output wakes up; once it can play through and the lead-in time has
+  // passed, rewind to 0, unmute and play.
   function playRec(url, key, rate, fallback, done){
     const a = player || (player = new Audio()), c = cur = { rate, done, key };
-    const fail = () => { if (cur !== c) return; cur = null; fallback(); };
-    a.onended = () => { if (cur !== c) return; cur = null; if (done) done(true); };
+    const fail = () => { if (cur !== c) return; cur = null; a.muted = false; fallback(); };
+    wakeOutput();
+    let timeOk = false, ready = false, started = false;
+    const begin = () => {
+      if (started || cur !== c || !timeOk || !ready) return; started = true;
+      try { a.pause(); a.currentTime = 0; } catch(e){}
+      a.muted = false;
+      a.defaultPlaybackRate = a.playbackRate = audioRate(rate);
+      a.onended = () => { if (cur !== c) return; cur = null; if (done) done(true); };
+      const p = a.play(); if (p && p.catch) p.catch(e => { if (!e || e.name !== 'AbortError') fail(); });
+    };
+    a.onended = () => { ready = true; begin(); };            // a very short clip may end during the muted lead-in
     a.onerror = fail;
-    a.src = url;
+    a.oncanplaythrough = () => { ready = true; begin(); };
+    a.preload = 'auto'; a.muted = true; a.src = url;
     a.preservesPitch = a.mozPreservesPitch = a.webkitPreservesPitch = true;
-    a.defaultPlaybackRate = a.playbackRate = audioRate(rate);
-    const p = a.play(); if (p && p.catch) p.catch(e => { if (!e || e.name !== 'AbortError') fail(); });
+    setTimeout(() => { timeOk = true; begin(); }, warmed ? 120 : 350);
+    setTimeout(() => { ready = true; begin(); }, 4000);      // slow network: start anyway, the player keeps buffering
+    warmed = true;
+    const p = a.play(); if (p && p.catch) p.catch(e => { if (e && e.name === 'NotAllowedError'){ ready = true; } else if (!e || e.name !== 'AbortError') fail(); });
     return a;
   }
   // o: {lang, rate (browser-voice rate, default .95), onend(ok)}. Returns the <audio> (recording) or the utterance.

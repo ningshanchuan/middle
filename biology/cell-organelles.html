@@ -1109,7 +1109,7 @@ setTimeout(() => recScript('../shared/audio-sources.js', () => {
   REC.base = repo + REC_ID + '/'; recScript(REC.base + 'manifest.js');
 }), 400);
 const recKey = (t, l) => { const s = l + '|' + String(t).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim(); let h = 0x811c9dc5; for (let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return ('0000000' + h.toString(16)).slice(-8); };
-if (window.speechSynthesis){ const c0 = speechSynthesis.cancel.bind(speechSynthesis); try { speechSynthesis.cancel = () => { if (REC.a) REC.a.pause(); c0(); }; } catch(e){} }
+if (window.speechSynthesis){ const c0 = speechSynthesis.cancel.bind(speechSynthesis); try { speechSynthesis.cancel = () => { REC.n = (REC.n || 0) + 1; if (REC.a) REC.a.pause(); c0(); }; } catch(e){} }
 function speak(text){
   if (!('speechSynthesis' in window)) return;
   speechSynthesis.cancel();
@@ -1118,9 +1118,20 @@ function speak(text){
   const tts = () => { const u = new SpeechSynthesisUtterance(text); u.lang = App.lang==='zh' ? 'zh-CN' : 'en-US'; u.rate = .95 * rate; speechSynthesis.speak(u); };
   const L = App.lang === 'zh' ? 'zh' : 'en', k = REC[L] && recKey(text, L);
   if (k && REC[L].has(k)){
-    const a = REC.a || (REC.a = new Audio()); a.onerror = tts; a.src = REC.base + L + '/' + k + '.mp3';
-    a.preservesPitch = a.webkitPreservesPitch = true; a.defaultPlaybackRate = a.playbackRate = Math.max(.3, Math.min(2.5, rate));
-    const p = a.play(); if (p && p.catch) p.catch(e => { if (!e || e.name !== 'AbortError') tts(); });
+    // same as shared/lab.js: wake the audio output, start muted so the clip buffers, then rewind and play — so the
+    // first syllables are not lost
+    try { const AC = window.AudioContext || window.webkitAudioContext; if (AC){ REC.ctx = REC.ctx || new AC(); if (REC.ctx.state === 'suspended') REC.ctx.resume();
+      const s = REC.ctx.createBufferSource(); s.buffer = REC.ctx.createBuffer(1, REC.ctx.sampleRate * 0.4 | 0, REC.ctx.sampleRate); s.connect(REC.ctx.destination); s.start(); } } catch(e){}
+    const a = REC.a || (REC.a = new Audio()), my = REC.n = (REC.n || 0) + 1;
+    let timeOk = false, ready = false, started = false;
+    const begin = () => { if (started || my !== REC.n || !timeOk || !ready) return; started = true;
+      try { a.pause(); a.currentTime = 0; } catch(e){} a.muted = false;
+      a.defaultPlaybackRate = a.playbackRate = Math.max(.3, Math.min(2.5, rate));
+      const p = a.play(); if (p && p.catch) p.catch(e => { if (!e || e.name !== 'AbortError') tts(); }); };
+    a.onerror = () => { a.muted = false; tts(); }; a.oncanplaythrough = a.onended = () => { ready = true; begin(); };
+    a.preload = 'auto'; a.muted = true; a.src = REC.base + L + '/' + k + '.mp3'; a.preservesPitch = a.webkitPreservesPitch = true;
+    setTimeout(() => { timeOk = true; begin(); }, REC.warm ? 120 : 350); setTimeout(() => { ready = true; begin(); }, 4000); REC.warm = true;
+    const p = a.play(); if (p && p.catch) p.catch(e => { if (e && e.name === 'NotAllowedError') ready = true; else if (!e || e.name !== 'AbortError') tts(); });
     return;
   }
   tts();
