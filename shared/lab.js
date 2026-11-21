@@ -196,8 +196,10 @@
   // rec.buckets: [{id, base, keys:{en:Set, zh:Set}}] - this lesson first, then _shared; state: ''|'loading'|'ready'
   const rec = { state: '', waits: [], buckets: [] };
   window.LabAudioManifest = m => {
-    const b = m && rec.buckets.find(x => x.id === m.lesson); if (!b) return;
-    REC_LANGS.forEach(l => { b.keys[l] = new Set(String(m[l] || '').split(/\s+/).filter(Boolean)); });
+    if (!m) return;
+    // a lesson id can have several buckets (edge: one repo per language, bucket.lang): a manifest fills its own one
+    const b = rec.buckets.find(x => x.id === m.lesson && (!x.lang || m[x.lang] != null)); if (!b) return;
+    REC_LANGS.forEach(l => { if (m[l] != null && (!b.lang || b.lang === l)) b.keys[l] = new Set(String(m[l] || '').split(/\s+/).filter(Boolean)); });
   };
   const addScript = (src, done) => {
     const s = document.createElement('script'); s.src = src; s.async = true;
@@ -213,8 +215,12 @@
       const repoUrl = id => S.repos[id === '_shared' ? S.shared : (S.subjects[id.split('/')[0]] || S.fallback)];
       const ids = [Lab.lessonId, '_shared'].filter(Boolean);
       rec.buckets = ids.map(id => ({ id, base: (repoUrl(id) || '') + id + '/', keys: {} })).filter(b => /^https?:|^file:/.test(b.base));
+      // stand-in recordings (Microsoft Edge voice) of the on-demand clips: after every Serena bucket, so Serena wins
+      Object.entries(S.edge || {}).forEach(([l, url]) => ids.forEach(id => {
+        if (/^https?:/.test(url)) rec.buckets.push({ id: 'edge:' + id, lang: l, base: url, manifest: url + id + '/manifest.js', keys: {} });
+      }));
       let left = rec.buckets.length; if (!left) return finish();
-      rec.buckets.forEach(b => addScript(b.base + 'manifest.js', () => { if (--left === 0) finish(); }));
+      rec.buckets.forEach(b => addScript(b.manifest || b.base + 'manifest.js', () => { if (--left === 0) finish(); }));
     };
     if (window.LAB_AUDIO_SOURCES || !siteBase) go(); else addScript(siteBase + 'shared/audio-sources.js', go);
     return rec;
