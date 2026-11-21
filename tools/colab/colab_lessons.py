@@ -46,7 +46,8 @@ class ColabMoss(ME.Moss):
         torch.backends.cuda.enable_cudnn_sdp(False)
         # the 8B processor loads its own codec (as in the official 8B example); only the 4B gets codec_path (TTS PC)
         extra = {'codec_path': M['codec']} if args.model == '4b' else {}
-        self.proc = AutoProcessor.from_pretrained(M['model'], revision=M['rev'], trust_remote_code=True, **extra)
+        # no revision here: the 8B processor passes its kwargs on to the codec repo, where that revision does not exist
+        self.proc = AutoProcessor.from_pretrained(M['model'], trust_remote_code=True, **extra)
         self.proc.audio_tokenizer = self.proc.audio_tokenizer.to('cuda')
         self.model = AutoModel.from_pretrained(M['model'], revision=M['rev'], trust_remote_code=True,
                                                attn_implementation='sdpa', dtype=torch.bfloat16).to('cuda').eval()
