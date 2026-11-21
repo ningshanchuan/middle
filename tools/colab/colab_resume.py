@@ -1,6 +1,7 @@
 # One command to resume recording in a FRESH Colab session (after the runtime was reset or timed out). Everything
 # pushed is on GitHub; this rebuilds what lived only in /content:
-#   1. SGLang-Omni in /content/sgl (colab_sglang.py --setup, waited for; about 10 minutes)
+#   1. SGLang-Omni in /content/sgl: restored from Google Drive (colab_drive_env.py, the user clicks Allow), or else
+#      installed (colab_sglang.py --setup, about 10 minutes)
 #   2. the worker: clones the TTS PC code and the three audio repos, patches, starts the SGLang server and the worker
 #      (8B, zh + en + yuwen, 32 requests in flight as 2 streams, direct pushes with GH_TOKEN from Colab Secrets)
 #   3. progress lines (keeps the session active)
@@ -12,10 +13,12 @@ def get(name):
     subprocess.run(['curl', '-sfH', 'Accept: application/vnd.github.raw', '-o', name,
                     f'https://api.github.com/repos/ningshanchuan/middle/contents/tools/colab/{name}'], check=True)
 
-for f in ('colab_sglang.py', 'colab_worker.py', 'colab_watch.py'):
+for f in ('colab_sglang.py', 'colab_worker.py', 'colab_watch.py', 'colab_drive_env.py'):
     get(f)
 subprocess.run(['nvidia-smi', '--query-gpu=name,memory.used,memory.total', '--format=csv'])
-if not Path('/content/sgl/bin/sgl-omni').exists():
+if not Path('/content/sgl/bin/sgl-omni').exists():          # first the saved environment from Google Drive
+    subprocess.run([sys.executable, 'colab_drive_env.py', '--restore'])
+if not Path('/content/sgl/bin/sgl-omni').exists():          # no archive: install the latest packages
     subprocess.run([sys.executable, 'colab_sglang.py', '--setup'], check=True)
     log = Path('/content/sgl_setup.log'); t0 = time.time()
     while time.time() - t0 < 2400:
