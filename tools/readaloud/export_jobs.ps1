@@ -60,7 +60,7 @@ function Save-Json($path, $obj) {   # stable text (same input -> same bytes -> s
   [IO.File]::WriteAllText($path, $s, $utf8)
   return ([BitConverter]::ToString($sha.ComputeHash($utf8.GetBytes($s))) -replace '-', '').Substring(0, 12).ToLower()
 }
-if (Test-Path $Out) { Get-ChildItem $Out -Recurse -Filter '*.json' | Remove-Item -Force }   # regenerated every time: removed lessons disappear
+if (Test-Path $Out) { Get-ChildItem $Out -Recurse -Filter '*.json' | Where-Object { $_.FullName -notlike (Join-Path $Out 'say*') } | Remove-Item -Force }   # regenerated every time: removed lessons disappear
 # which audio repo holds which subject: shared/audio-sources.js (the one place this is decided)
 $src = [IO.File]::ReadAllText("$root\shared\audio-sources.js", [Text.Encoding]::UTF8)
 $src = ($src.Substring($src.IndexOf('{', $src.IndexOf('LAB_AUDIO_SOURCES')), $src.LastIndexOf('}') - $src.IndexOf('{', $src.IndexOf('LAB_AUDIO_SOURCES')) + 1)) | ConvertFrom-Json
