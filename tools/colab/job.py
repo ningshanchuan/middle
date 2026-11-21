@@ -8,11 +8,11 @@ def get(name):
     subprocess.run(['curl', '-sfH', 'Accept: application/vnd.github.raw', '-o', name,
                     f'https://api.github.com/repos/ningshanchuan/middle/contents/tools/colab/{name}'], check=True)
 
-# 1) listening table (4B / 8B / live, the user: 可以让我试听一下), 2) the 8B worker with direct pushes
-#    (录完一课，推送一课), 3) 20 minutes of progress lines
-JOBS = [['colab_listen.py', 'math/expressions,math/ratios', '12'],
-        ['colab_worker.py', '--restart', '--push', '--model', '8b', '--langs', 'zh'],
-        ['colab_watch.py', '20']]
+# SGLang-Omni test, step 1: install it in its own venv in the background (the worker keeps recording), then 20 minutes
+# of worker progress, then the install log
+JOBS = [['colab_sglang.py', '--setup'],
+        ['colab_watch.py', '20'],
+        ['colab_sglang.py', '--status']]
 import traceback
 for JOB in JOBS:
     get(JOB[0])

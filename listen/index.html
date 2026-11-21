@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>录音试听 · Genius Classroom</title>
+<style>
+/* Temporary listening page for read-aloud quality checks (not linked from the hub; noindex).
+   Data: ?f=<file>.json in this folder (default 8b-pace.json) = {stats, clips:[{grp,status,send,pace,target,sec,chars,lesson,src}]} */
+:root{--bg:#f6f7f5;--panel:#fff;--fg:#1d2420;--muted:#5f6b64;--line:#dfe4e0;--accent:#2f6f5e;--fast:#b4532a;--slow:#3d63a8;--ok:#3b8a5a;--band:#d9ebe2}
+@media (prefers-color-scheme:dark){:root{--bg:#141917;--panel:#1c2320;--fg:#e4ebe7;--muted:#9aa8a0;--line:#2e3833;--accent:#7cc4ad;--fast:#e8875a;--slow:#8fb0ec;--ok:#7fcf9c;--band:#24362f;color-scheme:dark}}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 "PingFang SC","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif}
+.wrap{max-width:860px;margin:0 auto;padding:28px 16px 60px}
+h1{font-size:1.5rem;margin:0 0 6px}
+.lead,.rule,.note{color:var(--muted)}
+.lead{margin:0 0 16px;max-width:65ch}
+.sum{display:flex;flex-wrap:wrap;gap:8px 22px;margin:0 0 12px;font-variant-numeric:tabular-nums}
+.sum b{font-family:ui-monospace,Consolas,monospace;font-size:1.15rem}
+.sum .f b{color:var(--fast)}.sum .s b{color:var(--slow)}.sum .o b{color:var(--ok)}
+.rule{font-size:.86rem;margin:0 0 18px;max-width:70ch}
+.tabs{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.tabs button{font:inherit;font-size:.92rem;padding:6px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);cursor:pointer}
+.tabs button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.note{font-size:.9rem;margin:0 0 12px}
+.list{display:grid;gap:12px}
+.clip{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;gap:10px;min-width:0}
+.txt{margin:0;font-size:1rem;overflow-wrap:anywhere}
+.meta{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.82rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.meta a{color:var(--accent)}
+.pace{font-family:ui-monospace,Consolas,monospace;font-weight:600}
+.pace.fast{color:var(--fast)}.pace.slow{color:var(--slow)}.pace.ok{color:var(--ok)}
+.ruler{position:relative;height:18px;background:linear-gradient(var(--line),var(--line)) 0 50%/100% 2px no-repeat}
+.ruler .win{position:absolute;top:3px;bottom:3px;background:var(--band);border-radius:3px}
+.ruler .tg{position:absolute;top:1px;bottom:1px;width:2px;background:var(--accent)}
+.ruler .dot{position:absolute;top:3px;width:12px;height:12px;border-radius:50%;margin-left:-6px}
+.dot.fast{background:var(--fast)}.dot.slow{background:var(--slow)}.dot.ok{background:var(--ok)}
+.scale{display:flex;justify-content:space-between;font:.72rem ui-monospace,Consolas,monospace;color:var(--muted)}
+audio{width:100%;height:36px}
+.more{font:inherit;padding:8px 16px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--fg);cursor:pointer;justify-self:start}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 id="h1">录音试听</h1>
+  <p class="lead" id="lead"></p>
+  <div class="sum" id="sum"></div>
+  <p class="rule">语速 = 字数 ÷ 整条时长（含句间停顿），单位字/秒。理科讲解目标 3.8，其他讲解 4.0，合格范围是目标 ±0.5（浅绿色带，竖线是目标）。少于 15 字的短句不判。</p>
+  <div class="tabs" id="tabs" role="group" aria-label="分组"></div>
+  <p class="note" id="note"></p>
+  <div class="list" id="list"></div>
+</div>
+<script>
+const GROUPS = [
+  {id:'fast', name:'偏快', note:'按超出多少排序，最快的在前。'},
+  {id:'slow', name:'偏慢', note:'按慢多少排序。'},
+  {id:'ok', name:'合格对照', note:'随机抽的合格录音，用来对比。'}
+];
+const LO = 2.5, HI = 5.5, pct = v => Math.max(0, Math.min(100, (v - LO) / (HI - LO) * 100));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const label = {fast:'偏快', slow:'偏慢', ok:'合格'};
+const PAGE = 30;
+let DATA, cur, shown;
+function row(c){ return `
+  <article class="clip">
+    <p class="txt">${esc(c.send)}</p>
+    <div>
+      <div class="ruler" aria-hidden="true">
+        <span class="win" style="left:${pct(c.target-0.5)}%;width:${pct(c.target+0.5)-pct(c.target-0.5)}%"></span>
+        <span class="tg" style="left:${pct(c.target)}%"></span>
+        <span class="dot ${c.status}" style="left:${pct(c.pace)}%"></span>
+      </div>
+      <div class="scale"><span>2.5</span><span>3.5</span><span>4.5</span><span>5.5 字/秒</span></div>
+    </div>
+    <div class="meta">
+      <span class="pace ${c.status}">${c.pace.toFixed(2)} 字/秒 · ${label[c.status]}</span>
+      <span>目标 ${c.target}（${(c.target-0.5).toFixed(1)}–${(c.target+0.5).toFixed(1)}）</span>
+      <span>${c.sec.toFixed(1)} 秒 · ${c.chars} 字</span>
+      <a href="../${esc(c.lesson)}.html?lang=zh" target="_blank" rel="noopener">${esc(c.lesson)}</a>
+    </div>
+    <audio controls preload="none" src="${esc(c.src)}"></audio>
+  </article>`; }
+function render(){
+  const list = DATA.clips.filter(c => c.grp === cur);
+  const el = document.getElementById('list');
+  el.innerHTML = list.slice(0, shown).map(row).join('') +
+    (list.length > shown ? `<button class="more" id="more" type="button">再显示 ${Math.min(PAGE, list.length - shown)} 条（共 ${list.length}）</button>` : '');
+  const m = document.getElementById('more'); if (m) m.onclick = () => { shown += PAGE; render(); };
+}
+function show(id){
+  cur = id; shown = PAGE;
+  document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-pressed', b.dataset.id === id));
+  document.getElementById('note').textContent = GROUPS.find(g => g.id === id).note;
+  document.querySelectorAll('audio').forEach(a => a.pause());
+  render();
+}
+document.addEventListener('play', e => document.querySelectorAll('audio').forEach(a => { if (a !== e.target) a.pause(); }), true);
+const f = (new URLSearchParams(location.search).get('f') || '8b-pace.json').replace(/[^\w.-]/g, '');
+fetch(f, {cache:'no-store'}).then(r => r.json()).then(d => {
+  DATA = d; const st = d.stats;
+  if (d.title) document.getElementById('h1').textContent = d.title;
+  document.getElementById('lead').textContent = d.lead ||
+    `这些录音都已在网站上线（MOSS-TTS 8B，Serena 声音），每条是 5 次生成里最接近目标语速的一次。统计时间：${st.checked}。`;
+  document.getElementById('sum').innerHTML = `<span>8B 中文 <b>${st.total}</b> 条</span><span class="o">合格 <b>${st.ok}</b></span>` +
+    `<span class="f">偏快 <b>${st.fast}</b></span><span class="s">偏慢 <b>${st.slow}</b></span>`;
+  const groups = GROUPS.filter(g => d.clips.some(c => c.grp === g.id));
+  document.getElementById('tabs').innerHTML = groups.map(g =>
+    `<button type="button" data-id="${g.id}" aria-pressed="false">${g.name}（${d.clips.filter(c => c.grp === g.id).length}）</button>`).join('');
+  document.getElementById('tabs').onclick = e => { const b = e.target.closest('button'); if (b) show(b.dataset.id); };
+  show(groups[0].id);
+}).catch(() => { document.getElementById('lead').textContent = '数据文件读取失败：' + f; });
+</script>
+</body>
+</html>
