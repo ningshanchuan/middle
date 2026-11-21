@@ -8,8 +8,10 @@ def get(name):
     subprocess.run(['curl', '-sfH', 'Accept: application/vnd.github.raw', '-o', name,
                     f'https://api.github.com/repos/ningshanchuan/middle/contents/tools/colab/{name}'], check=True)
 
-# diagnostics after the concurrency test (no lesson push since 17:00 UTC)
-JOBS = [['colab_diag.py', 'china/prc', 'china/reform-opening', 'biology/nutrition-digestion']]
+# restart the worker (it had stopped at 16:47 UTC after the concurrency test): SGLang, 32 in flight as 2 streams (the test
+# showed no quality difference between 8 and 32), say patch v3; then 3 hours of progress lines (keeps the session active)
+JOBS = [['colab_worker.py', '--restart', '--push', '--model', '8b', '--langs', 'zh', '--sglang', '32', '--streams', '2'],
+        ['colab_watch.py', '180']]
 import traceback
 for JOB in JOBS:
     get(JOB[0])
