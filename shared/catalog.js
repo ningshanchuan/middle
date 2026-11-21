@@ -32,7 +32,11 @@ window.LAB_CATALOG = [
    {id:'ecosystems', std:'S7L4', en:'Biomes & Ecosystems', zh:'生物群落与生态系统', d:{en:'Biomes, aquatic ecosystems and symbiosis.',zh:'生物群落、水生生态系统与共生关系。'}},
    {id:'habitat-niche', std:'S7L4', en:'Habitat, Niche & Population Limits', zh:'栖息地、生态位与种群的限制', d:{en:'Levels of organization, habitat vs. niche, limiting factors and carrying capacity.',zh:'生态系统的组织层次、栖息地与生态位、限制因素与环境容纳量。'}},
    {id:'evolution', std:'S7L5', en:'Natural Selection & Evolution', zh:'自然选择与进化', d:{en:'Adaptation, variation and fossil evidence.',zh:'适应、变异与化石证据。'}},
-   {id:'infection-immunity', std:'人教八上 · 传染病和免疫 · S7L2', en:'Infectious Disease, Immunity & Prevention', zh:'传染病、免疫与预防', d:{en:'How diseases spread, the body\'s three lines of defence, vaccines, and antibiotics vs viruses.',zh:'传染病的传播、人体三道防线、疫苗接种与抗生素的正确使用。'}}
+   {id:'infection-immunity', std:'人教八上 · 传染病和免疫 · S7L2', en:'Infectious Disease, Immunity & Prevention', zh:'传染病、免疫与预防', d:{en:'How diseases spread, the body\'s three lines of defence, vaccines, and antibiotics vs viruses.',zh:'传染病的传播、人体三道防线、疫苗接种与抗生素的正确使用。'}},
+   {id:'nutrition-digestion', std:'人教七下 第四单元 第二章 · MS-LS1-3', en:'Nutrition & Digestion', zh:'人体的营养与消化', d:{en:'Nutrients in food, the digestive system, enzymes, absorption and a healthy diet.',zh:'食物中的营养物质、消化系统、消化酶、吸收与合理膳食。'}},
+   {id:'breathing-circulation', std:'人教七下 第四单元 第三、四章 · MS-LS1-3', en:'Breathing & Blood Circulation', zh:'人体的呼吸与血液循环', d:{en:'Lungs and gas exchange, blood, blood vessels, the heart and the two circulations.',zh:'肺与气体交换、血液、血管、心脏与体循环和肺循环。'}},
+   {id:'nervous-endocrine', std:'人教七下 第四单元 第六章 · MS-LS1-8', en:'Nerves, Senses & Hormones', zh:'神经调节与激素调节', d:{en:'The eye and ear, the nervous system, reflexes and the endocrine glands.',zh:'眼和耳、神经系统、反射与反射弧、内分泌腺和激素。'}},
+   {id:'health-first-aid', std:'人教八下 第八单元 · Georgia Health', en:'Healthy Living: Medicine & First Aid', zh:'健康地生活：用药与急救', d:{en:'Safe use of medicine, first aid, CPR, and healthy life choices.',zh:'安全用药、急救、心肺复苏和选择健康的生活方式。'}}
  ]},
  { id:'earth', icon:'🌋', color:'#c2622d', en:'Earth Science', zh:'地球科学',
    blurb:{en:'Earth’s layers, plates, rocks, water, weather, climate and resources.',zh:'地球圈层、板块、岩石、水、天气、气候与资源。'},
@@ -233,7 +237,9 @@ window.LAB_CATALOG = [
    {id:'rule-of-law', std:'道德与法治 七下 第四单元 / 九上 第二单元', en:'Rule of Law', zh:'走进法治天地 · 建设法治中国', d:{en:'How law protects daily life, protecting minors, and building a law-based country.',zh:'法律在我们身边、未成年人保护、依法治国与法治中国。'}},
    {id:'core-values', std:'道德与法治 九上 第三单元', en:'Culture & Core Values', zh:'文明与家园：中华文化与核心价值观', d:{en:'Chinese culture, the national spirit and core socialist values.',zh:'中华优秀传统文化、民族精神与社会主义核心价值观。'}},
    {id:'development', std:'道德与法治 九上 第一、三单元', en:'Innovation, Shared Prosperity & Green Development', zh:'富强与创新 · 共同富裕 · 生态文明', d:{en:'Reform and innovation, common prosperity and ecological civilization.',zh:'改革开放、创新驱动发展、共享发展成果与建设美丽中国。'}},
-   {id:'china-world', std:'道德与法治 九下 第一、二单元', en:'China and the World', zh:'我们共同的世界 · 世界舞台上的中国', d:{en:'Globalization, a community with a shared future, and China’s role.',zh:'经济全球化、构建人类命运共同体与中国担当。'}}
+   {id:'china-world', std:'道德与法治 九下 第一、二单元', en:'China and the World', zh:'我们共同的世界 · 世界舞台上的中国', d:{en:'Globalization, a community with a shared future, and China’s role.',zh:'经济全球化、构建人类命运共同体与中国担当。'}},
+   {id:'youth-emotions', std:'统编道德与法治七下 第一、二单元', en:'Growing Up: Adolescence & Emotions', zh:'青春时光与情绪', d:{en:'Changes in adolescence, thinking for yourself, understanding and managing emotions.',zh:'青春期的变化、独立思考、认识和调控情绪。'}},
+   {id:'online-life', std:'统编道德与法治八上 第一单元 · Digital citizenship', en:'Life Online: Digital Citizenship', zh:'网络生活新空间', d:{en:'The internet\'s benefits and risks, privacy, rumours, cyberbullying and online responsibility.',zh:'网络的利与弊、隐私保护、辨别谣言、网络欺凌和网上责任。'}}
  ]},
  { id:'geography', icon:'🗺️', color:'#2f7fd1', en:'Geography', zh:'地理',
    blurb:{en:'Maps and globes, continents, landforms, climate regions and world regions.',zh:'地图与地球仪、大洲、地形、气候区与世界区域。'},
@@ -249,7 +255,9 @@ window.LAB_CATALOG = [
    {id:'europe-oceania', std:'SS6G', en:'Europe & Australia', zh:'欧洲与澳大利亚', d:{en:'Physical features, countries and environment.',zh:'自然特征、国家与环境。'}},
    {id:'africa-asia', std:'SS7G', en:'Africa & Asia', zh:'非洲与亚洲', d:{en:'Africa, Southwest Asia, and Southern & Eastern Asia.',zh:'非洲、西南亚以及南亚和东亚。'}},
    {id:'world-religions', std:'SS7G8 / SS7G12', en:'World Religions & Ethnic Groups', zh:'世界宗教与民族', d:{en:'Judaism, Christianity, Islam, Hinduism, Buddhism, Confucianism, Shinto — and religion vs. ethnicity.',zh:'犹太教、基督教、伊斯兰教、印度教、佛教、儒家、神道教，以及宗教与民族的区别。'}},
-   {id:'asia-regional-studies', std:'人教七下 · 亚洲与典型国家 · SS7G', en:'Asia: Regions & Key Countries', zh:'亚洲分区与典型国家', d:{en:'Asia\'s relief, rivers and climates; Southeast Asia, Japan, India and Russia up close.',zh:'亚洲的地形、河流与气候；东南亚、日本、印度、俄罗斯。'}}
+   {id:'asia-regional-studies', std:'人教七下 · 亚洲与典型国家 · SS7G', en:'Asia: Regions & Key Countries', zh:'亚洲分区与典型国家', d:{en:'Asia\'s relief, rivers and climates; Southeast Asia, Japan, India and Russia up close.',zh:'亚洲的地形、河流与气候；东南亚、日本、印度、俄罗斯。'}},
+   {id:'settlements-development', std:'人教七上 第四、五章 · SS7G / SS6G', en:'Peoples, Settlements & Development', zh:'居民与聚落、发展与合作', d:{en:'Languages and peoples, rural and urban settlements, developed and developing countries, cooperation.',zh:'人种与语言、乡村和城市聚落、发达国家与发展中国家、国际合作。'}},
+   {id:'polar-regions', std:'人教七下 第十章 · SS6G / SS7G', en:'The Polar Regions', zh:'极地地区', d:{en:'The Arctic and the Antarctic: location, climate, resources, research and protection.',zh:'北极和南极地区：位置、气候、资源、科考与环境保护。'}}
  ]},
  { id:'ela', icon:'📖', color:'#7a4cc2', en:'English Language Arts', zh:'英语语言艺术',
    blurb:{en:'Reading stories and nonfiction, writing arguments and narratives, grammar, vocabulary and media literacy (Georgia ELA, grades 6–8).',zh:'阅读文学与非虚构文本，写议论文和记叙文，语法、词汇与媒介素养（佐治亚州 ELA，6–8 年级）。'},
@@ -308,7 +316,8 @@ window.LAB_CATALOG = [
    {id:'wh-cold-war', std:'SS6H3 · SS7H1 · SS7H3', en:'The Cold War & Independence Movements', zh:'冷战与民族独立运动', d:{en:'Two superpowers, a divided Europe and new nations in Africa and Asia.',zh:'两个超级大国、分裂的欧洲与亚非新国家。'}},
    {id:'wh-today', std:'SS6E / SS7E · SS6H3', en:'Our Connected World', zh:'相互联系的世界', d:{en:'The UN, the European Union and globalization today.',zh:'联合国、欧盟与今天的全球化。'}},
    {id:'industrialization-reform', std:'统编九上–九下 · 工业革命与近代改革', en:'Industrial Revolutions, Labour & Reform', zh:'工业革命、工人运动与近代改革', d:{en:'Steam and electricity, workers\' lives and movements, and reforms in Russia and Japan.',zh:'蒸汽与电力、工人的生活与工人运动、俄国与日本的改革。'}},
-   {id:'africa-americas-before-1500', std:'统编九上（新版）· 古代非洲与美洲', en:'Africa and the Americas Before 1500', zh:'古代非洲与美洲文明', d:{en:'Mali and Songhai, Great Zimbabwe, the Maya, Aztec and Inca.',zh:'马里与桑海、大津巴布韦、玛雅、阿兹特克与印加。'}}
+   {id:'africa-americas-before-1500', std:'统编九上（新版）· 古代非洲与美洲', en:'Africa and the Americas Before 1500', zh:'古代非洲与美洲文明', d:{en:'Mali and Songhai, Great Zimbabwe, the Maya, Aztec and Inca.',zh:'马里与桑海、大津巴布韦、玛雅、阿兹特克与印加。'}},
+   {id:'russian-revolution-ussr', std:'统编九下 第三单元 · SSWH17', en:'The Russian Revolution & the Soviet Union', zh:'俄国十月革命与苏联的建设', d:{en:'1917, Lenin, the New Economic Policy, the Soviet model, and its lessons.',zh:'1917年十月革命、列宁、新经济政策、斯大林模式及其经验教训。'}}
  ]},
  { id:'economics', icon:'💰', color:'#15803d', en:'Economics & Personal Finance', zh:'经济与个人理财',
    blurb:{en:'Choices, markets, trade and money skills (Georgia SS6E / SS7E).',zh:'选择、市场、贸易与理财技能（佐治亚州 SS6E / SS7E）。'},

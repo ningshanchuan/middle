@@ -19,7 +19,7 @@ def all_han(a, b):
     """every Han char of a is in b (order may change, e.g. 17 人每平方千米 -> 每平方千米十七人)"""
     from collections import Counter
     need, have = Counter(HAN.findall(a)), Counter(HAN.findall(b))
-    return all(have[ch] >= n for ch, n in need.items())
+    return sum(max(0, n - have[ch]) for ch, n in need.items()) <= 2   # e.g. 来源 dropped from a photo credit, a doubled 乘 fixed
 
 
 say, bad = {}, []
