@@ -24,58 +24,64 @@ SRC = ROOT / '_tts'
 TOOLS = SRC / 'tools/moss/tools'
 sh = lambda cmd, **k: subprocess.run(cmd, shell=True, check=True, **k)
 
-SAY_PATCH = r'''# ---------------------------------------------------------------- COLAB PATCH say v2 (content PC)
-# Spoken scripts for Chinese clips. The page text (`send`) is not read as it is: digits, units, symbols, formulas, dates
-# are written out as they are spoken ("say", LLM-written and LLM-checked on the content PC, published as
-# readaloud/say/zh.json = {"lessons": {lesson: {sha1(send)[:12]: say}}}).
+SAY_PATCH = r'''# ---------------------------------------------------------------- COLAB PATCH say v3 (content PC)
+# Spoken scripts. The page text (`send`) is not read as it is: digits, units, symbols, formulas, dates are written out
+# as they are spoken ("say", LLM-written and LLM-checked on the content PC), published per language as
+# readaloud/say/<lang>.json = {"lessons": {lesson: {sha1(send)[:12]: say}}}  (zh and en).
 #  - spoken(clip): the say of the clip when there is one, else send
-#  - speech_len (pace checks): counted on the say, without spaces and silent symbols
-#  - wanted(): a zh clip whose send needs a script (digits, Latin letters, symbols) waits until its say is published
+#  - speech_len (pace and length checks): counted on the say; zh without spaces and silent symbols
+#  - wanted(): a clip whose send needs a script (zh: digits, Latin letters, symbols; en: digits, symbols, Han) waits until
+#    its say is published
 #  - index(): when a lesson's say entries change, its stored status is invalidated so the lesson is worked again
 #    (v1 changed the index fingerprint itself, which broke the transcript check: "transcript not available yet")
 import hashlib as _hl
-_SAY_URL = "https://shanchuan.org/middle/readaloud/say/zh.json"
+_SAY_URL = "https://shanchuan.org/middle/readaloud/say/{}.json"
 _SAY = {"t": 0.0, "flat": {}, "ver": {}}
-_NEED = re.compile(r"[0-9A-Za-zÀ-ɏ]|[^一-鿿　-〿＀-￯“”‘’—…·\s]")
-_SILENT = re.compile(r"[\s·•/|()\[\]{}<>_*#~—–\-…‘’'\"]")
+_NEED = {"zh": re.compile("[0-9A-Za-z\u00c0-\u024f]|[^\u4e00-\u9fff\u3000-\u303f\uff00-\uffef\u201c\u201d\u2018\u2019\u2014\u2026\u00b7\\s]"),
+         "en": re.compile("\\d|[/+=\u00d7\u00f7%\u00b0\u2103\u00b2\u00b3\u2070-\u2079\u207a\u207b\u00bd\u00bc\u00be\u2153|\u2220_<>\u2248\u2264\u2265~^*#@&$\u20ac\u00a3\u00a5\u2192\u2190\u2194\u2206\u0394\u03b1\u03b2\u03b3\u03b8\u03bc\u03c0\u00b7\u2022]|[\u4e00-\u9fff]")}
+_SILENT = re.compile("[\\s\u00b7\u2022/|()\\[\\]{}<>_*#~\u2014\u2013\\-\u2026\u2018\u2019'\"]")
 
 
 def _say_load(force=False):
     if force or time.time() - _SAY["t"] > 600:
         _SAY["t"] = time.time()
-        b = fetch(_SAY_URL)
-        if b:
+        flat, ver = {}, {}
+        for lang in ("zh", "en"):
+            b = fetch(_SAY_URL.format(lang))
+            if not b:
+                continue
             try:
                 d = json.loads(b.decode("utf-8"))
-                _SAY["flat"] = {h: s for m in d["lessons"].values() for h, s in m.items()}
-                _SAY["ver"] = {lid: hashlib.sha1(json.dumps(m, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()[:8]
-                               for lid, m in d["lessons"].items()}
+                for lid, m in d["lessons"].items():
+                    for h, sv in m.items():
+                        flat[(lang, h)] = sv
+                    ver[lid] = (ver.get(lid, "") + hashlib.sha1(json.dumps(m, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()[:8])
             except Exception as e:                       # noqa: BLE001
-                log(f"say: bad {_SAY_URL}: {e}")
+                log(f"say: bad {_SAY_URL.format(lang)}: {e}")
+        if flat:
+            _SAY["flat"], _SAY["ver"] = flat, ver
     return _SAY
 
 
-def say_of(send):
-    return _say_load()["flat"].get(_hl.sha1(send.encode("utf-8")).hexdigest()[:12])
+def say_of(send, lang="zh"):
+    return _say_load()["flat"].get((lang, _hl.sha1(send.encode("utf-8")).hexdigest()[:12]))
 
 
 def spoken(clip):
-    if clip["lang"] == "zh":
-        s = say_of(clip["send"])
-        if s:
-            return s
-    return clip["send"]
+    s = say_of(clip["send"], clip["lang"])
+    return s if s else clip["send"]
 
 
 _orig_speech_len = speech_len
 
 
 def speech_len(text, lang):
-    if lang == "zh":
-        s = say_of(text)
-        if s:
-            s = _SILENT.sub("", s)
-            return len(s) - 0.6 * sum(1 for ch in s if ch.isascii() and ch.isalpha())
+    s = say_of(text, lang)
+    if s and lang == "zh":
+        s = _SILENT.sub("", s)
+        return len(s) - 0.6 * sum(1 for ch in s if ch.isascii() and ch.isalpha())
+    if s:
+        return _orig_speech_len(s, lang)
     return _orig_speech_len(text, lang)
 
 
@@ -83,7 +89,8 @@ _orig_wanted = Worker.wanted
 
 
 def _wanted(self, c):
-    return _orig_wanted(self, c) and (c["lang"] != "zh" or not _NEED.search(c["send"]) or say_of(c["send"]) is not None)
+    need = _NEED.get(c["lang"])
+    return _orig_wanted(self, c) and (need is None or not need.search(c["send"]) or say_of(c["send"], c["lang"]) is not None)
 
 
 Worker.wanted = _wanted
@@ -134,7 +141,7 @@ def prepare():
         w = w.replace('.with_name("ffprobe.exe")', '.with_name("ffprobe" if os.name != "nt" else "ffprobe.exe")  # COLAB PATCH')
         (TOOLS / 'tts_worker.py').write_text(w, encoding='utf-8')
     SAY_MARK = '# ---------------------------------------------------------------- COLAB PATCH say'
-    if SAY_MARK + ' v2' not in w:
+    if SAY_MARK + ' v3' not in w:
         if SAY_MARK in w:                                # drop an older say patch (it sits just before the main guard)
             a = w.index(SAY_MARK); b = w.index('\nif __name__ == "__main__":', a)
             w = w[:a] + w[b + 1:]
