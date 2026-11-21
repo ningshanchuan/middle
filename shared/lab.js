@@ -216,8 +216,10 @@
       const ids = [Lab.lessonId, '_shared'].filter(Boolean);
       rec.buckets = ids.map(id => ({ id, base: (repoUrl(id) || '') + id + '/', keys: {} })).filter(b => /^https?:|^file:/.test(b.base));
       // stand-in recordings (Microsoft Edge voice) of the on-demand clips: after every Serena bucket, so Serena wins
-      Object.entries(S.edge || {}).forEach(([l, url]) => ids.forEach(id => {
-        if (/^https?:/.test(url)) rec.buckets.push({ id: 'edge:' + id, lang: l, base: url, manifest: url + id + '/manifest.js', keys: {} });
+      const group = id => id === '_shared' ? S.shared : (S.subjects[id.split('/')[0]] || S.fallback);
+      Object.entries(S.edge || {}).forEach(([l, v]) => ids.forEach(id => {
+        const url = typeof v === 'string' ? v : (v || {})[group(id)];   // one Edge repo per language and subject group
+        if (/^https?:/.test(url || '')) rec.buckets.push({ id: 'edge:' + id, lang: l, base: url, manifest: url + id + '/manifest.js', keys: {} });
       }));
       let left = rec.buckets.length; if (!left) return finish();
       rec.buckets.forEach(b => addScript(b.manifest || b.base + 'manifest.js', () => { if (--left === 0) finish(); }));

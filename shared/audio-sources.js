@@ -4,7 +4,7 @@
    and listed in <repo url><subject>/<topic>/manifest.js. "_shared" = clips no single lesson owns (place-book sentences ...).
    The object below must stay strict JSON (tools/readaloud/export_jobs.ps1 and tts_worker.ps1 read it).
    To move a subject to another repo: change its line here, then let the TTS PC copy the files over.
-   "edge": stand-in recordings (Microsoft Edge voice) of the on-demand clips, one repo per language, flat <lang>/<key>.mp3
+   "edge": stand-in recordings (Microsoft Edge voice), one repo per language and subject group (as "subjects"), flat <lang>/<key>.mp3
    with <subject>/<topic>/manifest.js (lesson "edge:<id>"); used only when no Serena recording exists. */
 window.LAB_AUDIO_SOURCES = {
   "repos": {
@@ -24,7 +24,11 @@ window.LAB_AUDIO_SOURCES = {
   "shared": "gc-audio-humanities",
   "fallback": "gc-audio-humanities",
   "edge": {
-    "zh": "https://shanchuan.org/gc-audio-edge-zh/",
-    "en": "https://shanchuan.org/gc-audio-edge-en/"
+    "zh": { "gc-audio-science": "https://shanchuan.org/gc-audio-edge-zh/",
+            "gc-audio-humanities": "https://shanchuan.org/gc-audio-edge-zh-humanities/",
+            "gc-audio-lang-math": "https://shanchuan.org/gc-audio-edge-zh-lang-math/" },
+    "en": { "gc-audio-science": "https://shanchuan.org/gc-audio-edge-en/",
+            "gc-audio-humanities": "https://shanchuan.org/gc-audio-edge-en-humanities/",
+            "gc-audio-lang-math": "https://shanchuan.org/gc-audio-edge-en-lang-math/" }
   }
 };
