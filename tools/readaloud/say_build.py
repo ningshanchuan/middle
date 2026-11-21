@@ -15,6 +15,13 @@ def cover(a, b):
     return sum(x.size for x in m.get_matching_blocks()) / max(len(a), 1)
 
 
+def all_han(a, b):
+    """every Han char of a is in b (order may change, e.g. 17 人每平方千米 -> 每平方千米十七人)"""
+    from collections import Counter
+    need, have = Counter(HAN.findall(a)), Counter(HAN.findall(b))
+    return all(have[ch] >= n for ch, n in need.items())
+
+
 say, bad = {}, []
 for chk in sorted(glob.glob(os.path.join(done, 'b*.chk.jsonl'))):
     src = {json.loads(l)['key']: json.loads(l) for l in open(chk.replace('.chk.jsonl', '.jsonl'), encoding='utf-8') if l.strip()}
@@ -25,7 +32,7 @@ for chk in sorted(glob.glob(os.path.join(done, 'b*.chk.jsonl'))):
         if not s:
             continue
         txt = re.sub(r'\s+', ' ', o['say']).strip()
-        if LEFT.search(txt) or cover(s['send'], txt) < 0.93 or not txt:
+        if LEFT.search(txt) or not txt or (cover(s['send'], txt) < 0.93 and not all_han(s['send'], txt)):
             bad.append((o['key'], s['send'][:60], txt[:60])); continue
         say[o['key']] = txt
 lessons = {}
