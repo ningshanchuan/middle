@@ -41,6 +41,11 @@ def all_han(a, b):
     return sum(max(0, n - have[ch]) for ch, n in need.items()) <= 2   # e.g. 来源 dropped from a photo credit, a doubled 乘 fixed
 
 
+# photo credits: in the page text "图片：<author> · CC BY-SA 4.0 · 来源" / "Photo: <author> · CC BY 2.0 · Source"; in older
+# scripts "图片作者 <author>，知识共享许可。" / "Photo by <author>, Creative Commons license."
+CREDIT_SEND = re.compile(r'(图片|照片|Photo|Image)\s*[：:][^。！？\n]*?(来源|Source|公有领域|Public domain|CC[ -]?BY[^。\n]*|CC0)[^。！？\n]*', re.I)
+CREDIT_SAY = re.compile(r'(图片作者|照片作者|图片来源|图片：)[^。！？]*(。|$)|(Photo|Image) (by|credit)[^.!?]*(\.|$)|Photo: [^.!?]*(\.|$)', re.I)
+
 say, bad = {}, []
 for chk in sorted(glob.glob(os.path.join(done, '*.chk.jsonl'))):
     src = {json.loads(l)['key']: json.loads(l) for l in open(chk.replace('.chk.jsonl', '.jsonl'), encoding='utf-8') if l.strip()}
@@ -51,10 +56,14 @@ for chk in sorted(glob.glob(os.path.join(done, '*.chk.jsonl'))):
         if not s:
             continue
         txt = re.sub(r'\s+', ' ', o['say']).strip()
+        send = CREDIT_SEND.sub('', s['send'])            # photo credits are not read at all (the user, 2026-11-21)
+        txt = CREDIT_SAY.sub('', txt).strip()
+        if not txt:
+            continue                                     # the clip is only a credit: nothing to record
         if LANG == 'en':
-            ok = txt and not LEFT.search(txt) and cover_en(s['send'], txt) >= 0.8 and all_han(s['send'], txt)
+            ok = not LEFT.search(txt) and cover_en(send, txt) >= 0.8 and all_han(send, txt)
         else:
-            ok = txt and not LEFT.search(txt) and (cover(s['send'], txt) >= 0.93 or all_han(s['send'], txt))
+            ok = not LEFT.search(txt) and (cover(send, txt) >= 0.93 or all_han(send, txt))
         if not ok:
             bad.append((o['key'], s['send'][:60], txt[:60])); continue
         say[o['key']] = txt
