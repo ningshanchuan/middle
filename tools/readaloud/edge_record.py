@@ -13,16 +13,52 @@ VOICE = {'zh': 'zh-CN-XiaoxiaoNeural', 'en': 'en-US-AvaNeural'}[LANG]
 SITE = r'F:\Shanchuan\Biology_study\science-lab'
 say = json.load(open(os.path.join(SITE, 'readaloud', 'say', LANG + '.json'), encoding='utf-8'))
 flat = {h: s for m in say['lessons'].values() for h, s in m.items()}
-texts, lessons = {}, {}
+SKIP = set(say.get('skip', []))
+# 多音字: the site's substitution table (tools/tts/polyfix.tsv: word, pinyin, same-sound single-reading substitute),
+# applied only to the text sent to the voice; longest match wins, left to right; "word = substitute" protects a word
+POLY = {}
+for line in open(os.path.join(SITE, 'tools', 'tts', 'polyfix.tsv'), encoding='utf-8'):
+    p = line.rstrip('\r\n').split('\t')
+    if len(p) >= 3 and not p[0].startswith('#') and len(p[0]) == len(p[2]):
+        POLY[p[0]] = p[2]
+MAXW = max(map(len, POLY)) if POLY else 0
+
+
+def polyfix(t):
+    if LANG != 'zh' or not POLY:
+        return t
+    out, i = [], 0
+    while i < len(t):
+        for n in range(min(MAXW, len(t) - i), 0, -1):
+            w = t[i:i + n]
+            if w in POLY:
+                out.append(POLY[w]); i += n; break
+        else:
+            out.append(t[i]); i += 1
+    return ''.join(out)
+
+
+texts, raw, lessons = {}, {}, {}
 for c in json.load(open(CORPUS, encoding='utf-8')):
     if not c.get('demand'):
         continue
-    t = flat.get(hashlib.sha1(c['send'].encode('utf-8')).hexdigest()[:12]) or c['send']
-    texts[c['key']] = t
+    h = hashlib.sha1(c['send'].encode('utf-8')).hexdigest()[:12]
+    if h in SKIP:
+        continue                                         # never read (photo credits, licences)
+    t = flat.get(h) or c['send']
+    raw[c['key']] = t
+    texts[c['key']] = polyfix(t)
     lessons.setdefault(c['lesson'], set()).add(c['key'])
 os.makedirs(os.path.join(REPO, LANG), exist_ok=True)
 path = lambda k: os.path.join(REPO, LANG, k + '.mp3')
-todo = [k for k in texts if not os.path.exists(path(k))]
+sent_p = os.path.join(REPO, '..', f'edge_{LANG}_sent.json')
+sent = json.load(open(sent_p, encoding='utf-8')) if os.path.exists(sent_p) else {}
+# record: missing files; files made from another text (sent = text of each file; files from before the 多音字 table
+# have no entry: they were made from the unfixed text, so they are redone where the table changes the text)
+todo = [k for k in texts if not os.path.exists(path(k)) or sent.get(k, raw[k]) != texts[k]]
+redo = [k for k in todo if os.path.exists(path(k))]
+for k in redo:
+    os.remove(path(k))
 random.shuffle(todo)
 log = open(os.path.join(REPO, '..', f'edge_{LANG}.log'), 'a', encoding='utf-8')
 def say_log(m):
@@ -62,7 +98,7 @@ async def main():
                     await edge_tts.Communicate(texts[k], VOICE).save(tmp)
                     if os.path.getsize(tmp) < 800:
                         raise RuntimeError('empty audio')
-                    os.replace(tmp, path(k)); done += 1; errors = 0
+                    os.replace(tmp, path(k)); done += 1; errors = 0; sent[k] = texts[k]
                     await asyncio.sleep(0.3)
                     return
                 except Exception as e:                   # noqa: BLE001
@@ -75,6 +111,7 @@ async def main():
     for i in range(0, len(todo), 300):
         await asyncio.gather(*(one(k) for k in todo[i:i + 300]))
         say_log(f'{done} recorded of {len(todo)}')
+        json.dump(sent, open(sent_p, 'w', encoding='utf-8'), ensure_ascii=False)
         publish(done)
     publish(done)
     say_log('finished')

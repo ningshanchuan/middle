@@ -78,6 +78,17 @@ for chk in sorted(glob.glob(os.path.join(done, '*.chk.jsonl'))):
         if not ok:
             bad.append((o['key'], s['send'][:60], txt[:60])); continue
         say[o['key']] = txt
+# hand-written scripts (tools/readaloud/say/manual_<lang>.jsonl) win; "" = never read (photo credits, licences)
+skip = set()
+mp = os.path.join(os.path.dirname(__file__), 'say', f'manual_{LANG}.jsonl')
+if os.path.exists(mp):
+    for l in open(mp, encoding='utf-8'):
+        if l.strip():
+            r = json.loads(l)
+            if r['say']:
+                say[r['key']] = r['say']
+            else:
+                say.pop(r['key'], None); skip.add(r['key'])
 lessons = {}
 for c in json.load(open(corpus, encoding='utf-8')):
     h = hashlib.sha1(c['send'].encode('utf-8')).hexdigest()[:12]
@@ -85,7 +96,7 @@ for c in json.load(open(corpus, encoding='utf-8')):
         lessons.setdefault(c['lesson'], {})[h] = say[h]
 out = os.path.join(os.path.dirname(__file__), '..', '..', 'readaloud', 'say', LANG + '.json')
 os.makedirs(os.path.dirname(out), exist_ok=True)
-json.dump(dict(updated=datetime.datetime.now().strftime('%Y-%m-%d %H:%M'), count=len(say), lessons=lessons),
+json.dump(dict(updated=datetime.datetime.now().strftime('%Y-%m-%d %H:%M'), count=len(say), lessons=lessons, skip=sorted(skip)),
           open(out, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
 print(f'{len(say)} scripts in {len(lessons)} lessons -> {os.path.normpath(out)}; held back (failed checks): {len(bad)}')
 for b in bad[:20]:
