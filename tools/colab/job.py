@@ -8,7 +8,7 @@ def get(name):
     subprocess.run(['curl', '-sfH', 'Accept: application/vnd.github.raw', '-o', name,
                     f'https://api.github.com/repos/ningshanchuan/middle/contents/tools/colab/{name}'], check=True)
 
-JOB = ['colab_lessons.py', '--model', '8b']          # 3 test lessons with the 8B (TTS PC README §6)
+JOB = ['colab_summary.py', '8b']                     # plain-text summary of the 8B test (done: colab_lessons.py --model 8b)
 get(JOB[0])
 sys.argv = JOB
 print('job:', ' '.join(JOB), flush=True)
