@@ -10,8 +10,8 @@ def get(name):
 
 # zh + en (zh is nearly done; en clips that need a spoken script wait for it, the rest record now); SGLang 32 in flight as
 # 2 streams; then 3 hours of progress lines (keeps the session active)
-JOBS = [['colab_worker.py', '--restart', '--push', '--model', '8b', '--langs', 'zh,en', '--sglang', '32', '--streams', '2'],
-        ['colab_watch.py', '180']]
+JOBS = [['colab_worker.py', '--restart', '--push', '--model', '8b', '--langs', 'zh,en', '--sglang', '32', '--streams', '2', '--yuwen'],
+        ['colab_watch.py', '180']]   # + yuwen (mood list approved by the user)
 import traceback
 for JOB in JOBS:
     get(JOB[0])

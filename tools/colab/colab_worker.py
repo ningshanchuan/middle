@@ -17,6 +17,7 @@ ap.add_argument('--restart', action='store_true', help='stop the running worker,
 ap.add_argument('--langs', default='zh')
 ap.add_argument('--sglang', type=int, default=0, help='serve the 8B with SGLang-Omni (/content/sgl venv), this many requests in flight')
 ap.add_argument('--streams', type=int, default=2, help='with --sglang: batches in flight at once (the server limit is --sglang)')
+ap.add_argument('--yuwen', action='store_true', help='record the yuwen lessons and styled originals (moods.proposed.json, approved)')
 args, _ = ap.parse_known_args()
 ROOT = Path('/content/gc-audio'); ROOT.mkdir(exist_ok=True)
 REPOS = ['gc-audio-science', 'gc-audio-humanities', 'gc-audio-lang-math']
@@ -279,6 +280,8 @@ if _os.environ.get("MOSS_SGLANG") == "1":
     cfg['moss'].update(model='OpenMOSS-Team/MOSS-TTS-v1.5' if is8 else 'OpenMOSS-Team/MOSS-TTS-Local-Transformer-v1.5',
                        codec='' if is8 else 'OpenMOSS-Team/MOSS-Audio-Tokenizer-v2', refs=str(SRC / 'tools/moss/refs'),
                        moods=str(TOOLS / 'moods.proposed.json'), batch=16)
+    if args.yuwen:                                       # the user approved the TTS PC's mood list (#3, 2026-11-21): yuwen + styled originals
+        cfg.update(record_styled=True, hold_lessons=[])
     cfg['batch_audio_s'] = 300                           # A100 40 GB (the TTS PC: 8 clips / 180 s for its 20 GB card)
     if args.sglang:                                      # SGLang-Omni: a batch = concurrent requests to the server
         k = max(1, args.streams); cfg['models'] = k                 # k client processes, each sends its own batch
