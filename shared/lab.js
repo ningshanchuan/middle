@@ -585,7 +585,10 @@
       if (la === 'es') return worthEs(t) ? { lang: 'es', parts: chunk(t, false) } : null;
       if (!worth(t)) return null; const zh = zhOf(t); return { lang: zh ? 'zh' : 'en', parts: chunk(t, zh) }; };
     let reading = null;
+    const stopReading = () => { Lab.stopSpeech(); if (reading){ reading.classList.remove('lab-hreading'); reading = null; } };
     const read = el => {
+      // the same paragraph again (double-click / 🔊 / ⏹) while it is being read: stop (the user, 2026-11-21)
+      if (reading === el && Lab.speaking()){ stopReading(); return; }
       const u = units(el); if (!u) return;
       auto.stop();
       if (reading) reading.classList.remove('lab-hreading');
@@ -609,7 +612,9 @@
         btn.addEventListener('mouseenter', () => clearTimeout(hideT));
         document.body.appendChild(btn);
       }
-      btn.title = Lab.L(HOVER_T.say); btn.setAttribute('aria-label', btn.title);
+      const stopping = el === reading && Lab.speaking();
+      btn.textContent = stopping ? '⏹' : '🔊';
+      btn.title = Lab.L(stopping ? { en:'Stop reading', zh:'停止朗读' } : HOVER_T.say); btn.setAttribute('aria-label', btn.title);
       const r = el.getBoundingClientRect(), s = touch ? 40 : 28;
       btn.classList.toggle('touch', !!touch);
       btn.style.display = 'block';
@@ -631,6 +636,8 @@
       const t = e.target.closest ? e.target : e.target.parentElement; if (!t || t.closest(CLICKY) || t.closest(NO)) return;
       const el = blockOf(t); if (el){ hide(); read(el); }
     }, true);
+    // Esc stops whatever is being read (desktop)
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && Lab.speaking()){ stopReading(); auto.stop(); } });
     // touch: a long press (finger still for ~0.55 s) shows a bigger 🔊 above the text
     let lp = null;
     document.addEventListener('pointerdown', e => {
