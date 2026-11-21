@@ -12,6 +12,8 @@ ap = argparse.ArgumentParser()
 ap.add_argument('--model', default='8b', choices=['8b', '4b'])
 ap.add_argument('--start', action='store_true'); ap.add_argument('--bundle', action='store_true'); ap.add_argument('--status', action='store_true')
 ap.add_argument('--bundle-loop', action='store_true', help='bundle + download new lesson commits every minute (blocks the cell)')
+ap.add_argument('--push', action='store_true', help='push each lesson straight to GitHub with GH_TOKEN from Colab Secrets')
+ap.add_argument('--restart', action='store_true', help='stop the running worker, then --start')
 ap.add_argument('--langs', default='zh')
 args, _ = ap.parse_known_args()
 ROOT = Path('/content/gc-audio'); ROOT.mkdir(exist_ok=True)
@@ -105,11 +107,35 @@ class Moss(_Moss):
     p = ROOT / 'tts_config_colab.json'; p.write_text(json.dumps(cfg, ensure_ascii=False, indent=1), encoding='utf-8')
     return p
 
+def token():
+    """GitHub token from Colab's Secrets panel (name GH_TOKEN, notebook access on), or None. Never printed."""
+    try:
+        from google.colab import userdata
+        return userdata.get('GH_TOKEN') or None
+    except Exception:                                    # noqa: BLE001  (no secret, or no access granted)
+        return None
+
+if args.restart:
+    pidf = ROOT / 'worker.pid'
+    if pidf.exists():
+        try:
+            os.killpg(int(pidf.read_text()), 15); print('old worker stopped', flush=True); time.sleep(5)
+        except OSError:
+            pass
+    args.start = True
+
 if args.start:
     cfgp = prepare()
+    tok = token() if args.push else None
+    if args.push and not tok:
+        raise SystemExit('no GH_TOKEN in Colab Secrets (or notebook access is off): add it, or run without --push')
+    for r in REPOS:                                      # push straight to GitHub with the token (TTS PC style)
+        url = f'https://x-access-token:{tok}@github.com/gladcolor/{r}.git' if tok else f'https://github.com/gladcolor/{r}.git'
+        subprocess.run(['git', '-C', str(ROOT / r), 'remote', 'set-url', 'origin', url], check=True)
     env = dict(os.environ, MOSS_8B='1' if args.model == '8b' else '0', PYTHONUNBUFFERED='1')
     log = open(ROOT / 'worker.out', 'a')
-    proc = subprocess.Popen([sys.executable, str(TOOLS / 'tts_worker.py'), 'run', '--loop', '--no-push', '--config', str(cfgp)],
+    proc = subprocess.Popen([sys.executable, str(TOOLS / 'tts_worker.py'), 'run', '--loop', '--config', str(cfgp)]
+                            + ([] if tok else ['--no-push']),
                             cwd=str(TOOLS), env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
     (ROOT / 'worker.pid').write_text(str(proc.pid))
     print(f'worker started (pid {proc.pid}, model {args.model}); log: {ROOT}/worker.log and worker.out', flush=True)
