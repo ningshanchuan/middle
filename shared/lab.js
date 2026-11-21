@@ -366,6 +366,9 @@
   // Pages that read texts one after another (poem lines, whole-poem units, passages …) list every such text here, so the
   // read-aloud crawler records all of them without stepping through the page: Lab.readAll(() => [[text, lang], …]).
   // The texts must be exactly the strings the page passes to Lab.speak / speechSynthesis.
+  // Optional third item: reading style for the recordings, e.g. [text, 'zh', {style:'verse', work:'黄鹤楼'}]
+  // (style: 'verse' 诗词曲 originals, 'wenyan' 文言文 originals, 'prose' 白话 literary originals; none for explanations).
+  // On-demand texts get the same from the nearest element with data-read-style (+ data-work).
   const readAllFns = [];
   Lab.readAll = fn => { if (typeof fn === 'function') readAllFns.push(fn); };
   Lab.readAllTexts = () => readAllFns.flatMap(f => { try { return (f() || []).filter(x => x && x[0]); } catch(e){ return []; } });
@@ -510,6 +513,26 @@
     const CLICKY = 'button,a[href],[role=button],[role=tab],[onclick],[data-k],[data-key],[data-i],[data-idx],[data-n],[data-id],[data-l],[data-step],.chip,.tab,.pill,.opt,.yc';
     const zhOf = t => { const han = (t.match(/\p{Script=Han}/gu) || []).length, lat = (t.match(/[A-Za-z]/g) || []).length; return han > 0 && han * 3 >= lat; };
     // the text exactly as it is read: no pinyin, no buttons, no emoji; maths as words where the step-player helper is loaded
+    // text as laid out: words shown side by side in separate boxes (flex items, chips, tiles …) keep a space between
+    // them ("Me gusta leer", not "Megustaleer"); Chinese characters are never split by spaces
+    const SKIPT = 'rt,rp,.py,button,.speak,.say,script,style,svg,canvas,[aria-hidden=true],.katex-mathml';
+    const wordCh = ch => /[\p{L}\p{N}]/u.test(ch) && !/\p{Script=Han}/u.test(ch);
+    const laidOut = root => {
+      let out = '', brk = false;
+      const put = s => { if (!s) return; if (brk && out && wordCh(out.slice(-1)) && wordCh(s.trimStart().charAt(0))) out += ' '; brk = false; out += s; };
+      const walk = n => {
+        for (const ch of n.childNodes){
+          if (ch.nodeType === 3){ put(ch.nodeValue); continue; }
+          if (ch.nodeType !== 1 || ch.matches(SKIPT)) continue;
+          const d = getComputedStyle(ch).display, blockish = d !== 'inline' && d !== 'contents';
+          if (blockish) brk = true;
+          walk(ch);
+          if (blockish) brk = true;
+        }
+      };
+      walk(root);
+      return out;
+    };
     const textOf = el => {
       if (el.matches('.memory,.mix')) return Lab.mixText(el);
       const c = el.cloneNode(true);
@@ -521,7 +544,7 @@
         kx.forEach((k, i) => { const a = orig[i] && orig[i].querySelector('annotation'); k.replaceWith(a ? '$' + a.textContent + '$' : ''); });
         return mixFlat(MathAnim.spoken(mixFlat(c.textContent), zhOf(c.textContent) || Lab.lang === 'zh'));
       }
-      return mixFlat(c.textContent.replace(/[\p{Extended_Pictographic}️‍☆★✓✔✗✘●○◆◇■□▶◀►◄]/gu, ' '));   // emoji and decorative marks (☆ ✓ ● ▶ …)
+      return mixFlat(laidOut(el).replace(/[\p{Extended_Pictographic}️‍☆★✓✔✗✘●○◆◇■□▶◀►◄]/gu, ' '));   // emoji and decorative marks (☆ ✓ ● ▶ …)
     };
     const worth = t => (t.match(/\p{Script=Han}/gu) || []).length >= 2 || (t.match(/[A-Za-z]{2,}/g) || []).length >= 2;
     const vis = el => el.isConnected && el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
@@ -612,7 +635,8 @@
       for (const el of document.querySelectorAll(BLOCK)){
         if (el.closest(NO) || !vis(el)) continue;
         const u = units(el); if (!u) continue;
-        for (const p of u.parts){ const k = u.lang + '|' + p; if (!seen.has(k)){ seen.add(k); out.push([p, u.lang]); } }
+        const sty = el.closest('[data-read-style]'), meta = sty ? { style: sty.dataset.readStyle, work: sty.dataset.work || undefined } : null;
+        for (const p of u.parts){ const k = u.lang + '|' + p; if (!seen.has(k)){ seen.add(k); out.push(meta ? [p, u.lang, meta] : [p, u.lang]); } }
       }
       return out;
     };
