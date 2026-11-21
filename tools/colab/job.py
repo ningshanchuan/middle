@@ -8,11 +8,10 @@ def get(name):
     subprocess.run(['curl', '-sfH', 'Accept: application/vnd.github.raw', '-o', name,
                     f'https://api.github.com/repos/ningshanchuan/middle/contents/tools/colab/{name}'], check=True)
 
-# SGLang-Omni test, step 1: install it in its own venv in the background (the worker keeps recording), then 20 minutes
-# of worker progress, then the install log
-JOBS = [['colab_sglang.py', '--setup'],
-        ['colab_watch.py', '20'],
-        ['colab_sglang.py', '--status']]
+# SGLang-Omni test, step 2: pause the worker, serve the 8B with SGLang-Omni, record math/expressions + math/ratios with
+# the same rules and checks as the worker (16 requests in flight), print RESULT / COMPARE, restart the worker
+get('colab_worker.py')
+JOBS = [['colab_sglang.py', '--bench', 'math/expressions,math/ratios', '--conc', '16']]
 import traceback
 for JOB in JOBS:
     get(JOB[0])
