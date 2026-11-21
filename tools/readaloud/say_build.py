@@ -19,8 +19,17 @@ def cover(a, b):
 WORD = re.compile(r"[A-Za-z]+")
 
 
+UNITS = {'km', 'cm', 'mm', 'kg', 'mg', 'ml', 'kwh', 'kw', 'kj', 'hz', 'khz', 'mhz', 'ghz', 'pa', 'kpa', 'mph', 'ft', 'lb', 'lbs', 'oz',
+         'mi', 'yd', 'au', 'mbit', 'kbit', 'gbit', 'kb', 'mb', 'gb', 'tb', 'utc', 'bce', 'ce', 'bc', 'ad', 'mins', 'min', 'hr', 'hrs', 'sec'}
+
+
+def _words(t):
+    t = t.replace("'", '').replace('’', '')        # Dont / Don't / Don’t compare equal
+    return [w.lower() for w in WORD.findall(t) if len(w) > 1 and w.lower() not in UNITS]
+
+
 def cover_en(a, b):
-    a = [w.lower() for w in WORD.findall(a)]; b = [w.lower() for w in WORD.findall(b)]
+    a = _words(a); b = _words(b)
     m = difflib.SequenceMatcher(None, a, b, autojunk=False)
     return sum(x.size for x in m.get_matching_blocks()) / max(len(a), 1)
 
@@ -33,7 +42,7 @@ def all_han(a, b):
 
 
 say, bad = {}, []
-for chk in sorted(glob.glob(os.path.join(done, '[bce]*.chk.jsonl'))):
+for chk in sorted(glob.glob(os.path.join(done, '*.chk.jsonl'))):
     src = {json.loads(l)['key']: json.loads(l) for l in open(chk.replace('.chk.jsonl', '.jsonl'), encoding='utf-8') if l.strip()}
     for l in open(chk, encoding='utf-8'):
         if not l.strip():
