@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>引擎试听 · Genius Classroom</title>
+<style>
+/* Temporary listening page: the same sentence recorded by several TTS engines / settings, side by side.
+   Data: ?d=<base url of a folder with index.json> (default: gc-audio-lang-math/_listen/engines/).
+   index.json = {title, rows:[{lesson,key,send,target,takes:{name:{src,sec,pace,tries,ok}}}]} */
+:root{--bg:#f6f7f5;--panel:#fff;--fg:#1d2420;--muted:#5f6b64;--line:#dfe4e0;--accent:#2f6f5e;--ok:#3b8a5a;--bad:#b4532a}
+@media (prefers-color-scheme:dark){:root{--bg:#141917;--panel:#1c2320;--fg:#e4ebe7;--muted:#9aa8a0;--line:#2e3833;--accent:#7cc4ad;--ok:#7fcf9c;--bad:#e8875a;color-scheme:dark}}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 "PingFang SC","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif}
+.wrap{max-width:980px;margin:0 auto;padding:28px 16px 60px}
+h1{font-size:1.5rem;margin:0 0 6px}
+.lead{color:var(--muted);margin:0 0 16px;max-width:72ch}
+.list{display:grid;gap:14px}
+.row{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;gap:10px;min-width:0}
+.txt{margin:0;overflow-wrap:anywhere}
+.hd{font-size:.8rem;color:var(--muted)}
+.takes{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+.take{border:1px solid var(--line);border-radius:8px;padding:8px 10px;display:grid;gap:4px;min-width:0}
+.take b{font-size:.88rem}
+.take small{color:var(--muted);font-variant-numeric:tabular-nums}
+.take small.ok{color:var(--ok)} .take small.bad{color:var(--bad)}
+audio{width:100%;height:34px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 id="h1">引擎试听</h1>
+  <p class="lead">同一句话，用不同的语音引擎和设置录制，都是 Serena 声音、同一套朗读规则。每条下面是时长、语速（字/秒，对照目标）和尝试次数。</p>
+  <div class="list" id="list">载入中……</div>
+</div>
+<script>
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const base = (new URLSearchParams(location.search).get('d') || 'https://gladcolor.github.io/gc-audio-lang-math/_listen/engines/').replace(/[^\w:\/.\-]/g, '');
+document.addEventListener('play', e => document.querySelectorAll('audio').forEach(a => { if (a !== e.target) a.pause(); }), true);
+fetch(base + 'index.json', {cache:'no-store'}).then(r => r.json()).then(d => {
+  if (d.title) document.getElementById('h1').textContent = d.title;
+  const rows = d.rows.filter(r => Object.keys(r.takes).length > 1).sort((a, b) => b.send.length - a.send.length);
+  document.getElementById('list').innerHTML = rows.map(r => `
+    <article class="row">
+      <div class="hd">${esc(r.lesson)} · 目标语速 ${esc(r.target ?? '—')}</div>
+      <p class="txt">${esc(r.send)}</p>
+      <div class="takes">${Object.entries(r.takes).map(([n, t]) => `
+        <div class="take"><b>${esc(n)}</b>
+          <audio controls preload="none" src="${esc(base + t.src)}"></audio>
+          <small class="${t.ok ? 'ok' : 'bad'}">${esc(t.sec)} 秒 · ${esc(t.pace)} 字/秒 · 试了 ${esc(t.tries)} 次${t.ok ? '' : ' · 未达标'}</small>
+        </div>`).join('')}</div>
+    </article>`).join('');
+}).catch(() => { document.getElementById('list').textContent = '还没有数据：' + base + 'index.json'; });
+</script>
+</body>
+</html>
