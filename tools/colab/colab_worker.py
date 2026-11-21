@@ -149,8 +149,20 @@ if args.bundle_loop:
     # "录完一课，推送一课" (the user): every minute, new lesson commits -> a bundle the browser downloads at once; the
     # content PC pushes it. A bundle already offered is not offered again: the next one starts where GitHub is after the
     # content PC's push (git fetch); until then, unpushed commits are re-offered at most every 10 minutes.
-    last = {}
+    last = {}; seen_log = 0
+    def echo_log():
+        """print the worker log's new key lines (lessons finished, errors) so they can be read outside the notebook"""
+        global seen_log
+        p = ROOT / 'worker.log'
+        if not p.exists():
+            return
+        lines = p.read_text(errors='replace').splitlines()
+        new, seen_log = lines[seen_log:], len(lines)
+        keys = re.compile(r'finished|commit|error|Error|Traceback|failed|OOM|dead|lesson|pass|left|missing', re.I)
+        for ln in [l for l in new if keys.search(l)][-12:]:
+            print('  log:', ln[:200], flush=True)
     while True:
+        echo_log()
         heads = {r: subprocess.run(f'cd {ROOT / r} && git rev-parse HEAD', shell=True, capture_output=True, text=True).stdout.strip()
                  for r in REPOS if (ROOT / r / '.git').exists()}
         if heads != last.get('heads') or time.time() - last.get('t', 0) > 600:
