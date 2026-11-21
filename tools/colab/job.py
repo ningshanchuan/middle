@@ -18,5 +18,4 @@ try:
 except BaseException:
     tb = traceback.format_exc()
     open('/content/job_error.txt', 'w').write(tb)
-    print('JOB FAILED (plain text so it can be read):
-' + tb[-3000:], flush=True)
+    print('JOB FAILED (plain text so it can be read):', tb[-3000:], sep='\n', flush=True)
