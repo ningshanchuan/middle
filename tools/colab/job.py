@@ -8,7 +8,7 @@ def get(name):
     subprocess.run(['curl', '-sfH', 'Accept: application/vnd.github.raw', '-o', name,
                     f'https://api.github.com/repos/ningshanchuan/middle/contents/tools/colab/{name}'], check=True)
 
-JOB = ['colab_worker.py', '--start', '--status', '--model', '8b', '--langs', 'zh']   # keep recording (no push until GH_TOKEN is in Colab Secrets) + counts
+JOB = ['colab_qa.py']   # QA scan of the 8B clips recorded so far (the worker keeps running)
 get(JOB[0])
 sys.argv = JOB
 print('job:', ' '.join(JOB), flush=True)
