@@ -15,6 +15,7 @@ ap.add_argument('--bundle-loop', action='store_true', help='bundle + download ne
 ap.add_argument('--push', action='store_true', help='push each lesson straight to GitHub with GH_TOKEN from Colab Secrets')
 ap.add_argument('--restart', action='store_true', help='stop the running worker, then --start')
 ap.add_argument('--langs', default='zh')
+ap.add_argument('--sglang', type=int, default=0, help='serve the 8B with SGLang-Omni (/content/sgl venv), this many requests in flight')
 args, _ = ap.parse_known_args()
 ROOT = Path('/content/gc-audio'); ROOT.mkdir(exist_ok=True)
 REPOS = ['gc-audio-science', 'gc-audio-humanities', 'gc-audio-lang-math']
@@ -123,12 +124,13 @@ def prepare():
         w = w.replace('\nif __name__ == "__main__":', '\n' + SAY_PATCH + '\n\nif __name__ == "__main__":', 1)
         (TOOLS / 'tts_worker.py').write_text(w, encoding='utf-8')
     m = (TOOLS / 'moss_engine.py').read_text(encoding='utf-8')
-    if 'COLAB PATCH v2' not in m:
+    if 'COLAB PATCH v3' not in m:
         m = m.split('\n\n# ---------------------------------------------------------------- COLAB PATCH')[0]   # drop an older patch
         m += '''
 
-# ---------------------------------------------------------------- COLAB PATCH v2 (content PC): Hugging Face ids, the 8B,
-# and bigger batches on the A100 (40 GB): a batch that runs out of GPU memory is split in two and generated again
+# ---------------------------------------------------------------- COLAB PATCH v3 (content PC): Hugging Face ids, the 8B,
+# bigger batches on the A100 (40 GB): a batch that runs out of GPU memory is split in two and generated again;
+# with MOSS_SGLANG=1 the 8B is served by SGLang-Omni (localhost:8000) and a batch is sent as concurrent requests
 import os as _os
 _MOSS8B = _os.environ.get("MOSS_8B") == "1"
 _Moss = Moss
@@ -197,6 +199,52 @@ class Moss(_Moss):
                                 "-ar", "24000", "-f", "s16le", "pipe:1"], input=wav.astype("<f4").tobytes(), capture_output=True)
             pcms.append(r.stdout if r.returncode == 0 and r.stdout else None)
         return pcms
+
+
+if _os.environ.get("MOSS_SGLANG") == "1":
+    import io as _io, json as _json, urllib.request as _ur, wave as _wave
+    from concurrent.futures import ThreadPoolExecutor as _TPE
+
+    class Moss:                                          # noqa: F811  (same interface, served by SGLang-Omni)
+        URL = "http://127.0.0.1:8000/v1/audio/speech"
+
+        def __init__(self, *, model=MODEL, codec=CODEC, refs=REFS, ffmpeg=None):
+            ff = ffmpeg or "ffmpeg"
+            texts = _json.loads((Path(refs) / "refs.json").read_text(encoding="utf-8"))
+            self.refs, d = {}, Path("/content/sgl_refs")
+            d.mkdir(exist_ok=True)
+            for k, f in {"poem": "serena_zh_poem", "explain": "serena_zh_explain", "en": "serena_en_explain"}.items():
+                w = d / f"{f}.wav"
+                if not w.exists():
+                    subprocess.run([ff, "-v", "error", "-y", "-i", str(Path(refs) / f"{f}.mp3"), "-ac", "1", "-ar", "24000", str(w)], check=True)
+                self.refs[k] = (str(w), texts[f]["text"])   # reference audio + its transcript (pace as on the HF path)
+
+        def _one(self, it, ffmpeg):
+            ref, rtext = self.refs[REF_KIND.get(it["kind"], it["kind"])]
+            sec = it["tokens"] / 12.5 + 5 if it.get("tokens") else 2 * expected_seconds(it["text"], it["lang"], it["kind"], it.get("pace")) + 10
+            body = dict(model="OpenMOSS-Team/MOSS-TTS-v1.5", voice="default", input=it["text"], ref_audio=ref, ref_text=rtext,
+                        language="Chinese" if it["lang"] == "zh" else "English",
+                        audio_temperature=GEN["audio_temperature"], audio_top_p=GEN["audio_top_p"], audio_top_k=GEN["audio_top_k"],
+                        audio_repetition_penalty=GEN.get("audio_repetition_penalty", 1.0),
+                        max_new_tokens=min(GEN["max_new_tokens"], int(sec * 12.5) + 25))
+            if it.get("tokens"):
+                body["token_count"] = int(it["tokens"])
+            try:
+                req = _ur.Request(self.URL, data=_json.dumps(body).encode("utf-8"), headers={"Content-Type": "application/json"})
+                raw = _ur.urlopen(req, timeout=900).read()
+                with _wave.open(_io.BytesIO(raw)) as w:
+                    sr, ch, pcm = w.getframerate(), w.getnchannels(), w.readframes(w.getnframes())
+                r = subprocess.run([ffmpeg, "-v", "error", "-f", "s16le", "-ar", str(sr), "-ac", str(ch), "-i", "pipe:0",
+                                    "-ac", "1", "-ar", "24000", "-f", "s16le", "pipe:1"], input=pcm, capture_output=True)
+                return r.stdout if r.returncode == 0 and r.stdout else None
+            except Exception as e:                       # noqa: BLE001
+                with open("/content/gc-audio/sgl_errors.txt", "a") as f:
+                    f.write(time.strftime("%H:%M:%S") + " " + str(e)[:200] + chr(10))
+                return None
+
+        def generate(self, items, ffmpeg):
+            with _TPE(max(1, len(items))) as ex:
+                return list(ex.map(lambda it: self._one(it, ffmpeg), items))
 '''
         (TOOLS / 'moss_engine.py').write_text(m, encoding='utf-8')
     # --- config: the TTS PC's MOSS config with Colab paths ---
@@ -208,6 +256,8 @@ class Moss(_Moss):
                        codec='' if is8 else 'OpenMOSS-Team/MOSS-Audio-Tokenizer-v2', refs=str(SRC / 'tools/moss/refs'),
                        moods=str(TOOLS / 'moods.proposed.json'), batch=16)
     cfg['batch_audio_s'] = 300                           # A100 40 GB (the TTS PC: 8 clips / 180 s for its 20 GB card)
+    if args.sglang:                                      # SGLang-Omni: a batch = concurrent requests to the server
+        cfg['moss']['batch'] = args.sglang; cfg['batch_audio_s'] = 40 * args.sglang
     p = ROOT / 'tts_config_colab.json'; p.write_text(json.dumps(cfg, ensure_ascii=False, indent=1), encoding='utf-8')
     return p
 
@@ -226,6 +276,13 @@ if args.restart:
             os.killpg(int(pidf.read_text()), 15); print('old worker stopped', flush=True); time.sleep(5)
         except OSError:
             pass
+    sp = ROOT / 'sgl.pid'
+    if sp.exists():
+        try:
+            os.killpg(int(sp.read_text()), 15); print('old SGLang server stopped', flush=True); time.sleep(15)
+        except OSError:
+            pass
+        sp.unlink()
     args.start = True
 
 if args.start:
@@ -237,6 +294,48 @@ if args.start:
         url = f'https://x-access-token:{tok}@github.com/gladcolor/{r}.git' if tok else f'https://github.com/gladcolor/{r}.git'
         subprocess.run(['git', '-C', str(ROOT / r), 'remote', 'set-url', 'origin', url], check=True)
     env = dict(os.environ, MOSS_8B='1' if args.model == '8b' else '0', PYTHONUNBUFFERED='1')
+    if args.sglang:
+        import urllib.request as ur
+        V = Path('/content/sgl'); yp = Path('/content/sgl_moss_worker.yaml')
+        n = args.sglang
+        yp.write_text(f"""config_cls: MossTTSSingleProcessPipelineConfig
+model_path: OpenMOSS-Team/MOSS-TTS-v1.5
+
+stages:
+  preprocessing:
+    factory:
+      device: cpu
+      compute_dtype: bfloat16
+      max_concurrency: {n}
+
+  tts_engine:
+    engine:
+      max_running_requests: {n}
+      mem_fraction_static: 0.75
+      cuda_graph_max_bs: {n}
+
+  vocoder:
+    factory:
+      dtype: bfloat16
+      max_batch_size: {n}
+      max_batch_wait_ms: 5
+""")
+        srv = subprocess.Popen([str(V / 'bin/sgl-omni'), 'serve', '--model-path', 'OpenMOSS-Team/MOSS-TTS-v1.5', '--config', str(yp),
+                                '--port', '8000'], stdout=open('/content/sgl_server.log', 'w'), stderr=subprocess.STDOUT,
+                               start_new_session=True, env=dict(os.environ, PATH=f"{V}/bin:" + os.environ['PATH']))
+        (ROOT / 'sgl.pid').write_text(str(srv.pid))
+        t0, up = time.time(), False
+        while time.time() - t0 < 1500 and srv.poll() is None and not up:
+            time.sleep(10)
+            try:
+                up = ur.urlopen('http://127.0.0.1:8000/health', timeout=5).status == 200
+            except Exception:                            # noqa: BLE001
+                pass
+        if not up:
+            tail = Path('/content/sgl_server.log').read_text(errors='replace').splitlines()[-25:]
+            raise SystemExit('SGLang server did not start:' + chr(10) + chr(10).join(tail))
+        print(f'SGLang server up in {time.time() - t0:.0f}s ({n} in flight)', flush=True)
+        env['MOSS_SGLANG'] = '1'
     log = open(ROOT / 'worker.out', 'a')
     proc = subprocess.Popen([sys.executable, str(TOOLS / 'tts_worker.py'), 'run', '--loop', '--config', str(cfgp)]
                             + ([] if tok else ['--no-push']),

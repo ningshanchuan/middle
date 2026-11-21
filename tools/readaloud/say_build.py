@@ -23,7 +23,7 @@ def all_han(a, b):
 
 
 say, bad = {}, []
-for chk in sorted(glob.glob(os.path.join(done, 'b*.chk.jsonl'))):
+for chk in sorted(glob.glob(os.path.join(done, '[bc]*.chk.jsonl'))):
     src = {json.loads(l)['key']: json.loads(l) for l in open(chk.replace('.chk.jsonl', '.jsonl'), encoding='utf-8') if l.strip()}
     for l in open(chk, encoding='utf-8'):
         if not l.strip():
