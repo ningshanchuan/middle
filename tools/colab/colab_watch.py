@@ -23,6 +23,10 @@ while time.time() - start < mins * 60:
         print('  log:', ln[:200], flush=True)
     peak = (ROOT / 'gpu_peak.txt').read_text().strip() if (ROOT / 'gpu_peak.txt').exists() else 'no batch yet'
     oom = len((ROOT / 'gpu_oom.txt').read_text().splitlines()) if (ROOT / 'gpu_oom.txt').exists() else 0
+    se = ROOT / 'sgl_errors.txt'
+    if se.exists():
+        el = se.read_text(errors='replace').splitlines()
+        peak = f"{peak} | SGLang request errors {len(el)}" + (f" (last: {el[-1][:80]})" if el else '')
     alive = True
     try:
         os.kill(int((ROOT / 'worker.pid').read_text()), 0)
