@@ -71,3 +71,10 @@ text aloud. Same words, same order, same meaning; only things a voice cannot rea
 - About 365¼ days → About three hundred sixty-five and a quarter days
 - UTC−4. This time zone is 4 hours behind UTC → U T C minus four. This time zone is four hours behind U T C
 - Population density: about 389 people/km² → Population density: about three hundred eighty-nine people per square kilometer
+
+## Additions (TTS PC review, 2026-11-21)
+- Money: $15 → fifteen dollars; $3.50 → three dollars and fifty cents; ¥20 → twenty yuan; € euros; £ pounds
+- More symbols: ± plus or minus, ∞ infinity, ⊥ is perpendicular to, ∥ is parallel to, ∴ therefore, ‰ per mille, 10⁻⁹ → ten to the negative ninth, ³√8 → the cube root of eight, f(x) → f of x
+- Chemical equations: → yields, ⇌ is in equilibrium with, ↑ ↓ (gas, precipitate) not read; coefficients 2H₂O → two H two O; △ over an arrow → "heated", in geometry "triangle"
+- e.g. → for example; i.e. → that is; vs. → versus; etc. → et cetera
+- No square brackets [ ] in a script (the voice system reads them as markup); keep sentence-final . ! ? (pauses go after them); do not join sentences with commas

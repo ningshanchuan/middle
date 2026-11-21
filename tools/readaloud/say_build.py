@@ -7,7 +7,7 @@ import datetime, difflib, glob, hashlib, json, os, re, sys
 done, corpus = sys.argv[1], sys.argv[2]
 LANG = sys.argv[3] if len(sys.argv) > 3 else 'zh'          # zh or en
 HAN = re.compile(r'[一-鿿]')
-LEFT = re.compile(r'[0-9/+=×÷%°℃²³⁰¹⁴⁵⁶⁷⁸⁹⁺⁻½¼¾⅓|∠_<>≈≤≥]')
+LEFT = re.compile(r'[0-9/+=×÷%°℃²³⁰¹⁴⁵⁶⁷⁸⁹⁺⁻½¼¾⅓|∠_<>≈≤≥₀-₉√±∞→⇌△‰$€£¥\[\]【】]')
 
 
 def cover(a, b):
@@ -67,6 +67,8 @@ for chk in sorted(glob.glob(os.path.join(done, '*.chk.jsonl'))):
         txt = re.sub(r'\s+', ' ', o['say']).strip()
         send = CREDIT_SEND.sub('', s['send'])            # photo credits are not read at all (the user, 2026-11-21)
         txt = CREDIT_SAY.sub('', txt).strip()
+        if LANG == 'zh':
+            txt = txt.replace('〇', '零')               # years: 零 not 〇 (the voice may not read 〇; TTS PC, #12)
         if not txt:
             continue                                     # the clip is only a credit: nothing to record
         if LANG == 'en':
