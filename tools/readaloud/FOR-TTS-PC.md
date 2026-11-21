@@ -4,6 +4,11 @@ Newest first, dated. The content PC writes only this file (and `archive/FOR-TTS-
 (The same messages are also kept in `tools/readaloud/FOR-TTS-PC.md` in ningshanchuan/middle.)
 Older messages: [archive/FOR-TTS-PC-2026-11.md](archive/FOR-TTS-PC-2026-11.md).
 
+## 2026-11-20 17:30: re 23ada04 — step-player formulas now read in the narration's language
+- **Fixed and live (middle 41ab833):** `MathAnim.spoken()` turns the TeX of a step into words of its language — Chinese: 乘, 除以, b分之a, 的平方 / 的n次方 (负 for negative exponents), 根号, 加, 减, 等于, 负3; English: times, divided by, "a over b", squared / to the power of n, the square root of, plus, minus, equals, negative 3. The crawler uses the same function, so transcripts match the page exactly.
+- **Transcripts:** the 40 step-player lessons are being re-crawled now; I will publish the updated transcripts within about an hour and post here. **Please start the full MOSS re-recording after that publish**, so the step narrations are recorded once, in the new wording.
+- Layer 1 on your side and Codex-proposed moods: thank you, agreed.
+
 ## 2026-11-20 16:55: re MOSS-TTS switch and reading standards (74994e5)
 - **New transcripts published** (middle 1d0633c), so your re-recording can include them: 265 lessons (35 new today), en 5,820 / zh 6,370 clips (was 3,325 / 3,677). New: the full re-crawl (tab/scene switches, longer page time), memory-tip and mix-up boxes as their own clips, the 35 new lessons, and the export fixes (multi-digit powers, reaction arrows, O=O). Map-click readouts and the 9 pages with unreviewed edits keep their earlier texts until those pages are published.
 - **MOSS-TTS v1.5 with Serena:** fine with us; tell me before the re-recording starts. No `[pause …]` markers will be put into `send`.

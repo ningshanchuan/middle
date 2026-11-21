@@ -25,13 +25,48 @@
 <script src="../shared/photos.js"></script>
 <style>
 .explore-stage{aspect-ratio:4/3}
-.readout{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.readout{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;overflow-wrap:anywhere}
 .readout div{background:var(--surface-2);border-radius:12px;padding:8px 6px;text-align:center}
 .readout b{display:block;font-family:Fredoka;font-size:23px}
 .readout span{font-size:12px;font-weight:800;color:var(--ink-2)}
 .legend2{display:flex;flex-wrap:wrap;gap:12px;font-size:13px;font-weight:800;color:var(--ink-2)}
 .legend2 i{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:5px;vertical-align:-1px}
-#ex2Out{font-size:clamp(17px,2.1vw,24px)}
+#ex2Out{font-size:clamp(17px,2.1vw,24px);overflow-x:auto}
+#lesson .ma-player :is(button,select),#explore .btn,#histo .btn{min-height:44px}
+#explore .ctl,#histo .ctl{min-width:0}
+.stat-links{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:14px;font-size:.92rem;font-weight:800}
+.stat-links a,.stat-detail a{color:var(--brand);text-decoration:underline;text-underline-offset:3px}
+:is(#weighted,#grouped,#quartiles,#compare){scroll-margin-top:60px}
+.stat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:14px}
+.stat-card{display:grid;min-width:0;gap:12px;padding:16px}
+.stat-card h3,.stat-card p,.stat-card figure,.stat-detail p{margin:0}
+:is(#weighted,#grouped,#quartiles,#compare) .btn{min-height:44px}
+.sec-head [data-stat-read]{margin-top:8px}
+.stat-slider{display:grid;gap:2px;font-size:.92rem;font-weight:800}
+.stat-slider input{width:100%;min-height:44px;margin:0;accent-color:var(--brand)}
+.stat-slider output{font-variant-numeric:tabular-nums}
+.stat-shares{display:flex;height:12px;overflow:hidden;border-radius:999px;background:var(--surface-2)}
+.stat-a{background:#216f9f;color:white}.stat-b{background:#a45335;color:white}
+.stat-formula{max-width:100%;overflow-x:auto;padding:6px 2px;text-align:center;font-size:clamp(.95rem,2vw,1.12rem)}
+.stat-formula .katex{font-size:1em}
+.stat-table-scroll{max-width:100%;overflow-x:auto}
+.stat-table{width:100%;border-collapse:collapse;text-align:center;font-size:.9rem;font-variant-numeric:tabular-nums}
+.stat-table th,.stat-table td{padding:6px;border-bottom:1px solid var(--line)}
+.stat-table td,.stat-table tbody th{white-space:nowrap}
+#quartiles .stat-table tbody th{white-space:normal;text-align:left}
+.stat-table .is-current{background:var(--surface-2);font-weight:800}
+.stat-chart{display:block;width:100%;height:auto;color:var(--ink);font:700 14px Nunito,sans-serif}
+.stat-chart text{fill:currentColor}
+.stat-chart .axis{stroke:var(--ink-2);stroke-width:1}
+.stat-chart .guide{stroke:var(--line);stroke-width:1}
+.stat-detail[open] summary{margin-bottom:10px}
+.stat-detail p+p{margin-top:8px}
+.stat-quartiles{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-weight:800}
+.stat-quartiles span{padding:5px 9px;border-radius:8px;background:var(--surface-2)}
+.stat-quartiles .stat-median{background:var(--brand);color:white}
+.stat-quartiles .stat-box{fill:var(--surface-2);stroke:var(--brand);stroke-width:2}
+.stat-checks .opt{min-height:44px}
+@media(max-width:740px){.stat-grid{grid-template-columns:minmax(0,1fr)}.stat-card{padding:14px}}
 </style>
 </head>
 <body data-subject="math" data-topic="statistics">
@@ -41,23 +76,35 @@
   <span class="eyebrow" data-zh="数学 · 6 年级数据与统计">Math · Grade 6 Data &amp; Statistics</span>
   <h1 data-zh-html="平均数、中位数与离散程度：数据的<em>中心</em>在哪里？">Mean, Median &amp; Spread: where is the <em>middle</em> of the data?</h1>
   <p class="lead"><b data-zh="你喜欢的球员五场比赛分别得了 12、15、8、40 和 10 分。怎样说他“一般”得多少分才公平？">Your favorite player scored 12, 15, 8, 40 and 10 points in five games. What is a fair way to say how many they “usually” score?</b> <span data-zh="一组数据有高有低，怎样用一个数说清楚“一般水平”？又怎样说清楚它们“散得有多开”？我们会把书堆推平、让数轴保持平衡，亲眼看到平均数和中位数从哪里来。">A set of data has highs and lows. How can one number describe the “typical” value, and another describe how spread out the data are? We will level stacks of books and balance a number line to see where the mean and median come from.</span></p>
+  <nav class="stat-links" aria-labelledby="stat-topic-links">
+    <b id="stat-topic-links" data-zh="数据分析">Data analysis</b>
+    <a href="#weighted" data-zh="加权平均数">Weighted mean</a>
+    <a href="#grouped" data-zh="频数分布表">Grouped frequencies</a>
+    <a href="#quartiles" data-zh="四分位数">Quartiles</a>
+    <a href="#compare" data-zh="平均数与方差">Mean and variance</a>
+  </nav>
 </header>
 
 <section class="wrap" id="lesson" data-nav="Animated lesson" data-nav-zh="动画讲解">
   <div class="ma-stage" id="stage" data-fs></div>
   <div id="player"></div>
   <div class="mix" style="margin-top:14px"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="求中位数之前一定要先排序！数据 7、2、9 的中位数是 7（排好后是 2、7、9），而不是写在中间的 2。另外，平均数和中位数不一定相等：有离群值时，平均数会被拉向离群值。">Always put the data in order before finding the median! For 7, 2, 9 the median is 7 (in order: 2, 7, 9), not the 2 that happens to sit in the middle of the list. And the mean and median are not always equal: an outlier drags the mean toward it.</span></div>
+  <details class="teacher stat-detail"><summary data-zh="开头的球员一般得多少分？">What was typical for the player at the top?</summary>
+    <p data-zh="五场共得 85 分，平均每场 17 分。把得分排成 8、10、12、15、40，中位数是 12 分。40 分这一场拉高了平均数；如果想描述大多数比赛的得分，12 分更能代表 8 到 15 分之间的那几场。">The five games total 85 points, so the mean is 17 points per game. Put the scores in order: 8, 10, 12, 15, 40. The median is 12 points. The 40-point game pulls up the mean. The median better describes the cluster from 8 to 15 points.</p>
+  </details>
+  <details class="teacher stat-detail"><summary data-zh="随堂测试">In-class check</summary><div id="lesson-check" class="stat-checks"></div></details>
 </section>
 
 <section class="wrap" id="explore" data-nav="Explore" data-nav-zh="动手探索">
   <div class="sec-head">
     <h2 data-zh="动手探索：拖动数据点">Explore: drag the data</h2>
-    <p data-zh="左右拖动圆点改变数据。黄色三角形是平均数（平衡点），青色线是中位数，下方是箱线图。试着把一个点拖到最右边，看看谁动得多：平均数还是中位数？">Drag the dots left and right to change the data. The yellow triangle is the mean (balance point), the teal line is the median, and the box plot sits underneath. Drag one dot far to the right: which moves more, the mean or the median?</p>
+    <p id="explore-intro" data-zh="左右拖动圆点改变数据。黄色三角形是平均数（平衡点），青色线是中位数，下方是箱线图。试着把最右边的点再往右拖，观察平均数和中位数各有什么变化。">Drag the dots left and right to change the data. The yellow triangle marks the mean, the teal line marks the median, and the box plot sits below. Drag the rightmost dot farther right and compare how the mean and median change.</p>
+    <button type="button" class="btn ghost" data-stat-read="explore-intro" data-zh="🔊 朗读">🔊 Read aloud</button>
   </div>
   <div class="ma-explore">
     <div class="ma-stage explore-stage" id="exStage" data-fs></div>
     <div class="card ctl">
-      <div class="lab-mode" style="align-self:flex-start"></div>
+              <div class="lab-mode" style="align-self:flex-start"></div>
       <div class="readout">
         <div><b id="oMean" style="color:#d49a1c">–</b><span data-zh="平均数">mean</span></div>
         <div><b id="oMed" style="color:#2aa98a">–</b><span data-zh="中位数">median</span></div>
@@ -83,9 +130,10 @@
         <b data-zh="进阶：众数、方差与标准差、离群值的判断">Advanced: mode, variance &amp; standard deviation, outlier fences</b>
         <div class="readout">
           <div><b id="oMode">–</b><span data-zh="众数">mode</span></div>
-          <div><b id="oVar" style="color:#d4508f">–</b><span data-zh="方差 s²">variance s²</span></div>
+        <div><b id="oVar" style="color:#d4508f">–</b><span data-zh="方差 s²">variance s²</span></div>
           <div><b id="oSD" style="color:#d4508f">–</b><span data-zh="标准差 s">std. dev. s</span></div>
         </div>
+        <p class="muted" style="margin:0" data-zh="出现次数最多且至少出现两次的数是众数。若多个数并列最多，它们都是众数。">A mode is a value that occurs most often and appears at least twice. Tied values can all be modes.</p>
         <div id="varOut" style="text-align:center;font-size:17px;overflow-x:auto"></div>
         <div id="fenceOut" class="muted" style="font-size:14px"></div>
         <label style="font-weight:700;font-size:14px"><input type="checkbox" id="devIn"> <span data-zh="显示每个点到平均数的距离（粉色）">Show each dot’s distance from the mean (pink)</span></label>
@@ -97,27 +145,188 @@
       </div>
     </div>
   </div>
+  <details class="teacher stat-detail"><summary data-zh="随堂测试">In-class check</summary><div id="explore-check" class="stat-checks"></div></details>
 </section>
 
 <section class="wrap" id="histo" data-nav="Histogram" data-nav-zh="直方图">
   <div class="sec-head">
     <h2 data-zh="动手探索：从点图到直方图">Explore: from dot plot to histogram</h2>
-    <p data-zh="数据多了，点图会很挤。直方图把数据按区间分组，每根柱子的高度就是落在这个区间里的数据个数（包含左端点，不含右端点）。改变组距，看看分布的形状怎样变得更清楚或更模糊。">With lots of data, a dot plot gets crowded. A histogram groups the data into intervals; each bar’s height counts the values in that interval (left end included, right end not). Change the bin width and see the shape of the distribution sharpen or blur.</p>
+    <p id="histo-intro" data-zh="数据多了，点图会很挤。这里的直方图把数据分成组距相同的区间。柱高表示各组的频数，每组含左端点，不含右端点。改变组距，看看哪些分布特征更容易看出来。">With lots of data, a dot plot can get crowded. This histogram groups values into intervals of equal width. Each bar shows the count in its interval, including the left endpoint and excluding the right. Change the bin width and see which features stand out.</p>
+    <button type="button" class="btn ghost" data-stat-read="histo-intro" data-zh="🔊 朗读">🔊 Read aloud</button>
   </div>
   <div class="ma-explore">
     <div class="ma-stage explore-stage" id="hStage" data-fs></div>
     <div class="card ctl">
       <div><b data-zh="数据集">Data set</b></div>
       <div class="btnrow">
-        <button class="btn ghost" data-ds="commute" data-zh="上学路上用时（分钟）">Minutes to get to school</button>
-        <button class="btn ghost" data-ds="scores" data-zh="测验成绩">Test scores</button>
+        <button class="btn ghost" data-ds="commute" aria-pressed="true" data-zh="上学路上用时（分钟）">Minutes to get to school</button>
+        <button class="btn ghost" data-ds="scores" aria-pressed="false" data-zh="测验成绩（分）">Test scores (points)</button>
       </div>
-      <div><b data-zh="组距">Bin width</b></div>
-      <div class="btnrow" id="bwRow"></div>
+      <div><b id="bin-width-label" data-zh="组距">Bin width</b></div>
+      <div class="btnrow" id="bwRow" role="group" aria-labelledby="bin-width-label"></div>
       <div class="ma-big" id="hOut"></div>
       <p class="muted" id="hMsg" style="margin:0"></p>
+      <p class="muted adv" data-zh="进阶：组距不同时，可用频数除以组距作为柱高，这样每根柱子的面积等于该组的频数。" style="margin:0">Advanced: with unequal bin widths, use frequency divided by width as the height so each bar’s area equals the frequency.</p>
     </div>
   </div>
+  <details class="teacher stat-detail"><summary data-zh="随堂测试">In-class check</summary><div id="histo-check" class="stat-checks"></div></details>
+</section>
+
+<section class="wrap" id="weighted" aria-labelledby="weighted-title">
+  <div class="sec-head">
+    <h2 id="weighted-title" data-zh="加权平均数">Weighted mean (jiāquán píngjūnshù)</h2>
+    <p id="weighted-intro" data-zh="两项成绩分别是 70 分和 90 分。如果第二项占的比重更大，最后的成绩会怎样？用滑块改变各项的权。把每个数值乘以它的权，再用乘积之和除以权的总和。">Two scores are 70 and 90 points. What happens if the second score counts more? Use the sliders to change the weights. Multiply each score by its weight, then divide the sum of the products by the total weight.</p>
+    <button type="button" class="btn ghost" data-stat-read="weighted-intro" data-zh="🔊 朗读">🔊 Read aloud</button>
+  </div>
+  <div class="stat-grid">
+    <div class="card stat-card">
+      <div class="btnrow">
+        <button type="button" class="btn" data-weight-case="grades" aria-pressed="true" data-zh="课程成绩">Course grades</button>
+        <button type="button" class="btn ghost" data-weight-case="groceries" aria-pressed="false" data-zh="混合购买">Mixed purchase</button>
+      </div>
+      <label class="stat-slider"><span><span id="weight-name-a"></span> · <output id="weight-value-a" for="weight-a"></output></span><input id="weight-a" type="range" min="0" max="5" value="1" aria-labelledby="weight-name-a"></label>
+      <label class="stat-slider"><span><span id="weight-name-b"></span> · <output id="weight-value-b" for="weight-b"></output></span><input id="weight-b" type="range" min="0" max="5" value="3" aria-labelledby="weight-name-b"></label>
+    </div>
+    <div class="card stat-card">
+      <h3 data-zh="两项各占多大比重？">How much does each part count?</h3>
+      <div class="stat-shares" aria-hidden="true"><span id="weight-share-a" class="stat-a"></span><span id="weight-share-b" class="stat-b"></span></div>
+      <p id="weight-shares-label" class="muted"></p>
+      <div class="stat-formula" id="weight-rule" data-nopy></div>
+      <div class="ma-big stat-formula" id="weight-calc" data-nopy></div>
+      <p id="weight-context" class="muted"></p>
+    </div>
+  </div>
+  <details class="teacher stat-detail"><summary data-zh="随堂测试与练习">In-class check and practice</summary>
+    <div id="weighted-check" class="stat-checks"></div>
+    <details class="teacher stat-detail"><summary data-zh="练习：反求权">Practice: work backward to find a weight</summary>
+      <p data-zh="已知：两项成绩分别为 70 分和 90 分，加权平均数为 86 分。求：90 分这一项占总权重的百分比。">Two scores are 70 and 90 points. The weighted mean is 86 points. What percentage of the total weight goes to the score of 90?</p>
+      <details class="teacher stat-detail"><summary data-zh="查看步骤">Show steps</summary>
+        <p data-zh="解：从 70 分到 90 分相差 20 分，86 分比 70 分高 16 分，所求比重为 16 ÷ 20＝80%。答：90 分这一项占总权重的 80%。">The gap from 70 to 90 is 20 points. Since 86 is 16 points above 70, the weight on the 90-point score is 16 ÷ 20 = 80%.</p>
+      </details>
+    </details>
+  </details>
+</section>
+
+<section class="wrap" id="grouped" aria-labelledby="grouped-title">
+  <div class="sec-head">
+    <h2 id="grouped-title" data-zh="频数分布表与平均数估计">Grouped frequencies and an estimated mean</h2>
+    <p id="grouped-intro" data-zh="把十次步行用时分到组距相同的区间。每组含下界，不含上界。每根柱子从本组下界画到上界，高度是该组的频数。只知道各组频数时，用组中值代表组内数据来估计平均数。">Group ten walking times into equal-width intervals. Each interval includes its lower boundary and excludes its upper boundary. Draw a bar between those boundaries, with height equal to the frequency. Use the midpoint of each class to estimate the mean when only the frequencies are known.</p>
+    <button type="button" class="btn ghost" data-stat-read="grouped-intro" data-zh="🔊 朗读">🔊 Read aloud</button>
+  </div>
+  <div class="stat-grid">
+    <div class="card stat-card">
+      <figure aria-labelledby="group-chart-label">
+        <figcaption id="group-chart-label" data-zh="纵轴：频数 · 横轴：步行用时（分钟）">Vertical: frequency · horizontal: walking time (min)</figcaption>
+        <svg id="group-chart" class="stat-chart" viewBox="0 0 360 184" aria-hidden="true"></svg>
+      </figure>
+      <label class="stat-slider"><span><span data-zh="第十次用时（分钟）">Tenth time (min)</span> · <output id="group-time-value" for="group-time"></output></span><input id="group-time" type="range" min="10" max="29" value="20"></label>
+      <p id="group-active" class="muted"></p>
+    </div>
+    <div class="card stat-card">
+      <div class="stat-table-scroll">
+        <table class="stat-table">
+          <thead><tr><th scope="col" data-zh="组别（分钟）">Class interval (min)</th><th scope="col" data-zh="频数">Frequency</th><th scope="col" data-zh="组中值（分钟）">Midpoint (min)</th></tr></thead>
+          <tbody id="group-rows"></tbody>
+        </table>
+      </div>
+      <p data-zh="先求组中值：（下界＋上界）÷ 2。再以各组频数为权，求组中值的加权平均数。">First find each midpoint by averaging its two boundaries. Then take the weighted mean of the midpoints, using the frequencies as weights.</p>
+      <div class="ma-big stat-formula" id="group-calc" data-nopy></div>
+      <p id="group-estimate"></p>
+    </div>
+  </div>
+  <details class="teacher stat-detail"><summary data-zh="查看原始数据与准确平均数">Show the raw data and exact mean</summary>
+    <p id="group-raw" data-nopy></p>
+    <div id="group-exact" class="stat-formula" data-nopy></div>
+    <p id="group-exact-label"></p>
+    <p data-zh="试把第十次用时从 20 分钟调到 21 分钟。频数和估计值不变，实际平均数却变了。">Try moving the tenth time from 20 to 21 minutes. The frequencies and estimate stay the same, while the exact mean changes.</p>
+  </details>
+  <details class="teacher stat-detail"><summary data-zh="随堂测试与练习">In-class check and practice</summary>
+    <div id="grouped-check" class="stat-checks"></div>
+    <details class="teacher stat-detail"><summary data-zh="练习：从频数表反求频数">Practice: find a missing frequency</summary>
+      <p data-zh="步行用时分为［10，20）和［20，30）分钟两组。第一组有 4 次，用组中值算出的平均用时正好是 21 分钟。第二组有几次？">Walking times fall into [10, 20) and [20, 30) minutes. Four walks fall in the first interval. Using the midpoints gives a mean of exactly 21 minutes. How many walks fall in the second interval?</p>
+      <details class="teacher stat-detail"><summary data-zh="查看步骤">Show steps</summary>
+        <p data-zh="两个组中值分别是 15 和 25 分钟。21 分钟比 15 分钟多 6 分钟，占组中值之差的 6 ÷ 10 = 60%。所以第一组占 40%，总次数为 4 ÷ 40% = 10，第二组有 6 次。">The midpoints are 15 and 25 minutes. The estimate is 6 minutes above 15, or 6 ÷ 10 = 60% of the way to 25. The first class therefore accounts for 40% of the times. There are 4 ÷ 40% = 10 times in all, so the second frequency is 6.</p>
+      </details>
+    </details>
+  </details>
+</section>
+
+<section class="wrap" id="quartiles" aria-labelledby="quartiles-title">
+  <div class="sec-head">
+    <h2 id="quartiles-title" data-zh="四分位数：两套教材的算法">Quartiles (sìfēnwèishù) in two textbooks</h2>
+    <p id="quartiles-intro" data-zh="先把数据从小到大排序，再分成数据个数相同的两半。总个数是奇数时，把中间那一项单独留出。整组的中位数是 Q₂，前一半的中位数是 Q₁，后一半的中位数是 Q₃。">Sort the data and split them into two halves with the same number of values. If the count is odd, leave the middle value out of both halves. The median of the whole set is Q₂. The medians of the lower and upper halves are Q₁ and Q₃.</p>
+    <button type="button" class="btn ghost" data-stat-read="quartiles-intro" data-zh="🔊 朗读">🔊 Read aloud</button>
+  </div>
+  <div class="card stat-card">
+    <div class="btnrow">
+      <button type="button" class="btn" data-quartile-size="5" aria-pressed="true" data-zh="奇数个数据">Odd count</button>
+      <button type="button" class="btn ghost" data-quartile-size="6" aria-pressed="false" data-zh="偶数个数据">Even count</button>
+    </div>
+    <div id="quartile-split" class="stat-quartiles" data-nopy></div>
+    <figure class="stat-quartiles">
+      <svg id="quartile-chart" class="stat-chart" viewBox="0 0 360 82" aria-hidden="true"></svg>
+      <figcaption data-zh="箱体左、右两端分别是 Q₁ 和 Q₃，箱内竖线是 Q₂。">The box runs from Q₁ to Q₃. The line inside marks Q₂.</figcaption>
+    </figure>
+    <div class="stat-table-scroll">
+      <table class="stat-table">
+        <thead><tr><th scope="col" data-zh="教材">Curriculum</th><th scope="col">Q₁</th><th scope="col">Q₂</th><th scope="col">Q₃</th></tr></thead>
+        <tbody>
+          <tr><th scope="row"><span data-zh="中国 · 新版人教八年级下册 §24.3">China · revised PEP Grade 8 §24.3</span></th><td data-quartile="0"></td><td data-quartile="1"></td><td data-quartile="2"></td></tr>
+          <tr><th scope="row"><span data-zh="美国 · Illustrative Mathematics 六年级">US · Illustrative Mathematics Grade 6</span></th><td data-quartile="0"></td><td data-quartile="1"></td><td data-quartile="2"></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p data-zh="新版人教版八年级下册和美国 Illustrative Mathematics 六年级教材都采用上面的分半法，因此两行结果相同。两半按排序后的位置来分，重复的数值也要按位置计入。">China’s revised PEP Grade 8 book and the US Illustrative Mathematics Grade 6 book both use the rule above, so the two rows agree. Split the list by position, counting each occurrence of a repeated value.</p>
+    <div id="quartile-iqr" class="stat-formula" data-nopy></div>
+  </div>
+  <details class="teacher stat-detail"><summary data-zh="教材来源与另一种百分位数算法">Textbook sources and another percentile convention</summary>
+    <p><b data-zh="课外拓展 · Enrichment">Enrichment · 课外拓展</b> <span data-zh="统计软件可能采用别的算法。例如，R 的第 2 种算法用数据个数乘 25% 或 75%。结果不是整数时，向上取整，再取该位置的数据；结果是整数时，取该位置与下一位置数据的平均数。对 2、4、6、8、10，这样求得 Q₁＝4，Q₃＝8。">Statistics software can use other rules. R’s type 2 rule multiplies the count by 25% or 75%. If the result is between two positions, take the value at the higher position. If it lands on a position, average that value and the next. For 2, 4, 6, 8, 10, this gives Q₁ = 4 and Q₃ = 8.</span></p>
+    <p><a href="https://basic.smartedu.cn/tchMaterial/detail?catalogType=tchMaterial&amp;contentId=e91a6f80-2a9a-4452-a47e-b9ec164156ff&amp;contentType=assets_document&amp;subCatalog=dzjc" data-zh="人教版八年级下册第 24.3 节">PEP Grade 8, Volume 2, §24.3</a> · <a href="https://www.pep.com.cn/xw/zt/xkzt/csazy/csax8x/" data-zh="人教社统计学习资源">PEP statistics resources</a> · <a href="https://cms-assets.illustrativemathematics.org/4buh3bqcmbs06ysglgddsecv98z9" data-zh="Illustrative Mathematics 六年级第 8 单元第 15 课">Illustrative Mathematics Grade 6, Unit 8, Lesson 15</a> · <a href="https://stat.ethz.ch/R-manual/R-devel/library/stats/html/quantile.html" data-zh="R 的分位数算法">R’s quantile methods</a></p>
+  </details>
+  <details class="teacher stat-detail"><summary data-zh="随堂测试">In-class check</summary>
+    <div id="quartiles-check" class="stat-checks"></div>
+  </details>
+</section>
+
+<section class="wrap" id="compare" aria-labelledby="compare-title">
+  <div class="sec-head">
+    <h2 id="compare-title" data-zh="用平均数和方差比较两组数据">Compare two groups by mean and variance</h2>
+    <p id="compare-intro" data-zh="在投准游戏中，两组的平均得分可能一样，得分的波动却不同。先比较平均水平，再比较方差。求方差时，用本组的每个数据减去本组平均数，把所得的差平方，再求平均。方差越小，这组成绩越稳定。">Two groups can have the same mean score in a target game, with different spreads. Compare their averages and then their variances. For each group, subtract its own mean from each score, square the differences, and average them. A smaller variance means more consistent scores.</p>
+    <button type="button" class="btn ghost" data-stat-read="compare-intro" data-zh="🔊 朗读">🔊 Read aloud</button>
+  </div>
+  <div class="stat-grid">
+    <div class="card stat-card">
+      <figure aria-labelledby="compare-chart-label">
+        <figcaption id="compare-chart-label" data-zh="横轴：得分（分）。三角形标出两组各自的平均数。">Horizontal: score (points). Triangles mark each group’s mean.</figcaption>
+        <svg id="compare-chart" class="stat-chart" viewBox="0 0 360 148" aria-hidden="true"></svg>
+      </figure>
+      <label class="stat-slider"><span><span data-zh="乙组平均数（分）">Group B mean (points)</span> · <output id="compare-center-value" for="compare-center"></output></span><input id="compare-center" type="range" min="6" max="10" value="8"></label>
+      <label class="stat-slider"><span><span data-zh="乙组内侧点与平均数的距离（分）">Group B inner distance from mean (points)</span> · <output id="compare-spread-value" for="compare-spread"></output></span><input id="compare-spread" type="range" min="0" max="2" step="1" value="2"></label>
+    </div>
+    <div class="card stat-card">
+      <div class="lab-mode"></div>
+      <h3 data-zh="方差（平方分）">Variance (fāngchā), in points²</h3>
+      <div id="compare-rule" class="stat-formula" data-nopy></div>
+      <p><b data-zh="甲组">Group A</b> · <span id="compare-data-a" data-nopy></span></p>
+      <div id="compare-calc-a" class="stat-formula" data-nopy></div>
+      <p><b data-zh="乙组">Group B</b> · <span id="compare-data-b" data-nopy></span></p>
+      <div id="compare-calc-b" class="stat-formula" data-nopy></div>
+      <p id="compare-result" class="result"></p>
+    </div>
+  </div>
+  <details class="teacher stat-detail"><summary data-zh="随堂测试与练习">In-class check and practice</summary>
+    <div id="compare-check" class="stat-checks"></div>
+    <details class="teacher stat-detail"><summary data-zh="练习：所有得分都加 2 分">Practice: add two points to every score</summary>
+      <p data-zh="若乙组每个得分都加 2 分，平均数和方差会怎样变化？">If every score in group B increases by 2 points, what happens to its mean and variance?</p>
+      <details class="teacher stat-detail"><summary data-zh="查看步骤">Show steps</summary>
+        <p data-zh="平均数也增加 2 分，所以每个得分与新平均数的差保持不变，方差也不变。试把乙组平均数从 8 分调到 10 分验证。">The mean increases by 2 points as well. Each difference from the new mean stays the same, so the variance stays the same. Check this by sliding group B’s mean from 8 to 10 points.</p>
+      </details>
+    </details>
+  </details>
+  <details class="teacher stat-detail adv"><summary data-zh="进阶：用离差平方和验证">Advanced: verify with the sum of squared deviations</summary>
+    <p data-zh="这两组各有 4 个数据。把本组的离差平方和除以 4，就得到本组方差。试把乙组内侧的距离从 2 分调到 1 分，这时各得分到平均数的距离都减半。方差变成原来的几分之几？">Each group has four scores. Divide its sum of squared deviations by 4 to get the variance. Slide group B’s inner distance from 2 points to 1 point. This halves every distance from the mean. What fraction of the old variance remains?</p>
+    <div id="compare-sums" class="stat-formula" data-nopy></div>
+  </details>
 </section>
 
 <!-- real-world gallery -->
@@ -126,14 +335,15 @@
 </section>
 <!-- /real-world gallery -->
 
-<section class="wrap" id="games"data-nav="Quiz" data-nav-zh="测验">
+<section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
   <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
   <div class="games">
     <div class="game card"><h3 data-zh="🧠 统计测验">🧠 Statistics quiz</h3><p class="sub" data-zh="选出正确答案。">Pick the best answer.</p><div id="quiz"></div></div>
     <div class="game card"><h3 data-zh="🗂️ 中心还是离散？">🗂️ Center or spread?</h3><p class="sub" data-zh="它描述的是“典型值”，还是“数据有多分散”？">Does it describe a typical value, or how spread out the data are?</p><div id="sort"></div></div>
   </div>
   <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
-    <p data-zh="对应佐治亚州数学标准 6.DSR（用点图、直方图、箱线图表示数据分布；用集中趋势（平均数、中位数）和离散程度（极差、四分位距、平均绝对偏差）描述数据；说明离群值的影响）。第 2 步把平均数理解为“平均分”，第 3 步把它理解为“平衡点”，两种理解都要让学生说出来。播放第 5 步前，先让学生预测平均数和中位数会怎样变化。四分位数采用“奇数个数据时去掉中位数再分两半”的方法。动手探索中可以让学生构造“平均数大于中位数”“平均数等于中位数”的数据。">Supports Georgia 6.DSR (display distributions with dot plots, histograms and box plots; summarize with measures of center (mean, median) and variability (range, IQR, mean absolute deviation); describe the effect of outliers). Step 2 builds the mean as fair share and step 3 as a balance point: ask students to explain both. Before step 5, have students predict what happens to the mean and median. Quartiles use the “exclude the median when n is odd” method. In Explore, challenge students to build data where mean &gt; median, and where mean = median.</p>
+    <p data-zh="佐治亚州六年级数据与统计内容包括点图、直方图、箱线图、集中趋势、离散程度和离群值的影响。新版人教版七年级下册第十二章介绍直方图，八年级下册第二十四章介绍加权平均数、方差和四分位数。第 2 步把平均数理解为“平均分”，第 3 步把它理解为“平衡点”。播放第 5 步前，可以先预测平均数和中位数怎样变化。动手探索中，可以构造平均数大于中位数、平均数等于中位数的两组数据。">Georgia’s Grade 6 data and statistics work covers dot plots, histograms, box plots, center, spread, and the effect of outliers. China’s revised PEP Grade 7, Volume 2, Chapter 12 covers histograms. Grade 8, Volume 2, Chapter 24 covers weighted means, variance, and quartiles. Step 2 shows the mean as a fair share and step 3 as a balance point. Before step 5, ask students to predict what happens to the mean and median. In Explore, ask for one data set with a mean above the median and one with both equal.</p>
+    <p><a href="https://case.georgiastandards.org/e9dd7229-3558-4df2-85c6-57b8938f6180/06415bf2-e7a9-4ef8-9a26-4d67a45ad1cd" data-zh="佐治亚州六年级数学标准">Georgia Grade 6 Mathematics Standards</a> · <a href="https://www.pep.com.cn/xw/zt/xkzt/csazy/csa7x/" data-zh="人教版七年级下册学习资源">PEP Grade 7, Volume 2 resources</a> · <a href="https://www.pep.com.cn/xw/zt/xkzt/csazy/csax8x/" data-zh="人教版八年级下册学习资源">PEP Grade 8, Volume 2 resources</a></p>
   </details>
 </section>
 
@@ -241,8 +451,8 @@ const STEPS = [
       await S.fadeIn(st.medL, .5);
       await S.all([2, 3, 7, 9].map(v => S.to(d(v), { opacity:1 }, .5)).concat([S.to(d(4), { fill:C.blue, r:.2 }, .5)]));
     } },
-  { en:'Suppose the friend who read 9 actually read 19. The heavy side tips the balance, and the mean has to slide right to 7 to balance again. The median? Still 4. An outlier pulls the mean, but barely moves the median.',
-    zh:'假如读了 9 本的那位其实读了 19 本。重的一边把数轴压歪了，平均数必须向右移到 7 才能重新平衡。中位数呢？还是 4。离群值会把平均数拉过去，却几乎拉不动中位数。',
+  { en:'Suppose the largest value rises from 9 to 19. The beam tips, and the mean shifts from 5 to 7. The median stays at 4 because the middle value has not changed.',
+    zh:'假设最大值从 9 变成 19。数轴倾斜，平均数从 5 移到 7。中间那个数没变，所以中位数仍是 4。',
     run: async S => {
       await S.fadeOut(st.ord, .3);
       st.title.txt = { en:'What does an outlier do?', zh:'离群值会带来什么影响？' };
@@ -289,8 +499,8 @@ const STEPS = [
       st.madL = T('MAD $= 12 \\div 5 = 2.4$', 'MAD $= 12 \\div 5 = 2.4$', 4.4, -3.4, { size:28, color:C.pink });
       await S.fadeIn(st.madL, .6);
     } },
-  { en:'For a bigger data set, split it into quarters. Eleven quiz scores: the median is the 6th score, 7. The median of the lower half is $Q_1 = 6$; of the upper half, $Q_3 = 9$. A box plot draws these, and the interquartile range is $IQR = Q_3 - Q_1 = 3$.',
-    zh:'数据多的时候，可以把它分成四份。11 个测验成绩：中位数是第 6 个，等于 7。下半部分的中位数是下四分位数 $Q_1 = 6$，上半部分的中位数是上四分位数 $Q_3 = 9$。箱线图把它们画出来，四分位距 $IQR = Q_3 - Q_1 = 3$。',
+  { en:'Of these eleven sorted scores, the sixth is the median, 7. Leave it out of both halves. The lower half has median 6 and the upper half has median 9. The box spans $9-6=3$ points, the interquartile range.',
+    zh:'这 11 个成绩已经排好序。第 6 个数是中位数 7，把它单独留出。前一半的中位数是 6，后一半的中位数是 9。箱体宽 $9-6=3$ 分，这就是四分位距。',
     run: async S => {
       await fadeAll();
       st.title = await title('Quartiles and the box plot', '四分位数与箱线图');
@@ -331,8 +541,8 @@ const STEPS = [
       const L = [
         T('mean = total ÷ count', '平均数 = 总和 ÷ 个数', -4, 1.0, { color:C.yellow }),
         T('fair share · balance point', '平均分 · 平衡点', -4, .35, { color:C.grey, size:19 }),
-        T('median = middle value (in order)', '中位数 = 排序后最中间的数', -4, -1.0, { color:C.teal }),
-        T('hardly moved by outliers', '几乎不受离群值影响', -4, -1.65, { color:C.grey, size:19 }),
+        T('median = middle of the sorted data', '中位数由排序后的中间位置决定', -4, -1.0, { color:C.teal, size:21 }),
+        T('average the middle two for an even count', '偶数个数据取中间两个数的平均数', -4, -1.65, { color:C.grey, size:18 }),
         T('range = max − min', '极差 = 最大值 − 最小值', 4, 1.0, { color:C.orange }),
         T('IQR $= Q_3 - Q_1$ (middle half)', '四分位距 $IQR = Q_3 - Q_1$', 4, -.2, { color:C.purple }),
         T('MAD = average distance from the mean', 'MAD = 到平均数的平均距离', 4, -1.4, { color:C.pink, size:21 })
@@ -356,7 +566,7 @@ const STEPS = [
       await S.all(st.a3.map(a => S.create(a, .6)));
       const R = [
         T('mean $= \\frac{4+8+6+5+7}{5} = \\frac{30}{5} = 6$', '平均数 $= \\frac{4+8+6+5+7}{5} = \\frac{30}{5} = 6$', 3.6, 2.2, { color:C.yellow, size:23 }),
-        T('median: $4,\\ 5,\\ ' + cD('6') + ',\\ 7,\\ 8$', '中位数:$4,\\ 5,\\ ' + cD('6') + ',\\ 7,\\ 8$', 3.6, 1.0, { size:23 }),
+        T('median: $4,\\ 5,\\ ' + cD('6') + ',\\ 7,\\ 8$', '中位数：$4,\\ 5,\\ ' + cD('6') + ',\\ 7,\\ 8$', 3.6, 1.0, { size:23 }),
         T('range $= 8 - 4 = 4$', '极差 $= 8 - 4 = 4$', 3.6, -.2, { color:C.orange, size:23 }),
         T('MAD $= \\frac{2+1+0+1+2}{5} = 1.2$', 'MAD $= \\frac{2+1+0+1+2}{5} = 1.2$', 3.6, -1.5, { color:C.pink, size:23 })
       ];
@@ -372,10 +582,11 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
 (function(){
   const E = MathAnim.scene('#exStage', { x:[-6, 6], y:[-4.5, 4.5] });
   const PRE = { sym:[4, 6, 7, 8, 8, 9, 10, 10, 10, 11, 12, 12, 13, 14, 16], skew:[1, 2, 2, 3, 3, 3, 4, 4, 5, 6, 8, 11, 15], out:[5, 6, 6, 7, 7, 8, 8, 9, 20], same:[8, 8, 8, 8, 8, 8] };
-  let data = [2, 3, 4, 7, 9, 12, 13], drag = -1;
+  let data = [2, 3, 4, 7, 9, 12, 13], drag = -1, activePointer = null;
   const X = v => -5.4 + v * .54, LY = .1, BY = -2.7;
   const fmt = v => String(Math.round(v * 100) / 100);
   const med = a => { const m = a.length; return m % 2 ? a[(m - 1) / 2] : (a[m / 2 - 1] + a[m / 2]) / 2; };
+  const stackSpacing = () => Math.min(.4, 3 / (data.length - 1));
   function stats(){
     const s = data.slice().sort((a, b) => a - b), n = s.length, sum = s.reduce((a, b) => a + b, 0), mean = sum / n;
     const lo = s.slice(0, Math.floor(n / 2)), hi = s.slice(Math.ceil(n / 2));
@@ -386,7 +597,15 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
   const modes = s => { const c = {}; s.forEach(v => c[v] = (c[v] || 0) + 1); const mx = Math.max(...Object.values(c)); return mx < 2 ? [] : Object.keys(c).filter(k => c[k] === mx).map(Number); };
   const fences = t => { const iqr = t.q3 - t.q1; return [t.q1 - 1.5 * iqr, t.q3 + 1.5 * iqr]; };
   let showDev = false, chI = 0;
-  const pos = () => { const seen = {}; return data.map(v => { seen[v] = (seen[v] || 0) + 1; return [X(v), LY + .3 + (seen[v] - 1) * .4]; }); };
+  function pos(){
+    const seen = new Map();
+    const spacing = stackSpacing();
+    return data.map(v => {
+      const i = seen.get(v) || 0;
+      seen.set(v, i + 1);
+      return [X(v), LY + .3 + i * spacing];
+    });
+  }
   E.custom((ctx, S) => {
     const t = stats(), P = pos(), line = (x1, y1, x2, y2, col, w, dash) => { ctx.strokeStyle = col; ctx.lineWidth = w; ctx.setLineDash(dash || []); ctx.beginPath(); ctx.moveTo(S.sx(x1), S.sy(y1)); ctx.lineTo(S.sx(x2), S.sy(y2)); ctx.stroke(); ctx.setLineDash([]); };
     // number line
@@ -403,7 +622,8 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     // Advanced: each dot’s distance from the mean
     if (Lab.adv() && showDev) P.forEach(p => { if (Math.abs(p[0] - mx) > 1e-6) line(p[0], p[1], mx, p[1], C.pink, 2.5); });
     // dots
-    P.forEach((p, i) => { ctx.beginPath(); ctx.arc(S.sx(p[0]), S.sy(p[1]), S.px(.17) + (drag === i ? 3 : 0), 0, 7); ctx.fillStyle = C.blue; ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = '#0f1420'; ctx.stroke(); });
+    const radius = S.px(Math.min(.17, stackSpacing() * .45));
+    P.forEach((p, i) => { ctx.beginPath(); ctx.arc(S.sx(p[0]), S.sy(p[1]), radius + (drag === i ? 3 : 0), 0, 7); ctx.fillStyle = C.blue; ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = '#0f1420'; ctx.stroke(); });
     // labels
     ctx.font = `800 ${Math.max(10, S.px(.3))}px Nunito, sans-serif`;
     ctx.fillStyle = C.yellow; ctx.fillText(Lab.L({ en:'mean ', zh:'平均数 ' }) + fmt(t.mean), S.sx(Math.min(4.6, Math.max(-4.6, mx))), S.sy(LY - 1.15));
@@ -426,10 +646,27 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
   });
   const cv = E.cv, toW = e => { const r = cv.getBoundingClientRect(); return [E.wx(e.clientX - r.left), E.wy(e.clientY - r.top)]; };
   cv.style.touchAction = 'none'; cv.style.cursor = 'grab';
-  cv.addEventListener('pointerdown', e => { const [x, y] = toW(e), P = pos(); let best = -1, bd = .5;
-    P.forEach((p, i) => { const d = Math.hypot(p[0] - x, p[1] - y); if (d < bd){ bd = d; best = i; } }); drag = best; if (drag >= 0) cv.setPointerCapture(e.pointerId); });
-  cv.addEventListener('pointermove', e => { if (drag < 0) return; const [x] = toW(e); const v = Math.max(0, Math.min(20, Math.round((x + 5.4) / .54))); if (v !== data[drag]){ data[drag] = v; update(); } });
-  cv.addEventListener('pointerup', () => { drag = -1; });
+  cv.addEventListener('pointerdown', e => {
+    if (activePointer !== null || e.button !== 0) return;
+    const [x, y] = toW(e);
+    let closest = .55;
+    pos().forEach((p, i) => { const d = Math.hypot(p[0] - x, p[1] - y); if (d < closest){ closest = d; drag = i; } });
+    if (drag < 0) return;
+    activePointer = e.pointerId;
+    cv.setPointerCapture(e.pointerId);
+  });
+  cv.addEventListener('pointermove', e => {
+    if (e.pointerId !== activePointer || !(drag in data)) return;
+    const [x] = toW(e);
+    const v = Math.max(0, Math.min(20, Math.round((x + 5.4) / .54)));
+    if (v !== data[drag]){ data[drag] = v; update(); }
+  });
+  function endDrag(e){
+    if (e.pointerId !== activePointer) return;
+    activePointer = null;
+    drag = -1;
+  }
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => cv.addEventListener(type, endDrag));
   const T = (en, zh) => ({ en, zh });
   function update(){
     const t = stats();
@@ -437,11 +674,10 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     Lab.$('#oRange').textContent = fmt(t.max - t.min); Lab.$('#oIQR').textContent = fmt(t.q3 - t.q1); Lab.$('#oMAD').textContent = fmt(t.mad);
     const exact = Math.abs(t.mean * 100 - Math.round(t.mean * 100)) < 1e-9;
     Lab.$('#ex2Out').innerHTML = Lab.L(T('mean', '平均数')) + ' ' + MathAnim.tex(`= \\frac{${t.sum}}{${t.n}} ${exact ? '=' : '\\approx'} \\textcolor{#d49a1c}{${exact ? fmt(t.mean) : t.mean.toFixed(2)}}`);
-    const m = Lab.$('#exMsg'), d = t.mean - t.median;
-    m.className = 'result';
-    m.textContent = Lab.L(Math.abs(d) < .05 ? T('Mean ≈ median: the data are balanced around the middle.', '平均数 ≈ 中位数：数据大致左右对称。')
-      : d > 0 ? T(`Mean > median by ${fmt(d)}: big values on the right pull the mean up.`, `平均数比中位数大 ${fmt(d)}:右边的大数值把平均数往上拉。`)
-      : T(`Mean < median by ${fmt(-d)}: small values on the left pull the mean down.`, `平均数比中位数小 ${fmt(-d)}:左边的小数值把平均数往下拉。`));
+    const d = t.mean - t.median;
+    Lab.$('#exMsg').textContent = Lab.L(Math.abs(d) < 1e-9 ? T('The mean and median are equal.', '平均数和中位数相等。')
+      : d > 0 ? T('The mean is to the right of the median.', '平均数在中位数的右边。')
+      : T('The mean is to the left of the median.', '平均数在中位数的左边。'));
     Lab.$('#bDel').disabled = data.length <= 2; Lab.$('#bAdd').disabled = data.length >= 16;
     advUpdate();
   }
@@ -452,21 +688,21 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     { en:'Make the mean at least 3 bigger than the median.', zh:'让平均数比中位数至少大 3。', ok:t => t.mean - t.median >= 3 - 1e-9 },
     { en:'Make the standard deviation exactly 2.', zh:'让标准差正好等于 2。', ok:t => Math.abs(Math.sqrt(t.ss / t.n) - 2) < 1e-9 },
     { en:'Make data whose only mode is 5, with median 7 and mean 8.', zh:'让唯一的众数是 5，中位数是 7，平均数是 8。', ok:t => { const m = modes(t.s); return m.length === 1 && m[0] === 5 && t.median === 7 && Math.abs(t.mean - 8) < 1e-9; } },
-    { en:'Make a data set with exactly one outlier (a red × outside the fences).', zh:'做一组恰好有一个离群值的数据（栅栏外的红色 ×）。', ok:t => { const [a, b] = fences(t); return t.s.filter(v => v < a || v > b).length === 1; } },
+    { en:'Make a data set with exactly one outlier (a red × outside the fences).', zh:'构造一组恰好有一个离群值的数据（界限外的红色 ×）。', ok:t => { const [a, b] = fences(t); return t.s.filter(v => v < a || v > b).length === 1; } },
     { en:'Keep the mean at exactly 10 but make the MAD at least 4.', zh:'平均数保持正好 10，但让平均绝对偏差 MAD 至少为 4。', ok:t => Math.abs(t.mean - 10) < 1e-9 && t.mad >= 4 - 1e-9 }
   ];
   function advUpdate(){
     if (!Lab.adv()) return;
     const t = stats(), md = modes(t.s), v = t.ss / t.n, sd = Math.sqrt(v), [f1, f2] = fences(t), outs = t.s.filter(x => x < f1 || x > f2);
-    Lab.$('#oMode').textContent = md.length ? md.join(', ') : Lab.L(T('none', '无'));
+    Lab.$('#oMode').textContent = md.length ? md.join(Lab.L(T(', ', '、'))) : Lab.L(T('none', '无'));
     Lab.$('#oVar').textContent = fmt(v); Lab.$('#oSD').textContent = fmt(sd);
     const term = x => `(${x} - \\bar{x})^2`, s = t.s;
     const terms = s.length <= 4 ? s.map(term).join(' + ') : `${term(s[0])} + ${term(s[1])} + \\cdots + ${term(s[s.length - 1])}`;
     Lab.$('#varOut').innerHTML = MathAnim.tex(`\\bar{x} ${exactS(t.mean) ? '=' : '\\approx'} ${fmt(t.mean)}`) + '<br>'
       + MathAnim.tex(`s^2 = \\frac{${terms}}{${t.n}} ${exactS(v) ? '=' : '\\approx'} ${fmt(v)}`) + '<br>'
       + MathAnim.tex(`s = \\sqrt{s^2} ${exactS(sd) ? '=' : '\\approx'} ${fmt(sd)}`);
-    Lab.$('#fenceOut').textContent = Lab.L(T(`Fences: Q1 − 1.5 × IQR = ${sgn(f1)} and Q3 + 1.5 × IQR = ${sgn(f2)}. Values outside are outliers: ${outs.length ? outs.join(', ') : 'none'}. The bigger s is, the more spread out (less steady) the data are.`,
-                                            `栅栏：Q1 − 1.5 × IQR = ${sgn(f1)}，Q3 + 1.5 × IQR = ${sgn(f2)}。栅栏外的数据是离群值：${outs.length ? outs.join('、') : '无'}。方差（标准差）越大，数据的波动越大，越不稳定。`));
+    Lab.$('#fenceOut').textContent = Lab.L(T(`Fences: Q₁ − 1.5 × IQR = ${sgn(f1)} and Q₃ + 1.5 × IQR = ${sgn(f2)}. This rule flags values outside the fences: ${outs.length ? outs.join(', ') : 'none'}. A larger standard deviation means a larger average squared distance from the mean.`,
+                                            `离群值的判定界限：Q₁ − 1.5 × IQR = ${sgn(f1)}，Q₃ + 1.5 × IQR = ${sgn(f2)}。按此规则，界限外的数据为离群值：${outs.length ? outs.join('、') : '无'}。标准差越大，各数据与平均数的差的平方平均值越大。`));
     Lab.$('#chTxt').textContent = Lab.L(CH[chI]);
   }
   Lab.$('#devIn').onchange = () => { showDev = Lab.$('#devIn').checked; };
@@ -482,7 +718,11 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
   Lab.$('#bAdd').onclick = () => { const t = stats(); data.push(Math.round(t.median)); update(); };
   Lab.$('#bDel').onclick = () => { if (data.length > 2){ data.pop(); update(); } };
   Lab.$$('[data-pre]').forEach(b => b.onclick = () => { data = PRE[b.dataset.pre].slice(); update(); });
-  Lab.onLang(update); update();
+  Lab.onLang(() => {
+    update();
+    Lab.$('#chMsg').textContent = '';
+    Lab.$('#chMsg').className = 'result';
+  });
 })();
 </script>
 <script>
@@ -494,64 +734,350 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     scores:{ data:[62, 68, 71, 74, 75, 77, 78, 80, 81, 82, 83, 85, 85, 86, 88, 88, 90, 91, 93, 95], lo:60, hi:100, widths:[1, 5, 10, 20], w:5, unit:{ en:'points', zh:'分' } }
   };
   let ds = 'commute', w = 5, show = 0;
+  function histogram(d){
+    return Array.from({ length:Math.ceil((d.hi - d.lo) / w) }, (_, i) => {
+      const a = d.lo + i * w;
+      return { a, n:d.data.filter(v => a <= v && v < a + w).length };
+    });
+  }
   H.onFrame(dt => { if (show < 1) show = Math.min(1, show + dt / .8); });
   H.custom((ctx, S) => {
-    const d = DS[ds], X = v => -5.2 + (v - d.lo) / (d.hi - d.lo) * 10.4, LY = 1.9, BY = -3.4;
+    const d = DS[ds], bins = histogram(d), end = bins.at(-1).a + w;
+    const X = v => -5.2 + (v - d.lo) / (end - d.lo) * 10.4, LY = 1.9, BY = -3.4;
     // dot plot on top
-    ctx.strokeStyle = C.grey; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(S.sx(X(d.lo)), S.sy(LY)); ctx.lineTo(S.sx(X(d.hi)), S.sy(LY)); ctx.stroke();
+    ctx.strokeStyle = C.grey; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(S.sx(X(d.lo)), S.sy(LY)); ctx.lineTo(S.sx(X(end)), S.sy(LY)); ctx.stroke();
     const seen = {};
     d.data.forEach(v => { seen[v] = (seen[v] || 0) + 1; ctx.beginPath(); ctx.arc(S.sx(X(v)), S.sy(LY + .22 + (seen[v] - 1) * .32), S.px(.13), 0, 7); ctx.fillStyle = C.blue; ctx.fill(); });
     // histogram below
-    const bins = []; for (let b = d.lo; b < d.hi; b += w) bins.push({ a:b, n:d.data.filter(v => v >= b && v < b + w).length });
     const maxN = Math.max(...bins.map(b => b.n)), hScale = Math.min(.5, 3.2 / maxN);
-    bins.forEach(b => { if (!b.n) return; const x1 = S.sx(X(b.a)), x2 = S.sx(X(Math.min(b.a + w, d.hi))), y1 = S.sy(BY), y2 = S.sy(BY + b.n * hScale * show);
+    const tickStep = Math.ceil(maxN / 4);
+    ctx.font = `700 ${Math.max(9, S.px(.24))}px Nunito, sans-serif`;
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    for (let n = 0; n <= maxN; n += tickStep){
+      const y = S.sy(BY + n * hScale);
+      ctx.strokeStyle = C.dim; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(S.sx(X(d.lo)), y); ctx.lineTo(S.sx(X(end)), y); ctx.stroke();
+      ctx.fillStyle = C.grey; ctx.fillText(String(n), S.sx(X(d.lo) - .15), y);
+    }
+    bins.forEach(b => { if (!b.n) return; const x1 = S.sx(X(b.a)), x2 = S.sx(X(b.a + w)), y1 = S.sy(BY), y2 = S.sy(BY + b.n * hScale * show);
       ctx.fillStyle = 'rgba(88,196,221,.35)'; ctx.fillRect(x1, y2, x2 - x1, y1 - y2); ctx.strokeStyle = C.blue; ctx.lineWidth = 2; ctx.strokeRect(x1, y2, x2 - x1, y1 - y2);
       if (w >= 5 && show > .9){ ctx.fillStyle = C.white; ctx.font = `800 ${Math.max(10, S.px(.3))}px Nunito, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText(String(b.n), (x1 + x2) / 2, y2 - 2); } });
-    ctx.strokeStyle = C.grey; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(S.sx(X(d.lo)), S.sy(BY)); ctx.lineTo(S.sx(X(d.hi)), S.sy(BY)); ctx.stroke();
-    // axis labels at bin edges (every 5 units)
+    ctx.strokeStyle = C.grey; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(S.sx(X(d.lo)), S.sy(BY)); ctx.lineTo(S.sx(X(end)), S.sy(BY)); ctx.stroke();
+    // Horizontal axis labels every 5 units.
     ctx.font = `700 ${Math.max(9, S.px(.26))}px Nunito, sans-serif`; ctx.fillStyle = C.white; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-    for (let v = d.lo; v <= d.hi; v += 5){ ctx.fillText(String(v), S.sx(X(v)), S.sy(LY - .12)); ctx.fillText(String(v), S.sx(X(v)), S.sy(BY - .12)); }
+    for (let v = d.lo; v <= end; v += 5){ ctx.fillText(String(v), S.sx(X(v)), S.sy(LY - .12)); ctx.fillText(String(v), S.sx(X(v)), S.sy(BY - .12)); }
     ctx.fillStyle = C.grey; ctx.font = `800 ${Math.max(10, S.px(.28))}px Nunito, sans-serif`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-    ctx.fillText(Lab.L({ en:'dot plot', zh:'点图' }), S.sx(-5.5), S.sy(3.5)); ctx.fillText(Lab.L({ en:'histogram', zh:'直方图' }), S.sx(-5.5), S.sy(-.2));
+    ctx.fillText(Lab.L({ en:'dot plot', zh:'点图' }), S.sx(-5.5), S.sy(3.5));
+    ctx.fillText(Lab.L({ en:'histogram · frequency', zh:'直方图 · 频数' }), S.sx(-5.5), S.sy(.38));
   });
   function update(){
     const d = DS[ds];
-    Lab.$('#bwRow').innerHTML = d.widths.map(x => `<button class="btn ${x === w ? '' : 'ghost'}" data-w="${x}">${x}</button>`).join('');
-    Lab.$$('#bwRow button').forEach(b => b.onclick = () => { w = +b.dataset.w; show = 0; update(); });
-    Lab.$$('[data-ds]').forEach(b => b.classList.toggle('ghost', b.dataset.ds !== ds));
-    const bins = []; for (let b = d.lo; b < d.hi; b += w) bins.push({ a:b, n:d.data.filter(v => v >= b && v < b + w).length });
-    const top = bins.reduce((m, b) => b.n > m.n ? b : m, bins[0]);
+    const row = Lab.$('#bwRow');
+    if (row.dataset.source !== ds){
+      row.dataset.source = ds;
+      row.innerHTML = d.widths.map(width => `<button class="btn" data-w="${width}">${width}</button>`).join('');
+    }
+    Lab.$$('#bwRow button').forEach(button => {
+      const width = Number(button.dataset.w);
+      button.classList.toggle('ghost', width !== w);
+      button.setAttribute('aria-pressed', String(width === w));
+      button.onclick = () => { w = width; show = 0; update(); };
+    });
+    Lab.$$('[data-ds]').forEach(button => {
+      const selected = button.dataset.ds === ds;
+      button.classList.toggle('ghost', !selected);
+      button.setAttribute('aria-pressed', String(selected));
+    });
+    const bins = histogram(d);
+    const peak = Math.max(...bins.map(bin => bin.n));
+    const tallest = bins.filter(bin => bin.n === peak);
+    const top = tallest[0];
+    const unit = Lab.L(d.unit);
     Lab.$('#hOut').innerHTML = `${bins.length} <span style="font-size:.6em">${Lab.L({ en:'bins', zh:'组' })}</span>`;
-    Lab.$('#hMsg').textContent = Lab.L(w === 1 ? { en:'Width 1: almost every bar is 0 or 1 tall. Too narrow to see a shape.', zh:'组距为 1：几乎每根柱子都只有 0 或 1，太窄了，看不出形状。' }
-      : w === d.widths[3] ? { en:'Very wide bins: only a few bars, so the details disappear.', zh:'组距很大：只剩几根柱子，细节都看不见了。' }
-      : { en:`Tallest bar: ${top.a} to under ${top.a + w} ${Lab.L(d.unit)} (${top.n} values). ${ds === 'commute' ? 'The long tail on the right means the data are skewed right.' : 'Most scores pile up in the 80s.'}`,
-          zh:`最高的柱子:${top.a} 到 ${top.a + w}(不含)${Lab.L(d.unit)},共 ${top.n} 个数据。${ds === 'commute' ? '右边拖着一条长尾巴，说明数据向右偏。' : '大部分成绩集中在 80 多分。'}` });
+    const message = Lab.L(w === 1 ? { en:'Width 1: most intervals have only zero or one value. The thin bars show individual counts.', zh:'组距为 1：大多数组只有 0 个或 1 个数据。窄柱能显示每组的计数。' }
+      : w === d.widths[3] ? { en:'Wide intervals combine more values, so short-range peaks and gaps are harder to see.', zh:'组距较大时，每组包含的数值范围更宽，局部的高峰和空缺不容易看出来。' }
+      : tallest.length > 1 ? { en:`${tallest.length} intervals tie for the tallest bar, with ${peak} values each.`, zh:`有 ${tallest.length} 组并列最高，每组有 ${peak} 个数据。` }
+      : { en:`Tallest bar: ${top.a} to under ${top.a + w} ${unit}, with ${peak} values.`,
+          zh:`最高的柱子对应［${top.a}，${top.a + w}）${unit}，有 ${peak} 个数据。` });
+    const shape = ds === 'commute'
+      ? Lab.L({ en:' The long tail on the right shows right skew.', zh:'右边的长尾说明分布右偏。' })
+      : Lab.L({ en:' The 80s are the busiest ten-point interval, with 9 of the 20 scores.', zh:'按每 10 分分组，80 到不足 90 分这一组的频数最高，20 个成绩中有 9 个落在这组。' });
+    Lab.$('#hMsg').textContent = message + (w === d.widths[1] || w === d.widths[2] ? shape : '');
   }
   Lab.$$('[data-ds]').forEach(b => b.onclick = () => { ds = b.dataset.ds; w = DS[ds].w; show = 0; update(); });
   Lab.onLang(update); update();
+})();
+
+/* ================= Weighted mean, grouped data, quartiles and variance ================= */
+(function(){
+  const $ = Lab.$, $$ = Lab.$$, L = (en, zh) => Lab.L({ en, zh });
+  const sum = values => values.reduce((a, b) => a + b, 0);
+  const show = x => String(Number(x.toFixed(2)));
+  const join = values => values.join(L(', ', '、'));
+  function text(selector, value){
+    const el = $(selector);
+    if (el.dataset.value === value) return;
+    el.dataset.value = value;
+    el.textContent = value;
+  }
+  function formula(selector, tex, plain){
+    const el = $(selector);
+    if (el.dataset.tex === tex) return;
+    el.dataset.tex = tex;
+    if (window.katex && typeof window.katex.renderToString === 'function') el.innerHTML = MathAnim.tex(tex);
+    else el.textContent = plain;
+  }
+  function choose(buttons, active){
+    buttons.forEach(button => {
+      button.classList.toggle('ghost', button !== active);
+      button.setAttribute('aria-pressed', String(button === active));
+    });
+  }
+  $$('[data-stat-read]').forEach(button => button.onclick = () => {
+    const copy = document.getElementById(button.dataset.statRead).cloneNode(true);
+    copy.querySelectorAll('rt, rp').forEach(note => note.remove());
+    Lab.speak(copy.textContent);
+  });
+  const cases = {
+    grades: { names:[{ en:'Project (70 points)', zh:'项目作业（70 分）' }, { en:'Test (90 points)', zh:'测验（90 分）' }],
+      values:[70, 90], weights:[1, 3], unit:{ en:'points', zh:'分' },
+      note:{ en:'Divide each weight by the total weight to find its share of the course grade.', zh:'用各项的权除以权的总和，就得到该项成绩在总评中所占的比重。' } },
+    groceries: { names:[{ en:'Apples ($2/kg), kg', zh:'苹果（2 美元/千克），千克数' }, { en:'Pears ($5/kg), kg', zh:'梨（5 美元/千克），千克数' }],
+      values:[2, 5], weights:[3, 1], unit:{ en:'dollars/kg', zh:'美元/千克' },
+      note:{ en:'Multiply each price per kilogram by the kilograms bought to get the cost in dollars. Divide total cost by total kilograms. The same method works with dollars per pound and weights in pounds.', zh:'每种水果的单价乘购买的千克数，就得到各自的花费（美元）。用总价除以总千克数就是平均单价。如果单价用美元/磅，购买量也要用磅。' } }
+  };
+  const weightButtons = $$('[data-weight-case]');
+  const weightInputs = [$('#weight-a'), $('#weight-b')];
+  let weightCase = cases.grades;
+  formula('#weight-rule', '\\bar{x}_w=\\frac{w_1x_1+w_2x_2}{w_1+w_2}', 'x̄(w) = (w₁ × x₁ + w₂ × x₂) ÷ (w₁ + w₂)');
+  function updateWeights(){
+    const [a, b] = weightInputs.map(input => Number(input.value));
+    const [x, y] = weightCase.values;
+    const total = a + b, products = a * x + b * y;
+    const share = total ? a / total * 100 : 0;
+    text('#weight-name-a', Lab.L(weightCase.names[0]));
+    text('#weight-name-b', Lab.L(weightCase.names[1]));
+    text('#weight-value-a', String(a));
+    text('#weight-value-b', String(b));
+    $('#weight-share-a').style.width = share + '%';
+    $('#weight-share-b').style.width = (total ? 100 - share : 0) + '%';
+    text('#weight-shares-label', total
+      ? L(`First ${show(share)}% · second ${show(100 - share)}%`, `第一项 ${show(share)}% · 第二项 ${show(100 - share)}%`)
+      : L('Give at least one item a positive weight.', '请让至少一项的权大于 0。'));
+    const calc = $('#weight-calc');
+    calc.hidden = !total;
+    let result = '';
+    if (total){
+      const value = show(products / total);
+      const exact = Math.abs(Number(value) * total - products) < 1e-9;
+      const plain = `(${x} × ${a} + ${y} × ${b}) ÷ ${total} ${exact ? '=' : '≈'} ${value}`;
+      formula('#weight-calc', `\\frac{${x}\\cdot${a}+${y}\\cdot${b}}{${total}} ${exact ? '=' : '\\approx'} ${value}`, plain);
+      const unit = Lab.L(weightCase.unit);
+      result = L(`Weighted mean: ${exact ? '' : 'about '}${value} ${unit}. `, `加权平均数：${exact ? '' : '约 '}${value} ${unit}。`);
+    }
+    text('#weight-context', result + Lab.L(weightCase.note));
+  }
+  weightInputs.forEach(input => input.oninput = updateWeights);
+  weightButtons.forEach(button => button.onclick = () => {
+    choose(weightButtons, button);
+    weightCase = cases[button.dataset.weightCase];
+    weightInputs.forEach((input, i) => { input.value = weightCase.weights[i]; });
+    updateWeights();
+  });
+
+  const fixedTimes = [10, 13, 15, 15, 16, 19, 21, 24, 28];
+  const boundaries = [10, 15, 20, 25, 30];
+  const interval = (lo, hi) => L(`[${lo}, ${hi})`, `［${lo}，${hi}）`);
+  const groupTime = $('#group-time');
+  const groupX = edge => 32 + (edge - 10) * 15.5;
+  const groupY = count => 151 - count * 26;
+  function updateGrouped(){
+    const current = Number(groupTime.value), times = [...fixedTimes, current];
+    const bins = boundaries.slice(0, -1).map((lo, i) => {
+      const hi = boundaries[i + 1];
+      return { lo, hi, midpoint:(lo + hi) / 2, count:times.filter(v => lo <= v && v < hi).length, active:lo <= current && current < hi };
+    });
+    const active = bins.find(bin => bin.active);
+    const products = sum(bins.map(bin => bin.midpoint * bin.count));
+    $('#group-chart').innerHTML = [0, 1, 2, 3, 4, 5].map(n => `<line class="guide" x1="32" y1="${groupY(n)}" x2="342" y2="${groupY(n)}"/><text x="24" y="${groupY(n) + 5}" text-anchor="end">${n}</text>`).join('')
+      + bins.map(({ lo, hi, count, active }) => `<rect x="${groupX(lo)}" y="${groupY(count)}" width="${groupX(hi) - groupX(lo)}" height="${groupY(0) - groupY(count)}" fill="${active ? '#a45335' : '#216f9f'}" stroke="var(--surface)" stroke-width="1"/>`).join('')
+      + '<path class="axis" d="M32 21V151H342" fill="none"/>'
+      + boundaries.map(v => `<text x="${groupX(v)}" y="174" text-anchor="middle">${v}</text>`).join('');
+    $('#group-rows').innerHTML = bins.map(({ lo, hi, count, midpoint, active }) =>
+      `<tr${active ? ' class="is-current"' : ''}><th scope="row">${interval(lo,hi)}</th><td>${count}</td><td>${midpoint}</td></tr>`).join('')
+      + `<tr><th scope="row">${L('Total', '合计')}</th><td>${times.length}</td><td>—</td></tr>`;
+    text('#group-time-value', String(current));
+    text('#group-active', L(`${current} min is in the highlighted interval ${interval(active.lo, active.hi)}.`,
+      `${current} 分钟落在标出的 ${interval(active.lo, active.hi)} 组。`));
+    text('#group-raw', L('Walking times (min) · ', '步行用时（分钟）：') + join(times));
+    const terms = bins.map(bin => `${bin.midpoint}×${bin.count}`).join('+');
+    formula('#group-calc', `\\frac{${terms.replaceAll('×', '\\cdot')}}{${times.length}}=${show(products / times.length)}`,
+      `(${terms}) ÷ ${times.length} = ${show(products / times.length)}`);
+    text('#group-estimate', L(`Estimated mean · ${show(products / times.length)} min`, `平均数的估计值：${show(products / times.length)} 分钟`));
+    const total = sum(times), mean = show(total / times.length);
+    formula('#group-exact', `\\bar{x}=\\frac{${total}}{${times.length}}=${mean}`, `x̄ = ${total} ÷ ${times.length} = ${mean}`);
+    text('#group-exact-label', L(`Exact mean · ${mean} min`, `实际平均数：${mean} 分钟`));
+  }
+  groupTime.oninput = updateGrouped;
+
+  const quartileButtons = $$('[data-quartile-size]');
+  let quartileSize = 5;
+  function median(values){
+    const middle = Math.floor(values.length / 2);
+    return values.length % 2 ? values[middle] : (values[middle - 1] + values[middle]) / 2;
+  }
+  function updateQuartiles(){
+    const values = [2, 4, 6, 8, 10, 12].slice(0, quartileSize);
+    const half = Math.floor(values.length / 2);
+    const left = values.slice(0, half), right = values.slice(-half);
+    const [q1, q2, q3] = [median(left), median(values), median(right)];
+    const center = values.length % 2 ? `<span class="stat-median">Q₂ · ${q2}</span>` : '<b aria-hidden="true">│</b>';
+    $('#quartile-split').innerHTML = `<span>${L('Lower half', '左半部分')} · ${join(left)}</span>${center}<span>${L('Upper half', '右半部分')} · ${join(right)}</span>`;
+    const quartiles = [q1, q2, q3];
+    $$('[data-quartile]').forEach(cell => { cell.textContent = quartiles[Number(cell.dataset.quartile)]; });
+    const x = value => 30 + (value - 2) * 30;
+    $('#quartile-chart').innerHTML = `<line class="axis" x1="${x(values[0])}" x2="${x(values.at(-1))}" y1="45" y2="45"/>
+      <rect class="stat-box" x="${x(q1)}" y="32" width="${x(q3) - x(q1)}" height="26"/>
+      <line x1="${x(q2)}" x2="${x(q2)}" y1="32" y2="58" stroke="var(--brand)" stroke-width="2"/>`
+      + values.map(value => `<path class="axis" d="M${x(value)} 62v4"/><text x="${x(value)}" y="80" text-anchor="middle">${value}</text>`).join('')
+      + quartiles.map((value, i) => `<text x="${x(value)}" y="21" text-anchor="middle">${['Q₁','Q₂','Q₃'][i]} = ${value}</text>`).join('');
+    formula('#quartile-iqr', `\\mathrm{IQR}=Q_3-Q_1=${q3}-${q1}=${q3 - q1}`, `IQR = Q₃ − Q₁ = ${q3} − ${q1} = ${q3 - q1}`);
+  }
+  quartileButtons.forEach(button => button.onclick = () => {
+    choose(quartileButtons, button);
+    quartileSize = Number(button.dataset.quartileSize);
+    updateQuartiles();
+  });
+
+  const compareCenter = $('#compare-center'), compareSpread = $('#compare-spread');
+  const groupA = [7, 8, 8, 9];
+  function describe(values){
+    const mean = sum(values) / values.length;
+    const deviations = values.map(v => v - mean);
+    const squaredSum = sum(deviations.map(d => d ** 2));
+    return { mean, deviations, squaredSum, variance:squaredSum / values.length };
+  }
+  function varianceFormula(selector, group){
+    const terms = group.deviations.map(d => d < 0 ? `(${d})` : String(d));
+    const numerator = terms.map(d => d + '^2').join('+');
+    const plain = terms.map(d => d + '²').join(' + ').replaceAll('-', '−');
+    formula(selector, `\\bar{x}=${group.mean}\\quad s^2=\\frac{${numerator}}{${terms.length}}=${group.variance}`,
+      `x̄ = ${group.mean} · s² = (${plain}) ÷ ${terms.length} = ${group.variance}`);
+  }
+  const scoreX = value => 35 + value * 19.2;
+  function scoreRow(data, mean, label, baseline, color){
+    const counts = new Map();
+    const dots = data.map(value => {
+      const i = counts.get(value) || 0;
+      counts.set(value, i + 1);
+      return `<circle cx="${scoreX(value)}" cy="${baseline - 8 - 10 * i}" r="4.2" fill="${color}"/>`;
+    }).join('');
+    const x = scoreX(mean);
+    return `<text x="3" y="${baseline - 8}">${label}</text><line class="axis" x1="35" y1="${baseline}" x2="342" y2="${baseline}"/><path d="M${x} ${baseline + 1}l-5 8h10z" fill="${color}"/>${dots}`;
+  }
+  const statsA = describe(groupA);
+  formula('#compare-rule', 's^2=\\frac{1}{n}\\sum_{i=1}^n(x_i-\\bar{x})^2', 's² = [(x₁ − x̄)² + … + (xₙ − x̄)²] ÷ n');
+  varianceFormula('#compare-calc-a', statsA);
+  function updateComparison(){
+    const mean = Number(compareCenter.value), d = Number(compareSpread.value);
+    const groupB = [mean - 2 * d, mean - d, mean + d, mean + 2 * d];
+    const statsB = describe(groupB);
+    const [a, b] = [statsA.variance, statsB.variance];
+    $('#compare-chart').innerHTML = [0, 4, 8, 12, 16].map(v =>
+      `<line class="guide" x1="${scoreX(v)}" x2="${scoreX(v)}" y1="12" y2="122"/><text x="${scoreX(v)}" y="142" text-anchor="middle">${v}</text>`).join('')
+      + scoreRow(groupA, statsA.mean, L('A', '甲'), 57, '#216f9f') + scoreRow(groupB, mean, L('B', '乙'), 113, '#a45335');
+    text('#compare-center-value', String(mean));
+    text('#compare-spread-value', String(d));
+    text('#compare-data-b', join(groupB));
+    text('#compare-data-a', join(groupA));
+    varianceFormula('#compare-calc-b', statsB);
+    const typical = mean === statsA.mean ? L('Same mean.', '两组平均数相同。')
+      : mean > statsA.mean ? L('Group B scores higher on average.', '乙组的平均得分较高。') : L('Group A scores higher on average.', '甲组的平均得分较高。');
+    const spread = a === b ? L('Same variance.', '两组方差相同。')
+      : a > b ? L('Group B is more consistent.', '乙组方差较小，得分更稳定。') : L('Group A is more consistent.', '甲组方差较小，得分更稳定。');
+    text('#compare-result', typical + L(' ', '') + spread);
+    formula('#compare-sums', `${statsA.squaredSum}\\div4=${a}\\qquad ${statsB.squaredSum}\\div4=${b}`,
+      `${statsA.squaredSum} ÷ 4 = ${a} · ${statsB.squaredSum} ÷ 4 = ${b}`);
+  }
+  compareCenter.oninput = compareSpread.oninput = updateComparison;
+  Lab.onLang(() => {
+    updateWeights();
+    updateGrouped();
+    updateQuartiles();
+    updateComparison();
+  });
 })();
 
 /* ================= Quiz + sort ================= */
 (function(){
   const o = (en, zh) => ({ en, zh });
   Lab.quiz(Lab.$('#quiz'), [
-    { q:o('What is the mean of 4, 6, 8, 10, 12?','4、6、8、10、12 的平均数是多少？'), options:[o('8','8'),o('10','10'),o('40','40'),o('6','6')], answer:0, explain:o('Total 40, count 5: 40 ÷ 5 = 8.','总和 40，个数 5:40 ÷ 5 = 8。') },
-    { q:o('What is the median of 3, 9, 4, 7, 5?','3、9、4、7、5 的中位数是多少？'), options:[o('5','5'),o('4','4'),o('7','7'),o('5.6','5.6')], answer:0, explain:o('In order: 3, 4, 5, 7, 9. The middle value is 5. (4 is the middle of the unsorted list: a trap!)','排序后：3、4、5、7、9，中间的数是 5。（4 是没排序时写在中间的数，是陷阱！）') },
-    { q:o('What is the median of 2, 4, 6, 8?','2、4、6、8 的中位数是多少？'), options:[o('5','5'),o('4','4'),o('6','6'),o('There is none','没有中位数')], answer:0, explain:o('Even count: halfway between the two middle values, (4 + 6) ÷ 2 = 5.','个数是偶数：取中间两个数的平均数，(4 + 6) ÷ 2 = 5。') },
+    { q:o('What is the mean of 4, 6, 8, 10, 12?','4、6、8、10、12 的平均数是多少？'), options:[o('8','8'),o('10','10'),o('40','40'),o('6','6')], answer:0, explain:o('The five values add to 40. Divide by 5 to get 8.','5 个数的和为 40，除以 5 得 8。') },
+    { q:o('What is the median of 2, 4, 6, 8?','2、4、6、8 的中位数是多少？'), options:[o('5','5'),o('4','4'),o('6','6'),o('There is none','没有中位数')], answer:0, explain:o('With an even count, average the two middle values. Here, (4 + 6) ÷ 2 = 5.','数据个数是偶数时，取中间两个数的平均数。这里是（4＋6）÷ 2＝5。') },
     { q:o('What is the range of 12, 5, 9, 20, 7?','12、5、9、20、7 的极差是多少？'), options:[o('15','15'),o('13','13'),o('20','20'),o('9','9')], answer:0, explain:o('Max − min = 20 − 5 = 15.','最大值 − 最小值 = 20 − 5 = 15。') },
-    { q:o('A data set gets one very large outlier. Which measure changes the most?','一组数据中加入一个特别大的离群值，哪个统计量变化最大？'), options:[o('The mean','平均数'),o('The median','中位数'),o('The IQR','四分位距'),o('None of them','都不变')], answer:0, explain:o('The mean uses every value, so one huge value drags it toward itself; the median just looks at the middle.','平均数用到了每一个数据，一个特别大的数会把它拉过去；中位数只看中间的位置。') },
-    { q:o('Why is the mean called the “balance point” of a dot plot?','为什么说平均数是点图的“平衡点”？'), options:[o('Total distance on its left equals total distance on its right','它左边的距离总和等于右边的距离总和'),o('Half the dots are on each side','两边的点一样多'),o('It is always a data value','它一定是某个数据'),o('It is the most common value','它是出现最多的数')], answer:0, explain:o('Distances below the mean exactly cancel distances above it. (Equal numbers of dots on each side describes the median.)','平均数左右两边的距离正好抵消。（两边点数一样多说的是中位数。）') },
-    { q:o('What is the MAD of 2, 4, 6, 8?','2、4、6、8 的平均绝对偏差（MAD）是多少？'), options:[o('2','2'),o('5','5'),o('6','6'),o('4','4')], answer:0, explain:o('Mean 5; distances 3, 1, 1, 3 add to 8; 8 ÷ 4 = 2.','平均数是 5；距离 3、1、1、3 之和为 8;8 ÷ 4 = 2。') },
-    { q:o('Find the IQR of 1, 2, 3, 4, 5, 6, 7, 8.','求 1、2、3、4、5、6、7、8 的四分位距（IQR）。'), options:[o('4','4'),o('7','7'),o('3.5','3.5'),o('2','2')], answer:0, explain:o('Lower half 1–4 gives Q1 = 2.5; upper half 5–8 gives Q3 = 6.5; IQR = 6.5 − 2.5 = 4.','下半部分 1~4,Q1 = 2.5；上半部分 5~8,Q3 = 6.5;IQR = 6.5 − 2.5 = 4。') },
+    { q:o('The values are 2, 3, 4, 7, 9. If 9 changes to 19, what happens to the mean and median?','数据为 2、3、4、7、9。把 9 改成 19 后，平均数和中位数有什么变化？'), options:[o('The mean rises by 2 and the median stays the same','平均数增加 2，中位数不变'),o('Both rise by 2','两者都增加 2'),o('Only the median rises','只有中位数增加'),o('Both stay the same','两者都不变')], answer:0, explain:o('The total rises by 10, so the mean rises by 10 ÷ 5 = 2. The middle value is still 4.','总和增加 10，所以平均数增加 10 ÷ 5＝2。排序后中间的数仍是 4。') },
+    { q:o('What is the MAD of 2, 4, 6, 8?','2、4、6、8 的平均绝对偏差（MAD）是多少？'), options:[o('2','2'),o('5','5'),o('6','6'),o('4','4')], answer:0, explain:o('The mean is 5. The distances 3, 1, 1, 3 add to 8, so the MAD is 8 ÷ 4 = 2.','平均数是 5。四个距离 3、1、1、3 相加得 8，所以平均绝对偏差是 8 ÷ 4＝2。') },
+    { q:o('Find the IQR of 1, 2, 3, 4, 5, 6, 7, 8 using the median of each half.','用分半法求 1、2、3、4、5、6、7、8 的四分位距（IQR）。'), options:[o('4','4'),o('7','7'),o('3.5','3.5'),o('2','2')], answer:0, explain:o('The median of 1, 2, 3, 4 is 2.5. The median of 5, 6, 7, 8 is 6.5. The IQR is 6.5 − 2.5 = 4.','前一半的中位数是 2.5，后一半的中位数是 6.5。四分位距为 6.5 − 2.5＝4。') },
     { q:o('Which of these is a measure of spread?','下面哪个是描述离散程度的量？'), options:[o('Interquartile range','四分位距'),o('Mean','平均数'),o('Median','中位数'),o('Mode','众数')], answer:0, explain:o('Range, IQR and MAD measure spread; mean, median and mode measure center.','极差、四分位距、平均绝对偏差描述离散程度；平均数、中位数、众数描述集中趋势。') },
-    { q:o('Three friends have 4, 5 and 9 stickers and share them equally. How many does each get?','三个朋友分别有 4、5、9 张贴纸，平均分后每人几张？'), options:[o('6','6'),o('5','5'),o('9','9'),o('18','18')], answer:0, explain:o('Fair share = mean: 18 ÷ 3 = 6.','平均分就是求平均数：18 ÷ 3 = 6。') },
-    { q:o('A box plot has Q1 = 10 and Q3 = 18. What is the IQR?','一个箱线图中 Q1 = 10,Q3 = 18，四分位距是多少？'), options:[o('8','8'),o('28','28'),o('14','14'),o('18','18')], answer:0, explain:o('IQR = Q3 − Q1 = 18 − 10 = 8: the width of the box.','IQR = Q3 − Q1 = 18 − 10 = 8，也就是箱子的宽度。') },
-    { q:o('Test scores 80, 85, 90. What 4th score makes the mean of all four equal 86?','前三次测验成绩是 80、85、90。第四次考多少分，四次的平均分才是 86?'), options:[o('89','89'),o('86','86'),o('85','85'),o('91','91')], answer:0, explain:o('Four scores averaging 86 total 344. 344 − 255 = 89.','四次平均 86，总分是 344。344 − 255 = 89。') }
-  ], { count:8 });
-  Lab.sort(Lab.$('#sort'), {
+    { q:o('The first three test scores are 80, 85 and 90 points. What fourth score makes the mean 86 points?','前三次测验成绩是 80、85、90 分。第四次考多少分，四次的平均分才是 86 分？'), options:[o('89 points','89 分'),o('86 points','86 分'),o('85 points','85 分'),o('91 points','91 分')], answer:0, explain:o('The four scores must total 4 × 86 = 344 points. The first three total 255 points, so the fourth is 344 − 255 = 89 points.','四次总分应为 4 × 86＝344 分。前三次共 255 分，第四次应得 344 − 255＝89 分。') },
+    { q:o('A project score of 80 has weight 2. A test score of 95 has weight 3. What is the weighted mean?','项目作业得 80 分，权为 2；测验得 95 分，权为 3。加权平均数是多少？'), options:[o('89 points','89 分'),o('87.5 points','87.5 分'),o('90 points','90 分'),o('445 points','445 分')], answer:0, explain:o('The weighted total is 80 × 2 + 95 × 3 = 445. Divide by 2 + 3 = 5 to get 89 points.','加权总和是 80 × 2＋95 × 3＝445。除以权的总和 2＋3＝5，得 89 分。') },
+    { q:o('There are 2 walking times in [10, 20) min and 6 in [20, 30) min. What is the estimated mean?','在［10，20）分钟组内有 2 次步行，在［20，30）分钟组内有 6 次。估计平均用时是多少？'), options:[o('22.5 min','22.5 分钟'),o('20 min','20 分钟'),o('17.5 min','17.5 分钟'),o('25 min','25 分钟')], answer:0, explain:o('The midpoints are 15 and 25 minutes. The estimate is (2 × 15 + 6 × 25) ÷ 8 = 22.5 minutes.','组中值分别是 15 和 25 分钟。估计平均数为（2 × 15＋6 × 25）÷ 8＝22.5 分钟。') },
+    { q:o('Using the median-of-halves rule taught in both books, what is Q₃ for 1, 3, 4, 7, 9?','用两套教材的“两半各求中位数”法，求 1、3、4、7、9 的 Q₃。'), options:[o('8','8'),o('7','7'),o('9','9'),o('4','4')], answer:0, explain:o('Set aside the middle observation, 4. The upper half is 7 and 9, so Q₃ = (7 + 9) ÷ 2 = 8.','把中间的 4 单独留出。右半部分是 7 和 9，所以 Q₃＝（7＋9）÷ 2＝8。') },
+    { q:o('Groups A and B have the same mean score. Their variances are 4 points² and 9 points², respectively. Which group’s scores are more consistent?','甲、乙两组的平均得分相同，方差分别为 4 和 9 平方分。哪组得分更稳定？'), options:[o('Group A','甲组'),o('Group B','乙组'),o('They are equally consistent','两组一样稳定'),o('You need the individual scores to tell','要知道每个得分才能判断')], answer:0, explain:o('Group A has the smaller variance. Its squared deviations from its own mean average 4 points², compared with 9 for B.','甲组方差较小。本组各得分与平均数的离差平方平均为 4 平方分，乙组则为 9 平方分。') }
+  ], { count:12 });
+  const checks = {
+    lesson: [
+      { q:o('Three friends have 4, 5 and 9 stickers and share them equally. How many does each get?','三个朋友分别有 4、5、9 张贴纸，平均分后每人几张？'), options:[o('6','6'),o('5','5'),o('9','9'),o('18','18')], answer:0, explain:o('The 18 stickers are shared among three people. Each gets 18 ÷ 3 = 6 stickers.','把 18 张贴纸平均分给 3 人，每人得 18 ÷ 3＝6 张。') },
+      { q:o('Why is the mean called the “balance point” of a dot plot?','为什么说平均数是点图的“平衡点”？'), options:[o('The sums of the distances to the mean are equal on both sides','两侧各点到平均数的距离之和相等'),o('The dots are evenly spaced','相邻两点的间距都相同'),o('The mean is always a data value','平均数一定是某个数据'),o('The mean is the most common value','平均数就是出现次数最多的数')], answer:0, explain:o('Add the distances from the mean on each side. The two totals are always equal.','分别把两侧各点到平均数的距离相加，两侧的总和一定相等。') }
+    ],
+    explore: [
+      { q:o('What is the median of 3, 9, 4, 7, 5?','3、9、4、7、5 的中位数是多少？'), options:[o('5','5'),o('4','4'),o('7','7'),o('5.6','5.6')], answer:0, explain:o('In order: 3, 4, 5, 7, 9. The middle value is 5.','从小到大排序后得到 3、4、5、7、9，正中间的数是 5。') },
+      { q:o('A box plot has Q₁ = 10 and Q₃ = 18. What is the IQR?','箱线图中 Q₁＝10，Q₃＝18。四分位距是多少？'), options:[o('8','8'),o('28','28'),o('14','14'),o('18','18')], answer:0, explain:o('The box width is Q₃ − Q₁ = 18 − 10 = 8.','箱体的宽度就是四分位距，等于 Q₃ − Q₁＝18 − 10＝8。') }
+    ],
+    histo: [
+      { q:o('What does the height of a bar show in this equal-width histogram?','在这里组距相同的直方图中，一根柱子的高度表示什么？'), options:[o('The number of values in that interval','该组的数据个数'),o('The width of the interval','该组的组距'),o('The midpoint of the interval','该组的组中值'),o('The number of intervals','区间的组数')], answer:0, explain:o('Each bar’s height shows the frequency of its interval. The width is the difference between its endpoints.','柱高表示该组的频数，柱宽等于该组上界与下界的差。') },
+      { q:o('Using 5-minute intervals, how many walking times are in the interval from 10 up to but excluding 15 minutes? Use the school travel data above.','用上面上学用时的数据，按 5 分钟分组。［10，15）分钟组有几个数据？'), options:[o('5','5'),o('8','8'),o('3','3'),o('7','7')], answer:0, explain:o('The interval contains 10, 10, 12, 12 and 13 minutes. The three values of 15 minutes go in the next interval.','本组包含 10、10、12、12、13，共 5 个数据。3 个恰好 15 分钟的数据都归入下一组。') }
+    ],
+    weighted: [
+      { q:o('A 70-point score has weight 1. A 90-point score has weight 3. What is their weighted mean?','70 分这一项的权为 1，90 分这一项的权为 3。加权平均数是多少？'), options:[o('85 points','85 分'),o('80 points','80 分'),o('75 points','75 分'),o('90 points','90 分')], answer:0, explain:o('(70 × 1 + 90 × 3) ÷ 4 = 85 points. The 90-point score counts for three fourths of the result.','（70 × 1＋90 × 3）÷ 4＝85 分。90 分这一项占总权重的四分之三。') },
+      { q:o('A bag has 3 kg of $2/kg apples and 1 kg of $5/kg pears. What is the average price per kilogram?','买了 3 千克每千克 2 美元的苹果和 1 千克每千克 5 美元的梨。平均每千克多少钱？'), options:[o('$2.75/kg','2.75 美元/千克'),o('$3.50/kg','3.50 美元/千克'),o('$2/kg','2 美元/千克'),o('$11/kg','11 美元/千克')], answer:0, explain:o('The total is $11 for 4 kg, so the average price is $11 ÷ 4 kg = $2.75/kg.','总价 11 美元，总质量 4 千克，所以平均单价为 11 ÷ 4＝2.75 美元/千克。') }
+    ],
+    grouped: [
+      { q:o('Which class contains exactly 20 minutes?','恰好 20 分钟应分到哪一组？'), options:[o('[20, 25)','［20，25）'),o('[15, 20)','［15，20）'),o('Both classes','两组都算'),o('Neither class','两组都不算')], answer:0, explain:o('20 is the lower boundary of [20, 25). Each class includes its lower boundary and excludes its upper boundary.','20 是［20，25）的下界。每组含下界，不含上界。') },
+      { q:o('A class from 15 to under 20 minutes has frequency 4. What term does it contribute to the numerator of the estimated mean?','［15，20）分钟组的频数为 4。这一组为估计平均数公式的分子贡献哪一项？'), options:[o('17.5 × 4','17.5 × 4'),o('20 × 4','20 × 4'),o('17.5 ÷ 4','17.5 ÷ 4'),o('15 × 4','15 × 4')], answer:0, explain:o('The midpoint is (15 + 20) ÷ 2 = 17.5 minutes. Represent each of the four times by that midpoint.','组中值为（15＋20）÷ 2＝17.5 分钟。把这组的 4 个数据都用组中值代表。') }
+    ],
+    quartiles: [
+      { q:o('For 2, 4, 6, 8, 10, what is Q₁ by the two textbook rules above?','按上面两套教材的算法，2、4、6、8、10 的 Q₁ 是多少？'), options:[o('3','3'),o('4','4'),o('6','6'),o('2','2')], answer:0, explain:o('The overall median is 6. The lower half is 2 and 4, whose median is (2 + 4) ÷ 2 = 3.','整组数据的中位数是 6。左半部分是 2 和 4，其中位数为（2＋4）÷ 2＝3。') },
+      { q:o('For 2, 4, 6, 8, 10, 12, what is the IQR by the median-of-halves rule?','用“两半各求中位数”法，求 2、4、6、8、10、12 的四分位距。'), options:[o('6','6'),o('4','4'),o('7','7'),o('10','10')], answer:0, explain:o('The medians of the two halves are 4 and 10. Their difference is 10 − 4 = 6.','两半数据的中位数分别是 4 和 10。四分位距为 10－4＝6。') }
+    ],
+    compare: [
+      { q:o('A = 7, 8, 8, 9 and B = 4, 6, 10, 12. Both means are 8 points. Which group’s scores are more consistent?','甲组得分为 7、8、8、9，乙组为 4、6、10、12。两组平均数都是 8 分，哪组得分更稳定？'), options:[o('A','甲组'),o('B','乙组'),o('Both are equally consistent','两组一样稳定'),o('Neither group has variance','两组方差都为 0')], answer:0, explain:o('A’s variance is (1 + 0 + 0 + 1) ÷ 4 = 0.5 points². B’s is (16 + 4 + 4 + 16) ÷ 4 = 10 points². A’s scores vary less.','甲组方差是（1＋0＋0＋1）÷ 4＝0.5 平方分。乙组方差是（16＋4＋4＋16）÷ 4＝10 平方分。甲组得分的波动较小。') },
+      { q:o('A has mean 8 and variance 0.5. B has mean 9 and variance 10. Which comparison is correct?','甲组平均数为 8，方差为 0.5。乙组平均数为 9，方差为 10。哪一项比较正确？'), options:[o('B has the higher mean, and A is more consistent','乙组平均数较高，甲组较稳定'),o('A has the higher mean and is more consistent','甲组平均数较高，也较稳定'),o('B has the higher mean and is more consistent','乙组平均数较高，也较稳定'),o('A has the higher mean, and B is more consistent','甲组平均数较高，乙组较稳定')], answer:0, explain:o('Compare the mean for average level (9 > 8), then the variance for consistency (0.5 < 10).','先比较平均数，9 大于 8，乙组平均水平较高。再比较方差，0.5 小于 10，甲组更稳定。') }
+    ]
+  };
+  Object.entries(checks).forEach(([section, questions]) => Lab.quiz(Lab.$('#' + section + '-check'), questions, { count:2 }));
+  const sortGame = {
     bins:[{ id:'c', en:'Measure of center', zh:'集中趋势（中心）' }, { id:'s', en:'Measure of spread', zh:'离散程度（分散）' }],
-    items:[ { en:'Mean', zh:'平均数', bin:'c' }, { en:'Median', zh:'中位数', bin:'c' }, { en:'Mode (most common value)', zh:'众数（出现次数最多的数）', bin:'c' }, { en:'The balance point', zh:'平衡点', bin:'c' }, { en:'The middle value in order', zh:'排序后最中间的数', bin:'c' }, { en:'The fair-share amount', zh:'平均分后每份的量', bin:'c' },
-            { en:'Range', zh:'极差', bin:'s' }, { en:'Interquartile range (IQR)', zh:'四分位距（IQR）', bin:'s' }, { en:'Mean absolute deviation (MAD)', zh:'平均绝对偏差（MAD）', bin:'s' }, { en:'Max − min', zh:'最大值 − 最小值', bin:'s' }, { en:'Q3 − Q1', zh:'Q3 − Q1', bin:'s' }, { en:'Average distance from the mean', zh:'到平均数的平均距离', bin:'s' } ]
+    items:[ { en:'Mean', zh:'平均数', bin:'c' }, { en:'Median', zh:'中位数', bin:'c' }, { en:'Mode (most frequent value)', zh:'众数（出现次数最多的数）', bin:'c' }, { en:'The balance point', zh:'平衡点', bin:'c' }, { en:'The middle of the sorted data', zh:'排好序后中间位置所对应的数', bin:'c' }, { en:'The fair-share amount', zh:'平均分后每份的量', bin:'c' },
+            { en:'Range', zh:'极差', bin:'s' }, { en:'Interquartile range (IQR)', zh:'四分位距（IQR）', bin:'s' }, { en:'Mean absolute deviation (MAD)', zh:'平均绝对偏差（MAD）', bin:'s' }, { en:'Max − min', zh:'最大值 − 最小值', bin:'s' }, { en:'Q₃ − Q₁', zh:'Q₃ − Q₁', bin:'s' }, { en:'Average distance from the mean', zh:'到平均数的平均距离', bin:'s' } ]
+  };
+  Lab.sort(Lab.$('#sort'), sortGame);
+  // Keep the shared sort game's transient feedback in sync when changing languages.
+  Lab.onLang(lang => {
+    const feedback = Lab.$('#sort .result');
+    const current = feedback.textContent;
+    const other = lang === 'zh' ? 'en' : 'zh';
+    for (const label of [Lab.UI.sortGood, Lab.UI.sortBad]){
+      const prefix = label[other] + ' ';
+      if (!current.startsWith(prefix)) continue;
+      const item = sortGame.items.find(item => item[other] === current.slice(prefix.length));
+      if (item) feedback.textContent = Lab.L(label) + ' ' + Lab.L(item);
+      return;
+    }
+    const count = current.match(/\d+$/)?.[0];
+    if (count && current === Lab.UI.sortDone[other].replace('{m}', count)){
+      feedback.textContent = Lab.fmt(Lab.UI.sortDone, {m:count});
+    }
   });
 })();
 </script>
@@ -567,15 +1093,15 @@ const PHOTOS = [
     zh:'这块计分牌记录了一场比赛。把球队整个赛季每场的得分列出来后，怎样求得分的中位数？',
     credit:'Kenneth C. Zirkel', license:'CC BY 4.0', page:'https://commons.wikimedia.org/wiki/File:Pizzitola_Scoreboard_after_Stony_Brook_game_in_2024.jpg' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a5/Davis_Instruments_weather_station.jpg/960px-Davis_Instruments_weather_station.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
-    en:'A small weather station in a French vineyard records temperature, rain and wind all day. A month of daily highs: what is the mean, the median and the range?',
-    zh:'法国一片葡萄园里的小型气象站，整天记录气温、降雨和风。一个月每天的最高气温：平均数、中位数和极差各是多少？',
+    en:'This weather station stands in a vineyard in France. If you recorded the daily high temperature for a month, how would you find the mean, median and range?',
+    zh:'这座小型气象站位于法国的一片葡萄园里。如果记录一个月中每天的最高气温，怎样求平均数、中位数和极差？',
     credit:'Cjp24', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Davis_Instruments_weather_station.jpg' },
   { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c1/Galton_box.jpg/960px-Galton_box.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
-    en:'A Galton board: beads pile up in a hill shape, high in the middle and low at the edges. Where would the mean and median of the beads’ positions be?',
-    zh:'高尔顿板：珠子堆成一座“小山”，中间高、两边低。珠子位置的平均数和中位数会在哪里？',
-    credit:'Exhibit made by Estes Objethos Atelier, photo by Rodrigo.Argenton', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Galton_box.jpg' },
+    en:'A Galton board: beads can pile up in a hill shape, high in the middle and low at the edges. If the piles are roughly symmetric, where would you expect the mean and median of the beads’ positions to be?',
+    zh:'在高尔顿板里，珠子可以堆成中间高、两边低的形状。如果两边大致对称，珠子位置的平均数和中位数大约在哪里？',
+    credit:'Matemateca (IME/USP) / Rodrigo Tetsuo Argenton · Estes Objethos Atelier', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Galton_box.jpg' },
   { type:'youtube', yt:'B1HEzNTGeZ4', en:'Watch why finding the median starts by putting the numbers in order.', zh:'观察为什么求中位数时要先把数据按大小排列（英文）。', kind:VID, credit:'Math Antics (YouTube)', license:'YouTube' },
-  { type:'youtube', yt:'sxYrzzy3cq8', en:'Watch how a single average can hide important differences in the data.', zh:'观察一个平均数怎样掩盖数据之间的重要差异（英文）。', kind:VID, credit:'TED-Ed (YouTube)', license:'YouTube' }
+  { type:'youtube', yt:'sxYrzzy3cq8', en:'Enrichment · Simpson’s paradox: see how combining groups can reverse a pattern.', zh:'课外拓展 · 辛普森悖论：看看把几组数据合在一起后，原有的趋势怎样反转（英文）。', kind:VID, credit:'TED-Ed (YouTube)', license:'YouTube' }
 ];
 LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos and short videos. Each photo comes with a question this lesson helps you answer. Click a picture to enlarge it or to play a video.','真实照片和短视频。每张照片都带着一个这节课能帮你回答的问题。点击图片可放大，点击视频可播放。') });
 })();
