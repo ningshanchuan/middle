@@ -86,6 +86,7 @@
 .sg.bad{background:color-mix(in srgb,var(--bad) 22%,transparent);animation:sgshake .35s}
 @keyframes sgshake{25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
 .sg{display:inline}
+.hl-text::highlight(yw-passage-reading){background:color-mix(in srgb,var(--brand) 24%,transparent)}
 .hl-en{font-family:Nunito,system-ui,sans-serif;font-size:14.5px;color:var(--ink-2);border-left:3px solid var(--line);padding-left:10px;margin:0}
 .hl-words{display:flex;flex-wrap:wrap;gap:6px;font-size:14px}
 .hl-words span{background:var(--surface-2);border-radius:999px;padding:3px 10px}
@@ -257,7 +258,7 @@ const YW = (() => {
   let vz = null, run = 0;
   const pick = () => { try { const vs = speechSynthesis.getVoices(); vz = vs.find(v => /zh[-_]CN/i.test(v.lang)) || vs.find(v => /^zh/i.test(v.lang)) || null; } catch(e){} };
   if (window.speechSynthesis){ pick(); try { speechSynthesis.addEventListener('voiceschanged', pick); } catch(e){} }
-  Y.stop = () => { run++; try { window.speechSynthesis && speechSynthesis.cancel(); } catch(e){} };
+  Y.stop = () => { clearPassageReading?.(); run++; try { window.speechSynthesis && speechSynthesis.cancel(); } catch(e){} };
   Y.say = (text, rate = .8) => new Promise(res => {
     if (!window.speechSynthesis){ setTimeout(() => res(false), 600); return; }
     let done = false; const fin = ok => { if (!done){ done = true; res(ok); } };
@@ -343,6 +344,70 @@ const YW = (() => {
 /* ===== 现代文阅读 kit (shared by yw-narrative / yw-expository / yw-argumentative; copied into each page) ===== */
 const HUES = ['#e11d48', '#2563eb', '#16a34a', '#d97706', '#7c3aed', '#0891b2', '#db2777', '#65a30d'];
 /* Highlight-and-label: pick a label, tap the words it belongs to. segs = [[text, 'key' | 'k1|k2' | '', why{en,zh}?], …] */
+function passageSpeech(passage){
+  const text = passage.segs.map(segment => segment[0]).join('').replace(/<[^>]+>/g, '');
+  const limit = 150, length = [...text].length;
+  if (length <= limit) return [text];
+  const sentences = text.match(/[^。！？；]+[。！？；]+(?:[”’」』》）]+[。！？；]*)*|[^。！？；]+$/gu);
+  const targetLength = Math.ceil(length / Math.ceil(length / limit));
+  const units = [];
+  let unit = '';
+  for (const sentence of sentences){
+    if (unit && ([...unit].length >= targetLength || [...(unit + sentence)].length > limit)){
+      units.push(unit);
+      unit = '';
+    }
+    unit += sentence;
+  }
+  if (unit) units.push(unit);
+  return units;
+}
+
+let clearPassageReading;
+Lab.onLang(() => clearPassageReading?.());
+document.addEventListener('click', event => {
+  if (event.target.closest('.lab-player [data-a=st]')) clearPassageReading?.();
+}, true);
+async function playPassage(passage, target){
+  YW.stop();
+  const walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT, {
+    acceptNode: node => node.parentElement.closest('.lp-jin') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT
+  });
+  let node = walker.nextNode(), offset = 0;
+  const highlights = CSS.highlights;
+  let finishClip;
+  const clear = () => {
+    highlights?.delete('yw-passage-reading');
+    clearPassageReading = null;
+    finishClip?.(false);
+  };
+  clearPassageReading = clear;
+  for (const text of passageSpeech(passage)){
+    while (clearPassageReading === clear && Lab.speechPaused()){
+      await new Promise(resolve => setTimeout(resolve, 150));
+    }
+    if (clearPassageReading !== clear || !target.isConnected) break;
+    if (highlights && node){
+      const range = new Range();
+      range.setStart(node, offset);
+      offset += text.length;
+      while (node && offset > node.length){
+        offset -= node.length;
+        node = walker.nextNode();
+      }
+      if (node){
+        range.setEnd(node, offset);
+        highlights.set('yw-passage-reading', new Highlight(range));
+      }
+    }
+    const ok = await new Promise(resolve => {
+      finishClip = resolve;
+      if (!Lab.speak(text, {lang:'zh', rate:.8, inner:true, onend:resolve})) resolve(false);
+    });
+    if (!ok) break;
+  }
+  if (clearPassageReading === clear) clear();
+}
 function Labeler(sel, cfg){
   const el = Lab.$(sel), keys = Object.keys(cfg.labels), col = k => HUES[keys.indexOf(k) % HUES.length];
   const S = { p:0, lab:null, ok:new Map(), bad:0, en:false, msg:null, flash:null, doneP:new Set(), all:false };
@@ -365,7 +430,7 @@ function Labeler(sel, cfg){
     el.querySelectorAll('.ywtabs button').forEach(b => b.onclick = () => { S.p = +b.dataset.p; S.msg = null; draw(); });
     el.querySelectorAll('.hl-pal button').forEach(b => b.onclick = () => { S.lab = b.dataset.k; const d = cfg.labels[S.lab].def; S.msg = d ? { c:'', h:`🏷️ <b>${Lab.L(cfg.labels[S.lab])}</b>: ${Lab.L(d)}` } : null; draw(); });
     el.querySelectorAll('.sg').forEach(sp => sp.onclick = () => tap(+sp.dataset.i));
-    el.querySelector('.hl-say').onclick = () => YW.zh(P.segs.map(s => s[0]).join('').replace(/<[^>]+>/g, ''));
+    el.querySelector('.hl-say').onclick = () => playPassage(P, el.querySelector('.hl-text'));
     el.querySelector('.hl-stop').onclick = () => YW.stop();
     const et = el.querySelector('.hl-entog'); if (et) et.onclick = () => { S.en = !S.en; draw(); };
     el.querySelector('.hl-reset').onclick = () => { P.segs.forEach((s, i) => S.ok.delete(sid(S.p, i))); S.doneP.delete(S.p); S.msg = null; draw(); };
@@ -452,7 +517,7 @@ const SIX = {
   结果:{ en:'Result (结果)', zh:'结果', def:o('how it ends.', '事情最后怎么样了。') }
 };
 let sixDone = 0;
-Labeler('#hlSix', { labels:SIX, ask:o('Pick a label, then tap the part of the story it matches. Each part has one label.', '选一个标签，再点故事中对应的部分。每一部分只对应一个要素。'),
+const elementsHunt = { labels:SIX, ask:o('Pick a label, then tap the part of the story it matches. Each part has one label.', '选一个标签，再点故事中对应的部分。每一部分只对应一个要素。'),
   passages:[
     { t:o('The old umbrella', '一把旧伞'), src:o('Original passage written for this site', '本站原创短文'),
       segs:[['去年冬天的一个傍晚，', '时间'], ['我和刚转学来的同桌小林', '人物'], ['在学校门口的公交站', '地点'],
@@ -471,8 +536,10 @@ Labeler('#hlSix', { labels:SIX, ask:o('Pick a label, then tap the part of the st
       en:'This Chinese New Year’s Eve, Grandma and I were in her little kitchen. I kept complaining that my dumplings were flat and ugly, and huffed that I’d never make another. Grandma didn’t laugh. She took a wrapper — filling, fold, pinch the edge bit by bit — and slowly showed me. I copied her again and again until my hands and face were covered in flour. When the dumplings came out of the pot, not one of mine had burst. Grandma smiled: “See? Take it slowly, and it works.”',
       after:o('📝 Model summary: On New Year’s Eve I wanted to give up making dumplings, but Grandma patiently showed me how, and I finally made them well — “take it slowly and it works.”', '📝 概括示范：除夕，“我”嫌自己包的饺子丑想放弃，奶奶耐心示范，“我”终于包好了饺子，懂得了“慢慢来就成了”。') }
   ],
-  onAll:() => YW.done('m1') });
-Lab.$('#sixSay').onclick = () => YW.zh('记叙文六要素：时间、地点、人物、起因、经过、结果。概括主要内容：谁，在什么情况下，做了什么，结果怎样。');
+  onAll:() => YW.done('m1') };
+Labeler('#hlSix', elementsHunt);
+const mnemonicSpeech = '记叙文六要素：时间、地点、人物、起因、经过、结果。概括主要内容：谁，在什么情况下，做了什么，结果怎样。';
+Lab.$('#sixSay').onclick = () => YW.zh(mnemonicSpeech);
 
 /* ---- Mission 2a: the four 背影 ---- */
 const CLUE = [
@@ -548,7 +615,7 @@ const DESC = {
   环境:{ en:'Setting (环境)', zh:'环境', def:o('nature or surroundings: weather, plants, sounds, a room.', '自然景物或社会环境：天气、草木、声音、房间。') }
 };
 let descLab = null;
-descLab = Labeler('#hlDesc', { labels:DESC, ask:o('Pick a method, then tap the sentence. Some sentences are plain narration — tap them to find out why.', '选一种描写方法，再点句子。有的句子只是叙述，点一下看看为什么。'),
+const descriptionHunt = { labels:DESC, ask:o('Pick a method, then tap the sentence. Some sentences are plain narration — tap them to find out why.', '选一种描写方法，再点句子。有的句子只是叙述，点一下看看为什么。'),
   plain:o('This is plain narration or feeling, not one of the six description methods.', '这是叙述或抒情，不属于这六种描写。'),
   passages:[
     { t:o('《背影》 Zhu Ziqing', '《背影》朱自清'), src:o('Zhu Ziqing, 《背影》 (1925), the orange-buying scene — public domain', '朱自清《背影》（1925）买橘子片段（公版）'),
@@ -575,7 +642,13 @@ descLab = Labeler('#hlDesc', { labels:DESC, ask:o('Pick a method, then tap the s
       words:[['揣', 'chuāi', 'tuck (in one’s clothes)'], ['怦怦', 'pēngpēng', 'thump-thump'], ['梧桐', 'wútóng', 'parasol tree'], ['咧嘴', 'liězuǐ', 'grin']],
       en:'The moment the exam bell rang, my heart thumped like a rabbit tucked in my shirt: what if I couldn’t do the last question again? The invigilator walked past me, frowned slightly, then relaxed. I took a deep breath, gripped my pen and wrote it out stroke by stroke. Outside, the parasol-tree leaves rustled and sunlight slanted across the desks. After we handed in, my deskmate leaned over and whispered, “Did you get the last one?” I grinned and nodded hard.' }
   ],
-  onFound:n => { if (n >= 15) YW.done('m4'); } });
+  onFound:n => { if (n >= 15) YW.done('m4'); } };
+descLab = Labeler('#hlDesc', descriptionHunt);
+Lab.readAll(() => [
+  ...[...elementsHunt.passages, ...descriptionHunt.passages].flatMap(passage => passageSpeech(passage).map(text => [text, 'zh'])),
+  [mnemonicSpeech, 'zh'],
+  ...CLUE.map(clue => [clue.q, 'zh'])
+]);
 (function(){
   const c = descLab.counts(), keys = Object.keys(DESC);
   YW.bars('#figDesc', keys.map((k, i) => ({ l:o(DESC[k].en, k), v:c[k] || 0, c:HUES[i] })).sort((a, b) => b.v - a.v),

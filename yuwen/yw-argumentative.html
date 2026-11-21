@@ -86,6 +86,7 @@
 .sg.bad{background:color-mix(in srgb,var(--bad) 22%,transparent);animation:sgshake .35s}
 @keyframes sgshake{25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
 .sg{display:inline}
+.hl-text::highlight(yw-passage-reading){background:color-mix(in srgb,var(--brand) 24%,transparent)}
 .hl-en{font-family:Nunito,system-ui,sans-serif;font-size:14.5px;color:var(--ink-2);border-left:3px solid var(--line);padding-left:10px;margin:0}
 .hl-words{display:flex;flex-wrap:wrap;gap:6px;font-size:14px}
 .hl-words span{background:var(--surface-2);border-radius:999px;padding:3px 10px}
@@ -242,7 +243,7 @@ const YW = (() => {
   let vz = null, run = 0;
   const pick = () => { try { const vs = speechSynthesis.getVoices(); vz = vs.find(v => /zh[-_]CN/i.test(v.lang)) || vs.find(v => /^zh/i.test(v.lang)) || null; } catch(e){} };
   if (window.speechSynthesis){ pick(); try { speechSynthesis.addEventListener('voiceschanged', pick); } catch(e){} }
-  Y.stop = () => { run++; try { window.speechSynthesis && speechSynthesis.cancel(); } catch(e){} };
+  Y.stop = () => { clearPassageReading?.(); run++; try { window.speechSynthesis && speechSynthesis.cancel(); } catch(e){} };
   Y.say = (text, rate = .8) => new Promise(res => {
     if (!window.speechSynthesis){ setTimeout(() => res(false), 600); return; }
     let done = false; const fin = ok => { if (!done){ done = true; res(ok); } };
@@ -328,6 +329,70 @@ const YW = (() => {
 /* ===== 现代文阅读 kit (shared by yw-narrative / yw-expository / yw-argumentative; copied into each page) ===== */
 const HUES = ['#e11d48', '#2563eb', '#16a34a', '#d97706', '#7c3aed', '#0891b2', '#db2777', '#65a30d'];
 /* Highlight-and-label: pick a label, tap the words it belongs to. segs = [[text, 'key' | 'k1|k2' | '', why{en,zh}?], …] */
+function passageSpeech(passage){
+  const text = passage.segs.map(segment => segment[0]).join('').replace(/<[^>]+>/g, '');
+  const limit = 150, length = [...text].length;
+  if (length <= limit) return [text];
+  const sentences = text.match(/[^。！？；]+[。！？；]+(?:[”’」』》）]+[。！？；]*)*|[^。！？；]+$/gu);
+  const targetLength = Math.ceil(length / Math.ceil(length / limit));
+  const units = [];
+  let unit = '';
+  for (const sentence of sentences){
+    if (unit && ([...unit].length >= targetLength || [...(unit + sentence)].length > limit)){
+      units.push(unit);
+      unit = '';
+    }
+    unit += sentence;
+  }
+  if (unit) units.push(unit);
+  return units;
+}
+
+let clearPassageReading;
+Lab.onLang(() => clearPassageReading?.());
+document.addEventListener('click', event => {
+  if (event.target.closest('.lab-player [data-a=st]')) clearPassageReading?.();
+}, true);
+async function playPassage(passage, target){
+  YW.stop();
+  const walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT, {
+    acceptNode: node => node.parentElement.closest('.lp-jin') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT
+  });
+  let node = walker.nextNode(), offset = 0;
+  const highlights = CSS.highlights;
+  let finishClip;
+  const clear = () => {
+    highlights?.delete('yw-passage-reading');
+    clearPassageReading = null;
+    finishClip?.(false);
+  };
+  clearPassageReading = clear;
+  for (const text of passageSpeech(passage)){
+    while (clearPassageReading === clear && Lab.speechPaused()){
+      await new Promise(resolve => setTimeout(resolve, 150));
+    }
+    if (clearPassageReading !== clear || !target.isConnected) break;
+    if (highlights && node){
+      const range = new Range();
+      range.setStart(node, offset);
+      offset += text.length;
+      while (node && offset > node.length){
+        offset -= node.length;
+        node = walker.nextNode();
+      }
+      if (node){
+        range.setEnd(node, offset);
+        highlights.set('yw-passage-reading', new Highlight(range));
+      }
+    }
+    const ok = await new Promise(resolve => {
+      finishClip = resolve;
+      if (!Lab.speak(text, {lang:'zh', rate:.8, inner:true, onend:resolve})) resolve(false);
+    });
+    if (!ok) break;
+  }
+  if (clearPassageReading === clear) clear();
+}
 function Labeler(sel, cfg){
   const el = Lab.$(sel), keys = Object.keys(cfg.labels), col = k => HUES[keys.indexOf(k) % HUES.length];
   const S = { p:0, lab:null, ok:new Map(), bad:0, en:false, msg:null, flash:null, doneP:new Set(), all:false };
@@ -350,7 +415,7 @@ function Labeler(sel, cfg){
     el.querySelectorAll('.ywtabs button').forEach(b => b.onclick = () => { S.p = +b.dataset.p; S.msg = null; draw(); });
     el.querySelectorAll('.hl-pal button').forEach(b => b.onclick = () => { S.lab = b.dataset.k; const d = cfg.labels[S.lab].def; S.msg = d ? { c:'', h:`🏷️ <b>${Lab.L(cfg.labels[S.lab])}</b>: ${Lab.L(d)}` } : null; draw(); });
     el.querySelectorAll('.sg').forEach(sp => sp.onclick = () => tap(+sp.dataset.i));
-    el.querySelector('.hl-say').onclick = () => YW.zh(P.segs.map(s => s[0]).join('').replace(/<[^>]+>/g, ''));
+    el.querySelector('.hl-say').onclick = () => playPassage(P, el.querySelector('.hl-text'));
     el.querySelector('.hl-stop').onclick = () => YW.stop();
     const et = el.querySelector('.hl-entog'); if (et) et.onclick = () => { S.en = !S.en; draw(); };
     el.querySelector('.hl-reset').onclick = () => { P.segs.forEach((s, i) => S.ok.delete(sid(S.p, i))); S.doneP.delete(S.p); S.msg = null; draw(); };
@@ -435,7 +500,7 @@ const PARTS = {
   道理论据:{ en:'Reason evidence (道理论据)', zh:'道理论据', def:o('a quotation, proverb or principle used to prove the claim.', '用来证明观点的名言警句、俗语或科学道理。') },
   结论:{ en:'Conclusion (结论)', zh:'结论', def:o('sums up and calls for action at the end.', '在结尾总结全文、发出号召。') }
 };
-Labeler('#hlS', { labels:PARTS, ask:o('Pick a label, then tap the sentence. One sentence is neither claim nor evidence — tap it to see what it does.', '选标签，再点句子。有一句既不是论点也不是论据——点一下看看它的作用。'),
+const claimHunt = { labels:PARTS, ask:o('Pick a label, then tap the sentence. One sentence is neither claim nor evidence — tap it to see what it does.', '选标签，再点句子。有一句既不是论点也不是论据——点一下看看它的作用。'),
   plain:o('This is the other side of the coin — it argues by contrast.', '这是从反面说的，起对比作用。'),
   passages:[{ t:o('《贵在坚持》', '《贵在坚持》'), src:o('Original model essay written for this site', '本站原创范文'),
     segs:[['做成一件大事，靠的不是一时的热情，而是日复一日的坚持。', '中心论点', o('The whole essay proves this — and it’s a complete statement.', '全文都在证明这句话，而且是完整的判断句。')],
@@ -446,8 +511,10 @@ Labeler('#hlS', { labels:PARTS, ask:o('Pick a label, then tap the sentence. One 
       ['所以，无论学习还是做事，我们都要坚持到底，才能把平凡的努力变成不凡的成绩。', '结论']],
     words:[['锲而不舍', 'qiè’érbùshě', 'keep carving, never give up'], ['镂', 'lòu', 'engrave'], ['资治通鉴', 'Zīzhì Tōngjiàn', 'Comprehensive Mirror (a history)'], ['屠呦呦', 'Tú Yōuyōu', 'Nobel scientist'], ['疟', 'nüè', 'malaria']],
     en:'Great things are achieved not by a burst of enthusiasm but by persistence, day after day. Persistence turns tiny efforts into huge results. Xunzi wrote in “Encouraging Learning”: “Keep carving without stopping, and even metal and stone can be engraved.” Sima Guang of the Northern Song spent 19 years with his assistants compiling the 《资治通鉴》. Persistence also helps you find a way out of failure. Tu Youyou and her team screened over 2,000 herbal recipes and failed again and again until sample No. 191 showed that a sweet-wormwood extract really worked; in 2015 she won the Nobel Prize in Physiology or Medicine. On the other hand, people who “fish for three days and dry their nets for two” usually achieve nothing. So in study and in work we must keep going to the end — that is how ordinary effort becomes extraordinary success.' }],
-  onAll:() => YW.done('m1') });
-Lab.$('#sSay').onclick = () => YW.zh('议论文三要素：论点、论据、论证。论点是靶子，论据是箭，论证是射箭的本领。');
+  onAll:() => YW.done('m1') };
+Labeler('#hlS', claimHunt);
+const mnemonicSpeech = '议论文三要素：论点、论据、论证。论点是靶子，论据是箭，论证是射箭的本领。';
+Lab.$('#sSay').onclick = () => YW.zh(mnemonicSpeech);
 YW.bars('#figTu', [
   { l:o('Herbal preparations screened', '筛选的中药方'), v:2000, t:o('2,000+', '2000多个') },
   { l:o('Promising “hits”', '初步有效的'), v:640, t:o('640', '640个') },
@@ -490,7 +557,7 @@ const AM = {
   对比:{ en:'Contrast (对比论证)', zh:'对比论证', def:o('sets the right way against the wrong way.', '把正反两方面放在一起比较。') },
   比喻:{ en:'Analogy (比喻论证)', zh:'比喻论证', def:o('explains the claim through a picture: “X is like Y”.', '用打比方的方式讲道理。') }
 };
-Labeler('#hlA', { labels:AM, ask:o('Pick a method, then tap the sentence that uses it.', '选一种论证方法，再点用了它的句子。'),
+const methodHunt = { labels:AM, ask:o('Pick a method, then tap the sentence that uses it.', '选一种论证方法，再点用了它的句子。'),
   plain:o('This states the thesis or the conclusion — it is not a method.', '这是论点或结论，不是论证方法。'),
   passages:[{ t:o('《读书要有选择》', '《读书要有选择》'), src:o('Original essay written for this site', '本站原创短文'),
     segs:[['读书要有选择。', '', o('This is the thesis.', '这是论点。')],
@@ -501,7 +568,12 @@ Labeler('#hlA', { labels:AM, ask:o('Pick a method, then tap the sentence that us
       ['可见，读书一定要有选择，多读好书，读经典。', '', o('The conclusion echoes the thesis.', '结论，照应论点。')]],
     words:[['歧路', 'qílù', 'wrong road'], ['培根', 'Péigēn', 'Francis Bacon'], ['咀嚼', 'jǔjué', 'chew'], ['昆虫记', 'Kūnchóng Jì', 'Fabre’s Book of Insects']],
     en:'We must choose what we read. Books are like food: some are nourishing, some have gone bad — eat the wrong food and you get sick; read the wrong books and you go astray. The English philosopher Francis Bacon wrote in “Of Studies” that some books are to be tasted, others swallowed, and a few chewed and digested. Take one summer holiday: Xiao Ming scrolled through junk web novels every day, Xiao Hua finished Journey to the West and Fabre’s Book of Insects — by the new term their writing was clearly different. Some people read only trashy web novels and feel emptier; others pick classics and feel richer. So we must choose what we read: read good books, read the classics.' }],
-  onAll:() => YW.done('m3') });
+  onAll:() => YW.done('m3') };
+Labeler('#hlA', methodHunt);
+Lab.readAll(() => [
+  ...[...claimHunt.passages, ...methodHunt.passages].flatMap(passage => passageSpeech(passage).map(text => [text, 'zh'])),
+  [mnemonicSpeech, 'zh']
+]);
 
 /* ---- Mission 3: argument builder ---- */
 const METH = ['举例', '道理', '对比', '比喻'];

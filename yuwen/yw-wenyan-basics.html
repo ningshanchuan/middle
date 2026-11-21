@@ -62,6 +62,8 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) :is(.ywm-rank,.ywb-v,.yw-hi){color:color-mix(in srgb,var(--brand) 50%,#fff)}}
 :root[data-theme="dark"] :is(.ywm-rank,.ywb-v,.yw-hi){color:color-mix(in srgb,var(--brand) 50%,#fff)}
 
+.tx-audio{margin:6px 0 0}
+#txRead[hidden],#txSequence[hidden]{display:none}
 .wtx{font-size:22px;line-height:2.1;margin:0 0 12px;padding:4px 8px;border-radius:12px;transition:background .2s}
 .wtx.on{background:color-mix(in srgb,var(--brand) 12%,transparent)}
 .wtx h4{font-family:Nunito,sans-serif;font-size:13px;letter-spacing:.05em;color:var(--brand);margin:0;line-height:1.4}
@@ -77,7 +79,7 @@
 .glw{font-size:64px;line-height:1}
 .glw small{font-family:Nunito,sans-serif;font-size:20px;color:var(--ink-2);margin-left:8px}
 .glctx{font-size:19px;background:var(--surface-2);border-radius:12px;padding:8px 12px}
-.wtx .yc{display:inline;position:relative;min-width:0}
+.wtx .yc{display:inline;position:relative;min-width:0;vertical-align:baseline;line-height:inherit}   /* stay on the text baseline (issue #9) */
 .wtx .yc .py{position:absolute;left:50%;transform:translateX(-50%);top:-1.05em;height:auto;line-height:1}
 .wtr .en{display:block;color:var(--ink)}
 
@@ -117,7 +119,7 @@
   <div class="ywtabs" id="txTabs"></div>
   <div class="explorer">
     <div class="card" style="padding:22px">
-      <div class="btnrow" style="margin-bottom:10px"><button class="tbtn" id="txRead">🔊 <span data-zh="朗读">Read aloud</span></button><button class="tbtn" id="txStop">⏹</button><button class="tbtn" id="txPy" data-zh="拼音">Pinyin</button><button class="tbtn" id="txTr" data-zh="译文">Translation</button></div>
+      <div class="btnrow" style="margin-bottom:10px"><button class="tbtn" id="txRead" data-zh="🔊 朗读全文">🔊 Read full text</button><button class="tbtn" id="txSequence" type="button" data-read-sequence data-zh="🔊 分段朗读">🔊 Read by paragraph</button><button class="tbtn" id="txLines" type="button" data-speak data-zh="逐句跟读">Line by line</button><button class="tbtn" id="txStop" data-zh="⏹ 停止">⏹ Stop</button><button class="tbtn" id="txPy" data-zh="拼音">Pinyin</button><button class="tbtn" id="txTr" data-zh="译文">Translation</button></div>
       <div id="txBox" data-nopy></div>
     </div>
     <aside class="info card" id="glInfo" aria-live="polite"></aside>
@@ -210,22 +212,107 @@ const YW = (() => {
   Y.esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
   Y.isHan = ch => /[㐀-鿿]/.test(ch);
   /* ---- Chinese read-aloud: always a zh-CN voice (the student is learning Chinese), whatever the page language ---- */
-  let vz = null, run = 0;
+  let vz = null, run = 0, cancelSay, clearReader;
   const pick = () => { try { const vs = speechSynthesis.getVoices(); vz = vs.find(v => /zh[-_]CN/i.test(v.lang)) || vs.find(v => /^zh/i.test(v.lang)) || null; } catch(e){} };
   if (window.speechSynthesis){ pick(); try { speechSynthesis.addEventListener('voiceschanged', pick); } catch(e){} }
-  Y.stop = () => { run++; try { window.speechSynthesis && speechSynthesis.cancel(); } catch(e){} };
-  Y.say = (text, rate = .8) => new Promise(res => {
-    if (!window.speechSynthesis){ setTimeout(() => res(false), 600); return; }
-    let done = false; const fin = ok => { if (!done){ done = true; res(ok); } };
-    try { const u = new SpeechSynthesisUtterance(text); u.lang = 'zh-CN'; if (vz) u.voice = vz; u.rate = rate; u.onend = () => fin(true); u.onerror = () => fin(false); speechSynthesis.speak(u); } catch(e){ fin(false); }
-    setTimeout(() => fin(false), 1500 + text.length * 420);   // some browsers never fire onend
+  const paused = () => Lab.speechPaused();
+  function endReading(ok){
+    const clear = clearReader;
+    clearReader = null;
+    if (clear) clear(ok);
+  }
+  function interrupt(){
+    run++;
+    if (cancelSay) cancelSay();
+    endReading(false);
+  }
+  Y.stop = () => { interrupt(); Lab.stopSpeech(); };
+  // Let the shared bar cancel both the active clip and the remaining study lines.
+  document.addEventListener('click', e => {
+    if (e.target.closest('.lab-player [data-a=st]')) interrupt();
+  }, true);
+  Lab.onLang(interrupt);
+  Y.say = (text, rate = .8, lang, {queued = false, inner = false} = {}) => new Promise(resolve => {
+    let timeLeft = 1500 + text.length * 420;
+    if (lang || Lab.recordingUrl(text, 'zh')) timeLeft *= Math.max(1, 1 / Lab.speakRate());
+    let timer, result, finished = false, last = performance.now(), wasPaused = paused();
+    const cancel = () => finish(false);
+    function finish(ok){
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      if (cancelSay === cancel) cancelSay = null;
+      resolve(ok);
+    }
+    function check(){
+      const now = performance.now(), isPaused = paused();
+      if (!isPaused && !wasPaused) timeLeft -= now - last;
+      last = now;
+      wasPaused = isPaused;
+      if (!isPaused && (result !== undefined || timeLeft <= 0)) finish(result === true);
+      else timer = setTimeout(check, 150);
+    }
+    function report(ok){
+      if (finished) return;
+      if (paused()) result = ok;
+      else finish(ok);
+    }
+    cancelSay = cancel;
+    timer = setTimeout(check, 150);
+    try {
+      if (lang){
+        const playback = Lab.speak(text, {lang, rate, onend:report, inner});
+        if (!playback) report(queued);
+      } else if (window.speechSynthesis){
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'zh-CN';
+        if (vz) u.voice = vz;
+        u.rate = rate;
+        u.onend = () => report(true);
+        u.onerror = e => {
+          if (finished) return;
+          if (!e.error || e.error === 'canceled' || e.error === 'interrupted') interrupt();
+          else report(false);
+        };
+        speechSynthesis.speak(u);
+      } else report(false);
+    } catch(e){ report(false); }
   });
   Y.zh = text => { Y.stop(); return Y.say(text); };
-  /* read lines one by one; onLine(i) highlights line i, onLine(-1) when finished or stopped */
   Y.readLines = async (lines, onLine, rate) => {
-    Y.stop(); const id = run;
-    for (let i = 0; i < lines.length; i++){ if (id !== run) return; onLine(i); await Y.say(lines[i], rate); }
-    if (id === run) onLine(-1);
+    Y.stop();
+    const id = run;
+    clearReader = ok => onLine(-1, ok);
+    for (let i = 0; i < lines.length; i++){
+      while (id === run && paused()) await new Promise(resolve => setTimeout(resolve, 150));
+      if (id !== run) return;
+      onLine(i);
+      await Y.say(lines[i], rate);
+    }
+    if (id === run) endReading(true);
+  };
+  Y.readWhole = async (text, highlight, rate, lang = 'zh') => {
+    Y.stop();
+    const id = run;
+    clearReader = ok => highlight(false, ok);
+    highlight(true);
+    const ok = await Y.say(text, rate, lang);
+    if (id === run) endReading(ok);
+  };
+  Y.readUnits = async (units, highlight, rate, lang = 'zh') => {
+    Y.stop();
+    const id = run;
+    clearReader = ok => highlight(-1, ok);
+    for (const [i, {text, index}] of units.entries()){
+      while (id === run && paused()) await new Promise(resolve => setTimeout(resolve, 150));
+      if (id !== run) return;
+      highlight(index);
+      // The shared auto-play hook runs after the last clip.
+      const ok = await Y.say(text, rate, lang, {queued:true, inner:i < units.length - 1});
+      if (id !== run) return;
+      if (!ok){ endReading(false); return; }
+    }
+    if (id === run) endReading(true);
   };
   Y.running = () => run;
   /* ---- characters with pinyin above (poems / classical texts). Wrapped in data-nopy so pinyin.js leaves them alone ---- */
@@ -301,25 +388,83 @@ const TAGS = { 通假:['Borrowed character','通假字','t1'], 古今:['Old vs n
   实词:['Content word','实词',''], 虚词:['Function word','虚词',''], 人名:['Name / title','人名、称谓',''], 句式:['Special sentence pattern','特殊句式','t4'] };
 const RD = { t:0, sel:null, py:false, tr:false, now:-1, seen:new Set(), need:15, mission:null, onRead:null };
 const plain = s => s.replace(/[{}]/g, '');
+const readingLength = text => [...text].length;
+// Keep sentence endings and closing quotes together. Use clause breaks for oversized sentences.
+function readingUnits(text, limit = 150){
+  if (readingLength(text) <= limit) return [text];
+  const ends = /[。！？.!?]+(?:[”’」』》）]+[。！？.!?]*)*/gu;
+  const sentences = [];
+  let start = 0;
+  for (const end of text.matchAll(ends)){
+    const next = end.index + end[0].length;
+    sentences.push(text.slice(start, next));
+    start = next;
+  }
+  if (start < text.length) sentences.push(text.slice(start));
+  const units = [];
+  let group = '';
+  for (const sentence of sentences){
+    const clauses = readingLength(sentence) <= limit ? [sentence] :
+      sentence.split(/(?<=[；;])/u).flatMap(clause =>
+        readingLength(clause) <= limit ? [clause] : clause.split(/(?<=[，、：,:])/u));
+    for (const clause of clauses){
+      const chars = [...clause];
+      for (let i = 0; i < chars.length; i += limit){
+        const part = chars.slice(i, i + limit).join('');
+        if (readingLength(group) + readingLength(part) > limit){
+          units.push(group);
+          group = '';
+        }
+        group += part;
+      }
+    }
+  }
+  if (group) units.push(group);
+  return units;
+}
+const fullText = text => text.t + '。' + text.items.map(item => plain(item.s)).join('');
+const paragraphUnits = (item, index) => readingUnits(plain(item.s)).map(text => ({text, index}));
 function itemHTML(it, ti, ii){
   let k = 0;
   const body = it.s.replace(/\{([^}]+)\}/g, (_, w) => { const gi = k++, g = it.g[gi] || ['', '', '', ''], id = `${ti}-${ii}-${gi}`;
     return `<span class="yc gw ${RD.sel === id ? 'sel' : ''} ${RD.seen.has(id) ? 'seen' : ''}" data-id="${id}"><i class="py">${g[0]}</i><b>${w}</b></span>`; });
-  return `<div class="wtx kai ${RD.now === ii ? 'on' : ''} ${RD.py ? 'showpy' : ''}" data-i="${ii}">${it.h ? `<h4>${it.h}</h4>` : ''}${body}
+  return `<div class="wtx kai ${(RD.now === -2 || RD.now === ii) ? 'on' : ''} ${RD.py ? 'showpy' : ''}" data-i="${ii}">${it.h ? `<h4>${it.h}</h4>` : ''}${body}
+    <div class="tx-audio"><button class="tbtn" type="button" data-paragraph="${ii}">🔊 ${Lab.L(o('Read paragraph','朗读本段'))}</button></div>
     ${RD.tr ? `<div class="wtr">${Lab.lang === "en" ? `<span class="en">${it.tr.en}</span>` : ""}${it.tr.zh}</div>` : ""}</div>`;
 }
 function rdDraw(){
   const T = TEXTS[RD.t];
   Lab.$('#txTabs').innerHTML = TEXTS.map((x, i) => `<button class="tbtn ${i === RD.t ? 'on' : ''}" data-i="${i}" data-nopy>${x.t}</button>`).join('');
   Lab.$$('#txTabs button').forEach(b => b.onclick = () => { YW.stop(); RD.t = +b.dataset.i; RD.sel = null; RD.now = -1; rdDraw(); if (RD.onTab) RD.onTab(); });
+  const short = readingLength(fullText(T)) <= 150;
+  Lab.$('#txRead').hidden = !short;
+  Lab.$('#txSequence').hidden = short;
   Lab.$('#txPy').classList.toggle('on', RD.py); Lab.$('#txTr').classList.toggle('on', RD.tr);
   Lab.$('#txBox').innerHTML = `<p class="muted" style="margin:0 0 8px;font-size:14.5px">${T.a} · ${Lab.L(T.book)}</p>` + T.items.map((it, ii) => itemHTML(it, RD.t, ii)).join('');
+  Lab.$$('#txBox [data-paragraph]').forEach(button => button.onclick = () => {
+    const index = Number(button.dataset.paragraph);
+    YW.readUnits(paragraphUnits(T.items[index], index), current => highlightText(current));
+  });
   Lab.$$('#txBox .gw').forEach(e => e.onclick = () => rdPick(e.dataset.id));
   glDraw();
 }
 function wordOf(it, gi){ return it.s.match(/\{([^}]+)\}/g)[gi].slice(1, -1); }
+Lab.readAll(() => [
+  ...TEXTS.flatMap(passage => {
+    const full = fullText(passage);
+    const whole = readingLength(full) <= 150 ? [full] : [];
+    const paragraphs = passage.items.flatMap(paragraphUnits).map(unit => unit.text);
+    const glosses = passage.items.flatMap(item => [...item.s.matchAll(/\{([^}]+)\}/g)].flatMap((_, i) => [wordOf(item, i), glossSentence(item, i)]));
+    return [...whole, ...paragraphs, ...glosses].map(text => [text, 'zh']);
+  })
+]);
 function rdPick(id){ RD.sel = id; RD.seen.add(id); const [ti, ii, gi] = id.split('-').map(Number), it = TEXTS[ti].items[ii];
   YW.zh(wordOf(it, gi)); if (RD.mission && RD.seen.size >= RD.need) YW.done(RD.mission); rdDraw(); }
+function glossSentence(it, gi){
+  const sents = plain(it.s).split(/(?<=[。！？；])/);
+  let pos = 0, before = it.s.split(/\{[^}]+\}/).slice(0, gi + 1).join('').length + it.s.match(/\{([^}]+)\}/g).slice(0, gi).reduce((n, m) => n + m.length - 2, 0);
+  return sents.find(s => { const end = pos + s.length; const hit = before >= pos && before < end; pos = end; return hit; }) || plain(it.s);
+}
 function glDraw(){
   const box = Lab.$('#glInfo'), T = TEXTS[RD.t];
   if (!RD.sel || +RD.sel.split('-')[0] !== RD.t){
@@ -329,9 +474,7 @@ function glDraw(){
       <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(T.memory)}</div>
       ${T.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Don’t mix up:','⚠️ 易错点：'))}</b><span>${Lab.L(T.mix)}</span></div>` : ''}`; return; }
   const [ti, ii, gi] = RD.sel.split('-').map(Number), it = T.items[ii], g = it.g[gi], w = wordOf(it, gi), tg = TAGS[g[3]] || ['', g[3], ''];
-  const sents = plain(it.s).split(/(?<=[。！？；])/);
-  let pos = 0, before = it.s.split(/\{[^}]+\}/).slice(0, gi + 1).join('').length + it.s.match(/\{([^}]+)\}/g).slice(0, gi).reduce((n, m) => n + m.length - 2, 0);
-  const ctx = sents.find(s => { const end = pos + s.length; const hit = before >= pos && before < end; pos = end; return hit; }) || plain(it.s);
+  const ctx = glossSentence(it, gi);
   box.innerHTML = `<span class="tag">${Lab.L(o('Word card','字词卡'))}</span>
     <div class="glw kai" data-nopy>${w}<small>${g[0]}</small></div>
     <div><span class="wtag ${tg[2]}">${Lab.lang === 'zh' ? tg[1] : tg[0] + ' · ' + tg[1]}</span></div>
@@ -342,8 +485,23 @@ function glDraw(){
     <button class="speak" id="glSay">🔊 ${Lab.L(o('Hear the sentence','听这一句'))}</button>`;
   Lab.$('#glSay').onclick = () => YW.zh(ctx);
 }
-Lab.$('#txRead').onclick = () => { const T = TEXTS[RD.t], id = RD.t; YW.readLines(T.items.map(it => plain(it.s)), i => { RD.now = i; Lab.$$('#txBox .wtx').forEach(e => e.classList.toggle('on', +e.dataset.i === i)); if (i === -1 && RD.t === id && RD.onRead) RD.onRead(T); }, .8); };
-Lab.$('#txStop').onclick = () => { YW.stop(); RD.now = -1; Lab.$$('#txBox .wtx').forEach(e => e.classList.remove('on')); };
+function highlightText(index, complete){
+  RD.now = index;
+  Lab.$$('#txBox .wtx').forEach(el => el.classList.toggle('on', index === -2 || +el.dataset.i === index));
+  if (complete && RD.onRead) RD.onRead(TEXTS[RD.t]);
+}
+Lab.$('#txRead').onclick = () => {
+  const text = fullText(TEXTS[RD.t]);
+  if (readingLength(text) <= 150) YW.readWhole(text, (active, complete) => highlightText(active ? -2 : -1, complete));
+};
+Lab.$('#txSequence').onclick = () => {
+  YW.readUnits(TEXTS[RD.t].items.flatMap(paragraphUnits), highlightText);
+};
+Lab.$('#txLines').onclick = () => {
+  const units = TEXTS[RD.t].items.flatMap(paragraphUnits);
+  YW.readLines(units.map(unit => unit.text), (i, complete) => highlightText(i < 0 ? i : units[i].index, complete), .8);
+};
+Lab.$('#txStop').onclick = YW.stop;
 Lab.$('#txPy').onclick = () => { RD.py = !RD.py; rdDraw(); };
 Lab.$('#txTr').onclick = () => { RD.tr = !RD.tr; rdDraw(); };
 Lab.onLang(rdDraw);

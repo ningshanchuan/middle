@@ -109,7 +109,7 @@
 <section class="wrap" id="poems" data-nav="Poem pictures" data-nav-zh="诗中画">
   <div class="sec-head">
     <h2 data-zh="任务一：走进诗中的画">Mission 1: step into the picture</h2>
-    <p data-zh="选一首诗。点击画面里发光的景物，右边会告诉你它是什么意象、表达了什么感情；诗句里对应的字也会亮起来。按“朗读”听诗，读到哪句亮哪句。">Choose a poem. Click things in the picture: the panel explains each image and the feeling it carries, and the matching words light up in the poem. Press “Read aloud” to hear it line by line. Tap “Pinyin” for pronunciation and “EN” for an English line-by-line version.</p>
+    <p data-zh="选一首诗。点击画面里发光的景物，右边会告诉你它是什么意象、表达了什么感情；诗句里对应的字也会亮起来。按“朗读”听全诗，或按“逐句跟读”一句一句听。">Choose a poem. Click things in the picture: the panel explains each image and the feeling it carries, and the matching words light up in the poem. Press “Read aloud” to hear the whole poem, or use “Line by line” to study each line. Tap “Pinyin” for pronunciation and “EN” for an English line-by-line version.</p>
   </div>
   <div class="chips ptabs" id="ptabs" style="margin:0 0 12px"></div>
   <div class="explorer">
@@ -193,22 +193,92 @@ const YW = (() => {
   Y.esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
   Y.isHan = ch => /[㐀-鿿]/.test(ch);
   /* ---- Chinese read-aloud: always a zh-CN voice (the student is learning Chinese), whatever the page language ---- */
-  let vz = null, run = 0;
+  let vz = null, run = 0, cancelSay, clearReader;
   const pick = () => { try { const vs = speechSynthesis.getVoices(); vz = vs.find(v => /zh[-_]CN/i.test(v.lang)) || vs.find(v => /^zh/i.test(v.lang)) || null; } catch(e){} };
   if (window.speechSynthesis){ pick(); try { speechSynthesis.addEventListener('voiceschanged', pick); } catch(e){} }
-  Y.stop = () => { run++; try { window.speechSynthesis && speechSynthesis.cancel(); } catch(e){} };
-  Y.say = (text, rate = .8) => new Promise(res => {
-    if (!window.speechSynthesis){ setTimeout(() => res(false), 600); return; }
-    let done = false; const fin = ok => { if (!done){ done = true; res(ok); } };
-    try { const u = new SpeechSynthesisUtterance(text); u.lang = 'zh-CN'; if (vz) u.voice = vz; u.rate = rate; u.onend = () => fin(true); u.onerror = () => fin(false); speechSynthesis.speak(u); } catch(e){ fin(false); }
-    setTimeout(() => fin(false), 1500 + text.length * 420);   // some browsers never fire onend
+  const paused = () => Lab.speechPaused();
+  function endReading(ok){
+    const clear = clearReader;
+    clearReader = null;
+    if (clear) clear(ok);
+  }
+  function interrupt(){
+    run++;
+    if (cancelSay) cancelSay();
+    endReading(false);
+  }
+  Y.stop = () => { interrupt(); Lab.stopSpeech(); };
+  // Let the shared bar cancel both the active clip and the remaining study lines.
+  document.addEventListener('click', e => {
+    if (e.target.closest('.lab-player [data-a=st]')) interrupt();
+  }, true);
+  Lab.onLang(interrupt);
+  Y.say = (text, rate = .8, lang) => new Promise(resolve => {
+    let timeLeft = 1500 + text.length * 420;
+    if (lang || Lab.recordingUrl(text, 'zh')) timeLeft *= Math.max(1, 1 / Lab.speakRate());
+    let timer, result, finished = false, last = performance.now(), wasPaused = paused();
+    const cancel = () => finish(false);
+    function finish(ok){
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      if (cancelSay === cancel) cancelSay = null;
+      resolve(ok);
+    }
+    function check(){
+      const now = performance.now(), isPaused = paused();
+      if (!isPaused && !wasPaused) timeLeft -= now - last;
+      last = now;
+      wasPaused = isPaused;
+      if (!isPaused && (result !== undefined || timeLeft <= 0)) finish(result === true);
+      else timer = setTimeout(check, 150);
+    }
+    function report(ok){
+      if (finished) return;
+      if (paused()) result = ok;
+      else finish(ok);
+    }
+    cancelSay = cancel;
+    timer = setTimeout(check, 150);
+    try {
+      if (lang){
+        const playback = Lab.speak(text, {lang, rate, onend:report});
+        if (!playback) report(false);
+      } else if (window.speechSynthesis){
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'zh-CN';
+        if (vz) u.voice = vz;
+        u.rate = rate;
+        u.onend = () => report(true);
+        u.onerror = e => {
+          if (finished) return;
+          if (!e.error || e.error === 'canceled' || e.error === 'interrupted') interrupt();
+          else report(false);
+        };
+        speechSynthesis.speak(u);
+      } else report(false);
+    } catch(e){ report(false); }
   });
   Y.zh = text => { Y.stop(); return Y.say(text); };
-  /* read lines one by one; onLine(i) highlights line i, onLine(-1) when finished or stopped */
   Y.readLines = async (lines, onLine, rate) => {
-    Y.stop(); const id = run;
-    for (let i = 0; i < lines.length; i++){ if (id !== run) return; onLine(i); await Y.say(lines[i], rate); }
-    if (id === run) onLine(-1);
+    Y.stop();
+    const id = run;
+    clearReader = ok => onLine(-1, ok);
+    for (let i = 0; i < lines.length; i++){
+      while (id === run && paused()) await new Promise(resolve => setTimeout(resolve, 150));
+      if (id !== run) return;
+      onLine(i);
+      await Y.say(lines[i], rate);
+    }
+    if (id === run) endReading(true);
+  };
+  Y.readWhole = async (text, highlight, rate, lang = 'zh') => {
+    Y.stop();
+    const id = run;
+    clearReader = ok => highlight(false, ok);
+    highlight(true);
+    const ok = await Y.say(text, rate, lang);
+    if (id === run) endReading(ok);
   };
   Y.running = () => run;
   /* ---- characters with pinyin above (poems / classical texts). Wrapped in data-nopy so pinyin.js leaves them alone ---- */
@@ -455,6 +525,13 @@ const SCENES = {
     S.g('zg', `<path d="M300 140 q24 -16 48 -4 l20 -6 l-14 14 q-10 16 -34 14 z" fill="#8c6a5a"/>`) +
     S.lbl(620, 175, '明月') + S.lbl(480, 350, '龙标（今湖南洪江）')
 };
+const poemLines = poem => poem.L.map(line => line[0]);
+const wholePoem = p => p.t + '。' + p.a + '（' + p.d.zh + '）。' + poemLines(p).join('');
+Lab.readAll(() => POEMS.flatMap(poem => [
+  [wholePoem(poem), 'zh'],
+  ...poemLines(poem).map(line => [line, 'zh']),
+  ...Object.values(poem.im).map(image => [image.w, 'zh'])
+]));
 const PS = { i:0, sel:null, found:new Set(), py:false, en:false, read:new Set(), now:-1 };
 function hanIdx(p){ const s = p.L.map(l => YW.hanOnly(l[0])).join(''); const map = {}; Object.entries(p.im).forEach(([k, v]) => { let at = s.indexOf(v.w); if (at < 0) return; for (let j = 0; j < v.w.length; j++) map[at + j] = map[at + j] || k; }); return map; }
 function poemHTML(p){
@@ -462,7 +539,7 @@ function poemHTML(p){
   return p.L.map((l, li) => { const html = YW.cells(l[0], l[1], (i) => { const k = map[base + i]; return (k ? 'im ' : '') + (k && k === PS.sel ? 'hit' : '') + (k ? '" data-k="' + k : ''); });
     base += YW.hanOnly(l[0]).length;
     const split = html.replace(/(<span class="yp">[，；？！]<\/span>)(?=<span class="yc)/g, '$1<br>');
-    return `<span class="pline ${PS.now === li ? 'on' : ''}" data-l="${li}">${split}${PS.en ? `<small class="en">${l[2]}</small>` : ''}</span>`; }).join('');
+    return `<span class="pline ${(PS.now === -2 || PS.now === li) ? 'on' : ''}" data-l="${li}">${split}${PS.en ? `<small class="en">${l[2]}</small>` : ''}</span>`; }).join('');
 }
 function drawTabs(){ Lab.$('#ptabs').innerHTML = POEMS.map((p, i) => `<button class="tbtn ${i === PS.i ? 'on' : ''}" data-i="${i}" data-nopy>${p.t.length > 6 ? p.t.slice(0, 5) + '…' : p.t}</button>`).join('');
   Lab.$$('#ptabs button').forEach(b => b.onclick = () => { YW.stop(); PS.i = +b.dataset.i; PS.sel = null; PS.now = -1; drawAll(); }); }
@@ -472,22 +549,34 @@ function drawScene(){
   const n = Object.keys(p.im).length, f = Object.keys(p.im).filter(k => PS.found.has(p.id + k)).length;
   Lab.$('#foundPill').innerHTML = `<span>${Lab.L(o('Images found','已找到意象'))}: <b>${f}/${n}</b> · ${Lab.L(o('total','总计'))} <b>${PS.found.size}</b></span>`;
 }
-function pickIm(k){ const p = POEMS[PS.i]; PS.sel = k; PS.found.add(p.id + k); if (PS.found.size >= 15) YW.done('m2'); YW.zh(p.im[k].w); drawScene(); drawInfo(); }
+function pickIm(k){
+  const p = POEMS[PS.i], image = p.im[k];
+  if (!image) return;
+  PS.sel = k; PS.found.add(p.id + k);
+  if (PS.found.size >= 15) YW.done('m2');
+  YW.zh(image.w); drawScene(); drawInfo();
+}
 function drawInfo(){
   const p = POEMS[PS.i], im = PS.sel && p.im[PS.sel], box = Lab.$('#pinfo');
   box.innerHTML = `<span class="tag">${p.d.zh} · ${Lab.L(p.form)} · ${Lab.L(p.book)}</span>
     <h3 class="ptitle kai" data-nopy>${p.t} <small>${p.a}</small></h3>
     ${Lab.lang === 'en' ? `<div class="job">${p.en}</div>` : ''}
-    <div class="pbtns"><button class="tbtn" id="pRead">🔊 ${Lab.L(o('Read aloud','朗读'))}</button><button class="tbtn" id="pStop">⏹</button>
+    <div class="pbtns"><button class="tbtn" id="pRead">🔊 ${Lab.L(o('Read aloud','朗读'))}</button><button class="tbtn" id="pLines" type="button" data-speak>${Lab.L(o('Line by line','逐句跟读'))}</button><button class="tbtn" id="pStop" aria-label="${Lab.L(o('Stop reading','停止朗读'))}">⏹</button>
       <button class="tbtn ${PS.py ? 'on' : ''}" id="pPy">${Lab.L(o('Pinyin','拼音'))}</button><button class="tbtn ${PS.en ? 'on' : ''}" id="pEn">EN</button></div>
     <div class="poem kai ${PS.py ? 'showpy' : ''}" data-nopy>${poemHTML(p)}</div>
     ${im ? `<div class="imcard"><h4>${Lab.L(im.n)}</h4><p>${Lab.L(im.ex)}</p><p><b>${Lab.L(o('Feeling: ','情感：'))}</b>${Lab.L(im.f)}</p></div>`
          : `<p style="margin:0"><b>${Lab.L(o('Background: ','背景：'))}</b>${Lab.L(p.bg)}</p><p class="muted" style="margin:0">${Lab.L(o('👉 Click the glowing things in the picture, or the dotted words in the poem.','👉 点击画面中的景物，或诗中带虚线的字词。'))}</p>`}
     <div class="memory"><b>${Lab.L(o('💡 Theme (中考 answer)','💡 主旨（答题要点）'))}</b>${Lab.L(p.feel)}</div>
     <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous poem','◀ 上一首'))}</button><button id="pNext">${Lab.L(o('Next poem ▶','下一首 ▶'))}</button></div>`;
-  Lab.$('#pRead').onclick = () => { const pi = PS.i; YW.readLines(p.L.map(l => l[0]), li => { PS.now = li; Lab.$$('#pinfo .pline').forEach(e => e.classList.toggle('on', +e.dataset.l === li));
-      if (li === -1 && pi === PS.i){ PS.read.add(p.id); if (PS.read.size >= 3) YW.done('m1'); } }, .78); };
-  Lab.$('#pStop').onclick = () => { YW.stop(); PS.now = -1; Lab.$$('#pinfo .pline').forEach(e => e.classList.remove('on')); };
+  function highlight(index, complete){
+    PS.now = index;
+    Lab.$$('#pinfo .pline').forEach(el => el.classList.toggle('on', index === -2 || +el.dataset.l === index));
+    if (complete){ PS.read.add(p.id); if (PS.read.size >= 3) YW.done('m1'); }
+  }
+  Lab.$('#pRead').onclick = () => YW.readWhole(wholePoem(p),
+    (active, complete) => highlight(active ? -2 : -1, complete), .78);
+  Lab.$('#pLines').onclick = () => YW.readLines(poemLines(p), highlight, .78);
+  Lab.$('#pStop').onclick = YW.stop;
   Lab.$('#pPy').onclick = () => { PS.py = !PS.py; drawInfo(); };
   Lab.$('#pEn').onclick = () => { PS.en = !PS.en; drawInfo(); };
   Lab.$$('#pinfo .yc.im').forEach(c => c.onclick = () => pickIm(c.dataset.k));

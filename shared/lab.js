@@ -145,9 +145,10 @@
   const allVoices = () => (window.speechSynthesis ? speechSynthesis.getVoices() : []);
   const vScore = (v, lang) => {
     const n = v.name, L2 = (v.lang || '').toLowerCase().replace('_', '-');
-    if (!L2.startsWith(lang === 'zh' ? 'zh' : 'en')) return -1e9;
+    if (!L2.startsWith(lang === 'zh' ? 'zh' : lang === 'es' ? 'es' : 'en')) return -1e9;
     let s = 0;
     if (lang === 'zh'){ if (/zh-(cn|hans)/.test(L2)) s += 30; if (/hk|tw|yue|mo/.test(L2) || /Cantonese|粤/.test(n)) s -= 60; }
+    else if (lang === 'es'){ if (/es-(us|mx|419)/.test(L2)) s += 20; else if (L2 === 'es-es') s += 8; }   // Spanish taught in US schools: Latin American first
     else { if (L2 === 'en-us') s += 20; else if (/en-(gb|au|ca)/.test(L2)) s += 8; }
     if (/Natural/i.test(n)) s += 100; if (/Neural/i.test(n)) s += 90; if (/Premium|Enhanced/i.test(n)) s += 70;
     if (/Google/i.test(n)) s += 60; if (/Online/i.test(n)) s += 30; if (v.localService === false) s += 5;
@@ -275,7 +276,7 @@
   function speakTTS(clean, lang, rate, done){
     if (!ss) return null;
     const u = new SpeechSynthesisUtterance(clean);
-    u.lang = lang === 'zh' ? 'zh-CN' : 'en-US';
+    u.lang = lang === 'zh' ? 'zh-CN' : lang === 'es' ? 'es-US' : 'en-US';
     const v = Lab.voiceFor(lang); if (v){ u.voice = v; u.lang = v.lang; }
     u.rate = Math.max(.5, Math.min(1.6, (rate || .95) * Lab.speakRate()));
     const g = gen;
@@ -532,7 +533,18 @@
       if (cur.trim()) out.push(cur.trim());
       return out.flatMap(s => s.length <= max ? [s] : s.match(new RegExp('[\\s\\S]{1,' + max + '}', 'g')));
     };
-    const units = el => { const t = textOf(el); if (!worth(t)) return null; const zh = zhOf(t); return { lang: zh ? 'zh' : 'en', parts: chunk(t, zh) }; };
+    // language: a lang attribute on the text (e.g. lang="es" on Spanish words in the Spanish lessons), else Chinese / English by the characters
+    const langAttr = el => {
+      const a = el.closest('[lang]'); if (a && a !== document.documentElement) return a.getAttribute('lang').slice(0, 2).toLowerCase();
+      // a block whose text is (almost) all inside <span lang="es"> … counts as Spanish too
+      const es = [...el.querySelectorAll('[lang^="es"]')]; if (!es.length) return '';
+      const len = n => (n.textContent || '').replace(/\s+/g, '').length;
+      return es.reduce((s, n) => s + len(n), 0) >= 0.8 * len(el) ? 'es' : '';
+    };
+    const worthEs = t => (t.match(/\p{L}{2,}/gu) || []).length >= 1;
+    const units = el => { const t = textOf(el), la = langAttr(el);
+      if (la === 'es') return worthEs(t) ? { lang: 'es', parts: chunk(t, false) } : null;
+      if (!worth(t)) return null; const zh = zhOf(t); return { lang: zh ? 'zh' : 'en', parts: chunk(t, zh) }; };
     let reading = null;
     const read = el => {
       const u = units(el); if (!u) return;

@@ -86,6 +86,7 @@
 .sg.bad{background:color-mix(in srgb,var(--bad) 22%,transparent);animation:sgshake .35s}
 @keyframes sgshake{25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
 .sg{display:inline}
+.hl-text::highlight(yw-passage-reading){background:color-mix(in srgb,var(--brand) 24%,transparent)}
 .hl-en{font-family:Nunito,system-ui,sans-serif;font-size:14.5px;color:var(--ink-2);border-left:3px solid var(--line);padding-left:10px;margin:0}
 .hl-words{display:flex;flex-wrap:wrap;gap:6px;font-size:14px}
 .hl-words span{background:var(--surface-2);border-radius:999px;padding:3px 10px}
@@ -233,7 +234,7 @@ const YW = (() => {
   let vz = null, run = 0;
   const pick = () => { try { const vs = speechSynthesis.getVoices(); vz = vs.find(v => /zh[-_]CN/i.test(v.lang)) || vs.find(v => /^zh/i.test(v.lang)) || null; } catch(e){} };
   if (window.speechSynthesis){ pick(); try { speechSynthesis.addEventListener('voiceschanged', pick); } catch(e){} }
-  Y.stop = () => { run++; try { window.speechSynthesis && speechSynthesis.cancel(); } catch(e){} };
+  Y.stop = () => { clearPassageReading?.(); run++; try { window.speechSynthesis && speechSynthesis.cancel(); } catch(e){} };
   Y.say = (text, rate = .8) => new Promise(res => {
     if (!window.speechSynthesis){ setTimeout(() => res(false), 600); return; }
     let done = false; const fin = ok => { if (!done){ done = true; res(ok); } };
@@ -319,6 +320,70 @@ const YW = (() => {
 /* ===== 现代文阅读 kit (shared by yw-narrative / yw-expository / yw-argumentative; copied into each page) ===== */
 const HUES = ['#e11d48', '#2563eb', '#16a34a', '#d97706', '#7c3aed', '#0891b2', '#db2777', '#65a30d'];
 /* Highlight-and-label: pick a label, tap the words it belongs to. segs = [[text, 'key' | 'k1|k2' | '', why{en,zh}?], …] */
+function passageSpeech(passage){
+  const text = passage.segs.map(segment => segment[0]).join('').replace(/<[^>]+>/g, '');
+  const limit = 150, length = [...text].length;
+  if (length <= limit) return [text];
+  const sentences = text.match(/[^。！？；]+[。！？；]+(?:[”’」』》）]+[。！？；]*)*|[^。！？；]+$/gu);
+  const targetLength = Math.ceil(length / Math.ceil(length / limit));
+  const units = [];
+  let unit = '';
+  for (const sentence of sentences){
+    if (unit && ([...unit].length >= targetLength || [...(unit + sentence)].length > limit)){
+      units.push(unit);
+      unit = '';
+    }
+    unit += sentence;
+  }
+  if (unit) units.push(unit);
+  return units;
+}
+
+let clearPassageReading;
+Lab.onLang(() => clearPassageReading?.());
+document.addEventListener('click', event => {
+  if (event.target.closest('.lab-player [data-a=st]')) clearPassageReading?.();
+}, true);
+async function playPassage(passage, target){
+  YW.stop();
+  const walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT, {
+    acceptNode: node => node.parentElement.closest('.lp-jin') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT
+  });
+  let node = walker.nextNode(), offset = 0;
+  const highlights = CSS.highlights;
+  let finishClip;
+  const clear = () => {
+    highlights?.delete('yw-passage-reading');
+    clearPassageReading = null;
+    finishClip?.(false);
+  };
+  clearPassageReading = clear;
+  for (const text of passageSpeech(passage)){
+    while (clearPassageReading === clear && Lab.speechPaused()){
+      await new Promise(resolve => setTimeout(resolve, 150));
+    }
+    if (clearPassageReading !== clear || !target.isConnected) break;
+    if (highlights && node){
+      const range = new Range();
+      range.setStart(node, offset);
+      offset += text.length;
+      while (node && offset > node.length){
+        offset -= node.length;
+        node = walker.nextNode();
+      }
+      if (node){
+        range.setEnd(node, offset);
+        highlights.set('yw-passage-reading', new Highlight(range));
+      }
+    }
+    const ok = await new Promise(resolve => {
+      finishClip = resolve;
+      if (!Lab.speak(text, {lang:'zh', rate:.8, inner:true, onend:resolve})) resolve(false);
+    });
+    if (!ok) break;
+  }
+  if (clearPassageReading === clear) clear();
+}
 function Labeler(sel, cfg){
   const el = Lab.$(sel), keys = Object.keys(cfg.labels), col = k => HUES[keys.indexOf(k) % HUES.length];
   const S = { p:0, lab:null, ok:new Map(), bad:0, en:false, msg:null, flash:null, doneP:new Set(), all:false };
@@ -341,7 +406,7 @@ function Labeler(sel, cfg){
     el.querySelectorAll('.ywtabs button').forEach(b => b.onclick = () => { S.p = +b.dataset.p; S.msg = null; draw(); });
     el.querySelectorAll('.hl-pal button').forEach(b => b.onclick = () => { S.lab = b.dataset.k; const d = cfg.labels[S.lab].def; S.msg = d ? { c:'', h:`🏷️ <b>${Lab.L(cfg.labels[S.lab])}</b>: ${Lab.L(d)}` } : null; draw(); });
     el.querySelectorAll('.sg').forEach(sp => sp.onclick = () => tap(+sp.dataset.i));
-    el.querySelector('.hl-say').onclick = () => YW.zh(P.segs.map(s => s[0]).join('').replace(/<[^>]+>/g, ''));
+    el.querySelector('.hl-say').onclick = () => playPassage(P, el.querySelector('.hl-text'));
     el.querySelector('.hl-stop').onclick = () => YW.stop();
     const et = el.querySelector('.hl-entog'); if (et) et.onclick = () => { S.en = !S.en; draw(); };
     el.querySelector('.hl-reset').onclick = () => { P.segs.forEach((s, i) => S.ok.delete(sid(S.p, i))); S.doneP.delete(S.p); S.msg = null; draw(); };
@@ -428,7 +493,7 @@ const MT = {
 };
 const ML = {};
 Object.keys(MT).forEach(k => ML[k] = { en:MT[k].en, zh:MT[k].zh, def:MT[k].def });
-Labeler('#hlM', { labels:ML, ask:o('Pick a method, then tap a sentence that uses it.', '选一种说明方法，再点用了这种方法的句子。'),
+const methodHunt = { labels:ML, ask:o('Pick a method, then tap a sentence that uses it.', '选一种说明方法，再点用了这种方法的句子。'),
   plain:o('This sentence explains a feature in plain words — no special method.', '这一句是直接说明特点，没有用特定的说明方法。'),
   passages:[
     { t:o('The Zhaozhou Bridge', '千年赵州桥'), src:o('Original text · object: 赵州桥 · features: very old, cleverly designed', '原创短文 · 说明对象：赵州桥 · 特征：历史悠久、设计巧妙'),
@@ -456,8 +521,14 @@ Labeler('#hlM', { labels:ML, ask:o('Pick a method, then tap a sentence that uses
       words:[['射电', 'shèdiàn', 'radio (astronomy)'], ['喀斯特', 'kāsītè', 'karst'], ['洼地', 'wādì', 'hollow, basin'], ['脉冲星', 'màichōngxīng', 'pulsar']],
       en:'A radio telescope is a telescope that receives radio waves from objects in space. China’s “Sky Eye”, FAST, sits in a natural karst hollow in Pingtang, Guizhou; its dish is 500 m across (1,640 ft) — the area of about 30 football fields — and is made of 4,450 panels. Like a giant wok, it gathers faint signals from deep space. America’s Arecibo telescope was 305 m across; FAST is nearly 200 m wider. It has made many discoveries — for example, more than 800 new pulsars by 2023.' }
   ],
-  onAll:() => YW.done('m1') });
-Lab.$('#mSay').onclick = () => YW.zh('定举数比，比分引摹：下定义、举例子、列数字、作比较、打比方、分类别、引资料、摹状貌。');
+  onAll:() => YW.done('m1') };
+Labeler('#hlM', methodHunt);
+const mnemonicSpeech = '定举数比，比分引摹：下定义、举例子、列数字、作比较、打比方、分类别、引资料、摹状貌。';
+Lab.readAll(() => [
+  ...[...methodHunt.passages].flatMap(passage => passageSpeech(passage).map(text => [text, 'zh'])),
+  [mnemonicSpeech, 'zh']
+]);
+Lab.$('#mSay').onclick = () => YW.zh(mnemonicSpeech);
 YW.bars('#figFast', [
   { l:o('FAST (China, 2016)', '中国天眼FAST（2016）'), v:500, t:o('500 m', '500米') },
   { l:o('Arecibo (USA, 1963–2020)', '美国阿雷西博（1963—2020）'), v:305, t:o('305 m', '305米') },

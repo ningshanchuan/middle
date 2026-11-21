@@ -372,6 +372,7 @@ const DEV = {
    mix:o('A quotation is someone else’s well-known words. A character’s own speech in quotation marks is not a quotation device.','引用的是现成的名言、诗句、俗语、典故；人物说话加引号不是引用修辞。'),
    mem:o('Borrowing wise words to back you up.','引用：借别人的名言为我所用。') }
 };
+const deviceExampleSpeech = d => d.x.map(p => p[0]).join('');
 const DK = Object.keys(DEV), XR = ['xr0', 'xr1', 'xr2'];
 const DS = { sel:null, seen:new Set() };
 const xray = d => `<div class="xray kai" data-nopy>${d.x.map(([t, c, r]) => r ? `<span class="${XR[c]}" data-r="${r}">${t}</span>` : t).join('')}</div><p class="muted" style="margin:0;font-size:13.5px">—— ${d.src}</p>`;
@@ -380,7 +381,7 @@ function devDraw(){
   Lab.$$('#devGrid button').forEach(b => b.onclick = () => { DS.sel = b.dataset.k; DS.seen.add(DS.sel); if (DS.seen.size >= DK.length) YW.done('m1'); YW.zh(DS.sel); devDraw(); });
   const box = Lab.$('#devInfo'), k = DS.sel, d = DEV[k];
   if (!d){ box.innerHTML = `<span class="tag">${Lab.L(o('Device card','修辞卡'))}</span><h3>${Lab.L(o('Pick a card','选一张卡片'))}</h3><p style="margin:0">${Lab.L(o('Eight devices, eight cards. Each card X-rays a real sentence from a textbook text.','八种修辞，八张卡片。每张卡片都会给一个课文里的真句子“拍X光”。'))}</p><p class="muted" style="margin:0">${Lab.L(o(`Cards opened: ${DS.seen.size}/8`, `已看：${DS.seen.size}/8`))}</p>`; return; }
-  const plain = d.x.map(p => p[0]).join('');
+  const plain = deviceExampleSpeech(d);
   box.innerHTML = `<span class="tag">${Lab.L(o('Device card','修辞卡'))}</span>
     <h3><span class="kai" data-nopy>${k}</span> <span class="muted" style="font-size:16px">${d.py} · ${d.en}</span></h3>
     <p style="margin:0">${Lab.L(d.def)}</p>
@@ -462,6 +463,7 @@ const CASES = [
   ['天阴沉沉的，好像要下雨了。',null,NONE,'好像','好像 = “it seems” — a guess, not a simile.','“好像”表示推测，不是比喻。'],
   ['你明天去图书馆吗？',null,NONE,'吗','A real question waiting for an answer — not hypophora, not rhetorical.','这是一般疑问句，真的要对方回答，既不是设问也不是反问。']
 ].map(([s, src, d, k, en, zh]) => ({ s, src, d, k, ex:o(en, zh) }));
+const caseSpeech = q => q.s.replace(/[“”…]/g, '');
 const DT = { list:[], i:0, score:0, streak:0, right:0, picked:null };
 function dtStart(){ DT.list = Lab.shuffle(CASES).slice(0, 10); DT.i = 0; DT.score = 0; DT.streak = 0; DT.right = 0; DT.picked = null; dtDraw(); }
 function dtDraw(){
@@ -474,7 +476,7 @@ function dtDraw(){
   Lab.$('#dtBtns').innerHTML = [...DK, NONE].map(k => `<button data-k="${k}" class="${DT.picked ? (k === q.d ? 'right' : k === DT.picked ? 'wrong' : '') : ''}" ${DT.picked ? 'disabled' : ''}><span class="kai" data-nopy>${k}</span>${Lab.lang === 'en' ? `<br><small style="font-weight:700">${k === NONE ? 'no device' : DEV[k].en.split(' (')[0]}</small>` : ''}</button>`).join('');
   Lab.$$('#dtBtns button').forEach(b => b.onclick = () => { if (DT.picked) return; DT.picked = b.dataset.k; const ok = DT.picked === q.d;
     if (ok){ DT.right++; DT.streak++; DT.score += 10 + Math.min(DT.streak - 1, 5) * 2; } else DT.streak = 0;
-    if (DT.i === 9 && DT.right >= 8) YW.done('m3'); YW.zh(q.s.replace(/[“”…]/g, '')); dtDraw(); });
+    if (DT.i === 9 && DT.right >= 8) YW.done('m3'); YW.zh(caseSpeech(q)); dtDraw(); });
   if (DT.picked){ const ok = DT.picked === q.d; m.className = 'result ' + (ok ? 'good' : 'bad'); m.innerHTML = `${ok ? '✅' : '❌'} <span class="kai">${q.d}</span>${Lab.lang === 'en' && q.d !== NONE ? ' (' + DEV[q.d].en + ')' : ''} — ${Lab.L(o('clue: ', '线索：'))}<span class="kai">${q.k}</span>. ${Lab.L(q.ex)}`; }
   else { m.textContent = ''; m.className = 'result'; }
 }
@@ -509,6 +511,13 @@ const UP = [
     排比:{ tpl:'{}。', ch:[upc('读书能开阔眼界，读书能丰富知识，读书能陶冶性情',3,'Three “读书能…” clauses — strong rhythm.','三个“读书能……”，结构相同，气势强。'), upc('读书能开阔眼界，读书能丰富知识',1,'Only two parts.','只有两项。'), upc('读书好，好读书',0,'Not three parts.','不是排比。'), upc('读书很重要，非常重要',0,'Repetition.','只是重复。')] },
     对偶:{ tpl:'{}。', ch:[upc('书山有路勤为径，学海无涯苦作舟',3,'Two seven-character lines matching word for word (a famous couplet).','两句七字，对仗工整，是有名的对联。'), upc('读书好，读书很好',0,'Different lengths.','字数不等。'), upc('多读书，读好书，好读书',0,'Three parts — that would be parallelism.','三项，不是对偶。'), upc('书是好东西',0,'No device.','没有修辞。')] } } }
 ];
+const upgradeSpeech = (device, choice) => device.tpl.replace('{}', choice.t);
+Lab.readAll(() => [
+  ...DK.flatMap(name => [[name, 'zh'], [deviceExampleSpeech(DEV[name]), 'zh']]),
+  ...LSM.map(([line]) => [line, 'zh']),
+  ...CASES.map(q => [caseSpeech(q), 'zh']),
+  ...UP.flatMap(s => Object.values(s.d).flatMap(device => device.ch.map(choice => [upgradeSpeech(device, choice), 'zh'])))
+]);
 const US = { i:0, dev:null, pick:{}, score:0, best:0 };
 function upDraw(){
   const S = UP[US.i], devs = Object.keys(S.d); if (!US.dev || !S.d[US.dev]) US.dev = devs[0];
@@ -520,7 +529,7 @@ function upDraw(){
   Lab.$('#upBox').innerHTML = D.tpl.replace('{}', pk ? `<b style="color:var(--brand)">${D.ch[pk.i].t}</b>` : '<span class="gapw">？</span>');
   Lab.$('#upCh').innerHTML = order.map(i => `<button data-i="${i}" class="${pk ? (D.ch[i].p === 3 ? 'right' : i === pk.i ? 'wrong' : '') : ''}" ${pk ? 'disabled' : ''}>${D.ch[i].t}</button>`).join('');
   Lab.$$('#upCh button').forEach(b => b.onclick = () => { const i = +b.dataset.i, ch = D.ch[i]; US.pick[US.i + US.dev] = { i }; US.score += ch.p; if (ch.p === 3){ US.best++; if (US.best >= 5) YW.done('m4'); }
-    YW.zh(D.tpl.replace('{}', ch.t)); upDraw(); });
+    YW.zh(upgradeSpeech(D, ch)); upDraw(); });
   const m = Lab.$('#upMsg');
   if (pk){ const ch = D.ch[pk.i]; m.className = 'result ' + (ch.p === 3 ? 'good' : ch.p ? '' : 'bad'); m.innerHTML = `${ch.p === 3 ? '✅ ' + Lab.L(o('Best upgrade! +3','最佳升级！+3分')) : ch.p ? '🙂 ' + Lab.L(o(`OK: +${ch.p}`, `还可以：+${ch.p}分`)) : '❌ +0'} — ${Lab.L(ch.why)}${ch.p < 3 ? ' ' + Lab.L(o('(Green = the best choice.)', '（绿色是最佳答案。）')) : ''}`; }
   else { m.className = 'result'; m.textContent = Lab.L(o('Pick a device tab, then choose the filler that fits best. Try every tab!', '先选一种修辞，再挑一个最合适的词语填进去。每种修辞都试试！')); }

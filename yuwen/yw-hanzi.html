@@ -110,6 +110,7 @@
 .scripts .box .s{font-size:54px;line-height:1.2}
 @media (max-width:980px){.sw-wrap,.mixer{grid-template-columns:1fr}.scripts{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:560px){.scripts{grid-template-columns:repeat(2,minmax(0,1fr))}.mixer .res{font-size:84px}}
+.yw-reading{background:color-mix(in srgb,var(--brand) 16%,transparent);border-radius:6px}
 </style>
 </head>
 <body data-subject="yuwen" data-topic="yw-hanzi">
@@ -243,7 +244,7 @@ const YW = (() => {
   let vz = null, run = 0;
   const pick = () => { try { const vs = speechSynthesis.getVoices(); vz = vs.find(v => /zh[-_]CN/i.test(v.lang)) || vs.find(v => /^zh/i.test(v.lang)) || null; } catch(e){} };
   if (window.speechSynthesis){ pick(); try { speechSynthesis.addEventListener('voiceschanged', pick); } catch(e){} }
-  Y.stop = () => { run++; try { window.speechSynthesis && speechSynthesis.cancel(); } catch(e){} };
+  Y.stop = () => { clearStageReading?.(); run++; try { window.speechSynthesis && speechSynthesis.cancel(); } catch(e){} };
   Y.say = (text, rate = .8) => new Promise(res => {
     if (!window.speechSynthesis){ setTimeout(() => res(false), 600); return; }
     let done = false; const fin = ok => { if (!done){ done = true; res(ok); } };
@@ -397,6 +398,49 @@ const CHARS = [
   { c:'周', t:'周', py:'zhōu', m:o('Zhou (a dynasty, a family name); all around','周（朝代、姓）；周围'), s:o('A field marked into squares, with crops planted in it. Bronze script added 口 underneath. It is the 周 of the Zhou dynasty (about 1046–256 BCE) and a family name.','像划成方格、种满庄稼的田地，金文在下面加了“口”。它是周朝（约公元前1046—前256年）的“周”，也是常见的姓。') },
   { c:'欢', t:'歡', py:'huān', m:o('joy, happy','欢乐、高兴'), s:o('A picture-and-sound character: 欠 (a person opening the mouth wide — laughing, singing) gives the meaning, and 雚 (guàn, a bird with big eyes) gives the sound. It appears later than oracle-bone script, so the first stages show today’s character faintly. Simplified 欢 swaps 雚 for the easy sign 又.','形声字：“欠”（像人张大嘴，在笑、在唱）表示意思，“雚”（guàn，一种大眼睛的鸟）表示读音。这个字出现得比甲骨文晚，所以前几个阶段显示淡淡的今字。简化字“欢”把“雚”换成了好写的“又”。') }
 ];
+function stageSpeech(st, lang){
+  const [first, ...rest] = st.facts[lang];
+  const intro = [st.n[lang], st.era[lang], first];
+  const full = [...intro, ...rest].join(lang === 'zh' ? '。' : '. ');
+  if (lang === 'zh' || [...full].length <= 400) return [full];
+  return [intro.join('. '), ...rest];
+}
+
+let clearStageReading;
+document.addEventListener('click', event => {
+  if (event.target.closest('.lab-player [data-a=st]')) clearStageReading?.();
+}, true);
+Lab.onLang(() => clearStageReading?.());
+async function playStage(st, box){
+  const lang = Lab.lang, units = stageSpeech(st, lang);
+  if (lang === 'zh') return YW.zh(units[0]);
+  YW.stop();
+  if (units.length === 1) return Lab.speak(units[0]);
+  const facts = [...box.querySelectorAll('ul li')];
+  const targets = [[box.querySelector('h3'), box.querySelector('.job'), facts[0]], ...facts.slice(1).map(fact => [fact])];
+  let current = [], finishClip;
+  const clear = () => {
+    current.forEach(el => el.classList.remove('yw-reading'));
+    clearStageReading = null;
+    finishClip?.(false);
+  };
+  clearStageReading = clear;
+  for (const [i, text] of units.entries()){
+    while (clearStageReading === clear && Lab.speechPaused()){
+      await new Promise(resolve => setTimeout(resolve, 150));
+    }
+    if (clearStageReading !== clear || !facts[0].isConnected) break;
+    current.forEach(el => el.classList.remove('yw-reading'));
+    current = targets[i];
+    current.forEach(el => el.classList.add('yw-reading'));
+    const ok = await new Promise(resolve => {
+      finishClip = resolve;
+      if (!Lab.speak(text, {lang, onend:resolve, inner:i < units.length - 1})) resolve(false);
+    });
+    if (!ok) break;
+  }
+  if (clearStageReading === clear) clear();
+}
 const EVO ={ ci:1, t:0, seen:new Set(), timer:null };
 function evoImg(ch, k){ const g = GLYPH[ch.t]; return g && g[k]; }
 function stageHTML(ch, i){
@@ -430,7 +474,7 @@ function evoInfo(n){
     <div class="mix"><b>${Lab.L(o('⚠️ Don’t mix up:','⚠️ 易错点：'))}</b><span>${Lab.L(o('Small seal (小篆) was the Qin standard; the big change to modern-looking strokes (隶变) came with clerical script.','秦朝统一的标准字体是小篆；让汉字“变得好认”的隶变发生在隶书阶段。'))}</span></div>
     <div class="btnrow"><button class="speak" id="evoSpeak">${Lab.L(Lab.UI.listen)}</button><button class="speak" id="evoSay">🔊 ${ch.c}</button></div>
     <div class="nav"><button id="evoPrev">${Lab.L(o('◀ Earlier','◀ 更早'))}</button><button id="evoNext">${Lab.L(o('Later ▶','更晚 ▶'))}</button></div>`;
-  Lab.$('#evoSpeak').onclick = () => Lab.lang === 'zh' ? YW.zh([st.n.zh, st.era.zh, ...st.facts.zh].join('。')) : Lab.speak([st.n.en, st.era.en, ...st.facts.en].join('. '));
+  Lab.$('#evoSpeak').onclick = () => playStage(st, box);
   Lab.$('#evoSay').onclick = () => YW.zh(ch.c);
   Lab.$('#evoPrev').onclick = () => setT(Math.max(0, n - 1));
   Lab.$('#evoNext').onclick = () => setT(Math.min(4, n + 1));
@@ -560,6 +604,12 @@ const SW = [
   ['吴','wú',o('Top to bottom: 口 first, then the part below','从上到下：先写“口”，再写下面')], ['宁','níng',o('Top to bottom: the roof 宀 first, then 丁','从上到下：先写宝盖头，再写“丁”')],
   ['贺','hè',o('Top to bottom: 加 first (力 before 口), then 贝','从上到下：先写“加”（先“力”后“口”），再写“贝”')], ['欢','huān',o('Left to right: 又 first, then 欠','从左到右：先写“又”，再写“欠”')], ['薇','wēi',o('Grass top 艹 first, then left to right: 彳, the middle part, 攵 — 16 strokes. From the Book of Songs: “采薇采薇” (picking wild vetch)','先写草字头，再从左到右：彳、中间部分、攵，共16画。《诗经·采薇》：“采薇采薇，薇亦作止。”')]
 ];
+Lab.readAll(() => [
+  ...STAGES.flatMap(stage => ['zh', 'en'].flatMap(lang => stageSpeech(stage, lang).map(text => [text, lang]))),
+  ...CHARS.map(ch => [ch.c, 'zh']),
+  ...MIX.map(m => [m[1], 'zh']),
+  ...SW.map(row => [row[0], 'zh'])
+]);
 const SWS = { i:0, writer:null, good:new Set(), n:0 };
 const cssv = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 function swLoad(ch, ok, bad){ fetch('https://cdn.jsdelivr.net/npm/hanzi-writer-data@2.0.1/' + encodeURIComponent(ch) + '.json').then(r => r.json()).then(d => { SWS.n = d.strokes.length; swInfo(); ok(d); }).catch(bad); }

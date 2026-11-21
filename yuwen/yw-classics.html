@@ -91,6 +91,7 @@
 .clues{display:flex;flex-direction:column;gap:8px}
 .clues div{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--surface-2);font-weight:700}
 .clues div.hid{opacity:.45;font-weight:600;font-style:italic}
+.bk-summary.on{background:color-mix(in srgb,var(--brand) 16%,transparent);border-radius:6px}
 .quote{border-left:4px solid var(--brand);padding:6px 12px;margin:4px 0;background:var(--surface-2);border-radius:0 10px 10px 0;font-size:15px}
 @media (max-width:980px){.jr-wrap,.web-wrap{grid-template-columns:1fr}.shelf-row{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:560px){.shelf-row{grid-template-columns:1fr}}
@@ -215,22 +216,92 @@ const YW = (() => {
   Y.esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
   Y.isHan = ch => /[㐀-鿿]/.test(ch);
   /* ---- Chinese read-aloud: always a zh-CN voice (the student is learning Chinese), whatever the page language ---- */
-  let vz = null, run = 0;
+  let vz = null, run = 0, cancelSay, clearReader;
   const pick = () => { try { const vs = speechSynthesis.getVoices(); vz = vs.find(v => /zh[-_]CN/i.test(v.lang)) || vs.find(v => /^zh/i.test(v.lang)) || null; } catch(e){} };
   if (window.speechSynthesis){ pick(); try { speechSynthesis.addEventListener('voiceschanged', pick); } catch(e){} }
-  Y.stop = () => { run++; try { window.speechSynthesis && speechSynthesis.cancel(); } catch(e){} };
-  Y.say = (text, rate = .8) => new Promise(res => {
-    if (!window.speechSynthesis){ setTimeout(() => res(false), 600); return; }
-    let done = false; const fin = ok => { if (!done){ done = true; res(ok); } };
-    try { const u = new SpeechSynthesisUtterance(text); u.lang = 'zh-CN'; if (vz) u.voice = vz; u.rate = rate; u.onend = () => fin(true); u.onerror = () => fin(false); speechSynthesis.speak(u); } catch(e){ fin(false); }
-    setTimeout(() => fin(false), 1500 + text.length * 420);   // some browsers never fire onend
+  const paused = () => Lab.speechPaused();
+  function endReading(ok){
+    const clear = clearReader;
+    clearReader = null;
+    if (clear) clear(ok);
+  }
+  function interrupt(){
+    run++;
+    if (cancelSay) cancelSay();
+    endReading(false);
+  }
+  Y.stop = () => { interrupt(); Lab.stopSpeech(); };
+  // Let the shared bar cancel both the active clip and the remaining study lines.
+  document.addEventListener('click', e => {
+    if (e.target.closest('.lab-player [data-a=st]')) interrupt();
+  }, true);
+  Lab.onLang(interrupt);
+  Y.say = (text, rate = .8, lang) => new Promise(resolve => {
+    let timeLeft = 1500 + text.length * 420;
+    if (lang || Lab.recordingUrl(text, 'zh')) timeLeft *= Math.max(1, 1 / Lab.speakRate());
+    let timer, result, finished = false, last = performance.now(), wasPaused = paused();
+    const cancel = () => finish(false);
+    function finish(ok){
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      if (cancelSay === cancel) cancelSay = null;
+      resolve(ok);
+    }
+    function check(){
+      const now = performance.now(), isPaused = paused();
+      if (!isPaused && !wasPaused) timeLeft -= now - last;
+      last = now;
+      wasPaused = isPaused;
+      if (!isPaused && (result !== undefined || timeLeft <= 0)) finish(result === true);
+      else timer = setTimeout(check, 150);
+    }
+    function report(ok){
+      if (finished) return;
+      if (paused()) result = ok;
+      else finish(ok);
+    }
+    cancelSay = cancel;
+    timer = setTimeout(check, 150);
+    try {
+      if (lang){
+        const playback = Lab.speak(text, {lang, rate, onend:report});
+        if (!playback) report(false);
+      } else if (window.speechSynthesis){
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'zh-CN';
+        if (vz) u.voice = vz;
+        u.rate = rate;
+        u.onend = () => report(true);
+        u.onerror = e => {
+          if (finished) return;
+          if (!e.error || e.error === 'canceled' || e.error === 'interrupted') interrupt();
+          else report(false);
+        };
+        speechSynthesis.speak(u);
+      } else report(false);
+    } catch(e){ report(false); }
   });
   Y.zh = text => { Y.stop(); return Y.say(text); };
-  /* read lines one by one; onLine(i) highlights line i, onLine(-1) when finished or stopped */
   Y.readLines = async (lines, onLine, rate) => {
-    Y.stop(); const id = run;
-    for (let i = 0; i < lines.length; i++){ if (id !== run) return; onLine(i); await Y.say(lines[i], rate); }
-    if (id === run) onLine(-1);
+    Y.stop();
+    const id = run;
+    clearReader = ok => onLine(-1, ok);
+    for (let i = 0; i < lines.length; i++){
+      while (id === run && paused()) await new Promise(resolve => setTimeout(resolve, 150));
+      if (id !== run) return;
+      onLine(i);
+      await Y.say(lines[i], rate);
+    }
+    if (id === run) endReading(true);
+  };
+  Y.readWhole = async (text, highlight, rate, lang = 'zh') => {
+    Y.stop();
+    const id = run;
+    clearReader = ok => highlight(false, ok);
+    highlight(true);
+    const ok = await Y.say(text, rate, lang);
+    if (id === run) endReading(ok);
   };
   Y.running = () => run;
   /* ---- characters with pinyin above (poems / classical texts). Wrapped in data-nopy so pinyin.js leaves them alone ---- */
@@ -424,6 +495,7 @@ const BOOKS = [
     mem:o('Places in order: Gateshead → Lowood → Thornfield → Moor House → Ferndean.','地点线索：盖茨海德府→劳渥德学校→桑菲尔德庄园→沼泽居→芬丁庄园。'),
     mix:o('Charlotte wrote Jane Eyre; her sister Emily wrote Wuthering Heights (《呼啸山庄》).','《简·爱》是夏洛蒂写的；妹妹艾米莉写的是《呼啸山庄》。') }
 ];
+const bookSpeech = (b, lang) => lang === 'zh' ? b.t + '。' + b.sum.zh : b.en + '. ' + b.sum.en;
 const SH = { cur:null, seen:new Set() };
 function shelfDraw(){
   Lab.$('#shelfBox').innerHTML = `<div class="shelf-row">${GRADES.map((g, gi) => `<div class="shelf-g"><h4>${Lab.L(g)}</h4><div class="bk">${BOOKS.filter(b => b.g === gi).map(b =>
@@ -432,7 +504,7 @@ function shelfDraw(){
   Lab.$$('#shelfBox .bk button').forEach(b => b.onclick = () => bookOpen(b.dataset.id));
 }
 function bookOpen(id){
-  SH.cur = id; SH.seen.add(id); if (SH.seen.size >= 8) YW.done('m1');
+  YW.stop(); SH.cur = id; SH.seen.add(id); if (SH.seen.size >= 8) YW.done('m1');
   shelfDraw(); bookInfo();
 }
 function bookInfo(){
@@ -442,15 +514,20 @@ function bookInfo(){
   box.innerHTML = `<span class="tag">${Lab.L(GRADES[b.g])} · ${Lab.L(b.m)}</span>
     <h3><span class="dot" style="background:${b.c}"></span><span class="kai">《${b.t}》</span></h3>
     <p class="job">${Lab.lang === 'zh' ? '' : b.en + ' — '}${Lab.L(b.au)}</p>
-    <p>${Lab.L(b.sum)}</p>
+    <p class="bk-summary">${Lab.L(b.sum)}</p>
     <ul><li><b>${Lab.L(o('Characters: ','主要人物：'))}</b>${Lab.L(b.ppl)}</li><li><b>${Lab.L(o('Exam tip: ','中考考点：'))}</b>${Lab.L(b.tip)}</li></ul>
     ${b.q ? `<div class="quote">${b.q}</div>` : ''}
     <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(b.mem)}</div>
     <div class="mix"><b>${Lab.L(o('⚠️ Don’t mix up:','⚠️ 易错点：'))}</b><span>${Lab.L(b.mix)}</span></div>
-    <div class="btnrow"><button class="speak" id="bkSpeak">${Lab.L(Lab.UI.listen)}</button><button class="speak" id="bkSay">🔊 《${b.t}》</button></div>
+    <div class="btnrow"><button class="speak" id="bkSpeak">🔊 ${Lab.L(o('Read summary','朗读简介'))}</button>${Lab.lang === 'zh' ? '' : `<button class="speak" id="bkSay">🔊 《${b.t}》</button>`}</div>
     <div class="nav"><button id="bkPrev">◀ ${Lab.L(o('Prev','上一本'))}</button><button id="bkNext">${Lab.L(o('Next','下一本'))} ▶</button></div>`;
-  Lab.$('#bkSpeak').onclick = () => Lab.lang === 'zh' ? YW.zh(b.t + '。' + b.sum.zh) : Lab.speak(b.en + '. ' + b.sum.en);
-  Lab.$('#bkSay').onclick = () => YW.zh(b.t);
+  Lab.$('#bkSpeak').onclick = () => {
+    const zh = Lab.lang === 'zh';
+    const summary = box.querySelector('.bk-summary');
+    YW.readWhole(bookSpeech(b, Lab.lang),
+      active => summary.classList.toggle('on', active), zh ? .8 : .95, zh ? 'zh' : 'en');
+  };
+  const say = Lab.$('#bkSay'); if (say) say.onclick = () => YW.zh(b.t);   // English view only: hear the Chinese title (issue #8)
   Lab.$('#bkPrev').onclick = () => bookOpen(BOOKS[(i + 11) % 12].id);
   Lab.$('#bkNext').onclick = () => bookOpen(BOOKS[(i + 1) % 12].id);
 }
@@ -563,6 +640,11 @@ const HEROES = [
   { id:'hr', n:'花荣', py:'Huā Róng', x:530, y:200, k:'小李广', ke:'Little Li Guang', s:o('Liangshan’s greatest archer, nicknamed after the famous Han-dynasty archer-general Li Guang. Song Jiang’s close friend.','梁山第一神箭手，绰号来自汉代名将“飞将军”李广。宋江的好友。') },
   { id:'gq', n:'高俅', py:'Gāo Qiú', x:44, y:170, villain:true, s:o('Not a hero: a street football player who rose to Grand Marshal by charming the emperor. He persecutes Lin Chong — a symbol of the corrupt court.','不是好汉：靠踢得一脚好球得宠，当上太尉，陷害林冲，是奸臣的代表。') }
 ];
+const heroSpeech = (h, matched) => h.n + (matched ? '，绰号' + h.k : '') + '。' + h.s.zh;
+Lab.readAll(() => [
+  ...BOOKS.flatMap(b => [[bookSpeech(b, 'zh'), 'zh'], [bookSpeech(b, 'en'), 'en'], [b.t, 'zh']]),
+  ...HEROES.flatMap(h => (h.villain ? [false] : [false, true]).map(matched => [heroSpeech(h, matched), 'zh']))
+]);
 const LINKS_SH = [
   ['gq','lc', o('Gao Qiu frames Lin Chong (the White Tiger Hall trap) and has him exiled.','高俅设计让林冲误入白虎堂，刺配沧州。')],
   ['lz','lc', o('Sworn brothers. Lu Zhishen follows the guards who escort Lin Chong and saves him in Wild Boar Forest.','结拜兄弟。鲁智深一路暗中保护，在野猪林救下林冲。')],
@@ -620,7 +702,7 @@ function webInfo(){
   const h = H(NK.info), m = NK.ok.has(h.id);
   box.innerHTML = `<span class="tag">${h.villain ? Lab.L(o('Villain','反面人物')) : m ? `“${h.k}” · ${h.ke}` : Lab.L(o('Nickname: ???','绰号：？？？'))}</span><h3 class="kai" style="margin:6px 0">${h.n} <small style="font-family:Nunito;font-size:14px;color:var(--ink-2)">${h.py}</small></h3><p style="margin:0">${Lab.L(h.s)}</p>
     <div class="btnrow" style="margin-top:8px"><button class="speak" id="hSay">🔊 ${h.n}${m ? '，' + h.k : ''}</button></div>`;
-  Lab.$('#hSay').onclick = () => YW.zh(h.n + (m ? '，绰号' + h.k : '') + '。' + h.s.zh);
+  Lab.$('#hSay').onclick = () => YW.zh(heroSpeech(h, m));
 }
 Lab.$('#nkReset').onclick = () => { Object.assign(NK, { sel:null, ok:new Set(), bad:0, ord:[], info:null }); webDraw(); nickDraw(); webInfo(); Lab.$('#nkMsg').textContent = ''; };
 Lab.onLang(() => { webDraw(); nickDraw(); webInfo(); });

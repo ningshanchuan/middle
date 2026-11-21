@@ -73,6 +73,8 @@
 .cp-side .kai{font-size:30px}
 .tones{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:18px}
 .tz{padding:20px}
+.tz-line.on{background:color-mix(in srgb,var(--brand) 12%,transparent)}
+.ci .ci-pre.on{background:color-mix(in srgb,var(--accent) 26%,transparent)}
 .tz-line{display:flex;align-items:center;gap:6px;margin:6px 0;flex-wrap:wrap}
 .tz-c{position:relative;width:46px;height:58px;border-radius:10px;border:2px solid var(--line);background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;line-height:1.05;padding:0}
 .tz-c b{font-size:24px;font-weight:400}
@@ -144,7 +146,7 @@
   <div class="tones">
     <div class="card tz">
       <div class="ywtabs" id="tzTabs"></div>
-      <div class="btnrow" style="margin-bottom:6px"><button class="tbtn on" id="tzOld" data-zh="古代平仄">Classical tones</button><button class="tbtn" id="tzNew" data-zh="用今天的声调猜">Guess from modern tones</button><button class="tbtn" id="tzRead" data-zh="🔊 朗读">🔊 Read</button></div>
+      <div class="btnrow" style="margin-bottom:6px"><button class="tbtn on" id="tzOld" data-zh="古代平仄">Classical tones</button><button class="tbtn" id="tzNew" data-zh="用今天的声调猜">Guess from modern tones</button><button class="tbtn" id="tzRead" data-zh="🔊 朗读">🔊 Read aloud</button><button class="tbtn" id="tzLines" type="button" data-speak data-zh="逐句跟读">Line by line</button><button class="tbtn" id="tzStop" data-zh="⏹ 停止">⏹ Stop</button></div>
       <div class="tz-legend"><span><i style="background:#3b82c4"></i><span data-zh="平声">level 平</span></span><span><i style="background:#d9822b"></i><span data-zh="仄声">oblique 仄</span></span><span><i style="background:var(--bad)"></i><span data-zh="入声字（古代读仄）">入 = entering tone (oblique in old Chinese)</span></span><span><b style="color:var(--brand)">字</b>&nbsp;<span data-zh="韵脚">rhyme</span></span></div>
       <div id="tzBox" data-nopy></div>
       <div class="result" id="tzMsg"></div>
@@ -156,12 +158,12 @@
 <section class="wrap" id="read" data-nav="Read the ci" data-nav-zh="读词">
   <div class="sec-head">
     <h2 data-zh="任务三：读词——押韵侦探">Mission 3: read the ci — rhyme detective</h2>
-    <p data-zh="选一首词，先听朗读（读到哪个字亮哪句）。然后打开“押韵侦探”：把所有韵脚字点出来，全部找对、不点错，这首词就过关。">Choose a ci and listen (each sentence lights up as it is read). Then switch on “Rhyme detective” and tap every rhyming character. Find them all with no wrong taps to clear that ci.</p>
+    <p data-zh="选一首词。短篇可听全文，长篇可分阕听，也可以逐句跟读。然后打开“押韵侦探”：把所有韵脚字点出来，全部找对、不点错，这首词就过关。">Choose a ci and listen to it in full or by stanza. You can also follow it line by line. Then switch on “Rhyme detective” and tap every rhyming character. Find them all with no wrong taps to clear that ci.</p>
   </div>
   <div class="ywtabs" id="ciTabs"></div>
   <div class="explorer">
     <div class="card" style="padding:22px">
-      <div class="btnrow" style="margin-bottom:8px"><button class="tbtn" id="ciRead">🔊 <span data-zh="朗读">Read aloud</span></button><button class="tbtn" id="ciStop">⏹</button><button class="tbtn" id="ciPy" data-zh="拼音">Pinyin</button><button class="tbtn" id="ciDet" data-zh="🔍 押韵侦探">🔍 Rhyme detective</button></div>
+      <div class="btnrow" style="margin-bottom:8px"><button class="tbtn" id="ciRead">🔊 <span data-zh="朗读">Read aloud</span></button><span id="ciStanzas" style="display:contents"></span><button class="tbtn" id="ciLines" type="button" data-speak data-zh="逐句跟读">Line by line</button><button class="tbtn" id="ciStop" data-zh="⏹ 停止">⏹ Stop</button><button class="tbtn" id="ciPy" data-zh="拼音">Pinyin</button><button class="tbtn" id="ciDet" data-zh="🔍 押韵侦探">🔍 Rhyme detective</button></div>
       <div id="ciText" class="ci kai" data-nopy></div>
       <div class="result" id="ciMsg"></div>
     </div>
@@ -205,22 +207,92 @@ const YW = (() => {
   Y.esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
   Y.isHan = ch => /[㐀-鿿]/.test(ch);
   /* ---- Chinese read-aloud: always a zh-CN voice (the student is learning Chinese), whatever the page language ---- */
-  let vz = null, run = 0;
+  let vz = null, run = 0, cancelSay, clearReader;
   const pick = () => { try { const vs = speechSynthesis.getVoices(); vz = vs.find(v => /zh[-_]CN/i.test(v.lang)) || vs.find(v => /^zh/i.test(v.lang)) || null; } catch(e){} };
   if (window.speechSynthesis){ pick(); try { speechSynthesis.addEventListener('voiceschanged', pick); } catch(e){} }
-  Y.stop = () => { run++; try { window.speechSynthesis && speechSynthesis.cancel(); } catch(e){} };
-  Y.say = (text, rate = .8) => new Promise(res => {
-    if (!window.speechSynthesis){ setTimeout(() => res(false), 600); return; }
-    let done = false; const fin = ok => { if (!done){ done = true; res(ok); } };
-    try { const u = new SpeechSynthesisUtterance(text); u.lang = 'zh-CN'; if (vz) u.voice = vz; u.rate = rate; u.onend = () => fin(true); u.onerror = () => fin(false); speechSynthesis.speak(u); } catch(e){ fin(false); }
-    setTimeout(() => fin(false), 1500 + text.length * 420);   // some browsers never fire onend
+  const paused = () => Lab.speechPaused();
+  function endReading(ok){
+    const clear = clearReader;
+    clearReader = null;
+    if (clear) clear(ok);
+  }
+  function interrupt(){
+    run++;
+    if (cancelSay) cancelSay();
+    endReading(false);
+  }
+  Y.stop = () => { interrupt(); Lab.stopSpeech(); };
+  // Let the shared bar cancel both the active clip and the remaining study lines.
+  document.addEventListener('click', e => {
+    if (e.target.closest('.lab-player [data-a=st]')) interrupt();
+  }, true);
+  Lab.onLang(interrupt);
+  Y.say = (text, rate = .8, lang) => new Promise(resolve => {
+    let timeLeft = 1500 + text.length * 420;
+    if (lang || Lab.recordingUrl(text, 'zh')) timeLeft *= Math.max(1, 1 / Lab.speakRate());
+    let timer, result, finished = false, last = performance.now(), wasPaused = paused();
+    const cancel = () => finish(false);
+    function finish(ok){
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      if (cancelSay === cancel) cancelSay = null;
+      resolve(ok);
+    }
+    function check(){
+      const now = performance.now(), isPaused = paused();
+      if (!isPaused && !wasPaused) timeLeft -= now - last;
+      last = now;
+      wasPaused = isPaused;
+      if (!isPaused && (result !== undefined || timeLeft <= 0)) finish(result === true);
+      else timer = setTimeout(check, 150);
+    }
+    function report(ok){
+      if (finished) return;
+      if (paused()) result = ok;
+      else finish(ok);
+    }
+    cancelSay = cancel;
+    timer = setTimeout(check, 150);
+    try {
+      if (lang){
+        const playback = Lab.speak(text, {lang, rate, onend:report});
+        if (!playback) report(false);
+      } else if (window.speechSynthesis){
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'zh-CN';
+        if (vz) u.voice = vz;
+        u.rate = rate;
+        u.onend = () => report(true);
+        u.onerror = e => {
+          if (finished) return;
+          if (!e.error || e.error === 'canceled' || e.error === 'interrupted') interrupt();
+          else report(false);
+        };
+        speechSynthesis.speak(u);
+      } else report(false);
+    } catch(e){ report(false); }
   });
   Y.zh = text => { Y.stop(); return Y.say(text); };
-  /* read lines one by one; onLine(i) highlights line i, onLine(-1) when finished or stopped */
   Y.readLines = async (lines, onLine, rate) => {
-    Y.stop(); const id = run;
-    for (let i = 0; i < lines.length; i++){ if (id !== run) return; onLine(i); await Y.say(lines[i], rate); }
-    if (id === run) onLine(-1);
+    Y.stop();
+    const id = run;
+    clearReader = ok => onLine(-1, ok);
+    for (let i = 0; i < lines.length; i++){
+      while (id === run && paused()) await new Promise(resolve => setTimeout(resolve, 150));
+      if (id !== run) return;
+      onLine(i);
+      await Y.say(lines[i], rate);
+    }
+    if (id === run) endReading(true);
+  };
+  Y.readWhole = async (text, highlight, rate, lang = 'zh') => {
+    Y.stop();
+    const id = run;
+    clearReader = ok => highlight(false, ok);
+    highlight(true);
+    const ok = await Y.say(text, rate, lang);
+    if (id === run) endReading(ok);
   };
   Y.running = () => run;
   /* ---- characters with pinyin above (poems / classical texts). Wrapped in data-nopy so pinyin.js leaves them alone ---- */
@@ -420,6 +492,7 @@ const CI = [
 const hanLen = c => c.filter(x => x !== '|').reduce((n, x) => n + x[0].length, 0);
 
 /* ===== Mission 1: tune patterns ===== */
+const ciOpening = ci => ci.c.filter(x => x !== '|').slice(0, 3).map(x => x[0]).join('，');
 const PAIS = [ ['rm','如梦令'], ['yf','渔家傲'], ['pz','破阵子'], ['jc','江城子'], ['sd','水调歌头'] ];
 let cpSel = 'yf';
 function patHTML(ci){ let h = '<div class="cp-half">' + Lab.L(o('Stanza 1 (上阕)','上阕')) + '</div>';
@@ -441,7 +514,7 @@ function cpDraw(){
     <p style="margin:0">${Lab.L(o('Written to this tune here:','本页用这个词牌的词：'))} ${same.map(s => `<b class="kai" data-nopy>《${s.pai}·${s.t}》</b>${s.a}`).join('、')}</p>
     <p class="muted" style="margin:0;font-size:14.5px">${Lab.L(o('Every poet who uses this tune must fit the same boxes — but can write about anything.','用同一个词牌的人都要“填”同样的格子，但写什么内容由自己决定。'))}</p>
     <button class="speak" id="cpSay">🔊 ${Lab.L(o('Hear the first lines','听开头'))}</button>`;
-  Lab.$('#cpSay').onclick = () => YW.zh(ci.c.filter(x => x !== '|').slice(0, 3).map(x => x[0]).join('，'));
+  Lab.$('#cpSay').onclick = () => YW.zh(ciOpening(ci));
 }
 Lab.onLang(cpDraw);
 /* guess the tune */
@@ -466,21 +539,21 @@ YW.bars('#figLen', [
 
 /* ===== Mission 2: tones ===== */
 const TZ = [
- { id:'cw', t:'春望', a:'杜甫', L:[['国破山河在','guó pò shān hé zài','RZPPZ'],['城春草木深','chéng chūn cǎo mù shēn','PPZRP'],['感时花溅泪','gǎn shí huā jiàn lèi','ZPPZZ'],['恨别鸟惊心','hèn bié niǎo jīng xīn','ZRZPP'],
+ { id:'cw', t:'春望', a:'杜甫', punctuation:'，。，。，。，。', L:[['国破山河在','guó pò shān hé zài','RZPPZ'],['城春草木深','chéng chūn cǎo mù shēn','PPZRP'],['感时花溅泪','gǎn shí huā jiàn lèi','ZPPZZ'],['恨别鸟惊心','hèn bié niǎo jīng xīn','ZRZPP'],
    ['烽火连三月','fēng huǒ lián sān yuè','PZPPR'],['家书抵万金','jiā shū dǐ wàn jīn','PPZZP'],['白头搔更短','bái tóu sāo gèng duǎn','RPPZZ'],['浑欲不胜簪','hún yù bù shèng zān','PRRPP']],
    note:o('Rhymes 深 心 金 簪 all belonged to one old rhyme group — but in Mandarin 簪 (zān) no longer sounds like shēn, xīn, jīn! 胜 here means “bear, stand” and was read in the level tone (shēng).','韵脚“深、心、金、簪”在古代同属一个韵部，今天“簪”（zān）却和它们不押韵了。“胜”在这里是“能承受”的意思，古代读平声（shēng）。') },
- { id:'bg', t:'次北固山下', a:'王湾', L:[['客路青山外','kè lù qīng shān wài','RZPPZ'],['行舟绿水前','xíng zhōu lǜ shuǐ qián','PPRZP'],['潮平两岸阔','cháo píng liǎng àn kuò','PPZZR'],['风正一帆悬','fēng zhèng yī fān xuán','PZRPP'],
+ { id:'bg', t:'次北固山下', a:'王湾', punctuation:'，。，。，。？。', L:[['客路青山外','kè lù qīng shān wài','RZPPZ'],['行舟绿水前','xíng zhōu lǜ shuǐ qián','PPRZP'],['潮平两岸阔','cháo píng liǎng àn kuò','PPZZR'],['风正一帆悬','fēng zhèng yī fān xuán','PZRPP'],
    ['海日生残夜','hǎi rì shēng cán yè','ZRPPZ'],['江春入旧年','jiāng chūn rù jiù nián','PPRZP'],['乡书何处达','xiāng shū hé chù dá','PPPZR'],['归雁洛阳边','guī yàn luò yáng biān','PZRPP']],
    note:o('Rhymes 前 悬 年 边 still rhyme today (-ián / -uán). Traps: 一 (yī) and 达 (dá) look level in Mandarin, but were entering tones.','韵脚“前、悬、年、边”今天仍然押韵。陷阱字：“一”“达”今天读一声、二声，古代却是入声（仄）。') }
 ];
 const toneNum = s => /[āēīōūǖ]/.test(s) ? 1 : /[áéíóúǘ]/.test(s) ? 2 : /[ǎěǐǒǔǚ]/.test(s) ? 3 : /[àèìòùǜ]/.test(s) ? 4 : 0;
-const TS = { i:0, mode:'old', found:{}, sel:null };
+const TS = { i:0, mode:'old', found:{}, sel:null, now:-1 };
 function tzCell(line, li, k){ const ch = line[0][k], py = line[1].split(' ')[k], cls = line[2][k], old = cls === 'P' ? 'P' : 'Z', mod = toneNum(py) <= 2 ? 'P' : 'Z', trap = old !== mod;
   return { ch, py, old, mod, trap, R:cls === 'R', rh:li % 2 === 1 && k === 4 }; }
 function tzDraw(){
   const P = TZ[TS.i], f = TS.found[P.id] || (TS.found[P.id] = new Set());
   Lab.$('#tzTabs').innerHTML = TZ.map((p, i) => `<button class="tbtn ${i === TS.i ? 'on' : ''}" data-i="${i}" data-nopy>《${p.t}》</button>`).join('');
-  Lab.$$('#tzTabs button').forEach(b => b.onclick = () => { TS.i = +b.dataset.i; TS.sel = null; tzDraw(); });
+  Lab.$$('#tzTabs button').forEach(b => b.onclick = () => { YW.stop(); TS.i = +b.dataset.i; TS.sel = null; tzDraw(); });
   Lab.$('#tzOld').classList.toggle('on', TS.mode === 'old'); Lab.$('#tzNew').classList.toggle('on', TS.mode === 'new');
   const pos2 = P.L.map((l, li) => tzCell(l, li, 1).old);
   let traps = 0;
@@ -492,7 +565,7 @@ function tzDraw(){
     let tag = `<span class="tz-ok ${ok24 ? 'y' : ''}">${Lab.L(o('2nd≠4th','二四异'))} ${ok24 ? '✓' : '✗'}</span>`;
     if (li % 2 === 1) tag += ` <span class="tz-ok ${pos2[li] !== pos2[li - 1] ? 'y' : ''}">${Lab.L(o('pair opposite','对'))} ${pos2[li] !== pos2[li - 1] ? '✓' : '✗'}</span>`;
     else if (li > 0) tag += ` <span class="tz-ok ${pos2[li] === pos2[li - 1] ? 'y' : ''}">${Lab.L(o('joins','粘'))} ${pos2[li] === pos2[li - 1] ? '✓' : '✗'}</span>`;
-    return `<div class="tz-line">${cells}${TS.mode === 'old' ? tag : ''}</div>`; }).join('');
+    return `<div class="tz-line ${TS.now === -2 || TS.now === li ? 'on' : ''}">${cells}${TS.mode === 'old' ? tag : ''}</div>`; }).join('');
   TS.traps = traps;
   Lab.$$('#tzBox .tz-c').forEach(b => b.onclick = () => tzTap(b.dataset.k));
   const m = Lab.$('#tzMsg'); m.className = 'result' + (f.size === traps ? ' good' : '');
@@ -521,27 +594,82 @@ function tzInfo(){
 }
 Lab.$('#tzOld').onclick = () => { TS.mode = 'old'; tzDraw(); };
 Lab.$('#tzNew').onclick = () => { TS.mode = 'new'; tzDraw(); };
-Lab.$('#tzRead').onclick = () => { const P = TZ[TS.i]; YW.readLines(P.L.map(l => l[0]), i => Lab.$$('#tzBox .tz-line').forEach((e, k) => e.style.background = k === i ? 'color-mix(in srgb,var(--brand) 12%,transparent)' : ''), .75); };
+function highlightTones(index){
+  TS.now = index;
+  Lab.$$('#tzBox .tz-line').forEach((el, i) => el.classList.toggle('on', index === -2 || index === i));
+}
+const tonePoemLines = poem => poem.L.map(line => line[0]);
+function tonePoemFull(poem){
+  const body = poem.L.map((line, i) => line[0] + poem.punctuation[i]).join('');
+  return poem.t + '。' + poem.a + '（唐）。' + body;
+}
+Lab.$('#tzRead').onclick = () => YW.readWhole(tonePoemFull(TZ[TS.i]), active => highlightTones(active ? -2 : -1), .75);
+Lab.$('#tzLines').onclick = () => YW.readLines(tonePoemLines(TZ[TS.i]), highlightTones, .75);
+Lab.$('#tzStop').onclick = YW.stop;
 Lab.onLang(tzDraw);
 
 /* ===== Mission 3: read + rhyme detective ===== */
-const RS = { i:0, py:false, det:false, now:-1, taps:{}, cleared:new Set() };
+const RS = { i:0, py:false, det:false, now:-1, stanza:-1, taps:{}, heard:new Map(), cleared:new Set() };
+function ciReading(ci){
+  const credit = ci.pai + '·' + ci.t + '。' + ci.a + '（' + ci.d.zh + '）。' + (ci.pre || '');
+  const stanzas = [''];
+  for (const part of ci.c){
+    if (part === '|') stanzas.push('');
+    else stanzas[stanzas.length - 1] += part[0] + part[3];
+  }
+  return {full:credit + stanzas.join(''), stanzas:stanzas.map((text, i) => (i === 0 ? credit : '') + text)};
+}
+const ciOn = (sentence, stanza) => RS.now === -2 || RS.now === sentence || RS.stanza === stanza;
 function ciSentences(ci){ const out = []; let cur = []; ci.c.forEach(x => { if (x === '|') return; cur.push(x); if (/[。？！]/.test(x[3])){ out.push(cur); cur = []; } }); if (cur.length) out.push(cur); return out; }
+const ciLines = ci => ciSentences(ci).map(sentence => sentence.map(part => part[0]).join('，'));
+const isShortCi = reading => [...reading.full].length <= 150;
+Lab.readAll(() => [
+  ...PAIS.map(([id]) => [ciOpening(CI.find(ci => ci.id === id)), 'zh']),
+  ...TZ.flatMap(poem => {
+    const lines = tonePoemLines(poem);
+    return [[tonePoemFull(poem), 'zh'], ...lines.map(line => [line, 'zh']),
+      ...[...new Set(lines.flatMap(line => [...line]))].map(ch => [ch, 'zh'])];
+  }),
+  ...CI.flatMap(ci => {
+    const reading = ciReading(ci);
+    const units = isShortCi(reading) ? [reading.full] : reading.stanzas;
+    const characters = new Set(ci.c.filter(line => line !== '|').flatMap(line => [...line[0]]));
+    return [...units, ...ciLines(ci), ...characters].map(text => [text, 'zh']);
+  })
+]);
 function ciDraw(){
   const ci = CI[RS.i], tp = RS.taps[ci.id] || (RS.taps[ci.id] = { ok:new Set(), bad:0 });
   Lab.$('#ciTabs').innerHTML = CI.map((c, i) => `<button class="tbtn ${i === RS.i ? 'on' : ''}" data-i="${i}" data-nopy>${c.pai}${c.id === 'yl' ? '（李）' : c.id === 'yf' ? '（范）' : ''}</button>`).join('');
   Lab.$$('#ciTabs button').forEach(b => b.onclick = () => { YW.stop(); RS.i = +b.dataset.i; RS.now = -1; ciDraw(); });
   Lab.$('#ciPy').classList.toggle('on', RS.py); Lab.$('#ciDet').classList.toggle('on', RS.det);
-  const sents = ciSentences(ci); let si = 0, n = 0, html = `<span class="half">${Lab.L(o('Stanza 1 · 上阕','上阕'))}</span>`, ci2 = 0;
+  const sents = ciSentences(ci);
+  const reading = ciReading(ci);
+  const short = isShortCi(reading);
+  Lab.$('#ciRead').style.display = short ? '' : 'none';
+  Lab.$('#ciStanzas').innerHTML = short ? '' : reading.stanzas.map((_, i) => `
+    <button class="tbtn" type="button" data-stanza="${i}">🔊 ${Lab.L(i === 0 ? o('Read first stanza','朗读上阕') : o('Read second stanza','朗读下阕'))}</button>`).join('');
+  Lab.$$('#ciStanzas [data-stanza]').forEach(button => button.onclick = () => {
+    const i = Number(button.dataset.stanza);
+    YW.readWhole(reading.stanzas[i], (active, complete) => {
+      highlightCi(-1, false, active ? i : -1);
+      if (complete) {
+        if (!RS.heard.has(ci.id)) RS.heard.set(ci.id, new Set());
+        const heard = RS.heard.get(ci.id);
+        heard.add(i);
+        if (heard.size === reading.stanzas.length) YW.done('m3');
+      }
+    }, .78);
+  });
+  let stanza = 0, html = `<span class="half">${Lab.L(o('Stanza 1 · 上阕','上阕'))}</span>`;
   ci.c.forEach((x, xi) => {
-    if (x === '|'){ html += `<span class="half">${Lab.L(o('Stanza 2 · 下阕','下阕'))}</span>`; return; }
+    if (x === '|'){ stanza++; html += `<span class="half">${Lab.L(o('Stanza 2 · 下阕','下阕'))}</span>`; return; }
     const sIdx = sents.findIndex(s => s.includes(x));
-    html += `<span class="${RS.now === sIdx ? 'on-s' : ''}" data-s="${sIdx}">` + YW.cells(x[0], x[1], i => { const id = xi + '-' + i, last = i === x[0].length - 1 && x[2];
-      return (RS.now === sIdx ? 'on ' : '') + (RS.det ? (tp.ok.has(id) ? 'ok ' : '') + (tp.badSet && tp.badSet.has(id) ? 'no ' : '') + (tp.show && last && !tp.ok.has(id) ? 'miss ' : '') : '') + '" data-id="' + id; }) + `<span class="yp">${x[3]}</span></span>`;
+    html += `<span class="${ciOn(sIdx, stanza) ? 'on-s' : ''}" data-s="${sIdx}" data-half="${stanza}">` + YW.cells(x[0], x[1], i => { const id = xi + '-' + i, last = i === x[0].length - 1 && x[2];
+      return (ciOn(sIdx, stanza) ? 'on ' : '') + (RS.det ? (tp.ok.has(id) ? 'ok ' : '') + (tp.badSet && tp.badSet.has(id) ? 'no ' : '') + (tp.show && last && !tp.ok.has(id) ? 'miss ' : '') : '') + '" data-id="' + id; }) + `<span class="yp">${x[3]}</span></span>`;
     if (/[。？！]/.test(x[3])) html += '<br>';
   });
   Lab.$('#ciText').className = 'ci kai' + (RS.py ? ' showpy' : '') + (RS.det ? ' rd' : '');
-  Lab.$('#ciText').innerHTML = (ci.pre ? `<p style="font-size:15px;margin:0 0 6px" class="muted">${ci.pre}${Lab.lang === 'en' ? '<br><span style="font-family:Nunito">' + ci.preEn + '</span>' : ''}</p>` : '') + html;
+  Lab.$('#ciText').innerHTML = (ci.pre ? `<p style="font-size:15px;margin:0 0 6px" class="muted ci-pre ${RS.now === -2 || RS.stanza === 0 ? 'on' : ''}">${ci.pre}${Lab.lang === 'en' ? '<br><span style="font-family:Nunito">' + ci.preEn + '</span>' : ''}</p>` : '') + html;
   const total = ci.c.filter(x => x !== '|' && x[2]).length;
   if (RS.det) Lab.$$('#ciText .yc').forEach(c => c.onclick = () => ciTap(c.dataset.id));
   const m = Lab.$('#ciMsg');
@@ -569,9 +697,27 @@ function ciInfo(){
     <p style="margin:0"><b>${Lab.L(o('Key words: ','重点词：'))}</b>${Lab.L(ci.key)}</p>
     <div class="memory"><b>${Lab.L(o('💡 Theme (中考 answer)','💡 主旨（答题要点）'))}</b>${Lab.L(ci.feel)}</div>`;
 }
-Lab.$('#ciRead').onclick = () => { const ci = CI[RS.i], ss = ciSentences(ci), id = ci.id;
-  YW.readLines(ss.map(s => s.map(x => x[0]).join('，')), i => { RS.now = i; ciDraw(); if (i === -1 && CI[RS.i].id === id) YW.done('m3'); }, .78); };
-Lab.$('#ciStop').onclick = () => { YW.stop(); RS.now = -1; ciDraw(); };
+function highlightCi(index, complete, stanza = -1){
+  RS.now = index;
+  RS.stanza = stanza;
+  Lab.$$('#ciText [data-s]').forEach(span => {
+    const on = ciOn(Number(span.dataset.s), Number(span.dataset.half));
+    span.classList.toggle('on-s', on);
+    span.querySelectorAll('.yc').forEach(cell => cell.classList.toggle('on', on));
+  });
+  Lab.$('#ciText .ci-pre')?.classList.toggle('on', index === -2 || stanza === 0);
+  if (complete) YW.done('m3');
+}
+Lab.$('#ciRead').onclick = () => {
+  const reading = ciReading(CI[RS.i]);
+  if (!isShortCi(reading)) return;
+  YW.readWhole(reading.full,
+    (active, complete) => highlightCi(active ? -2 : -1, complete), .78);
+};
+Lab.$('#ciLines').onclick = () => {
+  YW.readLines(ciLines(CI[RS.i]), highlightCi, .78);
+};
+Lab.$('#ciStop').onclick = YW.stop;
 Lab.$('#ciPy').onclick = () => { RS.py = !RS.py; ciDraw(); };
 Lab.$('#ciDet').onclick = () => { RS.det = !RS.det; ciDraw(); };
 Lab.onLang(ciDraw);
