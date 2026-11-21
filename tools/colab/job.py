@@ -8,8 +8,8 @@ def get(name):
     subprocess.run(['curl', '-sfH', 'Accept: application/vnd.github.raw', '-o', name,
                     f'https://api.github.com/repos/ningshanchuan/middle/contents/tools/colab/{name}'], check=True)
 
-JOB = ['colab_qa.py']   # QA scan of the 8B clips recorded so far (the worker keeps running)
-get(JOB[0])
+JOB = ['colab_compare.py', 'math/expressions,math/ratios']   # 4B vs 8B on the same math lessons (the user: test 4B)
+get(JOB[0]); get('colab_lessons.py')
 sys.argv = JOB
 print('job:', ' '.join(JOB), flush=True)
 import traceback
