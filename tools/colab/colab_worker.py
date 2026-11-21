@@ -148,7 +148,15 @@ if args.status:
     for r in REPOS:
         if (ROOT / r / '.git').exists():
             n = subprocess.run(f'cd {ROOT / r} && git rev-list --count origin/main..HEAD', shell=True, capture_output=True, text=True).stdout.strip()
-            print(f'{r}: {n} local commits not on GitHub yet')
+            lp = ROOT / r / 'status' / 'ledger.tsv'
+            rows = lp.read_text(encoding='utf-8').splitlines()[1:] if lp.exists() else []
+            by = {}
+            for row in rows:
+                p = row.split('\t')
+                if len(p) >= 4 and p[3] == 'serena moss8b':
+                    by[p[0]] = by.get(p[0], 0) + 1
+            les = {row.split('\t')[2] for row in rows if len(row.split('\t')) > 3 and row.split('\t')[3] == 'serena moss8b'}
+            print(f'{r}: {n} local commits not on GitHub yet; 8B clips in the ledger: {by} in {len(les)} lessons')
 
 def bundle_once(download=True):
     """bundles of the commits not yet on GitHub (one per repo); returns the files made"""

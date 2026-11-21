@@ -8,7 +8,7 @@ def get(name):
     subprocess.run(['curl', '-sfH', 'Accept: application/vnd.github.raw', '-o', name,
                     f'https://api.github.com/repos/ningshanchuan/middle/contents/tools/colab/{name}'], check=True)
 
-JOB = ['colab_worker.py', '--restart', '--push', '--model', '8b', '--langs', 'zh']   # 8B site-wide, zh first; each lesson pushed straight to GitHub (GH_TOKEN in Colab Secrets)
+JOB = ['colab_worker.py', '--start', '--status', '--model', '8b', '--langs', 'zh']   # keep recording (no push until GH_TOKEN is in Colab Secrets) + counts
 get(JOB[0])
 sys.argv = JOB
 print('job:', ' '.join(JOB), flush=True)
