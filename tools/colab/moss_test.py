@@ -22,9 +22,9 @@ attn = 'flash_attention_2' if importlib.util.find_spec('flash_attn') and torch.c
 print('GPU:', torch.cuda.get_device_name(0), '| attention:', attn, '| model:', MODEL)
 
 OUT = Path('/content/moss_out'); OUT.mkdir(exist_ok=True, parents=True)
-REF = {   # Serena clips already on the site (Qwen3-TTS "serena"), used as the cloning reference
-  'zh': 'https://gladcolor.github.io/gc-audio-science/biology/cell-organelles/zh/7ab9f5a5.mp3',
-  'en': 'https://gladcolor.github.io/gc-audio-science/astronomy/big-bang/en/0c6307b2.mp3'}
+R = 'https://raw.githubusercontent.com/gladcolor/gc-audio-science/main/tools/moss/refs/'
+REF = {   # the TTS PC's three Serena references (tools/moss/refs): poem for verse/wenyan, explain for the rest
+  'zh': R + 'serena_zh_explain.mp3', 'zhpoem': R + 'serena_zh_poem.mp3', 'en': R + 'serena_en_explain.mp3'}
 refs = {}
 for lang, url in REF.items():
     p = OUT / f'ref_{lang}.mp3'
@@ -43,7 +43,7 @@ def pauses_en(text):
 
 TESTS = [
   ('zh_expl', 'zh', pauses_zh('细胞膜是细胞的“门卫”。它很薄，却能控制哪些物质进出细胞。水和氧气可以自由通过，而有些大分子需要专门的通道。'), 4.0),
-  ('zh_poem', 'zh', pauses_zh('床前明月光，疑是地上霜。举头望明月，低头思故乡。', poem=('静夜思', '李白')), 2.5),
+  ('zh_poem', 'zhpoem', pauses_zh('床前明月光，疑是地上霜。举头望明月，低头思故乡。', poem=('静夜思', '李白')), 2.5),
   ('zh_science', 'zh', pauses_zh('压强等于压力除以受力面积，公式是p等于F除以S。压力一定时，受力面积越小，压强越大。'), 3.8),
   ('en_expl', 'en', pauses_en('Every cell is wrapped in a thin membrane. It lets water and oxygen pass, but keeps most large molecules out. Think of it as a careful gatekeeper.'), None),
 ]
@@ -58,7 +58,7 @@ from IPython.display import Audio, display, HTML
 rows = []
 for temp in [float(x) for x in args.temps.split(',')]:
     for name, lang, text, target in TESTS:
-        msg = processor.build_user_message(text=text, reference=[refs[lang]], language='Chinese' if lang == 'zh' else 'English')
+        msg = processor.build_user_message(text=text, reference=[refs[lang]], language='English' if lang == 'en' else 'Chinese')
         batch = processor([[msg]], mode='generation')
         t1 = time.time()
         with torch.no_grad():
