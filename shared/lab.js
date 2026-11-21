@@ -154,7 +154,7 @@
     // iPhone / iPad / Mac: the downloaded high-quality voices have the SAME name as the built-in compact ones; the
     // quality is only in voiceURI (com.apple.voice.premium / enhanced / compact). Novelty voices (eloquence, Bells …) last.
     const u = v.voiceURI || '';
-    if (/\.premium\./i.test(u)) s += 80; else if (/\.enhanced\./i.test(u)) s += 70; else if (/\.compact\./i.test(u)) s -= 5;
+    if (/\.premium\./i.test(u)) s += 100; else if (/\.enhanced\./i.test(u)) s += 70; else if (/\.compact\./i.test(u)) s -= 5;
     if (/eloquence|speech\.synthesis\.voice/i.test(u)) s -= 80;
     if (/Google/i.test(n)) s += 60; if (/Online/i.test(n)) s += 30; if (v.localService === false) s += 5;
     if (/Xiaoxiao|Yunxi|Xiaoyi|Yunjian|Aria|Jenny|Guy|Ava|Andrew|Emma|Brian|Samantha|Tingting|Ting-Ting/i.test(n)) s += 15;
