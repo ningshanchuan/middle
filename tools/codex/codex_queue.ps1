@@ -15,7 +15,11 @@ while ($true) {
   # waits until its build task (NN-x) is neither queued nor running
   $names = [string[]]@(Get-ChildItem "$root\queue" -Filter *.md | ForEach-Object Name); [Array]::Sort($names, [StringComparer]::Ordinal)
   $busy = @(Get-ChildItem "$root\queue", "$root\running" -Filter *.md | ForEach-Object Name)
-  $pick = $names | Where-Object { -not ($_ -match '^9?(\d\d)p-proof-(.+)$' -and ($busy -contains "$($Matches[1])-$($Matches[2]).md")) } | Select-Object -First 1
+  # any number of digits (101p-proof-x waits for 101-x); the old "9NNp" style also waits for "NN-x"
+  $waits = { param($n) $m = [regex]::Match($n, '^(\d+)p-proof-(.+)\.md$'); if (-not $m.Success) { return $false }; $num = $m.Groups[1].Value; $rest = $m.Groups[2].Value
+    if ($busy -contains "$num-$rest.md") { return $true }
+    return ($num.Length -eq 3 -and $num.StartsWith('9') -and ($busy -contains "$($num.Substring(1))-$rest.md")) }
+  $pick = $names | Where-Object { -not (& $waits $_) } | Select-Object -First 1
   $next = if ($pick) { Get-Item "$root\queue\$pick" } else { $null }
   if (-not $next -and $names.Count) { Start-Sleep -Seconds 60; continue }   # only reviews left, their builds still running
   if (-not $next) { Write-QLog "queue empty, worker stops"; break }

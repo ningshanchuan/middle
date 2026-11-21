@@ -31,7 +31,8 @@ window.LAB_CATALOG = [
    {id:'food-webs', std:'S7L4', en:'Food Webs & Energy Pyramids', zh:'食物网与能量金字塔', d:{en:'Producers, consumers and decomposers.',zh:'生产者、消费者与分解者。'}},
    {id:'ecosystems', std:'S7L4', en:'Biomes & Ecosystems', zh:'生物群落与生态系统', d:{en:'Biomes, aquatic ecosystems and symbiosis.',zh:'生物群落、水生生态系统与共生关系。'}},
    {id:'habitat-niche', std:'S7L4', en:'Habitat, Niche & Population Limits', zh:'栖息地、生态位与种群的限制', d:{en:'Levels of organization, habitat vs. niche, limiting factors and carrying capacity.',zh:'生态系统的组织层次、栖息地与生态位、限制因素与环境容纳量。'}},
-   {id:'evolution', std:'S7L5', en:'Natural Selection & Evolution', zh:'自然选择与进化', d:{en:'Adaptation, variation and fossil evidence.',zh:'适应、变异与化石证据。'}}
+   {id:'evolution', std:'S7L5', en:'Natural Selection & Evolution', zh:'自然选择与进化', d:{en:'Adaptation, variation and fossil evidence.',zh:'适应、变异与化石证据。'}},
+   {id:'infection-immunity', soon:1, std:'人教八上 · 传染病和免疫 · S7L2', en:'Infectious Disease, Immunity & Prevention', zh:'传染病、免疫与预防', d:{en:'How diseases spread, the body\'s three lines of defence, vaccines, and antibiotics vs viruses.',zh:'传染病的传播、人体三道防线、疫苗接种与抗生素的正确使用。'}}
  ]},
  { id:'earth', icon:'🌋', color:'#c2622d', en:'Earth Science', zh:'地球科学',
    blurb:{en:'Earth’s layers, plates, rocks, water, weather, climate and resources.',zh:'地球圈层、板块、岩石、水、天气、气候与资源。'},
@@ -99,7 +100,12 @@ window.LAB_CATALOG = [
    {id:'lenses', std:'S8P4 · 人教八上 第五章', en:'Lenses & Image Formation', zh:'透镜及其应用', d:{en:'Convex-lens images, the eye, cameras and glasses.',zh:'凸透镜成像规律、眼睛、照相机与眼镜。'}},
    {id:'ohms-law', std:'S8P5 · 人教九年级 第十五—十七章', en:'Ohm’s Law, Series & Parallel Circuits', zh:'欧姆定律与串并联电路', d:{en:'I = U/R and the rules for series and parallel circuits.',zh:'I = U/R 以及串联、并联电路的规律。'}},
    {id:'electric-power', std:'人教九年级 第十八、十九章 · S8P5', en:'Electric Power & Household Circuits', zh:'电功率与家庭电路', d:{en:'P = UI, electrical energy, Joule heating and safe wiring.',zh:'P = UI、电能、焦耳定律与安全用电。'}},
-   {id:'formula-sheet', std:'人教 8–9 · S8P', en:'Physics Formula Sheet & Calculators', zh:'初中物理公式表与计算器', d:{en:'Every middle-school formula with units, pictures and a calculator.',zh:'初中全部物理公式：单位、图示与计算器。'}}
+   {id:'formula-sheet', std:'人教 8–9 · S8P', en:'Physics Formula Sheet & Calculators', zh:'初中物理公式表与计算器', d:{en:'Every middle-school formula with units, pictures and a calculator.',zh:'初中全部物理公式：单位、图示与计算器。'}},
+   {id:'measurements-density', soon:1, std:'人教八上 第六章 · S8P1', en:'Mass, Density & Measurement', zh:'质量、密度及其测量', d:{en:'Using a balance and a measuring cylinder, ρ = m/V, and finding the density of solids and liquids.',zh:'天平与量筒的使用、ρ=m/V、测量固体和液体的密度。'}},
+   {id:'mechanical-motion', soon:1, std:'人教八上 第一章 · S8P3', en:'Measurement & Mechanical Motion', zh:'长度时间的测量与机械运动', d:{en:'Rulers and stopwatches, errors, reference frames, speed and measuring average speed.',zh:'刻度尺与停表、误差、参照物、速度与平均速度的测量。'}},
+   {id:'static-charge', soon:1, std:'人教九 第十五章 · S8P5.a', en:'Electric Charge & Static Electricity', zh:'电荷与静电', d:{en:'Charging by rubbing, attraction and repulsion, the electroscope, conductors and insulators.',zh:'摩擦起电、同种电荷相斥异种相吸、验电器、导体与绝缘体。'}},
+   {id:'electromagnetism', soon:1, std:'人教九 第二十章 · S8P5.c', en:'Electromagnets, Motors & Generators', zh:'电磁铁、电动机与发电机', d:{en:'Oersted, coils and the right-hand rule, relays, how motors turn and how generators make electricity.',zh:'奥斯特实验、螺线管与安培定则、电磁继电器、电动机与电磁感应。'}},
+   {id:'communications-energy', soon:1, std:'人教九 第二十一、二十二章', en:'Electromagnetic Waves, Communication & Energy', zh:'电磁波、信息传递与能源', d:{en:'How radio, phones, satellites and optical fibre carry information; energy sources and sustainability.',zh:'广播电视、移动通信、卫星与光纤通信；能源分类、核能与新能源、可持续发展。'}}
  ]},
  { id:'chemistry', icon:'⚗️', color:'#c23b7a', en:'Chemistry', zh:'化学',
    blurb:{en:'Atoms, the periodic table, states of matter and chemical reactions.',zh:'原子、元素周期表、物质状态与化学反应。'},
@@ -117,7 +123,12 @@ window.LAB_CATALOG = [
    {id:'chemical-equations', std:'人教九上 第五单元 · S8P1', en:'Balancing & Calculating with Equations', zh:'化学方程式与计算', d:{en:'Conservation of mass, balancing and mass calculations.',zh:'质量守恒定律、配平与根据化学方程式的计算。'}},
    {id:'oxygen-air', std:'人教九上 第二单元', en:'Air & Oxygen', zh:'空气与氧气', d:{en:'What air is made of, properties of oxygen and making it in the lab.',zh:'空气的成分、氧气的性质与实验室制取。'}},
    {id:'carbon', std:'人教九上 第六、七单元', en:'Carbon, CO₂ & Fuels', zh:'碳和碳的氧化物与燃料', d:{en:'Diamond and graphite, CO and CO₂, combustion and fuels.',zh:'金刚石与石墨、一氧化碳与二氧化碳、燃烧与燃料。'}},
-   {id:'metals', std:'人教九下 第八单元', en:'Metals & the Activity Series', zh:'金属与金属活动性顺序', d:{en:'Properties of metals, the activity series and rusting.',zh:'金属的性质、金属活动性顺序与锈蚀。'}}
+   {id:'metals', std:'人教九下 第八单元', en:'Metals & the Activity Series', zh:'金属与金属活动性顺序', d:{en:'Properties of metals, the activity series and rusting.',zh:'金属的性质、金属活动性顺序与锈蚀。'}},
+   {id:'water-purification', soon:1, std:'人教九上 · 自然界的水', en:'Water: Purification & Composition', zh:'水的净化、组成与保护', d:{en:'Settling, filtering, adsorption and distillation; hard and soft water; electrolysis shows what water is made of.',zh:'沉降、过滤、吸附与蒸馏；硬水与软水；电解水揭示水的组成。'}},
+   {id:'combustion-fuels', soon:1, std:'人教九上 · 燃料及其利用', en:'Combustion, Fuels & Fire Safety', zh:'燃烧、燃料与消防安全', d:{en:'The fire triangle, putting fires out, fossil fuels and cleaner energy.',zh:'燃烧的条件、灭火原理、化石燃料与新能源。'}},
+   {id:'salts-fertilizers', soon:1, std:'人教九下 · 盐 化肥', en:'Salts, Double Displacement & Fertilizers', zh:'盐、复分解反应与化肥', d:{en:'Table salt, soda and limestone; when ions swap partners; nitrogen, phosphorus and potassium fertilizers.',zh:'食盐、纯碱与石灰石；复分解反应的条件；氮肥、磷肥、钾肥。'}},
+   {id:'lab-skills', soon:1, std:'人教九上 第一单元 · S8P1', en:'Chemistry Lab Skills & Safety', zh:'化学实验基本操作', d:{en:'Common apparatus, taking and measuring chemicals, heating safely, and lab safety signs.',zh:'常用仪器、药品的取用与量取、给物质加热、实验室安全。'}},
+   {id:'chemistry-life', soon:1, std:'人教九下 第十一单元 · 化学与社会', en:'Chemistry, Health & Materials', zh:'化学与健康、材料和社会发展', d:{en:'Nutrients and elements in food, food safety, metals, plastics and composites, and recycling.',zh:'营养物质与化学元素、食品安全、金属材料、合成材料与复合材料、资源回收。'}}
  ]},
  { id:'math', icon:'📐', color:'#3b6fd6', en:'Math', zh:'数学',
    blurb:{en:'Animated, intuition-first explanations of every middle-school math topic (Georgia K-12 Mathematics Standards, 2021).',zh:'用动画讲清每个初中数学知识点背后的“为什么”。'},
@@ -160,6 +171,14 @@ window.LAB_CATALOG = [
    {id:'trig-ratios', std:'人教九下 第二十八章 · HS Geometry', en:'Trigonometric Ratios', zh:'锐角三角函数', d:{en:'sin, cos, tan in right triangles and special angles.',zh:'直角三角形中的正弦、余弦、正切与特殊角。'}},
    {id:'circle-theorems', std:'人教九上 第二十四章', en:'Circle Theorems', zh:'圆的性质', d:{en:'Chords, inscribed angles, tangents and arc length.',zh:'垂径定理、圆周角、切线、弧长与扇形面积。'}},
    {id:'fractals', std:'Enrichment · 课外拓展', deep:true, en:'Fractals: Endless Patterns', zh:'分形：无穷无尽的图案', d:{en:'Zoom into the Mandelbrot set and grow trees, ferns and snowflakes.',zh:'放大曼德博集合，长出分形树、蕨叶和雪花。'}},
+   {id:'geometric-constructions', soon:1, std:'人教七上–八上 · 尺规作图与证明', en:'Compass-and-Straightedge Constructions & Proof', zh:'尺规作图与几何证明', d:{en:'Copy an angle, bisect angles and segments, draw perpendiculars and triangles, and learn how a proof works.',zh:'作等角、角平分线、垂直平分线、垂线与三角形，体会证明的思路。'}},
+   {id:'projections-three-views', soon:1, std:'人教九下 · 投影与视图', en:'Projections & Three Views', zh:'投影与三视图', d:{en:'Shadows, parallel and central projection, and drawing and reading front, side and top views.',zh:'影子、平行投影与中心投影，画出并读懂主视图、左视图、俯视图。'}},
+   {id:'polynomials', soon:1, std:'人教七上 第三、四章 · 6.PAR / 7.PAR', en:'Algebraic Expressions & Polynomials', zh:'代数式与整式的加减', d:{en:'Monomials, polynomials, degree, like terms and removing brackets.',zh:'单项式、多项式、次数、合并同类项与去括号。'}},
+   {id:'polynomial-multiplication', soon:1, std:'人教八上 第十六章 · 8.NR / Algebra I', en:'Multiplying Polynomials & Special Products', zh:'整式的乘法与乘法公式', d:{en:'Power rules, monomial × polynomial, the difference of squares and perfect squares as areas.',zh:'幂的运算、单项式与多项式相乘、平方差与完全平方公式的几何意义。'}},
+   {id:'triangles', soon:1, std:'人教八上 第十三章 · 7.GSR / 8.GSR', en:'Triangles: Sides, Angles & Special Segments', zh:'三角形：边、角与重要线段', d:{en:'Triangle inequality, altitude, median, angle bisector, centroid and angle sums of polygons.',zh:'三边关系、高、中线、角平分线、重心与多边形内角和。'}},
+   {id:'axial-symmetry', soon:1, std:'人教八上 第十五章 · 8.GSR', en:'Reflection Symmetry & Isosceles Triangles', zh:'轴对称与等腰三角形', d:{en:'Lines of symmetry, perpendicular bisectors, isosceles and equilateral triangles, and the shortest-path puzzle.',zh:'轴对称、垂直平分线、等腰与等边三角形、最短路径问题（将军饮马）。'}},
+   {id:'rotation-symmetry', soon:1, std:'人教九上 第二十八章 · 8.GSR', en:'Rotation & Central Symmetry', zh:'旋转与中心对称', d:{en:'Centre, direction and angle of rotation; centrally symmetric figures and coordinates.',zh:'旋转中心、方向与角度；中心对称图形与关于原点对称的点。'}},
+   {id:'linear-functions', soon:1, std:'人教八下 第二十三章 · 8.FGR', en:'Linear Functions: Graphs, Models & Equations', zh:'一次函数：图象、待定系数法与应用', d:{en:'y = kx + b, finding k and b from two conditions, and reading equations and inequalities from graphs.',zh:'y=kx+b、待定系数法、用图象解方程与不等式、一次函数的应用。'}}
  ]},
  { id:'china', icon:'🏯', color:'#c8312e', en:'China: History & Geography', zh:'中国历史与地理',
    blurb:{en:'Chinese history from early civilization to today, and the geography of China — following mainland China’s curriculum.',zh:'从中华文明起源到今天的中国历史，以及中国地理——依据中国大陆课程标准与统编教材。'},
@@ -229,7 +248,8 @@ window.LAB_CATALOG = [
    {id:'americas', std:'SS6G', en:'Latin America & Canada', zh:'拉丁美洲与加拿大', d:{en:'Physical features, countries and environment.',zh:'自然特征、国家与环境。'}},
    {id:'europe-oceania', std:'SS6G', en:'Europe & Australia', zh:'欧洲与澳大利亚', d:{en:'Physical features, countries and environment.',zh:'自然特征、国家与环境。'}},
    {id:'africa-asia', std:'SS7G', en:'Africa & Asia', zh:'非洲与亚洲', d:{en:'Africa, Southwest Asia, and Southern & Eastern Asia.',zh:'非洲、西南亚以及南亚和东亚。'}},
-   {id:'world-religions', std:'SS7G8 / SS7G12', en:'World Religions & Ethnic Groups', zh:'世界宗教与民族', d:{en:'Judaism, Christianity, Islam, Hinduism, Buddhism, Confucianism, Shinto — and religion vs. ethnicity.',zh:'犹太教、基督教、伊斯兰教、印度教、佛教、儒家、神道教，以及宗教与民族的区别。'}}
+   {id:'world-religions', std:'SS7G8 / SS7G12', en:'World Religions & Ethnic Groups', zh:'世界宗教与民族', d:{en:'Judaism, Christianity, Islam, Hinduism, Buddhism, Confucianism, Shinto — and religion vs. ethnicity.',zh:'犹太教、基督教、伊斯兰教、印度教、佛教、儒家、神道教，以及宗教与民族的区别。'}},
+   {id:'asia-regional-studies', soon:1, std:'人教七下 · 亚洲与典型国家 · SS7G', en:'Asia: Regions & Key Countries', zh:'亚洲分区与典型国家', d:{en:'Asia\'s relief, rivers and climates; Southeast Asia, Japan, India and Russia up close.',zh:'亚洲的地形、河流与气候；东南亚、日本、印度、俄罗斯。'}}
  ]},
  { id:'ela', icon:'📖', color:'#7a4cc2', en:'English Language Arts', zh:'英语语言艺术',
    blurb:{en:'Reading stories and nonfiction, writing arguments and narratives, grammar, vocabulary and media literacy (Georgia ELA, grades 6–8).',zh:'阅读文学与非虚构文本，写议论文和记叙文，语法、词汇与媒介素养（佐治亚州 ELA，6–8 年级）。'},
@@ -286,7 +306,9 @@ window.LAB_CATALOG = [
    {id:'wh-revolutions', std:'World History', en:'Revolutions: Science, Politics & Industry', zh:'革命：科学、政治与工业', d:{en:'The Scientific Revolution, the French Revolution and steam power.',zh:'科学革命、法国大革命与蒸汽动力。'}},
    {id:'wh-world-wars', std:'SS6H3 / SS7H2–3', en:'The World Wars & the Holocaust', zh:'两次世界大战与大屠杀', d:{en:'Causes, turning points and consequences of both world wars.',zh:'两次世界大战的起因、转折点和影响。'}},
    {id:'wh-cold-war', std:'SS6H3 · SS7H1 · SS7H3', en:'The Cold War & Independence Movements', zh:'冷战与民族独立运动', d:{en:'Two superpowers, a divided Europe and new nations in Africa and Asia.',zh:'两个超级大国、分裂的欧洲与亚非新国家。'}},
-   {id:'wh-today', std:'SS6E / SS7E · SS6H3', en:'Our Connected World', zh:'相互联系的世界', d:{en:'The UN, the European Union and globalization today.',zh:'联合国、欧盟与今天的全球化。'}}
+   {id:'wh-today', std:'SS6E / SS7E · SS6H3', en:'Our Connected World', zh:'相互联系的世界', d:{en:'The UN, the European Union and globalization today.',zh:'联合国、欧盟与今天的全球化。'}},
+   {id:'industrialization-reform', soon:1, std:'统编九上–九下 · 工业革命与近代改革', en:'Industrial Revolutions, Labour & Reform', zh:'工业革命、工人运动与近代改革', d:{en:'Steam and electricity, workers\' lives and movements, and reforms in Russia and Japan.',zh:'蒸汽与电力、工人的生活与工人运动、俄国与日本的改革。'}},
+   {id:'africa-americas-before-1500', soon:1, std:'统编九上（新版）· 古代非洲与美洲', en:'Africa and the Americas Before 1500', zh:'古代非洲与美洲文明', d:{en:'Mali and Songhai, Great Zimbabwe, the Maya, Aztec and Inca.',zh:'马里与桑海、大津巴布韦、玛雅、阿兹特克与印加。'}}
  ]},
  { id:'economics', icon:'💰', color:'#15803d', en:'Economics & Personal Finance', zh:'经济与个人理财',
    blurb:{en:'Choices, markets, trade and money skills (Georgia SS6E / SS7E).',zh:'选择、市场、贸易与理财技能（佐治亚州 SS6E / SS7E）。'},

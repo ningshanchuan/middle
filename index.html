@@ -59,6 +59,16 @@
 .topic.is-soon{opacity:.55;border-left-style:dashed;cursor:default;background:color-mix(in srgb,var(--surface) 70%,transparent)}
 .topic.is-soon:hover{border-color:var(--line);box-shadow:none}
 .topic .n i.cs{color:var(--ink-2);font-weight:800;font-size:12px;letter-spacing:0}
+/* folding categories in big subjects (visual calm) */
+.tcat{margin:12px 0;border:1px solid var(--line);border-radius:16px;background:color-mix(in srgb,var(--c) 4%,var(--surface))}
+.tcat>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px;padding:13px 16px;font-weight:800;font-size:16px}
+.tcat>summary::-webkit-details-marker{display:none}
+.tcat>summary::before{content:"";width:8px;height:8px;border-right:2px solid var(--ink-2);border-bottom:2px solid var(--ink-2);transform:rotate(-45deg);transition:transform .2s;flex:0 0 auto}
+.tcat[open]>summary::before{transform:rotate(45deg)}
+.tcat>summary small{margin-left:auto;color:var(--ink-2);font-weight:600;font-size:13px}
+.tcat>.tgrid{padding:2px 14px 14px}
+.soon-line{margin:0 16px 14px;color:var(--ink-2);font-size:13px;line-height:1.6}
+@media (max-width:560px){.tcat>.tgrid{padding:2px 10px 10px}}
 </style>
 </head>
 <body>
@@ -99,10 +109,64 @@ if (!BYID[curSub]) curSub = groups()[0].list[0].id;
 
 const card = (s, t, i) => t.soon ? `<div class="topic card is-soon" style="--c:${s.color}" aria-disabled="true"><span class="n">${String(i + 1).padStart(2, '0')}<i class="cs">${Lab.L({en:'Coming soon',zh:'即将推出'})}</i></span><h3>${Lab.L(t)}</h3><p>${Lab.L(t.d)}</p></div>` : `<a class="topic card" style="--c:${s.color}" href="${s.id}/${t.id}.html?lang=${Lab.lang}">
   <span class="n">${String(i + 1).padStart(2, '0')}${seen.has(s.id + '/' + t.id) ? `<i title="${Lab.L({en:'visited',zh:'已学过'})}">✓</i>` : ''}</span>${t.deep ? `<span class="deep">${Lab.L({en:'Deep dive',zh:'深入探索'})}</span>` : ''}<h3>${Lab.L(t)}</h3><p>${Lab.L(t.d)}</p><span class="std">${/[\u4e00-\u9fff]/.test(t.std) || /^(ELA|SS|CS)/.test(t.std) ? '' : 'GSE '}${t.std}</span></a>`;
-const section = (s, list) => `<section class="subj" id="sec-${s.id}" style="--c:${s.color}">
-  <div class="subj-head"><div class="ic" style="background:color-mix(in srgb,${s.color} 16%,transparent)">${s.icon}</div>
-    <div><h2>${Lab.L(s)}</h2><p>${Lab.L(s.blurb)}</p></div><span class="count">${s.topics.length} ${Lab.L({en:'lessons',zh:'个课程'})}</span></div>
+// Big subjects are shown in folding categories (visual calm): only the first category is open until the reader opens
+// others (remembered per subject). Coming-soon lessons are one quiet line per category instead of full cards.
+// A lesson missing from the lists below goes to "More / 其他" — add new ids here when a subject grows.
+const C = (en, zh, ids) => ({ en, zh, ids: ids.split(' ') });
+const TOPIC_CATS = {
+  math: [C('Numbers & Expressions', '数与式', 'integers negative-operations fraction-division ratios percents exponents roots-irrationals radicals expressions polynomials polynomial-multiplication factoring rational-expressions'),
+    C('Equations & Inequalities', '方程与不等式', 'equations systems quadratic-equations'),
+    C('Functions & Graphs', '函数与图象', 'coordinate-plane proportional slope functions linear-functions inverse-proportion quadratic-functions'),
+    C('Geometry', '图形与几何', 'angles triangles congruent-triangles axial-symmetry parallel-quadrilaterals pythagorean similar-triangles trig-ratios circles circle-theorems area surface-volume volume-solids scale-drawings transformations rotation-symmetry geometric-constructions projections-three-views'),
+    C('Statistics & Probability', '统计与概率', 'statistics sampling scatter-plots probability'),
+    C('Enrichment', '课外拓展', 'fractals')],
+  physics: [C('Motion & Forces', '运动和力', 'mechanical-motion motion newtons-laws forces measurements-density pressure buoyancy simple-machines work-power energy'),
+    C('Sound, Light & Waves', '声、光与波', 'waves sound light lenses'),
+    C('Heat', '热学', 'heat-transfer phase-changes specific-heat'),
+    C('Electricity & Magnetism', '电与磁', 'static-charge electricity ohms-law electric-power magnetism electromagnetism'),
+    C('Communication, Energy & Review', '信息、能源与复习', 'communications-energy formula-sheet')],
+  chemistry: [C('Matter & Particles', '物质与微粒', 'states-of-matter elements-compounds atoms periodic-table density lab-skills'),
+    C('Reactions & Equations', '化学反应', 'changes reactions formulas-valence chemical-equations'),
+    C('Air, Water, Carbon & Fuels', '空气、水、碳与燃料', 'oxygen-air water-purification carbon combustion-fuels'),
+    C('Metals, Solutions, Acids & Salts', '金属、溶液、酸碱盐', 'metals solutions acids-bases salts-fertilizers'),
+    C('Chemistry & Life', '化学与生活', 'chemistry-life')],
+  biology: [C('Cells', '细胞', 'characteristics-of-life cell-theory cell-organelles cell-city cell-transport diffusion osmosis tonicity-labs endocytosis exocytosis cells-review'),
+    C('Genetics & Evolution', '遗传与进化', 'cell-division dna protein-synthesis heredity reproduction evolution'),
+    C('Living Things', '生物的多样性', 'classification microorganisms plants photosynthesis animals'),
+    C('The Human Body & Health', '人体与健康', 'body-systems infection-immunity'),
+    C('Ecology', '生态', 'food-webs ecosystems habitat-niche')],
+  astronomy: [C('Earth, Moon & Sun', '地球、月球与太阳', 'seasons moon-phases eclipses tides night-sky sky-tonight'),
+    C('The Solar System', '太阳系', 'solar-system planets-moons small-bodies gravity-orbits kepler-laws'),
+    C('Stars & the Universe', '恒星与宇宙', 'sun-stars star-life galaxies scale-universe measuring-distance telescopes-light black-holes exoplanets big-bang'),
+    C('Exploring Space', '探索太空', 'space-exploration rocketry three-body')],
+  china: [C('History: Ancient China', '中国古代史', 'early-civilization xia-shang-zhou spring-warring qin-han division-integration sui-tang song-yuan ming-qing dynasties'),
+    C('History: Modern China', '中国近现代史', 'modern-china revolution prc prc-founding reform-opening new-era unity-diplomacy chinese-spirit'),
+    C('Science, Engineering & Stories', '科技、工程与故事', 'inventions ancient-science ancient-engineering great-wall strategy-battles silk-road-explorers china-space megaprojects'),
+    C('Geography of China', '中国地理', 'territory terrain climate-rivers population-resources regions economy three-gorges natural-wonders disasters seas-islands taiwan-hkm beijing-capital')],
+  yuwen: [C('Poems', '古诗词', 'yw-poems-7 yw-poems-8 yw-poems-9 yw-tang-poems yw-song-ci'),
+    C('Classical Chinese', '文言文', 'yw-wenyan-7 yw-wenyan-8 yw-wenyan-9 yw-wenyan-basics yw-wenyan-classics'),
+    C('Modern Texts & Reading', '现代文与阅读', 'yw-modern-classics yw-narrative yw-expository yw-argumentative yw-classics'),
+    C('Language & Writing', '语言与写作', 'yw-hanzi yw-rhetoric yw-idioms yw-writing')]
+};
+const catOpen = sid => { try { return JSON.parse(store.get('hubCats_' + sid) || 'null'); } catch(e){ return null; } };
+const head = s => `<div class="subj-head"><div class="ic" style="background:color-mix(in srgb,${s.color} 16%,transparent)">${s.icon}</div>
+    <div><h2>${Lab.L(s)}</h2><p>${Lab.L(s.blurb)}</p></div><span class="count">${s.topics.length} ${Lab.L({en:'lessons',zh:'个课程'})}</span></div>`;
+const soonLine = (list) => list.length ? `<p class="soon-line">${Lab.L({en:'Coming soon: ',zh:'即将推出：'})}${list.map(({t}) => Lab.L(t)).join(Lab.lang === 'zh' ? '、' : ' · ')}</p>` : '';
+const section = (s, list, folded) => {
+  const cats = folded && TOPIC_CATS[s.id];
+  if (!cats) return `<section class="subj" id="sec-${s.id}" style="--c:${s.color}">${head(s)}
   <div class="tgrid">${list.map(({t, i}) => card(s, t, i)).join('')}</div></section>`;
+  const used = new Set(), groupsHtml = [], open = catOpen(s.id);
+  const blocks = cats.map(c => ({ c, items: c.ids.map(id => list.find(x => x.t.id === id)).filter(x => x && !used.has(x.t.id) && used.add(x.t.id)) }));
+  const rest = list.filter(x => !used.has(x.t.id)); if (rest.length) blocks.push({ c: C('More', '其他', ''), items: rest });
+  blocks.filter(b => b.items.length).forEach((b, k) => {
+    const live = b.items.filter(x => !x.t.soon), soon = b.items.filter(x => x.t.soon);
+    const isOpen = open ? open.includes(k) : k === 0;
+    groupsHtml.push(`<details class="tcat" data-k="${k}" ${isOpen ? 'open' : ''}><summary><span>${Lab.L(b.c)}</span><small>${live.length}${soon.length ? ' + ' + soon.length : ''}</small></summary>
+      <div class="tgrid">${live.map(({t}, j) => card(s, t, j)).join('')}</div>${soonLine(soon)}</details>`);
+  });
+  return `<section class="subj" id="sec-${s.id}" style="--c:${s.color}">${head(s)}${groupsHtml.join('')}</section>`;
+};
 
 function select(sid){ if (!BYID[sid]) return; curSub = sid; store.set('hubSub', sid); history.replaceState(null, '', '#' + sid); render(); }
 
@@ -121,8 +185,11 @@ function render(){
   store.set('hubSub_' + g.id, curSub);
   const s = BYID[curSub];
   const stabs = g.list.length > 1 ? `<div class="stabs" role="tablist">${g.list.map(x => `<button class="stab ${x.id === curSub ? 'on' : ''}" style="--c:${x.color}" data-s="${x.id}">${x.icon} ${Lab.L(x)} <small>${x.topics.length}</small></button>`).join('')}</div>` : '';
-  Lab.$('#subjects').innerHTML = stabs + section(s, (s.all || s.topics).map((t, i) => ({t, i})));
+  Lab.$('#subjects').innerHTML = stabs + section(s, (s.all || s.topics).map((t, i) => ({t, i})), true);
   Lab.$('#subjects').querySelectorAll('.stab').forEach(b => b.onclick = () => select(b.dataset.s));
+  Lab.$('#subjects').querySelectorAll('details.tcat').forEach(d => d.addEventListener('toggle', () => {   // remember which categories are open
+    store.set('hubCats_' + curSub, JSON.stringify([...Lab.$('#subjects').querySelectorAll('details.tcat')].filter(x => x.open).map(x => +x.dataset.k)));
+  }));
 }
 window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (BYID[h] && h !== curSub){ curSub = h; render(); } });Lab.$('#q').addEventListener('input', render);
 Lab.onLang(render);
