@@ -8,8 +8,10 @@ def get(name):
     subprocess.run(['curl', '-sfH', 'Accept: application/vnd.github.raw', '-o', name,
                     f'https://api.github.com/repos/ningshanchuan/middle/contents/tools/colab/{name}'], check=True)
 
-# diagnostics: why no new clips since 15:04 UTC
-JOBS = [['colab_diag.py', 'math/exponents', 'china/terrain', 'geography/europe-oceania']]
+# the worker on SGLang-Omni with say patch v2 (v1 broke the transcript check), 32 requests in flight as 2 streams of
+# 16 (no idle GPU while one batch waits for its slowest clip); then 20 minutes of progress
+JOBS = [['colab_worker.py', '--restart', '--push', '--model', '8b', '--langs', 'zh', '--sglang', '32', '--streams', '2'],
+        ['colab_watch.py', '20']]
 import traceback
 for JOB in JOBS:
     get(JOB[0])

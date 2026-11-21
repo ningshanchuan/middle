@@ -16,6 +16,7 @@ ap.add_argument('--push', action='store_true', help='push each lesson straight t
 ap.add_argument('--restart', action='store_true', help='stop the running worker, then --start')
 ap.add_argument('--langs', default='zh')
 ap.add_argument('--sglang', type=int, default=0, help='serve the 8B with SGLang-Omni (/content/sgl venv), this many requests in flight')
+ap.add_argument('--streams', type=int, default=2, help='with --sglang: batches in flight at once (the server limit is --sglang)')
 args, _ = ap.parse_known_args()
 ROOT = Path('/content/gc-audio'); ROOT.mkdir(exist_ok=True)
 REPOS = ['gc-audio-science', 'gc-audio-humanities', 'gc-audio-lang-math']
@@ -23,14 +24,15 @@ SRC = ROOT / '_tts'
 TOOLS = SRC / 'tools/moss/tools'
 sh = lambda cmd, **k: subprocess.run(cmd, shell=True, check=True, **k)
 
-SAY_PATCH = r'''# ---------------------------------------------------------------- COLAB PATCH say v1 (content PC)
+SAY_PATCH = r'''# ---------------------------------------------------------------- COLAB PATCH say v2 (content PC)
 # Spoken scripts for Chinese clips. The page text (`send`) is not read as it is: digits, units, symbols, formulas, dates
 # are written out as they are spoken ("say", LLM-written and LLM-checked on the content PC, published as
 # readaloud/say/zh.json = {"lessons": {lesson: {sha1(send)[:12]: say}}}).
 #  - spoken(clip): the say of the clip when there is one, else send
 #  - speech_len (pace checks): counted on the say, without spaces and silent symbols
 #  - wanted(): a zh clip whose send needs a script (digits, Latin letters, symbols) waits until its say is published
-#  - index(): a lesson's fingerprint includes its say entries, so new scripts reopen just that lesson
+#  - index(): when a lesson's say entries change, its stored status is invalidated so the lesson is worked again
+#    (v1 changed the index fingerprint itself, which broke the transcript check: "transcript not available yet")
 import hashlib as _hl
 _SAY_URL = "https://shanchuan.org/middle/readaloud/say/zh.json"
 _SAY = {"t": 0.0, "flat": {}, "ver": {}}
@@ -88,12 +90,27 @@ Worker.wanted = _wanted
 _orig_index = Worker.index
 
 
+_SEEN = Path("/content/gc-audio/say_seen.json")
+
+
 def _index(self):
     entries = _orig_index(self)
     ver = _say_load(force=True)["ver"]
+    try:
+        seen = json.loads(_SEEN.read_text(encoding="utf-8"))
+    except Exception:                                    # noqa: BLE001
+        seen = {}
+    n = 0
     for e in entries:
-        if e.get("id") in ver:
-            e["fingerprint"] = f'{e["fingerprint"]}+say{ver[e["id"]]}'
+        lid = e.get("id")
+        if lid in ver and seen.get(lid) != ver[lid]:
+            st = self.repos[e["repo"]].lessons.get(lid)
+            if st:
+                st["fingerprint"] = ""                   # work the lesson again: its new say clips become wanted
+            seen[lid] = ver[lid]; n += 1
+    if n:
+        _SEEN.write_text(json.dumps(seen), encoding="utf-8")
+        log(f"say: {n} lesson(s) with new spoken scripts will be worked again")
     return entries
 
 
@@ -117,7 +134,7 @@ def prepare():
         w = w.replace('.with_name("ffprobe.exe")', '.with_name("ffprobe" if os.name != "nt" else "ffprobe.exe")  # COLAB PATCH')
         (TOOLS / 'tts_worker.py').write_text(w, encoding='utf-8')
     SAY_MARK = '# ---------------------------------------------------------------- COLAB PATCH say'
-    if SAY_MARK + ' v1' not in w:
+    if SAY_MARK + ' v2' not in w:
         if SAY_MARK in w:                                # drop an older say patch (it sits just before the main guard)
             a = w.index(SAY_MARK); b = w.index('\nif __name__ == "__main__":', a)
             w = w[:a] + w[b + 1:]
@@ -257,7 +274,8 @@ if _os.environ.get("MOSS_SGLANG") == "1":
                        moods=str(TOOLS / 'moods.proposed.json'), batch=16)
     cfg['batch_audio_s'] = 300                           # A100 40 GB (the TTS PC: 8 clips / 180 s for its 20 GB card)
     if args.sglang:                                      # SGLang-Omni: a batch = concurrent requests to the server
-        cfg['moss']['batch'] = args.sglang; cfg['batch_audio_s'] = 40 * args.sglang
+        k = max(1, args.streams); cfg['models'] = k                 # k client processes, each sends its own batch
+        cfg['moss']['batch'] = max(1, args.sglang // k); cfg['batch_audio_s'] = 40 * cfg['moss']['batch']
     p = ROOT / 'tts_config_colab.json'; p.write_text(json.dumps(cfg, ensure_ascii=False, indent=1), encoding='utf-8')
     return p
 
