@@ -8,7 +8,7 @@ def get(name):
     subprocess.run(['curl', '-sfH', 'Accept: application/vnd.github.raw', '-o', name,
                     f'https://api.github.com/repos/ningshanchuan/middle/contents/tools/colab/{name}'], check=True)
 
-JOB = ['colab_worker.py', '--start', '--model', '8b']     # the TTS PC worker on Colab, 8B for the whole site (user, 2026-11-21)
+JOB = ['colab_worker.py', '--start', '--bundle-loop', '--model', '8b', '--langs', 'zh']   # 8B site-wide (user, 2026-11-21): zh first, then en; one lesson -> one push
 get(JOB[0])
 sys.argv = JOB
 print('job:', ' '.join(JOB), flush=True)

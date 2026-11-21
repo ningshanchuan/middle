@@ -11,6 +11,7 @@ from pathlib import Path
 ap = argparse.ArgumentParser()
 ap.add_argument('--model', default='8b', choices=['8b', '4b'])
 ap.add_argument('--start', action='store_true'); ap.add_argument('--bundle', action='store_true'); ap.add_argument('--status', action='store_true')
+ap.add_argument('--bundle-loop', action='store_true', help='bundle + download new lesson commits every minute (blocks the cell)')
 ap.add_argument('--langs', default='zh')
 args, _ = ap.parse_known_args()
 ROOT = Path('/content/gc-audio'); ROOT.mkdir(exist_ok=True)
@@ -122,6 +123,45 @@ if args.status:
         if (ROOT / r / '.git').exists():
             n = subprocess.run(f'cd {ROOT / r} && git rev-list --count origin/main..HEAD', shell=True, capture_output=True, text=True).stdout.strip()
             print(f'{r}: {n} local commits not on GitHub yet')
+
+def bundle_once(download=True):
+    """bundles of the commits not yet on GitHub (one per repo); returns the files made"""
+    out = Path('/content/bundles'); out.mkdir(exist_ok=True)
+    stamp = time.strftime('%Y%m%d-%H%M%S'); made = []
+    for r in REPOS:
+        d = ROOT / r
+        if not (d / '.git').exists():
+            continue
+        subprocess.run(f'cd {d} && git fetch -q origin main', shell=True)
+        n = subprocess.run(f'cd {d} && git rev-list --count origin/main..HEAD', shell=True, capture_output=True, text=True).stdout.strip()
+        if n and n != '0':
+            b = out / f'{r}-{stamp}.bundle'
+            sh(f'cd {d} && git bundle create -q {b} origin/main..HEAD')
+            made.append(b)
+            print(f'{time.strftime("%H:%M:%S")} {b.name}: {n} commits, {b.stat().st_size / 2**20:.1f} MB', flush=True)
+    if made and download:
+        from google.colab import files
+        for b in made:
+            files.download(str(b))
+    return made
+
+if args.bundle_loop:
+    # "录完一课，推送一课" (the user): every minute, new lesson commits -> a bundle the browser downloads at once; the
+    # content PC pushes it. A bundle already offered is not offered again: the next one starts where GitHub is after the
+    # content PC's push (git fetch); until then, unpushed commits are re-offered at most every 10 minutes.
+    last = {}
+    while True:
+        heads = {r: subprocess.run(f'cd {ROOT / r} && git rev-parse HEAD', shell=True, capture_output=True, text=True).stdout.strip()
+                 for r in REPOS if (ROOT / r / '.git').exists()}
+        if heads != last.get('heads') or time.time() - last.get('t', 0) > 600:
+            if bundle_once():
+                last = dict(heads=heads, t=time.time())
+        if (ROOT / 'worker.pid').exists():
+            try:
+                os.kill(int((ROOT / 'worker.pid').read_text()), 0)
+            except OSError:
+                print('worker process ended; final bundle above, loop stops', flush=True); bundle_once(); break
+        time.sleep(60)
 
 if args.bundle:
     out = Path('/content/bundles'); out.mkdir(exist_ok=True)
