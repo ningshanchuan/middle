@@ -5,12 +5,22 @@
 import datetime, difflib, glob, hashlib, json, os, re, sys
 
 done, corpus = sys.argv[1], sys.argv[2]
+LANG = sys.argv[3] if len(sys.argv) > 3 else 'zh'          # zh or en
 HAN = re.compile(r'[一-鿿]')
 LEFT = re.compile(r'[0-9/+=×÷%°℃²³⁰¹⁴⁵⁶⁷⁸⁹⁺⁻½¼¾⅓|∠_<>≈≤≥]')
 
 
 def cover(a, b):
     a = ''.join(HAN.findall(a)); b = ''.join(HAN.findall(b))
+    m = difflib.SequenceMatcher(None, a, b, autojunk=False)
+    return sum(x.size for x in m.get_matching_blocks()) / max(len(a), 1)
+
+
+WORD = re.compile(r"[A-Za-z]+")
+
+
+def cover_en(a, b):
+    a = [w.lower() for w in WORD.findall(a)]; b = [w.lower() for w in WORD.findall(b)]
     m = difflib.SequenceMatcher(None, a, b, autojunk=False)
     return sum(x.size for x in m.get_matching_blocks()) / max(len(a), 1)
 
@@ -23,7 +33,7 @@ def all_han(a, b):
 
 
 say, bad = {}, []
-for chk in sorted(glob.glob(os.path.join(done, '[bc]*.chk.jsonl'))):
+for chk in sorted(glob.glob(os.path.join(done, '[bce]*.chk.jsonl'))):
     src = {json.loads(l)['key']: json.loads(l) for l in open(chk.replace('.chk.jsonl', '.jsonl'), encoding='utf-8') if l.strip()}
     for l in open(chk, encoding='utf-8'):
         if not l.strip():
@@ -32,15 +42,19 @@ for chk in sorted(glob.glob(os.path.join(done, '[bc]*.chk.jsonl'))):
         if not s:
             continue
         txt = re.sub(r'\s+', ' ', o['say']).strip()
-        if LEFT.search(txt) or not txt or (cover(s['send'], txt) < 0.93 and not all_han(s['send'], txt)):
+        if LANG == 'en':
+            ok = txt and not LEFT.search(txt) and cover_en(s['send'], txt) >= 0.8 and all_han(s['send'], txt)
+        else:
+            ok = txt and not LEFT.search(txt) and (cover(s['send'], txt) >= 0.93 or all_han(s['send'], txt))
+        if not ok:
             bad.append((o['key'], s['send'][:60], txt[:60])); continue
         say[o['key']] = txt
 lessons = {}
 for c in json.load(open(corpus, encoding='utf-8')):
     h = hashlib.sha1(c['send'].encode('utf-8')).hexdigest()[:12]
-    if h in say:
+    if h in say and c.get('lang', LANG) == LANG:
         lessons.setdefault(c['lesson'], {})[h] = say[h]
-out = os.path.join(os.path.dirname(__file__), '..', '..', 'readaloud', 'say', 'zh.json')
+out = os.path.join(os.path.dirname(__file__), '..', '..', 'readaloud', 'say', LANG + '.json')
 os.makedirs(os.path.dirname(out), exist_ok=True)
 json.dump(dict(updated=datetime.datetime.now().strftime('%Y-%m-%d %H:%M'), count=len(say), lessons=lessons),
           open(out, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))

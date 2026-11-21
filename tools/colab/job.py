@@ -8,10 +8,10 @@ def get(name):
     subprocess.run(['curl', '-sfH', 'Accept: application/vnd.github.raw', '-o', name,
                     f'https://api.github.com/repos/ningshanchuan/middle/contents/tools/colab/{name}'], check=True)
 
-# the worker on SGLang-Omni with say patch v2 (v1 broke the transcript check), 32 requests in flight as 2 streams of
-# 16 (no idle GPU while one batch waits for its slowest clip); then 20 minutes of progress
-JOBS = [['colab_worker.py', '--restart', '--push', '--model', '8b', '--langs', 'zh', '--sglang', '32', '--streams', '2'],
-        ['colab_watch.py', '20']]
+# quality vs concurrency (the user: test whether 8 in flight is best; quality first): the same clips once each with 8 and
+# with 32 requests in flight, Whisper large-v3 CER against the spoken script, listening set; then the worker restarts
+get('colab_worker.py')
+JOBS = [['colab_quality.py', '8,32', '36']]
 import traceback
 for JOB in JOBS:
     get(JOB[0])
