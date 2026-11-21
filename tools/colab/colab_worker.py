@@ -38,10 +38,12 @@ def prepare():
         w = w.replace('.with_name("ffprobe.exe")', '.with_name("ffprobe" if os.name != "nt" else "ffprobe.exe")  # COLAB PATCH')
         (TOOLS / 'tts_worker.py').write_text(w, encoding='utf-8')
     m = (TOOLS / 'moss_engine.py').read_text(encoding='utf-8')
-    if 'COLAB PATCH' not in m:
+    if 'COLAB PATCH v2' not in m:
+        m = m.split('\n\n# ---------------------------------------------------------------- COLAB PATCH')[0]   # drop an older patch
         m += '''
 
-# ---------------------------------------------------------------- COLAB PATCH (content PC): Hugging Face ids and the 8B
+# ---------------------------------------------------------------- COLAB PATCH v2 (content PC): Hugging Face ids, the 8B,
+# and bigger batches on the A100 (40 GB): a batch that runs out of GPU memory is split in two and generated again
 import os as _os
 _MOSS8B = _os.environ.get("MOSS_8B") == "1"
 _Moss = Moss
@@ -69,6 +71,22 @@ class Moss(_Moss):
         return self.proc.encode_audios_from_wav([wav], 24000)[0]
 
     def generate(self, items, ffmpeg):
+        torch = self.torch
+        try:
+            out = self._generate(items, ffmpeg)
+        except torch.cuda.OutOfMemoryError:
+            torch.cuda.empty_cache()
+            if len(items) == 1:
+                return [None]
+            h = len(items) // 2
+            _os.makedirs("/content/gc-audio", exist_ok=True)
+            open("/content/gc-audio/gpu_oom.txt", "a").write(f"{time.strftime('%H:%M:%S')} OOM at {len(items)} clips, split\\n")
+            return self.generate(items[:h], ffmpeg) + self.generate(items[h:], ffmpeg)
+        peak = torch.cuda.max_memory_allocated() / 2**30
+        open("/content/gc-audio/gpu_peak.txt", "w").write(f"peak {peak:.1f} GB (batch {len(items)})\\n")
+        return out
+
+    def _generate(self, items, ffmpeg):
         torch = self.torch
         convs = [[self.proc.build_user_message(text=it["text"], language="Chinese" if it["lang"] == "zh" else "English",
                                                reference=[self.refs[REF_KIND.get(it["kind"], it["kind"])]],
@@ -103,7 +121,8 @@ class Moss(_Moss):
                voice_tag='serena moss8b' if is8 else 'serena moss15')
     cfg['moss'].update(model='OpenMOSS-Team/MOSS-TTS-v1.5' if is8 else 'OpenMOSS-Team/MOSS-TTS-Local-Transformer-v1.5',
                        codec='' if is8 else 'OpenMOSS-Team/MOSS-Audio-Tokenizer-v2', refs=str(SRC / 'tools/moss/refs'),
-                       moods=str(TOOLS / 'moods.proposed.json'))
+                       moods=str(TOOLS / 'moods.proposed.json'), batch=16)
+    cfg['batch_audio_s'] = 300                           # A100 40 GB (the TTS PC: 8 clips / 180 s for its 20 GB card)
     p = ROOT / 'tts_config_colab.json'; p.write_text(json.dumps(cfg, ensure_ascii=False, indent=1), encoding='utf-8')
     return p
 
