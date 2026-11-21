@@ -185,6 +185,34 @@ stages:
                 okm = sum(1 for c in cl if c.get('sec') and not c.get('reasons')); tr = sum(c['tries'] for c in cl)
                 print(f"COMPARE HF {m} (batch 8): {len(cl)} clips, {okm} pass, tries {tr / max(len(cl), 1):.2f}/clip, "
                       f"{d['audio_s'] / d['wall_s']:.2f}x real time", flush=True)
+        # listening set for the site page (listen/ab.html): the same sentences by every engine tried so far, put in
+        # gc-audio-lang-math/_listen/engines/ (pushed from the worker's clone while the worker is paused)
+        try:
+            import shutil
+            L = ROOT / 'gc-audio-lang-math'; dst_dir = L / '_listen/engines'; dst_dir.mkdir(parents=True, exist_ok=True)
+            names = {'4b': 'HF 4B', '8b': 'HF 8B', 'sglang': 'SGLang 8B', 'sglang-rt': 'SGLang 8B + 参考原文'}
+            res = {}
+            for m in names:
+                p = ROOT / '_colab' / m / 'results.json'
+                if p.exists():
+                    res[m] = {c['key']: c for c in json.loads(p.read_text(encoding='utf-8'))['clips'] if c['lesson'] in lessons}
+            rows = []
+            for c in clips:
+                row = dict(lesson=c['lesson'], key=c['key'], send=c['send'], target=c['pace'], takes={})
+                for m, rr in res.items():
+                    r = rr.get(c['key']); f = ROOT / '_colab' / m / c['lesson'].replace('/', '__') / 'zh' / f"{c['key']}.mp3"
+                    if r and f.exists():
+                        name = f"{m}__{c['lesson'].replace('/', '__')}__{c['key']}.mp3"
+                        shutil.copy(f, dst_dir / name)
+                        row['takes'][names[m]] = dict(src=name, sec=r.get('sec'), pace=r.get('pace'), tries=r.get('tries'),
+                                                      ok=not r.get('reasons'))
+                rows.append(row)
+            (dst_dir / 'index.json').write_text(json.dumps(dict(title='同一句话，不同引擎', rows=rows), ensure_ascii=False), encoding='utf-8')
+            subprocess.run(f'cd {L} && git add _listen && git commit -qm "_listen/engines: engine comparison clips (test, not lesson audio)" && git push -q origin HEAD:main',
+                           shell=True)
+            print('listening set pushed: gc-audio-lang-math/_listen/engines/', flush=True)
+        except Exception as e:                               # noqa: BLE001
+            print('listening set failed:', e, flush=True)
     finally:
         if srv and srv.poll() is None:
             os.killpg(srv.pid, signal.SIGTERM); time.sleep(15)

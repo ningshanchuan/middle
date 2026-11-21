@@ -11,7 +11,7 @@ def get(name):
 # SGLang-Omni test, step 2: pause the worker, serve the 8B with SGLang-Omni, record math/expressions + math/ratios with
 # the same rules and checks as the worker (16 requests in flight), print RESULT / COMPARE, restart the worker
 get('colab_worker.py')
-JOBS = [['colab_sglang.py', '--bench', 'math/expressions,math/ratios', '--conc', '16']]
+JOBS = [['colab_sglang.py', '--bench', 'math/expressions,math/ratios', '--conc', '32', '--ref-text']]   # round 2: 32 in flight + reference transcript; then the worker restarts with the say patch
 import traceback
 for JOB in JOBS:
     get(JOB[0])
