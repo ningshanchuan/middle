@@ -25,11 +25,20 @@ UNITS = {'km', 'cm', 'mm', 'kg', 'mg', 'ml', 'kwh', 'kw', 'kj', 'hz', 'khz', 'mh
 
 def _words(t):
     t = t.replace("'", '').replace('’', '')        # Dont / Don't / Don’t compare equal
+    t = re.sub(r'\S*[āáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ]\S*', ' ', t)   # tone-marked pinyin (dropped by the rules)
     return [w.lower() for w in WORD.findall(t) if len(w) > 1 and w.lower() not in UNITS]
 
 
 def cover_en(a, b):
     a = _words(a); b = _words(b)
+    m = difflib.SequenceMatcher(None, a, b, autojunk=False)
+    return sum(x.size for x in m.get_matching_blocks()) / max(len(a), 1)
+
+
+def cover_letters(a, b):
+    """letters of a (no spaces, digits, pinyin) found in order in b: CO2 + H2O -> C O two plus H two O"""
+    a = ''.join(_words(a)) if False else re.sub('[^a-z]', '', re.sub(r'\S*[ā-ǜà-ü]\S*', ' ', a.lower()))
+    b = re.sub('[^a-z]', '', b.lower())
     m = difflib.SequenceMatcher(None, a, b, autojunk=False)
     return sum(x.size for x in m.get_matching_blocks()) / max(len(a), 1)
 
@@ -61,7 +70,7 @@ for chk in sorted(glob.glob(os.path.join(done, '*.chk.jsonl'))):
         if not txt:
             continue                                     # the clip is only a credit: nothing to record
         if LANG == 'en':
-            ok = not LEFT.search(txt) and cover_en(send, txt) >= 0.8 and all_han(send, txt)
+            ok = not LEFT.search(txt) and (cover_en(send, txt) >= 0.8 or cover_letters(send, txt) >= 0.9) and all_han(send, txt)
         else:
             ok = not LEFT.search(txt) and (cover(send, txt) >= 0.93 or all_han(send, txt))
         if not ok:
