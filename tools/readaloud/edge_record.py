@@ -1,4 +1,5 @@
-# Stand-in recordings of the on-demand clips with a Microsoft Edge voice (edge-tts), from the spoken scripts
+# Stand-in recordings with a Microsoft Edge voice (edge-tts) of every clip that has no Serena recording yet (originals
+# included: 先有，再全，最后好), from the spoken scripts
 # (readaloud/say/<lang>.json, else the page text), into ningshanchuan/gc-audio-edge-<lang> (GitHub Pages):
 #   <lang>/<key>.mp3                    one file per clip key (keys repeat across lessons)
 #   <subject>/<topic>/manifest.js       LabAudioManifest({lesson: 'edge:<id>', voice, <lang>: '<key> ...'})
@@ -39,13 +40,19 @@ def polyfix(t):
 
 
 texts, raw, lessons = {}, {}, {}
+# 先有，再全，最后好 (the user): every clip without a Serena recording gets an Edge stand-in first
+import urllib.request
+SERENA = set()
+for repo in ('gc-audio-science', 'gc-audio-humanities', 'gc-audio-lang-math'):
+    try:
+        t = urllib.request.urlopen(f'https://raw.githubusercontent.com/gladcolor/{repo}/main/status/ledger.tsv?v={time.time()}', timeout=60).read().decode('utf-8')
+        SERENA |= {p[1] for p in (l.split('	') for l in t.splitlines()[1:]) if len(p) > 3 and p[0] == LANG and p[3] == 'serena moss8b'}
+    except Exception:                                    # noqa: BLE001
+        pass
 styled = set()
 for c in json.load(open(CORPUS, encoding='utf-8')):
-    # originals (verse / wenyan / prose) are never read by Edge: they wait for Serena (the user, 2026-11-21);
-    # Edge records the on-demand clips and the yuwen lessons' modern explanation clips
-    if c.get('style'):
-        styled.add(c['key']); continue
-    if not (c.get('demand') or c['lesson'].startswith('yuwen/')):
+    # originals (verse / wenyan / prose) too: a stand-in beats the browser voice (the user, 2026-11-21: 先有); Serena replaces it
+    if c['key'] in SERENA:                               # Serena already has it: no stand-in needed
         continue
     h = hashlib.sha1(c['send'].encode('utf-8')).hexdigest()[:12]
     if h in SKIP:
@@ -56,9 +63,6 @@ for c in json.load(open(CORPUS, encoding='utf-8')):
     lessons.setdefault(c['lesson'], set()).add(c['key'])
 os.makedirs(os.path.join(REPO, LANG), exist_ok=True)
 path = lambda k: os.path.join(REPO, LANG, k + '.mp3')
-for k in styled - set(texts):                            # an original recorded by Edge earlier: remove it
-    if os.path.exists(path(k)):
-        os.remove(path(k))
 sent_p = os.path.join(REPO, '..', f'edge_{LANG}_sent.json')
 sent = json.load(open(sent_p, encoding='utf-8')) if os.path.exists(sent_p) else {}
 # record: missing files; files made from another text (sent = text of each file; files from before the 多音字 table
