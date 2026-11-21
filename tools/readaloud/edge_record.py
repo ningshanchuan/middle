@@ -39,8 +39,13 @@ def polyfix(t):
 
 
 texts, raw, lessons = {}, {}, {}
+styled = set()
 for c in json.load(open(CORPUS, encoding='utf-8')):
-    if not c.get('demand'):
+    # originals (verse / wenyan / prose) are never read by Edge: they wait for Serena (the user, 2026-11-21);
+    # Edge records the on-demand clips and the yuwen lessons' modern explanation clips
+    if c.get('style'):
+        styled.add(c['key']); continue
+    if not (c.get('demand') or c['lesson'].startswith('yuwen/')):
         continue
     h = hashlib.sha1(c['send'].encode('utf-8')).hexdigest()[:12]
     if h in SKIP:
@@ -51,6 +56,9 @@ for c in json.load(open(CORPUS, encoding='utf-8')):
     lessons.setdefault(c['lesson'], set()).add(c['key'])
 os.makedirs(os.path.join(REPO, LANG), exist_ok=True)
 path = lambda k: os.path.join(REPO, LANG, k + '.mp3')
+for k in styled - set(texts):                            # an original recorded by Edge earlier: remove it
+    if os.path.exists(path(k)):
+        os.remove(path(k))
 sent_p = os.path.join(REPO, '..', f'edge_{LANG}_sent.json')
 sent = json.load(open(sent_p, encoding='utf-8')) if os.path.exists(sent_p) else {}
 # record: missing files; files made from another text (sent = text of each file; files from before the 多音字 table
