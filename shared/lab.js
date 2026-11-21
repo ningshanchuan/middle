@@ -316,6 +316,20 @@
   // Play a recording without losing its first syllables: start it MUTED inside the tap (this also keeps the player
   // unlocked on iOS) so it buffers while the output wakes up; once it can play through and the lead-in time has
   // passed, rewind to 0, unmute and play.
+  // phones: the lock screen, notification shade, headphone and Bluetooth buttons pause / resume / stop a recording
+  // (Media Session API; the browser voice has no such controls)
+  let msInit = false;
+  function mediaControls(){
+    if (!('mediaSession' in navigator)) return;
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({ title: (document.title || '').split(/ [·|] /)[0] || 'Genius Classroom',
+        artist: Lab.L({ en:'Genius Classroom · read-aloud', zh:'天才课堂 · 朗读' }) });
+      if (msInit) return; msInit = true;
+      const ms = navigator.mediaSession, h = (k, f) => { try { ms.setActionHandler(k, f); } catch(e){} };
+      h('pause', () => Lab.pauseSpeech()); h('play', () => Lab.resumeSpeech()); h('stop', () => Lab.stopSpeech());
+      h('seekbackward', null); h('seekforward', null); h('previoustrack', null); h('nexttrack', null);
+    } catch(e){}
+  }
   function playRec(url, key, rate, fallback, done){
     const a = player || (player = new Audio()), c = cur = { rate, done, key };
     const fail = () => { if (cur !== c) return; cur = null; a.muted = false; pb.playing = pb.paused = false; pbRender(); fallback(); };
@@ -329,6 +343,7 @@
       a.onended = () => { if (cur !== c) return; cur = null; pb.playing = pb.paused = false; pbRender(); if (done) done(true); };
       const p = a.play(); if (p && p.catch) p.catch(e => { if (!e || e.name !== 'AbortError') fail(); });
       if (!(a.duration > 0 && a.duration < 4)) pbSet('playing', true);   // the bar only for clips longer than a few seconds
+      mediaControls();
     };
     a.onended = () => { ready = true; begin(); };            // a very short clip may end during the muted lead-in
     a.onerror = fail;
