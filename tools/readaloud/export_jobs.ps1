@@ -1,6 +1,6 @@
 # CONTENT PC ONLY. Publish the read-aloud transcripts the TTS PC downloads (see tools/readaloud/HANDOFF.md).
 #   science-lab/readaloud/index.json                 every lesson (catalog order): id, titles, page URL, clip counts, fingerprint
-#   science-lab/readaloud/<subject>/<topic>.json     the lesson's clips: {key, lang, send, text[, demand:1]}
+#   science-lab/readaloud/<subject>/<topic>.json     the lesson's clips: {key, lang, send, text[, demand:1][, style, work]}
 #   science-lab/readaloud/shared.json               clips no single lesson owns (place-book sentences, speed-panel test ...)
 #     key  = FNV-1a 32 of "<lang>|<text>" (same as Lab.speechKey in shared/lab.js) = the clip's file name <key>.mp3
 #     send = exactly what to send to the TTS (symbols as words, glued pinyin removed, maths in words); text = what the page shows
@@ -20,6 +20,19 @@ foreach ($m in [regex]::Matches($cat, "\{\s*id\s*:\s*'([\w-]+)'\s*,\s*(icon|std|
   $rest = $m.Groups[3].Value; $id = "$sid/$($m.Groups[1].Value)"
   $lessons[$id] = [pscustomobject]@{ id = $id; en = [regex]::Match($rest, "\ben\s*:\s*'((?:[^'\\]|\\.)*)'").Groups[1].Value; zh = [regex]::Match($rest, "\bzh\s*:\s*'((?:[^'\\]|\\.)*)'").Groups[1].Value; clips = New-Object Collections.Generic.List[object] }
 }
+# one spelling per work across pages (the TTS PC gives each work one mood): "tune(first line)" -> "tune + middle dot + first line",
+# but "(qi N)" numbers stay; a bare tune name used for a known ci gets its full title. Chinese is written as \u escapes
+# because this file has no BOM (PowerShell 5.1 would misread literal Chinese).
+$U = { param($s) [regex]::Unescape($s) }
+$workAlias = @{ (& $U '\u6C34\u8C03\u6B4C\u5934') = (& $U '\u6C34\u8C03\u6B4C\u5934\u00B7\u660E\u6708\u51E0\u65F6\u6709') }
+$reParen = & $U '^(.+?)\uFF08(?!\u5176)(.+)\uFF09$'
+$reBook = & $U '^\u300A|\u300B$'
+function Norm-Work([string]$w) {
+  $w = $w.Trim() -replace $reBook, ''
+  if ($w -match $reParen) { $w = $Matches[1] + [char]0x00B7 + $Matches[2] }
+  if ($workAlias.ContainsKey($w)) { $w = $workAlias[$w] }
+  return $w
+}
 $shared = New-Object Collections.Generic.List[object]
 foreach ($l in 'en', 'zh') {
   # the TTS input for EVERY clip: gen.ps1 -Estimate in Replace mode with an empty done list (the list is put back afterwards)
@@ -35,7 +48,7 @@ foreach ($l in 'en', 'zh') {
     if (-not $send.ContainsKey($o.key)) { continue }    # nothing speakable, or too long for one request
     foreach ($les in @($o.lessons | Where-Object { $_ } | Sort-Object -Unique)) {
       if (-not $lessons.Contains($les)) { continue }
-      $c = [ordered]@{ key = $o.key; lang = $l; send = $send[$o.key]; text = $text[$o.key] }; if ($o.via -eq 'hover') { $c.demand = 1 }   # demand: read only on demand (hover / double-click / long press): record after the others
+      $c = [ordered]@{ key = $o.key; lang = $l; send = $send[$o.key]; text = $text[$o.key] }; if ($o.via -eq 'hover') { $c.demand = 1 }; if ($o.style) { $c.style = $o.style; if ($o.work) { $c.work = (Norm-Work $o.work) } }   # style: verse / wenyan / prose original; work: its title   # demand: read only on demand (hover / double-click / long press): record after the others
       $lessons[$les].clips.Add([pscustomobject]$c); $owned[$o.key] = 1
     }
   }

@@ -131,7 +131,53 @@ html:not(.yw-line-mode) [data-line-audio],
 .yw-line-mode [data-line-text] { cursor:pointer }
 .wj-paragraphs { list-style:none;margin:0;padding:0 }
 .wj-paragraphs.yw-reading .wj-lines, .wj-paragraph.yw-reading .wj-lines { background:transparent }
+.yw-recite{min-width:0;margin-top:10px;padding:0 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface-2)}
+.yw-recite > summary{padding:8px 0;color:var(--ink-2);cursor:pointer;font-size:.85rem;font-weight:700}
+.yw-recite > iframe{display:block;width:100%;height:auto;aspect-ratio:16/9;border:0;border-radius:var(--radius)}
+.yw-recite .yw-recite-source{margin:6px 0 8px;color:var(--ink-2);font-size:.8rem;overflow-wrap:anywhere}
 </style>
+<script>
+const recitationNotes = [
+  {"en":"Classics Resource Library (Ministry of Education project) recitation","zh":"中华经典资源库（教育部、国家语委项目）诵读"}
+];
+const recitationSources = {
+  "letter": {
+    title:"诫子书",
+    embed:"https://player.bilibili.com/player.html?bvid=BV1GH4y1z7yr&autoplay=0",
+    url:"https://www.bilibili.com/video/BV1GH4y1z7yr",
+    note:recitationNotes[0]
+  },
+  "room": {
+    title:"陋室铭",
+    embed:"https://player.bilibili.com/player.html?bvid=BV18w411W7DG&autoplay=0",
+    url:"https://www.bilibili.com/video/BV18w411W7DG",
+    note:recitationNotes[0]
+  }
+};
+function recitationHTML(key) {
+  const recording = recitationSources[key];
+  if (!recording) return '';
+  const summary = {en:'🎙️ 听名家朗诵 · Hear a recitation', zh:'🎙️ 听名家朗诵'};
+  const {note, url} = recording;
+  return `<details class="yw-recite" data-recite="${key}" data-noread data-nopy>
+    <summary data-en="${summary.en}" data-zh="${summary.zh}">${Lab.L(summary)}</summary>
+    <p class="yw-recite-source"><span data-en="${note.en}" data-zh="${note.zh}">${Lab.L(note)}</span>
+      <a href="${url}" target="_blank" rel="noopener">↗ bilibili</a></p>
+  </details>`;
+}
+document.addEventListener('toggle', event => {
+  const details = event.target;
+  if (!details.open || !details.matches('.yw-recite')) return;
+  Lab.stopSpeech();
+  if (details.querySelector('iframe')) return;
+  const {embed, title} = recitationSources[details.dataset.recite];
+  const frame = document.createElement('iframe');
+  frame.src = embed;
+  frame.title = title + ' · 朗诵 / Recitation';
+  frame.setAttribute('allowfullscreen', '');
+  details.querySelector('.yw-recite-source').before(frame);
+}, true);
+</script>
 </head>
 <body data-subject="yuwen" data-topic="yw-wenyan-7">
 <div id="lab-nav"></div>
@@ -1051,6 +1097,7 @@ function explanationSpeech(work, lang = Lab.lang) {
   if (readingLength(full) <= limit) return [{text:full}];
   return parts.flatMap((part, index) => readingUnits(part, limit).map(text => ({text, index})));
 }
+const readingMeta = work => ({style:work.id === 'mulan' ? 'verse' : 'wenyan', work:work.title.zh.replace(/[《》]/g, '')});
 Lab.readAll(() => WORKS.flatMap(work => {
   const full = fullText(work);
   const short = readingLength(full) <= 150;
@@ -1061,22 +1108,24 @@ Lab.readAll(() => WORKS.flatMap(work => {
     return short ? [] : readingUnits(stanzaText(work, text, i));
   });
   const lines = work.lines.flatMap(line => readingUnits(line.original));
-  return [...[...whole, ...parts, ...lines].map(text => [text, 'zh']),
+  return [...[...whole, ...parts, ...lines].map(text => [text, 'zh', readingMeta(work)]),
     ...['zh', 'en'].flatMap(lang => explanationSpeech(work, lang).map(({text}) => [text, lang]))];
 }));
 
-function readLine(entry, index) {
+function readLine(entry, index, meta) {
+  const attrs = `data-read-style="${meta.style}" data-work="${esc(meta.work)}"`;
   const chapter = entry.chapter
     ? ` <small class="wj-chapter" lang="zh-Hans">《${esc(entry.chapter)}》</small>` : '';
   const say = B('Read line ' + (index + 1), '朗读第 ' + (index + 1) + ' 行');
   return `<li class="wj-line"><div>
-    <p class="wj-kai" lang="zh-Hans" data-line-text>${esc(entry.original)}${chapter}</p>
+    <p class="wj-kai" lang="zh-Hans" data-line-text ${chapter ? '' : attrs}>${chapter ? `<span class="pline" ${attrs}>${esc(entry.original)}</span>` : esc(entry.original)}${chapter}</p>
     <p class="wj-gloss" lang="zh-Hans" data-translation="modern" hidden>${esc(entry.translation.zh)}</p>
     <p class="wj-gloss" lang="en" data-translation="english" hidden>${esc(entry.translation.en)}</p>
   </div><button class="wj-control wj-icon" type="button" data-line-audio data-say="${index}"
     title="${esc(L(say))}" aria-label="${esc(L(say))}">🔊</button></li>`;
 }
 function textMarkup(work) {
+  const meta = readingMeta(work);
   const [author, era] = AUTHORS[work.author];
   const parts = readingParts(work);
   const poem = work.id === 'mulan';
@@ -1087,7 +1136,7 @@ function textMarkup(work) {
   const notes = work.notes.map(item => `<div><dt><b lang="zh-Hans">${esc(item.word)}</b><span>${esc(item.pinyin)}</span></dt>
     <dd ${trait(item.meaning)}>${esc(item.meaning.en)}</dd></div>`).join('');
   const lenses = work.lenses.map(item => `<blockquote class="wj-quote">
-    <p class="wj-kai" lang="zh-Hans">${esc(item.quote)}</p><p>${bi(item.explanation)}</p>
+    <p class="wj-kai" lang="zh-Hans" data-read-style="${meta.style}" data-work="${esc(meta.work)}">${esc(item.quote)}</p><p>${bi(item.explanation)}</p>
   </blockquote>`).join('');
   const model = B('Show a model answer','查看参考答案');
   const exams = work.exam.map(item => `<details class="wj-model"><summary>${bi(item.question)}</summary>
@@ -1107,8 +1156,9 @@ function textMarkup(work) {
       </div>
       <ol class="wj-paragraphs">${parts.map(({start, lines}, i) => `<li class="wj-paragraph" data-part="${i}">
         ${!poem || !short ? `<div class="yw-read-actions"><button class="wj-control" type="button" ${poem ? 'data-stanza' : 'data-paragraph'}>${bi(listen)}</button></div>` : ''}
-        <ol class="wj-lines">${lines.map((line, j) => readLine(line, start + j)).join('')}</ol>
+        <ol class="wj-lines">${lines.map((line, j) => readLine(line, start + j, meta)).join('')}</ol>
       </li>`).join('')}</ol>
+      ${recitationHTML(work.id)}
       <h4>${bi(B('Vocabulary & pronunciation','字词注释与读音'))}</h4><dl class="wj-notes" data-nopy>${notes}</dl>
       <h4>${bi(B('Key lines & close reading','名句与赏析'))}</h4>${lenses}
       <button class="wj-control" type="button" data-explain data-zh="🔊 朗读背景和赏析">🔊 Hear the background and analysis</button>

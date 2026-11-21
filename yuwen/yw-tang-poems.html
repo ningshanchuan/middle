@@ -45,6 +45,7 @@
 .yc b{font-weight:400}
 .yp{display:inline-block;vertical-align:bottom}
 .pline{display:block;padding:2px 8px;border-radius:12px;transition:background .2s}
+.pline-source.pline{display:inline;padding:0}
 .pline.on{background:color-mix(in srgb,var(--brand) 16%,transparent)}
 .pline small.en{display:block;font-family:Nunito,system-ui,sans-serif;font-size:14px;color:var(--ink-2);line-height:1.4;margin:0 0 6px}
 /* bar figure */
@@ -103,7 +104,52 @@
 .hunt-line .yc.no{background:color-mix(in srgb,var(--bad) 22%,transparent)}
 @media (max-width:980px){.poets{grid-template-columns:1fr 1fr}}
 @media (max-width:560px){.poets{grid-template-columns:1fr}.poem{font-size:22px}}
+.yw-recite{min-width:0;margin-top:10px;padding:0 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface-2)}
+.yw-recite > summary{padding:8px 0;color:var(--ink-2);cursor:pointer;font-size:.85rem;font-weight:700}
+.yw-recite > iframe{display:block;width:100%;height:auto;aspect-ratio:16/9;border:0;border-radius:var(--radius)}
+.yw-recite .yw-recite-source{margin:6px 0 8px;color:var(--ink-2);font-size:.8rem;overflow-wrap:anywhere}
 </style>
+<script>
+const recitationNotes = [
+  {"en":"Classics Resource Library (Ministry of Education project) · read by Fang Ming, China National Radio","zh":"中华经典资源库（教育部、国家语委项目）· 方明朗诵"}
+];
+const recitationSources = {
+  "sz": {
+    title:"使至塞上",
+    embed:"https://player.bilibili.com/player.html?bvid=BV1bG411Q7g2&autoplay=0",
+    url:"https://www.bilibili.com/video/BV1bG411Q7g2",
+    note:recitationNotes[0]
+  }
+};
+function recitationHTML(key) {
+  const recording = recitationSources[key];
+  if (!recording) return '';
+  const summary = {en:'🎙️ 听名家朗诵 · Hear a recitation', zh:'🎙️ 听名家朗诵'};
+  const {note, url} = recording;
+  return `<details class="yw-recite" data-recite="${key}" data-noread data-nopy>
+    <summary data-en="${summary.en}" data-zh="${summary.zh}">${Lab.L(summary)}</summary>
+    <p class="yw-recite-source"><span data-en="${note.en}" data-zh="${note.zh}">${Lab.L(note)}</span>
+      <a href="${url}" target="_blank" rel="noopener">↗ bilibili</a></p>
+  </details>`;
+}
+function renderRecitation(slot, key) {
+  if (slot.dataset.work === key) return;
+  slot.dataset.work = key;
+  slot.innerHTML = recitationHTML(key);
+}
+document.addEventListener('toggle', event => {
+  const details = event.target;
+  if (!details.open || !details.matches('.yw-recite')) return;
+  Lab.stopSpeech();
+  if (details.querySelector('iframe')) return;
+  const {embed, title} = recitationSources[details.dataset.recite];
+  const frame = document.createElement('iframe');
+  frame.src = embed;
+  frame.title = title + ' · 朗诵 / Recitation';
+  frame.setAttribute('allowfullscreen', '');
+  details.querySelector('.yw-recite-source').before(frame);
+}, true);
+</script>
 </head>
 <body data-subject="yuwen" data-topic="yw-tang-poems">
 <div id="lab-nav"></div>
@@ -127,7 +173,7 @@
       <div id="scene" data-nopy></div>
             <div class="bottombar"><div class="pill" id="foundPill"></div></div>
     </div>
-    <aside class="info card" id="pinfo" aria-live="polite"></aside>
+    <aside class="info card" id="pinfo"><div id="pinfoContent" style="display:contents" aria-live="polite"></div><div id="pRecitation" style="display:contents"></div></aside>
   </div>
   <div class="grid2" style="margin-top:16px">
     <div class="card box" id="appre"></div>
@@ -538,8 +584,7 @@ const SCENES = {
 const poemLines = poem => poem.L.map(line => line[0]);
 const wholePoem = p => p.t + '。' + p.a + '（' + p.d.zh + '）。' + poemLines(p).join('');
 Lab.readAll(() => POEMS.flatMap(poem => [
-  [wholePoem(poem), 'zh'],
-  ...poemLines(poem).map(line => [line, 'zh']),
+  ...[wholePoem(poem), ...poemLines(poem)].map(text => [text, 'zh', {style:'verse', work:poem.t}]),
   ...Object.values(poem.im).map(image => [image.w, 'zh'])
 ]));
 const PS = { i:0, sel:null, found:new Set(), py:false, en:false, read:new Set(), now:-1 };
@@ -549,7 +594,8 @@ function poemHTML(p){
   return p.L.map((l, li) => { const html = YW.cells(l[0], l[1], (i) => { const k = map[base + i]; return (k ? 'im ' : '') + (k && k === PS.sel ? 'hit' : '') + (k ? '" data-k="' + k : ''); });
     base += YW.hanOnly(l[0]).length;
     const split = html.replace(/(<span class="yp">[，；？！]<\/span>)(?=<span class="yc)/g, '$1<br>');
-    return `<span class="pline ${(PS.now === -2 || PS.now === li) ? 'on' : ''}" data-l="${li}">${split}${PS.en ? `<small class="en">${l[2]}</small>` : ''}</span>`; }).join('');
+    const meta = `data-read-style="verse" data-work="${p.t}"`;
+    return `<span class="pline ${(PS.now === -2 || PS.now === li) ? 'on' : ''}" data-l="${li}" ${PS.en ? '' : meta}>${PS.en ? `<span class="pline pline-source" ${meta}>${split}</span><small class="en">${l[2]}</small>` : split}</span>`; }).join('');
 }
 function drawTabs(){ Lab.$('#ptabs').innerHTML = POEMS.map((p, i) => `<button class="tbtn ${i === PS.i ? 'on' : ''}" data-i="${i}" data-nopy>${p.t.length > 6 ? p.t.slice(0, 5) + '…' : p.t}</button>`).join('');
   Lab.$$('#ptabs button').forEach(b => b.onclick = () => { YW.stop(); PS.i = +b.dataset.i; PS.sel = null; PS.now = -1; drawAll(); }); }
@@ -567,7 +613,7 @@ function pickIm(k){
   YW.zh(image.w); drawScene(); drawInfo();
 }
 function drawInfo(){
-  const p = POEMS[PS.i], im = PS.sel && p.im[PS.sel], box = Lab.$('#pinfo');
+  const p = POEMS[PS.i], im = PS.sel && p.im[PS.sel], box = Lab.$('#pinfoContent');
   box.innerHTML = `<span class="tag">${p.d.zh} · ${Lab.L(p.form)} · ${Lab.L(p.book)}</span>
     <h3 class="ptitle kai" data-nopy>${p.t} <small>${p.a}</small></h3>
     ${Lab.lang === 'en' ? `<div class="job">${p.en}</div>` : ''}
@@ -578,9 +624,10 @@ function drawInfo(){
          : `<p style="margin:0"><b>${Lab.L(o('Background: ','背景：'))}</b>${Lab.L(p.bg)}</p><p class="muted" style="margin:0">${Lab.L(o('👉 Click the glowing things in the picture, or the dotted words in the poem.','👉 点击画面中的景物，或诗中带虚线的字词。'))}</p>`}
     <div class="memory"><b>${Lab.L(o('💡 Theme (中考 answer)','💡 主旨（答题要点）'))}</b>${Lab.L(p.feel)}</div>
     <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous poem','◀ 上一首'))}</button><button id="pNext">${Lab.L(o('Next poem ▶','下一首 ▶'))}</button></div>`;
+  renderRecitation(Lab.$('#pRecitation'), p.id);
   function highlight(index, complete){
     PS.now = index;
-    Lab.$$('#pinfo .pline').forEach(el => el.classList.toggle('on', index === -2 || +el.dataset.l === index));
+    Lab.$$('#pinfo .pline[data-l]').forEach(el => el.classList.toggle('on', index === -2 || +el.dataset.l === index));
     if (complete){ PS.read.add(p.id); if (PS.read.size >= 3) YW.done('m1'); }
   }
   Lab.$('#pRead').onclick = () => YW.readWhole(wholePoem(p),

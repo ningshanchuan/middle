@@ -44,9 +44,6 @@
 .showpy .yc .py{visibility:visible}
 .yc b{font-weight:400}
 .yp{display:inline-block;vertical-align:bottom}
-.pline{display:block;padding:2px 8px;border-radius:12px;transition:background .2s}
-.pline.on{background:color-mix(in srgb,var(--brand) 16%,transparent)}
-.pline small.en{display:block;font-family:Nunito,system-ui,sans-serif;font-size:14px;color:var(--ink-2);line-height:1.4;margin:0 0 6px}
 /* bar figure */
 .ywb{display:flex;flex-direction:column;gap:8px}
 .ywb-t{font-size:19px;margin-bottom:10px}
@@ -397,6 +394,7 @@ const YW = (() => {
 const TAGS = { 通假:['Borrowed character','通假字','t1'], 古今:['Old vs new meaning','古今异义','t2'], 活用:['Word-class shift','词类活用','t3'], 多义:['One word, many meanings','一词多义','t4'],
   实词:['Content word','实词',''], 虚词:['Function word','虚词',''], 人名:['Name / title','人名、称谓',''], 句式:['Special sentence pattern','特殊句式','t4'] };
 const RD = { t:0, sel:null, py:false, tr:false, now:-1, seen:new Set(), need:15, mission:null, onRead:null };
+const readingMeta = passage => ({style:'wenyan', work:passage.t.replace(/[《》]/g, '')});
 const plain = s => s.replace(/[{}]/g, '');
 const readingLength = text => [...text].length;
 // Keep sentence endings and closing quotes together. Use clause breaks for oversized sentences.
@@ -435,10 +433,11 @@ function readingUnits(text, limit = 150){
 const fullText = text => text.t + '。' + text.items.map(item => plain(item.s)).join('');
 const paragraphUnits = (item, index) => readingUnits(plain(item.s)).map(text => ({text, index}));
 function itemHTML(it, ti, ii){
+  const {style, work} = readingMeta(TEXTS[ti]);
   let k = 0;
   const body = it.s.replace(/\{([^}]+)\}/g, (_, w) => { const gi = k++, g = it.g[gi] || ['', '', '', ''], id = `${ti}-${ii}-${gi}`;
     return `<span class="yc gw ${RD.sel === id ? 'sel' : ''} ${RD.seen.has(id) ? 'seen' : ''}" data-id="${id}"><i class="py">${g[0]}</i><b>${w}</b></span>`; });
-  return `<div class="wtx kai ${(RD.now === -2 || RD.now === ii) ? 'on' : ''} ${RD.py ? 'showpy' : ''}" data-i="${ii}">${it.h ? `<h4>${it.h}</h4>` : ''}${body}
+  return `<div class="wtx kai ${(RD.now === -2 || RD.now === ii) ? 'on' : ''} ${RD.py ? 'showpy' : ''}" data-i="${ii}">${it.h ? `<h4>${it.h}</h4>` : ''}<span class="pline" data-read-style="${style}" data-work="${work}">${body}</span>
     <div class="tx-audio"><button class="tbtn" type="button" data-paragraph="${ii}">🔊 ${Lab.L(o('Read paragraph','朗读本段'))}</button></div>
     ${RD.tr ? `<div class="wtr">${Lab.lang === "en" ? `<span class="en">${it.tr.en}</span>` : ""}${it.tr.zh}</div>` : ""}</div>`;
 }
@@ -464,8 +463,10 @@ Lab.readAll(() => [
     const full = fullText(passage);
     const whole = readingLength(full) <= 150 ? [full] : [];
     const paragraphs = passage.items.flatMap(paragraphUnits).map(unit => unit.text);
-    const glosses = passage.items.flatMap(item => [...item.s.matchAll(/\{([^}]+)\}/g)].flatMap((_, i) => [wordOf(item, i), glossSentence(item, i)]));
-    return [...whole, ...paragraphs, ...glosses].map(text => [text, 'zh']);
+    const glosses = passage.items.flatMap(item => [...item.s.matchAll(/\{([^}]+)\}/g)].flatMap((_, i) => [
+      [wordOf(item, i), 'zh'], [glossSentence(item, i), 'zh', readingMeta(passage)]
+    ]));
+    return [...[...whole, ...paragraphs].map(text => [text, 'zh', readingMeta(passage)]), ...glosses];
   })
 ]);
 function rdPick(id){ RD.sel = id; RD.seen.add(id); const [ti, ii, gi] = id.split('-').map(Number), it = TEXTS[ti].items[ii];
@@ -490,7 +491,7 @@ function glDraw(){
     <div><span class="wtag ${tg[2]}">${Lab.lang === 'zh' ? tg[1] : tg[0] + ' · ' + tg[1]}</span></div>
     <p style="margin:0;font-size:18px"><b>${Lab.L(o('Here it means: ','在这里的意思：'))}</b><span class="kai">${g[1]}</span></p>
     <p style="margin:0">${g[2]}</p>
-    <div class="glctx kai" data-nopy>${ctx.replace(w, `<span class="mark">${w}</span>`)}</div>
+    <div class="glctx kai pline" data-nopy data-read-style="wenyan" data-work="${readingMeta(T).work}">${ctx.replace(w, `<span class="mark">${w}</span>`)}</div>
     <p class="muted" style="margin:0;font-size:14px">${Lab.L(o(`Words explored: ${RD.seen.size}`, `已查看字词：${RD.seen.size}个`))}</p>
     <button class="speak" id="glSay">🔊 ${Lab.L(o('Hear the sentence','听这一句'))}</button>`;
   Lab.$('#glSay').onclick = () => YW.zh(ctx);

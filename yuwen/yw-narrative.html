@@ -44,9 +44,6 @@
 .showpy .yc .py{visibility:visible}
 .yc b{font-weight:400}
 .yp{display:inline-block;vertical-align:bottom}
-.pline{display:block;padding:2px 8px;border-radius:12px;transition:background .2s}
-.pline.on{background:color-mix(in srgb,var(--brand) 16%,transparent)}
-.pline small.en{display:block;font-family:Nunito,system-ui,sans-serif;font-size:14px;color:var(--ink-2);line-height:1.4;margin:0 0 6px}
 /* bar figure */
 .ywb{display:flex;flex-direction:column;gap:8px}
 .ywb-t{font-size:19px;margin-bottom:10px}
@@ -344,6 +341,7 @@ const YW = (() => {
 /* ===== 现代文阅读 kit (shared by yw-narrative / yw-expository / yw-argumentative; copied into each page) ===== */
 const HUES = ['#e11d48', '#2563eb', '#16a34a', '#d97706', '#7c3aed', '#0891b2', '#db2777', '#65a30d'];
 /* Highlight-and-label: pick a label, tap the words it belongs to. segs = [[text, 'key' | 'k1|k2' | '', why{en,zh}?], …] */
+const passageWork = passage => passage.t.zh.match(/《([^》]+)》/)?.[1] || passage.t.zh.replace(/（原创）$/, '');
 function passageSpeech(passage){
   const text = passage.segs.map(segment => segment[0]).join('').replace(/<[^>]+>/g, '');
   const limit = 150, length = [...text].length;
@@ -421,7 +419,7 @@ function Labeler(sel, cfg){
       <p class="ywnote">${Lab.L(cfg.ask)}</p>
       <div class="hl-pal">${keys.map(k => `<button style="--c:${col(k)}" data-k="${k}" class="${S.lab === k ? 'on' : ''}">${Lab.L(cfg.labels[k])}</button>`).join('')}</div>
       ${P.src ? `<p class="muted" style="margin:0;font-size:14px">${Lab.L(P.src)}</p>` : ''}
-      <div class="hl-text kai" data-nopy>${P.segs.map((s, i) => { const k = S.ok.get(sid(S.p, i)); return `<span class="sg ${k ? 'ok' : ''} ${S.flash === i ? 'bad' : ''}" data-i="${i}" ${k ? `style="--c:${col(k)}" data-lab="${YW.esc(cfg.labels[k].zh)}"` : ''}>${s[0]}</span>`; }).join('')}</div>
+      <div class="hl-text kai pline" data-nopy data-read-style="prose" data-work="${passageWork(P)}">${P.segs.map((s, i) => { const k = S.ok.get(sid(S.p, i)); return `<span class="sg ${k ? 'ok' : ''} ${S.flash === i ? 'bad' : ''}" data-i="${i}" ${k ? `style="--c:${col(k)}" data-lab="${YW.esc(cfg.labels[k].zh)}"` : ''}>${s[0]}</span>`; }).join('')}</div>
       ${P.words ? `<div class="hl-words" data-nopy>${P.words.map(w => `<span><b>${w[0]}</b> ${w[1]}${Lab.lang === 'en' ? ` <i>${w[2]}</i>` : ''}</span>`).join('')}</div>` : ''}
       ${S.en && P.en ? `<p class="hl-en">${P.en}</p>` : ''}
       <div class="btnrow"><button class="tbtn hl-say">🔊 ${Lab.L(o('Read aloud (Chinese)', '朗读'))}</button><button class="tbtn hl-stop">⏹</button>${P.en ? `<button class="tbtn hl-entog ${S.en ? 'on' : ''}">English</button>` : ''}<button class="tbtn hl-reset">↺ ${Lab.L(o('Clear this text', '本篇重来'))}</button></div>
@@ -542,6 +540,7 @@ const mnemonicSpeech = '记叙文六要素：时间、地点、人物、起因�
 Lab.$('#sixSay').onclick = () => YW.zh(mnemonicSpeech);
 
 /* ---- Mission 2a: the four 背影 ---- */
+const backWork = '背影';
 const CLUE = [
   { i:'💭', n:o('Remember', '思背影'), q:'我与父亲不相见已二年余了，我最不能忘记的是他的背影。', where:o('Opening line', '开头'), v:35,
     role:o('Opens with the title word and sets up the whole memory (开篇点题).', '开篇点题，总领全文，引出下文的回忆。'), en:'I have not seen my father for over two years; what I can never forget is the sight of his back.' },
@@ -558,7 +557,7 @@ function clueDraw(){
   Lab.$$('#clueBar button').forEach(b => b.onclick = () => { CL.i = +b.dataset.i; CL.seen.add(CL.i); if (CL.seen.size === 4) YW.done('m2'); clueDraw(); });
   const c = CLUE[CL.i];
   Lab.$('#clueCard').innerHTML = `<span class="tag">${Lab.L(o(`#${CL.i + 1} · ${c.where.en}`, `第${CL.i + 1}次 · ${c.where.zh}`))}</span>
-    <div class="kai" data-nopy>${c.q.replace('背影', '<mark style="background:color-mix(in srgb,var(--accent) 30%,transparent);color:inherit">背影</mark>')}</div>
+    <div class="kai pline" data-nopy data-read-style="prose" data-work="${backWork}">${c.q.replace('背影', '<mark style="background:color-mix(in srgb,var(--accent) 30%,transparent);color:inherit">背影</mark>')}</div>
     ${Lab.lang === 'en' ? `<p class="hl-en">${c.en}</p>` : ''}
     <p style="margin:0">${Lab.L(c.role)}</p>
     <div><small class="muted">${Lab.L(o('Strength of feeling', '情感浓度'))}</small><div class="meter"><i style="width:${c.v}%"></i></div></div>
@@ -645,9 +644,9 @@ const descriptionHunt = { labels:DESC, ask:o('Pick a method, then tap the senten
   onFound:n => { if (n >= 15) YW.done('m4'); } };
 descLab = Labeler('#hlDesc', descriptionHunt);
 Lab.readAll(() => [
-  ...[...elementsHunt.passages, ...descriptionHunt.passages].flatMap(passage => passageSpeech(passage).map(text => [text, 'zh'])),
+  ...[...elementsHunt.passages, ...descriptionHunt.passages].flatMap(passage => passageSpeech(passage).map(text => [text, 'zh', {style:'prose', work:passageWork(passage)}])),
   [mnemonicSpeech, 'zh'],
-  ...CLUE.map(clue => [clue.q, 'zh'])
+  ...CLUE.map(clue => [clue.q, 'zh', {style:'prose', work:backWork}])
 ]);
 (function(){
   const c = descLab.counts(), keys = Object.keys(DESC);

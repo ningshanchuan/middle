@@ -14,8 +14,9 @@ foreach ($f in Get-ChildItem (Join-Path $Work "lessons") -Filter "*.$Lang.json" 
   foreach ($x in @($j.texts)) {
     if ($x.lang -ne $Lang) { continue }
     $nz++
-    if (-not $byKey.Contains($x.key)) { $byKey[$x.key] = [pscustomobject]@{ key = $x.key; text = $x.text; via = $x.via; raw = $x.raw; lessons = New-Object Collections.Generic.List[string] } }
-    elseif ($byKey[$x.key].via -eq 'hover' -and $x.via -ne 'hover') { $byKey[$x.key].via = $x.via }   # read by a page itself somewhere: not 'on demand only'
+    if (-not $byKey.Contains($x.key)) { $byKey[$x.key] = [pscustomobject]@{ key = $x.key; text = $x.text; via = $x.via; raw = $x.raw; style = $x.style; work = $x.work; lessons = New-Object Collections.Generic.List[string] } }
+    elseif ($byKey[$x.key].via -eq 'hover' -and $x.via -ne 'hover') { $byKey[$x.key].via = $x.via }
+    if ($x.style -and -not $byKey[$x.key].style) { $byKey[$x.key].style = $x.style; $byKey[$x.key].work = $x.work }   # reading style (verse / wenyan / prose) and its work   # read by a page itself somewhere: not 'on demand only'
     if (-not $byKey[$x.key].lessons.Contains($id)) { $byKey[$x.key].lessons.Add($id) }
   }
   $m = $j.meta; $note = @()
@@ -24,7 +25,7 @@ foreach ($f in Get-ChildItem (Join-Path $Work "lessons") -Filter "*.$Lang.json" 
   if ($m -and $m.lost) { $note += 'page navigated away' }
   $cov.Add(("{0}`t{1}`t{2}`t{3}`t{4}`t{5}`t{6}`t{7}" -f $id, $nz, @($j.texts).Count, $m.calls, $j.sec, $m.clicks, $m.phase, (($note -join ' | ') -replace "[`t`r`n]", ' ')))
 }
-$lines = foreach ($v in $byKey.Values) { $o = [ordered]@{ key = $v.key; text = $v.text; via = $v.via; lessons = @($v.lessons) }; if ($v.raw) { $o.raw = $v.raw }; [pscustomobject]$o | ConvertTo-Json -Compress -Depth 4 }
+$lines = foreach ($v in $byKey.Values) { $o = [ordered]@{ key = $v.key; text = $v.text; via = $v.via; lessons = @($v.lessons) }; if ($v.raw) { $o.raw = $v.raw }; if ($v.style) { $o.style = $v.style; if ($v.work) { $o.work = $v.work } }; [pscustomobject]$o | ConvertTo-Json -Compress -Depth 4 }
 [IO.File]::WriteAllLines((Join-Path $Work "texts_$Lang.jsonl"), [string[]]@($lines), $utf8)
 [IO.File]::WriteAllLines((Join-Path $Work "coverage_$Lang.tsv"), [string[]]$cov, $utf8)
 $chars = 0; foreach ($v in $byKey.Values) { $chars += $v.text.Length }

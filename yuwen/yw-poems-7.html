@@ -103,7 +103,47 @@ html:not(.yw-line-mode) [data-line-audio],
 [data-line-toggle] { min-height:44px }
 [data-line-toggle][aria-pressed="true"] { border-color:var(--brand);background:color-mix(in srgb,var(--brand) 16%,var(--surface)) }
 .yw-line-mode [data-line-text] { cursor:pointer }
+.yw-recite{min-width:0;margin-top:10px;padding:0 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface-2)}
+.yw-recite > summary{padding:8px 0;color:var(--ink-2);cursor:pointer;font-size:.85rem;font-weight:700}
+.yw-recite > iframe{display:block;width:100%;height:auto;aspect-ratio:16/9;border:0;border-radius:var(--radius)}
+.yw-recite .yw-recite-source{margin:6px 0 8px;color:var(--ink-2);font-size:.8rem;overflow-wrap:anywhere}
 </style>
+<script>
+const recitationNotes = [
+  {"en":"Classics Resource Library (Ministry of Education project) · read by Fang Ming, China National Radio","zh":"中华经典资源库（教育部、国家语委项目）· 方明朗诵"}
+];
+const recitationSources = {
+  "sea": {
+    title:"观沧海",
+    embed:"https://player.bilibili.com/player.html?bvid=BV1iz4y1w7Zh&autoplay=0",
+    url:"https://www.bilibili.com/video/BV1iz4y1w7Zh",
+    note:recitationNotes[0]
+  }
+};
+function recitationHTML(key) {
+  const recording = recitationSources[key];
+  if (!recording) return '';
+  const summary = {en:'🎙️ 听名家朗诵 · Hear a recitation', zh:'🎙️ 听名家朗诵'};
+  const {note, url} = recording;
+  return `<details class="yw-recite" data-recite="${key}" data-noread data-nopy>
+    <summary data-en="${summary.en}" data-zh="${summary.zh}">${Lab.L(summary)}</summary>
+    <p class="yw-recite-source"><span data-en="${note.en}" data-zh="${note.zh}">${Lab.L(note)}</span>
+      <a href="${url}" target="_blank" rel="noopener">↗ bilibili</a></p>
+  </details>`;
+}
+document.addEventListener('toggle', event => {
+  const details = event.target;
+  if (!details.open || !details.matches('.yw-recite')) return;
+  Lab.stopSpeech();
+  if (details.querySelector('iframe')) return;
+  const {embed, title} = recitationSources[details.dataset.recite];
+  const frame = document.createElement('iframe');
+  frame.src = embed;
+  frame.title = title + ' · 朗诵 / Recitation';
+  frame.setAttribute('allowfullscreen', '');
+  details.querySelector('.yw-recite-source').before(frame);
+}, true);
+</script>
 </head>
 <body data-subject="yuwen" data-topic="yw-poems-7">
 <div id="lab-nav"></div>
@@ -111,7 +151,7 @@ html:not(.yw-line-mode) [data-line-audio],
   <div class="eyebrow" data-zh="语文 · 统编七年级上下册">Chinese language arts · Grade 7 national textbooks, both volumes</div>
   <h1 data-zh="七年级古诗词">Grade 7 Classical Chinese Poetry</h1>
   <p class="lead" data-zh="同一轮明月，为什么能替李白陪伴友人，又照得边关将士想家？逐句听读 26 篇古诗词，从字词读到意境，再试着背诵和默写。">Why does the moon keep Li Bai’s friend company but make frontier soldiers homesick? Read and hear all 26 selections, then try reciting and writing them from memory.</p>
-  <blockquote class="hero-verse kai no-places"><span lang="zh">我寄愁心与明月，随君直到夜郎西。</span><small data-zh="李白把愁心托给明月，让它陪伴远行的友人。">Li Bai entrusts his worries to the moon and asks it to keep his friend company on the journey.</small></blockquote>
+  <blockquote class="hero-verse kai no-places"><span lang="zh" class="pline" data-read-style="verse" data-work="闻王昌龄左迁龙标遥有此寄">我寄愁心与明月，随君直到夜郎西。</span><small data-zh="李白把愁心托给明月，让它陪伴远行的友人。">Li Bai entrusts his worries to the moon and asks it to keep his friend company on the journey.</small></blockquote>
   <nav class="poetry-jump" aria-label="Practice and review / 练习与复习">
     <a class="tbtn" href="#practice" data-zh="背诵与默写">Recite &amp; write</a>
     <a class="tbtn" href="#eras" data-zh="诗人时间线">Poets in time</a>
@@ -799,7 +839,7 @@ const stanzaText = (poem, credit, index) => (index === 0 ? credit : '') + poem.s
 Lab.readAll(() => POEMS.flatMap(poem => {
   const {credit, full} = poemReading(poem);
   const units = readingLength(full) <= 150 ? [full] : poem.stanzas.map((_, i) => stanzaText(poem, credit, i));
-  return [...[...units, ...poem.lines].map(text => [text, 'zh']),
+  return [...[...units, ...poem.lines].map(text => [text, 'zh', {style:'verse', work:poem.title.zh}]),
     ...['zh', 'en'].map(lang => [poem.reading[lang] ?? poem.reading.en ?? '', lang])];
 }));
 
@@ -809,7 +849,7 @@ function originalVerse(poem, short) {
     ? local('button', B('🔊 朗读本节','🔊 Read stanza'), `type="button" class="tbtn" data-stanza="${i}"`) : '';
   return poem.stanzas.map((stanza, stanzaIndex) => `<div class="verse-stanza">${stanzaAudio(stanzaIndex)}${stanza.map(line => {
     const i = index++;
-    return `<div class="verse-row"><span lang="zh" data-line-text class="${poem.keys.includes(i) ? 'key-line' : ''}">${esc(line)}</span>
+    return `<div class="verse-row"><span lang="zh" data-line-text data-read-style="verse" data-work="${esc(poem.title.zh)}" class="pline ${poem.keys.includes(i) ? 'key-line' : ''}">${esc(line)}</span>
       <button class="tbtn line-audio" type="button" data-line-audio data-audio="${i}">🔊</button></div>`;
   }).join('')}</div>`).join('');
 }
@@ -830,6 +870,7 @@ function poemCard(poem) {
             ${lineModeToggle('tbtn')}
           </div>
           <blockquote class="verse kai no-places">${originalVerse(poem, short)}</blockquote>
+          ${recitationHTML(poem.id)}
         </div>
         <div>
           ${local('h4', B('读懂字词','Words and pronunciation'))}

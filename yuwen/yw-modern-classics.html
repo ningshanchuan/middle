@@ -1810,7 +1810,18 @@ html:not(.yw-line-mode) [data-line-audio],
   }
   const sourceLines = (block, poem) => poem ? block : sentenceLines(block[0]);
   const hasEvidenceAudio = w => !w.edition?.lang;
-  function sourceText(lines, lang, poem, stanza, work) {
+  const verseGuides = new Set(['street','plum','yellow','yanan','snow','zhou','land','nostalgia','april','watch','motherland','grave','fragment','storm']);
+  const readingMeta = w => ({
+    style:w.edition?.poem || w.id === 'petrel' || verseGuides.has(w.id) ? 'verse' : 'prose',
+    work:w.title.zh.replace(/[《》]/g, '')
+  });
+  const evidenceMeta = w => ['garden','achang','unity'].includes(w.id) || w.evidence.line === w.notes[0]?.term
+    ? null : readingMeta(w);
+  function markOriginal(element, {style, work}) {
+    element.dataset.readStyle = style;
+    element.dataset.work = work;
+  }
+  function sourceText(lines, lang, poem, stanza, work, meta) {
     const copy = el('div', null, poem ? 'mc-poem' : '');
     copy.lang = lang === 'zh' ? 'zh-CN' : lang;
     const {blocks, credit, full, short} = sourceReading(lines, lang, poem, stanza, work);
@@ -1832,6 +1843,7 @@ html:not(.yw-line-mode) [data-line-audio],
     }
     for (const [index, block] of blocks.entries()) {
       const paragraph = el('p');
+      if (meta) markOriginal(paragraph, meta);
       const group = el('div');
       if (lang !== 'zh') {
         block.forEach(line => paragraph.append(el('span', line, 'mc-line')));
@@ -1853,6 +1865,10 @@ html:not(.yw-line-mode) [data-line-audio],
         const row = el('span', null, 'mc-line');
         const original = el('span', line);
         original.dataset.lineText = '';
+        if (meta) {
+          markOriginal(original, meta);
+          if (poem && sentences.length > 1) original.classList.add('pline');
+        }
         row.append(original, audio(line, row));
         paragraph.append(row);
       });
@@ -1864,10 +1880,11 @@ html:not(.yw-line-mode) [data-line-audio],
   function reading(w, mount) {
     if (w.edition.parallel) {
       mount.append(el('h4', B('Bengali original', '孟加拉语原文')),
-        sourceText(originals.tagoreBangla, 'bn', true, 8),
+        sourceText(originals.tagoreBangla, 'bn', true, 8, w, {style:'verse', work:readingMeta(w).work}),
         el('h4', B('Tagore’s English version', '泰戈尔自译英文本')));
     }
-    mount.append(sourceText(originals[w.id], w.edition.lang || 'zh', w.edition.poem, w.edition.stanza, w));
+    mount.append(sourceText(originals[w.id], w.edition.lang || 'zh', w.edition.poem, w.edition.stanza, w,
+      w.id === 'tagore' ? null : readingMeta(w)));
     const source = link(B('Source text', '原文底本'), w.edition.url);
     const version = el('p', null, 'mc-quiet');
     version.append(el('span', w.edition.note), document.createTextNode(' · '), source);
@@ -1924,6 +1941,11 @@ html:not(.yw-line-mode) [data-line-audio],
     const box = el('blockquote', null, 'mc-evidence');
     const line = el('strong', w.evidence.line);
     line.lang = w.edition?.lang || 'zh-CN';
+    const meta = evidenceMeta(w);
+    if (meta && w.id !== 'tagore') {
+      markOriginal(line, meta);
+      line.classList.add('pline');
+    }
     box.append(line);
     if (hasEvidenceAudio(w)) box.append(audio(w.evidence.line));
     const plain = w.evidence.plain || evidenceTranslations[w.id];
@@ -2127,11 +2149,17 @@ html:not(.yw-line-mode) [data-line-audio],
     });
     const reveal = button(showAnswer, () => {
       line.textContent = passage.text;
+      markOriginal(line, readingMeta(workById(passage.id)));
       respond(message, B('Compare word order and characters with the original.','对照原文，自查用字和顺序。'), 'yes');
     });
     const listen = button(listenChinese, () => Lab.speak(passage.text, {lang:'zh'}));
     function update() {
       line.textContent = [passage.text, passage.before + squares(passage.answer) + passage.after, squares(passage.text)][level];
+      if (level === 0) markOriginal(line, readingMeta(workById(passage.id)));
+      else {
+        delete line.dataset.readStyle;
+        delete line.dataset.work;
+      }
       modes.forEach((b, i) => b.setAttribute('aria-pressed', String(i === level)));
       first.disabled = level === 0;
       reveal.disabled = level === 0;
@@ -2372,15 +2400,19 @@ html:not(.yw-line-mode) [data-line-audio],
   Lab.readAll(() => [
     ...works.flatMap(w => {
       const texts = [...w.gloss.flatMap(narrationSpeech), ...narrationSpeech(w.evidence.hint)];
-      if (hasEvidenceAudio(w)) texts.push([w.evidence.line, 'zh']);
+      if (hasEvidenceAudio(w)) {
+        const meta = evidenceMeta(w);
+        texts.push(meta ? [w.evidence.line, 'zh', meta] : [w.evidence.line, 'zh']);
+      }
       if (w.edition) {
         const {lang, poem, stanza} = w.edition;
-        if (!lang) texts.push(...sourceSpeech(originals[w.id], poem, stanza, w));
+        if (!lang) texts.push(...sourceSpeech(originals[w.id], poem, stanza, w)
+          .map(([text, language]) => [text, language, readingMeta(w)]));
         if (chineseTranslations[w.id]) texts.push(...sourceSpeech(chineseTranslations[w.id], !!poem, stanza, w));
       }
       return texts;
     }),
-    ...passages.map(passage => [passage.text, 'zh']),
+    ...passages.map(passage => [passage.text, 'zh', readingMeta(workById(passage.id))]),
     ...challengeSteps.flatMap(([, explanation]) => narrationSpeech(explanation)),
     ...stops.flatMap(([, , account]) => narrationSpeech(account))
   ]);

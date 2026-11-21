@@ -44,9 +44,6 @@
 .showpy .yc .py{visibility:visible}
 .yc b{font-weight:400}
 .yp{display:inline-block;vertical-align:bottom}
-.pline{display:block;padding:2px 8px;border-radius:12px;transition:background .2s}
-.pline.on{background:color-mix(in srgb,var(--brand) 16%,transparent)}
-.pline small.en{display:block;font-family:Nunito,system-ui,sans-serif;font-size:14px;color:var(--ink-2);line-height:1.4;margin:0 0 6px}
 /* bar figure */
 .ywb{display:flex;flex-direction:column;gap:8px}
 .ywb-t{font-size:19px;margin-bottom:10px}
@@ -107,7 +104,47 @@
 .model{font-size:16px;line-height:1.7}
 @media (max-width:980px){.devgrid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media (max-width:560px){.devgrid{grid-template-columns:repeat(2,minmax(0,1fr))}.xray{font-size:20px}}
+.yw-recite{min-width:0;margin-top:10px;padding:0 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface-2)}
+.yw-recite > summary{padding:8px 0;color:var(--ink-2);cursor:pointer;font-size:.85rem;font-weight:700}
+.yw-recite > iframe{display:block;width:100%;height:auto;aspect-ratio:16/9;border:0;border-radius:var(--radius)}
+.yw-recite .yw-recite-source{margin:6px 0 8px;color:var(--ink-2);font-size:.8rem;overflow-wrap:anywhere}
 </style>
+<script>
+const recitationNotes = [
+  {"en":"Classics Resource Library (Ministry of Education project) recitation","zh":"中华经典资源库（教育部、国家语委项目）诵读"}
+];
+const recitationSources = {
+  "room": {
+    title:"陋室铭",
+    embed:"https://player.bilibili.com/player.html?bvid=BV18w411W7DG&autoplay=0",
+    url:"https://www.bilibili.com/video/BV18w411W7DG",
+    note:recitationNotes[0]
+  }
+};
+function recitationHTML(key) {
+  const recording = recitationSources[key];
+  if (!recording) return '';
+  const summary = {en:'🎙️ 听名家朗诵 · Hear a recitation', zh:'🎙️ 听名家朗诵'};
+  const {note, url} = recording;
+  return `<details class="yw-recite" data-recite="${key}" data-noread data-nopy>
+    <summary data-en="${summary.en}" data-zh="${summary.zh}">${Lab.L(summary)}</summary>
+    <p class="yw-recite-source"><span data-en="${note.en}" data-zh="${note.zh}">${Lab.L(note)}</span>
+      <a href="${url}" target="_blank" rel="noopener">↗ bilibili</a></p>
+  </details>`;
+}
+document.addEventListener('toggle', event => {
+  const details = event.target;
+  if (!details.open || !details.matches('.yw-recite')) return;
+  Lab.stopSpeech();
+  if (details.querySelector('iframe')) return;
+  const {embed, title} = recitationSources[details.dataset.recite];
+  const frame = document.createElement('iframe');
+  frame.src = embed;
+  frame.title = title + ' · 朗诵 / Recitation';
+  frame.setAttribute('allowfullscreen', '');
+  details.querySelector('.yw-recite-source').before(frame);
+}, true);
+</script>
 </head>
 <body data-subject="yuwen" data-topic="yw-rhetoric">
 <div id="lab-nav"></div>
@@ -372,10 +409,34 @@ const DEV = {
    mix:o('A quotation is someone else’s well-known words. A character’s own speech in quotation marks is not a quotation device.','引用的是现成的名言、诗句、俗语、典故；人物说话加引号不是引用修辞。'),
    mem:o('Borrowing wise words to back you up.','引用：借别人的名言为我所用。') }
 };
+const verseWorks = new Set(['木兰诗','望庐山瀑布','观书有感','白雪歌送武判官归京','静夜思','秋浦歌','赠汪伦','书山学海']);
+const proseWorks = new Set(['春','从百草园到三味书屋']);
+const readingMeta = work => ({style:verseWorks.has(work) ? 'verse' : proseWorks.has(work) ? 'prose' : 'wenyan', work});
+const sourceMeta = src => {
+  const work = src?.match(/《([^》]+)》/)?.[1];
+  return work ? readingMeta(work) : null;
+};
+const originalEntry = (text, src) => {
+  const meta = sourceMeta(src);
+  return meta ? [text, 'zh', meta] : [text, 'zh'];
+};
+function markOriginal(el, meta) {
+  el.classList.toggle('pline', !!meta);
+  if (meta) {
+    el.dataset.readStyle = meta.style;
+    el.dataset.work = meta.work;
+  } else {
+    delete el.dataset.readStyle;
+    delete el.dataset.work;
+  }
+}
 const deviceExampleSpeech = d => d.x.map(p => p[0]).join('');
 const DK = Object.keys(DEV), XR = ['xr0', 'xr1', 'xr2'];
 const DS = { sel:null, seen:new Set() };
-const xray = d => `<div class="xray kai" data-nopy>${d.x.map(([t, c, r]) => r ? `<span class="${XR[c]}" data-r="${r}">${t}</span>` : t).join('')}</div><p class="muted" style="margin:0;font-size:13.5px">—— ${d.src}</p>`;
+const xray = d => {
+  const {style, work} = sourceMeta(d.src);
+  return `<div class="xray kai pline" data-nopy data-read-style="${style}" data-work="${work}">${d.x.map(([t, c, r]) => r ? `<span class="${XR[c]}" data-r="${r}">${t}</span>` : t).join('')}</div><p class="muted" style="margin:0;font-size:13.5px">—— ${d.src}</p>`;
+};
 function devDraw(){
   Lab.$('#devGrid').innerHTML = DK.map(k => `<button class="${DS.sel === k ? 'on' : ''} ${DS.seen.has(k) ? 'seen' : ''}" data-k="${k}"><b data-nopy>${k}</b><small>${DEV[k].en}</small></button>`).join('');
   Lab.$$('#devGrid button').forEach(b => b.onclick = () => { DS.sel = b.dataset.k; DS.seen.add(DS.sel); if (DS.seen.size >= DK.length) YW.done('m1'); YW.zh(DS.sel); devDraw(); });
@@ -398,6 +459,7 @@ function devDraw(){
 Lab.onLang(devDraw);
 
 /* ===== Mission 2: X-ray 《陋室铭》 (full text, public domain) ===== */
+const roomWork = '陋室铭';
 const LSM = [
   ['山不在高，有仙则名。水不在深，有龙则灵。', ['对偶'], o('Two sentences, same shape: 山不在高 ↔ 水不在深 (it also compares the room to famous mountains and waters).','山不在高↔水不在深，句式相同、字数相等（同时也是类比、起兴）。')],
   ['斯是陋室，惟吾德馨。', [], o('The key line of the text — no special device: “This is a humble room, but my virtue makes it fragrant.”','点题句，没有特别的修辞：“这是简陋的屋子，只是我的品德高尚。”')],
@@ -413,7 +475,7 @@ const LS = { q:0, ok:new Set(), lens:null, msg:null, last:-1 };
 function lsmDraw(){
   const q = LQ[LS.q], done = LS.q >= LQ.length;
   Lab.$('#lsmQ').textContent = done ? Lab.L(o('🔓 Lenses unlocked! Switch one on to see every line that uses it.','🔓 透镜已解锁！打开一个透镜，看看全文哪些句子用了它。')) : `${LS.q + 1}/4 · ${Lab.L(q[1])}`;
-  Lab.$('#lsmLines').innerHTML = LSM.map(([s, t], i) => `<button data-i="${i}" class="${(LS.lens && t.includes(LS.lens)) || LS.last === i ? 'ok' : ''}">${s}${LS.lens && t.includes(LS.lens) ? `<i>${LS.lens}</i>` : ''}</button>`).join('');
+  Lab.$('#lsmLines').innerHTML = LSM.map(([s, t], i) => `<button data-i="${i}" class="${(LS.lens && t.includes(LS.lens)) || LS.last === i ? 'ok' : ''}"><span class="pline" data-read-style="wenyan" data-work="${roomWork}">${s}</span>${LS.lens && t.includes(LS.lens) ? `<i>${LS.lens}</i>` : ''}</button>`).join('');
   Lab.$$('#lsmLines button').forEach(b => b.onclick = () => lsmPick(+b.dataset.i));
   Lab.$('#lsmLens').innerHTML = done ? ['对偶', '拟人', '引用', '反问'].map(k => `<button class="tbtn ${LS.lens === k ? 'on' : ''}" data-k="${k}" data-nopy>${k}</button>`).join('') : '';
   Lab.$$('#lsmLens button').forEach(b => b.onclick = () => { LS.lens = LS.lens === b.dataset.k ? null : b.dataset.k; LS.last = -1; LS.msg = null; lsmDraw(); });
@@ -428,6 +490,7 @@ function lsmPick(i){
   lsmDraw();
 }
 Lab.onLang(lsmDraw);
+Lab.$('#lsmLens').insertAdjacentHTML('afterend', recitationHTML('room'));
 (function(){ const cnt = {}; LSM.forEach(([, t]) => t.forEach(k => cnt[k] = (cnt[k] || 0) + 1));
   YW.bars('#figLsm', Object.entries(cnt).sort((a, b) => b[1] - a[1]).map(([k, v]) => ({ l:o(`${k} ${DEV[k].en}`, k), v, t:o(`${v} line${v > 1 ? 's' : ''}`, `${v}句`) })),
     { title:o(`📊 Devices in 《陋室铭》 (${YW.hanOnly(LSM.map(l => l[0]).join('')).length} characters, ${LSM.length} lines)`, `📊 《陋室铭》用了哪些修辞（全文${YW.hanOnly(LSM.map(l => l[0]).join('')).length}字，分${LSM.length}句）`),
@@ -469,7 +532,8 @@ function dtStart(){ DT.list = Lab.shuffle(CASES).slice(0, 10); DT.i = 0; DT.scor
 function dtDraw(){
   const q = DT.list[DT.i];
   Lab.$('#dtScore').textContent = DT.score; Lab.$('#dtN').textContent = `${Math.min(DT.i + 1, 10)}/10`; Lab.$('#dtStreak').textContent = DT.streak; Lab.$('#dtStars').textContent = YW.stars(DT.right, 10);
-  const m = Lab.$('#dtMsg');
+  const m = Lab.$('#dtMsg'), sentence = Lab.$('#dtSent');
+  markOriginal(sentence, sourceMeta(q?.src));
   if (!q){ Lab.$('#dtSent').textContent = `${DT.right}/10 ${YW.stars(DT.right, 10)}`; Lab.$('#dtSrc').textContent = ''; Lab.$('#dtBtns').innerHTML = ''; m.className = 'result good'; m.textContent = Lab.L(o('Case closed! Press “Next” for a new round.','结案！点击“下一句”再来一轮。')); return; }
   Lab.$('#dtSent').innerHTML = DT.picked ? q.s.replace(q.k, `<span class="clue">${q.k}</span>`) : q.s;
   Lab.$('#dtSrc').textContent = q.src ? '—— ' + q.src : Lab.L(EX);
@@ -485,7 +549,7 @@ Lab.onLang(() => { if (DT.list.length) dtDraw(); });
 dtStart();
 
 /* ===== Mission 4: sentence upgrader (example sentences written for this page) ===== */
-const upc = (t, p, en, zh) => ({ t, p, why:o(en, zh) });
+const upc = (t, p, en, zh, work) => ({ t, p, why:o(en, zh), work });
 const UP = [
   { plain:'公园里的桃花开了。', d:{
     比喻:{ tpl:'公园里的桃花开了，远远望去，像{}。', ch:[upc('一片粉红的云霞',3,'Pink, soft and spread out — just like a mass of blossoms.','颜色、形态都相似，又美，是最佳比喻。'), upc('一团燃烧的火',1,'Fire is red and hot — peach blossoms are pink and gentle. The likeness is weak.','火是红的、炽热的，和粉色的桃花不太像。'), upc('一块红砖头',0,'A brick is hard and ugly — no shared feature with flowers.','砖头又硬又笨，和花没有相似点。'), upc('公园里的桃花',0,'Comparing a thing to itself is not a simile!','自己比自己，不是比喻。')] },
@@ -509,14 +573,17 @@ const UP = [
   { plain:'读书很重要。', d:{
     引用:{ tpl:'古人说“{}”，读书要多读、熟读。', ch:[upc('书读百遍，其义自见',3,'An old saying exactly about re-reading.','古语，正好说明要反复读书。'), upc('学而不思则罔，思而不学则殆',2,'About learning and thinking — related, not exact.','和学习有关，但没说“多读”。'), upc('床前明月光',0,'Unrelated.','无关。'), upc('读书很重要',0,'Your own words.','自己的话，不是引用。')] },
     排比:{ tpl:'{}。', ch:[upc('读书能开阔眼界，读书能丰富知识，读书能陶冶性情',3,'Three “读书能…” clauses — strong rhythm.','三个“读书能……”，结构相同，气势强。'), upc('读书能开阔眼界，读书能丰富知识',1,'Only two parts.','只有两项。'), upc('读书好，好读书',0,'Not three parts.','不是排比。'), upc('读书很重要，非常重要',0,'Repetition.','只是重复。')] },
-    对偶:{ tpl:'{}。', ch:[upc('书山有路勤为径，学海无涯苦作舟',3,'Two seven-character lines matching word for word (a famous couplet).','两句七字，对仗工整，是有名的对联。'), upc('读书好，读书很好',0,'Different lengths.','字数不等。'), upc('多读书，读好书，好读书',0,'Three parts — that would be parallelism.','三项，不是对偶。'), upc('书是好东西',0,'No device.','没有修辞。')] } } }
+    对偶:{ tpl:'{}。', ch:[upc('书山有路勤为径，学海无涯苦作舟',3,'Two seven-character lines matching word for word (a famous couplet).','两句七字，对仗工整，是有名的对联。', '书山学海'), upc('读书好，读书很好',0,'Different lengths.','字数不等。'), upc('多读书，读好书，好读书',0,'Three parts — that would be parallelism.','三项，不是对偶。'), upc('书是好东西',0,'No device.','没有修辞。')] } } }
 ];
 const upgradeSpeech = (device, choice) => device.tpl.replace('{}', choice.t);
 Lab.readAll(() => [
-  ...DK.flatMap(name => [[name, 'zh'], [deviceExampleSpeech(DEV[name]), 'zh']]),
-  ...LSM.map(([line]) => [line, 'zh']),
-  ...CASES.map(q => [caseSpeech(q), 'zh']),
-  ...UP.flatMap(s => Object.values(s.d).flatMap(device => device.ch.map(choice => [upgradeSpeech(device, choice), 'zh'])))
+  ...DK.flatMap(name => [[name, 'zh'], originalEntry(deviceExampleSpeech(DEV[name]), DEV[name].src)]),
+  ...LSM.map(([line]) => [line, 'zh', readingMeta(roomWork)]),
+  ...CASES.map(q => originalEntry(caseSpeech(q), q.src)),
+  ...UP.flatMap(s => Object.values(s.d).flatMap(device => device.ch.map(choice => {
+    const text = upgradeSpeech(device, choice);
+    return choice.work ? [text, 'zh', readingMeta(choice.work)] : [text, 'zh'];
+  })))
 ]);
 const US = { i:0, dev:null, pick:{}, score:0, best:0 };
 function upDraw(){
@@ -526,7 +593,9 @@ function upDraw(){
   Lab.$('#upDevs').innerHTML = devs.map(k => { const p = US.pick[US.i + k]; return `<button class="tbtn ${k === US.dev ? 'on' : ''}" data-k="${k}"><span class="kai" data-nopy>${k}</span>${Lab.lang === 'en' ? ' · ' + DEV[k].en.split(' (')[0] : ''}${p ? (S.d[k].ch[p.i].p === 3 ? ' ⭐' : ' ✓') : ''}</button>`; }).join('');
   Lab.$$('#upDevs button').forEach(b => b.onclick = () => { US.dev = b.dataset.k; upDraw(); });
   const D = S.d[US.dev], pk = US.pick[US.i + US.dev], order = D.order || (D.order = Lab.shuffle(D.ch.map((_, i) => i)));
-  Lab.$('#upBox').innerHTML = D.tpl.replace('{}', pk ? `<b style="color:var(--brand)">${D.ch[pk.i].t}</b>` : '<span class="gapw">？</span>');
+  const sentence = Lab.$('#upBox'), work = pk && D.ch[pk.i].work;
+  markOriginal(sentence, work ? readingMeta(work) : null);
+  sentence.innerHTML = D.tpl.replace('{}', pk ? `<b style="color:var(--brand)">${D.ch[pk.i].t}</b>` : '<span class="gapw">？</span>');
   Lab.$('#upCh').innerHTML = order.map(i => `<button data-i="${i}" class="${pk ? (D.ch[i].p === 3 ? 'right' : i === pk.i ? 'wrong' : '') : ''}" ${pk ? 'disabled' : ''}>${D.ch[i].t}</button>`).join('');
   Lab.$$('#upCh button').forEach(b => b.onclick = () => { const i = +b.dataset.i, ch = D.ch[i]; US.pick[US.i + US.dev] = { i }; US.score += ch.p; if (ch.p === 3){ US.best++; if (US.best >= 5) YW.done('m4'); }
     YW.zh(upgradeSpeech(D, ch)); upDraw(); });

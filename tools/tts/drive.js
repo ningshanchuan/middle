@@ -29,7 +29,7 @@
     for (const el of document.querySelectorAll('button,[role=button],.speak,.say,a,[data-say],[data-speak]')) if (isSpeaker(el) && vis(el)) click(el);
     // every visible text as it would be read on demand (lab.js hover / double-click / long press), after the 🔊 texts;
     // not for slider values or canvas grid clicks (number readouts)
-    if (src !== 'input' && src !== 'canvas') try { if (window.Lab && Lab.blockTexts) for (const [t, lg] of Lab.blockTexts()) CAP.add(t, lg, 'hover'); } catch(e){ if (C.err.length < 20) C.err.push('blocks: ' + e.message); }
+    if (src !== 'input' && src !== 'canvas') try { if (window.Lab && Lab.blockTexts) for (const [t, lg, m] of Lab.blockTexts()) CAP.add(t, lg, 'hover', null, null, m); } catch(e){ if (C.err.length < 20) C.err.push('blocks: ' + e.message); }
   };
   const sig = el => {
     const d = Object.keys(el.dataset || {}).filter(k => !/^(en|zh|enHtml|zhHtml|ready|on|state)$/.test(k)).map(k => k + '=' + el.dataset[k]).join(',');
@@ -70,7 +70,7 @@
     // the step player reads its section's mix-up box once, after the last step (mathanim.js): capture exactly the same text
     try { if (window.Lab && Lab.mixText) for (const cfg of (window.__maCfgs || [])){ const el = typeof cfg.el === 'string' ? document.querySelector(cfg.el) : cfg.el; if (!el) continue; const scope = el.closest('section') || el, CARD = '.info,.card,.panel,.box,.detail,.sidebar'; const lg = Lab.lang === 'zh' ? 'zh' : 'en'; for (const sel of ['.memory', '.mix']){ const box = [...scope.querySelectorAll(sel)].find(b => { if (!b.getClientRects().length) return false; const c = b.closest(CARD); return !c || !!c.querySelector('.ma-player,.ma-narration'); }); const m = box ? Lab.mixText(box, lg) : ''; if (m) CAP.add(m, lg, 'mix'); } } } catch(e){ C.err.push('ma-mix: ' + e.message); }
     // texts the page lists itself (lab.js Lab.readAll: every poem line, whole-poem unit … even ones behind clicks)
-    try { CAP.src = 'readall'; if (window.Lab && Lab.readAllTexts) for (const [t, lg] of Lab.readAllTexts()) CAP.add(t, lg || Lab.lang, 'list'); } catch(e){ C.err.push('readall: ' + e.message); }
+    try { CAP.src = 'readall'; if (window.Lab && Lab.readAllTexts) for (const [t, lg, m] of Lab.readAllTexts()) CAP.add(t, lg || Lab.lang, 'list', null, null, m); } catch(e){ C.err.push('readall: ' + e.message); }
     C.phase = 'initial'; speakAll('initial'); await settle();
     // 2. sliders and drop-downs
     C.phase = 'inputs'; const inputsUp = () => timeUp() || Date.now() - T0 > MAXMS * 0.35;   // leave most of the time for clicking

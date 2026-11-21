@@ -9,13 +9,14 @@
   const norm = t => String(t == null ? '' : t).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
   const key = (n, lang) => { const s = lang + '|' + n; let h = 0x811c9dc5; for (let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return ('0000000' + h.toString(16)).slice(-8); };
   const C = window.__cap = { t: [], seen: new Set(), by: new Map(), src: 'load', calls: 0, norm, key };
-  C.add = (text, lang, via, rate, raw) => {
+  C.add = (text, lang, via, rate, raw, meta) => {
     C.calls++;
     const n = norm(String(text == null ? '' : text).replace(/<[^>]+>/g, '')); if (!n) return;
     const k = key(n, lang);
-    if (C.seen.has(k)){ const o = C.by.get(k); if (o && o.via === 'hover' && via !== 'hover'){ o.via = via; o.src = C.src; } return; }   // a text the page also reads by itself is not 'on demand only'
+    if (C.seen.has(k)){ const o = C.by.get(k); if (o){ if (o.via === 'hover' && via !== 'hover'){ o.via = via; o.src = C.src; } if (meta && meta.style && !o.style){ o.style = meta.style; if (meta.work) o.work = meta.work; } } return; }   // a text the page also reads by itself is not 'on demand only'
     C.seen.add(k);
     const o = raw ? { key: k, lang, text: n, via, rate: rate || null, src: C.src, raw } : { key: k, lang, text: n, via, rate: rate || null, src: C.src };
+    if (meta && meta.style){ o.style = meta.style; if (meta.work) o.work = meta.work; }
     C.t.push(o); C.by.set(k, o);
   };
   // Lab.speak: trap the property on window.Lab so even calls made during page start-up are captured

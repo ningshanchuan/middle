@@ -88,7 +88,54 @@ html:not(.yw-line-mode) [data-line-audio],
 [data-line-toggle] { min-height:44px }
 [data-line-toggle][aria-pressed="true"] { border-color:var(--brand);background:color-mix(in srgb,var(--brand) 16%,var(--surface)) }
 .yw-line-mode [data-line-text] { cursor:pointer }
+.yw-recite{min-width:0;margin-top:10px;padding:0 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface-2)}
+.yw-recite > summary{padding:8px 0;color:var(--ink-2);cursor:pointer;font-size:.85rem;font-weight:700}
+.yw-recite > iframe{display:block;width:100%;height:auto;aspect-ratio:16/9;border:0;border-radius:var(--radius)}
+.yw-recite .yw-recite-source{margin:6px 0 8px;color:var(--ink-2);font-size:.8rem;overflow-wrap:anywhere}
 </style>
+<script>
+const recitationNotes = [
+  {"en":"Classics Resource Library (Ministry of Education project) · read by Fang Ming, China National Radio","zh":"中华经典资源库（教育部、国家语委项目）· 方明朗诵"},
+  {"en":"Classics Resource Library (Ministry of Education project) recitation","zh":"中华经典资源库（教育部、国家语委项目）诵读"}
+];
+const recitationSources = {
+  "zuiweng": {
+    title:"醉翁亭记",
+    embed:"https://player.bilibili.com/player.html?bvid=BV1RQ4y187YP&autoplay=0",
+    url:"https://www.bilibili.com/video/BV1RQ4y187YP",
+    note:recitationNotes[0]
+  },
+  "fish": {
+    title:"鱼我所欲也",
+    embed:"https://player.bilibili.com/player.html?bvid=BV1Ja4y1D7Qz&autoplay=0",
+    url:"https://www.bilibili.com/video/BV1Ja4y1D7Qz",
+    note:recitationNotes[1]
+  }
+};
+function recitationHTML(key) {
+  const recording = recitationSources[key];
+  if (!recording) return '';
+  const summary = {en:'🎙️ 听名家朗诵 · Hear a recitation', zh:'🎙️ 听名家朗诵'};
+  const {note, url} = recording;
+  return `<details class="yw-recite" data-recite="${key}" data-noread data-nopy>
+    <summary data-en="${summary.en}" data-zh="${summary.zh}">${Lab.L(summary)}</summary>
+    <p class="yw-recite-source"><span data-en="${note.en}" data-zh="${note.zh}">${Lab.L(note)}</span>
+      <a href="${url}" target="_blank" rel="noopener">↗ bilibili</a></p>
+  </details>`;
+}
+document.addEventListener('toggle', event => {
+  const details = event.target;
+  if (!details.open || !details.matches('.yw-recite')) return;
+  Lab.stopSpeech();
+  if (details.querySelector('iframe')) return;
+  const {embed, title} = recitationSources[details.dataset.recite];
+  const frame = document.createElement('iframe');
+  frame.src = embed;
+  frame.title = title + ' · 朗诵 / Recitation';
+  frame.setAttribute('allowfullscreen', '');
+  details.querySelector('.yw-recite-source').before(frame);
+}, true);
+</script>
 </head>
 <body class="wy9" data-subject="yuwen" data-topic="yw-wenyan-9">
 <div id="lab-nav"></div>
@@ -723,17 +770,19 @@ const paragraphUnits = (text, target) => readingUnits(text).map(text => ({text, 
 const paragraphText = part => part.original.replaceAll('|', '');
 const paragraphLines = part => part.original.split('|');
 const fullText = work => work.title.zh + '。' + work.parts.map(paragraphText).join('');
+const readingMeta = work => ({style:groups.novels.ids.includes(work.id) ? 'prose' : 'wenyan', work:work.title.zh});
 Lab.readAll(() => readings.flatMap(work => {
   const full = fullText(work);
   const whole = readingLength(full) <= 150 ? readingUnits(full) : [];
   const parts = work.parts.flatMap(part => [...readingUnits(paragraphText(part)), ...paragraphLines(part).flatMap(line => readingUnits(line))]);
   const notes = [work.context, work.analysis];
-  return [...[...whole, ...parts].map(text => [text, 'zh']),
+  return [...[...whole, ...parts].map(text => [text, 'zh', readingMeta(work)]),
     ...notes.flatMap(note => ['zh', 'en'].map(lang => [note[lang] ?? note.en ?? '', lang]))];
 }));
 
 const cards = new Map();
 function buildWork(work) {
+  const meta = readingMeta(work);
   const card = el('details',null,'card work');
   card.id = work.id;
   const header = el('summary',formatTitle(work));
@@ -763,6 +812,7 @@ function buildWork(work) {
   }
   controls.insertAdjacentHTML('beforeend', lineModeToggle('btn ghost'));
   body.append(controls,passage);
+  body.insertAdjacentHTML('beforeend', recitationHTML(work.id));
   for (const part of work.parts) {
     const lane = el('div',null,'reader');
     const column = el('div',null,'no-places');
@@ -782,6 +832,8 @@ function buildWork(work) {
       audio.dataset.lineAudio = '';
       const original = chinese('p',line,'original');
       original.dataset.lineText = '';
+      original.dataset.readStyle = meta.style;
+      original.dataset.work = meta.work;
       row.append(original,audio);
       column.append(row);
     }
@@ -796,7 +848,10 @@ function buildWork(work) {
     glossary.append(item);
   }
   const quote = el('blockquote',null,'quote no-places');
-  quote.append(el('p',ui.quote),chinese('p',work.quote,'original'),el('p',work.analysis),listenToExplanation(work.analysis));
+  const keyQuote = chinese('p',work.quote,'original');
+  keyQuote.dataset.readStyle = meta.style;
+  keyQuote.dataset.work = meta.work;
+  quote.append(el('p',ui.quote),keyQuote,el('p',work.analysis),listenToExplanation(work.analysis));
   const source = anchor(ui.source,work.source,'jump');
   body.append(details(ui.vocab,glossary),quote,el('h4',ui.exam),el('p',work.exam),details(ui.model,el('p',work.model)),
     details(ui.variant,el('p',work.variant),source));

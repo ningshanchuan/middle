@@ -44,9 +44,6 @@
 .showpy .yc .py{visibility:visible}
 .yc b{font-weight:400}
 .yp{display:inline-block;vertical-align:bottom}
-.pline{display:block;padding:2px 8px;border-radius:12px;transition:background .2s}
-.pline.on{background:color-mix(in srgb,var(--brand) 16%,transparent)}
-.pline small.en{display:block;font-family:Nunito,system-ui,sans-serif;font-size:14px;color:var(--ink-2);line-height:1.4;margin:0 0 6px}
 /* bar figure */
 .ywb{display:flex;flex-direction:column;gap:8px}
 .ywb-t{font-size:19px;margin-bottom:10px}
@@ -121,7 +118,8 @@
 .hs.sel .ring{stroke:#ffd666;stroke-width:5}
 .hs.bad .ring{fill:rgba(220,50,50,.5);stroke:#ff6b6b}
 .hs.off{display:none}
-.scside{padding:18px 20px;display:flex;flex-direction:column;gap:10px}
+.scside{padding:18px 20px}
+.scside,#taoSide{display:flex;flex-direction:column;gap:10px}
 .scq{font-size:20px;line-height:1.7;background:var(--surface-2);border-radius:12px;padding:10px 14px}
 .scq small{display:block;font-family:Nunito,system-ui,sans-serif;font-size:14px;color:var(--ink-2);line-height:1.45;margin-top:4px}
 .mood{height:14px;border-radius:999px;background:linear-gradient(90deg,#5b6577,#c9c9c9 50%,#f2b134);position:relative;margin-top:4px}
@@ -141,7 +139,59 @@
 .toolhead h3{margin:0;font-size:22px}
 @media (max-width:980px){.scwrap{grid-template-columns:1fr}}
 @media (max-width:560px){.ml-slots span{width:34px;height:40px;font-size:22px}.ml-tiles button{width:42px;height:42px;font-size:21px}.scq{font-size:18px}}
+.yw-recite{min-width:0;margin-top:10px;padding:0 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface-2)}
+.yw-recite > summary{padding:8px 0;color:var(--ink-2);cursor:pointer;font-size:.85rem;font-weight:700}
+.yw-recite > iframe{display:block;width:100%;height:auto;aspect-ratio:16/9;border:0;border-radius:var(--radius)}
+.yw-recite .yw-recite-source{margin:6px 0 8px;color:var(--ink-2);font-size:.8rem;overflow-wrap:anywhere}
 </style>
+<script>
+const recitationNotes = [
+  {"en":"Classics Resource Library (Ministry of Education project) recitation","zh":"中华经典资源库（教育部、国家语委项目）诵读"},
+  {"en":"Classics Resource Library (Ministry of Education project) · read by Fang Ming, China National Radio","zh":"中华经典资源库（教育部、国家语委项目）· 方明朗诵"}
+];
+const recitationSources = {
+  "th": {
+    title:"桃花源记",
+    embed:"https://player.bilibili.com/player.html?bvid=BV1uC4y1i7Vm&autoplay=0",
+    url:"https://www.bilibili.com/video/BV1uC4y1i7Vm",
+    note:recitationNotes[0]
+  },
+  "zw": {
+    title:"醉翁亭记",
+    embed:"https://player.bilibili.com/player.html?bvid=BV1RQ4y187YP&autoplay=0",
+    url:"https://www.bilibili.com/video/BV1RQ4y187YP",
+    note:recitationNotes[1]
+  }
+};
+function recitationHTML(key) {
+  const recording = recitationSources[key];
+  if (!recording) return '';
+  const summary = {en:'🎙️ 听名家朗诵 · Hear a recitation', zh:'🎙️ 听名家朗诵'};
+  const {note, url} = recording;
+  return `<details class="yw-recite" data-recite="${key}" data-noread data-nopy>
+    <summary data-en="${summary.en}" data-zh="${summary.zh}">${Lab.L(summary)}</summary>
+    <p class="yw-recite-source"><span data-en="${note.en}" data-zh="${note.zh}">${Lab.L(note)}</span>
+      <a href="${url}" target="_blank" rel="noopener">↗ bilibili</a></p>
+  </details>`;
+}
+function renderRecitation(slot, key) {
+  if (slot.dataset.work === key) return;
+  slot.dataset.work = key;
+  slot.innerHTML = recitationHTML(key);
+}
+document.addEventListener('toggle', event => {
+  const details = event.target;
+  if (!details.open || !details.matches('.yw-recite')) return;
+  Lab.stopSpeech();
+  if (details.querySelector('iframe')) return;
+  const {embed, title} = recitationSources[details.dataset.recite];
+  const frame = document.createElement('iframe');
+  frame.src = embed;
+  frame.title = title + ' · 朗诵 / Recitation';
+  frame.setAttribute('allowfullscreen', '');
+  details.querySelector('.yw-recite-source').before(frame);
+}, true);
+</script>
 </head>
 <body data-subject="yuwen" data-topic="yw-wenyan-classics">
 <div id="lab-nav"></div>
@@ -164,6 +214,7 @@
     <div class="card" style="padding:22px">
       <div class="btnrow" style="margin-bottom:10px"><button class="tbtn" id="txRead" data-zh="🔊 朗读全文">🔊 Read full text</button><button class="tbtn" id="txSequence" type="button" data-read-sequence data-zh="🔊 分段朗读">🔊 Read by paragraph</button><button class="tbtn" id="txLines" type="button" data-speak data-zh="逐句跟读">Line by line</button><button class="tbtn" id="txStop" data-zh="⏹ 停止">⏹ Stop</button><button class="tbtn" id="txPy" data-zh="拼音">Pinyin</button><button class="tbtn" id="txTr" data-zh="译文">Translation</button></div>
       <div id="txBox" data-nopy></div>
+      <div id="txRecitation"></div>
     </div>
     <aside class="info card" id="glInfo" aria-live="polite"></aside>
   </div>
@@ -192,7 +243,7 @@
   <div class="btnrow" style="margin-bottom:10px"><button class="tbtn on" id="taoExp" data-zh="🔍 探索">🔍 Explore</button><button class="tbtn" id="taoGame" data-zh="🎯 找一找">🎯 Find it</button></div>
   <div class="scwrap">
     <div class="card scn" id="taoStage" data-nopy></div>
-    <div class="card scside" id="taoSide" aria-live="polite"></div>
+    <div class="card scside"><div id="taoSide" aria-live="polite"></div></div>
   </div>
   <details class="peek" style="margin-top:14px"><summary data-zh="为什么再也找不到桃花源？ ▸">Why could nobody find it again? ▸</summary><p data-zh="桃花源是作者虚构的理想社会：没有战乱，没有压迫，人人安居乐业。“遂迷，不复得路”“后遂无问津者”说明这样的世界在现实中并不存在，寄托了陶渊明对美好生活的向往和对黑暗现实的不满。">Peach Blossom Spring is Tao Yuanming’s imagined ideal society — no war, no oppression, everyone living in peace. “They got lost and never found the road again” tells us such a place doesn’t exist in real life. Tao (365?–427) lived through civil wars; the story shows his dream of a better life and his criticism of his own times. English borrowed a word from a similar idea: <i>utopia</i> (Thomas More, 1516) — and Chinese still says 世外桃源 for a perfect hidden paradise.</p></details>
 </section>
@@ -465,6 +516,7 @@ const YW = (() => {
 const TAGS = { 通假:['Borrowed character','通假字','t1'], 古今:['Old vs new meaning','古今异义','t2'], 活用:['Word-class shift','词类活用','t3'], 多义:['One word, many meanings','一词多义','t4'],
   实词:['Content word','实词',''], 虚词:['Function word','虚词',''], 人名:['Name / title','人名、称谓',''], 句式:['Special sentence pattern','特殊句式','t4'] };
 const RD = { t:0, sel:null, py:false, tr:false, now:-1, seen:new Set(), need:15, mission:null, onRead:null };
+const readingMeta = passage => ({style:'wenyan', work:passage.t.replace(/[《》]/g, '')});
 const plain = s => s.replace(/[{}]/g, '');
 const readingLength = text => [...text].length;
 // Keep sentence endings and closing quotes together. Use clause breaks for oversized sentences.
@@ -503,10 +555,11 @@ function readingUnits(text, limit = 150){
 const fullText = text => text.t + '。' + text.items.map(item => plain(item.s)).join('');
 const paragraphUnits = (item, index) => readingUnits(plain(item.s)).map(text => ({text, index}));
 function itemHTML(it, ti, ii){
+  const {style, work} = readingMeta(TEXTS[ti]);
   let k = 0;
   const body = it.s.replace(/\{([^}]+)\}/g, (_, w) => { const gi = k++, g = it.g[gi] || ['', '', '', ''], id = `${ti}-${ii}-${gi}`;
     return `<span class="yc gw ${RD.sel === id ? 'sel' : ''} ${RD.seen.has(id) ? 'seen' : ''}" data-id="${id}"><i class="py">${g[0]}</i><b>${w}</b></span>`; });
-  return `<div class="wtx kai ${(RD.now === -2 || RD.now === ii) ? 'on' : ''} ${RD.py ? 'showpy' : ''}" data-i="${ii}">${it.h ? `<h4>${it.h}</h4>` : ''}${body}
+  return `<div class="wtx kai ${(RD.now === -2 || RD.now === ii) ? 'on' : ''} ${RD.py ? 'showpy' : ''}" data-i="${ii}">${it.h ? `<h4>${it.h}</h4>` : ''}<span class="pline" data-read-style="${style}" data-work="${work}">${body}</span>
     <div class="tx-audio"><button class="tbtn" type="button" data-paragraph="${ii}">🔊 ${Lab.L(o('Read paragraph','朗读本段'))}</button></div>
     ${RD.tr ? `<div class="wtr">${Lab.lang === "en" ? `<span class="en">${it.tr.en}</span>` : ""}${it.tr.zh}</div>` : ""}</div>`;
 }
@@ -519,6 +572,7 @@ function rdDraw(){
   Lab.$('#txSequence').hidden = short;
   Lab.$('#txPy').classList.toggle('on', RD.py); Lab.$('#txTr').classList.toggle('on', RD.tr);
   Lab.$('#txBox').innerHTML = `<p class="muted" style="margin:0 0 8px;font-size:14.5px">${T.a} · ${Lab.L(T.book)}</p>` + T.items.map((it, ii) => itemHTML(it, RD.t, ii)).join('');
+  renderRecitation(Lab.$('#txRecitation'), T.id);
   Lab.$$('#txBox [data-paragraph]').forEach(button => button.onclick = () => {
     const index = Number(button.dataset.paragraph);
     YW.readUnits(paragraphUnits(T.items[index], index), current => highlightText(current));
@@ -549,7 +603,7 @@ function glDraw(){
     <div><span class="wtag ${tg[2]}">${Lab.lang === 'zh' ? tg[1] : tg[0] + ' · ' + tg[1]}</span></div>
     <p style="margin:0;font-size:18px"><b>${Lab.L(o('Here it means: ','在这里的意思：'))}</b><span class="kai">${g[1]}</span></p>
     <p style="margin:0">${g[2]}</p>
-    <div class="glctx kai" data-nopy>${ctx.replace(w, `<span class="mark">${w}</span>`)}</div>
+    <div class="glctx kai pline" data-nopy data-read-style="wenyan" data-work="${readingMeta(T).work}">${ctx.replace(w, `<span class="mark">${w}</span>`)}</div>
     <p class="muted" style="margin:0;font-size:14px">${Lab.L(o(`Words explored: ${RD.seen.size}`, `已查看字词：${RD.seen.size}个`))}</p>
     <button class="speak" id="glSay">🔊 ${Lab.L(o('Hear the sentence','听这一句'))}</button>`;
   Lab.$('#glSay').onclick = () => YW.zh(ctx);
@@ -702,7 +756,7 @@ const SC = (el, svg, spots, onPick) => {
 };
 const hsMark = (el, id, cls, on) => { const h = el.querySelector(`.hs[data-id="${id}"]`); if (h) h.classList.toggle(cls, on); };
 const hsText = (el, id, t) => { const h = el.querySelector(`.hs[data-id="${id}"] text`); if (h) h.textContent = t; };
-const card = p => `<div class="scq kai" data-nopy>${p.s}<small>${Lab.lang === 'en' ? p.tr.en + '<br>' : ''}${p.tr.zh}</small></div>
+const card = (p, work) => `<div class="scq kai" data-nopy><span class="pline" data-read-style="wenyan" data-work="${work}">${p.s}</span><small>${Lab.lang === 'en' ? p.tr.en + '<br>' : ''}${p.tr.zh}</small></div>
   ${p.k ? `<p style="margin:0"><b class="kai">${p.k[0]}</b> <span class="muted">${p.k[1]}</span> — ${Lab.L(o(p.k[3], p.k[2]))}</p>` : ''}`;
 
 /* ===== Mission 2: Peach Blossom Spring scene ===== */
@@ -772,7 +826,7 @@ function taoSide(){
   if (TS.mode === 'exp'){
     const p = TAO.find(q => q.id === TS.sel);
     box.innerHTML = `<span class="tag">${Lab.L(o('Explore','探索'))}</span><h3 class="kai" data-nopy>《桃花源记》</h3>
-      ${p ? card(p) : `<p style="margin:0">${Lab.L(o('Tap a ? circle in the picture. Each one is a place the text describes — the boat, the peach forest, the cave, the village…', '点画面上的“?”。每个圆圈都是课文写到的一个地方：小船、桃林、山洞、村庄……'))}</p>`}
+      ${p ? card(p, '桃花源记') : `<p style="margin:0">${Lab.L(o('Tap a ? circle in the picture. Each one is a place the text describes — the boat, the peach forest, the cave, the village…', '点画面上的“?”。每个圆圈都是课文写到的一个地方：小船、桃林、山洞、村庄……'))}</p>`}
       <p class="muted" style="margin:0">${Lab.L(o(`Spots found: ${TS.found.size}/${TAO.length}`, `已找到：${TS.found.size}/${TAO.length}`))}</p>
       ${p ? `<button class="speak" id="taoSay">🔊 ${Lab.L(o('Hear it','听一听'))}</button>` : ''}`;
     if (p) Lab.$('#taoSay').onclick = () => YW.zh(p.s);
@@ -780,7 +834,7 @@ function taoSide(){
     const want = TAO[TS.gi], prev = TAO[TS.gi - 1];
     box.innerHTML = `<span class="tag">${Lab.L(o('Find it','找一找'))}</span>
       <div class="counters" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="counter"><b>${Math.min(TS.gi + 1, TAO.length)}/${TAO.length}</b><span>${Lab.L(o('sentence','句子'))}</span></div><div class="counter"><b>${TS.right}</b><span>${Lab.L(o('first try','一次找对'))}</span></div><div class="counter"><b>${YW.stars(TS.right, TAO.length)}</b><span>${Lab.L(o('stars','星级'))}</span></div></div>
-      ${want ? `<p style="margin:0;font-weight:800">${Lab.L(o('Where in the picture is this?', '这句话写的是画面里的哪里？'))}</p><div class="scq kai" data-nopy>${want.s}</div>` :
+      ${want ? `<p style="margin:0;font-weight:800">${Lab.L(o('Where in the picture is this?', '这句话写的是画面里的哪里？'))}</p><div class="scq kai pline" data-nopy data-read-style="wenyan" data-work="桃花源记">${want.s}</div>` :
         `<div class="result good">${Lab.L(o(`🎉 You retraced the whole journey! ${TS.right}/${TAO.length} first time ${YW.stars(TS.right, TAO.length)} (9+ completes the mission)`, `🎉 你重走了渔人的全部旅程！一次找对${TS.right}/${TAO.length}句 ${YW.stars(TS.right, TAO.length)}（9句以上完成任务）`))}</div>`}
       ${TS.msg ? `<div class="result ${TS.msg.zh.startsWith('❌') ? 'bad' : 'good'}">${Lab.L(TS.msg)}</div>` : ''}
       ${prev && TS.msg && !TS.msg.zh.startsWith('❌') ? `<p class="muted" style="margin:0;font-size:14px">${Lab.L(prev.tr)}</p>` : ''}
@@ -798,6 +852,7 @@ function taoMode(m){
 SC(Lab.$('#taoStage'), TAO_SVG, TAO, taoPick);
 Lab.$('#taoExp').onclick = () => taoMode('exp'); Lab.$('#taoGame').onclick = () => taoMode('game');
 Lab.onLang(taoSide); taoMode('exp');
+Lab.$('#taoSide').insertAdjacentHTML('afterend', recitationHTML('th'));
 
 /* ===== Mission 3: Yueyang Tower — weather slider + hotspots ===== */
 const YY_SVG = `<svg viewBox="0 0 800 450" role="img" aria-label="Yueyang Tower and Dongting Lake">
@@ -880,7 +935,7 @@ function yySide(){
   Lab.$('#yySide').innerHTML = `<span class="tag">${Lab.L(o('On the tower','登斯楼也'))}</span>
     <h3 class="kai" data-nopy>《岳阳楼记》 · ${Lab.L({ rain:o('Rain','阴雨'), spring:o('Spring','春日'), moon:o('Moonlight','月夜') }[sc])}</h3>
     <div><div class="mood-l"><span>${Lab.L(o('😢 sad (悲)','😢 悲'))}</span><span>${Lab.L(o('a visitor’s mood','迁客骚人的心情'))}</span><span>${Lab.L(o('happy (喜) 😊','喜 😊'))}</span></div><div class="mood"><i style="left:${mood}%"></i></div></div>
-    ${view ? card(view) : `<p style="margin:0">${Lab.L(o('Tap a ? in the picture. Some spots appear only in one kind of weather — move the slider to find them all.','点画面上的“?”。有些地方只在某种天气里出现——拖动滑块把它们都找出来。'))}</p>`}
+    ${view ? card(view, readingMeta(TEXTS.find(work => work.id === 'yy')).work) : `<p style="margin:0">${Lab.L(o('Tap a ? in the picture. Some spots appear only in one kind of weather — move the slider to find them all.','点画面上的“?”。有些地方只在某种天气里出现——拖动滑块把它们都找出来。'))}</p>`}
     <p class="muted" style="margin:0">${Lab.L(o(`Spots found: ${YS.found.size}/${YYS.length}`, `已找到：${YS.found.size}/${YYS.length}`))}</p>
     <div class="btnrow"><button class="btn alt" id="yySage">${Lab.L(o('🤔 How would the good people of old feel?','🤔 古仁人会怎样？'))}</button></div>`;
   Lab.$('#yySage').onclick = () => { YS.sage = true; YS.sel = null; YW.zh(SAGE.s); yyDraw(); };
@@ -978,19 +1033,21 @@ const ML = [
   ['《小石潭记》中借写鱼来表现潭水清澈的句子：','Little Rock Pond: fish that seem to swim in thin air.','潭中鱼可百许头，[皆若空游无所依]','偌倚'],
   ['《小石潭记》中写溪身曲折、溪水时隐时现的句子：','Little Rock Pond: the stream zigzags and winds.','潭西南而望，[斗折蛇行]，明灭可见','抖拆'],
   ['《论语》中谈学习与思考关系的句子（后半句）：','The Analects: learning and thinking — second half.','学而不思则罔，[思而不学则殆]','怠网']
-].map(([zh, en, s, d]) => { const m = s.match(/^(.*)\[(.+)\](.*)$/); return { c:o(en, zh), pre:m[1], ans:[...m[2]], post:m[3], d:[...d], full:s.replace(/[\[\]]/g, '') }; });
+].map(([zh, en, s, d]) => { const m = s.match(/^(.*)\[(.+)\](.*)$/); return { c:o(en, zh), pre:m[1], ans:[...m[2]], post:m[3], d:[...d], work:zh.match(/《([^》]+)》/)[1], full:s.replace(/[\[\]]/g, '') }; });
 Lab.readAll(() => [
   ...TEXTS.flatMap(passage => {
     const full = fullText(passage);
     const whole = readingLength(full) <= 150 ? [full] : [];
     const paragraphs = passage.items.flatMap(paragraphUnits).map(unit => unit.text);
-    const glosses = passage.items.flatMap(item => [...item.s.matchAll(/\{([^}]+)\}/g)].flatMap((_, i) => [wordOf(item, i), glossSentence(item, i)]));
-    return [...whole, ...paragraphs, ...glosses].map(text => [text, 'zh']);
+    const glosses = passage.items.flatMap(item => [...item.s.matchAll(/\{([^}]+)\}/g)].flatMap((_, i) => [
+      [wordOf(item, i), 'zh'], [glossSentence(item, i), 'zh', readingMeta(passage)]
+    ]));
+    return [...[...whole, ...paragraphs].map(text => [text, 'zh', readingMeta(passage)]), ...glosses];
   }),
-  ...TAO.map(p => [p.s, 'zh']),
-  ...YYS.flatMap(p => (p.id === 'tower' ? [SAD, HAPPY] : [p]).map(spot => [spot.s, 'zh'])),
-  [SAGE.s, 'zh'],
-  ...ML.map(q => [q.full, 'zh'])
+  ...TAO.map(p => [p.s, 'zh', readingMeta(TEXTS.find(work => work.id === 'th'))]),
+  ...YYS.flatMap(p => (p.id === 'tower' ? [SAD, HAPPY] : [p]).map(spot => [spot.s, 'zh', readingMeta(TEXTS.find(work => work.id === 'yy'))])),
+  [SAGE.s, 'zh', readingMeta(TEXTS.find(work => work.id === 'yy'))],
+  ...ML.map(q => [q.full, 'zh', {style:'wenyan', work:q.work}])
 ]);
 const MS = { list:[], i:0, right:0, streak:0, fill:[], tiles:[], used:[], checked:false, first:true };
 function mlStart(){ MS.list = Lab.shuffle(ML).slice(0, 10); MS.i = 0; MS.right = 0; MS.streak = 0; mlLoad(); }
