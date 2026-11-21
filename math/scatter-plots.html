@@ -24,7 +24,8 @@
 <script src="../shared/mathanim.js"></script>
 <script src="../shared/photos.js"></script>
 <style>
-.explore-stage{aspect-ratio:4/3;touch-action:none}
+ .ma-stage.explore-stage{aspect-ratio:4/3;touch-action:none}
+ .ma-stage.explore-stage.lab-fs-active{aspect-ratio:auto}
 .sets{display:flex;flex-wrap:wrap;gap:6px}
 .sets .btn{padding:7px 11px;font-size:14px}
 .assoc{font-family:Fredoka;font-size:22px;font-weight:600;text-align:center;min-height:30px}
@@ -35,6 +36,46 @@
 .chk{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px;color:var(--ink-2)}
 .pred{font-weight:700;min-height:24px}
 .small{font-size:14px;margin:0}
+.sp-graph{width:100%;display:block;background:#17131e;border-radius:20px;color:#eae5f0;font:700 13px Nunito,"Microsoft YaHei",sans-serif}
+.sp-graph text{fill:currentColor}
+body[data-topic="scatter-plots"] section[id]{scroll-margin-top:64px}
+.sp-graph line,.sp-graph .sp-guide{vector-effect:non-scaling-stroke}
+.sp-graph.sp-editable{touch-action:none;cursor:crosshair}
+.sp-fields,.sp-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.sp-fields label{display:grid;gap:4px;font-weight:800;min-width:0}
+.sp-fields input,.sp-fields select{width:100%;min-width:0;min-height:44px;padding:6px 8px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--ink);font:inherit}
+.sp-card{padding:16px;min-width:0}
+.sp-inline{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.sp-inline .btn,.sp-options .btn{min-height:44px;text-align:left}
+.sp-pairs .btn{font-size:14px;padding:6px 9px;min-height:44px}
+ .sp-formula{padding:7px 2px;overflow-x:auto;font-size:16px}
+ #eq,#pred,#lsq{max-width:100%;overflow-x:auto}
+ #fitWarning{color:var(--ink-2)}
+ #fitWarning:empty,#lsqNote:empty{display:none}
+ #lsq{white-space:pre-line}
+ #explore .ma-explore>.card{min-width:0}
+ #explore .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #explore .stats b{overflow-wrap:anywhere}
+ #predictions .timebar{flex-wrap:wrap}
+ #predictions .timebar input{min-width:80px}
+ #predictions .timebar output{min-width:0}
+ #collect .sp-pairs,#patterns .sp-inline{margin-top:8px}
+.sp-check{margin-top:14px}
+.sp-check h3{margin:0 0 8px}
+.sp-check fieldset{border:0;padding:0;margin:0 0 8px;min-width:0}
+.sp-check fieldset:last-of-type{margin-bottom:0}
+.sp-check legend{font-weight:800;padding:0;margin-bottom:5px}
+.sp-check .feedback{margin:4px 0;min-height:0}
+.sp-practice summary,.sp-worked summary{cursor:pointer;font-weight:800}
+.sp-worked,.sp-note{margin-top:12px}
+.sp-note p,.sp-card p{margin-top:0}
+.sp-card p:last-child,.sp-check p:last-child{margin-bottom:0}
+.sp-prompt{color:var(--ink-2)}
+.sp-cut{border-top:1px solid var(--line);padding-top:10px}
+.sp-badge{display:inline-block;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:13px;font-weight:800}
+#collect [hidden],#patterns [hidden],#line-equation [hidden]{display:none}
+.sp-graph circle:focus{outline:none;stroke:white;stroke-width:3}
+@media(max-width:640px){.sp-columns{grid-template-columns:minmax(0,1fr)}}
 </style>
 </head>
 <body data-subject="math" data-topic="scatter-plots">
@@ -43,44 +84,115 @@
 <header class="hero wrap">
   <span class="eyebrow" data-zh="数学 · 8 年级统计">Math · Grade 8 Statistics</span>
   <h1 data-zh-html="散点图：<em>从成对的数据中看出趋势</em>">Scatter Plots: <em>seeing the trend in pairs of numbers</em></h1>
-  <p class="lead" data-zh="学得越久，考得越好吗？把每个学生的两个数变成平面上的一个点，一团点就会“说出”一个趋势。我们还能画一条直线来概括它，并用它做预测。">Does studying longer lead to better scores? Turn each student’s two numbers into one point on a graph, and the cloud of points tells you a trend. Then draw one straight line to sum it up, and use it to make predictions.</p>
+  <p class="lead" data-zh="复习时间较长的学生，成绩通常也更高吗？把每名学生的复习时长和成绩画成一个点，看看点群有什么规律。如果点大致沿直线分布，就可以用直线概括趋势并作出预测。">Do students who study longer tend to score higher? Plot study time and score as one point for each student, then look for a pattern. If the dots roughly follow a straight line, use a line to describe the trend and make predictions.</p>
 </header>
 
 <section class="wrap" id="lesson" data-nav="Animated lesson" data-nav-zh="动画讲解">
   <div class="ma-stage" id="stage" data-fs></div>
   <div id="player"></div>
-  <div class="mix" style="margin-top:14px"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="两个量一起变化，不代表一个导致另一个。冰淇淋销量和晒伤人数会一起上升，但真正的原因是炎热的晴天。另外，最佳拟合直线不必经过任何一个数据点。">Two things changing together does not mean one causes the other. Ice-cream sales and sunburns rise together, but the real cause is hot, sunny weather. Also, a line of best fit does not have to pass through any of the data points.</span></div>
+  <div class="mix" style="margin-top:14px"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b> <span data-zh="判断拟合直线是否合适，要看它与整个点群的贴合程度。一条合适的直线可以不经过任何数据点。">Judge a fitted line by how closely it follows the whole cloud. A good line can miss every data point.</span></div>
+  <div id="lessonChecks"></div>
+</section>
+
+<section class="wrap" id="collect" data-nav="Collect data" data-nav-zh="收集数据">
+  <div class="sec-head">
+    <h2 data-zh="收集自己的数据">Collect your own data</h2>
+    <p id="collectIntro" data-zh="臂展较长的人通常也更高吗？测量两臂水平伸开时两手中指尖之间的距离和身高，为 8～15 人各记录一对数，统一用厘米。也可以记录同一个人为同一次测验复习的时长和成绩。">Do people with longer arm spans tend to be taller? For 8–15 people, record height and arm span in centimeters. Arm span is the distance between the middle fingertips with arms stretched sideways. Or pair each person’s study time for the same test with their score on it.</p>
+  </div>
+  <div class="ma-explore">
+    <svg class="sp-graph sp-editable" id="spCollectGraph" viewBox="0 0 400 300" role="img"></svg>
+    <div class="card sp-card">
+      <div class="sp-inline">
+        <button class="btn" id="spBody" type="button" data-zh="臂展与身高">Arm span &amp; height</button>
+        <button class="btn ghost" id="spStudy" type="button" data-zh="学习与成绩">Study &amp; score</button>
+        <button class="btn ghost sp-say" type="button" data-say="collectIntro" data-zh="🔊 朗读">🔊 Read aloud</button>
+      </div>
+      <p class="small sp-prompt sp-note" id="spCollectHint" data-zh="输入一对数，或轻点图的空白处。拖动已有点可以修改位置，也可以从点的列表中选中后修改。">Enter a pair or tap an empty spot on the plot. Drag a dot to move it, or select its pair below to edit it.</p>
+      <form id="spDataForm" class="sp-note">
+        <div class="sp-fields">
+          <label><span id="spXLabel"></span><input id="spX" type="number" inputmode="decimal" required></label>
+          <label><span id="spYLabel"></span><input id="spY" type="number" inputmode="decimal" required></label>
+        </div>
+        <div class="sp-inline sp-note">
+          <button class="btn ghost" id="spSave" type="submit" hidden data-zh="保存修改">Save changes</button>
+          <button class="btn" id="spAdd" type="submit" data-zh="添加一对数">Add pair</button>
+          <button class="btn ghost" id="spRemove" type="button" hidden data-zh="删除这对数">Remove pair</button>
+        </div>
+      </form>
+      <p class="small sp-note" id="spCount" role="status"></p>
+      <div class="sp-inline sp-pairs" id="spPairs" role="group" aria-label="Recorded pairs"></div>
+      <div class="sp-inline sp-note">
+        <button class="btn ghost" id="spSample" type="button" data-zh="载入模拟数据">Load sample pairs</button>
+        <button class="btn ghost" id="spClear" type="button" data-zh="清空">Clear</button>
+      </div>
+    </div>
+  </div>
+  <div class="memory sp-note">
+    <b data-zh="描述你的图。">Describe your plot.</b>
+    <span data-zh="从左往右看，点大致向上、向下，还是没有明显趋势？点更像沿直线分布，还是沿曲线分布？留意成簇或偏离趋势的点。两对数完全相同时，它们在图上会重合。">Read from left to right. Do the dots generally rise, fall, or show no clear trend? Do they follow a line or a curve? Look for clusters or unusual points. Identical pairs overlap on the plot.</span>
+  </div>
+  <div id="collectChecks"></div>
+</section>
+
+<section class="wrap" id="patterns">
+  <div class="sec-head">
+    <h2 data-zh="比较散点图的形态">Association gallery</h2>
+    <p data-zh="方向看走势，形态看直线还是曲线，强弱看点是否贴近这个形态。切换图形，再拖动点来改变形态。换图或重置即可恢复原图。">Look at direction, shape, and how closely the dots follow that shape. Switch patterns and drag the dots to see what changes. Reset to compare with the starting plot.</p>
+  </div>
+  <div class="ma-explore">
+    <svg class="sp-graph sp-editable" id="spPatternGraph" viewBox="0 0 400 300" role="group"></svg>
+    <div class="card sp-card">
+      <div id="spPatterns" class="sp-inline"></div>
+      <p class="sp-note" id="spPatternText"></p>
+      <p id="spPatternLegend" class="small" hidden data-zh="两条线都用最小二乘法拟合（见下方进阶模式）。橙色实线计入所有点，灰色虚线不计红点。拖动红点，比较两条线。">Both lines use least squares, explained below in Advanced mode. The orange line uses all the points, and the gray dashed line leaves out the red point. Move the red point and compare.</p>
+      <div class="sp-formula" id="spSlopeCompare" hidden></div>
+      <p id="spCurveKey" class="small" hidden><span class="sp-math" data-tex="A=s^2"></span> <span data-zh="是正方形面积公式。把描出的点与这条曲线比较。">gives the area of a square. Compare the dots with this curve.</span></p>
+      <p id="spGeyserSource" class="small" hidden>
+        <span data-zh="真实数据：黄石国家公园老忠实泉，1985 年 8 月。取前 12 次喷发的时长（精确到 0.1 分钟），分别与从本次喷发开始到下次喷发开始的间隔配对。原记录用“短”“中”“长”记下部分夜间时长，分别按 2、3、4 分钟计。拖动只改变图上的副本。">Old Faithful, Yellowstone National Park, August 1985. The first 12 durations, rounded to 0.1 minute, are paired with the minutes from the start of that eruption to the start of the next. Some nighttime durations were recorded as short, medium, or long and coded as 2, 3, or 4 minutes. Dragging edits the onscreen copy.</span>
+        <a href="https://stat.ethz.ch/R-manual/R-devel/library/MASS/html/geyser.html" data-zh="数据说明（MASS）">Dataset notes (MASS)</a> · <a href="https://tommasorigon.github.io/StatI/approfondimenti/Azzalini1990.pdf" data-zh="原始研究（1990 年）">Original study (1990)</a> · <a href="https://raw.githubusercontent.com/vincentarelbundock/Rdatasets/master/csv/MASS/geyser.csv" data-zh="数据表（CSV）">Data rows (CSV)</a>
+      </p>
+      <div class="sp-inline sp-note">
+        <button class="btn ghost" id="spResetPattern" type="button" data-zh="恢复原图">Reset pattern</button>
+        <button class="btn ghost" id="spSayPattern" type="button" data-zh="🔊 朗读">🔊 Read aloud</button>
+      </div>
+      <p class="small sp-prompt sp-note" data-zh="也可用键盘选中图上的点，再用方向键移动。">You can also tab to a dot and move it with the arrow keys.</p>
+    </div>
+  </div>
+  <div id="patternChecks"></div>
 </section>
 
 <section class="wrap" id="explore" data-nav="Fit a line" data-nav-zh="拟合直线">
   <div class="sec-head">
     <h2 data-zh="动手探索：自己画一条最佳拟合直线">Explore: fit the line yourself</h2>
-    <p data-zh="选一组真实感的数据。拖动两个橙色圆点移动直线，让它尽量贴近这团点；轻点空白处可以添加一个点，轻点已有的点可以删除它，看看趋势和直线会怎样变化。">Pick a realistic data set. Drag the two orange handles to move the line so it follows the cloud. Tap empty space to add a point, or tap a point to remove it, and watch how the trend and the line respond.</p>
+    <p id="fitIntro" data-zh="选一组模拟数据。上下拖动两个橙色控制点，让直线尽量贴近点群。轻点绘图区的空白处可添加点，轻点已有的点可删除它。观察直线与点群的贴合程度怎样变化。">Pick a simulated dataset. Drag the two orange handles up or down so your line follows the cloud. Tap empty plot space to add a point, or tap a dot to remove it. Watch how the fit changes.</p>
   </div>
   <div class="ma-explore">
     <div class="ma-stage explore-stage" id="fitStage" data-fs></div>
     <div class="card ctl">
-      <div class="lab-mode" style="align-self:flex-start"></div>
+      <div class="sp-inline"><div class="lab-mode"></div><button class="btn ghost sp-say" type="button" data-say="fitIntro" data-zh="🔊 朗读">🔊 Read aloud</button></div>
       <div class="sets" id="sets"></div>
       <div class="assoc" id="assoc"></div>
       <div class="ma-big" id="eq"></div>
       <div class="stats">
         <div><b id="ab"></b><span data-zh="线上方 · 线下方">above · below</span></div>
-        <div><b id="miss"></b><span data-zh="平均偏差：你的 / 最佳">average miss: yours / best</span></div>
+        <div><b id="miss"></b><span data-zh="平均竖直距离：你的直线／参考直线">mean vertical gap: yours / reference</span><br><span id="missUnit"></span></div>
       </div>
-      <label class="chk"><input type="checkbox" id="resChk" checked> <span data-zh="显示每个点到直线的偏差（粉色）">Show each point’s miss (pink)</span></label>
-      <div class="btnrow"><button class="btn ghost" id="bestBtn" data-zh="显示最佳直线">Show best line</button><button class="btn ghost" id="snapBtn" data-zh="移到最佳位置">Snap to best</button><button class="btn ghost" id="resetBtn" data-zh="重置数据">Reset data</button></div>
+      <label class="chk"><input type="checkbox" id="resChk" checked> <span data-zh="显示各点到直线的竖直距离（粉色）">Show the vertical gaps (pink)</span></label>
+      <div class="btnrow"><button class="btn ghost" id="bestBtn">Show reference fit</button><button class="btn ghost" id="snapBtn" data-zh="移到参考直线">Snap to reference</button><button class="btn ghost" id="resetBtn" data-zh="重置数据">Reset data</button></div>
       <label class="ctl"><span><span data-zh="用你的直线预测：x = ">Predict with your line: x = </span><b id="pxVal"></b></span><input id="pxIn" type="range"></label>
-      <div class="pred" id="pred"></div>
+      <div class="pred" id="pred"><span id="fitPrediction"></span><span id="fitPredictionUnit"></span><p class="small" id="fitWarning"></p></div>
       <div class="adv adv-box" style="display:flex;flex-direction:column;gap:10px">
-        <b data-zh="进阶：最小二乘法与相关系数 r">Advanced: least squares and the correlation r</b>
+        <span class="sp-badge" style="align-self:flex-start" data-zh="课外拓展 · Enrichment">课外拓展 · Enrichment</span>
+        <b data-zh="进阶：最小二乘法与相关系数 r">Advanced: least squares and the correlation coefficient r</b>
         <div class="stats">
           <div><b id="rVal"></b><span data-zh="相关系数 r · r²">correlation r · r²</span></div>
-          <div><b id="sse"></b><span data-zh="残差平方和：你的 / 最佳">sum of squared misses: yours / best</span></div>
+          <div><b id="sse"></b><span data-zh="残差平方和：你的直线／参考直线">sum of squared gaps: yours / reference</span><br><span id="sseUnit"></span></div>
         </div>
-        <label class="chk"><input type="checkbox" id="sqChk" checked> <span data-zh="把每个偏差画成正方形（面积 = 偏差²）">Draw each miss as a square (area = miss²)</span></label>
+        <label class="chk"><input type="checkbox" id="sqChk" checked> <span data-zh="以每段竖直距离为边长画正方形">Draw a square with each vertical gap as its side length</span></label>
         <div id="lsq" style="text-align:center;font-size:15px;overflow-x:auto"></div>
-        <p class="small muted" data-zh="最佳直线让所有正方形的总面积最小（最小二乘法），而且一定经过平均点 (x̄, ȳ)（白色 ✚）。r 在 −1 和 1 之间：|r| 越接近 1，点越紧贴一条直线；r 只衡量“直线型”的相关。">The best line makes the total area of the squares as small as possible (least squares), and it always passes through the mean point (x̄, ȳ) (white ✚). r is between −1 and 1: the closer |r| is to 1, the tighter the points hug a straight line. r only measures straight-line association.</p>
+        <p id="lsqNote" class="small"></p>
+        <p id="lsqIntro" class="small muted" data-zh="灰色虚线用最小二乘法拟合。它使各点到直线的竖直距离的平方和最小，并经过平均点（x̄，ȳ），图中用白色十字标出。相关系数 r 的取值范围是 −1 到 1，|r| 越接近 1，线性相关越强。">The dashed gray reference is the least-squares line. It gives the smallest sum of squared vertical gaps and passes through the mean point (x̄, ȳ), marked by a white cross. The correlation coefficient r ranges from −1 to 1. The closer |r| is to 1, the stronger the linear association.</p>
+        <button class="btn ghost sp-say" type="button" data-say="lsqIntro" data-zh="🔊 朗读">🔊 Read aloud</button>
         <div style="border-top:1px solid var(--line);padding-top:8px">
           <b data-zh="🎯 挑战">🎯 Challenge</b> <span id="chTxt"></span>
           <div class="btnrow" style="margin-top:6px"><button class="btn" id="chCheck" data-zh="检查">Check</button><button class="btn ghost" id="chNew" data-zh="换一题">New challenge</button></div>
@@ -89,6 +201,90 @@
       </div>
     </div>
   </div>
+  <div id="fitChecks"></div>
+</section>
+
+<section class="wrap" id="line-equation">
+  <div class="sec-head">
+    <h2 data-zh="写出拟合直线的方程">Write the equation of a fitted line</h2>
+    <p id="spEquationIntro" data-zh="在橙色直线上选横坐标不同的两点。橙色空心点是从直线上读出的点，黄色实心点表示观测数据。用纵坐标的变化量除以横坐标的变化量，再把直线上一点的坐标代入，求出截距。">Choose two points on the orange line with different x-values. The hollow orange markers come from the line. The solid yellow dots are observations. Divide the change in y by the change in x, then substitute either line point to find the intercept.</p>
+  </div>
+  <div class="ma-explore">
+    <svg class="sp-graph" id="spEquationGraph" viewBox="0 0 400 300" role="img"></svg>
+    <div class="card sp-card">
+      <div class="sp-inline">
+        <button class="btn" id="spEqUS" type="button" data-zh="美式例题：复习">US example · Study</button>
+        <button class="btn ghost" id="spEqCN" type="button" data-zh="中式例题：幼苗">Chinese example · Seedlings</button>
+        <button class="btn ghost sp-say" type="button" data-say="spEquationIntro" data-zh="🔊 朗读">🔊 Read aloud</button>
+      </div>
+      <div class="sp-fields sp-note">
+        <label><span data-zh="直线上的点 A">Point A on the line</span><select id="spA"></select></label>
+        <label><span data-zh="直线上的点 B">Point B on the line</span><select id="spB"></select></label>
+      </div>
+      <p id="spEquationPrompt" class="small sp-note" role="status"></p>
+      <div id="spEquationSteps" class="sp-note">
+        <b data-zh="1. 求斜率">1. Find the slope</b>
+        <div class="sp-formula"><span id="spSlope"></span> <span id="spSlopeUnit"></span></div>
+        <b data-zh="2. 求纵截距">2. Find the y-intercept</b>
+        <div class="sp-formula"><span id="spIntercept"></span> <span id="spInterceptUnit"></span></div>
+        <b data-zh="3. 写出直线方程">3. Write the equation</b>
+        <div class="sp-formula" id="spEquation"></div>
+      </div>
+    </div>
+  </div>
+  <div class="sp-columns">
+    <details class="card sp-card sp-worked" open>
+      <summary data-zh="美式例题 · 复习时长与成绩">US worked example · Study and score</summary>
+      <p class="sp-note" data-zh="在模拟数据中，x 表示复习时长（小时），y 表示测验成绩（分）。从拟合直线上取 A（1，58.5）和 B（5，80.5）。">In this simulated example, x is study time in hours and y is score in points. Read A (1, 58.5) and B (5, 80.5) from the fitted line.</p>
+      <ol>
+        <li><span class="sp-math" data-tex="m=\frac{80.5-58.5}{5-1}=\frac{22}{4}=5.5"></span> <span data-zh="分/小时">points per hour</span></li>
+        <li><span class="sp-math" data-tex="b=58.5-5.5(1)=53"></span> <span data-zh="分">points</span></li>
+        <li><span class="sp-math" data-tex="y=5.5x+53"></span></li>
+      </ol>
+      <p data-zh="按模型，复习每多 1 小时，预测成绩约高 5.5 分。截距 53 分对应复习 0 小时。样本的复习时长是 0.5～6.5 小时，所以 53 分属于外推估计。">The model predicts about 5.5 more points per additional hour of study. The intercept gives 53 points at 0 hours. The observed times span 0.5 to 6.5 hours, so the intercept is an extrapolated estimate.</p>
+    </details>
+    <details class="card sp-card sp-worked" open>
+      <summary data-zh="中式例题 · 幼苗的生长">Chinese worked example · Seedling growth</summary>
+      <p class="sp-note"><b data-zh="已知">Given</b> <span data-zh="模拟记录覆盖发芽后第 6～14 天。x 表示发芽后的天数，y 表示苗高（cm）。拟合直线经过 A（6，8）、B（12，20）。">Simulated records cover days 6–14 after sprouting. Let x be days since sprouting and y be height in centimeters. The fitted line passes through A (6, 8) and B (12, 20).</span></p>
+      <p><b data-zh="求">Find</b> <span data-zh="拟合直线的方程，并解释斜率和纵截距。">the equation. Interpret its slope and y-intercept.</span></p>
+      <p><b data-zh="解">Solution</b></p>
+      <div><span class="sp-math" data-tex="k=\frac{20-8}{12-6}=2"></span> <span data-zh="cm/天">cm per day</span></div>
+      <div><span class="sp-math" data-tex="b=8-2(6)=-4"></span> <span>cm</span></div>
+      <p class="sp-note"><b data-zh="答">Answer</b> <span class="sp-math" data-tex="y=2x-4"></span><span data-zh="。在观测范围内，模型预测苗高每天约增加 2 cm。纵截距 −4 cm 是第 0 天的外推值，负的苗高没有实际意义。">. Over the observed days, the model estimates growth of about 2 cm per day. The intercept of −4 cm is the extrapolated height at day 0. A negative height has no physical meaning.</span></p>
+    </details>
+  </div>
+  <div id="equationChecks"></div>
+</section>
+
+<section class="wrap" id="predictions">
+  <div class="sec-head">
+    <h2 data-zh="内插与外推：预测能走多远？">Interpolation and extrapolation</h2>
+    <p id="spPredIntro" data-zh="移动滑块，比较观测范围内和范围外的预测。内插用已有数据两端之间的横坐标，外推用范围以外的横坐标。离观测范围越远，越缺少数据支持原来的趋势。">Move the slider across the observed range and beyond it. Interpolation uses an x-value between the ends of the observed data. Extrapolation goes outside that range. The farther you go, the less evidence you have that the trend will continue.</p>
+  </div>
+  <div class="ma-explore">
+    <svg class="sp-graph" id="spPredGraph" viewBox="0 0 400 300" role="img"></svg>
+    <div class="card sp-card">
+      <div class="sp-inline">
+        <button class="btn ghost" id="spTryInside" type="button" data-zh="试 4 小时">Try 4 hours</button>
+        <button class="btn ghost" id="spTryOutside" type="button" data-zh="试 10 小时">Try 10 hours</button>
+        <button class="btn ghost sp-say" type="button" data-say="spPredIntro" data-zh="🔊 朗读">🔊 Read aloud</button>
+      </div>
+      <p class="small sp-note" data-zh="阴影标出模拟数据覆盖的复习时长：0.5～6.5 小时。红色虚线标出满分 100 分。">The shaded band spans the simulated study times of 0.5–6.5 hours. The red dashed line marks the maximum score of 100.</p>
+      <label class="timebar sp-note">
+        <span data-zh="复习时长">Study time</span>
+        <input id="spPredX" type="range" min="0" max="10" step=".5" value="4">
+        <output for="spPredX" id="spPredTime"></output>
+      </label>
+      <div class="sp-formula"><span id="spPredFormula"></span> <span data-zh="分">points</span></div>
+      <p class="sp-note" id="spPredType" role="status"></p>
+    </div>
+  </div>
+  <div class="mix sp-note" id="spCause">
+    <b data-zh="相关不等于因果。">Correlation does not establish causation.</b>
+    <span data-zh="假设晴暖的日子既卖出更多冰淇淋，也有更多人晒伤。天气可能同时影响两者。仅凭这张图，不能判断冰淇淋是否会导致晒伤。">Suppose ice-cream sales and sunburns both rise on sunny, warm days. The weather could affect both. The plot alone cannot tell you whether ice cream causes sunburn.</span>
+  </div>
+  <button class="btn ghost sp-say sp-note" type="button" data-say="spCause" data-zh="🔊 朗读相关与因果">🔊 Read about correlation and causation</button>
+  <div id="predictionChecks"></div>
 </section>
 
 <!-- real-world gallery -->
@@ -97,6 +293,14 @@
 </section>
 <!-- /real-world gallery -->
 
+<section class="wrap sp-practice" id="practice">
+  <div class="sec-head">
+    <h2 data-zh="巩固练习">Practice</h2>
+    <p data-zh="先写出自己的答案，再展开核对步骤或要点。所有情境数据均为练习用的模拟数据。">Write down your answer first, then open the steps or key points to check it. The datasets in these problems are simulated.</p>
+  </div>
+  <div id="spPractice"></div>
+</section>
+
 <section class="wrap" id="games" data-nav="Quiz" data-nav-zh="测验">
   <div class="sec-head"><h2 data-zh="考考你自己">Test yourself</h2></div>
   <div class="games">
@@ -104,34 +308,80 @@
     <div class="game card"><h3 data-zh="🗂️ 是哪种相关？">🗂️ Which association?</h3><p class="sub" data-zh="想一想：一个量变大时，另一个量通常会怎样？">Think: when one quantity goes up, what usually happens to the other?</p><div id="sort"></div></div>
   </div>
   <details class="teacher"><summary data-zh="👩‍🏫 教师提示">👩‍🏫 Teacher notes</summary>
-    <p data-zh="对应佐治亚州数学标准 8.FGR / 8.DSR（为双变量数据绘制并解读散点图；描述聚集、异常值、正相关、负相关等规律；凭观察拟合直线，用它做预测，并结合实际情境解释斜率和截距）。建议：第 3 步后让学生说出“趋势”和“规律”的区别（不是每个点都符合）；第 6 步强调“上下点数差不多”还不够，偏差也要尽量小。动手探索中的“汽车车龄与价格”数据略呈曲线，可以引出“并非所有关系都是线性的”。最后讨论相关不等于因果。">Supports Georgia 8.FGR / 8.DSR (construct and interpret scatter plots for bivariate data; describe patterns such as clustering, outliers, and positive or negative association; informally fit a straight line, use it to make predictions, and interpret slope and intercept in context). After step 3, ask students how a trend differs from a rule (not every point follows it). In step 6, stress that balancing points above and below is not enough: the misses should also be small. In Explore, the “car age vs price” data bends slightly, which opens a discussion of nonlinear association. Finish by discussing why correlation is not causation.</p>
+    <p data-zh="比较几条候选直线时，请学生观察各点到直线的竖直距离。用“车龄与价格”这组模拟数据讨论沿曲线变化的关系。最后请学生举例说明为什么相关不等于因果。">Ask students to compare the vertical gaps for several candidate lines. Use the simulated car-age dataset to discuss curved relationships. Finish with an example of why correlation does not establish causation.</p>
+    <p>
+      <a href="https://case.georgiastandards.org/e9dd7229-3558-4df2-85c6-57b8938f6180/b1767200-4d96-4d32-94a4-8e18c643310f" data-zh="佐治亚州八年级数学标准 8.FGR.6.1～6.4">Georgia Grade 8 Mathematics 8.FGR.6.1–6.4</a> ·
+      <a href="https://www.thecorestandards.org/Math/Content/8/SP/" data-zh="美国共同核心标准 8.SP.A.1～3">Common Core 8.SP.A.1–3</a> ·
+      <a href="https://www.moe.gov.cn/srcsite/A26/s8001/202204/W020220510531636118932.pdf" data-zh="中国《义务教育数学课程标准》（2022 年版），七至九年级“函数”和“抽样与数据分析”">China’s 2022 compulsory education math standards, grades 7–9 functions and data analysis</a>
+    </p>
   </details>
 </section>
 
 <div id="lab-footer"></div>
 <script>
 /* ================= Animated lesson ================= */
-const C = MathAnim.C, EZ = MathAnim.ease;
+const C = MathAnim.C;
 const KC = { x:C.blue, y:C.green, pt:C.yellow, line:C.orange, res:C.pink, out:C.red, clu:C.purple, pred:C.teal };   // one colour per idea
+function regression(points){
+  const n = points.length;
+  if (n < 2) return null;
+  const mx = points.reduce((s, [x]) => s + x, 0) / n;
+  const my = points.reduce((s, [, y]) => s + y, 0) / n;
+  let sxx = 0, sxy = 0, syy = 0;
+  points.forEach(([x, y]) => {
+    sxx += (x - mx) ** 2;
+    sxy += (x - mx) * (y - my);
+    syy += (y - my) ** 2;
+  });
+  if (sxx < 1e-9) return null;
+  const m = sxy / sxx;
+  const r = syy > 1e-9 ? Math.max(-1, Math.min(1, sxy / Math.sqrt(sxx * syy))) : null;
+  return { m, b:my - m * mx, r, my, mx, sxx, sxy, syy, n };
+}
+function scatterText(el, value){
+  if (el.dataset.value === value) return;
+  el.dataset.value = value;
+  el.textContent = value;
+}
+function scatterFormula(el, tex, fallback){
+  if (el.dataset.texValue === tex) return;
+  el.dataset.texValue = tex;
+  if (window.katex?.renderToString) {
+    el.innerHTML = MathAnim.tex(tex);
+  } else {
+    el.textContent = fallback ?? tex.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '($1) ÷ ($2)')
+      .replace(/\\widehat y/g, 'ŷ').replace(/\\q?quad/g, '   ').replace(/\^2/g, '²').replace(/-/g, '−');
+  }
+}
 const cl = (c, s) => `\\color{${c}}{${s}}`;
 const S = MathAnim.scene('#stage', { x:[-8, 8], y:[-4.5, 4.5] });
-/* the engine never shrinks KaTeX labels below 0.6×, so on phones they outgrow the canvas: scale them with the canvas instead */
-{ const tex0 = S.tex; S.tex = (t, x, y, op) => { const ob = tex0(t, x, y, op); let sz = ob.size; Object.defineProperty(ob, 'size', { get:() => sz * Math.min(1, S.k / 36), set:v => { sz = v; } }); return ob; }; }
-const HRS  = [.5, 1, 2, 2, 2.5, 2.5, 3, 3, 4.5, 5, 5.5, 6.5];     // 12 students: hours studied …
+/* Size animation labels to the stage and provide plain math when KaTeX is unavailable. */
+{
+  const tex = S.tex;
+  S.tex = (formula, x, y, options) => {
+    const ob = tex(formula, x, y, options);
+    let size = ob.size;
+    Object.defineProperty(ob, 'size', { get:() => size * Math.min(1, S.k / 36), set:value => { size = value; } });
+    if (!window.katex?.renderToString) ob.dom.textContent = formula
+      .replace(/\\color\{[^{}]+\}\{([^{}]+)\}/g, '$1').replace(/\\approx/g, '≈').replace(/\\[, ]/g, ' ');
+    return ob;
+  };
+}
+const HRS  = [.5, 1, 2, 2, 2.5, 2.5, 3, 3, 4.5, 5, 5.5, 6.5];     // Simulated hours and scores
 const SCO  = [55, 60, 64, 61, 69, 66, 70, 67, 78, 80, 85, 88];    // … and test score
 const NEG  = [86, 82, 77, 79, 72, 74, 70, 72, 62, 60, 55, 50];    // hours of video games vs score
 const NONE = [72, 58, 81, 66, 75, 61, 84, 69, 57, 77, 64, 73];    // hours on the bus vs score
-const X = h => -5.4 + h * 1.25, Y = s => -3.3 + (s - 40) * .118;  // data → world
-const M = 5.5, B = 53;                                            // line of best fit "by eye" (least squares ≈ 5.57x + 52.6)
+const X = h => -5.4 + h * 1.25, Y = s => -3.3 + (s - 40) * .102;  // data → world
+const M = 5.5, B = 53;                                            // fit by eye
 const st = {};
 const fadeAll = (list, d) => S.all(list.filter(Boolean).map(o => S.fadeOut(o, d || .5)));
 const word = (o, x, y, op) => S.text(o, x, y, Object.assign({ size:.36, color:C.white, weight:800 }, op || {}));
 function buildAxes(){
   const ch = [];
-  for (let s = 50; s <= 100; s += 10) ch.push(S.line(X(0), Y(s), X(10), Y(s), { color:C.dim, width:1 }));
+  for (let s = 50; s <= 110; s += 10) ch.push(S.line(X(0), Y(s), X(10), Y(s), { color:C.dim, width:1 }));
   ch.push(S.arrow(X(0), Y(40), 7.6, Y(40), { color:C.grey, width:2 }), S.arrow(X(0), Y(40), X(0), 4.3, { color:C.grey, width:2 }));
   for (let h = 0; h <= 10; h++){ if (h) ch.push(S.line(X(h), Y(40) - .08, X(h), Y(40) + .08, { color:C.grey, width:2 })); ch.push(S.text(String(h), X(h), -3.68, { size:.28, color:C.grey, weight:700 })); }
-  for (let s = 40; s <= 100; s += 10){ ch.push(S.line(X(0) - .08, Y(s), X(0) + .08, Y(s), { color:C.grey, width:2 })); ch.push(S.text(String(s), X(0) - .2, Y(s), { size:.28, color:C.grey, weight:700, align:'right' })); }
+  for (let s = 40; s <= 110; s += 10){ ch.push(S.line(X(0) - .08, Y(s), X(0) + .08, Y(s), { color:C.grey, width:2 })); ch.push(S.text(String(s), X(0) - .2, Y(s), { size:.28, color:C.grey, weight:700, align:'right' })); }
   ch.push(S.path([[X(0), Y(40) + .12], [X(0) - .12, Y(40) + .2], [X(0) + .12, Y(40) + .32], [X(0), Y(40) + .4]], { color:C.grey, width:2 }));   // axis break: y starts at 40
   return S.group(ch);
 }
@@ -148,8 +398,8 @@ function drawFit(ctx, S, o){                                      // line y = m 
 const counts = () => { const f = st.fit; let a = 0, b = 0; HRS.forEach((h, i) => { const d = SCO[i] - (f.m * h + f.b); if (d > .01) a++; else if (d < -.01) b++; }); return Lab.L({ en:`above: ${a} · below: ${b}`, zh:`线上方 ${a} 个 · 线下方 ${b} 个` }); };
 
 const STEPS = [
-  { en:'Twelve students recorded two numbers: how many hours they studied for a test, and the score they got. Each row is one student, and each student gives us a pair of numbers.',
-    zh:'12 名学生各记录了两个数：为考试复习了几个小时，以及考了多少分。每一行是一名学生，每名学生给出一对数。',
+  { en:'Here are 12 simulated pairs of study hours and test scores. Each row pairs one student’s study time with that student’s score.',
+    zh:'这里有 12 对模拟数据。每行把同一名学生的复习时长和测验成绩配成一对数。',
     run: async S => {
       const cols = [[-4.2, -2.2], [2.2, 4.2]];
       st.head = []; st.rows = [];
@@ -161,11 +411,12 @@ const STEPS = [
         st.rows.push([word(String(h), hx, y, { color:KC.x, opacity:0 }), word(String(SCO[i]), sx, y, { color:KC.y, opacity:0 })]); });
       await S.all(st.head.map(o => S.fadeIn(o, .6)));
       await S.all(st.rows.map(([a, b], i) => S.wait(i * .1).then(() => S.all([S.fadeIn(a, .4), S.fadeIn(b, .4)]))));
-      st.cap = word({ en:'one row = one student = one pair (x, y)', zh:'一行 = 一名学生 = 一对数（x, y）' }, 0, -3.4, { color:C.grey, size:.34, opacity:0 });
+      st.cap = word({ en:'one row = one student = one pair (x, y)', zh:'一行＝一名学生的数据＝一对数（x，y）' }, 0, -3.4, { color:C.grey, size:.34, opacity:0 });
       await S.fadeIn(st.cap, .7);
+      await S.wait(5);
     } },
-  { en:'Turn every pair into a point. Hours go across on the $x$-axis and the score goes up on the $y$-axis, so the student with $(0.5,\\ 55)$ lands here. Do it for all 12 and we get a scatter plot.',
-    zh:'把每一对数变成一个点。时长画在横轴（$x$ 轴）上，成绩画在纵轴（$y$ 轴）上，所以 $(0.5,\\ 55)$ 这名学生落在这里。12 名学生都这样画，就得到一张散点图。',
+  { en:'Plot each pair with hours on the horizontal axis and score on the vertical axis. The point $(0.5,\\ 55)$ represents 55 points after half an hour of study.',
+    zh:'描点时，横坐标是复习时长，纵坐标是测验成绩。点 $(0.5,\\ 55)$ 表示复习了半小时，测验得了 55 分。',
     run: async S => {
       await fadeAll([...st.head, st.cap], .4);
       st.axes = buildAxes(); await S.fadeIn(st.axes, .8);
@@ -184,60 +435,65 @@ const STEPS = [
       await S.all(st.dots.slice(1).map((d, k) => S.wait(k * .12).then(() => { d.opacity = 1; const [a, b] = st.rows[k + 1];
         return S.all([S.to(d, { x:X(HRS[k + 1]), y:Y(SCO[k + 1]) }, .9), S.fadeOut(a, .5), S.fadeOut(b, .5)]); })));
     } },
-  { en:'Step back and look at the whole cloud. As hours go up, scores tend to go up too. This is a positive association. It is a trend, not a rule: this student studied more than that one but scored a little less.',
-    zh:'退后一步，看整团点。时长增加时，成绩往往也随之提高，这叫正相关。这是一种趋势，不是死规定：这名学生比那名学生学得久，分数却略低一些。',
+  { en:'Scores tend to rise as study time increases. That’s a positive association, even though some students studied longer and scored lower.',
+    zh:'复习时间越长，测验成绩通常越高，这叫正相关。图中也有同学复习得更久，得分却更低。',
     run: async S => {
       st.arrow = S.arrow(X(.3), Y(50), X(7), Y(93), { color:C.white, width:2.5, dash:[9, 8] });
       await S.create(st.arrow, 1.3);
       st.assoc = word({ en:'positive association', zh:'正相关' }, -4.9, 3.35, { size:.44, align:'left' });
       await S.fadeIn(st.assoc, .6);
       const r1 = S.circle(X(2.5), Y(69), .3, { color:C.white, width:2 }), r2 = S.circle(X(3), Y(67), .3, { color:C.white, width:2 });
-      await S.all([S.create(r1, .6), S.create(r2, .6)]); await S.wait(.9);
+      await S.all([S.create(r1, .6), S.create(r2, .6)]); await S.wait(5);
       await S.all([S.fadeOut(r1, .4), S.fadeOut(r2, .4)]);
     } },
-  { en:'Other data make other shapes. Hours of video games vs score drift down: a negative association. Hours on the bus vs score show no clear trend: no association. Then back to our study data.',
-    zh:'别的数据会有别的形状。玩电子游戏的时长与成绩：点往下走，是负相关。坐公交车的时长与成绩：看不出趋势，没有明显的相关关系。然后回到我们的学习数据。',
+  { en:'In the first simulated plot, test scores tend to fall as gaming time rises, showing a negative association. In the second plot, bus time and scores show no clear pattern.',
+    zh:'第一组模拟数据中，玩电子游戏的时间越长，测验成绩通常越低，呈负相关。第二组中，乘公交车的时长与成绩没有明显的相关关系。',
     run: async S => {
       await S.fadeOut(st.arrow, .4);
       const morph = async (ys, title, assoc) => {
         await S.all([S.fadeOut(st.assoc, .3, true), S.fadeOut(st.xt, .3, true)]);
         st.xt.txt = title; st.assoc.txt = assoc;
         await S.all([...st.dots.map((d, i) => S.to(d, { y:Y(ys[i]) }, 1.2)), S.fadeIn(st.xt, .6)]);
-        await S.fadeIn(st.assoc, .5); await S.wait(1);
+        await S.fadeIn(st.assoc, .5); await S.wait(3.2);
       };
       await morph(NEG, { en:'hours of video games per day', zh:'每天玩电子游戏的时长（小时）' }, { en:'negative association', zh:'负相关' });
       await morph(NONE, { en:'hours on the bus per week', zh:'每周乘公交车的时长（小时）' }, { en:'no association', zh:'没有明显的相关关系' });
-      await morph(SCO, { en:'hours studied', zh:'学习时长（小时）' }, { en:'positive association', zh:'正相关' });
     } },
-  { en:'Look for points that break the pattern. This student studied 6 hours but scored only 45, maybe sick on test day: an outlier. A group of points bunched together is a cluster: many students studied 2 to 3 hours.',
-    zh:'再找找不合群的点。这名学生学了 6 小时，却只考了 45 分，也许考试那天生病了：这是异常值。挤在一起的一群点叫作聚集（簇）：很多学生都学了 2 到 3 小时。',
+  { en:'The point at 6 hours and 45 points sits far below the trend, so it’s an outlier. Many points bunch together between 2 and 3 hours, forming a cluster.',
+    zh:'（6 小时，45 分）远低于整体趋势，是一个异常点。许多点集中在 2～3 小时之间，形成一簇。',
     run: async S => {
+      st.xt.txt = { en:'hours studied', zh:'复习时长（小时）' };
+      st.assoc.txt = { en:'positive association', zh:'正相关' };
+      await S.all(st.dots.map((d, i) => S.to(d, { y:Y(SCO[i]) }, .8)));
       st.out = S.dot(X(6), Y(45), { color:KC.out, r:.13 }); await S.pop(st.out);
       st.outRing = S.circle(X(6), Y(45), .36, { color:KC.out, width:2.5 });
-      st.outLab = word({ en:'outlier', zh:'异常值' }, X(6) + .55, Y(45), { color:KC.out, align:'left', opacity:0 });
+      st.outLab = word({ en:'outlier', zh:'异常点' }, X(6) + .55, Y(45), { color:KC.out, align:'left', opacity:0 });
       await S.all([S.create(st.outRing, .6), S.fadeIn(st.outLab, .6)]);
+      await S.wait(3.8);
       st.clu = S.custom((ctx, S, o) => { ctx.setLineDash([7, 6]); ctx.lineWidth = 2.5; ctx.strokeStyle = KC.clu; ctx.beginPath();
         ctx.ellipse(S.sx(X(2.5)), S.sy(Y(65.5)), S.px(1.05), S.px(.85), 0, 0, Math.PI * 2 * o.draw); ctx.stroke(); }, { draw:0 });
       await S.to(st.clu, { draw:1 }, 1);
-      st.cluLab = word({ en:'cluster', zh:'聚集（簇）' }, X(2.5), Y(65.5) + 1.15, { color:KC.clu, opacity:0 });
+      st.cluLab = word({ en:'cluster', zh:'一簇点' }, X(2.5), Y(65.5) + 1.15, { color:KC.clu, opacity:0 });
       await S.fadeIn(st.cluLab, .6);
+      await S.wait(4);
     } },
-  { en:'Now sum up the trend with one straight line. Too flat misses the ends; too steep misses them the other way. The line of best fit follows the direction of the cloud, with about as many points above as below and the misses (pink) as short as possible.',
-    zh:'现在用一条直线概括这个趋势。太平了，两端都差得远；太陡了，又往另一边偏。最佳拟合直线顺着点群的方向，线上方和线下方的点差不多一样多，而且每个点的偏差（粉色）尽量短。',
+  { en:'Compare a flat line, a steep line, and a line drawn by eye through the cloud. Compare the pink vertical gaps across the whole plot to judge which line fits better.',
+    zh:'比较水平直线、较陡的直线和凭肉眼画出的拟合直线。观察全图中粉色线段的长短，判断哪条直线与点群更贴合。',
     run: async S => {
       await fadeAll([st.out, st.outRing, st.outLab, st.clu, st.cluLab, st.assoc], .5);
       st.fit = S.custom(drawFit, { m:0, b:70, x0:0, x1:7, len:0, res:0, z:-1 });
       await S.to(st.fit, { len:1 }, .8);
       st.cnt = word(counts, -4.9, 3.35, { color:KC.res, size:.36, align:'left', opacity:0 });
       await S.all([S.to(st.fit, { res:1 }, .6), S.fadeIn(st.cnt, .6)]);
-      await S.wait(.7);
-      await S.to(st.fit, { m:11, b:38 }, 1.4); await S.wait(.7);
+      await S.wait(2);
+      await S.to(st.fit, { m:10, b:40 }, 1.4); await S.wait(2);
       await S.to(st.fit, { m:M, b:B }, 1.5);
-      st.fitLab = word({ en:'line of best fit', zh:'最佳拟合直线' }, X(7) + .2, Y(M * 7 + B), { color:KC.line, size:.34, align:'left', opacity:0 });
+      st.fitLab = word({ en:'fit by eye', zh:'目测拟合直线' }, X(7.4), Y(M * 7 + B) + .32, { color:KC.line, size:.34, align:'right', opacity:0 });
       await S.fadeIn(st.fitLab, .6);
+      await S.wait(3.5);
     } },
-  { en:'Read the line like any linear function: $y = 5.5x + 53$. The slope $5.5$ says each extra hour of study goes with about 5.5 more points. The $y$-intercept $53$ is the predicted score for 0 hours.',
-    zh:'像读一次函数一样读这条线：$y = 5.5x + 53$。斜率 $5.5$ 表示每多学 1 小时，成绩大约多 5.5 分；$y$ 轴上的截距 $53$ 是学 0 小时时预测的分数。',
+  { en:'The slope is 5.5 points per hour: predicted scores rise by 11 points across 2 hours. The y-intercept gives the model’s estimate at zero hours, outside the data range.',
+    zh:'横坐标增加 2 小时，预测成绩增加 11 分，所以斜率是每小时 5.5 分。纵截距是复习 0 小时时的预测分数，0 小时在观测范围之外。',
     run: async S => {
       await S.all([S.to(st.fit, { res:0 }, .5), S.fadeOut(st.cnt, .5)]);
       st.eq = S.tex(`${cl(KC.y, 'y')} = ${cl(KC.line, '5.5')}\\,${cl(KC.x, 'x')} + ${cl(KC.pred, '53')}`, -4.9, 3.35, { size:32, anchor:'left' });
@@ -248,12 +504,14 @@ const STEPS = [
       await S.create(st.run, .7); await S.fadeIn(st.runL, .4); await S.create(st.rise, .7); await S.fadeIn(st.riseL, .4);
       st.m1 = word({ en:'slope = 11 ÷ 2 = 5.5 points per hour', zh:'斜率 = 11 ÷ 2 = 5.5（分/小时）' }, -4.9, 2.6, { color:KC.line, size:.3, align:'left', opacity:0 });
       await S.fadeIn(st.m1, .6);
+      await S.wait(4);
       st.b0 = S.dot(X(0), Y(B), { color:KC.pred, r:.13 }); await S.pop(st.b0);
       st.b1 = word({ en:'0 hours → about 53 points', zh:'0 小时 → 约 53 分' }, -4.9, 2.05, { color:KC.pred, size:.3, align:'left', opacity:0 });
       await S.fadeIn(st.b1, .6);
+      await S.wait(4.5);
     } },
-  { en:'Use it to predict. A new student plans to study 4 hours. Go up from 4 to the line, then across: $y = 5.5(4) + 53 = 75$. We predict a score of about 75.',
-    zh:'用它来预测。一名新同学打算复习 4 小时。从 4 往上走到直线，再横着看过去：$y = 5.5 \\times 4 + 53 = 75$。我们预测他大约能考 75 分。',
+  { en:'To predict the score for 4 hours, go up from 4 to the line, then read across to the y-axis. The model gives about 75 points.',
+    zh:'预测复习 4 小时的成绩时，从横轴的 4 向上到直线，再水平移到纵轴读数。模型给出的预测成绩约为 75 分。',
     run: async S => {
       await fadeAll([st.run, st.rise, st.runL, st.riseL, st.m1, st.b0, st.b1], .4);
       st.pv = S.line(X(4), Y(40), X(4), Y(75), { color:KC.pred, width:2.5, dash:[6, 6] });
@@ -266,9 +524,10 @@ const STEPS = [
       await S.fadeIn(st.py, .5);
       st.calc = S.tex(`${cl(KC.y, 'y')} = 5.5(${cl(KC.x, '4')}) + 53 = ${cl(KC.pred, '75')}`, -4.9, 2.5, { size:28, anchor:'left' });
       await S.fadeIn(st.calc, .7);
+      await S.wait(5);
     } },
-  { en:'But be careful far outside the data. Stretch the line to 10 hours and it predicts 108 points, more than the maximum of 100! A trend line is trustworthy only near the data that made it.',
-    zh:'但要小心，别把直线用到离数据太远的地方。把直线延长到 10 小时，它会预测 108 分，比满分 100 还高！趋势线只在原有数据附近才可信。',
+  { en:'Stretch the line to 10 hours and it predicts 108 points, more than the maximum of 100! A trend may change beyond the observed data, so extrapolating that far is risky.',
+    zh:'把直线延长到 10 小时，就会预测 108 分，高于满分 100 分！超出观测范围后，原来的趋势可能改变，外推这么远风险很大。',
     run: async S => {
       await fadeAll([st.pv, st.ph, st.px, st.pd, st.py, st.calc, st.eq], .4);
       st.band = S.rect(X(.5), Y(40), X(6.5) - X(.5), Y(100) - Y(40), { color:null, width:0, fill:'rgba(236,230,226,.06)', opacity:0, z:-2 });
@@ -278,8 +537,11 @@ const STEPS = [
       st.maxL = word({ en:'maximum score: 100', zh:'满分：100' }, -4.9, Y(100) - .32, { color:KC.out, size:.3, align:'left', opacity:0 });
       await S.all([S.create(st.max, .8), S.fadeIn(st.maxL, .6)]);
       await S.all([S.to(st.fit, { x1:10 }, 1.6), S.fadeOut(st.fitLab, .4)]);
-      st.warn = word({ en:'10 h → 108 points?!', zh:'10 小时 → 108 分？！' }, X(10), 2.35, { color:KC.out, size:.36, align:'right', opacity:0 });
+      const off = S.dot(X(10), Y(M * 10 + B), { color:KC.out, r:.14 });
+      await S.pop(off);
+      st.warn = word({ en:'10 h → 108 points', zh:'10 小时 → 108 分' }, X(10) - .28, Y(M * 10 + B), { color:KC.out, size:.36, align:'right', opacity:0 });
       await S.fadeIn(st.warn, .6);
+      await S.wait(7);
     } }
 ];
 MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
@@ -294,7 +556,7 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
   const SETS = [
     { id:'study', en:'Study vs score', zh:'学习与成绩', xl:{ en:'hours studied', zh:'学习时长（小时）' }, yl:{ en:'test score', zh:'考试成绩（分）' },
       xu:{ en:'hours', zh:'小时' }, yu:{ en:'points', zh:'分' }, xr:[0, 8, 1], yr:[40, 100, 10], snap:[.5, 1],
-      pts:[[.5, 55], [1, 60], [2, 64], [2, 61], [2.5, 69], [2.5, 66], [3, 70], [3, 67], [4.5, 78], [5, 80], [5.5, 85], [6.5, 88]] },
+      pts:HRS.map((x, i) => [x, SCO[i]]) },
     { id:'arm', en:'Arm span vs height', zh:'臂展与身高', xl:{ en:'arm span (cm)', zh:'臂展（cm）' }, yl:{ en:'height (cm)', zh:'身高（cm）' },
       xu:{ en:'cm', zh:'cm' }, yu:{ en:'cm', zh:'cm' }, xr:[140, 190, 10], yr:[140, 190, 10], snap:[1, 1],
       pts:[[148, 150], [152, 151], [155, 157], [158, 156], [160, 163], [163, 161], [165, 168], [167, 165], [170, 172], [172, 170], [175, 177], [178, 176], [181, 183], [185, 184]] },
@@ -304,30 +566,29 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     { id:'car', en:'Car age vs price', zh:'车龄与价格', xl:{ en:'age of the car (years)', zh:'车龄（年）' }, yl:{ en:'price (thousand $)', zh:'价格（千美元）' },
       xu:{ en:'years', zh:'年' }, yu:{ en:'thousand $', zh:'千美元' }, xr:[0, 12, 2], yr:[0, 40, 10], snap:[.5, .5],
       pts:[[1, 34], [1, 31], [2, 29], [3, 26], [3, 24], [4, 22], [5, 19], [6, 18], [7, 15], [8, 13], [9, 12], [10, 10.5], [11, 9.5], [12, 9]] },
-    { id:'shoe', en:'Shoe size vs math score', zh:'鞋码与数学成绩', xl:{ en:'shoe size (US)', zh:'鞋码（美码）' }, yl:{ en:'math score', zh:'数学成绩（分）' },
-      xu:{ en:'', zh:'码' }, yu:{ en:'points', zh:'分' }, xr:[4, 13, 1], yr:[40, 100, 10], snap:[.5, 1],
+    { id:'shoe', en:'Shoe size vs math score', zh:'鞋码与数学成绩', xl:{ en:'shoe size (US)', zh:'鞋码（美码）' }, yl:{ en:'math score (points)', zh:'数学成绩（分）' },
+      xu:{ en:'(US size)', zh:'（美码）' }, yu:{ en:'points', zh:'分' }, xr:[4, 13, 1], yr:[40, 100, 10], snap:[.5, 1],
       pts:[[5, 72], [6, 58], [6.5, 85], [7, 66], [7.5, 79], [8, 61], [8.5, 90], [9, 70], [9.5, 55], [10, 82], [10.5, 67], [11, 75], [11.5, 63], [12, 78]] }
   ];
-  let set, pts, ly = [0, 0], hx = [0, 0], drag = -1, down = null, showBest = false, px = 0, snapAnim = null;
+  let set, pts, fit, ly = [0, 0], hx = [0, 0], drag = -1, down = null, showBest = false, px = 0, snapAnim = null;
   const f = (v, d = 2) => (Math.round(v * 10 ** d) / 10 ** d).toString();
+  const equation = (m, b) => m + 'x ' + (b < 0 ? '− ' : '+ ') + Math.abs(b);
   const wx = x => PL + (x - set.xr[0]) / (set.xr[1] - set.xr[0]) * (PR - PL), wy = y => PB + (y - set.yr[0]) / (set.yr[1] - set.yr[0]) * (PT - PB);
   const dx = X => set.xr[0] + (X - PL) / (PR - PL) * (set.xr[1] - set.xr[0]), dy = Yw => set.yr[0] + (Yw - PB) / (PT - PB) * (set.yr[1] - set.yr[0]);
   const lineMB = () => { const m = (ly[1] - ly[0]) / (hx[1] - hx[0]); return [m, ly[0] - m * hx[0]]; };
-  function stats(P = pts){
-    const n = P.length; if (n < 2) return null;
-    const mx = P.reduce((s, p) => s + p[0], 0) / n, my = P.reduce((s, p) => s + p[1], 0) / n;
-    let sxx = 0, sxy = 0, syy = 0; P.forEach(([x, y]) => { sxx += (x - mx) ** 2; sxy += (x - mx) * (y - my); syy += (y - my) ** 2; });
-    if (sxx < 1e-9) return null;
-    const m = sxy / sxx; return { m, b:my - m * mx, r:syy > 1e-9 ? sxy / Math.sqrt(sxx * syy) : 0, my, mx, sxx, sxy, syy, n };
-  }
   const sse = (m, b) => pts.reduce((s, [x, y]) => s + (y - (m * x + b)) ** 2, 0);   // sum of squared residuals (Advanced)
   const avgMiss = (m, b) => pts.reduce((s, [x, y]) => s + Math.abs(y - (m * x + b)), 0) / pts.length;
   function load(i){
-    set = SETS[i]; pts = set.pts.map(p => p.slice()); showBest = false; snapAnim = null;
+    set = SETS[i]; pts = set.pts.map(p => p.slice()); fit = regression(pts);
+    showBest = false; snapAnim = null; usedSnap = false;
+    drag = -1; down = null; clearChallenge();
     const [x0, x1] = set.xr; hx = [x0 + .2 * (x1 - x0), x0 + .8 * (x1 - x0)];
     const my = pts.reduce((s, p) => s + p[1], 0) / pts.length; ly = [my, my];
     const pin = Lab.$('#pxIn'); pin.min = x0; pin.max = x1; pin.step = set.snap[0]; px = Math.round(((x0 + x1) / 2) / set.snap[0]) * set.snap[0]; pin.value = px;
-    Lab.$$('#sets button').forEach((b, k) => b.className = k === i ? 'btn' : 'btn ghost');
+    Lab.$$('#sets button').forEach((b, k) => {
+      b.classList.toggle('ghost', k !== i);
+      b.setAttribute('aria-pressed', k === i);
+    });
     update();
   }
   E.custom((ctx, S) => {
@@ -343,7 +604,7 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
     ctx.font = `800 ${Math.max(11, S.px(.3))}px Nunito, "Microsoft YaHei", sans-serif`;
     ctx.fillStyle = KC.x; ctx.textAlign = 'right'; ctx.fillText(Lab.L(set.xl), S.sx(PR), S.sy(-4.15));
     ctx.fillStyle = KC.y; ctx.textAlign = 'left'; ctx.fillText(Lab.L(set.yl), S.sx(PL + .1), S.sy(4.22));
-    const [m, b] = lineMB(), bs = stats();
+    const [m, b] = lineMB(), bs = fit;
     ctx.save(); ctx.beginPath(); ctx.rect(S.sx(PL), S.sy(PT), S.px(PR - PL), S.px(PT - PB)); ctx.clip();
     if (Lab.adv() && Lab.$('#sqChk').checked){            // Advanced: each residual drawn as a square, area = residual²
       ctx.fillStyle = 'rgba(246,127,179,.16)'; ctx.strokeStyle = 'rgba(246,127,179,.6)'; ctx.lineWidth = 1;
@@ -367,99 +628,170 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
   const cv = E.cv, toW = e => { const b = cv.getBoundingClientRect(); return [E.wx(e.clientX - b.left), E.wy(e.clientY - b.top)]; };
   cv.style.cursor = 'crosshair'; cv.style.touchAction = 'none';
   cv.addEventListener('pointerdown', e => {
+    if (down || !e.isPrimary || e.button !== 0) return;
     const [x, y] = toW(e);
-    drag = hx.findIndex((h, i) => Math.hypot(wx(h) - x, wy(ly[i]) - y) < .5);
-    if (drag >= 0){ snapAnim = null; usedSnap = false; cv.setPointerCapture(e.pointerId); return; }
-    down = [x, y];
+    drag = hx.findIndex((h, i) => E.px(Math.hypot(wx(h) - x, wy(ly[i]) - y)) < 18);
+    if (drag < 0 && (x < PL || x > PR || y < PB || y > PT)) return;
+    down = { id:e.pointerId, x, y };
+    if (drag >= 0) snapAnim = null;
+    cv.setPointerCapture(e.pointerId);
   });
   cv.addEventListener('pointermove', e => {
-    if (drag < 0) return; const [, y] = toW(e);
-    ly[drag] = Math.max(set.yr[0], Math.min(set.yr[1], dy(y))); update();
-  });
-  cv.addEventListener('pointerup', e => {
-    if (drag >= 0){ drag = -1; update(); return; }
-    if (!down) return; const [x, y] = toW(e); down = null;
-    const hit = pts.findIndex(p => Math.hypot(wx(p[0]) - x, wy(p[1]) - y) < .3);
-    if (hit >= 0) pts.splice(hit, 1);
-    else if (x >= PL && x <= PR && y >= PB && y <= PT){ const s = set.snap; pts.push([Math.round(dx(x) / s[0]) * s[0], Math.round(dy(y) / s[1]) * s[1]]); }
-    else return;
+    if (drag < 0 || down?.id !== e.pointerId) return;
+    const [, y] = toW(e);
+    ly[drag] = Math.max(set.yr[0], Math.min(set.yr[1], dy(y)));
+    clearChallenge();
     update();
   });
+  cv.addEventListener('pointerup', e => {
+    if (down?.id !== e.pointerId) return;
+    const [x, y] = toW(e), start = down;
+    down = null;
+    if (drag >= 0){ drag = -1; update(); return; }
+    if (E.px(Math.hypot(x - start.x, y - start.y)) > 9) return;
+    let hit = -1, nearest = 10;
+    pts.forEach(([px, py], i) => {
+      const distance = E.px(Math.hypot(wx(px) - x, wy(py) - y));
+      if (distance < nearest) { hit = i; nearest = distance; }
+    });
+    if (hit >= 0) pts.splice(hit, 1);
+    else if (x >= PL && x <= PR && y >= PB && y <= PT){
+      const [sx, sy] = set.snap;
+      const point = [Math.round(dx(x) / sx) * sx, Math.round(dy(y) / sy) * sy];
+      if (pts.some(([px, py]) => px === point[0] && py === point[1])) return;
+      pts.push(point);
+    }
+    else return;
+    fit = regression(pts);
+    snapAnim = null;
+    clearChallenge();
+    update();
+  });
+  cv.addEventListener('lostpointercapture', () => { drag = -1; down = null; });
   E.onFrame(dt => {
     if (!snapAnim) return;
     snapAnim.t = Math.min(1, snapAnim.t + dt / .8); const e = MathAnim.ease.smooth(snapAnim.t);
-    ly = snapAnim.from.map((v, i) => v + (snapAnim.to[i] - v) * e); update();
+    hx = snapAnim.fromX.map((v, i) => v + (snapAnim.toX[i] - v) * e);
+    ly = snapAnim.fromY.map((v, i) => v + (snapAnim.toY[i] - v) * e);
+    update();
     if (snapAnim.t >= 1) snapAnim = null;
   });
   function update(){
     if (!set) return;
-    const [m, b] = lineMB(), bs = stats(), L = Lab.L;
+    const [m, b] = lineMB(), bs = fit, L = Lab.L;
     let assoc = { en:'Add at least 2 points with different x-values', zh:'至少需要 2 个 x 值不同的点' }, col = 'var(--ink-2)';
-    if (bs){
+    if (bs && bs.r === null) {
+      assoc = { en:'All y-values are equal', zh:'所有纵坐标都相同' };
+    } else if (bs){
       const a = Math.abs(bs.r), pos = bs.r > 0;
-      if (a < .3){ assoc = { en:'No clear association', zh:'没有明显的相关关系' }; }
-      else { const lvl = a >= .8 ? { en:'Strong', zh:'强' } : a >= .5 ? { en:'Moderate', zh:'中等程度的' } : { en:'Weak', zh:'弱' };
-        assoc = { en:`${lvl.en} ${pos ? 'positive' : 'negative'} association`, zh:`${lvl.zh}${pos ? '正' : '负'}相关` }; col = pos ? 'var(--good)' : 'var(--bad)'; }
+      if (a < .3){ assoc = { en:'Little or no linear trend', zh:'线性趋势不明显' }; }
+      else {
+        assoc = pos ? { en:'Upward linear trend estimate', zh:'估计呈上升的线性趋势' } : { en:'Downward linear trend estimate', zh:'估计呈下降的线性趋势' };
+        col = pos ? 'var(--good)' : 'var(--bad)';
+      }
     }
-    Lab.$('#assoc').textContent = L(assoc); Lab.$('#assoc').style.color = col;
-    const sgn = b < 0 ? '-' : '+';
-    Lab.$('#eq').innerHTML = MathAnim.tex(`${cl(KC.y, 'y')} = ${cl(KC.line, f(m, Math.abs(m) < 1 ? 3 : 2))}\\,${cl(KC.x, 'x')} ${sgn} ${f(Math.abs(b), 1)}`);
-    let ab = [0, 0]; pts.forEach(([x, y]) => { const d = y - (m * x + b); if (d > 1e-9) ab[0]++; else if (d < -1e-9) ab[1]++; });
-    Lab.$('#ab').textContent = ab[0] + ' · ' + ab[1];
-    Lab.$('#miss').textContent = pts.length ? f(avgMiss(m, b), 1) + ' / ' + (bs ? f(avgMiss(bs.m, bs.b), 1) : '–') : '–';
-    const py = m * px + b, unit = o => L(o) ? ' ' + L(o) : '';
-    Lab.$('#pxVal').textContent = f(px) + unit(set.xu);
-    const inRange = pts.length && px >= Math.min(...pts.map(p => p[0])) && px <= Math.max(...pts.map(p => p[0]));
-    Lab.$('#pred').innerHTML = MathAnim.tex(`${cl(KC.y, 'y')} \\approx ${f(m, 3)}(${cl(KC.x, f(px))}) ${sgn} ${f(Math.abs(b), 1)} \\approx ${cl(KC.pred, f(py, 1))}`) + unit(set.yu) +
-      (inRange ? '' : `<br><span style="color:var(--bad);font-size:14px">${L({ en:'⚠️ Outside the data: this prediction may not be reliable.', zh:'⚠️ 超出了已有数据的范围：这个预测可能不可靠。' })}</span>`);
-    Lab.$('#bestBtn').textContent = L(showBest ? { en:'Hide best line', zh:'隐藏最佳直线' } : { en:'Show best line', zh:'显示最佳直线' });
+    scatterText(Lab.$('#assoc'), L(assoc)); Lab.$('#assoc').style.color = col;
+    const ms = +f(m, 4), bi = +f(b, 3);
+    const expression = equation(ms, bi);
+    scatterFormula(Lab.$('#eq'), '\\widehat y\\approx ' + expression.replace('−', '-'), 'ŷ ≈ ' + expression);
+    const ab = [0, 0];
+    pts.forEach(([x, y]) => { const d = y - (m * x + b); if (d > 1e-9) ab[0]++; else if (d < -1e-9) ab[1]++; });
+    scatterText(Lab.$('#ab'), ab.join(' · '));
+    const unit = o => ' ' + L(o);
+    scatterText(Lab.$('#miss'), pts.length ? f(avgMiss(m, b), 1) + ' / ' + (bs ? f(avgMiss(bs.m, bs.b), 1) : '–') : '–');
+    scatterText(Lab.$('#missUnit'), L(set.yu));
+    scatterText(Lab.$('#pxVal'), f(px) + unit(set.xu));
+    const py = f(m * px + b, 1);
+    const substitution = equation(ms, bi).replace('x', '(' + f(px) + ')');
+    scatterFormula(Lab.$('#fitPrediction'), '\\widehat y\\approx ' + substitution.replace('−', '-') + '\\approx ' + py,
+      'ŷ ≈ ' + substitution + ' ≈ ' + py);
+    scatterText(Lab.$('#fitPredictionUnit'), unit(set.yu));
+    const inRange = pts.some(([x]) => x <= px) && pts.some(([x]) => x >= px);
+    const warning = !pts.length ? { en:'Add data to compare this estimate with observations.', zh:'添加数据后，才能将估计值与观测值比较。' }
+      : inRange ? { en:'', zh:'' } : { en:'Outside the observed range. The trend may change.', zh:'超出观测范围，原来的趋势可能改变。' };
+    scatterText(Lab.$('#fitWarning'), L(warning));
+    const ref = Lab.$('#bestBtn');
+    scatterText(ref, L(showBest ? { en:'Hide reference fit', zh:'隐藏参考直线' } : { en:'Show reference fit', zh:'显示参考直线' }));
+    ref.disabled = Lab.$('#snapBtn').disabled = !bs;
+    ref.setAttribute('aria-pressed', showBest && !!bs);
     advUpdate();
   }
   /* ---------- Advanced: least squares, r, residual squares, challenge ---------- */
   let chI = 0, usedSnap = false;
+  let challengeResult = null;
+  const showChallengeResult = () => {
+    const el = Lab.$('#chMsg');
+    scatterText(el, challengeResult ? Lab.L(challengeResult[1]) : '');
+    el.className = 'result' + (challengeResult ? (challengeResult[0] ? ' good' : ' bad') : '');
+  };
+  function clearChallenge(){
+    challengeResult = null;
+    showChallengeResult();
+  }
   const isOrig = p => set.pts.some(q => q[0] === p[0] && q[1] === p[1]);
+  const showR = bs => bs?.r == null ? '–' : f(bs.r, 3);
   const CH = [
-    { en:'Fit by hand: drag the orange handles (no “Snap”!) until your sum of squared misses is at most 5% more than the best line’s.', zh:'手动拟合：拖动橙色圆点（不许用“移到最佳位置”！），让你的残差平方和最多比最佳直线的大 5%。',
-      check:bs => { if (!bs) return [false, { en:'You need at least 2 points.', zh:'至少需要 2 个点。' }];
-        if (usedSnap) return [false, { en:'That was “Snap”. Drag a handle and do it by hand!', zh:'这是“移到最佳位置”做的。拖动圆点，自己动手！' }];
-        const [m, b] = lineMB(), a = sse(m, b), best = sse(bs.m, bs.b), pct = best > 1e-9 ? (a / best - 1) * 100 : 0;
+    { en:'Drag the handles by hand until your sum of squared gaps is at most 5% above the minimum. If the minimum is zero, match it exactly.', zh:'用手拖动控制点，让残差平方和最多比最小值多 5%。如果最小值为 0，你也要拟合到 0。',
+      check:bs => { if (!bs) return [false, { en:'You need two or more distinct x-values.', zh:'至少需要两个不同的横坐标。' }];
+        if (usedSnap) return [false, { en:'Reset the data to retry this challenge by hand.', zh:'请先重置数据，再用手拖动控制点完成挑战。' }];
+        const [m, b] = lineMB(), a = sse(m, b), best = sse(bs.m, bs.b);
+        if (best <= 1e-9) return a <= 1e-9
+          ? [true, { en:'Your line passes through all the data points.', zh:'你的直线经过所有数据点。' }]
+          : [false, { en:'The minimum is zero. Find a line through all the data points.', zh:'最小值为 0。试着找一条经过所有数据点的直线。' }];
+        const pct = Math.max(0, (a / best - 1) * 100);
         return pct <= 5 ? [true, { en:`🎉 Only ${f(pct, 1)}% more than the best: a great fit by eye!`, zh:`🎉 只比最佳直线多 ${f(pct, 1)}%：凭眼睛拟合得很好！` }]
                         : [false, { en:`Yours is ${f(pct, 0)}% more than the best. Shrink the pink squares (the big ones first).`, zh:`你的比最佳直线多 ${f(pct, 0)}%。让粉色正方形变小（先管最大的）。` }]; } },
-    { en:'Outlier power: add exactly ONE point that lowers |r| by at least 0.2 (press “Reset data” first).', zh:'异常值的威力：只添加一个点，让 |r| 至少下降 0.2（先点“重置数据”）。',
-      check:bs => { const r0 = stats(set.pts).r, added = pts.filter(p => !isOrig(p)).length;
-        if (pts.length !== set.pts.length + 1 || added !== 1) return [false, { en:'Start from the original data (Reset data) and add exactly one point.', zh:'从原始数据开始（重置数据），只添加一个点。' }];
-        const drop = Math.abs(r0) - Math.abs(bs ? bs.r : 0);
+    { en:'Pick “Study vs score” and add exactly one point that lowers |r| by at least 0.2.', zh:'选择“学习与成绩”，只添加一个点，使 |r| 至少降低 0.2。',
+      check:bs => {
+        if (set.id !== 'study') return [false, { en:'First pick “Study vs score”.', zh:'请先选择“学习与成绩”。' }];
+        const added = pts.filter(p => !isOrig(p)).length;
+        if (pts.length !== set.pts.length + 1 || added !== 1) return [false, { en:'Reset the data and add exactly one point.', zh:'请重置数据，再添加一个点。' }];
+        const r0 = regression(set.pts).r, drop = Math.abs(r0) - Math.abs(bs.r);
         return drop >= .2 ? [true, { en:`🎉 One point moved r from ${f(r0)} to ${f(bs.r)}. Outliers can change r a lot!`, zh:`🎉 一个点就把 r 从 ${f(r0)} 变成了 ${f(bs.r)}。异常值对 r 的影响很大！` }]
                           : [false, { en:`|r| only dropped by ${f(drop)}. Put the point far from the trend, near one end.`, zh:`|r| 只下降了 ${f(drop)}。把点放在远离趋势的地方，靠近一端。` }]; } },
-    { en:'On “Shoe size vs math score” (no association), add or remove points until r ≥ 0.5.', zh:'在“鞋码与数学成绩”（没有相关关系）中，添加或删除点，使 r ≥ 0.5。',
+    { en:'On “Shoe size vs math score”, add or remove points until r ≥ 0.5, keeping at least six points.', zh:'在“鞋码与数学成绩”中添加或删除点，使 r ≥ 0.5，并至少保留 6 个点。',
       check:bs => set.id !== 'shoe' ? [false, { en:'First pick the “Shoe size vs math score” data.', zh:'先选择“鞋码与数学成绩”这组数据。' }]
-        : bs && bs.r >= .5 ? [true, { en:`🎉 r = ${f(bs.r)}. But changing the data does not make big feet cause good grades: correlation ≠ causation.`, zh:`🎉 r = ${f(bs.r)}。不过，改数据并不会让大脚“导致”好成绩：相关不等于因果。` }]
-        : [false, { en:`r = ${bs ? f(bs.r) : '–'}. Remove points that go against an upward trend, or add points along one.`, zh:`r = ${bs ? f(bs.r) : '–'}。删掉不符合上升趋势的点，或者沿上升趋势添加点。` }] },
+        : pts.length < 6 ? [false, { en:'Keep at least six points for this challenge.', zh:'这一题至少要保留 6 个点。' }]
+        : bs?.r >= .5 ? [true, { en:`🎉 r = ${showR(bs)}. Choosing which points to show can create a misleading trend.`, zh:`🎉 r＝${showR(bs)}。只挑选某些点来展示，可能得出误导性的趋势。` }]
+        : [false, { en:`r = ${showR(bs)}. Remove points that go against an upward trend, or add points along one.`, zh:`r＝${showR(bs)}。删去明显偏离上升趋势的点，或者沿上升趋势添加点。` }] },
     { en:'“Car age vs price” bends. Only REMOVE points (keep at least 6) until r ≤ −0.99.', zh:'“车龄与价格”的点有点弯。只许删除点（至少留 6 个），使 r ≤ −0.99。',
       check:bs => set.id !== 'car' ? [false, { en:'First pick the “Car age vs price” data.', zh:'先选择“车龄与价格”这组数据。' }]
         : !pts.every(isOrig) || pts.length < 6 ? [false, { en:'Only remove original points, and keep at least 6.', zh:'只能删除原来的点，并且至少留 6 个。' }]
-        : bs && bs.r <= -.99 ? [true, { en:`🎉 r = ${f(bs.r, 3)}. The remaining points lie almost on a line: the curve was hiding at one end.`, zh:`🎉 r = ${f(bs.r, 3)}。剩下的点几乎在一条直线上：弯曲主要出在一端。` }]
-        : [false, { en:`r = ${bs ? f(bs.r, 3) : '–'}. Which end of the cloud bends away from a straight line?`, zh:`r = ${bs ? f(bs.r, 3) : '–'}。这团点的哪一端偏离了直线？` }] }
+        : bs?.r <= -.99 ? [true, { en:`🎉 r = ${showR(bs)}. The subset is nearly linear. Look at the full dataset to see the bend.`, zh:`🎉 r＝${showR(bs)}。剩下的点接近直线。再看看全部数据，就能看到弯曲的趋势。` }]
+        : [false, { en:`r = ${showR(bs)}. Try keeping points in a shorter range of car ages.`, zh:`r＝${showR(bs)}。试着只保留车龄集中在较小范围内的点。` }] }
   ];
   function advUpdate(){
     if (!set || !Lab.adv()) return;
-    const bs = stats(), L = Lab.L, [m, b] = lineMB(), par = (v, d) => v < 0 ? `(${f(v, d)})` : f(v, d), big = v => f(v, v >= 100 ? 0 : 1);
-    Lab.$('#rVal').textContent = bs ? f(bs.r) + ' · ' + f(bs.r * bs.r) : '–';
-    Lab.$('#sse').textContent = pts.length ? big(sse(m, b)) + ' / ' + (bs ? big(sse(bs.m, bs.b)) : '–') : '–';
-    Lab.$('#lsq').innerHTML = bs ? MathAnim.tex(`\\begin{aligned}
-      \\bar x &= ${f(bs.mx)},\\quad \\bar y = ${f(bs.my)} \\quad (n = ${bs.n}) \\\\
-      S_{xy} &= \\textstyle\\sum (x-\\bar x)(y-\\bar y) = ${f(bs.sxy, 1)} \\\\
-      S_{xx} &= \\textstyle\\sum (x-\\bar x)^2 = ${f(bs.sxx, 1)} \\\\
-      S_{yy} &=\\textstyle\\sum (y-\\bar y)^2 = ${f(bs.syy, 1)} \\\\
-      m &= \\frac{S_{xy}}{S_{xx}} = \\frac{${f(bs.sxy, 1)}}{${f(bs.sxx, 1)}} \\approx ${f(bs.m, 3)} \\\\
-      b &= \\bar y - m\\bar x = ${f(bs.my)} - ${par(bs.m, 3)}\\cdot ${par(bs.mx, 2)} \\approx ${f(bs.b, 2)} \\\\
-      r &= \\frac{S_{xy}}{\\sqrt{S_{xx} S_{yy}}} = \\frac{${f(bs.sxy, 1)}}{\\sqrt{${f(bs.sxx, 1)} \\times ${f(bs.syy, 1)}}} \\approx ${f(bs.r, 3)}
-      \\end{aligned}`) : L({ en:'Add at least 2 points with different x-values.', zh:'至少需要 2 个 x 值不同的点。' });
-    Lab.$('#chTxt').textContent = L(CH[chI]);
+    const bs = fit, L = Lab.L, [m, b] = lineMB();
+    const big = v => f(v, v >= 100 ? 0 : 2);
+    scatterText(Lab.$('#rVal'), bs?.r != null ? showR(bs) + ' · ' + f(bs.r * bs.r, 3) : '–');
+    scatterText(Lab.$('#sse'), pts.length ? big(sse(m, b)) + ' / ' + (bs ? big(sse(bs.m, bs.b)) : '–') : '–');
+    scatterText(Lab.$('#sseUnit'), L(set.yu) + '²');
+    Lab.$('#lsq').hidden = !bs;
+    if (bs) {
+      scatterFormula(Lab.$('#lsq'), `\\begin{aligned}
+        \\bar x &\\approx ${f(bs.mx, 3)},\\quad \\bar y \\approx ${f(bs.my, 3)} \\quad (n = ${bs.n}) \\\\
+        S_{xy} &= \\textstyle\\sum (x-\\bar x)(y-\\bar y) \\approx ${f(bs.sxy, 3)} \\\\
+        S_{xx} &= \\textstyle\\sum (x-\\bar x)^2 \\approx ${f(bs.sxx, 3)} \\\\
+        S_{yy} &= \\textstyle\\sum (y-\\bar y)^2 \\approx ${f(bs.syy, 3)} \\\\
+        m &= \\frac{S_{xy}}{S_{xx}} \\approx ${f(bs.m, 3)},\\quad b = \\bar y - m\\bar x \\approx ${f(bs.b, 2)} \\\\
+        ${bs.r === null ? '' : ` r &= \\frac{S_{xy}}{\\sqrt{S_{xx} S_{yy}}} \\approx ${showR(bs)}`}
+        \\end{aligned}`, [
+        `x̄ ≈ ${f(bs.mx, 3)}, ȳ ≈ ${f(bs.my, 3)} (n = ${bs.n})`,
+        `Sxy ≈ ${f(bs.sxy, 3)}, Sxx ≈ ${f(bs.sxx, 3)}, Syy ≈ ${f(bs.syy, 3)}`,
+        `m = Sxy ÷ Sxx ≈ ${f(bs.m, 3)}`,
+        `b = ȳ − mx̄ ≈ ${f(bs.b, 2)}`,
+        bs.r === null ? '' : `r = Sxy ÷ √(Sxx × Syy) ≈ ${showR(bs)}`
+      ].filter(Boolean).join('\n'));
+    }
+    const note = !bs ? { en:'Add points with at least two different x-values.', zh:'请添加数据点，使横坐标至少有两个不同的值。' }
+      : bs.r === null ? { en:'Correlation is undefined because all y-values match.', zh:'纵坐标全部相同，相关系数没有定义。' } : { en:'', zh:'' };
+    scatterText(Lab.$('#lsqNote'), L(note));
+    scatterText(Lab.$('#chTxt'), L(CH[chI]));
+    showChallengeResult();
   }
-  Lab.$('#sqChk').onchange = advUpdate;
-  Lab.$('#chNew').onclick = () => { chI = (chI + 1) % CH.length; Lab.$('#chMsg').textContent = ''; Lab.$('#chMsg').className = 'result'; advUpdate(); };
-  Lab.$('#chCheck').onclick = () => { const [ok, msg] = CH[chI].check(stats()), el = Lab.$('#chMsg'); el.textContent = Lab.L(msg); el.className = 'result ' + (ok ? 'good' : 'bad'); };
+  Lab.$('#chNew').onclick = () => { chI = (chI + 1) % CH.length; clearChallenge(); advUpdate(); };
+  Lab.$('#chCheck').onclick = () => { challengeResult = CH[chI].check(fit); showChallengeResult(); };
   Lab.onMode(advUpdate);
   Lab.$('#sets').innerHTML = SETS.map((s, i) => `<button class="btn ghost" data-i="${i}" data-zh="${s.zh}">${s.en}</button>`).join('');
   Lab.translate(Lab.$('#sets'));
@@ -467,36 +799,534 @@ MathAnim.lesson({ el:'#player', scene:S, steps:STEPS,
   Lab.$('#pxIn').oninput = e => { px = +e.target.value; update(); };
   Lab.$('#resChk').onchange = update;
   Lab.$('#bestBtn').onclick = () => { showBest = !showBest; update(); };
-  Lab.$('#snapBtn').onclick = () => { const bs = stats(); usedSnap = true; if (bs) snapAnim = { t:0, from:ly.slice(), to:hx.map(h => bs.m * h + bs.b) }; };
+  Lab.$('#snapBtn').onclick = () => {
+    if (!fit) return;
+    usedSnap = true;
+    clearChallenge();
+    const { m, b } = fit;
+    let [left, right] = set.xr;
+    if (m !== 0) {
+      const intersections = set.yr.slice(0, 2).map(y => (y - b) / m).sort((a, b) => a - b);
+      left = Math.max(left, intersections[0]);
+      right = Math.min(right, intersections[1]);
+    }
+    const toX = [.2, .8].map(fraction => left + (right - left) * fraction);
+    snapAnim = { t:0, fromX:hx.slice(), fromY:ly.slice(), toX, toY:toX.map(x => m * x + b) };
+  };
   Lab.$('#resetBtn').onclick = () => load(SETS.indexOf(set));
   load(0); Lab.onLang(update);
 })();
 
+/* ================= Collect, compare, model and predict ================= */
+(() => {
+  const { $, $$, L } = Lab;
+  const t = (en, zh) => ({ en, zh });
+  Lab.ready(() => {
+    const standard = $('.lab-footer > p');
+    if (standard?.firstElementChild) standard.replaceChildren(standard.firstElementChild, '8.FGR.6.1–6.4');
+  });
+  const study = { xl:t('Study time (hours)', '复习时长（小时）'), yl:t('Test score (points)', '测验成绩（分）'),
+    xr:[0, 12, 2], yr:[0, 100, 20], step:[.5, 1], points:HRS.map((x, i) => [x, SCO[i]]) };
+  const body = { xl:t('Arm span (cm)', '臂展（cm）'), yl:t('Height (cm)', '身高（cm）'),
+    xr:[80, 220, 35], yr:[80, 220, 35], step:[1, 1],
+    points:[[143,146],[149,148],[151,153],[154,156],[156,153],[161,162],[165,164],[168,169]] };
+  const copy = points => points.map(point => point.slice());
+  const write = scatterText;
+  const num = (x, digits = 2) => +x.toFixed(digits);
+  const constant = x => x < 0 ? ' - ' + Math.abs(x) : ' + ' + x;
+  const term = x => x < 0 ? '(' + x + ')' : x;
+  const pointText = ([x, y]) => Lab.lang === 'zh' ? '（' + x + '，' + y + '）' : '(' + x + ', ' + y + ')';
+  function toggle(el, selected) {
+    el.classList.toggle('ghost', !selected);
+    el.setAttribute('aria-pressed', selected);
+  }
+  $$('.sp-math').forEach(el => scatterFormula(el, el.dataset.tex));
+  $$('.sp-say').forEach(btn => {
+    const target = document.getElementById(btn.dataset.say);
+    const parts = target.hasAttribute('data-zh') ? [target] : [...target.querySelectorAll('[data-zh]')];
+    const words = parts.map(part => t(part.textContent, part.dataset.zh));
+    btn.onclick = () => Lab.speak(words.map(L).join(' '));
+  });
+
+  const rect = { left:49, right:372, top:33, bottom:252 };
+  const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+  function graph(svg, data, points, opt = {}) {
+    const [x0, x1, dx] = data.xr, [y0, y1, dy] = data.yr;
+    const { left, right, top, bottom } = rect;
+    const x = v => left + (v - x0) * (right - left) / (x1 - x0);
+    const y = v => bottom - (v - y0) * (bottom - top) / (y1 - y0);
+    const line = (a, b, c, d, stroke, style = '') =>
+      '<line x1="' + x(a) + '" y1="' + y(b) + '" x2="' + x(c) + '" y2="' + y(d) + '" stroke="' + stroke + '" ' + style + '/>';
+    const text = (a, b, str, align = 'start', color = '#eae5f0') =>
+      '<text x="' + a + '" y="' + b + '" text-anchor="' + align + '" style="color:' + color + '">' + str + '</text>';
+    const circle = (p, fill, style = '') =>
+      '<circle cx="' + x(p[0]) + '" cy="' + y(p[1]) + '" r="5.5" fill="' + fill + '" ' + style + '/>';
+    const band = opt.band ? '<rect x="' + x(opt.band[0]) + '" y="' + top + '" width="' + (x(opt.band[1]) - x(opt.band[0])) + '" height="' + (bottom - top) + '" fill="#2e4250"/>' : '';
+    let grid = band;
+    for (let v = x0; v <= x1 + 1e-9; v += dx) {
+      grid += line(v, y0, v, y1, '#3c3548') + text(x(v), bottom + 18, num(v), 'middle');
+    }
+    for (let v = y0; v <= y1 + 1e-9; v += dy) {
+      grid += line(x0, v, x1, v, '#3c3548') + text(left - 8, y(v) + 4, num(v), 'end');
+    }
+    grid += line(x0, y0, x1, y0, '#bdb2ca') + line(x0, y0, x0, y1, '#bdb2ca');
+    const clip = svg.id + 'Clip';
+    const warm = KC.line, pale = '#bbb1c7';
+    let guides = '';
+    if (opt.curve) {
+      const vertices = Array.from({ length:33 }, (_, i) => {
+        const v = x0 + (x1 - x0) * i / 32;
+        return x(v) + ',' + y(v ** 2);
+      });
+      guides += '<polyline class="sp-guide" points="' + vertices.join(' ') + '" fill="none" stroke="' + pale + '" stroke-dasharray="5 4"/>';
+    }
+    if (opt.limit !== undefined) guides += line(x0, opt.limit, x1, opt.limit, KC.out, 'stroke-dasharray="5 4"');
+    for (const fit of opt.lines || []) {
+      if (!fit) continue;
+      guides += line(x0, fit.m * x0 + fit.b, x1, fit.m * x1 + fit.b,
+        fit.baseline ? pale : warm, fit.baseline ? 'stroke-width="2" stroke-dasharray="6 5"' : 'stroke-width="3"');
+    }
+    if (opt.pred) {
+      const [px, py] = opt.pred;
+      guides += line(px, y0, px, py, KC.pred, 'stroke-width="2" stroke-dasharray="4 4"');
+      guides += line(x0, py, px, py, KC.pred, 'stroke-width="2" stroke-dasharray="4 4"');
+    }
+    const focused = svg.contains(document.activeElement) ? document.activeElement.dataset.dot : undefined;
+    const dots = points.map((p, i) => {
+      const attrs = 'data-dot="' + i + '" ' + (opt.keyboard ? 'tabindex="0" role="img" aria-label="' + L(t('Point ' + (i + 1), '第 ' + (i + 1) + ' 个点')) + ' ' + pointText(p) + '"' : '');
+      return circle(p, i === opt.outlier ? KC.out : KC.pt,
+        attrs + (i === opt.selected ? ' stroke="#fff" stroke-width="2.5"' : ''));
+    }).join('');
+    const anchors = (opt.anchors || []).map((p, i) =>
+      circle(p, '#17131e', 'stroke="' + warm + '" stroke-width="2.5"')
+      + text(x(p[0]), y(p[1]) - 11, i === 0 ? 'A' : 'B', 'middle', warm));
+    svg.setAttribute('aria-label', L(data.xl) + ' / ' + L(data.yl));
+    svg.innerHTML = '<defs><clipPath id="' + clip + '"><rect x="' + left + '" y="' + top + '" width="' +
+      (right - left) + '" height="' + (bottom - top) + '"/></clipPath></defs>' + grid +
+      '<g clip-path="url(#' + clip + ')">' + guides + '</g>' + dots + anchors + (opt.pred ? circle(opt.pred, KC.pred) : '') +
+      text(left, 20, L(data.yl), 'start', KC.y) + text(right, 290, L(data.xl), 'end', KC.x);
+    if (focused !== undefined) svg.querySelector('[data-dot="' + focused + '"]')?.focus({ preventScroll:true });
+  }
+
+  function editable(svg, state, change, tap) {
+    let drag = null;
+    function eventPosition(e) {
+      const matrix = svg.getScreenCTM();
+      if (!matrix) return null;
+      return new DOMPoint(e.clientX, e.clientY).matrixTransform(matrix.inverse());
+    }
+    function value(p, data) {
+      const { left, right, top, bottom } = rect;
+      const axis = (f, [min, max], step) => num(clamp(min + Math.round(f * (max - min) / step) * step, min, max));
+      return [axis((p.x - left) / (right - left), data.xr, data.step[0]),
+        axis((bottom - p.y) / (bottom - top), data.yr, data.step[1])];
+    }
+    svg.addEventListener('pointerdown', e => {
+      if (drag || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      const p = eventPosition(e);
+      if (!p) return;
+      const { data, points } = state();
+      const r = svg.getBoundingClientRect();
+      const radius = Math.max(11, 13 * 400 / r.width);
+      let index = -1, nearest = radius;
+      points.forEach(([x, y], i) => {
+        const sx = rect.left + (x - data.xr[0]) * (rect.right - rect.left) / (data.xr[1] - data.xr[0]);
+        const sy = rect.bottom - (y - data.yr[0]) * (rect.bottom - rect.top) / (data.yr[1] - data.yr[0]);
+        const distance = Math.hypot(sx - p.x, sy - p.y);
+        if (distance <= nearest) { index = i; nearest = distance; }
+      });
+      if (index < 0 && (!tap || p.x < rect.left || p.x > rect.right || p.y < rect.top || p.y > rect.bottom)) return;
+      drag = { id:e.pointerId, index, start:p, moved:false, data, points };
+      svg.setPointerCapture(e.pointerId);
+    });
+    svg.addEventListener('pointermove', e => {
+      if (!drag || e.pointerId !== drag.id) return;
+      const p = eventPosition(e);
+      if (!p || (!drag.moved && Math.hypot(p.x - drag.start.x, p.y - drag.start.y) < 4)) return;
+      drag.moved = true;
+      if (drag.points === state().points && drag.index >= 0) change(drag.index, value(p, drag.data));
+    });
+    svg.addEventListener('pointerup', e => {
+      if (!drag || e.pointerId !== drag.id) return;
+      const active = drag;
+      drag = null;
+      if (tap && !active.moved && active.points === state().points) tap(active.index, value(active.start, active.data));
+    });
+    svg.addEventListener('lostpointercapture', () => { drag = null; });
+    svg.addEventListener('keydown', e => {
+      const index = e.target.dataset.dot;
+      const moves = { ArrowLeft:[-1, 0], ArrowRight:[1, 0], ArrowDown:[0, -1], ArrowUp:[0, 1] };
+      if (index === undefined || !Object.hasOwn(moves, e.key)) return;
+      e.preventDefault();
+      const { data, points } = state(), [dx, dy] = moves[e.key];
+      const [x, y] = points[index];
+      change(+index, [num(clamp(x + dx * data.step[0], ...data.xr.slice(0, 2))),
+        num(clamp(y + dy * data.step[1], ...data.yr.slice(0, 2)))]);
+    });
+  }
+
+  const collectSvg = $('#spCollectGraph'), inputs = [$('#spX'), $('#spY')], pairs = $('#spPairs');
+  let collection = body, selected = -1;
+  const collected = new Map([[body, { points:[], sample:false }], [study, { points:[], sample:false }]]);
+  const rows = () => collected.get(collection).points;
+  function renderCollect() {
+    const p = rows(), full = p.length >= 15;
+    graph(collectSvg, collection, p, { selected });
+    for (const [i, axis] of [collection.xr, collection.yr].entries()) {
+      const [min, max] = axis, input = inputs[i], label = [collection.xl, collection.yl][i];
+      input.min = min; input.max = max; input.step = 'any';
+      write($(['#spXLabel', '#spYLabel'][i]), L(label) + ' · ' + min + '–' + max);
+    }
+    const status = p.length < 8 ? t(p.length + ' / 15 pairs. Aim for at least 8.', '已有 ' + p.length + ' 对，最多 15 对。请至少收集 8 对。')
+      : t(p.length + ' / 15 pairs. Describe the pattern below.', '已有 ' + p.length + ' 对，最多 15 对。请按下方提示描述图形。');
+    const sample = collected.get(collection).sample ? L(t(' Started with simulated pairs.', ' 本图以模拟数据为起点。')) : '';
+    write($('#spCount'), L(status) + sample);
+    $('#spAdd').disabled = full;
+    $('#spSave').hidden = $('#spRemove').hidden = selected < 0;
+    pairs.setAttribute('aria-label', L(t('Recorded pairs', '已记录的数对')));
+    while (pairs.children.length > p.length) pairs.lastElementChild.remove();
+    p.forEach((point, i) => {
+      let button = pairs.children[i];
+      if (!button) {
+        button = document.createElement('button');
+        button.className = 'btn ghost';
+        button.type = 'button';
+        button.onclick = () => selectPair(i);
+        pairs.append(button);
+      }
+      toggle(button, i === selected);
+      write(button, (i + 1) + '. ' + pointText(point));
+    });
+    toggle($('#spBody'), collection === body);
+    toggle($('#spStudy'), collection === study);
+  }
+  function chooseCollection(data) {
+    collection = data;
+    selectPair(-1);
+  }
+  function selectPair(i) {
+    selected = i;
+    inputs.forEach((input, axis) => { input.value = rows()[i]?.[axis] ?? ''; });
+    renderCollect();
+  }
+  function changePair(i, point) {
+    rows()[i] = point;
+    selectPair(i);
+  }
+  $('#spBody').onclick = () => chooseCollection(body);
+  $('#spStudy').onclick = () => chooseCollection(study);
+  $('#spDataForm').onsubmit = e => {
+    e.preventDefault();
+    const point = inputs.map(input => input.valueAsNumber);
+    if (e.submitter?.id === 'spSave' && selected >= 0) changePair(selected, point);
+    else if (rows().length < 15) {
+      rows().push(point);
+      selectPair(-1);
+    }
+  };
+  $('#spRemove').onclick = () => {
+    if (selected < 0) return;
+    rows().splice(selected, 1);
+    selectPair(-1);
+    (pairs.lastElementChild || $('#spSample')).focus();
+  };
+  $('#spClear').onclick = () => { collected.set(collection, { points:[], sample:false }); selectPair(-1); };
+  $('#spSample').onclick = () => { collected.set(collection, { points:copy(collection.points), sample:true }); selectPair(-1); };
+  editable(collectSvg, () => ({ data:collection, points:rows() }), changePair, (i, point) => {
+    if (i >= 0) selectPair(i);
+    else if (rows().length < 15) {
+      rows().push(point);
+      selectPair(-1);
+    }
+  });
+
+  const sampleAxes = { xl:t('x (units)', 'x（单位）'), yl:t('y (units)', 'y（单位）'),
+    xr:[0, 10, 2], yr:[0, 10, 2], step:[.25, .25] };
+  const xs = [1,2,3,4,5,6,7,8,9];
+  const withY = ys => xs.map((x, i) => [x, ys[i]]);
+  const tight = withY([2,2.75,3,4,4.75,5,6,6.25,7.25]);
+  const patterns = [
+    { name:t('Strong positive', '强正相关'), info:t('The original points rise in a narrow band. Spread them vertically and see how the trend becomes harder to read.', '原来的点沿一条窄带上升。上下移动几个点，让它们更分散，看看趋势是否还容易辨认。'), points:tight },
+    { name:t('Weak positive', '弱正相关'), info:t('The original points rise loosely. Compare with Strong positive. Strength is about how closely the dots follow the pattern.', '原来的点大致向上，但比较分散。与“强正相关”对照。相关强弱取决于点和整体形态的贴合程度。'), points:withY([4.5,1,6,2,7,3,8,3.5,6.5]) },
+    { name:t('Negative', '负相关'), info:t('The original points fall from left to right. Larger x-values tend to pair with smaller y-values.', '原来的点从左向右下降。较大的 x 往往对应较小的 y。'), points:tight.map(([x, y]) => [x, 10 - y]) },
+    { name:t('No clear association', '无明显相关'), info:t('The original dots show no consistent rise, fall, or curve. Drag them to make a pattern you can describe.', '原来的点没有明显的上升、下降或弯曲趋势。拖动它们，试着做出一种能描述的形态。'), points:withY([3,7,5.5,2,8,6,2.5,7.5,3.5]) },
+    { name:t('Nonlinear', '非线性'), info:t('Each original dot gives a square’s side length and area. The rise gets larger for equal steps to the right. A single straight line misses the bend.', '原来的每个点给出正方形的边长和面积。边长每次增加同样的量，面积却越增加越快。一条直线表现不出这种弯曲。'),
+      xl:t('Side length (cm)', '边长（cm）'), yl:t('Area (cm²)', '面积（cm²）'), xr:[0, 5, 1], yr:[0, 25, 5], step:[.5, .25],
+      points:Array.from({ length:10 }, (_, i) => [(i + 1) / 2, ((i + 1) / 2) ** 2]), curve:true },
+    { name:t('Clusters', '聚集成簇'), info:t('The original points form two groups. A line through the whole plot can hide the gap between them.', '原来的点形成两簇。只用一条直线概括整图，容易忽略两簇之间的空隙。'),
+      points:[[1.25,2],[1.75,3],[2,2.25],[2.5,2.75],[2.75,1.75],[7,7.25],[7.5,6.25],[8,7.75],[8.25,6.75],[8.75,7.5]] },
+    { name:t('Outlier', '异常点'), info:t('The red dot starts far below the main trend and near the right edge. Move it up toward the yellow dots, or move it left. Compare how much the line turns.', '红点起初远低于整体趋势，而且靠近图的右边缘。把它往上移到黄色点附近，或者向左拖，比较直线转动的幅度。'),
+      points:[...tight, [9.75,1.25]], outlier:9 },
+    { name:t('Old Faithful · 1985', '老忠实泉 · 1985 年'), info:t('Look for two groups. In this sample, do longer eruptions tend to go with a longer interval before the next one?', '找找图中的两簇。在这组样本中，喷发持续得越久，到下次喷发的间隔通常也越长吗？'),
+      xl:t('Eruption duration (min)', '喷发时长（分钟）'), yl:t('Start-to-start interval (min)', '两次喷发开始的间隔（分钟）'),
+      xr:[1, 6, 1], yr:[40, 100, 10], step:[.1, 1], real:true,
+      // MASS rows 1–12 (duration), paired with rows 2–13 (interval preceding that row's eruption).
+      points:[[4,71],[2.2,57],[4,80],[4,75],[4,77],[2,60],[4.4,86],[4.3,77],[2,56],[4.8,81],[1.8,50],[5.5,89]] }
+  ].map(pattern => ({ ...sampleAxes, ...pattern }));
+  const patternSvg = $('#spPatternGraph'), patternButtons = [];
+  let pattern = patterns[0], plotted = copy(pattern.points);
+  function renderPattern() {
+    const compare = pattern.outlier !== undefined;
+    const baseline = compare ? regression(plotted.filter((_, i) => i !== pattern.outlier)) : null;
+    const all = compare ? regression(plotted) : null;
+    graph(patternSvg, pattern, plotted, { curve:pattern.curve, keyboard:true, outlier:pattern.outlier,
+      lines:[baseline && { ...baseline, baseline:true }, all] });
+    $('#spPatternLegend').hidden = $('#spSlopeCompare').hidden = !compare;
+    $('#spCurveKey').hidden = !pattern.curve;
+    $('#spGeyserSource').hidden = !pattern.real;
+    if (compare) {
+      const slope = fit => fit ? '≈ ' + num(fit.m) : L(t('undefined', '无定义'));
+      write($('#spSlopeCompare'), L(t('Slope with red dot: ' + slope(all) + ' · Without: ' + slope(baseline),
+        '计入红点的斜率：' + slope(all) + '　去掉后的斜率：' + slope(baseline))));
+    }
+    write($('#spPatternText'), L(pattern.info));
+    patternButtons.forEach((btn, i) => {
+      write(btn, L(patterns[i].name));
+      toggle(btn, pattern === patterns[i]);
+    });
+  }
+  function choosePattern(next) {
+    pattern = next;
+    plotted = copy(pattern.points);
+    renderPattern();
+  }
+  patterns.forEach(p => {
+    const btn = document.createElement('button');
+    btn.className = 'btn ghost';
+    btn.type = 'button';
+    btn.onclick = () => choosePattern(p);
+    patternButtons.push(btn);
+    $('#spPatterns').append(btn);
+  });
+  $('#spResetPattern').onclick = () => choosePattern(pattern);
+  $('#spSayPattern').onclick = () => Lab.speak(L(pattern.info));
+  editable(patternSvg, () => ({ data:pattern, points:plotted }), (i, point) => {
+    if (plotted[i][0] === point[0] && plotted[i][1] === point[1]) return;
+    plotted[i] = point;
+    renderPattern();
+  });
+
+  const exampleUS = { ...study, xr:[0, 8, 1], yr:[40, 100, 10], m:M, b:B, ab:[1, 5], choices:[1,2,3,4,5,6],
+    rate:t('points per hour', '分／小时'), unit:t('points', '分') };
+  const exampleCN = { xl:t('Days since sprouting', '发芽后的天数'), yl:t('Seedling height (cm)', '苗高（cm）'),
+    xr:[0, 16, 2], yr:[-5, 30, 5], m:2, b:-4, ab:[6, 12], choices:[6,8,10,12,14],
+    rate:t('cm per day', '厘米／天'), unit:t('cm', 'cm'),
+    points:[[6,9],[7,9],[8,13],[9,13],[10,18],[12,19],[13,23],[14,23]] };
+  let example = exampleUS;
+  const linePoint = (x, fit) => [x, fit.m * x + fit.b];
+  const pickers = [$('#spA'), $('#spB')];
+  function renderEquation() {
+    const anchors = pickers.map(picker => linePoint(+picker.value, example));
+    const [[ax, ay], [bx, by]] = anchors;
+    const same = ax === bx;
+    graph($('#spEquationGraph'), example, example.points, { lines:[example], anchors:same ? anchors.slice(0, 1) : anchors });
+    $('#spEquationSteps').hidden = same;
+    write($('#spEquationPrompt'), same
+      ? L(t('Choose two different x-values to avoid dividing by zero.', '请选择不同的横坐标，避免除以 0。'))
+      : L(t('Change the points. Does the slope stay the same?', '换一组点，看看斜率是否改变。')));
+    if (same) return;
+    const slope = (by - ay) / (bx - ax), b = ay - slope * ax;
+    const symbol = example === exampleCN ? 'k' : 'm';
+    scatterFormula($('#spSlope'), symbol + '=\\frac{y_B-y_A}{x_B-x_A}=\\frac{' + by + '-' + term(ay) +
+      '}{' + bx + '-' + term(ax) + '}=' + slope);
+    scatterFormula($('#spIntercept'), 'b=y_A-' + symbol + 'x_A=' + ay + '-' + term(slope) + '(' + ax + ')=' + b);
+    scatterFormula($('#spEquation'), 'y=' + slope + 'x' + constant(b));
+    write($('#spSlopeUnit'), L(example.rate));
+    write($('#spInterceptUnit'), L(example.unit));
+  }
+  function chooseExample(next) {
+    example = next;
+    pickers.forEach((picker, i) => {
+      picker.replaceChildren(...example.choices.map(x => new Option(pointText(linePoint(x, example)), x, false, x === example.ab[i])));
+    });
+    toggle($('#spEqUS'), example === exampleUS);
+    toggle($('#spEqCN'), example === exampleCN);
+    renderEquation();
+  }
+  $('#spEqUS').onclick = () => chooseExample(exampleUS);
+  $('#spEqCN').onclick = () => chooseExample(exampleCN);
+  pickers.forEach(picker => picker.onchange = renderEquation);
+  chooseExample(exampleUS);
+
+  const slider = $('#spPredX'), observed = [Math.min(...HRS), Math.max(...HRS)];
+  const predAxes = { ...exampleUS, xr:[0, 10, 1], yr:[40, 110, 10] };
+  function renderPrediction() {
+    const x = slider.valueAsNumber, point = linePoint(x, exampleUS), y = point[1];
+    graph($('#spPredGraph'), predAxes, study.points, { lines:[exampleUS], band:observed, limit:100, pred:point });
+    scatterFormula($('#spPredFormula'), '\\widehat y=' + M + '(' + x + ')' + constant(B) + '=' + y);
+    write($('#spPredTime'), L(t(x + ' h', x + ' 小时')));
+    let msg;
+    if (y > 100) msg = t('Extrapolation. The model gives ' + y + ' points, above the 100-point maximum.',
+      '外推。模型给出 ' + y + ' 分，超过了满分 100 分。');
+    else if (x < observed[0] || x > observed[1]) msg = t('Extrapolation. The model gives ' + y + ' points beyond the range of study times.',
+      '外推。这个复习时长超出了观测范围，模型给出 ' + y + ' 分。');
+    else if (observed.includes(x)) msg = t('At an observed endpoint. The model estimates ' + y + ' points.',
+      '这是观测范围的端点。模型估计为 ' + y + ' 分。');
+    else msg = t('Interpolation. The model estimates ' + y + ' points within the observed range of study times.',
+      '内插。这个复习时长在观测范围内，模型估计为 ' + y + ' 分。');
+    write($('#spPredType'), L(msg));
+  }
+  slider.oninput = renderPrediction;
+  $('#spTryInside').onclick = () => { slider.value = 4; renderPrediction(); };
+  $('#spTryOutside').onclick = () => { slider.value = 10; renderPrediction(); };
+  Lab.onLang(() => {
+    renderCollect();
+    renderPattern();
+    pickers.forEach(picker => Array.from(picker.options).forEach(option => { option.text = pointText(linePoint(+option.value, example)); }));
+    renderEquation();
+    renderPrediction();
+  });
+})();
+
 /* ================= Quiz + sort ================= */
 const o = (en, zh) => ({ en, zh });
+(() => {
+  const sections = {
+    lessonChecks:[
+      [o('A dot is at (3, 70). Which number is the test score?', '点（3，70）中，哪个数表示测验成绩？'), o('70 points', '70 分'), o('3 points', '3 分'), o('Test score is on the vertical axis, so read the second coordinate.', '纵轴表示测验成绩，所以读第二个坐标。')],
+      [o('The cloud rises, but one dot sits well below it. How should you describe the full plot?', '点群整体向上，但有一个点远在下方。怎样描述整张图？'), o('Positive association with an outlier', '正相关，有一个异常点'), o('No clear association', '无明显相关'), o('Describe the overall direction and mention the unusual point separately.', '先说整体的趋势，再单独指出偏离趋势的点。')]
+    ],
+    collectChecks:[
+      [o('For arm span and height, which two numbers belong in one row?', '记录臂展和身高时，哪两个数应放在同一行？'), o('Both measurements from the same person', '同一个人的两项测量结果'), o('One measurement from each of two people', '两个人各测得的一项结果'), o('Each point represents one person’s paired measurements.', '每个点代表同一个人的一对测量结果。')],
+      [o('Two people have the same arm span and different heights. How will their points line up?', '两个人的臂展相同、身高不同。他们的点会怎样排列？'), o('One above the other', '一个在另一个的正上方'), o('Side by side at the same height', '在同一高度左右并排'), o('The x-values match and the y-values differ.', '它们的横坐标相同，纵坐标不同。')]
+    ],
+    patternChecks:[
+      [o('The dots closely follow a curve that rises from left to right. Which description fits?', '点紧贴一条从左到右上升的曲线。怎样描述？'), o('Strong positive association with a nonlinear shape', '相关较强，整体向上，呈非线性'), o('Weak positive association with a linear shape', '相关较弱，整体向上，呈线性'), o('The dots closely follow a pattern, and that pattern rises along a curve.', '这些点紧贴一条上升的曲线，所以趋势明显，且呈非线性。')],
+      [o('In the starting Outlier plot, what does the low red dot near the right edge do to the fit?', '在“异常点”的原图中，右侧较低的红点怎样影响拟合直线？'), o('Makes the positive slope smaller', '使正斜率减小'), o('Makes the positive slope larger', '使正斜率增大'), o('The line using all the points tilts down on the right compared with the dashed line.', '与虚线相比，计入红点的直线右端向下转动。')]
+    ],
+    fitChecks:[
+      [o('Each dot is closer vertically to line A than to line B. Which line fits the data better?', '每个数据点到直线 A 的竖直距离都小于到直线 B 的距离。哪条直线拟合得更好？'), o('Line A', '直线 A'), o('Line B', '直线 B'), o('Line A has smaller vertical gaps across the whole plot.', '图上各点到直线 A 的竖直距离都更小。')],
+      [o('A dot lies above your line. How does the prediction compare with the observed value at that x?', '一个点在线上方。取这个点的横坐标时，预测值与观测值谁更大？'), o('The prediction is lower.', '预测值更小。'), o('The prediction is higher.', '预测值更大。'), o('The line’s y-value is below the dot’s y-value at the same x.', '同一个横坐标下，直线的纵坐标比点的纵坐标小。')]
+    ],
+    equationChecks:[
+      [o('Which two points should you use to find the slope of a fitted line?', '求拟合直线的斜率时，应该取哪两个点？'), o('Two points on the line with different x-values', '直线上横坐标不同的两点'), o('Any two observations in the cloud', '点群中任意两个观测点'), o('The slope measures the rise and run of the line itself.', '斜率用直线本身的纵坐标变化量与横坐标变化量来计算。')],
+      [o('What does the seedling intercept of −4 cm tell you?', '幼苗例题中的纵截距 −4 cm 说明什么？'), o('Extending the model to day 0 gives an impossible height.', '将模型外推到第 0 天会得到不可能的苗高。'), o('The seedling shrinks by 4 cm each day.', '幼苗每天变矮 4 cm。'), o('The intercept is the model output at x = 0. The slope gives the daily change.', '纵截距是 x＝0 时的模型值。斜率才表示每天的变化量。')]
+    ],
+    predictionChecks:[
+      [o('The study-time data span 0.5 to 6.5 hours. Classify a prediction at 3.5 hours.', '复习时长的观测范围是 0.5～6.5 小时。预测 3.5 小时时的成绩属于哪一种？'), o('Interpolation', '内插'), o('Extrapolation', '外推'), o('3.5 hours lies between the smallest and largest recorded x-values.', '3.5 小时在已记录的最小值和最大值之间。')],
+      [o('On sunny days, ice-cream sales and sunburns both rise. What might affect both?', '晴天时冰淇淋销量和晒伤人数都上升。什么因素可能同时影响两者？'), o('Warm, sunny weather', '晴暖的天气'), o('The number on the y-axis', '纵轴上的数值'), o('The same weather can draw people outdoors and increase demand for ice cream.', '晴暖的天气可能让更多人到户外，也让更多人想吃冰淇淋。')]
+    ]
+  };
+  Object.entries(sections).forEach(([id, questions]) => {
+    const container = document.getElementById(id);
+    container.className = 'card sp-card sp-check';
+    container.innerHTML = '<h3 data-zh="随堂测试">Quick check</h3>';
+    questions.forEach(([q, correct, distractor, explain], i) => {
+      const field = document.createElement('fieldset');
+      field.innerHTML = '<legend></legend><div class="sp-inline sp-options"></div><p class="feedback small" aria-live="polite"></p>';
+      const legend = field.querySelector('legend'), options = field.querySelector('.sp-options'), feedback = field.querySelector('p');
+      const answers = i % 2 ? [distractor, correct] : [correct, distractor];
+      let chosen = null;
+      const buttons = answers.map(answer => {
+        const button = document.createElement('button');
+        button.className = 'btn ghost';
+        button.type = 'button';
+        button.onclick = () => { chosen = answer; render(); };
+        options.append(button);
+        return button;
+      });
+      function render() {
+        legend.textContent = Lab.L(q);
+        buttons.forEach((button, j) => {
+          button.textContent = Lab.L(answers[j]);
+          button.setAttribute('aria-pressed', answers[j] === chosen);
+          button.classList.toggle('ghost', answers[j] !== chosen);
+        });
+        if (!chosen) return;
+        feedback.className = 'feedback small ' + (chosen === correct ? 'good' : 'bad');
+        feedback.textContent = Lab.L(chosen === correct ? o('Correct. ', '正确。') : o('Try again. ', '再想一想。')) + Lab.L(explain);
+      }
+      container.append(field);
+      Lab.onLang(render);
+    });
+  });
+
+  const practice = [
+    [o('Plot four arm-span and height pairs.', '描出四对臂展和身高数据。'),
+      o('With both axes in centimeters, plot (144, 146), (148, 151), (152, 151), and (158, 156). Where do the two 151s go? Describe the direction.', '两轴都用厘米作单位，描点（144，146）、（148，151）、（152，151）、（158，156）。两个含 151 的点怎样排列？描述整体趋势。'),
+      o('Arm span goes across and height goes up. Both points with height 151 cm lie on the same horizontal level. Overall, greater arm span goes with greater height.', '横轴是臂展，纵轴是身高。身高为 151 cm 的两个点在同一水平线上；整体上，臂展越长，身高越高。')],
+    [o('Spot a curve.', '识别曲线。'),
+      o('Squares have side lengths of 1, 2, 3, and 4 cm. Find the four areas and decide whether a straight line fits the pattern.', '四个正方形的边长分别为 1、2、3、4 cm。求面积，判断一条直线能否贴合这样的变化。'),
+      o('The areas are 1, 4, 9, and 16 cm². For each extra centimeter of side length, the area increases by 3, then 5, then 7 cm². The increasing rise makes a curve.', '面积依次是 1、4、9、16 cm²。边长每增加 1 cm，面积依次增加 3、5、7 cm²。增量越来越大，点沿曲线排列。'), 'A=s^2'],
+    [o('Describe clusters and an outlier.', '描述点簇与异常点。'),
+      o('A plot shows groups near (2, 3) and (8, 8), plus an isolated point at (9, 1). Describe the groups. How could that last point change a fitted line?', '某图在（2，3）和（8，8）附近各有一簇点，另有孤立点（9，1）。描述点群。最后那个点会怎样影响拟合直线？'),
+      o('There are two clusters, one low and left, one high and right. The outlier is low and far right. It can pull down the right side of a fitted line.', '两簇点分别在左下方和右上方。异常点在右侧且明显偏低，可能把拟合直线的右端向下拉。')],
+    [o('Compare two fits.', '比较两条拟合直线。'),
+      o('For the same four dots, the vertical gaps to line A are 1, 2, 1, and 2 points. To line B they are 3, 5, 4, and 2 points. Which line has the smaller mean vertical gap?', '对同样四个点，到直线 A 的竖直距离分别是 1、2、1、2 分，到直线 B 的分别是 3、5、4、2 分。哪条直线的平均竖直距离更小？'),
+      o('Line A has the smaller mean vertical distance: 1.5 points versus 3.5 points for B.', 'A 的平均竖直距离较小：A 为 1.5 分，B 为 3.5 分。')],
+    [o('Write and interpret a negative-slope model.', '写出并解释斜率为负的模型。'),
+      o('A cocoa-sales trend line through (5, 76) and (15, 46) relates temperature (°C) to cups sold. Write the equation and explain the slope and intercept.', '热可可销量的趋势线经过（5，76）和（15，46）。横轴是气温（°C），纵轴是销量（杯）。写出方程，解释斜率和纵截距。'),
+      o('The model estimates 3 fewer cups for each rise of 1 °C. Its intercept predicts 91 cups at 0 °C. To judge that estimate, check how close 0 °C is to the observed temperatures.', '气温每升高 1 °C，预测销量约少 3 杯。纵截距表示 0 °C 时估计售出 91 杯。要判断这个估计是否合理，先看 0 °C 离观测范围有多远。'),
+      'm=\\frac{46-76}{15-5}=-3,\\quad b=76-(-3)(5)=91', 'y=-3x+91'],
+    [o('Test an intercept against the context.', '结合实际检验纵截距。'),
+      o('For a seedling observed on days 6–14 after sprouting, the fitted line is y = 2x − 4, in centimeters. Compare the model’s heights at days 0 and 10.', '发芽后第 6～14 天的苗高拟合式为 y＝2x－4，单位为 cm。比较模型在第 0 天和第 10 天给出的苗高。'),
+      o('Day 0 gives −4 cm, an impossible height outside the data. Day 10 gives 16 cm, an estimate within the range of observed days.', '第 0 天得 −4 cm，超出观测范围，也是实际不可能的苗高。第 10 天得 16 cm，属于观测日期范围内的估计。'),
+      '2(0)-4=-4,\\qquad 2(10)-4=16'],
+    [o('Classify two predictions.', '判断两种预测。'),
+      o('Study times span 0.5 to 6.5 hours. Use y = 5.5x + 53 to predict the scores at 3.5 and 10 hours. Classify each prediction and compare their plausibility.', '观测到的复习时长为 0.5～6.5 小时。用 y＝5.5x＋53 预测 3.5 小时和 10 小时的成绩，指出预测类型，并比较是否合理。'),
+      o('At 3.5 hours, 72.25 points is an interpolation. At 10 hours, 108 points is an extrapolation and exceeds the 100-point maximum.', '3.5 小时时预测 72.25 分，是内插。10 小时时预测 108 分，是外推，且超过满分 100 分。'),
+      '5.5(3.5)+53=72.25', '5.5(10)+53=108'],
+    [o('Find another explanation.', '想想还有什么解释。'),
+      o('A coastal shop sells more lemonade on days when the beach has more visitors. Give one explanation for the association and name a useful extra variable to record.', '海边小店发现在游客较多的日子，柠檬水卖得也更多。给出一个可能的解释，再说说可以增加记录哪一个量。'),
+      o('Warm weather might bring more visitors and increase lemonade sales. Record the daily high temperature and compare days with similar temperatures.', '暖和的天气可能既吸引更多游客，又提高柠檬水销量。可以记录每日最高气温，再比较气温相近的日子。')]
+  ];
+  const practiceContainer = Lab.$('#spPractice');
+  practice.forEach(([title, prompt, steps, ...math], i) => {
+    const card = document.createElement('article'), question = document.createElement('p');
+    const details = document.createElement('details');
+    details.innerHTML = '<summary></summary><div class="sp-cut"><b></b><p></p></div>';
+    const explanation = details.querySelector('.sp-cut p');
+    for (const tex of math) {
+      const formula = document.createElement('div');
+      formula.className = 'sp-formula';
+      scatterFormula(formula, tex);
+      explanation.before(formula);
+    }
+    card.className = 'card sp-card sp-note';
+    card.append(question, details);
+    practiceContainer.append(card);
+    Lab.onLang(() => {
+      question.textContent = (i + 1) + '. ' + Lab.L(title) + ' ' + Lab.L(prompt);
+      details.querySelector('summary').textContent = Lab.L(o('Show steps or key points', '查看步骤或要点'));
+      details.querySelector('b').textContent = Lab.L(o('Check your answer', '核对答案'));
+      explanation.textContent = Lab.L(steps);
+    });
+  });
+})();
+
 Lab.quiz(Lab.$('#quiz'), [
   { q:o('In a scatter plot, the points rise from lower left to upper right. This shows…','散点图中的点从左下方向右上方上升，这说明……'), options:[o('a positive association','正相关'),o('a negative association','负相关'),o('no association','没有相关关系'),o('an outlier','一个异常值')], answer:0, explain:o('As x increases, y tends to increase too.','x 增大时，y 也往往随之增大。') },
-  { q:o('Which pair of quantities most likely has a negative association?','哪一对量最可能是负相关？'), options:[o('Outdoor temperature and heating bill','室外气温与取暖费'),o('Height and arm span','身高与臂展'),o('Hours practiced and free throws made','练习时长与投篮命中数'),o('Shoe size and birthday month','鞋码与出生月份')], answer:0, explain:o('Warmer weather means less heating, so one goes up while the other goes down.','天气越暖，取暖用得越少：一个增大，另一个减小。') },
+  { q:o('Which pair shows a negative association?','哪一对量呈负相关？'), options:[o('For a fixed distance, average speed and travel time','路程固定时的平均速度与行驶时间'),o('Side length and area of a square','正方形的边长与面积'),o('Number of items and cost at a fixed unit price','单价固定时的件数与总价'),o('A randomly drawn ticket number and the holder’s height','随机抽取的票号与持票人的身高')], answer:0, explain:o('For the same distance, greater average speed means less travel time.','路程相同时，平均速度越大，所用时间越短。') },
   { q:o('A line of best fit is y = 2x + 10. What does it predict when x = 5?','最佳拟合直线是 y = 2x + 10。当 x = 5 时，预测 y 是多少？'), options:[o('20','20'),o('17','17'),o('15','15'),o('25','25')], answer:0, explain:o('y = 2(5) + 10 = 20.','y = 2 × 5 + 10 = 20。') },
   { q:o('For hours studied (x) and score (y), the trend line is y = 5.5x + 53. What does 5.5 mean?','学习时长 x 与成绩 y 的趋势线是 y = 5.5x + 53。5.5 表示什么？'), options:[o('Each extra hour goes with about 5.5 more points','每多学 1 小时，成绩大约多 5.5 分'),o('Everyone scored 5.5','每个人都得 5.5 分'),o('The score with 0 hours','学 0 小时时的成绩'),o('The number of students','学生的人数')], answer:0, explain:o('The slope is the rate of change: points per hour.','斜率是变化率：每小时多少分。') },
   { q:o('In y = 5.5x + 53, what does 53 mean?','在 y = 5.5x + 53 中，53 表示什么？'), options:[o('The predicted score for 0 hours of study','学 0 小时时预测的成绩'),o('The highest score','最高分'),o('Points gained per hour','每小时增加的分数'),o('The average number of hours','平均学习时长')], answer:0, explain:o('The y-intercept is the value of y when x = 0.','y 轴上的截距就是 x = 0 时 y 的值。') },
   { q:o('What is an outlier?','什么是异常值？'), options:[o('A point far away from the overall pattern','远离整体规律的点'),o('The point with the largest x','x 最大的点'),o('Any point on the line of best fit','最佳拟合直线上的任何点'),o('A group of points close together','挤在一起的一群点')], answer:0, explain:o('A group of points close together is a cluster, not an outlier.','挤在一起的一群点叫聚集（簇），不是异常值。') },
-  { q:o('Which describes a good line of best fit?','下面哪一条描述了好的最佳拟合直线？'), options:[o('It follows the trend, with about as many points above as below and small misses','顺着趋势，上下两侧的点差不多一样多，偏差小'),o('It must pass through the first and last points','必须经过第一个点和最后一个点'),o('It must go through the origin (0, 0)','必须经过原点（0, 0）'),o('It must pass through as many points as possible exactly','必须恰好经过尽可能多的点')], answer:0, explain:o('A best-fit line summarizes the whole cloud; it does not have to hit any point.','最佳拟合直线概括的是整团点，不一定要经过任何一个点。') },
-  { q:o('Using y = 5.5x + 53 to predict the score for 20 hours of study gives 163. Why is this a bad prediction?','用 y = 5.5x + 53 预测学习 20 小时的成绩，得到 163 分。为什么这个预测不合理？'), options:[o('20 hours is far outside the data, and scores cannot pass 100','20 小时远超出数据范围，而且成绩不可能超过 100'),o('The arithmetic is wrong','计算错了'),o('Slopes cannot be decimals','斜率不能是小数'),o('Predictions are never allowed','永远不能做预测')], answer:0, explain:o('Trend lines are only reliable near the data used to make them (avoid extrapolating too far).','趋势线只在原有数据附近可靠，不要外推得太远。') },
-  { q:o('Ice-cream sales and the number of sunburns have a strong positive association. What is the best conclusion?','冰淇淋销量与晒伤人数强正相关。最合理的结论是什么？'), options:[o('Both are probably caused by hot, sunny weather','两者可能都是由炎热的晴天引起的'),o('Eating ice cream causes sunburn','吃冰淇淋会导致晒伤'),o('Sunburns make people buy ice cream','晒伤让人去买冰淇淋'),o('The data must be wrong','数据一定错了')], answer:0, explain:o('Association is not causation; a third factor can drive both.','相关不等于因果，可能有第三个因素同时影响两者。') },
-  { q:o('A trend line passes through (2, 60) and (6, 80). What is its slope?','一条趋势线经过（2, 60） 和（6, 80），它的斜率是多少？'), options:[o('5','5'),o('20','20'),o('4','4'),o('10','10')], answer:0, explain:o('Slope = (80 − 60) ÷ (6 − 2) = 20 ÷ 4 = 5.','斜率 = (80 − 60) ÷ (6 − 2) = 20 ÷ 4 = 5。') },
-  { q:o('Hot cocoa sales follow y = −3x + 90, where x is the temperature in °C. Predict the sales at 10 °C.','热可可销量满足 y = −3x + 90,x 是气温（°C）。预测 10 °C 时的销量。'), options:[o('60 cups','60 杯'),o('120 cups','120 杯'),o('87 cups','87 杯'),o('30 cups','30 杯')], answer:0, explain:o('y = −3(10) + 90 = 60.','y = −3 × 10 + 90 = 60。') },
-  { q:o('What does a scatter plot with “no association” look like?','“没有相关关系”的散点图是什么样子？'), options:[o('A scattered cloud with no upward or downward trend','一团散开的点，没有上升或下降的趋势'),o('Points in a perfect straight line','点排成一条完美的直线'),o('Points going down to the right','点向右下方下降'),o('Only one point','只有一个点')], answer:0 }
-], { count:10 });
+  { q:o('Which describes a good straight-line fit?','下面哪一项描述了合适的拟合直线？'), options:[o('It follows the overall trend and stays close to the cloud','它顺着整体趋势，贴近点群'),o('It must pass through the first and last points','必须经过第一个点和最后一个点'),o('It must go through the origin (0, 0)','必须经过原点（0，0）'),o('It must pass exactly through as many points as possible','必须恰好经过尽可能多的点')], answer:0, explain:o('Look at the vertical gaps across the whole plot to judge the fit.','判断拟合是否合适，要看全图各点到直线的竖直距离。') },
+  { q:o('Study times range from 0.5 to 6.5 hours, and the test is out of 100. Using y = 5.5x + 53 at 20 hours gives 163. Why is this a poor prediction?','复习时长的观测范围是 0.5～6.5 小时，测验满分为 100 分。用 y＝5.5x＋53 预测复习 20 小时的成绩，得到 163 分。为什么不合理？'), options:[o('20 hours is far outside the observed range, and 163 exceeds the maximum score','20 小时远超观测范围，163 分也超过了满分'),o('The arithmetic is wrong','计算错了'),o('Slopes cannot be decimals','斜率不能是小数'),o('Predictions are never allowed','任何情况都不能做预测')], answer:0, explain:o('The calculation is correct. A result greater than 100 shows that the model fails at this distant input.','计算正确。预测值超过满分 100 分，说明把模型外推到这么远并不合适。') },
+  { q:o('Suppose ice-cream sales and sunburn cases show a positive association. Which third factor could affect both?','假设冰淇淋销量与晒伤人数呈正相关。哪个第三因素可能同时影响两者？'), options:[o('Hot, sunny weather','炎热晴朗的天气'),o('The order of the points in the table','数据点在表中的排列顺序'),o('The color of the horizontal axis','横轴的颜色'),o('The unit used to count ice creams','计算冰淇淋销量时用的单位')], answer:0, explain:o('A third factor can affect both quantities. The association alone cannot establish cause and effect.','第三个因素可能同时影响两个量。仅凭相关关系，不能确定因果关系。') },
+  { q:o('A trend line passes through (2, 60) and (6, 80). What is its slope?','一条趋势线经过（2，60）和（6，80）。它的斜率是多少？'), options:[o('5','5'),o('20','20'),o('4','4'),o('10','10')], answer:0, explain:o('Slope = (80 − 60) ÷ (6 − 2) = 20 ÷ 4 = 5.','斜率＝（80－60）÷（6－2）＝20÷4＝5。') },
+  { q:o('The model y = −3x + 90 predicts cups of hot cocoa sold at temperature x in °C. What does it predict at 10 °C?','模型 y＝−3x＋90 用气温 x（°C）预测热可可的销量 y（杯）。气温为 10 °C 时，预测销量是多少？'), options:[o('60 cups','60 杯'),o('120 cups','120 杯'),o('87 cups','87 杯'),o('30 cups','30 杯')], answer:0, explain:o('y = −3(10) + 90 = 60 cups.','y＝−3×10＋90＝60，预测销量为 60 杯。') },
+  { q:o('What does a scatter plot with “no clear association” look like?','“无明显相关”的散点图是什么样子？'), options:[o('A scattered cloud with no clear direction or shape','一团看不出明显方向或形态的散点'),o('Points in a perfect straight line','点排成一条直线'),o('Points going down to the right','点向右下方下降'),o('Only one point','只有一个点')], answer:0, explain:o('Look for curved shapes as well as upward and downward trends before deciding.','判断前，除了上升或下降趋势，还要看看点是否沿某条曲线排列。') },
+  { q:o('A fitted line goes through (2, 11) and (6, 23). What is its equation?','一条拟合直线经过（2，11）和（6，23）。它的方程是什么？'), options:[o('y = 3x + 5','y＝3x＋5'),o('y = 3x + 11','y＝3x＋11'),o('y = 4x + 3','y＝4x＋3'),o('y = 12x + 5','y＝12x＋5')], answer:0, explain:o('The slope is (23 − 11) ÷ (6 − 2) = 3. Then b = 11 − 3 × 2 = 5.','斜率为（23－11）÷（6－2）＝3，再求 b＝11－3×2＝5。') },
+  { q:o('Recorded x-values go from 2 to 12. Which prediction is an interpolation?','x 的观测范围是 2～12。下列哪个预测属于内插？'), options:[o('At x = 7','x＝7'),o('At x = 1','x＝1'),o('At x = 13','x＝13'),o('At x = 20','x＝20')], answer:0, explain:o('7 sits between 2 and 12, so the prediction stays within the observed range.','7 在 2 和 12 之间，预测所用的横坐标在观测范围内。') },
+  { q:o('Square side length rises evenly, but the area increases by larger and larger amounts. Which pattern fits?','正方形边长等量增加，面积的增量却越来越大。它属于哪种关系？'), options:[o('Increasing and nonlinear','递增，非线性'),o('Increasing and linear','递增，线性'),o('Decreasing and linear','递减，线性'),o('No clear association','无明显相关')], answer:0, explain:o('A line has a constant rate of change. For a square, the area rises faster as the side gets longer.','直线的变化率恒定。正方形的边长越长，面积增加得越快。') },
+  { q:o('A scatter plot slopes down, but the points spread widely around the trend. Which description fits?', '散点图整体向下，但点在趋势两侧散得很开。哪种描述最合适？'), options:[o('Weak negative association','弱负相关'),o('Strong negative association','强负相关'),o('Weak positive association','弱正相关'),o('Strong positive association','强正相关')], answer:0, explain:o('The downward direction is negative. The wide spread around the trend makes it weak.','整体向下表示负相关，点在趋势两侧较分散，表示相关较弱。') }
+], { count:12 });
 Lab.sort(Lab.$('#sort'), {
-  bins:[{ id:'pos', en:'Positive', zh:'正相关' }, { id:'neg', en:'Negative', zh:'负相关' }, { id:'none', en:'No association', zh:'没有相关关系' }],
+  bins:[{ id:'pos', en:'Positive', zh:'正相关' }, { id:'neg', en:'Negative', zh:'负相关' }, { id:'none', en:'No clear association', zh:'无明显相关' }],
   items:[
-    { en:'height and shoe size', zh:'身高与鞋码', bin:'pos' }, { en:'hours of practice and free throws made', zh:'练习时长与投篮命中数', bin:'pos' },
-    { en:'minutes running and calories burned', zh:'跑步分钟数与消耗的热量', bin:'pos' }, { en:'temperature and ice-cream sales', zh:'气温与冰淇淋销量', bin:'pos' },
-    { en:'outdoor temperature and heating bill', zh:'室外气温与取暖费', bin:'neg' }, { en:'age of a car and its price', zh:'汽车车龄与售价', bin:'neg' },
-    { en:'number of absences and grade', zh:'缺课次数与成绩', bin:'neg' }, { en:'speed and travel time for the same trip', zh:'同一段路程的速度与所用时间', bin:'neg' },
-    { en:'shoe size and math score', zh:'鞋码与数学成绩', bin:'none' }, { en:'birthday month and height', zh:'出生月份与身高', bin:'none' },
-    { en:'last digit of phone number and test score', zh:'电话号码末位数与考试成绩', bin:'none' }, { en:'number of letters in your name and your height', zh:'姓名的字数与身高', bin:'none' }
+    { en:'Side length and area of a square', zh:'正方形的边长与面积', bin:'pos' },
+    { en:'At a fixed price per apple, number of apples and total cost', zh:'每个苹果的价格固定时，苹果个数与总价', bin:'pos' },
+    { en:'At a steady pace, running time and distance covered', zh:'匀速跑步时，跑步时间与跑过的路程', bin:'pos' },
+    { en:'Number of identical books and their total mass', zh:'同样的书，册数与总质量', bin:'pos' },
+    { en:'Elapsed time and water remaining in a steadily draining tank', zh:'水箱匀速排水时，排水时间与剩余水量', bin:'neg' },
+    { en:'Items sold and items remaining from one fixed stock', zh:'存货总量固定时，售出件数与剩余件数', bin:'neg' },
+    { en:'Games played and games left in a fixed season schedule', zh:'赛季总场次固定时，已赛场次与剩余场次', bin:'neg' },
+    { en:'For the same distance, average speed and travel time', zh:'路程相同时的平均速度与行驶时间', bin:'neg' },
+    { en:'Height and a ticket number drawn at random', zh:'身高与随机抽取的票号', bin:'none' },
+    { en:'Two dice numbers rolled independently', zh:'两颗骰子各自独立掷出的点数', bin:'none' },
+    { en:'Temperature and a number picked by an unrelated random draw', zh:'气温与另行随机抽取的数字', bin:'none' },
+    { en:'Two random digits generated independently', zh:'各自独立生成的两个随机数字', bin:'none' }
   ]
 });
 </script>
@@ -507,22 +1337,22 @@ Lab.sort(Lab.$('#sort'), {
 const o = (en, zh) => ({ en, zh });
 const VID = o('Video', '视频');
 const PHOTOS = [
-  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9b/Yellowstone_National_Park_%28WY%2C_USA%29%2C_Old_Faithful_Geyser_--_2022_--_2592.jpg/960px-Yellowstone_National_Park_%28WY%2C_USA%29%2C_Old_Faithful_Geyser_--_2022_--_2592.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
-    en:'Old Faithful erupting in Yellowstone. Scientists plot eruption length against the wait for the next one. Do longer eruptions mean longer waits?',
-    zh:'黄石公园“老忠实泉”正在喷发。科学家把喷发时长和到下一次喷发的等待时间画成散点图。喷得越久，等得也越久吗？',
-    credit:'Dietmar Rabich', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Yellowstone_National_Park_(WY,_USA),_Old_Faithful_Geyser_--_2022_--_2592.jpg' },
-  { src:'https://upload.wikimedia.org/wikipedia/commons/6/6b/HRDiagram.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled',
-    en:'Each dot on this diagram represents a star. Compare the axes and find the band where most stars lie.',
-    zh:'这张图中的每个点代表一颗恒星。看看两条坐标轴分别表示什么，再找出大多数恒星所在的带状区域。',
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/12/Old_Faithful_Geyser_cone_during_eruption.jpg/960px-Old_Faithful_Geyser_cone_during_eruption.jpg?utm_campaign=index&utm_content=thumbnail&utm_source=commons.wikimedia.org',
+    en:'Old Faithful erupting in Yellowstone in 2021. In the 1985 data above, how does eruption duration relate to the interval from one eruption’s start to the next?',
+    zh:'2021 年，黄石国家公园老忠实泉正在喷发。回看上面的 1985 年数据：喷发时长与两次喷发开始的间隔有什么关系？',
+    credit:'NPS / Jacob W. Frank', license:'PD', page:'https://commons.wikimedia.org/wiki/File:Old_Faithful_Geyser_cone_during_eruption.jpg' },
+  { src:'https://upload.wikimedia.org/wikipedia/commons/6/6b/HRDiagram.png?utm_campaign=index&utm_content=original&utm_source=commons.wikimedia.org',
+    en:'This Hertzsprung–Russell diagram (Commons, 2007) plots stars by color and intrinsic brightness. Bluer, hotter stars are on the left. Stars that give off more light are higher up. Find the diagonal band where most dots lie.',
+    zh:'这张赫罗图（维基共享资源，2007 年）用恒星的颜色和本身的亮度描点。偏蓝、温度高的恒星在左边，本身更亮的恒星在上方。找出大部分点聚集的斜带。',
     kind:o('Real data','真实数据'), credit:'Richard Powell', license:'CC BY-SA 2.5', page:'https://commons.wikimedia.org/wiki/File:HRDiagram.png' },
-  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a5/Davis_Instruments_weather_station.jpg/960px-Davis_Instruments_weather_station.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
-    en:'A weather station logs the temperature every day. Pair each day’s high with the number of ice creams a shop sold and plot the points. Would you expect a positive trend, a negative trend, or none?',
-    zh:'气象站每天记录气温。把每天的最高气温和冰淇淋店当天卖出的数量配成一对，画成点。你预计会是正相关、负相关，还是没有关系？',
+  { src:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a5/Davis_Instruments_weather_station.jpg/960px-Davis_Instruments_weather_station.jpg?utm_campaign=index&utm_content=thumbnail&utm_source=commons.wikimedia.org',
+    en:'A weather station photographed in 2016. Imagine pairing a day’s high temperature with a shop’s ice-cream sales that day. What pattern would you expect across many days?',
+    zh:'2016 年拍摄的一座气象站。设想把一天的最高气温和一家店当天的冰淇淋销量配成一对。画出许多天的数据后，你预计会看到怎样的趋势？',
     credit:'Cjp24', license:'CC BY-SA 4.0', page:'https://commons.wikimedia.org/wiki/File:Davis_Instruments_weather_station.jpg' },
   { type:'youtube', yt:'sHbX58y5D4U', en:'Watch each pair of numbers from the table become one point on the graph.', zh:'观察表中的每一对数据怎样对应散点图上的一个点（英文）。', kind:VID, credit:'Khan Academy (YouTube)', license:'YouTube' },
   { type:'youtube', yt:'8HLtFv_KqoE', en:'Watch for the mistake of assuming that an earlier event caused a later one.', zh:'留意片中把先发生的事误当成后来结果的原因的推理错误（英文）。', kind:VID, credit:'TED-Ed (YouTube)', license:'YouTube' }
 ];
-LabPhotos.render('#gallery', PHOTOS, { title:o('Where you see this','生活中哪里能看到'), sub:o('Real photos and short videos. Each photo comes with a question this lesson helps you answer. Click a picture to enlarge it or to play a video.','真实照片和短视频。每张照片都带着一个这节课能帮你回答的问题。点击图片可放大，点击视频可播放。') });
+LabPhotos.render('#gallery', PHOTOS, { title:o('Scatter plots in the real world','现实中的散点图'), sub:o('Select an image to enlarge it.','点击图片可放大。') });
 })();
 </script>
 <!-- /real-world gallery script -->

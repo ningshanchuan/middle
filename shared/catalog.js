@@ -296,7 +296,7 @@ window.LAB_CATALOG = [
    {id:'econ-supply-demand', std:'SS6E1a / SS7E1a · HS SSEMI2', en:'Supply, Demand & Prices', zh:'供给、需求与价格', d:{en:'Run a market stand and watch prices move.',zh:'经营一个小摊，看价格如何变化。'}},
    {id:'econ-trade', std:'SS6E2 / SS7E2', en:'Trade, Tariffs & Currency', zh:'贸易、关税与货币', d:{en:'Why countries trade, trade barriers and exchange rates.',zh:'国家为什么要贸易、贸易壁垒与汇率。'}},
    {id:'econ-growth', std:'SS6E3 / SS7E3', en:'What Makes Economies Grow', zh:'经济增长的动力', d:{en:'Human capital, capital goods, natural resources and entrepreneurs.',zh:'人力资本、资本品、自然资源与企业家精神。'}},
-   {id:'econ-specialization', soon:1, std:'SS7E · Africa, SW Asia, S & E Asia', en:'Specialization & Trade: SW Asia, Asia & Africa', zh:'专业化分工与贸易：西南亚、亚洲与非洲', d:{en:'Who makes what and why: oil, tea, chips and cars; OPEC, interdependence and the unit vocabulary.',zh:'谁生产什么、为什么：石油、茶叶、芯片与汽车；欧佩克、相互依存与单元词汇。'}},
+   {id:'econ-specialization', std:'SS7E · Africa, SW Asia, S & E Asia', en:'Specialization & Trade: SW Asia, Asia & Africa', zh:'专业化分工与贸易：西南亚、亚洲与非洲', d:{en:'Who makes what and why: oil, tea, chips and cars; OPEC, interdependence and the unit vocabulary.',zh:'谁生产什么、为什么：石油、茶叶、芯片与汽车；欧佩克、相互依存与单元词汇。'}},
    {id:'econ-personal-finance', std:'SS6E13 / SS7E10 / SS8E3', en:'Personal Finance', zh:'个人理财', d:{en:'Budgeting, saving, interest, credit and smart spending.',zh:'预算、储蓄、利息、信用与理性消费。'}}
  ]},
  { id:'yuwen', icon:'🖌️', color:'#9f1239', en:'Chinese Language Arts (语文)', zh:'初中语文',
