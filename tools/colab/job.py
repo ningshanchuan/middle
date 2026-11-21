@@ -8,10 +8,9 @@ def get(name):
     subprocess.run(['curl', '-sfH', 'Accept: application/vnd.github.raw', '-o', name,
                     f'https://api.github.com/repos/ningshanchuan/middle/contents/tools/colab/{name}'], check=True)
 
-# quality vs concurrency (the user: test whether 8 in flight is best; quality first): the same clips once each with 8 and
-# with 32 requests in flight, Whisper large-v3 CER against the spoken script, listening set; then the worker restarts
-get('colab_worker.py')
-JOBS = [['colab_quality.py', '8,32', '36']]
+# score the concurrency test (recordings are done): Whisper large-v3-turbo on the CPU, CER vs the spoken script; the
+# worker keeps recording; listening set as a release asset
+JOBS = [['colab_quality_asr.py']]
 import traceback
 for JOB in JOBS:
     get(JOB[0])
