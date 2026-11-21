@@ -8,9 +8,8 @@ def get(name):
     subprocess.run(['curl', '-sfH', 'Accept: application/vnd.github.raw', '-o', name,
                     f'https://api.github.com/repos/ningshanchuan/middle/contents/tools/colab/{name}'], check=True)
 
-# save the working SGLang environment to Google Drive (the user agreed; they click "Allow" for Drive), then progress
-# lines again. The worker keeps recording meanwhile.
-JOBS = [['colab_drive_env.py', '--save'],
+# Chinese first (the user, 2026-11-21): zh + yuwen only; English after the Chinese regular clips are done
+JOBS = [['colab_worker.py', '--restart', '--push', '--model', '8b', '--langs', 'zh', '--sglang', '32', '--streams', '2', '--yuwen'],
         ['colab_watch.py', '180']]
 import traceback
 for JOB in JOBS:
