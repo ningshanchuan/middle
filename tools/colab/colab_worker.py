@@ -22,6 +22,84 @@ SRC = ROOT / '_tts'
 TOOLS = SRC / 'tools/moss/tools'
 sh = lambda cmd, **k: subprocess.run(cmd, shell=True, check=True, **k)
 
+SAY_PATCH = r'''# ---------------------------------------------------------------- COLAB PATCH say v1 (content PC)
+# Spoken scripts for Chinese clips. The page text (`send`) is not read as it is: digits, units, symbols, formulas, dates
+# are written out as they are spoken ("say", LLM-written and LLM-checked on the content PC, published as
+# readaloud/say/zh.json = {"lessons": {lesson: {sha1(send)[:12]: say}}}).
+#  - spoken(clip): the say of the clip when there is one, else send
+#  - speech_len (pace checks): counted on the say, without spaces and silent symbols
+#  - wanted(): a zh clip whose send needs a script (digits, Latin letters, symbols) waits until its say is published
+#  - index(): a lesson's fingerprint includes its say entries, so new scripts reopen just that lesson
+import hashlib as _hl
+_SAY_URL = "https://shanchuan.org/middle/readaloud/say/zh.json"
+_SAY = {"t": 0.0, "flat": {}, "ver": {}}
+_NEED = re.compile(r"[0-9A-Za-zÀ-ɏ]|[^一-鿿　-〿＀-￯“”‘’—…·\s]")
+_SILENT = re.compile(r"[\s·•/|()\[\]{}<>_*#~—–\-…‘’'\"]")
+
+
+def _say_load(force=False):
+    if force or time.time() - _SAY["t"] > 600:
+        _SAY["t"] = time.time()
+        b = fetch(_SAY_URL)
+        if b:
+            try:
+                d = json.loads(b.decode("utf-8"))
+                _SAY["flat"] = {h: s for m in d["lessons"].values() for h, s in m.items()}
+                _SAY["ver"] = {lid: hashlib.sha1(json.dumps(m, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()[:8]
+                               for lid, m in d["lessons"].items()}
+            except Exception as e:                       # noqa: BLE001
+                log(f"say: bad {_SAY_URL}: {e}")
+    return _SAY
+
+
+def say_of(send):
+    return _say_load()["flat"].get(_hl.sha1(send.encode("utf-8")).hexdigest()[:12])
+
+
+def spoken(clip):
+    if clip["lang"] == "zh":
+        s = say_of(clip["send"])
+        if s:
+            return s
+    return clip["send"]
+
+
+_orig_speech_len = speech_len
+
+
+def speech_len(text, lang):
+    if lang == "zh":
+        s = say_of(text)
+        if s:
+            s = _SILENT.sub("", s)
+            return len(s) - 0.6 * sum(1 for ch in s if ch.isascii() and ch.isalpha())
+    return _orig_speech_len(text, lang)
+
+
+_orig_wanted = Worker.wanted
+
+
+def _wanted(self, c):
+    return _orig_wanted(self, c) and (c["lang"] != "zh" or not _NEED.search(c["send"]) or say_of(c["send"]) is not None)
+
+
+Worker.wanted = _wanted
+_orig_index = Worker.index
+
+
+def _index(self):
+    entries = _orig_index(self)
+    ver = _say_load(force=True)["ver"]
+    for e in entries:
+        if e.get("id") in ver:
+            e["fingerprint"] = f'{e["fingerprint"]}+say{ver[e["id"]]}'
+    return entries
+
+
+Worker.index = _index
+'''
+
+
 def prepare():
     if not (TOOLS / 'tts_worker.py').exists():
         sh(f'git clone -q --depth 1 --filter=blob:none --sparse https://github.com/gladcolor/gc-audio-science.git {SRC} '
@@ -36,6 +114,13 @@ def prepare():
     if 'COLAB PATCH' not in w:
         # (single_instance already falls back to fcntl on Linux)
         w = w.replace('.with_name("ffprobe.exe")', '.with_name("ffprobe" if os.name != "nt" else "ffprobe.exe")  # COLAB PATCH')
+        (TOOLS / 'tts_worker.py').write_text(w, encoding='utf-8')
+    SAY_MARK = '# ---------------------------------------------------------------- COLAB PATCH say'
+    if SAY_MARK + ' v1' not in w:
+        if SAY_MARK in w:                                # drop an older say patch (it sits just before the main guard)
+            a = w.index(SAY_MARK); b = w.index('\nif __name__ == "__main__":', a)
+            w = w[:a] + w[b + 1:]
+        w = w.replace('\nif __name__ == "__main__":', '\n' + SAY_PATCH + '\n\nif __name__ == "__main__":', 1)
         (TOOLS / 'tts_worker.py').write_text(w, encoding='utf-8')
     m = (TOOLS / 'moss_engine.py').read_text(encoding='utf-8')
     if 'COLAB PATCH v2' not in m:
