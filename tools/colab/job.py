@@ -12,4 +12,11 @@ JOB = ['colab_lessons.py', '--model', '8b']          # 3 test lessons with the 8
 get(JOB[0])
 sys.argv = JOB
 print('job:', ' '.join(JOB), flush=True)
-exec(compile(open(JOB[0], encoding='utf-8').read(), JOB[0], 'exec'), {'__name__': '__main__'})
+import traceback
+try:
+    exec(compile(open(JOB[0], encoding='utf-8').read(), JOB[0], 'exec'), {'__name__': '__main__'})
+except BaseException:
+    tb = traceback.format_exc()
+    open('/content/job_error.txt', 'w').write(tb)
+    print('JOB FAILED (plain text so it can be read):
+' + tb[-3000:], flush=True)
