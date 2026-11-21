@@ -151,13 +151,23 @@
     else if (lang === 'es'){ if (/es-(us|mx|419)/.test(L2)) s += 20; else if (L2 === 'es-es') s += 8; }   // Spanish taught in US schools: Latin American first
     else { if (L2 === 'en-us') s += 20; else if (/en-(gb|au|ca)/.test(L2)) s += 8; }
     if (/Natural/i.test(n)) s += 100; if (/Neural/i.test(n)) s += 90; if (/Premium|Enhanced/i.test(n)) s += 70;
+    // iPhone / iPad / Mac: the downloaded high-quality voices have the SAME name as the built-in compact ones; the
+    // quality is only in voiceURI (com.apple.voice.premium / enhanced / compact). Novelty voices (eloquence, Bells …) last.
+    const u = v.voiceURI || '';
+    if (/\.premium\./i.test(u)) s += 80; else if (/\.enhanced\./i.test(u)) s += 70; else if (/\.compact\./i.test(u)) s -= 5;
+    if (/eloquence|speech\.synthesis\.voice/i.test(u)) s -= 80;
     if (/Google/i.test(n)) s += 60; if (/Online/i.test(n)) s += 30; if (v.localService === false) s += 5;
     if (/Xiaoxiao|Yunxi|Xiaoyi|Yunjian|Aria|Jenny|Guy|Ava|Andrew|Emma|Brian|Samantha|Tingting|Ting-Ting/i.test(n)) s += 15;
     if (/Huihui|Kangkang|Yaoyao|David|Zira|Mark/i.test(n)) s -= 25;
     return s;
   };
   Lab.voices = lang => allVoices().filter(v => vScore(v, lang) > -1e8).sort((a, b) => vScore(b, lang) - vScore(a, lang));
-  Lab.voiceFor = lang => { const saved = store.get('labVoice_' + lang), vs = Lab.voices(lang); return (saved && vs.find(v => v.name === saved)) || vs[0] || null; };
+  // a voice is identified by voiceURI (names repeat on Apple devices: compact and premium "Tingting"); old saves by name still work
+  const vId = v => v.voiceURI || v.name;
+  const vTag = v => { const u = v.voiceURI || ''; return /\.premium\./i.test(u) ? Lab.L({ en:' (premium)', zh:'（优质）' })
+    : /\.enhanced\./i.test(u) ? Lab.L({ en:' (enhanced)', zh:'（增强）' }) : ''; };
+  Lab.voiceFor = lang => { const saved = store.get('labVoice_' + lang), vs = Lab.voices(lang);
+    return (saved && (vs.find(v => vId(v) === saved) || vs.find(v => v.name === saved && vScore(v, lang) >= vScore(vs[0], lang) - 1))) || vs[0] || null; };
   Lab.speakRate = () => +(store.get('labRate') || 1);
   /* Pre-recorded read-aloud (Qwen3-TTS, voice Serena), made on the TTS PC and served from the audio repos named in
      shared/audio-sources.js (see tools/readaloud/HANDOFF.md). The lesson subject/topic (= this page's path) has
@@ -651,7 +661,7 @@
       sample:{en:'Hello! This is how I will read the lessons to you.',zh:'你好！我会用这个声音为你朗读课文。'} };
     const recNote = rec.state === 'ready' && rec.buckets.some(b => b.keys[lang] && b.keys[lang].size) ?`<small>${Lab.L({ en:'Lessons are read with a pre-recorded voice; the voice list above is used only for text that has no recording.', zh:'课文使用预先录好的声音朗读；上面的声音选择只用于没有录音的内容。' })}</small>` : '';
     p = document.createElement('div'); p.className = 'lab-vpanel card';
-    p.innerHTML = `<b>${Lab.L(T.h)}</b>${vs.length ? `<select class="lab-vsel">${vs.map(v => `<option value="${v.name.replace(/"/g, '&quot;')}" ${cur && v.name === cur.name ? 'selected' : ''}>${v.name}</option>`).join('')}</select>` : `<p>${Lab.L(T.none)}</p>`}
+    p.innerHTML = `<b>${Lab.L(T.h)}</b>${vs.length ? `<select class="lab-vsel">${vs.map(v => `<option value="${vId(v).replace(/"/g, '&quot;')}" ${cur && vId(v) === vId(cur) ? 'selected' : ''}>${v.name}${vTag(v)}</option>`).join('')}</select>` : `<p>${Lab.L(T.none)}</p>`}
       <label>${Lab.L(T.rate)} <input type="range" class="lab-vrate" min=".5" max="1.5" step=".05" value="${Lab.speakRate()}"><output>${Lab.speakRate().toFixed(2)}×</output></label>
       <button type="button" class="btn lab-vtest">${Lab.L(T.test)}</button>
       <label class="lab-vauto"><input type="checkbox" class="lab-vread" ${auto.read() ? 'checked' : ''}> ${Lab.L(AUTO_T.read)}</label>
