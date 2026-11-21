@@ -66,6 +66,8 @@
     }
     // the step player reads its section's mix-up box once, after the last step (mathanim.js): capture exactly the same text
     try { if (window.Lab && Lab.mixText) for (const cfg of (window.__maCfgs || [])){ const el = typeof cfg.el === 'string' ? document.querySelector(cfg.el) : cfg.el; if (!el) continue; const scope = el.closest('section') || el, CARD = '.info,.card,.panel,.box,.detail,.sidebar'; const lg = Lab.lang === 'zh' ? 'zh' : 'en'; for (const sel of ['.memory', '.mix']){ const box = [...scope.querySelectorAll(sel)].find(b => { if (!b.getClientRects().length) return false; const c = b.closest(CARD); return !c || !!c.querySelector('.ma-player,.ma-narration'); }); const m = box ? Lab.mixText(box, lg) : ''; if (m) CAP.add(m, lg, 'mix'); } } } catch(e){ C.err.push('ma-mix: ' + e.message); }
+    // texts the page lists itself (lab.js Lab.readAll: every poem line, whole-poem unit … even ones behind clicks)
+    try { CAP.src = 'readall'; if (window.Lab && Lab.readAllTexts) for (const [t, lg] of Lab.readAllTexts()) CAP.add(t, lg || Lab.lang, 'list'); } catch(e){ C.err.push('readall: ' + e.message); }
     C.phase = 'initial'; speakAll('initial'); await settle();
     // 2. sliders and drop-downs
     C.phase = 'inputs'; const inputsUp = () => timeUp() || Date.now() - T0 > MAXMS * 0.35;   // leave most of the time for clicking

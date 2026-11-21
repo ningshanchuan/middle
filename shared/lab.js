@@ -362,6 +362,12 @@
     return out.filter(Boolean);
   };
   Lab.mixFor = (text, lang) => Lab.extrasFor(text, lang).join(' ');   // kept for older callers
+  // Pages that read texts one after another (poem lines, whole-poem units, passages …) list every such text here, so the
+  // read-aloud crawler records all of them without stepping through the page: Lab.readAll(() => [[text, lang], …]).
+  // The texts must be exactly the strings the page passes to Lab.speak / speechSynthesis.
+  const readAllFns = [];
+  Lab.readAll = fn => { if (typeof fn === 'function') readAllFns.push(fn); };
+  Lab.readAllTexts = () => readAllFns.flatMap(f => { try { return (f() || []).filter(x => x && x[0]); } catch(e){ return []; } });
   Lab.speak = (text, o = {}) => {
     if (!text) return null;
     const lang = o.lang || Lab.lang, clean = String(text).replace(/<[^>]+>/g, '');
@@ -426,6 +432,8 @@
     const contOf = el => el.closest(CONT) || el.parentElement || el;
     const isNext = el => { const t = ((el.textContent || '').trim().slice(0, 24)) + ' ' + (el.title || '') + ' ' + (el.id || '');
       return !isSpk(el) && !el.disabled && !/上一|prev|◀|‹|←|back|返回|播放|play|试听|test|重新|again|reset|重置/i.test(t) && /下一|next|▶|›|→|继续|开始|start/i.test(t); };
+    const isPrev = el => { const t = ((el.textContent || '').trim().slice(0, 24)) + ' ' + (el.title || '') + ' ' + (el.id || '');
+      return !isSpk(el) && /上一|prev|◀|‹|←|earlier|更早/i.test(t) && !/播放|play|试听|test|重新|again|reset|重置/i.test(t); };
     let chain = null, pill = null, auto = false, gen2 = 0;
     const showPill = on => { pb.onStop = on ? stop : null; pbSet('chain', !!on); };   // the read-aloud bar's ⏹ ends auto-play
     const stop = () => { chain = null; gen2++; showPill(false); };
@@ -474,9 +482,14 @@
         return;
       }
       stop();                 // any other click of the student ends auto-play (a card it opens may start a new one)
-      if (!read() || t.closest(SKIP) || t.closest('input,select,textarea,label')) return;
-      const snap = snapshot(), picks = !!t.closest(PICK) || isNext(t.closest('button,[role=button]') || t);
-      setTimeout(() => { const b = changed(snap, picks); if (b && !chain) press(b); }, 350);
+      if (t.closest(SKIP) || t.closest('input,select,textarea,label')) return;
+      // turning the card by hand (Next / Previous, a chip, a tab …) stops the narration at once, whatever the settings;
+      // a click that turns out to open another card stops it too, unless the page itself started reading the new card
+      const btn = t.closest('button,[role=button]') || t, pk = t.closest(PICK), nav = isNext(btn) || isPrev(btn) || !!(pk && !pk.matches('canvas,svg'));
+      if (nav && Lab.speaking()) Lab.stopSpeech();
+      const snap = snapshot(), picks = !!pk || isNext(btn) || isPrev(btn), was = Lab.speaking(), g0 = gen;
+      setTimeout(() => { const b = changed(snap, picks); if (!b || chain) return;
+        if (read()) press(b); else if (was && g0 === gen && Lab.speaking()) Lab.stopSpeech(); }, 350);
     }, true);
     return { read, next, stop };
   })();
