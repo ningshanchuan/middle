@@ -69,6 +69,8 @@ class ColabMoss(ME.Moss):
         batch = self.proc(convs, mode='generation')
         secs = [2 * ME.expected_seconds(it['text'], it['lang'], it['kind'], it.get('pace')) + 10 for it in items]
         gen = dict(ME.GEN, max_new_tokens=min(ME.GEN['max_new_tokens'], int(max(secs) * 12.5) + 25))
+        if args.model == '8b':
+            gen.pop('do_sample', None)                     # the 8B generate() samples whenever temperature > 0
         with torch.no_grad():
             out = self.model.generate(input_ids=batch['input_ids'].to('cuda'), attention_mask=batch['attention_mask'].to('cuda'), **gen)
         pcms = []
