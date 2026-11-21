@@ -59,7 +59,11 @@ todo = [k for k in texts if not os.path.exists(path(k)) or sent.get(k, raw[k]) !
 redo = [k for k in todo if os.path.exists(path(k))]
 for k in redo:
     os.remove(path(k))
-random.shuffle(todo)
+first = {}                                               # course order (corpus order), so whole lessons finish together
+for i, (lid, keys) in enumerate(lessons.items()):
+    for k in keys:
+        first.setdefault(k, i)
+todo.sort(key=lambda k: first.get(k, 1 << 30))
 log = open(os.path.join(REPO, '..', f'edge_{LANG}.log'), 'a', encoding='utf-8')
 def say_log(m):
     line = time.strftime('%H:%M:%S ') + m
