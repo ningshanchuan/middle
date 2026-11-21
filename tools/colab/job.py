@@ -8,9 +8,8 @@ def get(name):
     subprocess.run(['curl', '-sfH', 'Accept: application/vnd.github.raw', '-o', name,
                     f'https://api.github.com/repos/ningshanchuan/middle/contents/tools/colab/{name}'], check=True)
 
-# score the concurrency test (recordings are done): Whisper large-v3-turbo on the CPU, CER vs the spoken script; the
-# worker keeps recording; listening set as a release asset
-JOBS = [['colab_quality_asr.py']]
+# diagnostics after the concurrency test (no lesson push since 17:00 UTC)
+JOBS = [['colab_diag.py', 'china/prc', 'china/reform-opening', 'biology/nutrition-digestion']]
 import traceback
 for JOB in JOBS:
     get(JOB[0])
