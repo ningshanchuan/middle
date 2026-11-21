@@ -236,14 +236,14 @@
   let player = null, cur = null, gen = 0;   // one shared <audio> (stays unlocked on iOS after the first tap)
   let speakHook = null;                     // set by the auto-read block: sees every Lab.speak call first
   const audioRate = rate => Math.max(.3, Math.min(2.5, (rate || .95) / .95 * Lab.speakRate()));
-  Lab.stopSpeech = () => { gen++; const c = cur; cur = null; pend = null; pb.playing = pb.paused = false; pbRender(); if (c){ try { player.pause(); } catch(e){} if (c.done) c.done(false); } nativeCancel(); };
+  Lab.stopSpeech = () => { gen++; const c = cur; cur = null; pend = null; pb.playing = pb.paused = false; ttsOn = null; pbRender(); if (c){ try { player.pause(); } catch(e){} if (c.done) c.done(false); } nativeCancel(); };
   /* floating read-aloud bar: ⏸ pause / ▶ resume (from the same place, so a teacher can stop and explain) and ⏹ stop.
      Shown while a longer clip plays, while it is paused, and while auto-play runs (its ⏹ then also ends auto-play). */
   const PB_T = { pause:{ en:'⏸ Pause', zh:'⏸ 暂停' }, resume:{ en:'▶ Resume', zh:'▶ 继续' }, stop:{ en:'⏹ Stop', zh:'⏹ 停止' }, stopAuto:{ en:'⏹ Stop auto-play', zh:'⏹ 停止自动播放' } };
-  const pb = { el:null, playing:false, paused:false, chain:false, onStop:null };
+  const pb = { el:null, playing:false, paused:false, chain:false, hold:false, onStop:null };   // hold: on-demand reading of a paragraph (stop bar for its whole length)
   function pbRender(){
     if (!document.body) return;
-    if (!(pb.playing || pb.paused || pb.chain)){ if (pb.el){ pb.el.remove(); pb.el = null; } return; }
+    if (!(pb.playing || pb.paused || pb.chain || pb.hold)){ if (pb.el){ pb.el.remove(); pb.el = null; } return; }
     if (!pb.el){
       pb.el = document.createElement('div'); pb.el.className = 'lab-player'; document.body.appendChild(pb.el);
       pb.el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return;
@@ -257,7 +257,9 @@
   Lab.speechPaused = () => pb.paused;
   // Is anything being read (or about to be: a Lab.speak whose recording list is still loading), or paused?
   let pend = null;
-  Lab.speaking = () => !!pend || !!cur || pb.paused || !!(ss && (ss.speaking || ss.pending));
+  // ttsOn: our own utterance is being read (Edge's online voices do not always report speechSynthesis.speaking)
+  let ttsOn = null;
+  Lab.speaking = () => !!pend || !!cur || !!ttsOn || pb.paused || !!(ss && (ss.speaking || ss.pending));
   // Promise that resolves when the narration has ended or was stopped; waits while paused; resolves at once when
   // nothing is being read. Anything that moves on by itself (step players, tours, auto-play) awaits it, so the end of
   // a recording is never cut off. Safety cap (some browsers never report the end of a long utterance), not while paused.
@@ -299,9 +301,10 @@
     u.rate = Math.max(.5, Math.min(1.6, (rate || .95) * Lab.speakRate()));
     const g = gen;
     if (clean.length > 40) u.onstart = () => { if (g === gen) pbSet('playing', true); };   // the bar only for longer texts
-    u.onend = () => { if (g === gen){ pb.playing = pb.paused = false; pbRender(); } if (done) done(true); };
-    u.onerror = () => { if (g === gen){ pb.playing = pb.paused = false; pbRender(); } if (done) done(false); };
-    nativeSpeak(u); return u;
+    // a cancelled utterance ends with 'end' in some browsers (Edge, Safari, Firefox): only a natural end moves on
+    u.onend = () => { if (ttsOn === u) ttsOn = null; if (g === gen){ pb.playing = pb.paused = false; pbRender(); } if (done) done(g === gen); };
+    u.onerror = () => { if (ttsOn === u) ttsOn = null; if (g === gen){ pb.playing = pb.paused = false; pbRender(); } if (done) done(false); };
+    ttsOn = u; nativeSpeak(u); return u;
   }
   // Wake the audio output with a short silent Web Audio buffer (started inside the tap). Bluetooth headsets and many
   // PCs drop the first ~0.2 s of sound after the output was idle; the context is kept, so the output stays awake.
@@ -435,14 +438,17 @@
       // pages call speechSynthesis.cancel() to stop reading (topic change, voice off …): stop recordings too
       ss.cancel = () => Lab.stopSpeech();
       // pages that speak Chinese utterances themselves (e.g. line-by-line poem readers) also get the recording
+      // utterances of the pages themselves: tracked too, so Lab.speaking() (Esc, the stop controls) sees them in Edge
+      const trackNative = u => { if (!u || !u.addEventListener) return nativeSpeak(u); ttsOn = u; const off = () => { if (ttsOn === u) ttsOn = null; };
+        u.addEventListener('end', off); u.addEventListener('error', off); return nativeSpeak(u); };
       ss.speak = u => {
         const ul = u && (/^zh/i.test(u.lang || '') ? 'zh' : /^en/i.test(u.lang || '') ? 'en' : (!u.lang ? Lab.lang : ''));
-        if (!ul || !REC_LANGS.includes(ul)) return nativeSpeak(u);
+        if (!ul || !REC_LANGS.includes(ul)) return trackNative(u);
         const ev = ok => { try { u.dispatchEvent(new Event(ok ? 'end' : 'error')); } catch(e){} };
         withRec(ul, get => {
           const k = Lab.speechKey(u.text, ul), url = get && get(ul, k);
-          if (url){ Lab.stopSpeech(); playRec(url, k, u.rate || 1, () => nativeSpeak(u), ev); }
-          else nativeSpeak(u);
+          if (url){ Lab.stopSpeech(); playRec(url, k, u.rate || 1, () => trackNative(u), ev); }
+          else trackNative(u);
         });
       };
     } catch(e){}
@@ -602,17 +608,19 @@
       if (la === 'es') return worthEs(t) ? { lang: 'es', parts: chunk(t, false) } : null;
       if (!worth(t)) return null; const zh = zhOf(t); return { lang: zh ? 'zh' : 'en', parts: chunk(t, zh) }; };
     let reading = null;
-    const stopReading = () => { Lab.stopSpeech(); if (reading){ reading.classList.remove('lab-hreading'); reading = null; } };
+    const endRead = () => { if (reading){ reading.classList.remove('lab-hreading'); reading = null; } if (pb.hold){ pb.onStop = null; pbSet('hold', false); } };
+    const stopReading = () => { Lab.stopSpeech(); endRead(); };
     const read = el => {
       // the same paragraph again (double-click / 🔊 / ⏹) while it is being read: stop (the user, 2026-11-21)
-      if (reading === el && Lab.speaking()){ stopReading(); return; }
+      if (reading === el){ stopReading(); return; }
       const u = units(el); if (!u) return;
       auto.stop();
       if (reading) reading.classList.remove('lab-hreading');
       reading = el; el.classList.add('lab-hreading');
+      pb.onStop = endRead; pbSet('hold', true);   // the floating stop bar stays up while the paragraph is read
       let k = 0;
       const go = ok => {
-        if (ok === false || k >= u.parts.length){ if (reading === el){ el.classList.remove('lab-hreading'); reading = null; } return; }
+        if (ok === false || k >= u.parts.length){ if (reading === el) endRead(); return; }
         Lab.speak(u.parts[k++], { lang: u.lang, inner: true, onend: go });
       };
       go(true);
@@ -629,7 +637,7 @@
         btn.addEventListener('mouseenter', () => clearTimeout(hideT));
         document.body.appendChild(btn);
       }
-      const stopping = el === reading && Lab.speaking();
+      const stopping = el === reading;
       btn.textContent = stopping ? '⏹' : '🔊';
       btn.title = Lab.L(stopping ? { en:'Stop reading', zh:'停止朗读' } : HOVER_T.say); btn.setAttribute('aria-label', btn.title);
       const r = el.getBoundingClientRect(), s = touch ? 40 : 28;
@@ -654,7 +662,7 @@
       const el = blockOf(t); if (el){ hide(); read(el); }
     }, true);
     // Esc stops whatever is being read (desktop)
-    document.addEventListener('keydown', e => { if (e.key === 'Escape' && Lab.speaking()){ stopReading(); auto.stop(); } });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && (reading || pb.hold || Lab.speaking())){ stopReading(); auto.stop(); } });
     // touch: a long press (finger still for ~0.55 s) shows a bigger 🔊 above the text
     let lp = null;
     document.addEventListener('pointerdown', e => {
