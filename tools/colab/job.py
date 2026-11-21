@@ -8,10 +8,8 @@ def get(name):
     subprocess.run(['curl', '-sfH', 'Accept: application/vnd.github.raw', '-o', name,
                     f'https://api.github.com/repos/ningshanchuan/middle/contents/tools/colab/{name}'], check=True)
 
-# the worker on SGLang-Omni (the user, 2026-11-21: switch now): 32 requests in flight, reference audio + transcript,
-# direct pushes, the say patch; then 15 minutes of progress
-JOBS = [['colab_worker.py', '--restart', '--push', '--model', '8b', '--langs', 'zh', '--sglang', '32'],
-        ['colab_watch.py', '15']]
+# diagnostics: why no new clips since 15:04 UTC
+JOBS = [['colab_diag.py', 'math/exponents', 'china/terrain', 'geography/europe-oceania']]
 import traceback
 for JOB in JOBS:
     get(JOB[0])
