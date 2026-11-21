@@ -657,7 +657,7 @@
       <label class="lab-vauto"><input type="checkbox" class="lab-vread" ${auto.read() ? 'checked' : ''}> ${Lab.L(AUTO_T.read)}</label>
       <label class="lab-vauto"><input type="checkbox" class="lab-vnext" ${auto.next() ? 'checked' : ''}> ${Lab.L(AUTO_T.next)}</label>
       <label class="lab-vauto"><input type="checkbox" class="lab-vhover" ${ondemand.on() ? 'checked' : ''}> ${Lab.L(HOVER_T.opt)}</label>
-      ${recNote}<small>${Lab.L(T.tip)}</small>`;
+      ${recNote}<small>${Lab.L(T.tip)}${/Edg\//.test(navigator.userAgent) ? '' : ` <a href="${Lab.L({ en:'https://www.microsoft.com/edge/download', zh:'https://www.microsoft.com/zh-cn/edge/download' })}" target="_blank" rel="noopener">${Lab.L({ en:'Get Edge (free)', zh:'免费下载 Edge' })}</a>`}</small>`;
     document.body.appendChild(p);
     $('.lab-vread', p).onchange = e => store.set('labAutoRead', e.target.checked ? '1' : '0');
     $('.lab-vhover', p).onchange = e => { store.set('labHoverRead', e.target.checked ? '1' : '0'); if (!e.target.checked) ondemand.hide(); };
