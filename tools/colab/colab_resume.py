@@ -17,7 +17,12 @@ for f in ('colab_sglang.py', 'colab_worker.py', 'colab_watch.py', 'colab_drive_e
     get(f)
 subprocess.run(['nvidia-smi', '--query-gpu=name,memory.used,memory.total', '--format=csv'])
 if not Path('/content/sgl/bin/sgl-omni').exists():          # first the saved environment from Google Drive
-    subprocess.run([sys.executable, 'colab_drive_env.py', '--restore'])
+    argv = sys.argv; sys.argv = ['colab_drive_env.py', '--restore']   # in this kernel: drive.mount needs the notebook
+    try:
+        exec(compile(open('colab_drive_env.py', encoding='utf-8').read(), 'colab_drive_env.py', 'exec'), {'__name__': '__main__'})
+    except SystemExit:
+        pass
+    sys.argv = argv
 if not Path('/content/sgl/bin/sgl-omni').exists():          # no archive: install the latest packages
     subprocess.run([sys.executable, 'colab_sglang.py', '--setup'], check=True)
     log = Path('/content/sgl_setup.log'); t0 = time.time()
