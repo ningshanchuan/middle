@@ -27,6 +27,9 @@
   const speakAll = src => {
     CAP.src = src;
     for (const el of document.querySelectorAll('button,[role=button],.speak,.say,a,[data-say],[data-speak]')) if (isSpeaker(el) && vis(el)) click(el);
+    // every visible text as it would be read on demand (lab.js hover / double-click / long press), after the 🔊 texts;
+    // not for slider values or canvas grid clicks (number readouts)
+    if (src !== 'input' && src !== 'canvas') try { if (window.Lab && Lab.blockTexts) for (const [t, lg] of Lab.blockTexts()) CAP.add(t, lg, 'hover'); } catch(e){ if (C.err.length < 20) C.err.push('blocks: ' + e.message); }
   };
   const sig = el => {
     const d = Object.keys(el.dataset || {}).filter(k => !/^(en|zh|enHtml|zhHtml|ready|on|state)$/.test(k)).map(k => k + '=' + el.dataset[k]).join(',');

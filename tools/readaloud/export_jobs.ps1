@@ -1,6 +1,6 @@
 # CONTENT PC ONLY. Publish the read-aloud transcripts the TTS PC downloads (see tools/readaloud/HANDOFF.md).
 #   science-lab/readaloud/index.json                 every lesson (catalog order): id, titles, page URL, clip counts, fingerprint
-#   science-lab/readaloud/<subject>/<topic>.json     the lesson's clips: {key, lang, send, text}
+#   science-lab/readaloud/<subject>/<topic>.json     the lesson's clips: {key, lang, send, text[, demand:1]}
 #   science-lab/readaloud/shared.json               clips no single lesson owns (place-book sentences, speed-panel test ...)
 #     key  = FNV-1a 32 of "<lang>|<text>" (same as Lab.speechKey in shared/lab.js) = the clip's file name <key>.mp3
 #     send = exactly what to send to the TTS (symbols as words, glued pinyin removed, maths in words); text = what the page shows
@@ -35,7 +35,8 @@ foreach ($l in 'en', 'zh') {
     if (-not $send.ContainsKey($o.key)) { continue }    # nothing speakable, or too long for one request
     foreach ($les in @($o.lessons | Where-Object { $_ } | Sort-Object -Unique)) {
       if (-not $lessons.Contains($les)) { continue }
-      $lessons[$les].clips.Add([pscustomobject]@{ key = $o.key; lang = $l; send = $send[$o.key]; text = $text[$o.key] }); $owned[$o.key] = 1
+      $c = [ordered]@{ key = $o.key; lang = $l; send = $send[$o.key]; text = $text[$o.key] }; if ($o.via -eq 'hover') { $c.demand = 1 }   # demand: read only on demand (hover / double-click / long press): record after the others
+      $lessons[$les].clips.Add([pscustomobject]$c); $owned[$o.key] = 1
     }
   }
   foreach ($k in ($send.Keys | Sort-Object)) { if (-not $owned.ContainsKey($k)) { $shared.Add([pscustomobject]@{ key = $k; lang = $l; send = $send[$k]; text = $text[$k] }) } }

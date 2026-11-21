@@ -15,6 +15,7 @@ foreach ($f in Get-ChildItem (Join-Path $Work "lessons") -Filter "*.$Lang.json" 
     if ($x.lang -ne $Lang) { continue }
     $nz++
     if (-not $byKey.Contains($x.key)) { $byKey[$x.key] = [pscustomobject]@{ key = $x.key; text = $x.text; via = $x.via; raw = $x.raw; lessons = New-Object Collections.Generic.List[string] } }
+    elseif ($byKey[$x.key].via -eq 'hover' -and $x.via -ne 'hover') { $byKey[$x.key].via = $x.via }   # read by a page itself somewhere: not 'on demand only'
     if (-not $byKey[$x.key].lessons.Contains($id)) { $byKey[$x.key].lessons.Add($id) }
   }
   $m = $j.meta; $note = @()

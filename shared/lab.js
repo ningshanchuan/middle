@@ -423,7 +423,7 @@
     stop:{ en:'⏹ Stop auto-play', zh:'⏹ 停止自动播放' } };
   const auto = (() => {
     const read = () => store.get('labAutoRead') === '1' || next(), next = () => store.get('labAutoNext') === '1';
-    const SKIP = '.lab-nav,#lab-nav,.lab-vpanel,.ma-player,.lab-footer,footer,.quiz,.opts,.lab-player';
+    const SKIP = '.lab-nav,#lab-nav,.lab-vpanel,.ma-player,.lab-footer,footer,.quiz,.opts,.lab-player,.lab-hsay';
     const CONT = '.info,.card,.panel,.box,.detail,.sidebar,section';
     const isSpk = el => !!el && !el.closest(SKIP) && (el.matches('.speak,.say,[data-a=speak],[data-say],[data-speak]') ||
       /🔊|朗读|读一读|听一听|Read aloud|Listen/i.test(((el.textContent || '').trim().slice(0, 30)) + (el.title || '') + (el.getAttribute('aria-label') || '')));
@@ -474,7 +474,7 @@
     document.addEventListener('click', e => {
       if (!e.isTrusted || auto) return;
       const t = e.target.closest ? e.target : e.target.parentElement; if (!t) return;
-      if (t.closest('.lab-player,.lab-vpanel,.lab-voice')) return;
+      if (t.closest('.lab-player,.lab-vpanel,.lab-voice,.lab-hsay')) return;
       if (read()) unlock();
       const sp = t.closest('button,[role=button],.speak,.say,[data-say],[data-speak]');
       if (sp && isSpk(sp)){   // the student pressed 🔊 themselves: with auto-play on, a new chain starts here
@@ -493,6 +493,119 @@
     }, true);
     return { read, next, stop };
   })();
+
+  /* ---------- read any text on demand (TTS PC issue #4) ----------
+     mouse: rest on a paragraph, list item, heading, table cell, quiz question or option … and a small 🔊 appears beside
+     it; click the 🔊 to hear that text. Double-click on ordinary text reads it too (the word stays selected for copying).
+     Touch: a long press shows the 🔊. Clickable items (quiz options, poem lines that read themselves …) get the 🔊 only:
+     it sits outside the item, so pressing it never clicks the item. Long texts are read as sentence-sized clips.
+     Lab.blockTexts() lists every visible text exactly as it would be read ([[text, lang], …]) for the crawler.
+     Off switch in the 🔊 panel (labHoverRead = '0'). */
+  const HOVER_T = { opt:{ en:'Rest the mouse on any text to hear it (🔊)', zh:'鼠标停在文字上可朗读（🔊）' }, say:{ en:'Read aloud', zh:'朗读' } };
+  const ondemand = (() => {
+    const on = () => store.get('labHoverRead') !== '0';
+    const BLOCK = 'p,li,dd,dt,h1,h2,h3,h4,h5,td,th,figcaption,blockquote,caption,.job,.memory,.mix,.quote,.qtext,.explain,.opts>button,.pline';
+    const NO = '.lab-nav,#lab-nav,.lab-vpanel,.lab-player,.lab-footer,#lab-footer,footer,.lab-hsay,.ma-player,.ma-narration,script,style,svg,canvas,input,select,textarea,code,pre,[aria-hidden=true],[data-noread]';
+    const CLICKY = 'button,a[href],[role=button],[role=tab],[onclick],[data-k],[data-key],[data-i],[data-idx],[data-n],[data-id],[data-l],[data-step],.chip,.tab,.pill,.opt,.yc';
+    const zhOf = t => { const han = (t.match(/\p{Script=Han}/gu) || []).length, lat = (t.match(/[A-Za-z]/g) || []).length; return han > 0 && han * 3 >= lat; };
+    // the text exactly as it is read: no pinyin, no buttons, no emoji; maths as words where the step-player helper is loaded
+    const textOf = el => {
+      if (el.matches('.memory,.mix')) return Lab.mixText(el);
+      const c = el.cloneNode(true);
+      c.querySelectorAll('rt,rp,.py,button,.speak,.say,script,style,svg,canvas,[aria-hidden=true],.katex-mathml').forEach(n => n.remove());
+      const kx = c.querySelectorAll('.katex');
+      if (kx.length){
+        if (!(window.MathAnim && MathAnim.spoken)) return '';
+        const orig = el.querySelectorAll('.katex');
+        kx.forEach((k, i) => { const a = orig[i] && orig[i].querySelector('annotation'); k.replaceWith(a ? '$' + a.textContent + '$' : ''); });
+        return mixFlat(MathAnim.spoken(mixFlat(c.textContent), zhOf(c.textContent) || Lab.lang === 'zh'));
+      }
+      return mixFlat(c.textContent.replace(/[\p{Extended_Pictographic}️‍☆★✓✔✗✘●○◆◇■□▶◀►◄]/gu, ' '));   // emoji and decorative marks (☆ ✓ ● ▶ …)
+    };
+    const worth = t => (t.match(/\p{Script=Han}/gu) || []).length >= 2 || (t.match(/[A-Za-z]{2,}/g) || []).length >= 2;
+    const vis = el => el.isConnected && el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
+    const blockOf = t => { const b = t && t.closest && t.closest(BLOCK); return b && !b.closest(NO) && vis(b) ? b : null; };
+    const chunk = (t, zh) => {   // sentence-sized clips (≤150 Chinese / ≤400 English characters)
+      const max = zh ? 150 : 400; if (t.length <= max) return [t];
+      const parts = t.match(zh ? /[^。！？；!?;]+[。！？；!?;]*[”’」』）)]*/g : /[^.!?;]+[.!?;]*["”’)]*\s*/g) || [t], out = []; let cur = '';
+      for (const p of parts){ if (cur && (cur + p).length > max){ out.push(cur.trim()); cur = ''; } cur += p; }
+      if (cur.trim()) out.push(cur.trim());
+      return out.flatMap(s => s.length <= max ? [s] : s.match(new RegExp('[\\s\\S]{1,' + max + '}', 'g')));
+    };
+    const units = el => { const t = textOf(el); if (!worth(t)) return null; const zh = zhOf(t); return { lang: zh ? 'zh' : 'en', parts: chunk(t, zh) }; };
+    let reading = null;
+    const read = el => {
+      const u = units(el); if (!u) return;
+      auto.stop();
+      if (reading) reading.classList.remove('lab-hreading');
+      reading = el; el.classList.add('lab-hreading');
+      let k = 0;
+      const go = ok => {
+        if (ok === false || k >= u.parts.length){ if (reading === el){ el.classList.remove('lab-hreading'); reading = null; } return; }
+        Lab.speak(u.parts[k++], { lang: u.lang, inner: true, onend: go });
+      };
+      go(true);
+    };
+    // the floating 🔊 (one for the page, in <body>, so it is never inside the item it reads)
+    let btn = null, cur = null, showT = 0, hideT = 0;
+    const hide = () => { clearTimeout(showT); clearTimeout(hideT); cur = null; if (btn) btn.style.display = 'none'; };
+    const show = (el, touch) => {
+      if (!btn){
+        btn = document.createElement('button'); btn.type = 'button'; btn.className = 'lab-hsay'; btn.textContent = '🔊';
+        btn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); });   // keep the text selection and focus
+        btn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); const el = cur; hide(); if (el) read(el); });
+        btn.addEventListener('mouseleave', () => { clearTimeout(hideT); hideT = setTimeout(hide, 350); });
+        btn.addEventListener('mouseenter', () => clearTimeout(hideT));
+        document.body.appendChild(btn);
+      }
+      btn.title = Lab.L(HOVER_T.say); btn.setAttribute('aria-label', btn.title);
+      const r = el.getBoundingClientRect(), s = touch ? 40 : 28;
+      btn.classList.toggle('touch', !!touch);
+      btn.style.display = 'block';
+      btn.style.left = Math.max(4, Math.min(r.right + 4, innerWidth - s - 4)) + scrollX + 'px';
+      btn.style.top = Math.max(4, r.top + (touch ? -s - 4 : 0)) + scrollY + 'px';
+      cur = el;
+    };
+    document.addEventListener('mouseover', e => {
+      if (!on() || e.target === btn) return;
+      const el = blockOf(e.target);
+      if (el === cur){ clearTimeout(hideT); return; }
+      clearTimeout(showT);
+      if (cur){ clearTimeout(hideT); hideT = setTimeout(hide, 350); }
+      if (el && worth(textOf(el))) showT = setTimeout(() => { clearTimeout(hideT); show(el); }, 550);
+    }, true);
+    document.addEventListener('mouseout', e => { if (cur && !e.relatedTarget){ clearTimeout(hideT); hideT = setTimeout(hide, 350); } }, true);
+    document.addEventListener('dblclick', e => {
+      if (!on() || !e.isTrusted) return;
+      const t = e.target.closest ? e.target : e.target.parentElement; if (!t || t.closest(CLICKY) || t.closest(NO)) return;
+      const el = blockOf(t); if (el){ hide(); read(el); }
+    }, true);
+    // touch: a long press (finger still for ~0.55 s) shows a bigger 🔊 above the text
+    let lp = null;
+    document.addEventListener('pointerdown', e => {
+      if (e.pointerType !== 'touch' || e.target === btn) return;
+      if (cur) hide();
+      if (!on()) return;
+      const el = blockOf(e.target); if (!el) return;
+      const x = e.clientX, y = e.clientY;
+      lp = { x, y, t: setTimeout(() => { lp = null; if (worth(textOf(el))) show(el, true); }, 550) };
+    }, true);
+    const cancelLp = e => { if (lp && (!e || e.type !== 'pointermove' || Math.hypot(e.clientX - lp.x, e.clientY - lp.y) > 10)){ clearTimeout(lp.t); lp = null; } };
+    ['pointerup', 'pointercancel', 'pointermove'].forEach(ev => document.addEventListener(ev, cancelLp, true));
+    addEventListener('scroll', () => { if (cur && !(btn && btn.classList.contains('touch'))) hide(); }, { passive: true });
+    Lab.onLang && Lab.onLang(hide);
+    // every visible text as it would be read on demand, for the read-aloud crawler (tools/tts/drive.js)
+    Lab.blockTexts = () => {
+      const out = [], seen = new Set();
+      for (const el of document.querySelectorAll(BLOCK)){
+        if (el.closest(NO) || !vis(el)) continue;
+        const u = units(el); if (!u) continue;
+        for (const p of u.parts){ const k = u.lang + '|' + p; if (!seen.has(k)){ seen.add(k); out.push([p, u.lang]); } }
+      }
+      return out;
+    };
+    return { on, hide };
+  })();
   // voice settings popover (opened from the 🔊 nav button)
   Lab.voicePanel = () => {
     let p = $('.lab-vpanel'); if (p){ p.remove(); return; }
@@ -507,9 +620,11 @@
       <button type="button" class="btn lab-vtest">${Lab.L(T.test)}</button>
       <label class="lab-vauto"><input type="checkbox" class="lab-vread" ${auto.read() ? 'checked' : ''}> ${Lab.L(AUTO_T.read)}</label>
       <label class="lab-vauto"><input type="checkbox" class="lab-vnext" ${auto.next() ? 'checked' : ''}> ${Lab.L(AUTO_T.next)}</label>
+      <label class="lab-vauto"><input type="checkbox" class="lab-vhover" ${ondemand.on() ? 'checked' : ''}> ${Lab.L(HOVER_T.opt)}</label>
       ${recNote}<small>${Lab.L(T.tip)}</small>`;
     document.body.appendChild(p);
     $('.lab-vread', p).onchange = e => store.set('labAutoRead', e.target.checked ? '1' : '0');
+    $('.lab-vhover', p).onchange = e => { store.set('labHoverRead', e.target.checked ? '1' : '0'); if (!e.target.checked) ondemand.hide(); };
     $('.lab-vnext', p).onchange = e => { store.set('labAutoNext', e.target.checked ? '1' : '0'); if (!e.target.checked) auto.stop(); };
     const sel = $('.lab-vsel', p), rate = $('.lab-vrate', p);
     if (sel) sel.onchange = () => { store.set('labVoice_' + lang, sel.value); Lab.speak(Lab.L(T.sample)); };
