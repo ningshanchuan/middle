@@ -3,8 +3,6 @@
 **Live site:** https://shanchuan.org/middle/  
 **Source:** https://github.com/ningshanchuan/middle
 
-**Core ideas 核心思想:** aesthetic education first — the beauty of knowledge, nature, people, society, life, the universe, morality and history; a little honest reflection; a shared future for humankind; history made by the people; seek truth from facts. 美育为核心；以美为主，少量反思；人类命运共同体；人民史观；实事求是。See [tools/PRINCIPLES.md](tools/PRINCIPLES.md).
-
 Or open **`index.html`** in a modern browser (Chrome / Edge / Safari / Firefox) with an internet connection.
 The 3D engine (three.js), fonts and map data load from public CDNs; everything else is local.
 
