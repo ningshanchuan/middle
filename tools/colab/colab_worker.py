@@ -611,28 +611,36 @@ if args.start:
         n = args.sglang
         # split (the official default, MossTTSPipelineConfig): the vocoder runs in its own process, so decoding and
         # vocoding overlap ("lifts throughput ~70%" per the SGLang-Omni guide); single: everything in one process.
-        # split is tried first when asked for; if it does not come up, the single layout starts instead. 0.68 ran out of
-        # memory (2026-11-22: engine 27.7 GB + another stage process 11.6 GB > 40 GB); 0.56 = 22 GB (16 GB weights + cache)
+        # split is tried first when asked for; if it does not come up, the single layout starts instead.
         for layout in (['split', 'single'] if args.layout == 'split' else ['single']):
-            cls, frac = ('MossTTSPipelineConfig', 0.56) if layout == 'split' else ('MossTTSSingleProcessPipelineConfig', 0.75)
+            # split: memory is set per stage with gpu_memory_fraction (the defaults 0.10 / 0.72 / 0.18 fill a 40 GB card:
+            # out of memory twice on 2026-11-22; mem_fraction_static is not what counts there). Engine 0.64 (~25 GB: 16 GB
+            # weights + cache), vocoder 0.12 (its process used ~4.5 GB above its share), preprocessing on the CPU.
+            if layout == 'split':
+                NL = chr(10)
+                mem = dict(pre="    gpu_memory_fraction: 0.03" + NL, eng="    gpu_memory_fraction: 0.64" + NL,
+                           voc="    gpu_memory_fraction: 0.12" + NL, static='')
+                cls = 'MossTTSPipelineConfig'
+            else:
+                mem = dict(pre='', eng='', voc='', static="      mem_fraction_static: 0.75" + chr(10))
+                cls = 'MossTTSSingleProcessPipelineConfig'
             yp.write_text(f"""config_cls: {cls}
 model_path: OpenMOSS-Team/MOSS-TTS-v1.5
 
 stages:
   preprocessing:
-    factory:
+{mem['pre']}    factory:
       device: cpu
       compute_dtype: bfloat16
       max_concurrency: {n}
 
   tts_engine:
-    engine:
+{mem['eng']}    engine:
       max_running_requests: {n}
-      mem_fraction_static: {frac}
-      cuda_graph_max_bs: {n}
+{mem['static']}      cuda_graph_max_bs: {n}
 
   vocoder:
-    factory:
+{mem['voc']}    factory:
       dtype: bfloat16
       max_batch_size: {n}
       max_batch_wait_ms: 5

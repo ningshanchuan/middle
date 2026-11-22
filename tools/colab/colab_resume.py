@@ -41,11 +41,13 @@ if not Path('/content/sgl/bin/sgl-omni').exists():          # no archive: instal
 # python process cannot, and the start failed with "no GH_TOKEN" (2026-11-21)
 argv = sys.argv
 sys.argv = ['colab_worker.py', '--restart', '--push', '--model', '8b', '--langs', 'zh,en',
-            '--sglang', '64', '--streams', '32', '--inflight', '96', '--layout', 'single', '--yuwen', '--queue']
+            '--sglang', '64', '--streams', '32', '--inflight', '96', '--layout', 'split', '--yuwen', '--queue']
 # 2026-11-22: split layout out of memory on the 40 GB A100 at 0.68 and 0.56 (a second stage process holds ~12 GB);
 # single layout with 32 running kept the GPU fed without gaps but at ~50 % use. The server log showed why: each stream sends a
 # batch and waits for its slowest clip, so with 4 streams of 24 the running requests fell 61 -> 19 -> 10 -> 5 behind a few long
 # clips. 32 streams of 3: a slow clip holds up only its own stream (each stream is a light client process)
+# With the server full (62.6 of 64 running) the GPU was still at ~25 %: py-spy showed the engine and vocoder schedulers as two
+# threads of one process taking turns on the GIL. So the split layout again, now with per-stage gpu_memory_fraction (fits).
 try:
     exec(compile(open('colab_worker.py', encoding='utf-8').read(), 'colab_worker.py', 'exec'), {'__name__': '__main__'})
 except SystemExit as ex:
