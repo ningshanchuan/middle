@@ -1,12 +1,14 @@
 # The current Colab job. The notebook has one fixed runner cell that fetches this file from the GitHub API (no CDN
 # cache) and runs it; the content PC changes this file to change what Colab does:
-#   !curl -sH "Accept: application/vnd.github.raw" -o job.py https://api.github.com/repos/ningshanchuan/middle/contents/tools/colab/job.py
+#   !curl -sf -o job.py "https://raw.githubusercontent.com/ningshanchuan/middle/main/tools/colab/job.py?v=$(date +%s)"
 #   %run job.py
-import subprocess, sys
+import subprocess, sys, time
 
 def get(name):
-    subprocess.run(['curl', '-sfH', 'Accept: application/vnd.github.raw', '-o', name,
-                    f'https://api.github.com/repos/ningshanchuan/middle/contents/tools/colab/{name}'], check=True)
+    # raw.githubusercontent.com (the time stamp skips its cache): the GitHub API allows only 60 unauthenticated
+    # reads an hour per IP, and a 403 page ran as an empty job (2026-11-22)
+    subprocess.run(['curl', '-sf', '-o', name,
+                    f'https://raw.githubusercontent.com/ningshanchuan/middle/main/tools/colab/{name}?v={time.time():.0f}'], check=True)
 
 # one lesson at a time (the user, 2026-11-21): the worker records the lessons in lesson_queue.txt first (each to the end:
 # Chinese and English, pushed, live-checked), then the rest in catalog order; the queue is re-read before every lesson

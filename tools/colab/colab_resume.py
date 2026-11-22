@@ -10,8 +10,10 @@ import subprocess, sys, time
 from pathlib import Path
 
 def get(name):
-    subprocess.run(['curl', '-sfH', 'Accept: application/vnd.github.raw', '-o', name,
-                    f'https://api.github.com/repos/ningshanchuan/middle/contents/tools/colab/{name}'], check=True)
+    # raw.githubusercontent.com (the time stamp skips its cache): the GitHub API allows only 60 unauthenticated
+    # reads an hour per IP, and a 403 page ran as an empty job (2026-11-22)
+    subprocess.run(['curl', '-sf', '-o', name,
+                    f'https://raw.githubusercontent.com/ningshanchuan/middle/main/tools/colab/{name}?v={time.time():.0f}'], check=True)
 
 for f in ('colab_sglang.py', 'colab_worker.py', 'colab_watch.py', 'colab_drive_env.py'):
     get(f)
