@@ -50,21 +50,34 @@ def polyfix(t):
 
 
 # 先有，再全，最后好 (the user): every clip without a Serena recording gets an Edge stand-in first (originals too)
-SERENA = set()
-for repo in ('gc-audio-science', 'gc-audio-humanities', 'gc-audio-lang-math'):
-    try:
-        t = urllib.request.urlopen(f'https://raw.githubusercontent.com/gladcolor/{repo}/main/status/ledger.tsv?v={time.time()}', timeout=60).read().decode('utf-8')
-        SERENA |= {p[1] for p in (l.split('\t') for l in t.splitlines()[1:]) if len(p) > 3 and p[0] == LANG and p[3] == 'serena moss8b'}
-    except Exception:                                    # noqa: BLE001
-        pass
+# A page plays Serena only from ITS lesson's manifest (and _shared): so "Serena has it" is decided per lesson, from the
+# lesson manifests (a clip Serena recorded for another lesson still needs a stand-in here - found on astronomy/seasons)
+from concurrent.futures import ThreadPoolExecutor
+_corpus = json.load(open(CORPUS, encoding='utf-8'))
+def _serena(lid):
+    repo = SRC['shared'] if lid == '_shared' else group(lid)
+    for _ in range(3):
+        try:
+            js = urllib.request.urlopen(f'https://raw.githubusercontent.com/gladcolor/{repo}/main/{lid}/manifest.js?v={time.time()}', timeout=60).read().decode('utf-8')
+            m = json.loads(js[js.index('{'):js.rindex('}') + 1])
+            return lid, (set(str(m.get(LANG) or '').split()) if 'serena' in str(m.get('voice', '')) else set())
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                return lid, set()                        # nothing recorded for this lesson yet
+        except Exception:                                # noqa: BLE001
+            time.sleep(2)
+    raise SystemExit(f'cannot read the Serena manifest of {lid}: stopping rather than guessing')
+with ThreadPoolExecutor(16) as ex:
+    SERENA_BY = dict(ex.map(_serena, sorted({c['lesson'] for c in _corpus} | {'_shared'})))
+SERENA_SHARED = SERENA_BY.get('_shared', set())
 # sends that need a spoken script (digits, symbols, Latin letters in Chinese, Han in English: same rule as the script
 # queue, .labtmp/tn/queue_new.py); such a clip is NOT recorded until its checked script is published (QC plan, sect. 10)
 NEED = {'zh': re.compile('[0-9A-Za-z\u00c0-\u024f]|[^\u4e00-\u9fff\u3000-\u303f\uff00-\uffef\u201c\u201d\u2018\u2019\u2014\u2026\u00b7\\s]'),
         'en': re.compile('\\d|[/+=\u00d7\u00f7%\u00b0\u2103\u00b2\u00b3\u2070-\u2079\u207a\u207b\u00bd\u00bc\u00be\u2153|\u2220_<>\u2248\u2264\u2265~^*#@&$\u20ac\u00a3\u00a5\u2192\u2190\u2194\u2206\u0394\u03b1\u03b2\u03b3\u03b8\u03bc\u03c0\u00b7\u2022]|[\u4e00-\u9fff]')}
 waiting = 0
 texts, raw, lessons = {}, {}, {}
-for c in json.load(open(CORPUS, encoding='utf-8')):
-    if c['key'] in SERENA:                               # Serena already has it: no stand-in needed
+for c in _corpus:
+    if c['key'] in SERENA_BY.get(c['lesson'], ()) or c['key'] in SERENA_SHARED:   # this page plays Serena for it
         continue
     h = hashlib.sha1(c['send'].encode('utf-8')).hexdigest()[:12]
     if h in SKIP:
