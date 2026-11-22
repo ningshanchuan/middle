@@ -156,8 +156,9 @@ def prepare():
         assert o1 in w and o2 in w, 'tts_worker.py changed: demand patch needs updating'
         NL = chr(10)
         w = w.replace(o1, o1 + NL + '            repo.lessons[lid]["record_demand"] = bool(self.cfg.get("record_demand"))  # COLAB PATCH demand', 1)
-        w = w.replace(o2, '        return self.is_moss and (st.get("record_langs") != self.record_langs  # COLAB PATCH demand' + NL
-                          + '                                 or bool(st.get("record_demand")) != bool(self.cfg.get("record_demand")))', 1)
+        # a lesson already recorded in MORE languages than now asked (zh+en, now zh only) is not "changed": no idle pass
+        w = w.replace(o2, '        return self.is_moss and (not set(self.record_langs) <= set(st.get("record_langs") or ())  # COLAB PATCH demand' + NL
+                          + '                                 or (bool(self.cfg.get("record_demand")) and not st.get("record_demand")))', 1)
         (TOOLS / 'tts_worker.py').write_text(w, encoding='utf-8')
     m = (TOOLS / 'moss_engine.py').read_text(encoding='utf-8')
     if 'COLAB PATCH v3' not in m:
@@ -320,6 +321,7 @@ EXTRA = sys.argv[4:]
 Q = 'https://api.github.com/repos/ningshanchuan/middle/contents/tools/colab/lesson_queue.txt'
 IX = 'https://shanchuan.org/middle/readaloud/index.json'
 RQ = 'https://api.github.com/repos/ningshanchuan/middle/contents/tools/colab/rerecord_queue.txt'
+WS = 'https://api.github.com/repos/ningshanchuan/middle/contents/tools/colab/worker_settings.json'
 DONE = os.path.join(ROOT, 'queue_done.json')
 def log(m):
     print(time.strftime('%H:%M:%S ') + 'queue: ' + m, flush=True)
@@ -361,6 +363,15 @@ while True:
             log('re-record: %d new clips passed to the worker' % len(new))
     except Exception as ex:                              # noqa: BLE001
         log('cannot read the re-record queue (%r)' % ex)
+    # settings that can change without a restart (tools/colab/worker_settings.json): {"record_langs": ["zh"]} ...
+    try:
+        ws = json.loads(fetch(WS, raw=True))
+        c = json.load(open(CFG, encoding='utf-8'))
+        if ws.get('record_langs') and sorted(ws['record_langs']) != sorted(c.get('record_langs') or []):
+            c['record_langs'] = sorted(ws['record_langs']); json.dump(c, open(CFG, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+            done.clear(); log('settings: record_langs = %s' % ','.join(c['record_langs']))
+    except Exception as ex:                              # noqa: BLE001
+        log('cannot read worker settings (%r)' % ex)
     nxt = next((l for l in queue if l in fp and done.get(l) != fp[l]), None)
     cmd = [sys.executable, os.path.join(TOOLS, 'tts_worker.py'), 'run', '--config', CFG] + EXTRA
     cmd += ['--lesson', nxt] if nxt else ['--limit', '1']
