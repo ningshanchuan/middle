@@ -26,7 +26,7 @@ SRC = ROOT / '_tts'
 TOOLS = SRC / 'tools/moss/tools'
 sh = lambda cmd, **k: subprocess.run(cmd, shell=True, check=True, **k)
 
-MP3_PATCH = r'''# ---------------------------------------------------------------- COLAB PATCH mp3 v2 (content PC; v2: live checks in the background too)
+MP3_PATCH = r'''# ---------------------------------------------------------------- COLAB PATCH mp3 v3 (content PC; v2: live checks in the background; v3: all transcripts prefetched)
 # Encode each clip to MP3 (the original to_mp3: loudness measure + encode) in a thread pool as soon as its batch returns,
 # instead of on the main thread when the clip is taken: the main thread stays free to feed the GPU.
 import concurrent.futures as _mp3cf, hashlib as _mp3h, threading as _mp3t
@@ -96,6 +96,43 @@ def _bg_check_pending(self, wait=False):
             if getattr(r, "dirty", False):
                 push(self.cfg, r.path, "live checks ok", self.args.no_push); r.dirty = False
 Worker.check_pending = _bg_check_pending
+# all lesson transcripts at once (the user, 2026-11-22: "download all ... at one time to Colab, then keep feeding the GPU").
+# The spoken scripts already come in one file per language (say patch); the page texts came one lesson at a time on the
+# main thread while it filled the pool. Now every lesson that needs work is downloaded in parallel (16 threads) right
+# after the index is read, in the background; the main thread takes the bytes from memory (each URL used once, so an
+# edited lesson is read fresh the next time).
+_TR_POOL = _mp3cf.ThreadPoolExecutor(16)
+_TR_JOBS = {}                                            # transcript URL -> Future(bytes)
+_orig_fetch = fetch
+def fetch(url, *a, **k):                                 # noqa: F811
+    f = _TR_JOBS.pop(url, None)
+    if f is not None:
+        try:
+            b = f.result(timeout=120)
+            if b is not None:
+                return b
+        except Exception:                                # noqa: BLE001  (fall back to a normal download)
+            pass
+    return _orig_fetch(url, *a, **k)
+_orig_index = Worker.index
+def _prefetch_index(self):
+    entries = _orig_index(self)
+    base, n = self.cfg["transcripts"], 0
+    for e in entries:
+        lid = e["id"]
+        url = base + ("shared" if lid == "_shared" else lid) + ".json"
+        if url in _TR_JOBS:
+            continue
+        try:
+            if not self.needs_work(e):
+                continue
+        except Exception:                                # noqa: BLE001
+            pass
+        _TR_JOBS[url] = _TR_POOL.submit(_orig_fetch, url); n += 1
+    if n:
+        log(f"prefetch: {n} lesson transcripts downloading in the background (16 at a time)")
+    return entries
+Worker.index = _prefetch_index
 def to_mp3(cfg, pcm, sr, dst):                           # noqa: F811
     with _MP3_LOCK:
         f = _MP3_JOBS.pop(_mp3_key(pcm, sr), None)
@@ -239,7 +276,7 @@ def prepare():
     # sat at 0 % in 89 % of the samples. Now each returned clip is encoded at once in a pool of 10 threads (parallel
     # ffmpeg on the idle CPU cores); the main thread only writes the finished bytes.
     MP3_MARK = '# ' + '-' * 64 + ' COLAB PATCH mp3'
-    if MP3_MARK + ' v2' not in w:
+    if MP3_MARK + ' v3' not in w:
         if MP3_MARK in w:                                # drop the older mp3 patch (just before the main guard)
             a = w.index(MP3_MARK); b = w.index(chr(10) + 'if __name__ == "__main__":', a)
             w = w[:a] + w[b + 1:]
