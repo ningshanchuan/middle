@@ -36,7 +36,7 @@ if not Path('/content/sgl/bin/sgl-omni').exists():          # no archive: instal
     if not Path('/content/sgl/bin/sgl-omni').exists():
         raise SystemExit('SGLang-Omni did not install; see /content/sgl_setup.log')
 r = subprocess.run([sys.executable, 'colab_worker.py', '--restart', '--push', '--model', '8b', '--langs', 'zh,en',
-                    '--sglang', '32', '--streams', '2', '--yuwen'])
+                    '--sglang', '32', '--streams', '2', '--yuwen', '--queue'])
 if r.returncode:
     raise SystemExit('worker start failed')
 subprocess.run([sys.executable, 'colab_watch.py', '180'])

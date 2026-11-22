@@ -10,7 +10,8 @@ def get(name):
 
 # one lesson at a time (the user, 2026-11-21): the worker records the lessons in lesson_queue.txt first (each to the end:
 # Chinese and English, pushed, live-checked), then the rest in catalog order; the queue is re-read before every lesson
-JOBS = [['colab_worker.py', '--restart', '--push', '--model', '8b', '--langs', 'zh,en', '--sglang', '32', '--streams', '2', '--yuwen', '--queue'],
+JOBS = [['colab_resume.py']]   # fresh runtime: environment from Drive, then the worker (--queue) and progress lines
+OLD_JOBS = [['colab_worker.py', '--restart', '--push', '--model', '8b', '--langs', 'zh,en', '--sglang', '32', '--streams', '2', '--yuwen', '--queue'],
         ['colab_watch.py', '180']]
 import traceback
 for JOB in JOBS:
