@@ -69,6 +69,9 @@ for chk in sorted(glob.glob(os.path.join(done, '*.chk.jsonl')), key=os.path.getm
         txt = CREDIT_SAY.sub('', txt).strip()
         if LANG == 'zh':
             txt = txt.replace('〇', '零')               # years: 零 not 〇 (the voice may not read 〇; TTS PC, #12)
+            # the 8B read 记忆小窍门 as 进一小窍门 in about 1 of 6 clips; 记忆的小窍门 fixed 21 of 24 flagged ones (TTS PC test,
+            # 2026-11-22). Script only - the page keeps 记忆小窍门.
+            txt = txt.replace('记忆小窍门', '记忆的小窍门')
         if not txt:
             continue                                     # the clip is only a credit: nothing to record
         reviewed = os.path.basename(chk).startswith(('zrev', 'zcredit'))   # case-by-case review + independent check +
@@ -81,6 +84,13 @@ for chk in sorted(glob.glob(os.path.join(done, '*.chk.jsonl')), key=os.path.getm
         if not ok:
             bad.append((o['key'], s['send'][:60], txt[:60])); continue
         say[o['key']] = txt
+# memory-tip boxes in plain Chinese have no script (nothing to write out), so the voice read the page text: give them a
+# script that differs only in 记忆的小窍门 (see above; TTS PC test 2026-11-22)
+if LANG == 'zh':
+    for c in json.load(open(corpus, encoding='utf-8')):
+        h = hashlib.sha1(c['send'].encode('utf-8')).hexdigest()[:12]
+        if '记忆小窍门' in c['send'] and h not in say and not re.search(r'[0-9A-Za-z]', c['send']) and not LEFT.search(c['send']):
+            say[h] = re.sub(r'\s+', ' ', c['send']).strip().replace('记忆小窍门', '记忆的小窍门')
 # hand-written scripts (tools/readaloud/say/manual_<lang>.jsonl) win; "" = never read (photo credits, licences)
 skip = set()
 mp = os.path.join(os.path.dirname(__file__), 'say', f'manual_{LANG}.jsonl')
