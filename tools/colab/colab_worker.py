@@ -613,34 +613,46 @@ if args.start:
         # vocoding overlap ("lifts throughput ~70%" per the SGLang-Omni guide); single: everything in one process.
         # split is tried first when asked for; if it does not come up, the single layout starts instead.
         for layout in (['split', 'single'] if args.layout == 'split' else ['single']):
-            # split: memory is set per stage with gpu_memory_fraction (the defaults 0.10 / 0.72 / 0.18 fill a 40 GB card:
-            # out of memory twice on 2026-11-22; mem_fraction_static is not what counts there). Engine 0.64 (~25 GB: 16 GB
-            # weights + cache), vocoder 0.12 (its process used ~4.5 GB above its share), preprocessing on the CPU.
+            # split: the official layout as it is, except memory and the number of requests. Memory is set per stage with
+            # gpu_memory_fraction (the defaults 0.10 / 0.72 / 0.18 fill a 40 GB card: out of memory twice on 2026-11-22;
+            # mem_fraction_static is not what counts there): preprocessing 0.06, engine 0.62 (~24 GB: 16 GB weights +
+            # cache), vocoder 0.12 (its process used ~4.5 GB above its share). With our other overrides (preprocessing on
+            # the CPU, cuda_graph_max_bs, vocoder batch) the engine's CUDA graph capture failed (num_active_captures_).
             if layout == 'split':
-                NL = chr(10)
-                mem = dict(pre="    gpu_memory_fraction: 0.03" + NL, eng="    gpu_memory_fraction: 0.64" + NL,
-                           voc="    gpu_memory_fraction: 0.12" + NL, static='')
-                cls = 'MossTTSPipelineConfig'
-            else:
-                mem = dict(pre='', eng='', voc='', static="      mem_fraction_static: 0.75" + chr(10))
-                cls = 'MossTTSSingleProcessPipelineConfig'
-            yp.write_text(f"""config_cls: {cls}
+                yp.write_text(f"""config_cls: MossTTSPipelineConfig
 model_path: OpenMOSS-Team/MOSS-TTS-v1.5
 
 stages:
   preprocessing:
-{mem['pre']}    factory:
+    gpu_memory_fraction: 0.06
+
+  tts_engine:
+    gpu_memory_fraction: 0.62
+    engine:
+      max_running_requests: {n}
+
+  vocoder:
+    gpu_memory_fraction: 0.12
+""")
+            else:
+                yp.write_text(f"""config_cls: MossTTSSingleProcessPipelineConfig
+model_path: OpenMOSS-Team/MOSS-TTS-v1.5
+
+stages:
+  preprocessing:
+    factory:
       device: cpu
       compute_dtype: bfloat16
       max_concurrency: {n}
 
   tts_engine:
-{mem['eng']}    engine:
+    engine:
       max_running_requests: {n}
-{mem['static']}      cuda_graph_max_bs: {n}
+      mem_fraction_static: 0.75
+      cuda_graph_max_bs: {n}
 
   vocoder:
-{mem['voc']}    factory:
+    factory:
       dtype: bfloat16
       max_batch_size: {n}
       max_batch_wait_ms: 5
@@ -659,8 +671,9 @@ stages:
                     pass
             if up:
                 break
-            tail = Path('/content/sgl_server.log').read_text(errors='replace').splitlines()[-25:]
-            Path(f'/content/sgl_server_{layout}_failed.log').write_text(chr(10).join(tail))
+            full = Path('/content/sgl_server.log').read_text(errors='replace')
+            Path(f'/content/sgl_server_{layout}_failed.log').write_text(full)     # the whole log: which stage failed
+            tail = full.splitlines()[-25:]
             try:
                 os.killpg(srv.pid, 15); srv.wait(timeout=60)
             except Exception:                            # noqa: BLE001
