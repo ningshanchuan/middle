@@ -26,6 +26,52 @@ SRC = ROOT / '_tts'
 TOOLS = SRC / 'tools/moss/tools'
 sh = lambda cmd, **k: subprocess.run(cmd, shell=True, check=True, **k)
 
+MP3_PATCH = r'''# ---------------------------------------------------------------- COLAB PATCH mp3 (content PC)
+# Encode each clip to MP3 (the original to_mp3: loudness measure + encode) in a thread pool as soon as its batch returns,
+# instead of on the main thread when the clip is taken: the main thread stays free to feed the GPU.
+import concurrent.futures as _mp3cf, hashlib as _mp3h, threading as _mp3t
+_MP3_POOL = _mp3cf.ThreadPoolExecutor(10)
+_MP3_JOBS = {}                                           # sha1(pcm)+sr -> Future(bytes)
+_MP3_LOCK = _mp3t.Lock()
+_orig_to_mp3 = to_mp3
+def _mp3_key(pcm, sr):
+    return _mp3h.sha1(pcm).hexdigest() + ":" + str(sr)
+def _mp3_encode(cfg, pcm, sr):
+    d = Path(tempfile.mkdtemp(prefix="mp3_"))
+    try:
+        dst = d / "clip.mp3"
+        _orig_to_mp3(cfg, pcm, sr, dst)
+        return dst.read_bytes()
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+_orig_run_chunk = Worker.run_chunk
+def _mp3_run_chunk(self, chunk):
+    out = _orig_run_chunk(self, chunk)
+    for c, audio, how in out:
+        if isinstance(audio, tuple) and len(audio) == 3 and isinstance(audio[0], (bytes, bytearray)):
+            k = _mp3_key(audio[0], audio[1])
+            with _MP3_LOCK:
+                if k not in _MP3_JOBS:
+                    _MP3_JOBS[k] = _MP3_POOL.submit(_mp3_encode, self.cfg, audio[0], audio[1])
+                while len(_MP3_JOBS) > 3000:             # rejected takes are never taken: drop the oldest
+                    _MP3_JOBS.pop(next(iter(_MP3_JOBS)))
+    return out
+Worker.run_chunk = _mp3_run_chunk
+def to_mp3(cfg, pcm, sr, dst):                           # noqa: F811
+    with _MP3_LOCK:
+        f = _MP3_JOBS.pop(_mp3_key(pcm, sr), None)
+    if f is None:
+        return _orig_to_mp3(cfg, pcm, sr, dst)
+    try:
+        b = f.result()
+    except Exception:                                    # noqa: BLE001  (encoding failed in the pool: do it here)
+        return _orig_to_mp3(cfg, pcm, sr, dst)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    part = dst.with_suffix(".part.mp3")
+    part.write_bytes(b)
+    os.replace(part, dst)
+'''
+
 SAY_PATCH = r'''# ---------------------------------------------------------------- COLAB PATCH say v3 (content PC)
 # Spoken scripts. The page text (`send`) is not read as it is: digits, units, symbols, formulas, dates are written out
 # as they are spoken ("say", LLM-written and LLM-checked on the content PC), published per language as
@@ -148,6 +194,13 @@ def prepare():
             a = w.index(SAY_MARK); b = w.index('\nif __name__ == "__main__":', a)
             w = w[:a] + w[b + 1:]
         w = w.replace('\nif __name__ == "__main__":', '\n' + SAY_PATCH + '\n\nif __name__ == "__main__":', 1)
+        (TOOLS / 'tts_worker.py').write_text(w, encoding='utf-8')
+    # MP3 encoding off the main thread (2026-11-22, measured with py-spy): the main thread ran two ffmpeg passes
+    # (loudness measure + encode) for every accepted clip, one after another, and sent no new batch meanwhile - the GPU
+    # sat at 0 % in 89 % of the samples. Now each returned clip is encoded at once in a pool of 10 threads (parallel
+    # ffmpeg on the idle CPU cores); the main thread only writes the finished bytes.
+    if 'COLAB PATCH mp3' not in w:
+        w = w.replace('\nif __name__ == "__main__":', '\n' + MP3_PATCH + '\n\nif __name__ == "__main__":', 1)
         (TOOLS / 'tts_worker.py').write_text(w, encoding='utf-8')
     # on-demand texts are part of the scope too: a lesson recorded without them is redone when record_demand is on
     if 'COLAB PATCH demand' not in w:
