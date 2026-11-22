@@ -298,6 +298,14 @@ def prepare():
         (TOOLS / 'tts_worker.py').write_text(w, encoding='utf-8')
     # a pass with --limit (the queue driver) does not wait at its end for GitHub Pages to confirm the pushes: the GPU sat
     # idle for minutes after every pass; lessons whose live check is still open are verified in a later pass anyway
+    # no full timing backfill at start: on a fresh VM it ffprobed every published MP3 (~100k) before recording anything
+    # (2026-11-22 18:39 EST: 20+ min of idle GPU). Each lesson's timing.js is on GitHub already and is rewritten when the
+    # lesson finishes; only the start-up sweep over all lessons is skipped.
+    if 'COLAB PATCH notiming' not in w:
+        o4 = '        backfill_timing = mode == "run"'
+        if o4 in w:
+            w = w.replace(o4, '        backfill_timing = False  # COLAB PATCH notiming', 1)
+            (TOOLS / 'tts_worker.py').write_text(w, encoding='utf-8')
     if 'COLAB PATCH nowait' not in w:
         o3 = '            self.check_pending(wait=True)                 # end of the pass: wait for the remaining live checks'
         assert o3 in w, 'tts_worker.py changed: nowait patch needs updating'
