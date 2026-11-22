@@ -160,6 +160,13 @@ def prepare():
         w = w.replace(o2, '        return self.is_moss and (not set(self.record_langs) <= set(st.get("record_langs") or ())  # COLAB PATCH demand' + NL
                           + '                                 or (bool(self.cfg.get("record_demand")) and not st.get("record_demand")))', 1)
         (TOOLS / 'tts_worker.py').write_text(w, encoding='utf-8')
+    # a pass with --limit (the queue driver) does not wait at its end for GitHub Pages to confirm the pushes: the GPU sat
+    # idle for minutes after every pass; lessons whose live check is still open are verified in a later pass anyway
+    if 'COLAB PATCH nowait' not in w:
+        o3 = '            self.check_pending(wait=True)                 # end of the pass: wait for the remaining live checks'
+        assert o3 in w, 'tts_worker.py changed: nowait patch needs updating'
+        w = w.replace(o3, '            self.check_pending(wait=not self.args.limit)  # COLAB PATCH nowait', 1)
+        (TOOLS / 'tts_worker.py').write_text(w, encoding='utf-8')
     m = (TOOLS / 'moss_engine.py').read_text(encoding='utf-8')
     if 'COLAB PATCH v3' not in m:
         m = m.split('\n\n# ---------------------------------------------------------------- COLAB PATCH')[0]   # drop an older patch
@@ -400,7 +407,11 @@ while True:
     cmd = [sys.executable, os.path.join(TOOLS, 'tts_worker.py'), 'run', '--config', CFG] + EXTRA
     # catalog work in passes of up to 10 lessons: one pass records them back to back and waits for the live checks once
     # at its end (one lesson per pass left the GPU idle waiting for GitHub Pages after every lesson: ~600 clips/hour)
-    cmd += ['--lesson', nxt] if nxt else ['--limit', '10']
+    try:
+        per_pass = str(int(json.loads(fetch(WS, raw=True)).get('pass_lessons', 40)))
+    except Exception:                                    # noqa: BLE001
+        per_pass = '40'
+    cmd += ['--lesson', nxt] if nxt else ['--limit', per_pass]
     log(('lesson ' + nxt) if nxt else 'queue done - next lesson in catalog order')
     t0 = time.time(); r = subprocess.run(cmd, cwd=TOOLS)
     if nxt and r.returncode == 0:
