@@ -8,10 +8,9 @@ def get(name):
     subprocess.run(['curl', '-sfH', 'Accept: application/vnd.github.raw', '-o', name,
                     f'https://api.github.com/repos/ningshanchuan/middle/contents/tools/colab/{name}'], check=True)
 
-# re-record the 1,370 zh clips recorded from the raw page text before their spoken scripts existed (the user agreed),
-# then the worker again (Chinese first, yuwen) so the list is applied at once; then progress lines
-JOBS = [['colab_rerecord.py', 'rerecord_raw8b_zh.txt'],
-        ['colab_worker.py', '--restart', '--push', '--model', '8b', '--langs', 'zh', '--sglang', '32', '--streams', '2', '--yuwen'],
+# one lesson at a time (the user, 2026-11-21): the worker records the lessons in lesson_queue.txt first (each to the end:
+# Chinese and English, pushed, live-checked), then the rest in catalog order; the queue is re-read before every lesson
+JOBS = [['colab_worker.py', '--restart', '--push', '--model', '8b', '--langs', 'zh,en', '--sglang', '32', '--streams', '2', '--yuwen', '--queue'],
         ['colab_watch.py', '180']]
 import traceback
 for JOB in JOBS:

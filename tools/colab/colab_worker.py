@@ -17,6 +17,7 @@ ap.add_argument('--restart', action='store_true', help='stop the running worker,
 ap.add_argument('--langs', default='zh')
 ap.add_argument('--sglang', type=int, default=0, help='serve the 8B with SGLang-Omni (/content/sgl venv), this many requests in flight')
 ap.add_argument('--streams', type=int, default=2, help='with --sglang: batches in flight at once (the server limit is --sglang)')
+ap.add_argument('--queue', action='store_true', help='one lesson at a time: tools/colab/lesson_queue.txt first, then catalog order')
 ap.add_argument('--yuwen', action='store_true', help='record the yuwen lessons and styled originals (moods.proposed.json, approved)')
 args, _ = ap.parse_known_args()
 ROOT = Path('/content/gc-audio'); ROOT.mkdir(exist_ok=True)
@@ -297,6 +298,48 @@ def token():
     except Exception:                                    # noqa: BLE001  (no secret, or no access granted)
         return None
 
+QUEUE_DRIVER = r'''
+# One lesson at a time (the user, 2026-11-21): the lessons listed in tools/colab/lesson_queue.txt (site repo) first, in
+# order, each run to the end (recorded, pushed, live-checked) before the next; the list is read again before every
+# lesson, so lessons can be added without a restart. With nothing queued left: the next lesson in catalog order.
+import json, os, subprocess, sys, time, urllib.request
+TOOLS, CFG, ROOT = sys.argv[1], sys.argv[2], sys.argv[3]
+EXTRA = sys.argv[4:]
+Q = 'https://api.github.com/repos/ningshanchuan/middle/contents/tools/colab/lesson_queue.txt'
+IX = 'https://shanchuan.org/middle/readaloud/index.json'
+DONE = os.path.join(ROOT, 'queue_done.json')
+def log(m):
+    print(time.strftime('%H:%M:%S ') + 'queue: ' + m, flush=True)
+def fetch(url, raw=False):
+    rq = urllib.request.Request(url + ('' if raw else ('&' if '?' in url else '?') + 'v=%d' % time.time()),
+                                headers={'Accept': 'application/vnd.github.raw'} if raw else {})
+    return urllib.request.urlopen(rq, timeout=60).read().decode('utf-8')
+done = json.load(open(DONE)) if os.path.exists(DONE) else {}
+while True:
+    try:
+        queue = [l.split('#')[0].strip() for l in fetch(Q, raw=True).splitlines()]
+        queue = [l for l in queue if l]
+    except Exception as ex:                              # noqa: BLE001
+        log('cannot read the lesson queue (%r)' % ex); queue = []
+    try:
+        sv = '|'.join(str(json.loads(fetch(IX.replace('index.json', 'say/%s.json' % lg))).get('updated')) for lg in ('zh', 'en'))
+        fp = {l['id']: l['fingerprint'] + '|' + sv for l in json.loads(fetch(IX))['lessons']}   # transcript + spoken-script versions
+    except Exception as ex:                              # noqa: BLE001
+        log('cannot read readaloud/index.json (%r) - next try in 2 min' % ex); time.sleep(120); continue
+    nxt = next((l for l in queue if l in fp and done.get(l) != fp[l]), None)
+    cmd = [sys.executable, os.path.join(TOOLS, 'tts_worker.py'), 'run', '--config', CFG] + EXTRA
+    cmd += ['--lesson', nxt] if nxt else ['--limit', '1']
+    log(('lesson ' + nxt) if nxt else 'queue done - next lesson in catalog order')
+    t0 = time.time(); r = subprocess.run(cmd, cwd=TOOLS)
+    if nxt and r.returncode == 0:
+        done[nxt] = fp[nxt]; json.dump(done, open(DONE, 'w'))
+        log('lesson %s finished (%.0f min)' % (nxt, (time.time() - t0) / 60))
+    elif r.returncode:
+        log('worker exit %s - next try in 1 min' % r.returncode); time.sleep(60)
+    elif time.time() - t0 < 120:
+        time.sleep(120)                                  # nothing to do: look again in 2 min
+'''
+
 if args.restart:
     pidf = ROOT / 'worker.pid'
     if pidf.exists():
@@ -365,8 +408,12 @@ stages:
         print(f'SGLang server up in {time.time() - t0:.0f}s ({n} in flight)', flush=True)
         env['MOSS_SGLANG'] = '1'
     log = open(ROOT / 'worker.out', 'a')
-    proc = subprocess.Popen([sys.executable, str(TOOLS / 'tts_worker.py'), 'run', '--loop', '--config', str(cfgp)]
-                            + ([] if tok else ['--no-push']),
+    if args.queue:                                       # one lesson at a time (lesson_queue.txt, then catalog order)
+        drv = ROOT / 'queue_driver.py'; drv.write_text(QUEUE_DRIVER, encoding='utf-8')
+        cmd = [sys.executable, str(drv), str(TOOLS), str(cfgp), str(ROOT)] + ([] if tok else ['--no-push'])
+    else:
+        cmd = [sys.executable, str(TOOLS / 'tts_worker.py'), 'run', '--loop', '--config', str(cfgp)] + ([] if tok else ['--no-push'])
+    proc = subprocess.Popen(cmd,
                             cwd=str(TOOLS), env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
     (ROOT / 'worker.pid').write_text(str(proc.pid))
     print(f'worker started (pid {proc.pid}, model {args.model}); log: {ROOT}/worker.log and worker.out', flush=True)
