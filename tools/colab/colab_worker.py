@@ -337,6 +337,7 @@ def fetch(url, raw=False):
                                 headers={'Accept': 'application/vnd.github.raw'} if raw else {})
     return urllib.request.urlopen(rq, timeout=60).read().decode('utf-8')
 done = json.load(open(DONE)) if os.path.exists(DONE) else {}
+child, restart_child = None, False                       # the continuous (--loop) worker process
 while True:
     try:
         queue = [l.split('#')[0].strip() for l in fetch(Q, raw=True).splitlines()]
@@ -380,12 +381,13 @@ while True:
         c = json.load(open(CFG, encoding='utf-8'))
         if ws.get('record_langs') and sorted(ws['record_langs']) != sorted(c.get('record_langs') or []):
             c['record_langs'] = sorted(ws['record_langs']); json.dump(c, open(CFG, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
-            done.clear(); log('settings: record_langs = %s' % ','.join(c['record_langs']))
+            done.clear(); restart_child = True; log('settings: record_langs = %s' % ','.join(c['record_langs']))
     except Exception as ex:                              # noqa: BLE001
         log('cannot read worker settings (%r)' % ex)
     # keep the audio repos' history small (the user: old versions are not needed; TTS PC agreed, #11): between lessons,
     # when a repo passes 300 commits, its current files become one commit (same tree) and replace the history
-    for rd in sorted(d for d in os.listdir(ROOT) if d.startswith('gc-audio-') and os.path.isdir(os.path.join(ROOT, d, '.git'))):
+    idle = child is None or child.poll() is not None     # never squash while a worker may be pushing
+    for rd in (sorted(d for d in os.listdir(ROOT) if d.startswith('gc-audio-') and os.path.isdir(os.path.join(ROOT, d, '.git'))) if idle else []):
         g = ['git', '-C', os.path.join(ROOT, rd)]
         try:
             n = int(subprocess.run(g + ['rev-list', '--count', 'HEAD'], capture_output=True, text=True).stdout.strip() or 0)
@@ -404,23 +406,29 @@ while True:
         except Exception as ex:                          # noqa: BLE001
             log('%s: squash error %r' % (rd, ex))
     nxt = next((l for l in queue if l in fp and done.get(l) != fp[l]), None)
-    cmd = [sys.executable, os.path.join(TOOLS, 'tts_worker.py'), 'run', '--config', CFG] + EXTRA
-    # catalog work in passes of up to 10 lessons: one pass records them back to back and waits for the live checks once
-    # at its end (one lesson per pass left the GPU idle waiting for GitHub Pages after every lesson: ~600 clips/hour)
-    try:
-        per_pass = str(int(json.loads(fetch(WS, raw=True)).get('pass_lessons', 40)))
-    except Exception:                                    # noqa: BLE001
-        per_pass = '40'
-    cmd += ['--lesson', nxt] if nxt else ['--limit', per_pass]
-    log(('lesson ' + nxt) if nxt else 'queue done - next lesson in catalog order')
-    t0 = time.time(); r = subprocess.run(cmd, cwd=TOOLS)
-    if nxt and r.returncode == 0:
-        done[nxt] = fp[nxt]; json.dump(done, open(DONE, 'w'))
-        log('lesson %s finished (%.0f min)' % (nxt, (time.time() - t0) / 60))
-    elif r.returncode:
-        log('worker exit %s - next try in 1 min' % r.returncode); time.sleep(60)
-    elif time.time() - t0 < 120:
-        time.sleep(120)                                  # nothing to do: look again in 2 min
+    base = [sys.executable, os.path.join(TOOLS, 'tts_worker.py'), 'run', '--config', CFG] + EXTRA
+    if nxt:                                              # a queued lesson: stop the continuous worker, run the lesson alone
+        if child is not None and child.poll() is None:
+            child.terminate(); child.wait(); child = None
+        log('lesson ' + nxt); t0 = time.time(); r = subprocess.run(base + ['--lesson', nxt], cwd=TOOLS)
+        if r.returncode == 0:
+            done[nxt] = fp[nxt]; json.dump(done, open(DONE, 'w'))
+            log('lesson %s finished (%.0f min)' % (nxt, (time.time() - t0) / 60))
+        else:
+            log('worker exit %s - next try in 1 min' % r.returncode); time.sleep(60)
+        continue
+    # CONTINUOUS (the user, 2026-11-22: "GPU 前后配置 pool，不要浪费最宝贵的 GPU 资源"): the worker runs in --loop and keeps
+    # the GPU fed (its pool of waiting clips; pushes and live checks on other threads). This driver only works on the CPU
+    # side every 2 minutes: re-records go into rerecord.txt (the worker takes them at its next pass) and a changed
+    # setting restarts the worker client (the SGLang server with the model stays up).
+    if restart_child and child is not None and child.poll() is None:
+        child.terminate(); child.wait(); child = None; log('worker client restarted for new settings')
+    restart_child = False
+    if child is None or child.poll() is not None:
+        if child is not None:
+            log('continuous worker exited (%s) - starting it again' % child.returncode)
+        child = subprocess.Popen(base + ['--loop'], cwd=TOOLS); log('continuous worker started (--loop)')
+    time.sleep(120)
 '''
 
 if args.restart:
