@@ -291,6 +291,18 @@ if _os.environ.get("MOSS_SGLANG") == "1":
                 return list(ex.map(lambda it: self._one(it, ffmpeg), items))
 '''
         (TOOLS / 'moss_engine.py').write_text(m, encoding='utf-8')
+    # pace check (2026-11-22): with a window of +-0.5 chars/s, 42 % of all 8B takes were rejected for pace alone (1,162 of
+    # 1,233 rejects) and re-synthesised up to 5 times - GPU time spent twice, while the user had found many "fast" clips
+    # fine by ear. Now +-0.8, and only from 25 characters (the pauses dominate a short clip). Too long, stray end and F0
+    # are unchanged; the TTS PC's ASR check still reviews every lesson.
+    m = (TOOLS / 'moss_engine.py').read_text(encoding='utf-8')
+    if 'COLAB PATCH pace' not in m:
+        p1 = '    return (pace - 0.5, pace + 0.5)'
+        p2 = '    if win and sl >= 15 and not (win[0] <= pace <= win[1]):'
+        assert p1 in m and p2 in m, 'moss_engine.py changed: pace patch needs updating'
+        m = m.replace(p1, '    return (pace - 0.8, pace + 0.8)  # COLAB PATCH pace', 1)
+        m = m.replace(p2, '    if win and sl >= 25 and not (win[0] <= pace <= win[1]):  # COLAB PATCH pace', 1)
+        (TOOLS / 'moss_engine.py').write_text(m, encoding='utf-8')
     # --- config: the TTS PC's MOSS config with Colab paths ---
     cfg = json.loads((TOOLS / 'tts_config_moss.json').read_text(encoding='utf-8'))
     is8 = args.model == '8b'
