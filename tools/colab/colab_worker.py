@@ -357,9 +357,8 @@ while True:
                 new.append(entry); applied.add(entry)
                 les = l.split('#', 1)[1].strip() if '#' in l else ''
                 if les:
-                    done.pop(les, None)
-                    if les not in queue:
-                        queue.insert(0, les)
+                    done.pop(les, None)              # a queued lesson runs again; any other lesson is picked up by the
+                                                     # next catalog pass (its dropped clips make it need work)
         if new:
             with open(os.path.join(ROOT, 'rerecord.txt'), 'a', encoding='utf-8') as f:
                 f.write(chr(10).join(new) + chr(10))
@@ -399,7 +398,9 @@ while True:
             log('%s: squash error %r' % (rd, ex))
     nxt = next((l for l in queue if l in fp and done.get(l) != fp[l]), None)
     cmd = [sys.executable, os.path.join(TOOLS, 'tts_worker.py'), 'run', '--config', CFG] + EXTRA
-    cmd += ['--lesson', nxt] if nxt else ['--limit', '1']
+    # catalog work in passes of up to 10 lessons: one pass records them back to back and waits for the live checks once
+    # at its end (one lesson per pass left the GPU idle waiting for GitHub Pages after every lesson: ~600 clips/hour)
+    cmd += ['--lesson', nxt] if nxt else ['--limit', '10']
     log(('lesson ' + nxt) if nxt else 'queue done - next lesson in catalog order')
     t0 = time.time(); r = subprocess.run(cmd, cwd=TOOLS)
     if nxt and r.returncode == 0:
