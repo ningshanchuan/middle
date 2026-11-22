@@ -618,6 +618,8 @@ if args.start:
             # mem_fraction_static is not what counts there): preprocessing 0.06, engine 0.62 (~24 GB: 16 GB weights +
             # cache), vocoder 0.12 (its process used ~4.5 GB above its share). With our other overrides (preprocessing on
             # the CPU, cuda_graph_max_bs, vocoder batch) the engine's CUDA graph capture failed (num_active_captures_).
+            # Without them it was out of memory capturing the PREFILL CUDA graph (the full log); SGLang suggests turning
+            # that graph off: prefill is the short first step of each clip, the decode graph (kept) does the long part.
             if layout == 'split':
                 yp.write_text(f"""config_cls: MossTTSPipelineConfig
 model_path: OpenMOSS-Team/MOSS-TTS-v1.5
@@ -630,6 +632,7 @@ stages:
     gpu_memory_fraction: 0.62
     engine:
       max_running_requests: {n}
+      cuda_graph_backend_prefill: disabled
 
   vocoder:
     gpu_memory_fraction: 0.12
