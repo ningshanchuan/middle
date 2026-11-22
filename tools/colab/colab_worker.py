@@ -486,6 +486,22 @@ def fetch(url, raw=False):
                                 headers={'Accept': 'application/vnd.github.raw'} if raw else {})
     return urllib.request.urlopen(rq, timeout=60).read().decode('utf-8')
 done = json.load(open(DONE)) if os.path.exists(DONE) else {}
+def stop_child(c):
+    # the whole process group: terminate() stopped only the worker's main process; its 32 stream clients kept the
+    # single-instance lock, and every new worker exited at once ("another tts_worker is already running") - no recording
+    # from 15:35 to 16:05 EST on 2026-11-22
+    import signal
+    try:
+        os.killpg(c.pid, signal.SIGTERM)
+    except Exception:                                    # noqa: BLE001
+        c.terminate()
+    try:
+        c.wait(timeout=60)
+    except Exception:                                    # noqa: BLE001
+        try: os.killpg(c.pid, signal.SIGKILL)
+        except Exception: pass                           # noqa: BLE001
+    subprocess.run(['pkill', '-f', 'tts_worker.py run'])  # leftovers of any earlier worker
+    time.sleep(3)
 child, restart_child = None, False                       # the continuous (--loop) worker process
 while True:
     try:
@@ -558,7 +574,7 @@ while True:
     base = [sys.executable, os.path.join(TOOLS, 'tts_worker.py'), 'run', '--config', CFG] + EXTRA
     if nxt:                                              # a queued lesson: stop the continuous worker, run the lesson alone
         if child is not None and child.poll() is None:
-            child.terminate(); child.wait(); child = None
+            stop_child(child); child = None
         log('lesson ' + nxt); t0 = time.time(); r = subprocess.run(base + ['--lesson', nxt], cwd=TOOLS)
         if r.returncode == 0:
             done[nxt] = fp[nxt]; json.dump(done, open(DONE, 'w'))
@@ -571,12 +587,12 @@ while True:
     # side every 2 minutes: re-records go into rerecord.txt (the worker takes them at its next pass) and a changed
     # setting restarts the worker client (the SGLang server with the model stays up).
     if restart_child and child is not None and child.poll() is None:
-        child.terminate(); child.wait(); child = None; log('worker client restarted for new settings')
+        stop_child(child); child = None; log('worker client restarted for new settings')
     restart_child = False
     if child is None or child.poll() is not None:
         if child is not None:
             log('continuous worker exited (%s) - starting it again' % child.returncode)
-        child = subprocess.Popen(base + ['--loop'], cwd=TOOLS); log('continuous worker started (--loop)')
+        child = subprocess.Popen(base + ['--loop'], cwd=TOOLS, start_new_session=True); log('continuous worker started (--loop)')
     time.sleep(120)
 '''
 
