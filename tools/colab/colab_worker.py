@@ -278,7 +278,8 @@ def prepare():
     # sat at 0 % in 89 % of the samples. Now each returned clip is encoded at once in a pool of 10 threads (parallel
     # ffmpeg on the idle CPU cores); the main thread only writes the finished bytes.
     MP3_MARK = '# ' + '-' * 64 + ' COLAB PATCH mp3'
-    if MP3_MARK + ' v3' not in w:
+    if MP3_PATCH not in w:                               # any change to the patch text is applied (a fixed patch under
+                                                         # an unchanged version mark was skipped on 2026-11-22)
         if MP3_MARK in w:                                # drop the older mp3 patch (just before the main guard)
             a = w.index(MP3_MARK); b = w.index(chr(10) + 'if __name__ == "__main__":', a)
             w = w[:a] + w[b + 1:]
