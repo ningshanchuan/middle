@@ -149,6 +149,16 @@ def prepare():
             w = w[:a] + w[b + 1:]
         w = w.replace('\nif __name__ == "__main__":', '\n' + SAY_PATCH + '\n\nif __name__ == "__main__":', 1)
         (TOOLS / 'tts_worker.py').write_text(w, encoding='utf-8')
+    # on-demand texts are part of the scope too: a lesson recorded without them is redone when record_demand is on
+    if 'COLAB PATCH demand' not in w:
+        o1 = '            repo.lessons[lid]["record_langs"] = self.record_langs'
+        o2 = '        return self.is_moss and st.get("record_langs") != self.record_langs'
+        assert o1 in w and o2 in w, 'tts_worker.py changed: demand patch needs updating'
+        NL = chr(10)
+        w = w.replace(o1, o1 + NL + '            repo.lessons[lid]["record_demand"] = bool(self.cfg.get("record_demand"))  # COLAB PATCH demand', 1)
+        w = w.replace(o2, '        return self.is_moss and (st.get("record_langs") != self.record_langs  # COLAB PATCH demand' + NL
+                          + '                                 or bool(st.get("record_demand")) != bool(self.cfg.get("record_demand")))', 1)
+        (TOOLS / 'tts_worker.py').write_text(w, encoding='utf-8')
     m = (TOOLS / 'moss_engine.py').read_text(encoding='utf-8')
     if 'COLAB PATCH v3' not in m:
         m = m.split('\n\n# ---------------------------------------------------------------- COLAB PATCH')[0]   # drop an older patch
@@ -281,6 +291,8 @@ if _os.environ.get("MOSS_SGLANG") == "1":
     cfg['moss'].update(model='OpenMOSS-Team/MOSS-TTS-v1.5' if is8 else 'OpenMOSS-Team/MOSS-TTS-Local-Transformer-v1.5',
                        codec='' if is8 else 'OpenMOSS-Team/MOSS-Audio-Tokenizer-v2', refs=str(SRC / 'tools/moss/refs'),
                        moods=str(TOOLS / 'moods.proposed.json'), batch=16)
+    if args.queue:                                       # one lesson at a time, to the end: on-demand texts too
+        cfg['record_demand'] = True
     if args.yuwen:                                       # the user approved the TTS PC's mood list (#3, 2026-11-21): yuwen + styled originals
         cfg.update(record_styled=True, hold_lessons=[])
     cfg['batch_audio_s'] = 300                           # A100 40 GB (the TTS PC: 8 clips / 180 s for its 20 GB card)
@@ -410,6 +422,7 @@ stages:
     log = open(ROOT / 'worker.out', 'a')
     if args.queue:                                       # one lesson at a time (lesson_queue.txt, then catalog order)
         drv = ROOT / 'queue_driver.py'; drv.write_text(QUEUE_DRIVER, encoding='utf-8')
+        (ROOT / 'queue_done.json').unlink(missing_ok=True)   # settings may have changed: every queued lesson is looked at again
         cmd = [sys.executable, str(drv), str(TOOLS), str(cfgp), str(ROOT)] + ([] if tok else ['--no-push'])
     else:
         cmd = [sys.executable, str(TOOLS / 'tts_worker.py'), 'run', '--loop', '--config', str(cfgp)] + ([] if tok else ['--no-push'])
