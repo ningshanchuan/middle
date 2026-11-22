@@ -319,6 +319,7 @@ TOOLS, CFG, ROOT = sys.argv[1], sys.argv[2], sys.argv[3]
 EXTRA = sys.argv[4:]
 Q = 'https://api.github.com/repos/ningshanchuan/middle/contents/tools/colab/lesson_queue.txt'
 IX = 'https://shanchuan.org/middle/readaloud/index.json'
+RQ = 'https://api.github.com/repos/ningshanchuan/middle/contents/tools/colab/rerecord_queue.txt'
 DONE = os.path.join(ROOT, 'queue_done.json')
 def log(m):
     print(time.strftime('%H:%M:%S ') + 'queue: ' + m, flush=True)
@@ -338,6 +339,28 @@ while True:
         fp = {l['id']: l['fingerprint'] + '|' + sv for l in json.loads(fetch(IX))['lessons']}   # transcript + spoken-script versions
     except Exception as ex:                              # noqa: BLE001
         log('cannot read readaloud/index.json (%r) - next try in 2 min' % ex); time.sleep(120); continue
+    # re-records (tools/colab/rerecord_queue.txt, lines "zh:key  # lesson", reviewed on the content PC): new lines go to
+    # the worker's rerecord.txt (it drops those clips and redoes the lessons) and the lesson is queued again here
+    try:
+        applied = set(json.load(open(os.path.join(ROOT, 'rerecord_applied.json')))) if os.path.exists(os.path.join(ROOT, 'rerecord_applied.json')) else set()
+        new = []
+        for l in fetch(RQ, raw=True).splitlines():
+            entry = l.split('#')[0].strip()
+            if entry and ':' in entry and entry not in applied:
+                new.append(entry); applied.add(entry)
+                les = l.split('#', 1)[1].strip() if '#' in l else ''
+                if les:
+                    done.pop(les, None)
+                    if les not in queue:
+                        queue.insert(0, les)
+        if new:
+            with open(os.path.join(ROOT, 'rerecord.txt'), 'a', encoding='utf-8') as f:
+                f.write(chr(10).join(new) + chr(10))
+            json.dump(sorted(applied), open(os.path.join(ROOT, 'rerecord_applied.json'), 'w'))
+            json.dump(done, open(DONE, 'w'))
+            log('re-record: %d new clips passed to the worker' % len(new))
+    except Exception as ex:                              # noqa: BLE001
+        log('cannot read the re-record queue (%r)' % ex)
     nxt = next((l for l in queue if l in fp and done.get(l) != fp[l]), None)
     cmd = [sys.executable, os.path.join(TOOLS, 'tts_worker.py'), 'run', '--config', CFG] + EXTRA
     cmd += ['--lesson', nxt] if nxt else ['--limit', '1']
