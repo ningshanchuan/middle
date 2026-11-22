@@ -283,7 +283,10 @@
       S.instant = true;
       try { for (let k = 0; k < i; k++){ if (steps[k].run) await steps[k].run(S); } } catch(e){ if (!(e instanceof Abort)) console.error(e); }
       S.instant = false; if (g !== S.gen) return;
-      speak(); st.running = true;
+      // paused or stopped by the student: the new step is shown but not read, and play-all ends (the user, 2026-11-21)
+      const held = window.Lab && ((Lab.speechPaused && Lab.speechPaused()) || (Lab.speechHalted && Lab.speechHalted()));
+      if (held){ if (Lab.stopSpeech) Lab.stopSpeech(); if (st.autoplay){ st.autoplay = false; renderBar(); } } else speak();
+      st.running = true;
       try { if (steps[i].run) await steps[i].run(S); } catch(e){ if (!(e instanceof Abort)){ console.error(e); setTimeout(() => { throw e; }); } return; }   // surface real bugs to error monitors
       st.running = false;
       // read-aloud on: wait until the step's narration has ended (and while it is paused) before moving on
@@ -307,6 +310,7 @@
       if (cfg.onStep) cfg.onStep(i);
     }
     function act(a){
+      if ((a === 'play' || a === 'replay' || a === 'voice') && window.Lab && Lab.unhalt) Lab.unhalt();   // reading asked for again
       if (a === 'prev') go(st.i - 1);
       if (a === 'next') go(st.i + 1);
       if (a === 'replay') go(Math.max(0, st.i));

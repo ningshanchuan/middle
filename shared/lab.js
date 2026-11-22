@@ -248,13 +248,18 @@
       pb.el = document.createElement('div'); pb.el.className = 'lab-player'; document.body.appendChild(pb.el);
       pb.el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return;
         if (b.dataset.a === 'pp'){ (pb.paused ? Lab.resumeSpeech : Lab.pauseSpeech)(); return; }
-        const f = pb.onStop; Lab.stopSpeech(); if (f) f(); });
+        const f = pb.onStop; Lab.stopSpeech(); halted = true; if (f) f(); });
     }
     pb.el.innerHTML = (pb.playing || pb.paused ? `<button type="button" data-a="pp">${Lab.L(pb.paused ? PB_T.resume : PB_T.pause)}</button>` : '') +
       `<button type="button" data-a="st">${Lab.L(pb.chain ? PB_T.stopAuto : PB_T.stop)}</button>`;
   }
   const pbSet = (k, v) => { if (pb[k] !== v){ pb[k] = v; pbRender(); } };
   Lab.speechPaused = () => pb.paused;
+  // the student stopped the reading (the bar's stop button, Esc): pages that turn by themselves or by hand do not start
+  // reading again until the student asks for it (a play / 🔊 button, a double-click) (the user, 2026-11-21)
+  let halted = false;
+  Lab.speechHalted = () => halted;
+  Lab.unhalt = () => { halted = false; };
   // Is anything being read (or about to be: a Lab.speak whose recording list is still loading), or paused?
   let pend = null;
   // ttsOn: our own utterance is being read (Edge's online voices do not always report speechSynthesis.speaking)
@@ -279,6 +284,7 @@
     pb.playing = false; pb.paused = true; pbRender();
   };
   Lab.resumeSpeech = () => {
+    halted = false;
     if (!pb.paused) return;
     pb.paused = false; pb.playing = true;
     if (cur && player){ const p = player.play(); if (p && p.catch) p.catch(() => {}); }
@@ -521,6 +527,7 @@
       if (read()) unlock();
       const sp = t.closest('button,[role=button],.speak,.say,[data-say],[data-speak]');
       if (sp && isSpk(sp)){   // the student pressed 🔊 themselves: with auto-play on, a new chain starts here
+        halted = false;
         stop(); if (next()){ chain = { seen: new Set(), cont: contOf(sp), g: ++gen2 }; }
         return;
       }
@@ -529,10 +536,12 @@
       // turning the card by hand (Next / Previous, a chip, a tab …) stops the narration at once, whatever the settings;
       // a click that turns out to open another card stops it too, unless the page itself started reading the new card
       const btn = t.closest('button,[role=button]') || t, pk = t.closest(PICK), nav = isNext(btn) || isPrev(btn) || !!(pk && !pk.matches('canvas,svg'));
+      // reading (not paused, not stopped) when the card is turned: the new card is read at once (the user, 2026-11-21)
+      const playing = nav && Lab.speaking() && !pb.paused && !halted;
       if (nav && Lab.speaking()) Lab.stopSpeech();
       const snap = snapshot(), picks = !!pk || isNext(btn) || isPrev(btn), was = Lab.speaking(), g0 = gen;
       setTimeout(() => { const b = changed(snap, picks); if (!b || chain) return;
-        if (read()) press(b); else if (was && g0 === gen && Lab.speaking()) Lab.stopSpeech(); }, 350);
+        if (read() || playing) press(b); else if (was && g0 === gen && Lab.speaking()) Lab.stopSpeech(); }, 350);
     }, true);
     return { read, next, stop };
   })();
@@ -614,7 +623,7 @@
       // the same paragraph again (double-click / 🔊 / ⏹) while it is being read: stop (the user, 2026-11-21)
       if (reading === el){ stopReading(); return; }
       const u = units(el); if (!u) return;
-      auto.stop();
+      auto.stop(); halted = false;
       if (reading) reading.classList.remove('lab-hreading');
       reading = el; el.classList.add('lab-hreading');
       pb.onStop = endRead; pbSet('hold', true);   // the floating stop bar stays up while the paragraph is read
@@ -662,7 +671,7 @@
       const el = blockOf(t); if (el){ hide(); read(el); }
     }, true);
     // Esc stops whatever is being read (desktop)
-    document.addEventListener('keydown', e => { if (e.key === 'Escape' && (reading || pb.hold || Lab.speaking())){ stopReading(); auto.stop(); } });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && (reading || pb.hold || Lab.speaking())){ stopReading(); auto.stop(); halted = true; } });
     // touch: a long press (finger still for ~0.55 s) shows a bigger 🔊 above the text
     let lp = null;
     document.addEventListener('pointerdown', e => {
