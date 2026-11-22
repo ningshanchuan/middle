@@ -337,8 +337,13 @@ while True:
     except Exception as ex:                              # noqa: BLE001
         log('cannot read the lesson queue (%r)' % ex); queue = []
     try:
-        sv = '|'.join(str(json.loads(fetch(IX.replace('index.json', 'say/%s.json' % lg))).get('updated')) for lg in ('zh', 'en'))
-        fp = {l['id']: l['fingerprint'] + '|' + sv for l in json.loads(fetch(IX))['lessons']}   # transcript + spoken-script versions
+        # transcript fingerprint + a hash of THIS lesson's spoken scripts (the file's "updated" stamp changes at every
+        # publish round, which made every queued lesson run again each time - idle GPU time; 2026-11-22)
+        import hashlib
+        says = [json.loads(fetch(IX.replace('index.json', 'say/%s.json' % lg))).get('lessons', {}) for lg in ('zh', 'en')]
+        def sv(lid):
+            return hashlib.sha1(json.dumps([s.get(lid, {}) for s in says], sort_keys=True, ensure_ascii=False).encode('utf-8')).hexdigest()[:10]
+        fp = {l['id']: l['fingerprint'] + '|' + sv(l['id']) for l in json.loads(fetch(IX))['lessons']}
     except Exception as ex:                              # noqa: BLE001
         log('cannot read readaloud/index.json (%r) - next try in 2 min' % ex); time.sleep(120); continue
     # re-records (tools/colab/rerecord_queue.txt, lines "zh:key  # lesson", reviewed on the content PC): new lines go to
