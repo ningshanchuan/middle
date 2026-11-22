@@ -620,6 +620,9 @@ if args.start:
             # the CPU, cuda_graph_max_bs, vocoder batch) the engine's CUDA graph capture failed (num_active_captures_).
             # Without them it was out of memory capturing the PREFILL CUDA graph (the full log); SGLang suggests turning
             # that graph off: prefill is the short first step of each clip, the decode graph (kept) does the long part.
+            # Then out of memory capturing the decode graph: the vocoder + preprocessing processes held ~14.4 GB before the
+            # engine loaded, weights 17.1 GB, and the KV cache took (0.62 + 0.06) x 40 - 19.4 = 7.8 GB, leaving 0.6 GB.
+            # Engine 0.54: KV ~4.5 GB (~32k tokens; the clips share their reference prompt), ~4 GB left for the graphs.
             if layout == 'split':
                 yp.write_text(f"""config_cls: MossTTSPipelineConfig
 model_path: OpenMOSS-Team/MOSS-TTS-v1.5
@@ -629,7 +632,7 @@ stages:
     gpu_memory_fraction: 0.06
 
   tts_engine:
-    gpu_memory_fraction: 0.62
+    gpu_memory_fraction: 0.54
     engine:
       max_running_requests: {n}
       cuda_graph_backend_prefill: disabled
