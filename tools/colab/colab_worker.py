@@ -623,12 +623,15 @@ if args.start:
             # Then out of memory capturing the decode graph: the vocoder + preprocessing processes held ~14.4 GB before the
             # engine loaded, weights 17.1 GB, and the KV cache took (0.62 + 0.06) x 40 - 19.4 = 7.8 GB, leaving 0.6 GB.
             # Engine 0.54: KV ~4.5 GB (~32k tokens; the clips share their reference prompt), ~4 GB left for the graphs.
+            # Split running (16:56-17:00): GPU 34-47 %, server full; py-spy: the vocoder process idle, but preprocessing
+            # (request building in Python) still shares the engine's process and its GIL -> preprocessing gets its own process.
             if layout == 'split':
                 yp.write_text(f"""config_cls: MossTTSPipelineConfig
 model_path: OpenMOSS-Team/MOSS-TTS-v1.5
 
 stages:
   preprocessing:
+    process: preprocessing
     gpu_memory_fraction: 0.06
 
   tts_engine:
