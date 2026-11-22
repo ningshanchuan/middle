@@ -9,6 +9,13 @@ text aloud. Same words, same order, same meaning; only things a voice cannot rea
 2. Write numbers, symbols, units and notation as words, so the voice cannot misread them. `say` should contain no
    Arabic digits and no symbols such as / + = × ÷ % ° ² ³ ⁺ ⁻ ½ | ∠ _ ~ ^ * (letters in names and abbreviations are fine).
 3. Normal punctuation only (, . ; : ? ! " ' — …). Parentheses: drop the brackets, keep the words, set off with commas.
+   But when the brackets sit INSIDE a phrase (words on both sides, no punctuation), do not turn them into commas in place:
+   that splits the phrase and sounds broken. Say the whole phrase first, then the bracketed part after it, with a small
+   link word if needed (the user, 2026-11-21):
+   - a wall about 1.3 km (0.8 mi) long → a wall about one point three kilometers long, about zero point eight miles
+   - Confucius (551–479 BCE) taught → Confucius taught; he lived from five fifty-one to four seventy-nine B C E
+   - born in Xiayang (today's Hancheng) county → born in Xiayang county, today's Hancheng
+   Brackets at the end of a clause, or already next to punctuation, stay as before (set off with commas).
 4. When unsure, choose what a US middle-school teacher would say.
 
 ## Numbers
