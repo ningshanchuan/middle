@@ -17,6 +17,8 @@ ap.add_argument('--restart', action='store_true', help='stop the running worker,
 ap.add_argument('--langs', default='zh')
 ap.add_argument('--sglang', type=int, default=0, help='serve the 8B with SGLang-Omni (/content/sgl venv), this many requests in flight')
 ap.add_argument('--streams', type=int, default=2, help='with --sglang: batches in flight at once (the server limit is --sglang)')
+ap.add_argument('--inflight', type=int, default=0, help='with --sglang: requests the client keeps open (more than the server runs, so it never waits for a batch)')
+ap.add_argument('--layout', default='single', choices=['single', 'split'], help='SGLang-Omni: single process, or the official split layout (vocoder in its own process)')
 ap.add_argument('--queue', action='store_true', help='one lesson at a time: tools/colab/lesson_queue.txt first, then catalog order')
 ap.add_argument('--yuwen', action='store_true', help='record the yuwen lessons and styled originals (moods.proposed.json, approved)')
 args, _ = ap.parse_known_args()
@@ -44,9 +46,9 @@ def _mp3_encode(cfg, pcm, sr):
         return dst.read_bytes()
     finally:
         shutil.rmtree(d, ignore_errors=True)
-_orig_run_chunk = Worker.run_chunk
+_mp3_orig_run_chunk = Worker.run_chunk
 def _mp3_run_chunk(self, chunk):
-    out = _orig_run_chunk(self, chunk)
+    out = _mp3_orig_run_chunk(self, chunk)
     for c, audio, how in out:
         if isinstance(audio, tuple) and len(audio) == 3 and isinstance(audio[0], (bytes, bytearray)):
             k = _mp3_key(audio[0], audio[1])
@@ -61,7 +63,7 @@ Worker.run_chunk = _mp3_run_chunk
 # 45 s on the main thread (VERIFIED lines) while no batch was sent. Same check, same marks; only where it runs changes.
 _LIVE_POOL = _mp3cf.ThreadPoolExecutor(4)
 _LIVE_JOBS = {}                                          # (lesson, time queued) -> Future(ok)
-_orig_check_pending = Worker.check_pending
+_mp3_orig_check_pending = Worker.check_pending
 def _bg_check_pending(self, wait=False):
     # never waits, not even at the end of a pass (the continuous --loop worker has no --limit, so the nowait patch
     # does not apply to it): lessons still open are looked at again on the next call and in the next pass
@@ -103,7 +105,7 @@ Worker.check_pending = _bg_check_pending
 # edited lesson is read fresh the next time).
 _TR_POOL = _mp3cf.ThreadPoolExecutor(16)
 _TR_JOBS = {}                                            # transcript URL -> Future(bytes)
-_orig_fetch = fetch
+_pf_orig_fetch = fetch
 def fetch(url, *a, **k):                                 # noqa: F811
     f = _TR_JOBS.pop(url, None)
     if f is not None:
@@ -113,10 +115,10 @@ def fetch(url, *a, **k):                                 # noqa: F811
                 return b
         except Exception:                                # noqa: BLE001  (fall back to a normal download)
             pass
-    return _orig_fetch(url, *a, **k)
-_orig_index = Worker.index
+    return _pf_orig_fetch(url, *a, **k)
+_pf_orig_index = Worker.index
 def _prefetch_index(self):
-    entries = _orig_index(self)
+    entries = _pf_orig_index(self)
     base, n = self.cfg["transcripts"], 0
     for e in entries:
         lid = e["id"]
@@ -128,7 +130,7 @@ def _prefetch_index(self):
                 continue
         except Exception:                                # noqa: BLE001
             pass
-        _TR_JOBS[url] = _TR_POOL.submit(_orig_fetch, url); n += 1
+        _TR_JOBS[url] = _TR_POOL.submit(_pf_orig_fetch, url); n += 1
     if n:
         log(f"prefetch: {n} lesson transcripts downloading in the background (16 at a time)")
     return entries
@@ -451,7 +453,7 @@ if _os.environ.get("MOSS_SGLANG") == "1":
     cfg['batch_audio_s'] = 300                           # A100 40 GB (the TTS PC: 8 clips / 180 s for its 20 GB card)
     if args.sglang:                                      # SGLang-Omni: a batch = concurrent requests to the server
         k = max(1, args.streams); cfg['models'] = k                 # k client processes, each sends its own batch
-        cfg['moss']['batch'] = max(1, args.sglang // k); cfg['batch_audio_s'] = 40 * cfg['moss']['batch']
+        cfg['moss']['batch'] = max(1, max(args.sglang, args.inflight) // k); cfg['batch_audio_s'] = 40 * cfg['moss']['batch']
     p = ROOT / 'tts_config_colab.json'; p.write_text(json.dumps(cfg, ensure_ascii=False, indent=1), encoding='utf-8')
     return p
 
@@ -606,7 +608,12 @@ if args.start:
         import urllib.request as ur
         V = Path('/content/sgl'); yp = Path('/content/sgl_moss_worker.yaml')
         n = args.sglang
-        yp.write_text(f"""config_cls: MossTTSSingleProcessPipelineConfig
+        # split (the official default, MossTTSPipelineConfig): the vocoder runs in its own process, so decoding and
+        # vocoding overlap ("lifts throughput ~70%" per the SGLang-Omni guide); single: everything in one process.
+        # split is tried first when asked for; if it does not come up, the single layout starts instead.
+        for layout in (['split', 'single'] if args.layout == 'split' else ['single']):
+            cls, frac = ('MossTTSPipelineConfig', 0.68) if layout == 'split' else ('MossTTSSingleProcessPipelineConfig', 0.75)
+            yp.write_text(f"""config_cls: {cls}
 model_path: OpenMOSS-Team/MOSS-TTS-v1.5
 
 stages:
@@ -619,7 +626,7 @@ stages:
   tts_engine:
     engine:
       max_running_requests: {n}
-      mem_fraction_static: 0.75
+      mem_fraction_static: {frac}
       cuda_graph_max_bs: {n}
 
   vocoder:
@@ -628,21 +635,32 @@ stages:
       max_batch_size: {n}
       max_batch_wait_ms: 5
 """)
-        srv = subprocess.Popen([str(V / 'bin/sgl-omni'), 'serve', '--model-path', 'OpenMOSS-Team/MOSS-TTS-v1.5', '--config', str(yp),
-                                '--port', '8000'], stdout=open('/content/sgl_server.log', 'w'), stderr=subprocess.STDOUT,
-                               start_new_session=True, env=dict(os.environ, PATH=f"{V}/bin:" + os.environ['PATH']))
-        (ROOT / 'sgl.pid').write_text(str(srv.pid))
-        t0, up = time.time(), False
-        while time.time() - t0 < 1500 and srv.poll() is None and not up:
-            time.sleep(10)
+            srv = subprocess.Popen([str(V / 'bin/sgl-omni'), 'serve', '--model-path', 'OpenMOSS-Team/MOSS-TTS-v1.5', '--config', str(yp),
+                                    '--port', '8000'], stdout=open('/content/sgl_server.log', 'w'), stderr=subprocess.STDOUT,
+                                   start_new_session=True, env=dict(os.environ, PATH=f"{V}/bin:" + os.environ['PATH']))
+            (ROOT / 'sgl.pid').write_text(str(srv.pid))
+            t0, up = time.time(), False
+            limit = 600 if layout == 'split' else 1500
+            while time.time() - t0 < limit and srv.poll() is None and not up:
+                time.sleep(10)
+                try:
+                    up = ur.urlopen('http://127.0.0.1:8000/health', timeout=5).status == 200
+                except Exception:                        # noqa: BLE001
+                    pass
+            if up:
+                break
+            tail = Path('/content/sgl_server.log').read_text(errors='replace').splitlines()[-25:]
+            Path(f'/content/sgl_server_{layout}_failed.log').write_text(chr(10).join(tail))
             try:
-                up = ur.urlopen('http://127.0.0.1:8000/health', timeout=5).status == 200
+                os.killpg(srv.pid, 15); srv.wait(timeout=60)
             except Exception:                            # noqa: BLE001
                 pass
-        if not up:
-            tail = Path('/content/sgl_server.log').read_text(errors='replace').splitlines()[-25:]
-            raise SystemExit('SGLang server did not start:' + chr(10) + chr(10).join(tail))
-        print(f'SGLang server up in {time.time() - t0:.0f}s ({n} in flight)', flush=True)
+            if layout == 'single':
+                raise SystemExit('SGLang server did not start:' + chr(10) + chr(10).join(tail))
+            print('split layout did not start (log: /content/sgl_server_split_failed.log) - single layout instead', flush=True)
+            time.sleep(15)                               # GPU memory of the failed processes is released
+        print(f'SGLang server up in {time.time() - t0:.0f}s ({n} running at once, {layout} layout; client keeps '
+              f'{max(n, args.inflight)} open)', flush=True)
         env['MOSS_SGLANG'] = '1'
     log = open(ROOT / 'worker.out', 'a')
     if args.queue:                                       # one lesson at a time (lesson_queue.txt, then catalog order)

@@ -41,7 +41,7 @@ if not Path('/content/sgl/bin/sgl-omni').exists():          # no archive: instal
 # python process cannot, and the start failed with "no GH_TOKEN" (2026-11-21)
 argv = sys.argv
 sys.argv = ['colab_worker.py', '--restart', '--push', '--model', '8b', '--langs', 'zh,en',
-            '--sglang', '32', '--streams', '4', '--yuwen', '--queue']
+            '--sglang', '32', '--streams', '4', '--inflight', '48', '--layout', 'split', '--yuwen', '--queue']
 try:
     exec(compile(open('colab_worker.py', encoding='utf-8').read(), 'colab_worker.py', 'exec'), {'__name__': '__main__'})
 except SystemExit as ex:
