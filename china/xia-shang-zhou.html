@@ -412,10 +412,23 @@ function TimeMap(cfg){
   function renderEra(force){
     const k = eraOf(); if (k === S.era && !force) return; S.era = k; const e = eras[k]; if (!e) return;
     eraEl.innerHTML = `<div class="tm-step">${tx('Stop', '第')} ${k + 1}${tx(' of ', ' / ')}${eras.length}${tx('', ' 站')}</div><h3>${L(e.name)}</h3><p>${L(e.text)}</p>` +
-      (e.world ? `<div class="tm-world"><b>${tx('🌍 Meanwhile, elsewhere:', '🌍 同一时期的世界：')}</b> ${L(e.world)}</div>` : '') +
+      (e.world ? `<p class="tm-world"><b>${tx('🌍 Meanwhile, elsewhere:', '🌍 同一时期的世界：')}</b> ${L(e.world)}</p>` : '') +
       `<div class="btnrow"><button class="btn ghost" data-j="-1"${k ? '' : ' disabled'}>${tx('◀ Back', '◀ 上一站')}</button><button class="btn" data-j="1"${k < eras.length - 1 ? '' : ' disabled'}>${tx('Next ▶', '下一站 ▶')}</button></div>`;
     eraEl.querySelectorAll('button').forEach(b => b.onclick = () => { play(false); setT(eras[S.era + +b.dataset.j].from); });
   }
+  // every stop's texts exactly as a double-click reads them: the crawler sees only the stop on screen (2026-11-21)
+  if (window.Lab && Lab.readAll) Lab.readAll(() => {
+    if (!Lab.readUnits || !eraEl.parentElement) return [];
+    const box = document.createElement('div'); box.style.cssText = 'position:absolute;left:-10000px;top:0;width:' + (eraEl.offsetWidth || 400) + 'px';
+    eraEl.parentElement.appendChild(box); const out = [];
+    try {
+      eras.forEach(e => {
+        box.innerHTML = `<h3>${L(e.name)}</h3><p>${L(e.text)}</p>` + (e.world ? `<p class="tm-world"><b>${tx('🌍 Meanwhile, elsewhere:', '🌍 同一时期的世界：')}</b> ${L(e.world)}</p>` : '');
+        box.querySelectorAll('h3,p').forEach(n => { const u = Lab.readUnits(n); if (u) u.parts.forEach(t => out.push([t, u.lang])); });
+      });
+    } finally { box.remove(); }
+    return out;
+  });
   function renderCard(){
     const s = S.sel;
     cardEl.innerHTML = (s ? `<h4><i style="background:${s.color || 'var(--brand)'}"></i>${L(s.name)}</h4>${s.date ? `<div class="yr">${L(s.date)}</div>` : ''}<p>${L(s.info)}</p>`
