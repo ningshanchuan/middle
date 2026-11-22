@@ -102,6 +102,29 @@ if os.path.exists(mp):
                 say[r['key']] = r['say']
             else:
                 say.pop(r['key'], None); skip.add(r['key'])
+# element names (say/elements_zh.tsv): the 8B misread many rare element characters (the user, 2026-11-22). Every Chinese
+# script gets the same-sound common character; a plain-Chinese clip with an element name and no script gets a script
+# that differs only there. Pages keep the real names.
+if LANG == 'zh':
+    ELEM = {}
+    for l in open(os.path.join(os.path.dirname(__file__), 'say', 'elements_zh.tsv'), encoding='utf-8'):
+        if l.strip() and not l.startswith('#'):
+            ch, _py, sub = l.rstrip('\n').split('\t')[:3]
+            ELEM[ch] = sub
+    elem_re = re.compile('|'.join(map(re.escape, sorted(ELEM, key=len, reverse=True))))
+    n_changed = n_new = 0
+    for h in list(say):
+        t = elem_re.sub(lambda m: ELEM[m.group(0)], say[h])
+        if t != say[h]:
+            say[h] = t; n_changed += 1
+    for c in json.load(open(corpus, encoding='utf-8')):
+        h = hashlib.sha1(c['send'].encode('utf-8')).hexdigest()[:12]
+        if h in say or h in skip or not elem_re.search(c['send']):
+            continue
+        if re.search(r'[0-9A-Za-z]', c['send']) or LEFT.search(c['send']):
+            continue                                     # needs a written-out script first (that one gets the names too)
+        say[h] = elem_re.sub(lambda m: ELEM[m.group(0)], re.sub(r'\s+', ' ', c['send']).strip()); n_new += 1
+    print(f'element names: {n_changed} scripts changed, {n_new} plain clips given a script')
 lessons = {}
 for c in json.load(open(corpus, encoding='utf-8')):
     h = hashlib.sha1(c['send'].encode('utf-8')).hexdigest()[:12]
