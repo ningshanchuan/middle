@@ -377,6 +377,26 @@ while True:
             done.clear(); log('settings: record_langs = %s' % ','.join(c['record_langs']))
     except Exception as ex:                              # noqa: BLE001
         log('cannot read worker settings (%r)' % ex)
+    # keep the audio repos' history small (the user: old versions are not needed; TTS PC agreed, #11): between lessons,
+    # when a repo passes 300 commits, its current files become one commit (same tree) and replace the history
+    for rd in sorted(d for d in os.listdir(ROOT) if d.startswith('gc-audio-') and os.path.isdir(os.path.join(ROOT, d, '.git'))):
+        g = ['git', '-C', os.path.join(ROOT, rd)]
+        try:
+            n = int(subprocess.run(g + ['rev-list', '--count', 'HEAD'], capture_output=True, text=True).stdout.strip() or 0)
+            if n <= 300:
+                continue
+            tree = subprocess.run(g + ['rev-parse', 'HEAD^{tree}'], capture_output=True, text=True).stdout.strip()
+            subprocess.run(g + ['checkout', '-q', '--orphan', 'squash'], check=True)
+            subprocess.run(g + ['commit', '-q', '-m', 'Serena recordings (history squashed %s; older versions are not kept)' % time.strftime('%Y-%m-%d')], check=True)
+            if subprocess.run(g + ['rev-parse', 'HEAD^{tree}'], capture_output=True, text=True).stdout.strip() != tree:
+                subprocess.run(g + ['checkout', '-q', '-f', 'main']); subprocess.run(g + ['branch', '-D', '-q', 'squash'])
+                log('%s: squash skipped (tree changed)' % rd); continue
+            subprocess.run(g + ['branch', '-D', '-q', 'main'], check=True); subprocess.run(g + ['branch', '-m', 'main'], check=True)
+            r = subprocess.run(g + ['push', '-q', '-f', 'origin', 'main'], capture_output=True, text=True)
+            subprocess.run(g + ['reflog', 'expire', '--expire=now', '--all']); subprocess.run(g + ['gc', '-q', '--prune=now'])
+            log('%s: history squashed (%d commits -> 1)%s' % (rd, n, '' if r.returncode == 0 else ' - PUSH FAILED ' + r.stderr[-200:]))
+        except Exception as ex:                          # noqa: BLE001
+            log('%s: squash error %r' % (rd, ex))
     nxt = next((l for l in queue if l in fp and done.get(l) != fp[l]), None)
     cmd = [sys.executable, os.path.join(TOOLS, 'tts_worker.py'), 'run', '--config', CFG] + EXTRA
     cmd += ['--lesson', nxt] if nxt else ['--limit', '1']
