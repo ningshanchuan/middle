@@ -26,7 +26,7 @@ SRC = ROOT / '_tts'
 TOOLS = SRC / 'tools/moss/tools'
 sh = lambda cmd, **k: subprocess.run(cmd, shell=True, check=True, **k)
 
-MP3_PATCH = r'''# ---------------------------------------------------------------- COLAB PATCH mp3 (content PC)
+MP3_PATCH = r'''# ---------------------------------------------------------------- COLAB PATCH mp3 v2 (content PC; v2: live checks in the background too)
 # Encode each clip to MP3 (the original to_mp3: loudness measure + encode) in a thread pool as soon as its batch returns,
 # instead of on the main thread when the clip is taken: the main thread stays free to feed the GPU.
 import concurrent.futures as _mp3cf, hashlib as _mp3h, threading as _mp3t
@@ -57,6 +57,45 @@ def _mp3_run_chunk(self, chunk):
                     _MP3_JOBS.pop(next(iter(_MP3_JOBS)))
     return out
 Worker.run_chunk = _mp3_run_chunk
+# live checks (does every file of a pushed lesson match on GitHub Pages?) in a background pool as well: each took about
+# 45 s on the main thread (VERIFIED lines) while no batch was sent. Same check, same marks; only where it runs changes.
+_LIVE_POOL = _mp3cf.ThreadPoolExecutor(4)
+_LIVE_JOBS = {}                                          # (lesson, time queued) -> Future(ok)
+_orig_check_pending = Worker.check_pending
+def _bg_check_pending(self, wait=False):
+    # never waits, not even at the end of a pass (the continuous --loop worker has no --limit, so the nowait patch
+    # does not apply to it): lessons still open are looked at again on the next call and in the next pass
+    for item in list(self.pending):
+        repo, lid, want, t = item
+        if time.time() - t < 40:
+            continue
+        f = _LIVE_JOBS.get((lid, t))
+        if f is None:
+            _LIVE_JOBS[(lid, t)] = _LIVE_POOL.submit(self.live_ok, repo, lid, want)
+            continue
+        if not f.done():
+            continue
+        _LIVE_JOBS.pop((lid, t), None)
+        try:
+            ok = f.result()
+        except Exception as ex:                          # noqa: BLE001
+            log(f"{lid}: live check error {ex!r} - later"); ok = False
+        if ok:
+            self.pending.remove(item)
+            s = repo.lessons[lid]; s["verified"] = now(); repo.save(); repo.dirty = True
+            t_ = s["title"]
+            log(f"VERIFIED {t_.get('zh', '')} / {t_.get('en', '')}  {s['page']}  ({s['counts']['done']} clips, "
+                "live files match; checked in the background)")
+            with open(self.root / "published.log", "a", encoding="utf-8") as fh:
+                fh.write(f"{now()}\t{lid}\t{s['page']}\t{s['counts']['done']}\n")
+        elif time.time() - t > 25 * 60:
+            self.pending.remove(item)
+            log(f"NOT VERIFIED {lid}: live files still differ after 25 min (Pages slow?) - checked again next pass")
+    if wait:                                             # end of a pass: push the "verified" marks (no waiting)
+        for r in self.repos.values():
+            if getattr(r, "dirty", False):
+                push(self.cfg, r.path, "live checks ok", self.args.no_push); r.dirty = False
+Worker.check_pending = _bg_check_pending
 def to_mp3(cfg, pcm, sr, dst):                           # noqa: F811
     with _MP3_LOCK:
         f = _MP3_JOBS.pop(_mp3_key(pcm, sr), None)
@@ -199,7 +238,11 @@ def prepare():
     # (loudness measure + encode) for every accepted clip, one after another, and sent no new batch meanwhile - the GPU
     # sat at 0 % in 89 % of the samples. Now each returned clip is encoded at once in a pool of 10 threads (parallel
     # ffmpeg on the idle CPU cores); the main thread only writes the finished bytes.
-    if 'COLAB PATCH mp3' not in w:
+    MP3_MARK = '# ' + '-' * 64 + ' COLAB PATCH mp3'
+    if MP3_MARK + ' v2' not in w:
+        if MP3_MARK in w:                                # drop the older mp3 patch (just before the main guard)
+            a = w.index(MP3_MARK); b = w.index(chr(10) + 'if __name__ == "__main__":', a)
+            w = w[:a] + w[b + 1:]
         w = w.replace('\nif __name__ == "__main__":', '\n' + MP3_PATCH + '\n\nif __name__ == "__main__":', 1)
         (TOOLS / 'tts_worker.py').write_text(w, encoding='utf-8')
     # on-demand texts are part of the scope too: a lesson recorded without them is redone when record_demand is on
@@ -390,10 +433,11 @@ QUEUE_DRIVER = r'''
 import json, os, subprocess, sys, time, urllib.request
 TOOLS, CFG, ROOT = sys.argv[1], sys.argv[2], sys.argv[3]
 EXTRA = sys.argv[4:]
-Q = 'https://api.github.com/repos/ningshanchuan/middle/contents/tools/colab/lesson_queue.txt'
+Q = 'https://raw.githubusercontent.com/ningshanchuan/middle/main/tools/colab/lesson_queue.txt'
 IX = 'https://shanchuan.org/middle/readaloud/index.json'
-RQ = 'https://api.github.com/repos/ningshanchuan/middle/contents/tools/colab/rerecord_queue.txt'
-WS = 'https://api.github.com/repos/ningshanchuan/middle/contents/tools/colab/worker_settings.json'
+RQ = 'https://raw.githubusercontent.com/ningshanchuan/middle/main/tools/colab/rerecord_queue.txt'
+WS = 'https://raw.githubusercontent.com/ningshanchuan/middle/main/tools/colab/worker_settings.json'
+# raw.githubusercontent.com, not the GitHub API: the API allows 60 unauthenticated reads an hour (403 'rate limit exceeded')
 DONE = os.path.join(ROOT, 'queue_done.json')
 def log(m):
     print(time.strftime('%H:%M:%S ') + 'queue: ' + m, flush=True)
@@ -405,7 +449,7 @@ done = json.load(open(DONE)) if os.path.exists(DONE) else {}
 child, restart_child = None, False                       # the continuous (--loop) worker process
 while True:
     try:
-        queue = [l.split('#')[0].strip() for l in fetch(Q, raw=True).splitlines()]
+        queue = [l.split('#')[0].strip() for l in fetch(Q).splitlines()]
         queue = [l for l in queue if l]
     except Exception as ex:                              # noqa: BLE001
         log('cannot read the lesson queue (%r)' % ex); queue = []
@@ -424,7 +468,7 @@ while True:
     try:
         applied = set(json.load(open(os.path.join(ROOT, 'rerecord_applied.json')))) if os.path.exists(os.path.join(ROOT, 'rerecord_applied.json')) else set()
         new = []
-        for l in fetch(RQ, raw=True).splitlines():
+        for l in fetch(RQ).splitlines():
             entry = l.split('#')[0].strip()
             if entry and ':' in entry and entry not in applied:
                 new.append(entry); applied.add(entry)
@@ -442,7 +486,7 @@ while True:
         log('cannot read the re-record queue (%r)' % ex)
     # settings that can change without a restart (tools/colab/worker_settings.json): {"record_langs": ["zh"]} ...
     try:
-        ws = json.loads(fetch(WS, raw=True))
+        ws = json.loads(fetch(WS))
         c = json.load(open(CFG, encoding='utf-8'))
         if ws.get('record_langs') and sorted(ws['record_langs']) != sorted(c.get('record_langs') or []):
             c['record_langs'] = sorted(ws['record_langs']); json.dump(c, open(CFG, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
