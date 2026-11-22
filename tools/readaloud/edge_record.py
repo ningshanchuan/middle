@@ -72,7 +72,7 @@ with ThreadPoolExecutor(16) as ex:
 SERENA_SHARED = SERENA_BY.get('_shared', set())
 # sends that need a spoken script (digits, symbols, Latin letters in Chinese, Han in English: same rule as the script
 # queue, .labtmp/tn/queue_new.py); such a clip is NOT recorded until its checked script is published (QC plan, sect. 10)
-NEED = {'zh': re.compile('[0-9A-Za-z\u00c0-\u024f]|[^\u4e00-\u9fff\u3000-\u303f\uff00-\uffef\u201c\u201d\u2018\u2019\u2014\u2026\u00b7\\s]'),
+NEED = {'zh': re.compile('[0-9A-Za-z\u00c0-\u024f\uff3f]|[^\u4e00-\u9fff\u3000-\u303f\uff00-\uffef\u201c\u201d\u2018\u2019\u2014\u2026\u00b7\\s]'),
         'en': re.compile('\\d|[/+=\u00d7\u00f7%\u00b0\u2103\u00b2\u00b3\u2070-\u2079\u207a\u207b\u00bd\u00bc\u00be\u2153|\u2220_<>\u2248\u2264\u2265~^*#@&$\u20ac\u00a3\u00a5\u2192\u2190\u2194\u2206\u0394\u03b1\u03b2\u03b3\u03b8\u03bc\u03c0\u00b7\u2022]|[\u4e00-\u9fff]')}
 waiting = 0
 texts, raw, lessons = {}, {}, {}
@@ -154,6 +154,23 @@ def publish(n):
             r = subprocess.run(['git', '-C', repo, '-c', 'credential.helper=', '-c', 'credential.helper=!gh auth git-credential', 'push', '-q', 'origin', 'main'],
                                env=dict(os.environ, GIT_TERMINAL_PROMPT='0'), capture_output=True, text=True)
             say_log(f'pushed {os.path.basename(repo)} ({len(need)} clips)' if r.returncode == 0 else f'PUSH FAILED {os.path.basename(repo)} ' + r.stderr[-200:])
+            # keep the history small (the user, 2026-11-21: old versions are not needed): past 30 commits, the current
+            # files become a single commit (same tree, so the live site does not change) and replace the history
+            n = int(subprocess.run(gi + ['rev-list', '--count', 'HEAD'], capture_output=True, text=True).stdout.strip() or 0)
+            if r.returncode == 0 and n > 30:
+                tree = subprocess.run(gi + ['rev-parse', 'HEAD^{tree}'], capture_output=True, text=True).stdout.strip()
+                subprocess.run(gi + ['checkout', '-q', '--orphan', 'squash'], check=True)
+                subprocess.run(gi + ['commit', '-q', '-m', f'Edge stand-in recordings (history squashed {time.strftime("%Y-%m-%d")})'], check=True)
+                same = subprocess.run(gi + ['rev-parse', 'HEAD^{tree}'], capture_output=True, text=True).stdout.strip() == tree
+                if same:
+                    subprocess.run(gi + ['branch', '-D', '-q', 'main'], check=True); subprocess.run(gi + ['branch', '-m', 'main'], check=True)
+                    r2 = subprocess.run(['git', '-C', repo, '-c', 'credential.helper=', '-c', 'credential.helper=!gh auth git-credential', 'push', '-q', '-f', 'origin', 'main'],
+                                        env=dict(os.environ, GIT_TERMINAL_PROMPT='0'), capture_output=True, text=True)
+                    subprocess.run(gi + ['reflog', 'expire', '--expire=now', '--all']); subprocess.run(gi + ['gc', '-q', '--prune=now'])
+                    say_log(f'squashed {os.path.basename(repo)} history ({n} commits -> 1)' if r2.returncode == 0 else f'SQUASH PUSH FAILED {os.path.basename(repo)} ' + r2.stderr[-200:])
+                else:                                    # should never happen: go back to main untouched
+                    subprocess.run(gi + ['checkout', '-q', '-f', 'main']); subprocess.run(gi + ['branch', '-D', '-q', 'squash'])
+                    say_log(f'SQUASH SKIPPED {os.path.basename(repo)}: tree changed')
 
 
 async def main():
