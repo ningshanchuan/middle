@@ -610,9 +610,10 @@ if args.start:
         n = args.sglang
         # split (the official default, MossTTSPipelineConfig): the vocoder runs in its own process, so decoding and
         # vocoding overlap ("lifts throughput ~70%" per the SGLang-Omni guide); single: everything in one process.
-        # split is tried first when asked for; if it does not come up, the single layout starts instead.
+        # split is tried first when asked for; if it does not come up, the single layout starts instead. 0.68 ran out of
+        # memory (2026-11-22: engine 27.7 GB + another stage process 11.6 GB > 40 GB); 0.56 = 22 GB (16 GB weights + cache)
         for layout in (['split', 'single'] if args.layout == 'split' else ['single']):
-            cls, frac = ('MossTTSPipelineConfig', 0.68) if layout == 'split' else ('MossTTSSingleProcessPipelineConfig', 0.75)
+            cls, frac = ('MossTTSPipelineConfig', 0.56) if layout == 'split' else ('MossTTSSingleProcessPipelineConfig', 0.75)
             yp.write_text(f"""config_cls: {cls}
 model_path: OpenMOSS-Team/MOSS-TTS-v1.5
 
