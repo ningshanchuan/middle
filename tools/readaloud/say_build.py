@@ -56,7 +56,7 @@ CREDIT_SEND = re.compile(r'(图片|照片|Photo|Image)\s*[：:][^。！？\n]*?(
 CREDIT_SAY = re.compile(r'(图片作者|照片作者|图片来源|图片：)[^。！？]*(。|$)|(Photo|Image) (by|credit)[^.!?]*(\.|$)|Photo: [^.!?]*(\.|$)', re.I)
 
 say, bad = {}, []
-for chk in sorted(glob.glob(os.path.join(done, '*.chk.jsonl'))):
+for chk in sorted(glob.glob(os.path.join(done, '*.chk.jsonl')), key=os.path.getmtime):   # newest last: a re-written script wins
     src = {json.loads(l)['key']: json.loads(l) for l in open(chk.replace('.chk.jsonl', '.jsonl'), encoding='utf-8') if l.strip()}
     for l in open(chk, encoding='utf-8'):
         if not l.strip():
@@ -71,7 +71,10 @@ for chk in sorted(glob.glob(os.path.join(done, '*.chk.jsonl'))):
             txt = txt.replace('〇', '零')               # years: 零 not 〇 (the voice may not read 〇; TTS PC, #12)
         if not txt:
             continue                                     # the clip is only a credit: nothing to record
-        if LANG == 'en':
+        reviewed = os.path.basename(chk).startswith(('zrev', 'zcredit'))   # case-by-case review + independent check +
+        if reviewed:                                     # a nothing-lost check: same-sound characters and moved brackets
+            ok = not LEFT.search(txt)                    # lower the coverage on purpose, so only the leftover check here
+        elif LANG == 'en':
             ok = not LEFT.search(txt) and (cover_en(send, txt) >= 0.8 or cover_letters(send, txt) >= 0.9) and all_han(send, txt)
         else:
             ok = not LEFT.search(txt) and (cover(send, txt) >= 0.93 or all_han(send, txt))
@@ -101,3 +104,7 @@ json.dump(dict(updated=datetime.datetime.now().strftime('%Y-%m-%d %H:%M'), count
 print(f'{len(say)} scripts in {len(lessons)} lessons -> {os.path.normpath(out)}; held back (failed checks): {len(bad)}')
 for b in bad[:20]:
     print('  HELD', *b, sep=' | ')
+# every held script, for review (only the first 20 are printed above)
+with open(os.path.join(done, '..', f'held_{LANG}.tsv'), 'w', encoding='utf-8') as f:
+    for b in bad:
+        f.write('\t'.join(str(x) for x in b) + '\n')
