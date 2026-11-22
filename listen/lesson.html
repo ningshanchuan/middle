@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>一课试听 · Genius Classroom</title>
+<style>
+/* Review page for ONE lesson's read-aloud (one lesson at a time, the user 2026-11-21): every clip of the lesson's
+   transcript with its page text, the spoken script the voice was given, and its recordings (Serena, Edge stand-in).
+   Problems can be ticked, noted and copied as a list. Not linked from the hub; noindex.  ?id=earth/oceans&lang=zh */
+:root{--bg:#f6f7f5;--panel:#fff;--fg:#1d2420;--muted:#5f6b64;--line:#dfe4e0;--accent:#2f6f5e;--bad:#b4532a;--warn:#a6791c;--mark:#fff1c2}
+@media (prefers-color-scheme:dark){:root{--bg:#141917;--panel:#1c2320;--fg:#e4ebe7;--muted:#9aa8a0;--line:#2e3833;--accent:#7cc4ad;--bad:#e8875a;--warn:#e0b85a;--mark:#4a4220;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.65 "PingFang SC","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:24px 16px 60px}
+h1{font-size:1.45rem;margin:0 0 4px}
+.lead{color:var(--muted);margin:0 0 12px;max-width:75ch}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px}
+.bar button,.bar select,.bar input{font:inherit;font-size:.92rem;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--fg)}
+.bar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.stats{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 12px;min-width:120px}
+.stat b{display:block;font-size:1.3rem}
+.stat small{color:var(--muted)}
+.row{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0 0 8px;display:grid;grid-template-columns:2.2em 1fr auto;gap:4px 10px;align-items:start}
+.row.now{outline:2px solid var(--accent)}
+.row.flag{border-color:var(--bad)}
+.n{color:var(--muted);font-size:.85rem;padding-top:2px}
+.txt{min-width:0;overflow-wrap:anywhere}
+.say{color:var(--accent);font-size:.92rem;margin-top:2px}
+.say::before{content:"朗读稿：";color:var(--muted)}
+.tag{display:inline-block;font-size:.75rem;border-radius:6px;padding:0 6px;margin-right:4px;border:1px solid var(--line);color:var(--muted)}
+.tag.ser{color:var(--accent);border-color:var(--accent)}
+.tag.edge{color:var(--warn);border-color:var(--warn)}
+.tag.none{color:var(--bad);border-color:var(--bad)}
+.ctl{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
+.ctl button{font:inherit;font-size:.85rem;padding:4px 9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);cursor:pointer}
+.ctl button:disabled{opacity:.35;cursor:default}
+.ctl label{font-size:.85rem;color:var(--bad);display:flex;align-items:center;gap:3px}
+.note{grid-column:2 / 4;display:none}
+.row.flag .note{display:block}
+.note input{width:100%;font:inherit;font-size:.9rem;padding:4px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
+.err{color:var(--bad)}
+@media (max-width:600px){.row{grid-template-columns:1.8em 1fr}.ctl{grid-column:1 / 3;justify-content:flex-start}.note{grid-column:1 / 3}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 id="h">一课试听</h1>
+  <p class="lead">这一课的每一句朗读：页面文字、交给声音的朗读稿（与页面不同时显示），以及录音。<b>Serena</b> 是 8B 录音，<b>Edge</b> 是临时替代录音。有问题的句子勾“有问题”，写一句说明，最后点“复制问题清单”发给我。</p>
+  <div class="bar">
+    <select id="lesson" aria-label="课"></select>
+    <button id="lzh" class="on">中文</button><button id="len">English</button>
+    <select id="show" aria-label="显示">
+      <option value="all">全部句子</option><option value="none">没有录音的</option><option value="edge">只有 Edge 的</option><option value="ser">有 Serena 的</option><option value="flag">我标了问题的</option>
+    </select>
+    <button id="playall">▶ 连续播放</button><button id="stop">⏹ 停止</button>
+    <button id="copy">复制问题清单</button>
+  </div>
+  <div class="stats" id="stats"></div>
+  <div id="list"><p>正在加载……</p></div>
+</div>
+<script src="../shared/catalog.js"></script>
+<script src="../shared/audio-sources.js"></script>
+<script>
+(() => {
+  const SRC = window.LAB_AUDIO_SOURCES, $ = s => document.querySelector(s);
+  const qs = new URLSearchParams(location.search);
+  let id = qs.get('id') || 'earth/oceans', lang = qs.get('lang') === 'en' ? 'en' : 'zh';
+  const lessons = []; window.LAB_CATALOG.forEach(s => s.all.forEach(t => { if (!t.soon) lessons.push([s.id + '/' + t.id, (t.zh || t.en)]); }));
+  $('#lesson').innerHTML = lessons.map(([v, n]) => `<option value="${v}">${v} · ${n}</option>`).join('');
+  const group = x => SRC.subjects[x.split('/')[0]] || SRC.fallback;
+  const edgeBase = l => { const v = (SRC.edge || {})[l]; return typeof v === 'string' ? v : (v || {})[group(id)]; };
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const store = { get(k){ try { return JSON.parse(localStorage.getItem(k) || '{}'); } catch(e){ return {}; } }, set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} } };
+  const flagsKey = () => 'listenFlags:' + id;
+  // manifests are JS files calling LabAudioManifest({...}); load one and resolve with its object (or null)
+  let waiting = null;
+  window.LabAudioManifest = m => { if (waiting) waiting(m); };
+  const manifest = url => new Promise(res => {
+    if (!url) return res(null);
+    const s = document.createElement('script'); let done = false;
+    waiting = m => { done = true; res(m); };
+    s.onload = () => setTimeout(() => { if (!done) res(null); }, 0); s.onerror = () => res(null);
+    s.src = url + '?v=' + Date.now(); document.head.appendChild(s);
+  }).finally(() => { waiting = null; });
+  const keySet = (m, l) => new Set(m && m[l] ? String(m[l]).split(/\s+/).filter(Boolean) : []);
+  const sha12 = async t => { const b = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(t)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('').slice(0, 12); };
+  const audio = new Audio(); let rows = [], seq = null;
+  const play = (url, row) => { stopSeq(false); document.querySelectorAll('.row.now').forEach(r => r.classList.remove('now')); if (row) row.classList.add('now'); audio.src = url; audio.play().catch(() => {}); };
+  const stopSeq = all => { if (seq){ seq = null; $('#playall').classList.remove('on'); } if (all !== false){ audio.pause(); document.querySelectorAll('.row.now').forEach(r => r.classList.remove('now')); } };
+  async function load(){
+    $('#lesson').value = id; $('#lzh').classList.toggle('on', lang === 'zh'); $('#len').classList.toggle('on', lang === 'en');
+    history.replaceState(null, '', `?id=${encodeURIComponent(id)}&lang=${lang}`);
+    $('#list').innerHTML = '<p>正在加载……</p>'; $('#stats').innerHTML = '';
+    let tx;
+    try { tx = await (await fetch(`../readaloud/${id}.json?v=${Date.now()}`)).json(); } catch(e){ $('#list').innerHTML = `<p class="err">没有这一课的朗读文本（readaloud/${esc(id)}.json）。</p>`; return; }
+    $('#h').textContent = '一课试听：' + (tx.title && (tx.title.zh || tx.title.en) || id);
+    let say = {}; try { say = (await (await fetch(`../readaloud/say/${lang}.json?v=${Date.now()}`)).json()).lessons || {}; } catch(e){}
+    const mySay = say[id] || {};
+    const serBase = SRC.repos[group(id)] + id + '/', eBase = edgeBase(lang);
+    const ser = keySet(await manifest(serBase + 'manifest.js'), lang), edge = keySet(await manifest(eBase ? eBase + id + '/manifest.js' : ''), lang);
+    const flags = store.get(flagsKey());
+    const clips = tx.clips.filter(c => c.lang === lang);
+    rows = [];
+    for (const c of clips){
+      const h = await sha12(c.send); const s = mySay[h];
+      rows.push({ c, say: s && s !== c.send ? s : '', ser: ser.has(c.key) ? serBase + lang + '/' + c.key + '.mp3' : '', edge: edge.has(c.key) ? eBase + lang + '/' + c.key + '.mp3' : '' });
+    }
+    const nSer = rows.filter(r => r.ser).length, nEdge = rows.filter(r => !r.ser && r.edge).length, nNone = rows.filter(r => !r.ser && !r.edge).length;
+    $('#stats').innerHTML = [[rows.length, '句（这一课，' + (lang === 'zh' ? '中文' : '英文') + '）'], [nSer, '有 Serena 录音'], [nEdge, '只有 Edge 录音'], [nNone, '没有录音（浏览器朗读）'], [Object.keys(flags).length, '我标了问题']]
+      .map(([n, t]) => `<div class="stat"><b>${n}</b><small>${t}</small></div>`).join('');
+    render();
+  }
+  function render(){
+    const show = $('#show').value, flags = store.get(flagsKey());
+    const vis = rows.map((r, i) => [r, i]).filter(([r]) => show === 'all' || (show === 'none' && !r.ser && !r.edge) || (show === 'edge' && !r.ser && r.edge) || (show === 'ser' && r.ser) || (show === 'flag' && flags[r.c.key]));
+    $('#list').innerHTML = vis.length ? vis.map(([r, i]) => {
+      const f = flags[r.c.key];
+      const tags = (r.ser ? '<span class="tag ser">Serena</span>' : '') + (r.edge ? '<span class="tag edge">Edge</span>' : '') + (!r.ser && !r.edge ? '<span class="tag none">无录音</span>' : '') + (r.c.demand ? '<span class="tag">双击朗读</span>' : '');
+      return `<div class="row${f ? ' flag' : ''}" data-i="${i}"><div class="n">${i + 1}</div>
+        <div class="txt">${tags}${esc(r.c.send)}${r.say ? `<div class="say">${esc(r.say)}</div>` : ''}</div>
+        <div class="ctl"><button data-a="ser" ${r.ser ? '' : 'disabled'}>▶ Serena</button><button data-a="edge" ${r.edge ? '' : 'disabled'}>▶ Edge</button>
+          <label><input type="checkbox" data-a="flag" ${f ? 'checked' : ''}>有问题</label></div>
+        <div class="note"><input data-a="note" placeholder="哪里不对？例如：“20公里/小时”读成了“20公里时”" value="${esc(f ? f.note || '' : '')}"></div></div>`;
+    }).join('') : '<p>没有符合条件的句子。</p>';
+  }
+  $('#list').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return; const row = b.closest('.row'), r = rows[+row.dataset.i];
+    play(b.dataset.a === 'ser' ? r.ser : r.edge, row);
+  });
+  $('#list').addEventListener('change', e => {
+    const t = e.target, row = t.closest('.row'); if (!row) return; const r = rows[+row.dataset.i], flags = store.get(flagsKey());
+    if (t.dataset.a === 'flag'){ if (t.checked) flags[r.c.key] = { note: '' }; else delete flags[r.c.key]; row.classList.toggle('flag', t.checked); }
+    if (t.dataset.a === 'note'){ flags[r.c.key] = { note: t.value }; }
+    store.set(flagsKey(), flags);
+  });
+  $('#playall').onclick = () => {
+    if (seq){ stopSeq(); return; }
+    const list = [...document.querySelectorAll('#list .row')].filter(row => { const r = rows[+row.dataset.i]; return r.ser || r.edge; });
+    if (!list.length) return;
+    seq = { list, k: 0 }; $('#playall').classList.add('on');
+    const next = () => { if (!seq) return; if (seq.k >= seq.list.length){ stopSeq(); return; }
+      const row = seq.list[seq.k++], r = rows[+row.dataset.i]; document.querySelectorAll('.row.now').forEach(x => x.classList.remove('now'));
+      row.classList.add('now'); row.scrollIntoView({ block: 'center', behavior: 'smooth' }); audio.src = r.ser || r.edge; audio.play().catch(() => {}); };
+    audio.onended = () => { if (seq) setTimeout(next, 700); };
+    next();
+  };
+  $('#stop').onclick = () => stopSeq();
+  $('#copy').onclick = () => {
+    const flags = store.get(flagsKey());
+    const out = rows.filter(r => flags[r.c.key]).map(r => `${id}\t${lang}\t${r.c.key}\t${r.ser ? 'Serena' : r.edge ? 'Edge' : '无录音'}\t${r.c.send}\t${flags[r.c.key].note || ''}`).join('\n');
+    const msg = out || '（还没有标记问题）';
+    (navigator.clipboard ? navigator.clipboard.writeText(msg) : Promise.reject()).then(() => alert('已复制 ' + (out ? out.split('\n').length : 0) + ' 条，粘贴给我即可。'), () => prompt('复制下面的内容：', msg));
+  };
+  $('#lesson').onchange = e => { id = e.target.value; load(); };
+  $('#lzh').onclick = () => { lang = 'zh'; load(); }; $('#len').onclick = () => { lang = 'en'; load(); };
+  $('#show').onchange = render;
+  load();
+})();
+</script>
+</body>
+</html>

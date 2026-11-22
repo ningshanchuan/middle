@@ -7,11 +7,14 @@
 # (missing files linked, files no longer needed removed, manifests rewritten).
 # The site plays a Serena recording first, then this, then the browser voice (shared/lab.js).
 # Slow on purpose (3 requests at a time, back-off on errors): edge-tts is an unofficial use of Microsoft's service.
-#   python edge_record.py <lang> <corpus.json> <base dir, e.g. D:\labtmp>      (resumable; pushes every 300 new clips)
+#   python edge_record.py <lang> <corpus.json> <base dir, e.g. F:\labtmp_edge> [lesson,lesson,...]
+#   (resumable; pushes every 300 new clips). With lessons: records only those lessons (one lesson at a time, the user
+#   2026-11-21: easier to check and change); the push still keeps every other lesson's clips and manifests as they are.
 import asyncio, hashlib, json, os, re, shutil, subprocess, sys, time, urllib.request
 import edge_tts
 
 LANG, CORPUS, BASE = sys.argv[1], sys.argv[2], sys.argv[3]
+ONLY = set(filter(None, sys.argv[4].split(','))) if len(sys.argv) > 4 else None
 VOICE = {'zh': 'zh-CN-XiaoxiaoNeural', 'en': 'en-US-AvaNeural'}[LANG]
 SITE = r'F:\Shanchuan\Biology_study\science-lab'
 src = open(os.path.join(SITE, 'shared', 'audio-sources.js'), encoding='utf-8').read()
@@ -54,6 +57,11 @@ for repo in ('gc-audio-science', 'gc-audio-humanities', 'gc-audio-lang-math'):
         SERENA |= {p[1] for p in (l.split('\t') for l in t.splitlines()[1:]) if len(p) > 3 and p[0] == LANG and p[3] == 'serena moss8b'}
     except Exception:                                    # noqa: BLE001
         pass
+# sends that need a spoken script (digits, symbols, Latin letters in Chinese, Han in English: same rule as the script
+# queue, .labtmp/tn/queue_new.py); such a clip is NOT recorded until its checked script is published (QC plan, sect. 10)
+NEED = {'zh': re.compile('[0-9A-Za-z\u00c0-\u024f]|[^\u4e00-\u9fff\u3000-\u303f\uff00-\uffef\u201c\u201d\u2018\u2019\u2014\u2026\u00b7\\s]'),
+        'en': re.compile('\\d|[/+=\u00d7\u00f7%\u00b0\u2103\u00b2\u00b3\u2070-\u2079\u207a\u207b\u00bd\u00bc\u00be\u2153|\u2220_<>\u2248\u2264\u2265~^*#@&$\u20ac\u00a3\u00a5\u2192\u2190\u2194\u2206\u0394\u03b1\u03b2\u03b3\u03b8\u03bc\u03c0\u00b7\u2022]|[\u4e00-\u9fff]')}
+waiting = 0
 texts, raw, lessons = {}, {}, {}
 for c in json.load(open(CORPUS, encoding='utf-8')):
     if c['key'] in SERENA:                               # Serena already has it: no stand-in needed
@@ -61,6 +69,9 @@ for c in json.load(open(CORPUS, encoding='utf-8')):
     h = hashlib.sha1(c['send'].encode('utf-8')).hexdigest()[:12]
     if h in SKIP:
         continue                                         # never read (photo credits, licences)
+    if h not in flat and NEED[LANG].search(c['send']):
+        waiting += 1
+        continue                                         # needs a script, none published yet: wait for it
     t = flat.get(h) or c['send']
     raw[c['key']] = t
     texts[c['key']] = polyfix(t)
@@ -78,6 +89,9 @@ sent = json.load(open(sent_p, encoding='utf-8')) if os.path.exists(sent_p) else 
 # record: missing files; files made from another text (sent = text of each file; files from before the 多音字 table
 # have no entry: they were made from the unfixed text, so they are redone where the table changes the text)
 todo = [k for k in texts if not os.path.exists(cache(k)) or sent.get(k, raw[k]) != texts[k]]
+if ONLY is not None:
+    want = {k for lid in ONLY for k in lessons.get(lid, ())}
+    todo = [k for k in todo if k in want]
 for k in todo:
     if os.path.exists(cache(k)):
         os.remove(cache(k))
@@ -130,7 +144,7 @@ def publish(n):
 
 
 async def main():
-    say_log(f'{LANG}: {len(texts)} clips, {len(todo)} to record, voice {VOICE}, repos {", ".join(os.path.basename(r) for r in REPOS.values())}')
+    say_log(f'{LANG}: {len(texts)} clips, {waiting} waiting for a spoken script, {len(todo)} to record, voice {VOICE}, repos {", ".join(os.path.basename(r) for r in REPOS.values())}')
     publish(0)                                           # move what is already recorded into the right repos at once
     sem = asyncio.Semaphore(3); done = 0; errors = 0; pause = 0
     async def one(k):

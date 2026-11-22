@@ -554,7 +554,7 @@
     // the text exactly as it is read: no pinyin, no buttons, no emoji; maths as words where the step-player helper is loaded
     // text as laid out: words shown side by side in separate boxes (flex items, chips, tiles …) keep a space between
     // them ("Me gusta leer", not "Megustaleer"); Chinese characters are never split by spaces
-    const SKIPT = 'rt,rp,.py,button,.speak,.say,script,style,svg,canvas,[aria-hidden=true],.katex-mathml';
+    const SKIPT = 'rt,rp,.py,button,.speak,.say,script,style,svg,canvas,[aria-hidden=true],[data-noread],.katex-mathml';
     const wordCh = ch => /[\p{L}\p{N}]/u.test(ch) && !/\p{Script=Han}/u.test(ch);
     const laidOut = root => {
       let out = '', brk = false;
@@ -575,7 +575,7 @@
     const textOf = el => {
       if (el.matches('.memory,.mix')) return Lab.mixText(el);
       const c = el.cloneNode(true);
-      c.querySelectorAll('rt,rp,.py,button,.speak,.say,script,style,svg,canvas,[aria-hidden=true],.katex-mathml').forEach(n => n.remove());
+      c.querySelectorAll('rt,rp,.py,button,.speak,.say,script,style,svg,canvas,[aria-hidden=true],[data-noread],.katex-mathml').forEach(n => n.remove());
       const kx = c.querySelectorAll('.katex');
       if (kx.length){
         if (!(window.MathAnim && MathAnim.spoken)) return '';
@@ -688,6 +688,7 @@
       }
       return out;
     };
+    Lab.readUnits = el => units(el);   // the clips a double-click on el would read (for texts the page has not shown yet, e.g. quiz items)
     return { on, hide };
   })();
   // voice settings popover (opened from the 🔊 nav button)
@@ -727,9 +728,10 @@
     function load(){ st.picked = null; const q = st.list[st.i]; st.order = q ? Lab.shuffle(q.options.map((_, k) => k)) : []; render(); }
     function render(){
       const n = st.list.length; bar.style.width = (st.i / n * 100) + '%';
-      if (st.i >= n){ qt.innerHTML = fmt(UI.done, {s:st.score, t:n}); op.innerHTML = ''; fb.textContent = ''; ex.textContent = ''; nx.style.display = ''; nx.textContent = Lab.L(UI.again); return; }
+      if (st.i >= n){ qt.innerHTML = `<span data-noread>${fmt(UI.done, {s:st.score, t:n})}</span>`; op.innerHTML = ''; fb.textContent = ''; ex.textContent = ''; nx.style.display = ''; nx.textContent = Lab.L(UI.again); return; }
       const q = st.list[st.i];
-      qt.innerHTML = `<small>${fmt(UI.q, {n:st.i+1, t:n})}</small>${Lab.L(q.q)}`;
+      // the counter is not read: the question is then always the same clip (one recording), whatever its place
+      qt.innerHTML = `<small data-noread>${fmt(UI.q, {n:st.i+1, t:n})}</small>${Lab.L(q.q)}`;
       op.innerHTML = st.order.map(k => `<button class="opt" data-k="${k}">${Lab.L(q.options[k])}</button>`).join('');
       $$('.opt', op).forEach(b => b.onclick = () => pick(+b.dataset.k));
       if (st.picked != null) mark(); else { fb.textContent = ''; ex.textContent = ''; nx.style.display = 'none'; }
@@ -743,6 +745,26 @@
     }
     nx.onclick = () => { if (st.i >= st.list.length) return start(); st.i++; st.i >= st.list.length ? render() : load(); };
     start(); Lab.onLang(render);
+    // every question, option and explanation as a double-click would read it, for the read-aloud crawler (the page shows
+    // only one shuffled question at a time)
+    Lab.readAll(() => {
+      if (!Lab.readUnits) return [];
+      const box = document.createElement('div'); box.className = el.className; box.setAttribute('aria-hidden', 'false');
+      box.style.cssText = `position:absolute;left:-10000px;top:0;width:${el.offsetWidth || 600}px`;
+      document.body.appendChild(box); const out = [];
+      const add = (html, cls, tag) => { const d = document.createElement(tag || 'div'); if (cls) d.className = cls; d.innerHTML = html; box.appendChild(d);
+        const u = Lab.readUnits(d); if (u) u.parts.forEach(t => out.push([t, u.lang])); d.remove(); };
+      try {
+        for (const q of questions){
+          add(Lab.L(q.q), 'qtext');
+          q.options.forEach(o => { const w = document.createElement('div'); w.className = 'opts'; box.appendChild(w);
+            const b = document.createElement('button'); b.className = 'opt'; b.innerHTML = Lab.L(o); w.appendChild(b);
+            const u = Lab.readUnits(b); if (u) u.parts.forEach(t => out.push([t, u.lang])); w.remove(); });
+          if (q.explain) add(Lab.L(q.explain), 'explain');
+        }
+      } finally { box.remove(); }
+      return out;
+    });
     return { restart:start };
   };
 

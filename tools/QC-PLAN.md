@@ -3,6 +3,9 @@
 Draft by the content PC, 2026-11-21, for review by the TTS PC (gladcolor/gc-audio-science issue) and approval by the user.
 Principle: **quality first**; a page or a lesson's audio is "done" only when the checks below say so, never by counting
 our own output. Every problem the user finds becomes a rule and an automatic check.
+**One lesson at a time** (the user, 2026-11-21): recording and checking go lesson by lesson; a lesson is finished,
+checked and confirmed before the next one starts; no more site-wide bulk runs. Progress is reported as complete
+lessons, never as clip counts. Chinese version: `tools/QC-PLAN.zh.md` (keep both in step).
 
 Owners: **CP** content PC (Claude) · **CX** Codex (writer / reviewer) · **TP** TTS PC · **U** the user.
 Check types: **A** automatic script · **L** LLM review (a second, independent pass) · **H** human (listening / looking).
@@ -43,7 +46,8 @@ Check types: **A** automatic script · **L** LLM review (a second, independent p
   right; state survives language switches; read-aloud controls behave (stop on manual turn, auto-read, on-demand).
 - Checks: A headless sweep per page (JS errors, broken images, raw TeX, 390 px overflow) — `tools/qa/phone_sweep`,
   `hover_test`, media steps; A click-through crawl (the read-aloud crawler doubles as a smoke test: "page lost" =
-  failure); L code review of new pages; H the user's hands-on testing.
+  failure); A read-aloud stop test (`.labtmp/test_stop.mjs`: browser voice and recordings; stop bar, Esc, double-click
+  again); L code review of new pages; H the user's hands-on testing.
 - Owner CP/CX. Gate: sweep clean on every new or changed page.
 
 ## 6. Aesthetics (美育, visual calm)
@@ -110,7 +114,13 @@ Check types: **A** automatic script · **L** LLM review (a second, independent p
     alarms, hence the LLM verdict and listening).
   - H listening pages (`listen/`) for samples and every new kind of problem; listening stays the release gate for a
     new engine, voice or rule (automatic scores are smoke tests).
-- Owners CP (transcripts, scripts, Edge), Colab worker (8B), TP (ASR check, independent QC). Gate: audit + validator.
+- Per lesson (one at a time): 1 re-crawl the lesson (on-demand texts and every quiz item); 2 coverage audit
+  (`audit_audio.mjs <id>`); 3 spoken scripts for its new sends (write, review, validate, publish); 4 Edge recording of
+  that lesson (`edge_record.py <lang> <corpus> F:\labtmp_edge <id>`); 5 Serena 8B replaces Edge; 6 QC: audit shows
+  no audio missing, ASR + LLM check; 7 the user listens on `listen/lesson.html?id=<id>`, marks problems, fixes are
+  re-checked; 8 marked complete in the lesson status list, reported, next lesson.
+- Owners CP (transcripts, scripts, Edge), Colab worker (8B), TP (ASR check, independent QC). Gate: audit + validator +
+  the user's listening.
 
 ## 12. Privacy, security, public site
 - Standard: no personal data, no class or school references, no tracking, no secrets in any repo (OpenAI key,
@@ -121,7 +131,8 @@ Check types: **A** automatic script · **L** LLM review (a second, independent p
 ## 13. Technical health and release
 - Standard: catalog ↔ files ↔ transcripts consistent; no dead internal links; SEO block and sitemap current; audio
   repos below the GitHub Pages 1 GB limit (one repo per subject planned); releases reversible.
-- Checks: A catalog/transcript consistency (every live lesson has a transcript); A link check; A repo size check;
+- Checks: A catalog/transcript consistency (every live lesson has a transcript); A crawl comparison (after a re-crawl,
+  a lesson whose clip count in a language drops to 0 or falls clearly is not published but crawled again); A link check; A repo size check;
   A post-publish live check (pages 200, audio manifests reachable).
 - Owner CP. Gate: release checklist below.
 
