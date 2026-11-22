@@ -35,8 +35,15 @@ if not Path('/content/sgl/bin/sgl-omni').exists():          # no archive: instal
     subprocess.run([sys.executable, 'colab_sglang.py', '--status'])
     if not Path('/content/sgl/bin/sgl-omni').exists():
         raise SystemExit('SGLang-Omni did not install; see /content/sgl_setup.log')
-r = subprocess.run([sys.executable, 'colab_worker.py', '--restart', '--push', '--model', '8b', '--langs', 'zh,en',
-                    '--sglang', '32', '--streams', '2', '--yuwen', '--queue'])
-if r.returncode:
-    raise SystemExit('worker start failed')
+# in THIS kernel (like the Drive restore): only the notebook kernel can read GH_TOKEN from Colab Secrets; a separate
+# python process cannot, and the start failed with "no GH_TOKEN" (2026-11-21)
+argv = sys.argv
+sys.argv = ['colab_worker.py', '--restart', '--push', '--model', '8b', '--langs', 'zh,en',
+            '--sglang', '32', '--streams', '2', '--yuwen', '--queue']
+try:
+    exec(compile(open('colab_worker.py', encoding='utf-8').read(), 'colab_worker.py', 'exec'), {'__name__': '__main__'})
+except SystemExit as ex:
+    if ex.code not in (None, 0):
+        raise SystemExit('worker start failed: %s' % ex.code)
+sys.argv = argv
 subprocess.run([sys.executable, 'colab_watch.py', '180'])
