@@ -37,6 +37,13 @@ if not Path('/content/sgl/bin/sgl-omni').exists():          # no archive: instal
     subprocess.run([sys.executable, 'colab_sglang.py', '--status'])
     if not Path('/content/sgl/bin/sgl-omni').exists():
         raise SystemExit('SGLang-Omni did not install; see /content/sgl_setup.log')
+# the QA checks use librosa.pyin (numba): on the newer Colab image (torch 2.14, numba 0.64 / llvmlite 0.46) it dumped core,
+# every QA process died ("BrokenProcessPool") and the worker hung (2026-11-22 19:28 EST). numba 0.68 / llvmlite 0.50 work.
+subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', '-U', 'numba>=0.68', 'llvmlite>=0.50'])
+_t = subprocess.run([sys.executable, '-c', "import numpy as np, librosa; x=np.sin(np.arange(24000)/24000*6.283*200).astype('float32'); "
+                     "f=librosa.pyin(x, fmin=80, fmax=400, sr=24000)[0]; print('QA pitch check ok', round(float(np.nanmean(f))))"],
+                    capture_output=True, text=True, timeout=600)
+print(_t.stdout.strip() or ('QA pitch check FAILED: ' + (_t.stderr or 'crash')[-300:]), flush=True)
 # in THIS kernel (like the Drive restore): only the notebook kernel can read GH_TOKEN from Colab Secrets; a separate
 # python process cannot, and the start failed with "no GH_TOKEN" (2026-11-21)
 argv = sys.argv
