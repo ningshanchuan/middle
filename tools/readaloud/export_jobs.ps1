@@ -61,17 +61,20 @@ foreach ($l in 'en', 'zh') {
   }
   $send = @{}; $text = @{}
   foreach ($r in [IO.File]::ReadAllLines("$gw\gen_preview_$l.tsv", [Text.Encoding]::UTF8)) { $k, $s, $t = $r -split "`t", 3; $send[$k] = ($s -replace '\s+', ' ').Trim(); $text[$k] = ($t -replace '\s+', ' ').Trim() }
-  $owned = @{}
+  $owned = @{}; $hub = @{}
   foreach ($line in [IO.File]::ReadAllLines("$gw\texts_$l.jsonl", [Text.Encoding]::UTF8)) {
     if (-not $line.Trim()) { continue }; $o = $line | ConvertFrom-Json
     if (-not $send.ContainsKey($o.key)) { continue }    # nothing speakable, or too long for one request
+    # a page outside the catalog (the home page, crawled as "./index") plays only the _shared bucket, so its texts go to
+    # shared even when a lesson also has them (the lesson cards on the home page) - 2026-11-22
+    if (@($o.lessons | Where-Object { $_ -and -not $lessons.Contains($_) }).Count) { $hub[$o.key] = 1 }
     foreach ($les in @($o.lessons | Where-Object { $_ } | Sort-Object -Unique)) {
       if (-not $lessons.Contains($les)) { continue }
       $c = [ordered]@{ key = $o.key; lang = $l; send = $send[$o.key]; text = $text[$o.key] }; if ($o.via -eq 'hover') { $c.demand = 1 }; if ($o.style) { $c.style = $o.style; if ($o.work) { $c.work = (Norm-Work $o.work) } }   # style: verse / wenyan / prose original; work: its title   # demand: read only on demand (hover / double-click / long press): record after the others
       $lessons[$les].clips.Add([pscustomobject]$c); $owned[$o.key] = 1
     }
   }
-  foreach ($k in ($send.Keys | Sort-Object)) { if (-not $owned.ContainsKey($k)) { $shared.Add([pscustomobject]@{ key = $k; lang = $l; send = $send[$k]; text = $text[$k] }) } }
+  foreach ($k in ($send.Keys | Sort-Object)) { if (-not $owned.ContainsKey($k) -or $hub.ContainsKey($k)) { $shared.Add([pscustomobject]@{ key = $k; lang = $l; send = $send[$k]; text = $text[$k] }) } }
 }
 function Save-Json($path, $obj) {   # stable text (same input -> same bytes -> same fingerprint)
   New-Item -ItemType Directory -Force (Split-Path $path) | Out-Null
