@@ -385,6 +385,53 @@ const M = WMap.create('#mapStage', '#mapCv', { extent:[[-170,-50],[180,76]], rot
 function keyAt(h){ if (!h) return null; const V = M.view(h); let best = null, bd = 15; EORDER.forEach(k => { const e = EV[k]; if (App.year < e.y || !!e.eu !== !!h.inset) return; const p = V.xy(e.ll); if (!p) return; const d = Math.hypot(p[0] - h.x, p[1] - h.y); if (d < bd){ bd = d; best = k; } }); return best; }
 const tip = m => Lab.$('#mapTip').textContent = Lab.L(m || o('Click a dot or a country · drag the year', '点击圆点或国家 · 拖动年份'));
 function select(k){ App.sel = k; renderInfo(); M.draw(); }
+// Use the same read-aloud units for the live panel and the crawler.
+const PANEL_PARTS = 'h3,h4,p,li,.job,.memory,.mix,.pline,figcaption';
+function panelUnits(panel){
+  const nodes = [...panel.querySelectorAll(PANEL_PARTS)];
+  if (panel.matches(PANEL_PARTS)) nodes.unshift(panel);
+  return nodes.flatMap(node => {
+    if (node.closest('[data-noread]')) return [];
+    const units = Lab.readUnits(node);
+    return units ? units.parts.map(text => [text, units.lang]) : [];
+  });
+}
+function speakPanel(panel){
+  const parts = panelUnits(panel);
+  let i = 0;
+  const next = ok => {
+    if (ok === false || i >= parts.length) return;
+    const [text, lang] = parts[i++];
+    Lab.speak(text, { lang, inner:true, onend:next });
+  };
+  next();
+}
+function registerPanels(host, items, markup, plain = false){
+  Lab.readAll(() => {
+    const panel = host.cloneNode(false);
+    panel.removeAttribute('id');
+    panel.removeAttribute('aria-live');
+    panel.setAttribute('aria-hidden', 'true');
+    panel.style.cssText = 'position:absolute;left:-10000px;top:0;width:' + (host.offsetWidth || 360) + 'px';
+    host.parentElement.appendChild(panel);
+    try {
+      return items.flatMap((item, index) => {
+        if (plain) panel.textContent = markup(item, index);
+        else panel.innerHTML = markup(item, index);
+        return panelUnits(panel);
+      });
+    } finally {
+      panel.remove();
+    }
+  });
+}
+function infoMarkup(k){
+  const e = EV[k];
+  return `<span class="tag pline">${Lab.L(e.date)}</span><h3><span class="dot" style="background:${e.c}"></span>${Lab.L(e.name)}</h3>
+    <b class="kh">${Lab.L(o('📌 KEY FACTS','📌 要点'))}</b><ul>${Lab.L(e.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(e.rhyme)}</div><div class="mix"><b>${Lab.L(o('⚠️ Don’t mix up:','⚠️ 易错点：'))}</b><span>${Lab.L(e.mix)}</span></div>`;
+}
+registerPanels(Lab.$('#info'), EORDER, k => infoMarkup(k));
 function renderInfo(){
   const box = Lab.$('#info'), k = App.sel;
   if (!k){ box.innerHTML = `<span class="tag">${Lab.L(o('Globalization','全球化'))}</span><h3>${Lab.L(o('Three ways the world links up','世界连成一体的三种方式'))}</h3>
@@ -392,13 +439,11 @@ function renderInfo(){
       <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(o('UN ’45 · Rome ’57 · reform ’78 · EU ’93 · WTO ’95 · China in WTO ’01 · euro ’02 · SDGs ’15.','联合国四五，罗马条约五七，改革开放七八，欧盟九三，世贸九五，中国入世零一，欧元零二，可持续发展目标一五。'))}</div>
       <div class="nav"><button id="startBtn">${Lab.L(o('Start with 1945 ▶','从1945年开始 ▶'))}</button></div>`;
     Lab.$('#startBtn').onclick = () => { go(1945); select('un'); }; return; }
-  const e = EV[k], i = EORDER.indexOf(k);
-  box.innerHTML = `<span class="tag">${Lab.L(e.date)}</span><h3><span class="dot" style="background:${e.c}"></span>${Lab.L(e.name)}</h3>
-    <b class="kh">${Lab.L(o('📌 KEY FACTS','📌 要点'))}</b><ul>${Lab.L(e.facts).map(f => `<li>${f}</li>`).join('')}</ul>
-    <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(e.rhyme)}</div><div class="mix"><b>${Lab.L(o('⚠️ Don’t mix up:','⚠️ 易错点：'))}</b><span>${Lab.L(e.mix)}</span></div>
+  const i = EORDER.indexOf(k);
+  box.innerHTML = infoMarkup(k) + `
     <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
-  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(e.name), Lab.L(e.date), ...Lab.L(e.facts)].join(Lab.lang === 'zh' ? '。' : '. '));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box);
   const jump = d => { const n = EORDER[(i + d + EORDER.length) % EORDER.length]; go(EV[n].y); select(n); };
   Lab.$('#pPrev').onclick = () => jump(-1); Lab.$('#pNext').onclick = () => jump(1);
 }
@@ -452,6 +497,14 @@ const PM = WMap.create('#phoneStage', '#phoneCv', { extent:[[-180,-45],[180,70]]
 });
 function guess(f){ const p = PARTS[PH.i], ok = p.src.includes(f.name); PH.ans = { name:f, ok }; const pts = ok ? 10 : 0; PH.run += pts; PH.total += pts;
   PH.res.push({ ok, pts:p.pts }); PH.km += p.pts.reduce((s, c) => s + (PT[c] ? d3.geoDistance(PT[c], HUB) * 6371 : 0), 0); renderPhone(); PM.draw(); }
+const phoneTitle = (p, index) => `<span class="tag pline">${Lab.L(o('Part', '零件'))} ${index + 1}/${PARTS.length}</span><h3>📱 ${Lab.L(p.n)}</h3>`;
+const phonePrompt = () => `<p class="muted">${Lab.L(o('Click the country on the map where this mostly comes from.', '在地图上点击它主要来自的国家。'))}</p>`;
+const phoneFact = p => `<span class="pline">${Lab.L(p.f)}</span>`;
+const phoneMemory = () => `<div class="memory"><b>${Lab.L(o('💡 Why so many countries?','💡 为什么要这么多国家？'))}</b>${Lab.L(o('Each country specializes in what it does best or cheapest — economists call it comparative advantage. Trade lets everyone get the best parts.', '每个国家专门做自己最擅长或成本最低的事——经济学家称之为“比较优势”。贸易让大家都能得到最好的零件。'))}</div>`;
+const shipBrief = () => `<span class="tag pline">${Lab.L(o('Last step','最后一步'))}</span><h3>${Lab.L(o('Ship it to Atlanta!','运到亚特兰大！'))}</h3><p>${Lab.L(o('Your phone leaves South China by container ship, crosses the Pacific, goes through the Panama Canal and lands at the Port of Savannah — one of the busiest container ports in the US — then rides a truck to Atlanta.', '你的手机装上集装箱船从华南出发，横渡太平洋，穿过巴拿马运河，到达萨凡纳港——美国最繁忙的集装箱港口之一——再坐卡车到亚特兰大。'))}</p>`;
+const shipHistory = () => `<span class="pline">${Lab.L(o(`About ${new Set(PARTS.flatMap(p => p.pts)).size} countries in this one phone: that is globalization — and why one blocked canal or one closed factory can delay products everywhere.`, `一部手机就涉及约 ${new Set(PARTS.flatMap(p => p.pts)).size} 个国家和地区：这就是全球化——也说明为什么一条运河堵塞、一家工厂停工，就会让世界各地的商品延误。`))}</span>`;
+registerPanels(Lab.$('#pBox'), PARTS, (p, i) => phoneTitle(p, i) + phonePrompt() + phoneFact(p) + phoneMemory());
+registerPanels(Lab.$('#pBox'), [null], () => shipBrief() + shipHistory());
 function renderPhone(){
   Lab.$('#pScore').textContent = PH.total; Lab.$('#pRun').textContent = PH.run + '/' + PARTS.length * 10;
   const st = PH.run >= 95 ? 3 : PH.run >= 70 ? 2 : PH.run >= 45 ? 1 : 0; Lab.$('#pStars').textContent = stars(st); Lab.$('#pRanks').innerHTML = ranksHTML(PR, PH.total);
@@ -459,16 +512,16 @@ function renderPhone(){
   Lab.$('#pParts').innerHTML = PARTS.map((p, j) => `<span class="${j < PH.res.length ? (PH.res[j].ok ? 'ok' : 'no') : j === PH.i ? 'on' : ''}">${j < PH.res.length ? (PH.res[j].ok ? '✓ ' : '✗ ') : ''}${j + 1}</span>`).join('');
   const box = Lab.$('#pBox');
   if (PH.i >= PARTS.length){
-    box.innerHTML = `<span class="tag">${Lab.L(o('Last step','最后一步'))}</span><h3>${Lab.L(o('Ship it to Atlanta!','运到亚特兰大！'))}</h3><p>${Lab.L(o('Your phone leaves South China by container ship, crosses the Pacific, goes through the Panama Canal and lands at the Port of Savannah — one of the busiest container ports in the US — then rides a truck to Atlanta.', '你的手机装上集装箱船从华南出发，横渡太平洋，穿过巴拿马运河，到达萨凡纳港——美国最繁忙的集装箱港口之一——再坐卡车到亚特兰大。'))}</p>
-      ${PH.ship >= 1 ? `<p class="stars" style="margin:0">${stars(st)}</p><div class="fb good">${Lab.L(o(`Delivered! Round score ${PH.run}/${PARTS.length * 10}. About ${new Set(PARTS.flatMap(p => p.pts)).size} countries in this one phone: that is globalization — and why one blocked canal or one closed factory can delay products everywhere.`, `送达！本轮得分 ${PH.run}/${PARTS.length * 10}。一部手机就涉及约 ${new Set(PARTS.flatMap(p => p.pts)).size} 个国家和地区：这就是全球化——也说明为什么一条运河堵塞、一家工厂停工，就会让世界各地的商品延误。`))}</div><div class="btnrow"><button class="btn" id="pAgain">${Lab.L(o('Play again ▶','再玩一轮 ▶'))}</button></div>` : `<div class="btnrow"><button class="btn" id="pShip">${Lab.L(o('🚢 Ship it','🚢 开船'))}</button></div>`}`;
+    box.innerHTML = shipBrief() + `
+      ${PH.ship >= 1 ? `<p class="stars" style="margin:0">${stars(st)}</p><div class="fb good">${Lab.L(o(`Delivered! Round score ${PH.run}/${PARTS.length * 10}. `, `送达！本轮得分 ${PH.run}/${PARTS.length * 10}。`))}${shipHistory()}</div><div class="btnrow"><button class="btn" id="pAgain">${Lab.L(o('Play again ▶','再玩一轮 ▶'))}</button></div>` : `<div class="btnrow"><button class="btn" id="pShip">${Lab.L(o('🚢 Ship it','🚢 开船'))}</button></div>`}`;
     const s = Lab.$('#pShip'); if (s) s.onclick = () => { const t0 = performance.now(); const step = now => { PH.ship = Math.min(1, (now - t0) / 4000); PM.draw(); if (PH.ship < 1) requestAnimationFrame(step); else renderPhone(); }; requestAnimationFrame(step); };
     const a = Lab.$('#pAgain'); if (a) a.onclick = () => { PH.run = 0; PH.i = 0; PH.res = []; PH.ans = null; PH.ship = 0; PH.km = 0; renderPhone(); PM.draw(); };
     return; }
   const p = PARTS[PH.i];
-  box.innerHTML = `<span class="tag">${Lab.L(o('Part', '零件'))} ${PH.i + 1}/${PARTS.length}</span><h3>📱 ${Lab.L(p.n)}</h3>
-    ${PH.ans ? `<div class="fb ${PH.ans.ok ? 'good' : 'bad'}">${PH.ans.ok ? '✅ ' : '🤔 ' + Lab.L(o(`Not mainly ${PH.ans.name.en}. `, `主要不是${PH.ans.name.zh}。`))}${Lab.L(p.f)}</div><div class="btnrow"><button class="btn" id="pNext">${Lab.L(o('Next part ▶','下一个零件 ▶'))}</button></div>`
-      : `<p class="muted">${Lab.L(o('Click the country on the map where this mostly comes from.', '在地图上点击它主要来自的国家。'))}</p>`}
-    <div class="memory"><b>${Lab.L(o('💡 Why so many countries?','💡 为什么要这么多国家？'))}</b>${Lab.L(o('Each country specializes in what it does best or cheapest — economists call it comparative advantage. Trade lets everyone get the best parts.', '每个国家专门做自己最擅长或成本最低的事——经济学家称之为“比较优势”。贸易让大家都能得到最好的零件。'))}</div>`;
+  box.innerHTML = `${phoneTitle(p, PH.i)}
+    ${PH.ans ? `<div class="fb ${PH.ans.ok ? 'good' : 'bad'}">${PH.ans.ok ? '✅ ' : '🤔 ' + Lab.L(o(`Not mainly ${PH.ans.name.en}. `, `主要不是${PH.ans.name.zh}。`))}${phoneFact(p)}</div><div class="btnrow"><button class="btn" id="pNext">${Lab.L(o('Next part ▶','下一个零件 ▶'))}</button></div>`
+      : `${phonePrompt()}`}
+${phoneMemory()}`;
   const n = Lab.$('#pNext'); if (n) n.onclick = () => { PH.ans = null; PH.i++; renderPhone(); PM.draw(); };
   Lab.$('#phoneTip').textContent = Lab.L(o('Click a country', '点击一个国家'));
 }
@@ -486,17 +539,26 @@ const SCEN = [ { g:6, t:o('A village gets a well and toilets, so children no lon
   { g:14, t:o('A country bans plastic bags to protect sea turtles and coral reefs.','一个国家禁用塑料袋，保护海龟和珊瑚礁。') }, { g:3, t:o('Free vaccines protect every child against measles.','免费疫苗让每个孩子都能预防麻疹。') },
   { g:12, t:o('A town recycles electronics and teaches people to buy only what they need.','一个小镇回收电子产品，教人们只买需要的东西。') }, { g:2, t:o('Free school lunches make sure no child studies on an empty stomach.','免费午餐让孩子们不再饿着肚子上课。') } ];
 (function(){
+  const scenarioMarkup = scenario => `<span class="pline">${Lab.L(scenario.t)}</span>`;
+  const goalsDone = () => Lab.L(o('🎉 All matched! Tap any goal to see what you can do.', '🎉 全部配对完成！点击任意目标，看看你能做什么。'));
+  const goalFeedback = (g, s, state) => [o(`Goal ${g} · ${s[1].en}: ${s[2].en}`, `目标${g} · ${s[1].zh}：${s[2].zh}`), o(`✅ Goal ${g}: ${s[1].en}. You can help: ${s[2].en}`, `✅ 目标${g}：${s[1].zh}。你可以：${s[2].zh}`), o(`❌ Goal ${g} is “${s[1].en}”. Try another.`, `❌ 目标${g}是“${s[1].zh}”，再试试。`)][state];
+  registerPanels(Lab.$('#dCard'), SCEN, scenarioMarkup);
+  const goalsDoneMarkup = () => `<span class="pline">${goalsDone()}</span>`;
+  registerPanels(Lab.$('#dCard'), [null], goalsDoneMarkup);
+  Lab.$('#dMsg').classList.add('pline');
+  const goalResults = SDG.flatMap((s, i) => (SCEN.some(scenario => scenario.g === i + 1) ? [0, 1, 2] : [0, 2]).map(state => [i + 1, s, state]));
+  registerPanels(Lab.$('#dMsg'), goalResults, args => Lab.L(goalFeedback(...args)), true);
   const D = { i:0, ok:0, tries:0, streak:0, order:Lab.shuffle(SCEN.map((_, i) => i)), msg:null };
   function render(){
     Lab.$('#dScore').textContent = D.ok + '/' + SCEN.length; Lab.$('#dTry').textContent = D.tries; Lab.$('#dStreak').textContent = D.streak;
-    Lab.$('#dCard').innerHTML = D.i < SCEN.length ? `<b>${D.i + 1}/${SCEN.length}</b> · ${Lab.L(SCEN[D.order[D.i]].t)}` : Lab.L(o('🎉 All matched! Tap any goal to see what you can do.', '🎉 全部配对完成！点击任意目标，看看你能做什么。'));
+    Lab.$('#dCard').innerHTML = D.i < SCEN.length ? `<b>${D.i + 1}/${SCEN.length}</b> · ${scenarioMarkup(SCEN[D.order[D.i]])}` : goalsDoneMarkup();
     Lab.$('#sdgGrid').innerHTML = SDG.map((s, j) => `<button style="background:${s[0]}" data-g="${j + 1}"><b>${j + 1}</b>${Lab.L(s[1])}</button>`).join('');
-    const m = Lab.$('#dMsg'); m.className = 'result ' + (D.msg ? D.msg.c : ''); m.textContent = D.msg ? Lab.L(D.msg.t) : '';
+    const m = Lab.$('#dMsg'); m.className = 'result pline ' + (D.msg ? D.msg.c : ''); m.textContent = D.msg ? Lab.L(D.msg.t) : '';
     Lab.$$('#sdgGrid button').forEach(b => b.onclick = () => { const g = +b.dataset.g, s = SDG[g - 1];
-      if (D.i >= SCEN.length){ D.msg = { c:'good', t:o(`Goal ${g} · ${s[1].en}: ${s[2].en}`, `目标${g} · ${s[1].zh}：${s[2].zh}`) }; render(); return; }
+      if (D.i >= SCEN.length){ D.msg = { c:'good', t:goalFeedback(g, s, 0) }; render(); return; }
       D.tries++; const want = SCEN[D.order[D.i]].g;
-      if (g === want){ D.ok++; D.streak++; D.i++; D.msg = { c:'good', t:o(`✅ Goal ${g}: ${s[1].en}. You can help: ${s[2].en}`, `✅ 目标${g}：${s[1].zh}。你可以：${s[2].zh}`) }; render(); }
-      else { D.streak = 0; D.msg = { c:'bad', t:o(`❌ Goal ${g} is “${s[1].en}”. Try another.`, `❌ 目标${g}是“${s[1].zh}”，再试试。`) }; render(); const nb = Lab.$(`#sdgGrid button[data-g="${g}"]`); if (nb) nb.classList.add('wrong'); } });
+      if (g === want){ D.ok++; D.streak++; D.i++; D.msg = { c:'good', t:goalFeedback(g, s, 1) }; render(); }
+      else { D.streak = 0; D.msg = { c:'bad', t:goalFeedback(g, s, 2) }; render(); const nb = Lab.$(`#sdgGrid button[data-g="${g}"]`); if (nb) nb.classList.add('wrong'); } });
   }
   Lab.onLang(render);
 })();
@@ -504,13 +566,16 @@ const SCEN = [ { g:6, t:o('A village gets a well and toilets, so children no lon
 (function(){
   const cv = Lab.$('#povCv'), g = cv.getContext('2d'), DATA = { 1990:38, 1999:29, 2005:22, 2010:16, 2015:10, 2019:9 }, yrs = Object.keys(DATA).map(Number); let sel = 1990, bars = [];
   const NOTE = { 1990:o('About 2 billion people lived on less than $2.15 a day.','约20亿人每天生活费不足2.15美元。'), 1999:o('Growth in China and India starts to pull the number down.','中国和印度的经济增长开始让贫困人口减少。'), 2005:o('China’s share of the world’s poor falls fast.','中国在世界贫困人口中的比重迅速下降。'), 2010:o('The Millennium goal of halving extreme poverty is reached early.','“千年发展目标”中贫困人口减半的目标提前实现。'), 2015:o('The SDGs aim to end extreme poverty by 2030.','可持续发展目标提出到2030年消除极端贫困。'), 2019:o('Progress slowed; the COVID-19 pandemic (2020) pushed millions back into poverty.','进展放缓；新冠疫情（2020年）使数以百万计的人重新陷入贫困。') };
+  const povertyMarkup = year => `<b>${year}</b> · ≈ ${DATA[year]}% — ${Lab.L(NOTE[year])}`;
+  Lab.$('#povRead').classList.add('pline');
+  registerPanels(Lab.$('#povRead'), yrs, povertyMarkup);
   function draw(){ const r = cv.parentElement.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!r.width) return;
     cv.width = r.width * d; cv.height = r.height * d; g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, r.width, r.height);
     const L = 30, B = 22, T = 14, W = r.width - L - 6, H = r.height - T - B, bw = W / yrs.length;
     [0, 10, 20, 30, 40].forEach(t => { const y = T + H - t / 42 * H; g.strokeStyle = css('--line'); g.beginPath(); g.moveTo(L, y); g.lineTo(L + W, y); g.stroke(); g.fillStyle = css('--ink-2'); g.font = '11px Nunito, sans-serif'; g.textAlign = 'right'; g.textBaseline = 'middle'; g.fillText(t + '%', L - 4, y); });
     bars = yrs.map((y, i) => { const v = DATA[y], h = v / 42 * H, x = L + i * bw + bw * .15, on = y === sel; g.fillStyle = on ? css('--accent') : '#E5243B'; g.globalAlpha = on ? 1 : .7; g.fillRect(x, T + H - h, bw * .7, h); g.globalAlpha = 1;
       g.fillStyle = css('--ink'); g.textAlign = 'center'; g.font = `${on ? 800 : 600} 11px Nunito, sans-serif`; g.fillText(v + '%', x + bw * .35, T + H - h - 7); g.fillStyle = css('--ink-2'); g.fillText(y, x + bw * .35, T + H + 11); return { y, x0:L + i * bw, x1:L + (i + 1) * bw }; });
-    Lab.$('#povRead').innerHTML = `<b>${sel}</b> · ≈ ${DATA[sel]}% — ${Lab.L(NOTE[sel])}`; }
+    Lab.$('#povRead').innerHTML = povertyMarkup(sel); }
   cv.addEventListener('click', e => { const x = e.clientX - cv.getBoundingClientRect().left, b = bars.find(b => x >= b.x0 && x < b.x1); if (b){ sel = b.y; draw(); } });
   new ResizeObserver(() => requestAnimationFrame(draw)).observe(cv.parentElement);
   new MutationObserver(() => setTimeout(draw, 60)).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme'] });

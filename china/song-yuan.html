@@ -265,6 +265,127 @@ const STORY = [
 /* ===== 信息面板 ===== */
 const App = window.SY = { sel:null, three:null };
 App.select = (k, from3D) => { App.sel = k; renderInfo(); renderChips(); if (!from3D && App.three) App.three.focus(k); };
+// Use the same read-aloud units for the crawler and the panel's Listen button.
+const PANEL_PARTS = '.tag,h3,h4,.job,p,li,.memory,.mix,figcaption,.quote';
+function panelUnits(el, selector = PANEL_PARTS, visibleOnly = false){
+  const nodes = selector ? el.querySelectorAll(selector) : [el];
+  const out = [];
+  for (const node of nodes){
+    if (visibleOnly && !node.getClientRects().length) continue;
+    const unit = Lab.readUnits(node);
+    if (!unit) continue;
+    const style = node.closest('[data-read-style]');
+    for (const text of unit.parts){
+      out.push(style ? [text, unit.lang, {style:style.dataset.readStyle, work:style.dataset.work}] : [text, unit.lang]);
+    }
+  }
+  return out;
+}
+function speakPanel(el, selector){
+  const parts = panelUnits(el, selector, true);
+  let i = 0;
+  const next = ok => {
+    if (ok === false || i >= parts.length) return;
+    const [text, lang] = parts[i++];
+    Lab.speak(text, {lang, inner:true, onend:next});
+  };
+  next();
+}
+function offscreenPanel(host){
+  const tmp = host.cloneNode(false);
+  tmp.removeAttribute('id');
+  tmp.removeAttribute('aria-live');
+  tmp.style.cssText = 'position:absolute;left:-10000px;top:0;box-sizing:border-box;width:' + (host.offsetWidth || 360) + 'px';
+  return tmp;
+}
+function collectPanelTexts(host, items, render, selector){
+  if (!host?.parentElement) return [];
+  const tmp = offscreenPanel(host);
+  host.after(tmp);
+  const out = [];
+  try {
+    for (const item of items){
+      render(tmp, item);
+      out.push(...panelUnits(tmp, selector));
+    }
+  } finally { tmp.remove(); }
+  return out;
+}
+// Place-name glosses are inserted by the shared observer after a panel is rendered.
+function registerHistoryTexts(getHost, items, render, selector){
+  let glossed = [];
+  Lab.onLang(() => {
+    glossed = [];
+    const lang = Lab.lang;
+    setTimeout(async () => {
+      const host = getHost();
+      if (!host?.parentElement || !window.LabPlaces || Lab.lang !== lang) return;
+      const copies = [];
+      try {
+        const pinyinModes = lang === 'zh' ? [true, false] : [true];
+        for (const pinyin of pinyinModes){
+          for (const item of items){
+            const tmp = offscreenPanel(host);
+            const scope = document.createElement('div');
+            scope.className = 'card';
+            scope.style.cssText = 'position:absolute;left:-10000px;top:0;pointer-events:none';
+            scope.setAttribute('aria-hidden', 'true');
+            if (!pinyin) scope.setAttribute('data-nopy', '');
+            tmp.style.left = '0';
+            scope.appendChild(tmp);
+            copies.push([scope, tmp]);
+            host.after(scope);
+            render(tmp, item);
+          }
+        }
+        const collectGlosses = () => copies.flatMap(([,tmp]) => tmp.querySelector('.lp-jin') ? panelUnits(tmp, selector) : []);
+        const afterPaint = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+        await afterPaint();
+        if (Lab.lang !== lang) return;
+        const first = collectGlosses();
+        // The place-link observer also runs after a short debounce and can expose another gloss.
+        await new Promise(resolve => setTimeout(resolve, 350));
+        await afterPaint();
+        if (Lab.lang === lang) glossed = first.concat(collectGlosses());
+      } finally {
+        for (const [scope] of copies) scope.remove();
+      }
+    }, 80);
+  });
+  Lab.readAll(() => {
+    const raw = collectPanelTexts(getHost(), items, render, selector);
+    const seen = new Set(raw.map(([text, lang]) => lang + '|' + text));
+    return raw.concat(glossed.filter(([text, lang]) => {
+      const key = lang + '|' + text;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }));
+  });
+}
+function registerPanelValues(host, items, value){
+  registerHistoryTexts(() => Lab.$(host), items, (tmp, item) => { tmp.textContent = value(item); }, null);
+}
+function registerStoryTexts(steps){
+  Lab.readAll(() => collectPanelTexts(Lab.$('#stage .lab-caption') || Lab.$('#stage'), steps, (tmp, step) => {
+    tmp.textContent = Lab.L(step);
+  }, null));
+}
+function registerPanelTexts(host, items, markup, selector){
+  registerHistoryTexts(() => Lab.$(host), items, (tmp, item) => { tmp.innerHTML = markup(item); }, selector);
+}
+function infoMarkup(k){
+  const p = PARTS[k], i = ORDER.indexOf(k);
+  return `<span class="tag">${Lab.L(o('Quanzhou harbour','泉州港'))} · ${i + 1}/${ORDER.length}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    <b style="font-size:13px;color:var(--ink-2)">${Lab.L(o('KEY FACTS','知识要点'))}</b>
+    <ul>${Lab.L(p.facts).map(f => `<li>${f.replace(COMPASS_QUOTE, `<span class="quote" data-read-style="wenyan" data-work="萍洲可谈">${COMPASS_QUOTE}</span>`)}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆口诀'))}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 易错点：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}`;
+}
+registerPanelTexts('#info', ORDER, infoMarkup);
+registerStoryTexts(STORY);
 function renderInfo(){
   const box = Lab.$('#info'), k = App.sel;
   if (!k){
@@ -276,17 +397,11 @@ function renderInfo(){
     Lab.$('#startBtn').onclick = () => App.select('quanzhou');
     return;
   }
-  const p = PARTS[k], i = ORDER.indexOf(k);
-  box.innerHTML = `<span class="tag">${Lab.L(o('Quanzhou harbour','泉州港'))} · ${i + 1}/${ORDER.length}</span>
-    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
-    <div class="job">${Lab.L(p.job)}</div>
-    <b style="font-size:13px;color:var(--ink-2)">${Lab.L(o('KEY FACTS','知识要点'))}</b>
-    <ul>${Lab.L(p.facts).map(f => `<li>${f.replace(COMPASS_QUOTE, `<span class="quote" data-read-style="wenyan" data-work="萍洲可谈">${COMPASS_QUOTE}</span>`)}</li>`).join('')}</ul>
-    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆口诀'))}</b>${Lab.L(p.hint)}</div>
-    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 易错点：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+  const i = ORDER.indexOf(k);
+  box.innerHTML = infoMarkup(k) + `
     <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
-  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts), Lab.L(p.hint)].join('。'));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box);
   Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
   Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
 }
@@ -516,6 +631,10 @@ function gRender(){
   Lab.$('#gBar').style.width = (gs.ok / XS.length * 100) + '%';
 }
 const gMsg = (t, good) => { const m = Lab.$('#gMsg'); m.textContent = t; m.className = 'result ' + (good === true ? 'good' : good === false ? 'bad' : ''); };
+const provinceResult = x => '✅ ' + Lab.L(x.name) + ':' + Lab.L(x.note);
+const provinceHint = x => '💡 ' + Lab.L(x.note);
+registerPanelValues('#gMsg', XS, provinceResult);
+registerPanelValues('#gMsg', XS, provinceHint);
 G.cv.addEventListener('pointerdown', e => {
   const b = G.cv.getBoundingClientRect(), wx = G.wx(e.clientX - b.left), wy = G.wy(e.clientY - b.top);
   if (!gs.sel){ gMsg(Lab.L(o('First choose a name on the right.','请先在右边选一个名称。'))); return; }
@@ -526,7 +645,7 @@ G.cv.addEventListener('pointerdown', e => {
     gs.done[x.id] = 1; gs.ok++; gs.sel = null; if (!gs.tries[x.id]) gs.first++;
     const hot = x.id === 'xuanzheng' || x.id === 'penghu', m = [G.dot(tx, ty, { color:hot ? C.pink : C.teal, r:.09 }), G.text(x.name, tx, ty - .26, { size:.2, color:hot ? '#ffc2dc' : '#bdf3e4' })];
     m.forEach(t => G.pop(t, .35)); gMarks.push(...m);
-    gMsg('✅ ' + Lab.L(x.name) + ':' + Lab.L(x.note), true);
+    gMsg(provinceResult(x), true);
     if (gs.ok === XS.length) gMsg(Lab.fmt(o('🎉 All placed! First-try score {f}/13, misses {m}. The Yuan province system is the origin of China’s provinces today.','🎉 全部放对！一次放对 {f}/13，失误 {m} 次。元朝行省制度是我国省制的开端。'), { m:gs.bad, f:gs.first }), true);
   } else {
     gs.bad++; gs.tries[x.id] = (gs.tries[x.id] || 0) + 1;
@@ -540,7 +659,7 @@ G.cv.addEventListener('pointerdown', e => {
 Lab.$('#gNew').onclick = () => { gMarks.splice(0).forEach(m => G.remove(m)); if (gHintRing){ G.remove(gHintRing); gHintRing = null; } Object.assign(gs, { sel:null, done:{}, ok:0, bad:0, first:0, tries:{} }); gMsg(''); gRender(); };
 Lab.$('#gHint').onclick = () => {
   const x = XS.find(v => v.id === gs.sel) || XS.find(v => !gs.done[v.id]); if (!x) return;
-  gs.sel = x.id; gRender(); gMsg('💡 ' + Lab.L(x.note));
+  gs.sel = x.id; gRender(); gMsg(provinceHint(x));
 };
 Lab.onLang(() => gRender());
 
@@ -648,14 +767,20 @@ Lab.onLang(() => gRender());
   });
   const cur = () => { let c = EV[0]; EV.forEach(e => { if (e.y <= Y.year) c = e; }); return c; };
   const world = () => { let w = WORLD[0]; WORLD.forEach(x => { if (x[0] <= Y.year) w = x; }); return w[1]; };
+  const stateMarkup = info => `<p class="muted" style="font-size:14px">${info ? Lab.L(info) : Lab.L(o('States on the map this year — tap one to meet it.','这一年并存的政权——点一个，认识它。'))}</p>`;
+  const eventMarkup = ev => `<h3>${ev.y}${Lab.lang === 'zh' ? '年' : ''} · ${Lab.L(ev.t)}</h3><p>${Lab.L(ev.b)}</p>`;
+  const worldMarkup = info => `<div class="world"><b>${Lab.L(o('🌎 Meanwhile, elsewhere:','🌎 同一时期的世界：'))}</b> ${Lab.L(info)}</div>`;
+  registerPanelTexts('#yrCard', [null, ...Object.values(ST)], state => stateMarkup(state?.info), 'p');
+  registerPanelTexts('#yrCard', EV, eventMarkup, 'h3,p');
+  registerPanelTexts('#yrCard', WORLD, ([,info]) => worldMarkup(info), '.world');
   function card(){
     const y = Y.year, ev = cur(), live = ORDER.filter(k => alive(k, y));
     if (Y.pick && !live.includes(Y.pick)) Y.pick = null;
     Lab.$('#yrCard').innerHTML = `<div class="big">${y}</div>
       <div class="who">${live.map(k => `<button data-k="${k}" style="border-color:${COL[k]}" class="${Y.pick === k ? 'on' : ''}">${Lab.L(ST[k].name)}</button>`).join('')}</div>
-      <p class="muted" style="font-size:14px">${Y.pick ? Lab.L(ST[Y.pick].info) : Lab.L(o('States on the map this year — tap one to meet it.','这一年并存的政权——点一个，认识它。'))}</p>
-      <h3>${ev.y}${Lab.lang === 'zh' ? '年' : ''} · ${Lab.L(ev.t)}</h3><p>${Lab.L(ev.b)}</p>
-      <div class="world"><b>${Lab.L(o('🌎 Meanwhile, elsewhere:','🌎 同一时期的世界：'))}</b> ${Lab.L(world())}</div>
+      ${stateMarkup(Y.pick && ST[Y.pick].info)}
+      ${eventMarkup(ev)}
+      ${worldMarkup(world())}
       <div class="btnrow"><button class="btn ghost" id="yrPrev">${Lab.L(o('◀ Previous event','◀ 上一件大事'))}</button><button class="btn" id="yrNext">${Lab.L(o('Next event ▶','下一件大事 ▶'))}</button></div>`;
     Lab.$$('#yrCard .who button').forEach(b => b.onclick = () => { Y.pick = Y.pick === b.dataset.k ? null : b.dataset.k; card(); });
     Lab.$('#yrPrev').onclick = () => go(step(-1)); Lab.$('#yrNext').onclick = () => go(step(1));

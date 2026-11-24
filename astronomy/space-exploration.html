@@ -69,7 +69,7 @@
 
 <section class="wrap" id="explore" data-nav="3D Lab" data-nav-zh="3D 实验室">
   <div class="explorer">
-    <div class="stage card space" id="stage" data-3d>
+    <div class="stage card space" id="stage" data-3d><div class="lab-caption pline"></div>
       <div class="toolbar">
         <button class="tbtn on" id="modeRocket" data-zh="🚀 火箭">🚀 Rocket</button>
         <button class="tbtn" id="modeScope" data-zh="🔭 望远镜">🔭 Telescopes</button>
@@ -127,8 +127,8 @@
         <div class="vepre" id="sePre"></div>
         <label class="ctl" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="seNoDrag"> <span data-zh="关掉空气阻力（好像在没有空气的星球上发射）">Turn off air drag (like launching from an airless world)</span></label>
         <div class="fml" id="seF"></div>
-        <div><b data-zh="🎯 挑战">🎯 Challenge</b> <span id="seChQ"></span> <button class="btn ghost sm" id="seChNew" data-zh="换一个 ↻">New ↻</button></div>
-        <div class="result" id="seCh"></div>
+        <div><b data-zh="🎯 挑战">🎯 Challenge</b> <span class="pline" id="seChQ"></span> <button class="btn ghost sm" id="seChNew" data-zh="换一个 ↻">New ↻</button></div>
+        <div class="result pline" id="seCh"></div>
       </div>
       <div>
         <div class="regr" data-nofs><canvas id="seCv" aria-label="Rocket equation: change in speed against mass ratio"></canvas></div>
@@ -151,7 +151,7 @@
       <h3 data-zh="🤔 谁更早？">🤔 Which came first?</h3>
       <p class="muted" style="margin:0" data-zh="点击你认为更早发生的事件。">Tap the event you think happened first.</p>
       <div class="which" id="which"></div>
-      <div class="result" id="whichMsg"></div>
+      <div class="result pline" id="whichMsg"></div>
       <div class="counters"><div class="counter"><b id="wOk">0</b><span data-zh="答对">correct</span></div><div class="counter"><b id="wStreak">0</b><span data-zh="连续答对">in a row</span></div></div>
       <button class="btn ghost" id="whichNext" data-zh="下一题 ▶">Next pair ▶</button>
     </div>
@@ -353,30 +353,87 @@ const altKm = T => 200 * Math.pow(altU(T) / ALTMAX, 1.3);
 /* ===== Info panel / selection ===== */
 const ord = () => APP.mode === 'rocket' ? ORDER_R : ORDER_T;
 APP.select = (k, from3D) => { APP.sel = k; renderInfo(); renderChips(); if (!from3D && APP.three) APP.three.focus(k); };
-function renderInfo(){
-  const box = Lab.$('#info'), k = APP.sel;
-  if (!k){
-    const R = APP.mode === 'rocket';
-    box.innerHTML = `<span class="tag">${Lab.L(R ? o('Rockets','火箭') : o('Telescopes','望远镜'))}</span>
-      <h3>${Lab.L(R ? o('A multi-stage rocket','多级火箭') : o('Four ways to collect light','收集光的四种方式'))}</h3>
-      <p class="muted" style="margin:0">${Lab.L(R ? o('Press Launch or drag the mission-time slider. Watch the stages drop away as their fuel runs out, and turn on Action–reaction to see Newton’s third law.','点击“发射”或拖动任务时间滑块。观察每一级燃料用完后怎样分离脱落，再打开“作用力与反作用力”看看牛顿第三定律。')
-        : o('Watch light travel through each telescope. Then switch the light type: which telescopes can detect radio waves, infrared or X-rays? Which kinds of light can get through the air?','观察光在每种望远镜里怎样传播。再切换光的种类：哪些望远镜能接收无线电波、红外线或 X 射线？哪些光能穿过大气层？'))}</p>
-      <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(R ? o('Every rocket works by Newton’s third law: push gas out one way, and the rocket is pushed the other way.','所有火箭都依靠牛顿第三定律：把燃气往一个方向推出去，火箭就被推向相反方向。')
-        : o('Telescopes collect far more light than our eyes. Different telescopes collect different parts of the electromagnetic spectrum.','望远镜收集的光比眼睛多得多。不同的望远镜收集电磁波谱中不同的部分。'))}</div>
-      <div class="nav"><button id="startBtn">${Lab.L(R ? o('Meet the first stage ▶','认识第一级 ▶') : o('Start with the refractor ▶','从折射望远镜开始 ▶'))}</button></div>`;
-    Lab.$('#startBtn').onclick = () => APP.select(ord()[0]);
-    return;
-  }
-  const p = PARTS[k], list = ord(), i = list.indexOf(k);
-  box.innerHTML = `<span class="tag">${Lab.L(APP.mode === 'rocket' ? o('Rocket part','火箭部件') : o('Telescope','望远镜'))}</span>
+// Use the same read-aloud units for the live panel and the crawler.
+const PANEL_PARTS = 'h3,h4,p,li,.job,.memory,.mix,.pline,figcaption';
+function panelUnits(panel){
+  const nodes = [...panel.querySelectorAll(PANEL_PARTS)];
+  if (panel.matches(PANEL_PARTS)) nodes.unshift(panel);
+  return nodes.flatMap(node => {
+    if (node.closest('[data-noread]')) return [];
+    const units = Lab.readUnits(node);
+    return units ? units.parts.map(text => [text, units.lang]) : [];
+  });
+}
+function speakPanel(panel){
+  const parts = panelUnits(panel);
+  let i = 0;
+  const next = ok => {
+    if (ok === false || i >= parts.length) return;
+    const [text, lang] = parts[i++];
+    Lab.speak(text, { lang, inner:true, onend:next });
+  };
+  next();
+}
+function registerPanels(host, items, markup, plain = false){
+  Lab.readAll(() => {
+    const panel = host.cloneNode(false);
+    panel.removeAttribute('id');
+    panel.removeAttribute('aria-live');
+    panel.setAttribute('aria-hidden', 'true');
+    panel.style.cssText = 'position:absolute;left:-10000px;top:0;width:' + (host.offsetWidth || 360) + 'px';
+    host.parentElement.appendChild(panel);
+    const template = document.createElement('template');
+    try {
+      return items.flatMap((item, index) => {
+        if (plain) panel.textContent = markup(item, index);
+        else {
+          template.innerHTML = markup(item, index);
+          template.content.querySelectorAll('img,button').forEach(node => node.remove());
+          panel.replaceChildren(template.content);
+        }
+        return panelUnits(panel);
+      });
+    } finally {
+      panel.remove();
+    }
+  });
+}
+registerPanels(Lab.$('#stage .lab-caption'), STORY, Lab.L, true);
+function infoMarkup(k, mode){
+  const p = PARTS[k];
+  return `<span class="tag pline">${Lab.L(mode === 'rocket' ? o('Rocket part','火箭部件') : o('Telescope','望远镜'))}</span>
     <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
     <div class="job">${Lab.L(p.job)}</div>
     <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>${realFig(k)}
     <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(p.hint)}</div>
-    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}`;
+}
+registerPanels(Lab.$('#info'), [...ORDER_R, ...ORDER_T], k => infoMarkup(k, ORDER_R.includes(k) ? 'rocket' : 'scope'));
+function spaceIntro(mode){
+  const R = mode === 'rocket';
+  return `<span class="tag pline">${Lab.L(R ? o('Rockets','火箭') : o('Telescopes','望远镜'))}</span>
+    <h3>${Lab.L(R ? o('A multi-stage rocket','多级火箭') : o('Four ways to collect light','收集光的四种方式'))}</h3>
+    <p class="muted" style="margin:0">${Lab.L(R ? o('Press Launch or drag the mission-time slider. Watch the stages drop away as their fuel runs out, and turn on Action–reaction to see Newton’s third law.','点击“发射”或拖动任务时间滑块。观察每一级燃料用完后怎样分离脱落，再打开“作用力与反作用力”看看牛顿第三定律。')
+      : o('Watch light travel through each telescope. Then switch the light type: which telescopes can detect radio waves, infrared or X-rays? Which kinds of light can get through the air?','观察光在每种望远镜里怎样传播。再切换光的种类：哪些望远镜能接收无线电波、红外线或 X 射线？哪些光能穿过大气层？'))}</p>
+    <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(R ? o('Every rocket works by Newton’s third law: push gas out one way, and the rocket is pushed the other way.','所有火箭都依靠牛顿第三定律：把燃气往一个方向推出去，火箭就被推向相反方向。')
+      : o('Telescopes collect far more light than our eyes. Different telescopes collect different parts of the electromagnetic spectrum.','望远镜收集的光比眼睛多得多。不同的望远镜收集电磁波谱中不同的部分。'))}</div>`;
+
+}
+registerPanels(Lab.$('#info'), ['rocket', 'scope'], spaceIntro);
+function renderInfo(){
+  const box = Lab.$('#info'), k = APP.sel;
+  if (!k){
+    const R = APP.mode === 'rocket';
+    box.innerHTML = spaceIntro(APP.mode) + `
+      <div class="nav"><button id="startBtn">${Lab.L(R ? o('Meet the first stage ▶','认识第一级 ▶') : o('Start with the refractor ▶','从折射望远镜开始 ▶'))}</button></div>`;
+    Lab.$('#startBtn').onclick = () => APP.select(ord()[0]);
+    return;
+  }
+  const list = ord(), i = list.indexOf(k);
+  box.innerHTML = infoMarkup(k, APP.mode) + `
     <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
-  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. '));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box);
   Lab.$('#pPrev').onclick = () => APP.select(list[(i - 1 + list.length) % list.length]);
   Lab.$('#pNext').onclick = () => APP.select(list[(i + 1) % list.length]);
 }
@@ -389,18 +446,26 @@ function renderWaves(){
   Lab.$$('#waveBtns button').forEach(b => b.onclick = () => { APP.wave = b.dataset.w; renderWaves(); renderReadout(); });
 }
 const mmss = s => { const neg = s < 0; s = Math.abs(Math.round(s)); return (neg ? 'T−' : 'T+') + String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
+const lightCounter = (b, s, col) => `<div class="counter pline"><b${col ? ` style="color:${col}"` : ''}>${b}</b><span>${Lab.L(s)}</span></div>`;
+function waveMarkup(key){
+  const w = WAVES[key];
+  return lightCounter(Lab.L(w.n), o('light type','光的种类'), w.c)
+    + lightCounter(w.air ? Lab.L(o('Yes ✓','能 ✓')) : Lab.L(o('No ✗ (absorbed)','不能 ✗（被吸收）')), o('reaches the ground?','能到达地面吗？'), w.air ? 'var(--good)' : 'var(--bad)')
+    + lightCounter(w.sees.map(k => Lab.L(PARTS[k].name)).join(Lab.lang === 'zh' ? '、' : ', '), o('telescopes that detect it','能接收它的望远镜'))
+    + lightCounter(Lab.L({ visible:o('Stars, planets, galaxies','恒星、行星、星系'), radio:o('Pulsars, cold gas, galaxies','脉冲星、冷气体、星系'), infrared:o('Dusty star nurseries, the first galaxies','尘埃中的恒星诞生区、最早的星系'), xray:o('Black holes, exploding stars','黑洞、爆炸的恒星') }[key]), o('good for seeing','适合观测'));
+}
+registerPanels(Lab.$('#readout'), Object.keys(WAVES), waveMarkup);
+const flightPhaseMarkup = phase => lightCounter(Lab.L(phase.n), o('flight phase','飞行阶段'));
+registerPanels(Lab.$('#readout'), PHASES, flightPhaseMarkup);
 function renderReadout(){
-  const el = Lab.$('#readout'), C = (b, s, col) => `<div class="counter"><b${col ? ` style="color:${col}"` : ''}>${b}</b><span>${Lab.L(s)}</span></div>`;
+  const el = Lab.$('#readout');
   if (APP.mode === 'rocket'){
     const T = APP.T;
-    el.innerHTML = C(Lab.L(phaseAt(T).n), o('flight phase','飞行阶段')) + C(mmss(realTime(T)), o('mission clock','任务时钟'))
-      + C(altKm(T).toFixed(0) + (Lab.lang === 'zh' ? ' 千米' : ' km'), o('altitude','高度')) + C(Math.round(realSpeed(T)).toLocaleString() + (Lab.lang === 'zh' ? ' 千米/时' : ' km/h'), o('speed','速度'));
+    const flightCounter = (value, label) => `<div class="counter"><b>${value}</b><span>${Lab.L(label)}</span></div>`;
+    el.innerHTML = flightPhaseMarkup(phaseAt(T)) + flightCounter(mmss(realTime(T)), o('mission clock','任务时钟'))
+      + flightCounter(altKm(T).toFixed(0) + (Lab.lang === 'zh' ? ' 千米' : ' km'), o('altitude','高度')) + flightCounter(Math.round(realSpeed(T)).toLocaleString() + (Lab.lang === 'zh' ? ' 千米/时' : ' km/h'), o('speed','速度'));
   } else {
-    const w = WAVES[APP.wave];
-    el.innerHTML = C(Lab.L(w.n), o('light type','光的种类'), w.c)
-      + C(w.air ? Lab.L(o('Yes ✓','能 ✓')) : Lab.L(o('No ✗ (absorbed)','不能 ✗（被吸收）')), o('reaches the ground?','能到达地面吗？'), w.air ? 'var(--good)' : 'var(--bad)')
-      + C(w.sees.map(k => Lab.L(PARTS[k].name)).join(Lab.lang === 'zh' ? '、' : ', '), o('telescopes that detect it','能接收它的望远镜'))
-      + C(Lab.L({ visible:o('Stars, planets, galaxies','恒星、行星、星系'), radio:o('Pulsars, cold gas, galaxies','脉冲星、冷气体、星系'), infrared:o('Dusty star nurseries, the first galaxies','尘埃中的恒星诞生区、最早的星系'), xray:o('Black holes, exploding stars','黑洞、爆炸的恒星') }[APP.wave]), o('good for seeing','适合观测'));
+    el.innerHTML = waveMarkup(APP.wave);
   }
 }
 APP.renderReadout = renderReadout;
@@ -546,19 +611,27 @@ const TL = [
     Lab.$('#tl').innerHTML = TL.map((e, i) => filter !== 'all' && e.c !== filter ? '' : `<button class="ev ${i === sel ? 'on' : ''}" data-i="${i}"><span class="ic">${TLCAT[e.c].i}</span><div class="yr">${e.y}</div><div class="t">${Lab.L(e.t)}</div><span class="cat" style="background:${TLCAT[e.c].c}"></span></button>`).join('');
     Lab.$$('#tl .ev').forEach(b => b.onclick = () => { sel = +b.dataset.i; renderTL(); renderDetail(); });
   }
+  function timelineMarkup(e){
+    const c = TLCAT[e.c];
+    return `<span class="tag pline" style="background:color-mix(in srgb,${c.c} 20%,transparent);color:var(--ink)">${c.i} ${Lab.L(c.n)}</span><h3>${e.y} · ${Lab.L(e.t)}</h3><p style="margin:0">${Lab.L(e.d)}</p>`;
+  }
+  const detail = Lab.$('#tlDetail');
+  registerPanels(detail, TL, timelineMarkup);
   function renderDetail(){
-    const e = TL[sel], c = TLCAT[e.c];
-    Lab.$('#tlDetail').innerHTML = `<span class="tag" style="background:color-mix(in srgb,${c.c} 20%,transparent);color:var(--ink)">${c.i} ${Lab.L(c.n)}</span><h3>${e.y} · ${Lab.L(e.t)}</h3><p style="margin:0">${Lab.L(e.d)}</p><button class="speak" id="tlSpeak">${Lab.L(Lab.UI.listen)}</button>`;
-    Lab.$('#tlSpeak').onclick = () => Lab.speak(e.y + '. ' + Lab.L(e.t) + '. ' + Lab.L(e.d));
+    detail.innerHTML = timelineMarkup(TL[sel]) + `<button class="speak" id="tlSpeak">${Lab.L(Lab.UI.listen)}</button>`;
+    Lab.$('#tlSpeak').onclick = () => speakPanel(detail);
   }
   function newPair(){ let a, b; do { a = Math.random() * TL.length | 0; b = Math.random() * TL.length | 0; } while (TL[a].y === TL[b].y); pair = [a, b]; answered = false; renderWhich(); Lab.$('#whichMsg').textContent = ''; }
+  const earlierResult = (event, good) => (good ? Lab.L(o('✅ Correct! ','✅ 答对了！')) : Lab.L(o('❌ Not quite. ','❌ 不对。'))) + Lab.L(event.t) + (Lab.lang === 'zh' ? `(${event.y} 年)更早。` : ` (${event.y}) came first.`);
+  const possibleFirst = TL.filter(event => TL.some(other => other.y > event.y));
+  registerPanels(Lab.$('#whichMsg'), possibleFirst.flatMap(event => [[event, true], [event, false]]), ([event, good]) => earlierResult(event, good), true);
   function renderWhich(){
     Lab.$('#which').innerHTML = pair.map(i => `<button data-i="${i}">${TLCAT[TL[i].c].i} ${Lab.L(TL[i].t)}${answered ? `<br><small>${TL[i].y}</small>` : ''}</button>`).join('');
     const first = TL[pair[0]].y < TL[pair[1]].y ? pair[0] : pair[1];
     Lab.$$('#which button').forEach(b => { if (answered){ b.disabled = true; b.classList.add(+b.dataset.i === first ? 'right' : 'wrong'); }
       b.onclick = () => { if (answered) return; answered = true; const good = +b.dataset.i === first; good ? (ok++, streak++) : (streak = 0);
-        const m = Lab.$('#whichMsg'); m.className = 'result ' + (good ? 'good' : 'bad');
-        m.textContent = (good ? Lab.L(o('✅ Correct! ','✅ 答对了！')) : Lab.L(o('❌ Not quite. ','❌ 不对。'))) + Lab.L(TL[first].t) + (Lab.lang === 'zh' ? `(${TL[first].y} 年)更早。` : ` (${TL[first].y}) came first.`);
+        const m = Lab.$('#whichMsg'); m.className = 'result pline ' + (good ? 'good' : 'bad');
+        m.textContent = earlierResult(TL[first], good);
         Lab.$('#wOk').textContent = ok; Lab.$('#wStreak').textContent = streak; renderWhich(); }; });
   }
   Lab.$('#whichNext').onclick = newPair;
@@ -668,11 +741,15 @@ function draw(){
     g.fillStyle = C.ink; g.globalAlpha = .9; g.beginPath(); g.roundRect ? g.roundRect(bx, by, w, 20, 6) : g.rect(bx, by, w, 20); g.fill(); g.globalAlpha = 1; g.fillStyle = C.surf; g.textAlign = 'center'; g.fillText(t, bx + w / 2, by + 14); }
   g.strokeStyle = C.brand; g.lineWidth = 2; g.beginPath(); g.moveTo(X(st.y), T); g.lineTo(X(st.y), B); g.stroke();
 }
-function renderCard(){
-  const m = MS[st.sel], c = CAT[m.c];
-  $('#saCard').innerHTML = `<span class="tag" style="background:color-mix(in srgb,${c} 22%,transparent);color:var(--ink)">${m.ag.map(a => Lab.L(AG[a])).join(' · ')}</span>
+function missionMarkup(m){
+  const c = CAT[m.c];
+  return `<span class="tag pline" style="background:color-mix(in srgb,${c} 22%,transparent);color:var(--ink)">${m.ag.map(a => Lab.L(AG[a])).join(' · ')}</span>
     <h3 style="font-size:22px">${yLabel(m.y)} · ${Lab.L(m.n)}</h3><p style="margin:0">${Lab.L(m.d)}</p>
     <div class="memory"><b>${Lab.L(o('⭐ Why it mattered','⭐ 为什么重要'))}</b>${Lab.L(m.w)}</div>`;
+}
+registerPanels($('#saCard'), MS, missionMarkup);
+function renderCard(){
+  $('#saCard').innerHTML = missionMarkup(MS[st.sel]);
   const seen = MS.filter(x => x.y <= st.y + 1e-6).length; $('#saCount').textContent = seen;
   const human = MS.filter(x => x.crew && x.y <= st.y + 1e-6).reduce((a, x) => Math.max(a, x.km), 0);
   $('#saFar').textContent = human ? big(human) : '–';
@@ -774,20 +851,23 @@ window.SpaceAge = { setYear, pick, state:st, vg:(k, y) => vgAU(k, y ?? NOW), mis
   /* 🎯 challenges (judged when a flight ends) */
   const CH = [
     { q:o('Reach the height of the space station: highest point 380–440 km.','飞到空间站的高度：最高点在 380–440 千米之间。'), ok:r => r.maxH >= 380e3 && r.maxH <= 440e3,
-      good:o('The ISS orbits about 420 km up. To STAY there it would also need about 7.7 km/s sideways.','空间站在约 420 千米高处绕行。要留在那里，还需要约 7.7 千米/秒的横向速度。'), hint:r => r.maxH < 380e3 ? o('Not high enough: more Δv (more fuel, a lighter rocket or a faster exhaust).','还不够高：需要更多 Δv（加燃料、减轻火箭或提高喷气速度）。') : o('Too high: take away a little fuel.','太高了：减一点燃料。') },
+      good:o('The ISS orbits about 420 km up. To STAY there it would also need about 7.7 km/s sideways.','空间站在约 420 千米高处绕行。要留在那里，还需要约 7.7 千米/秒的横向速度。'), hints:[o('Not high enough: more Δv (more fuel, a lighter rocket or a faster exhaust).','还不够高：需要更多 Δv（加燃料、减轻火箭或提高喷气速度）。'), o('Too high: take away a little fuel.','太高了：减一点燃料。')], hint(r){ return r.maxH < 380e3 ? this.hints[0] : this.hints[1]; } },
     { q:o('Escape Earth: reach 11.2 km/s going straight up.','逃离地球：竖直飞到 11.2 千米/秒。'), ok:r => r.escaped,
-      good:o('Escape needs a huge mass ratio: that is why real probes ride on giant multi-stage rockets.','逃逸需要非常大的质量比：所以真实的探测器都坐在巨大的多级火箭上。'), hint:() => o('Use the fastest exhaust, lots of fuel, a light rocket and plenty of thrust (less time fighting gravity).','用最快的喷气速度、很多燃料、很轻的箭体和足够大的推力（跟重力较劲的时间短一些）。') },
+      good:o('Escape needs a huge mass ratio: that is why real probes ride on giant multi-stage rockets.','逃逸需要非常大的质量比：所以真实的探测器都坐在巨大的多级火箭上。'), hints:[o('Use the fastest exhaust, lots of fuel, a light rocket and plenty of thrust (less time fighting gravity).','用最快的喷气速度、很多燃料、很轻的箭体和足够大的推力（跟重力较劲的时间短一些）。')], hint(){ return this.hints[0]; } },
     { q:o('Reach space (100 km) with a mass ratio under 2: less fuel than the rocket body weighs.','用小于 2 的质量比飞进太空（100 千米）：燃料比箭体还轻。'), ok:r => r.maxH >= 100e3 && (r.p.fuel + r.p.dry) / r.p.dry < 2,
-      good:o('A fast exhaust and high thrust make a small mass ratio enough for a short hop into space, like the Blue Origin New Shepard.','喷气速度快、推力大，小小的质量比就够跳进太空，就像“新谢泼德”亚轨道火箭。'), hint:r => (r.p.fuel + r.p.dry) / r.p.dry >= 2 ? o('Your fuel must weigh less than the rocket body + payload.','燃料必须比箭体 + 载荷轻。') : o('Use the fastest exhaust and more thrust to cut gravity loss.','用最快的喷气速度和更大的推力，减少重力损失。') },
+      good:o('A fast exhaust and high thrust make a small mass ratio enough for a short hop into space, like the Blue Origin New Shepard.','喷气速度快、推力大，小小的质量比就够跳进太空，就像“新谢泼德”亚轨道火箭。'), hints:[o('Your fuel must weigh less than the rocket body + payload.','燃料必须比箭体 + 载荷轻。'), o('Use the fastest exhaust and more thrust to cut gravity loss.','用最快的喷气速度和更大的推力，减少重力损失。')], hint(r){ return (r.p.fuel + r.p.dry) / r.p.dry >= 2 ? this.hints[0] : this.hints[1]; } },
     { q:o('Use solid fuel (vₑ ≤ 2.5 km/s) and still reach 1,000 km.','用固体燃料（vₑ ≤ 2.5 千米/秒），仍然飞到 1,000 千米。'), ok:r => r.p.ve <= 2500 && r.maxH >= 1e6,
-      good:o('With a slow exhaust you need a much bigger mass ratio for the same Δv: look how low the 2.5 curve sits.','喷气速度慢，同样的 Δv 就要大得多的质量比：看看 2.5 那条曲线有多低。'), hint:r => r.p.ve > 2500 ? o('Set the exhaust speed to 2.5 km/s or less first.','先把喷气速度设为 2.5 千米/秒或更低。') : o('More fuel and a lighter rocket body.','加燃料，减轻箭体。') }
+      good:o('With a slow exhaust you need a much bigger mass ratio for the same Δv: look how low the 2.5 curve sits.','喷气速度慢，同样的 Δv 就要大得多的质量比：看看 2.5 那条曲线有多低。'), hints:[o('Set the exhaust speed to 2.5 km/s or less first.','先把喷气速度设为 2.5 千米/秒或更低。'), o('More fuel and a lighter rocket body.','加燃料，减轻箭体。')], hint(r){ return r.p.ve > 2500 ? this.hints[0] : this.hints[1]; } }
   ];
-  function newCh(){ let i; do { i = Math.random() * CH.length | 0; } while (i === A.ch); A.ch = i; chText(); $('#seCh').className = 'result'; $('#seCh').textContent = ''; }
+  const challengeFeedback = (text, ok) => (ok ? Lab.L(o('✅ Done! ','✅ 成功！')) : '❌ ') + Lab.L(text);
+  registerPanels($('#seChQ'), CH, ch => Lab.L(ch.q), true);
+  registerPanels($('#seCh'), CH.flatMap(ch => [[ch.good, true], ...ch.hints.map(text => [text, false])]), ([text, ok]) => challengeFeedback(text, ok), true);
+  function newCh(){ let i; do { i = Math.random() * CH.length | 0; } while (i === A.ch); A.ch = i; chText(); $('#seCh').className = 'result pline'; $('#seCh').textContent = ''; }
   function chText(){ $('#seChQ').textContent = Lab.L(CH[A.ch].q); }
   function judge(){
     const r = R.S.run; if (!Lab.adv() || A.ch == null || !r || R.S.play || r === A.judged) return; A.judged = r; live();
     const c = CH[A.ch], el = $('#seCh'); if (!r.lift){ el.className = 'result bad'; el.textContent = Lab.L(o('❌ It never lifted off.','❌ 它根本没起飞。')); return; }
-    const ok = c.ok(r); el.className = 'result ' + (ok ? 'good' : 'bad'); el.textContent = ok ? Lab.L(o('✅ Done! ','✅ 成功！')) + Lab.L(c.good) : '❌ ' + Lab.L(c.hint(r));
+    const ok = c.ok(r); el.className = 'result pline ' + (ok ? 'good' : 'bad'); el.textContent = challengeFeedback(ok ? c.good : c.hint(r), ok);
   }
   $('#seVe').addEventListener('input', changed); $('#seNoDrag').addEventListener('change', changed);
   ['#sFuel', '#sThrust', '#sDry'].forEach(s => $(s).addEventListener('input', live));

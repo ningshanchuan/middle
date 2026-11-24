@@ -374,6 +374,70 @@ Lab.$$('.pc button').forEach(b => b.onclick = () => {
 
 /* ===== Info panel / chips ===== */
 A.select = (k, from3D) => { A.sel = k; renderInfo(); renderChips(); if (!from3D && A.three) A.three.focus(k); };
+// Use the same read-aloud units for the crawler and the panel's Listen button.
+const PANEL_PARTS = '.tag,h3,h4,.job,p,li,.memory,.mix,figcaption,.quote';
+function panelUnits(el, selector = PANEL_PARTS, visibleOnly = false){
+  const nodes = selector ? el.querySelectorAll(selector) : [el];
+  const out = [];
+  for (const node of nodes){
+    if (visibleOnly && !node.getClientRects().length) continue;
+    const unit = Lab.readUnits(node);
+    if (!unit) continue;
+    const style = node.closest('[data-read-style]');
+    for (const text of unit.parts){
+      out.push(style ? [text, unit.lang, {style:style.dataset.readStyle, work:style.dataset.work}] : [text, unit.lang]);
+    }
+  }
+  return out;
+}
+function speakPanel(el, selector){
+  const parts = panelUnits(el, selector, true);
+  let i = 0;
+  const next = ok => {
+    if (ok === false || i >= parts.length) return;
+    const [text, lang] = parts[i++];
+    Lab.speak(text, {lang, inner:true, onend:next});
+  };
+  next();
+}
+function collectPanelTexts(host, items, render, selector){
+  if (!host?.parentElement) return [];
+  const tmp = host.cloneNode(false);
+  tmp.removeAttribute('id');
+  tmp.removeAttribute('aria-live');
+  tmp.style.cssText = 'position:absolute;left:-10000px;top:0;box-sizing:border-box;width:' + (host.offsetWidth || 360) + 'px';
+  host.after(tmp);
+  const out = [];
+  try {
+    for (const item of items){
+      render(tmp, item);
+      out.push(...panelUnits(tmp, selector));
+    }
+  } finally { tmp.remove(); }
+  return out;
+}
+function registerPanelValues(host, items, value){
+  Lab.readAll(() => collectPanelTexts(Lab.$(host), items, (tmp, item) => { tmp.textContent = value(item); }, null));
+}
+function registerStoryTexts(steps){
+  Lab.readAll(() => collectPanelTexts(Lab.$('#stage .lab-caption') || Lab.$('#stage'), steps, (tmp, step) => {
+    tmp.textContent = Lab.L(step);
+  }, null));
+}
+function registerPanelTexts(host, items, markup, selector){
+  Lab.readAll(() => collectPanelTexts(Lab.$(host), items, (tmp, item) => { tmp.innerHTML = markup(item); }, selector));
+}
+function infoMarkup(k){
+  const p = PARTS[k], i = ORDER.indexOf(k);
+  return `<span class="tag">${Lab.L(i < 6 ? o('Part of the atom','原子的组成') : o('Key idea','关键概念'))}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    ${realFig(k)}
+    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}`;
+}
+registerPanelTexts('#info', ORDER, infoMarkup);
 function renderInfo(){
   const box = Lab.$('#info'), k = A.sel;
   if (!k){
@@ -386,17 +450,11 @@ function renderInfo(){
     Lab.$('#startBtn').onclick = () => A.select('proton');
     return;
   }
-  const p = PARTS[k], i = ORDER.indexOf(k);
-  box.innerHTML = `<span class="tag">${Lab.L(i < 6 ? o('Part of the atom','原子的组成') : o('Key idea','关键概念'))}</span>
-    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
-    <div class="job">${Lab.L(p.job)}</div>
-    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
-    ${realFig(k)}
-    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(p.hint)}</div>
-    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+  const i = ORDER.indexOf(k);
+  box.innerHTML = infoMarkup(k) + `
     <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
-  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. '));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box);
   Lab.$('#pPrev').onclick = () => A.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
   Lab.$('#pNext').onclick = () => A.select(ORDER[(i + 1) % ORDER.length]);
 }
@@ -422,11 +480,13 @@ const CHAL = [
   {p:17,n:18,e:18, t:o('a chloride ion Cl⁻ (chlorine-35)','一个氯离子 Cl⁻（氯-35）')},
   {p:18,n:22,e:18, t:o('a neutral argon-40 atom','一个中性的氩-40 原子')}
 ];
+const challengeTarget = c => Lab.L(o('Build ','请搭建：')) + Lab.L(c.t);
+registerPanelValues('#chTarget', CHAL, challengeTarget);
 const CH = { cur:null, done:0, streak:0, solved:false, hinted:false };
 function newChallenge(){ let c; do c = CHAL[Math.random() * CHAL.length | 0]; while (c === CH.cur); CH.cur = c; CH.solved = false; CH.hinted = false; renderChallenge(); }
 function renderChallenge(){
   const c = CH.cur; if (!c) return;
-  Lab.$('#chTarget').textContent = Lab.L(o('Build ','请搭建：')) + Lab.L(c.t);
+  Lab.$('#chTarget').textContent = challengeTarget(c);
   const ok = k => A[k] === c[k], lab = {p:o('Protons','质子'), n:o('Neutrons','中子'), e:o('Electrons','电子')};
   Lab.$('#chChecks').innerHTML = ['p','n','e'].map(k => `<span style="color:${ok(k) ? 'var(--good)' : 'var(--ink-2)'}">${ok(k) ? '✅' : '⬜'} ${Lab.L(lab[k])} ${A[k]}${ok(k) ? '' : (A[k] < c[k] ? ' ↑' : ' ↓')}</span>`).join('');
   const m = Lab.$('#chMsg');
@@ -441,8 +501,10 @@ function checkChallenge(){
 }
 Lab.$('#chNew').onclick = newChallenge;
 Lab.$('#chHint').onclick = () => { const c = CH.cur, m = Lab.$('#chMsg'); CH.hinted = true; m.className = 'result';
-  m.textContent = Lab.lang === 'zh' ? `提示:${EL[c.p][2]}的原子序数是 ${c.p} → ${c.p} 个质子;质量数 ${c.p + c.n} − ${c.p} = ${c.n} 个中子;电荷 ${c.p - c.e > 0 ? '+' : ''}${c.p - c.e} → ${c.e} 个电子。`
-    : `Hint: ${EL[c.p][1]} has atomic number ${c.p} → ${c.p} protons; mass ${c.p + c.n} − ${c.p} = ${c.n} neutrons; charge ${c.p - c.e > 0 ? '+' : ''}${c.p - c.e} → ${c.e} electrons.`; };
+  m.textContent = challengeHint(c); };
+const challengeHint = c => Lab.lang === 'zh' ? `提示:${EL[c.p][2]}的原子序数是 ${c.p} → ${c.p} 个质子;质量数 ${c.p + c.n} − ${c.p} = ${c.n} 个中子;电荷 ${c.p - c.e > 0 ? '+' : ''}${c.p - c.e} → ${c.e} 个电子。`
+    : `Hint: ${EL[c.p][1]} has atomic number ${c.p} → ${c.p} protons; mass ${c.p + c.n} − ${c.p} = ${c.n} neutrons; charge ${c.p - c.e > 0 ? '+' : ''}${c.p - c.e} → ${c.e} electrons.`;
+registerPanelValues('#chMsg', CHAL, challengeHint);
 
 /* ===== 🚀 Advanced: isotopes, ions, 原子结构示意图, relative atomic mass ===== */
 // natural abundance (%) by mass number, rounded (IUPAC); radioactive ones not listed except long-lived natural K-40
@@ -470,6 +532,7 @@ const ADVCH = [
   {t:o('Build an ion with 18 electrons and a 2+ charge, using its most common isotope.','搭建一个有 18 个电子、带 2 个单位正电荷的离子，用它最常见的同位素。'), ok:() => A.p === 20 && A.n === 20 && A.e === 18},
   {t:o('Build the rare stable isotope of carbon used to trace food chains (about 1.1% of carbon), neutral.','搭建碳的稀有稳定同位素（约占碳的 1.1%，可用于追踪食物链），中性原子。'), ok:() => A.p === 6 && A.n === 7 && A.e === 6}
 ];
+registerPanelValues('#advChT', ADVCH, c => Lab.L(c.t));
 const AC = { i:-1, solved:false };
 function advNewTask(){ let i; do i = Math.random() * ADVCH.length | 0; while (i === AC.i); AC.i = i; AC.solved = false; renderAdv(); }
 function renderAdv(){
@@ -579,16 +642,21 @@ const MODELS = [
    evid:o('Experiments showed that electrons behave like waves as well as particles.','实验表明，电子既有粒子的性质，也有波的性质。')}
 ];
 const HIST = { i:3 };
+const TIMELINE_PARTS = PANEL_PARTS + ',.evid';
+function timelineMarkup(i){
+  const m = MODELS[i];
+  return `<span class="tag">${Lab.L(m.year)} · ${Lab.L(m.who)}</span><h3>${Lab.L(m.name)}</h3><p>${Lab.L(m.idea)}</p>
+    <div class="evid"><b>${Lab.L(o('🔬 Evidence: ','🔬 证据：'))}</b>${Lab.L(m.evid)}</div>
+    ${i === 2 || i === 3 ? `<div class="mix"><b>${Lab.L(o('⚠️ Big lesson:','⚠️ 重要启示：'))}</b><span>${Lab.L(o('A model is not “wrong” for being replaced. Each model explained the evidence of its time, until new evidence demanded a better one.','模型被取代并不说明它“没用”。每个模型都解释了当时的证据，直到新的证据要求更好的模型。'))}</span></div>` : ''}`;
+}
+registerPanelTexts('#modelInfo', [...MODELS.keys()], timelineMarkup, TIMELINE_PARTS);
 function renderTimeline(){
   Lab.$('#timeline').innerHTML = MODELS.map((m, i) => `<button class="${i === HIST.i ? 'on' : ''}" data-i="${i}"><small>${Lab.L(m.year)}</small>${Lab.L(m.who)}</button>`).join('');
   Lab.$$('#timeline button').forEach(b => b.onclick = () => { HIST.i = +b.dataset.i; renderTimeline(); });
-  const m = MODELS[HIST.i];
-  Lab.$('#modelInfo').innerHTML = `<span class="tag">${Lab.L(m.year)} · ${Lab.L(m.who)}</span><h3>${Lab.L(m.name)}</h3><p>${Lab.L(m.idea)}</p>
-    <div class="evid"><b>${Lab.L(o('🔬 Evidence: ','🔬 证据：'))}</b>${Lab.L(m.evid)}</div>
-    ${HIST.i === 2 || HIST.i === 3 ? `<div class="mix"><b>${Lab.L(o('⚠️ Big lesson:','⚠️ 重要启示：'))}</b><span>${Lab.L(o('A model is not “wrong” for being replaced. Each model explained the evidence of its time, until new evidence demanded a better one.','模型被取代并不说明它“没用”。每个模型都解释了当时的证据，直到新的证据要求更好的模型。'))}</span></div>` : ''}
+  Lab.$('#modelInfo').innerHTML = timelineMarkup(HIST.i) + `
     <button class="speak" id="mSpeak">${Lab.L(Lab.UI.listen)}</button>
     <div class="btnrow" style="margin-top:auto"><button class="btn ghost" id="mPrev">${Lab.L(o('◀ Earlier','◀ 更早'))}</button><button class="btn" id="mNext">${Lab.L(o('Later ▶','更晚 ▶'))}</button></div>`;
-  Lab.$('#mSpeak').onclick = () => Lab.speak([Lab.L(m.who), Lab.L(m.name), Lab.L(m.idea), Lab.L(m.evid)].join('. '));
+  Lab.$('#mSpeak').onclick = () => speakPanel(Lab.$('#modelInfo'), TIMELINE_PARTS);
   Lab.$('#mPrev').onclick = () => { HIST.i = (HIST.i + MODELS.length - 1) % MODELS.length; renderTimeline(); };
   Lab.$('#mNext').onclick = () => { HIST.i = (HIST.i + 1) % MODELS.length; renderTimeline(); };
 }
@@ -721,6 +789,15 @@ Lab.onLang(renderTimeline);
   Lab.onLang(() => { setFireLabel(); renderCounts(); });
   requestAnimationFrame(loop);
 })();
+const STEPS = [
+  {en:'1 · Hydrogen, the simplest atom: 1 proton in the nucleus and 1 electron around it.', zh:'1 · 氢是最简单的原子：原子核里有 1 个质子，核外有 1 个电子。', c:[1,0,1], k:'proton'},
+  {en:'2 · Protons decide the element. 6 protons always means carbon, no matter what else changes.', zh:'2 · 质子数决定元素。只要有 6 个质子，就一定是碳。', c:[6,6,6], k:'atomicNumber'},
+  {en:'3 · Neutrons add mass but no charge. Carbon-12 has 6 protons + 6 neutrons.', zh:'3 · 中子增加质量但不带电。碳-12 有 6 个质子 + 6 个中子。', c:[6,6,6], k:'neutron'},
+  {en:'4 · Add 2 more neutrons: still carbon, but now carbon-14, a radioactive isotope.', zh:'4 · 再加 2 个中子：仍然是碳，但变成了具有放射性的同位素碳-14。', c:[6,8,6], k:'isotope'},
+  {en:'5 · Sodium has 11 electrons arranged 2, 8, 1. The lone outer electron is easy to lose.', zh:'5 · 钠有 11 个电子，排布为 2, 8, 1。最外层那 1 个电子很容易失去。', c:[11,12,11], k:'shell'},
+  {en:'6 · Sodium loses that electron: 11 protons, 10 electrons → a positive ion, Na⁺.', zh:'6 · 钠失去这个电子：11 个质子、10 个电子 → 带正电的钠离子 Na⁺。', c:[11,12,10], k:'ion'}
+];
+registerStoryTexts(STEPS);
 </script>
 <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
 <script type="module">
@@ -828,14 +905,6 @@ Lab.$('#rotBtn').onclick = () => setSpin(!spin);
 Lab.$('#resetBtn').onclick = () => { story.stop(); setCloud(false); A.select(null, true); A.setCounts(1, 0, 1); ctx.home(); };
 
 /* ---------- guided story ---------- */
-const STEPS = [
-  {en:'1 · Hydrogen, the simplest atom: 1 proton in the nucleus and 1 electron around it.', zh:'1 · 氢是最简单的原子：原子核里有 1 个质子，核外有 1 个电子。', c:[1,0,1], k:'proton'},
-  {en:'2 · Protons decide the element. 6 protons always means carbon, no matter what else changes.', zh:'2 · 质子数决定元素。只要有 6 个质子，就一定是碳。', c:[6,6,6], k:'atomicNumber'},
-  {en:'3 · Neutrons add mass but no charge. Carbon-12 has 6 protons + 6 neutrons.', zh:'3 · 中子增加质量但不带电。碳-12 有 6 个质子 + 6 个中子。', c:[6,6,6], k:'neutron'},
-  {en:'4 · Add 2 more neutrons: still carbon, but now carbon-14, a radioactive isotope.', zh:'4 · 再加 2 个中子：仍然是碳，但变成了具有放射性的同位素碳-14。', c:[6,8,6], k:'isotope'},
-  {en:'5 · Sodium has 11 electrons arranged 2, 8, 1. The lone outer electron is easy to lose.', zh:'5 · 钠有 11 个电子，排布为 2, 8, 1。最外层那 1 个电子很容易失去。', c:[11,12,11], k:'shell'},
-  {en:'6 · Sodium loses that electron: 11 protons, 10 electrons → a positive ion, Na⁺.', zh:'6 · 钠失去这个电子：11 个质子、10 个电子 → 带正电的钠离子 Na⁺。', c:[11,12,10], k:'ion'}
-];
 const story = Lab3D.story('#stage', STEPS, (i, s) => { setSpin(true); setCloud(false); A.setCounts(...s.c); A.select(s.k, true); ctx.home(); }, () => {});
 Lab.$('#storyBtn').onclick = () => story.start();
 

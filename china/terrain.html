@@ -404,34 +404,121 @@ const App = window.TAPP = { sel:'mtn', mode:'relief', lat:32, three:null };
 const UIS = { prev:o('◀ Previous','◀ 上一个'), next:o('Next ▶','下一个 ▶'), memo:o('💡 Memory hint','💡 记忆口诀'), mix:o('⚠️ Common mix-up:','⚠️ 易错点：'), elev:o('Elevation','海拔'), dir:o('Direction','走向') };
 const ridgeBy = k => TER.RIDGES.find(R => R.k === k);
 App.select = (k, from3D) => { App.sel = k; renderInfo(); renderChips(); if (App.three) App.three.onSelect(k, !!from3D); };
-function renderInfo(){
-  const box = Lab.$('#info'), k = App.sel;
-  if (k.startsWith('r:')){
-    const R = ridgeBy(k.slice(2)), bd = R.b === 12 ? FEATS.b12 : R.b === 23 ? FEATS.b23 : null;
-    box.innerHTML = `<span class="tag" style="background:#7a3b1f22;color:#b0603a">${Lab.L(TYPEN.mtn)}</span>
-      <h3><span class="dot" style="background:${R.b ? '#e0475b' : '#7a3b1f'}"></span>⛰ ${Lab.L(R.name)}</h3>
-      <div class="job">${Lab.L(UIS.dir)}${Lab.lang === 'zh' ? ':' : ': '}${R.d ? Lab.L(DIRN[R.d]) : Lab.L(o('—','—'))}</div>
-      <ul><li>${Lab.L(RFACT[R.k])}</li>${bd ? `<li>${Lab.L(o('Part of the ', '属于'))}${Lab.L(bd.name)}${Lab.lang === 'zh' ? '' : ''}:${Lab.L(bd.elev)}</li>` : ''}</ul>
-      <div class="memory"><b>${Lab.L(UIS.memo)}</b>${Lab.L(FEATS.mtn.hint)}</div>
-      <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
-      <div class="nav"><button id="pPrev">${Lab.L(o('◀ All ranges','◀ 山脉总览'))}</button></div>`;
-    Lab.$('#speakBtn').onclick = () => Lab.speak(`${Lab.L(R.name)}。${R.d ? Lab.L(DIRN[R.d]) : ''}。${Lab.L(RFACT[R.k])}`);
-    Lab.$('#pPrev').onclick = () => App.select('mtn');
-    return;
+const PANEL_PARTS = '.tag,h3,h4,.job,li,p,.memory,.mix,.quote,.usbox';
+function panelUnits(el, parts){
+  const out = [];
+  const nodes = parts ? el.querySelectorAll(parts) : [el];
+  for (const node of nodes){
+    const unit = Lab.readUnits(node);
+    if (!unit) continue;
+    const style = node.closest('[data-read-style]');
+    for (const text of unit.parts){
+      out.push(style ? [text, unit.lang, { style:style.dataset.readStyle, work:style.dataset.work }] : [text, unit.lang]);
+    }
   }
-  const f = FEATS[k], i = FEAT_ORDER.indexOf(k);
-  box.innerHTML = `<span class="tag" style="background:${TYPEC[f.type]}22;color:${TYPEC[f.type]}">${Lab.L(TYPEN[f.type])}</span>
+  return out;
+}
+function speakPanel(el){
+  const parts = panelUnits(el, PANEL_PARTS);
+  let i = 0;
+  function next(ok){
+    if (ok === false || i >= parts.length) return;
+    const [text, lang] = parts[i++];
+    Lab.speak(text, { lang, inner:true, onend:next });
+  }
+  next();
+}
+// The crawler loads this page once per language.
+const panelGroups = [];
+function readPanelItems(selector, items, render, parts, property = parts ? 'innerHTML' : 'textContent'){
+  panelGroups.push({ selector, items, render, parts, property });
+}
+Lab.readAll(() => {
+  const mounted = [];
+  try {
+    for (const { selector, items, render, parts, property } of panelGroups){
+      const host = Lab.$(selector) || (selector.endsWith(' .lab-caption') && Lab.$(selector.split(' ')[0]));
+      if (!host?.parentElement) continue;
+      const width = host.offsetWidth || host.parentElement.offsetWidth || 360;
+      const fragment = document.createDocumentFragment();
+      for (const item of items){
+        const tmp = document.createElement(host.localName);
+        tmp.className = host.matches('.stage') ? 'lab-caption show' : host.className;
+        tmp.style.cssText = 'position:absolute;left:-10000px;top:0;box-sizing:border-box;width:' + width + 'px';
+        tmp[property] = render(item);
+        // Keep each item in its own place-name annotation block.
+        const scope = document.createElement('section');
+        scope.style.display = 'contents';
+        scope.appendChild(tmp);
+        fragment.appendChild(scope);
+        mounted.push({ scope, tmp, parts });
+      }
+      host.after(fragment);
+    }
+    const collect = () => mounted.flatMap(({ tmp, parts }) => panelUnits(tmp, parts));
+    const clips = new Map();
+    const collectClips = () => {
+      for (const unit of collect()) clips.set(JSON.stringify(unit), unit);
+    };
+    collectClips();
+    // Match the units before and after the shared place-name annotations.
+    if (window.LabPlaces){
+      LabPlaces.refresh();
+      collectClips();
+      if (Lab.lang === 'zh' && window.LabPinyin){
+        LabPinyin.refresh();
+        LabPlaces.refresh();
+        collectClips();
+      }
+      if (window.LabGaz){
+        for (const { tmp } of mounted) LabGaz.scan(tmp);
+        LabPlaces.refresh();
+        collectClips();
+      }
+    }
+    return [...clips.values()];
+  } finally {
+    for (const { scope } of mounted) scope.remove();
+  }
+});
+function ridgePanel(k){
+  const R = ridgeBy(k.slice(2)), bd = R.b === 12 ? FEATS.b12 : R.b === 23 ? FEATS.b23 : null;
+  return `<span class="tag" style="background:#7a3b1f22;color:#b0603a">${Lab.L(TYPEN.mtn)}</span>
+    <h3><span class="dot" style="background:${R.b ? '#e0475b' : '#7a3b1f'}"></span>⛰ ${Lab.L(R.name)}</h3>
+    <div class="job">${Lab.L(UIS.dir)}${Lab.lang === 'zh' ? ':' : ': '}${R.d ? Lab.L(DIRN[R.d]) : Lab.L(o('—','—'))}</div>
+    <ul><li>${Lab.L(RFACT[R.k])}</li>${bd ? `<li>${Lab.L(o('Part of the ', '属于'))}${Lab.L(bd.name)}${Lab.lang === 'zh' ? '' : ''}:${Lab.L(bd.elev)}</li>` : ''}</ul>
+    <div class="memory"><b>${Lab.L(UIS.memo)}</b>${Lab.L(FEATS.mtn.hint)}</div>`;
+}
+function landformPanel(k){
+  const f = FEATS[k];
+  return `<span class="tag" style="background:${TYPEC[f.type]}22;color:${TYPEC[f.type]}">${Lab.L(TYPEN[f.type])}</span>
     <h3><span class="dot" style="background:${/^s[123]$/.test(k) ? TER.STEPC[k[1]] : TYPEC[f.type]}"></span>${Lab.L(f.name)}</h3>
     <div class="job">${f.type === 'line' || f.type === 'mtn' ? '' : Lab.L(UIS.elev) + (Lab.lang === 'zh' ? ':' : ': ')}${Lab.L(f.elev)}</div>
     <ul>${Lab.L(f.facts).map(x => `<li>${x}</li>`).join('')}</ul>
     <div class="memory"><b>${Lab.L(UIS.memo)}</b>${k === 'nmg' && Lab.lang === 'zh' ? Lab.L(f.hint).replace('天苍苍，野茫茫，风吹草低见牛羊。', '<span class="quote" data-read-style="verse" data-work="敕勒歌">天苍苍，野茫茫，风吹草低见牛羊。</span>') : Lab.L(f.hint)}</div>
-    ${f.mix ? `<div class="mix"><b>${Lab.L(UIS.mix)}</b><span>${Lab.L(f.mix)}</span></div>` : ''}
+    ${f.mix ? `<div class="mix"><b>${Lab.L(UIS.mix)}</b><span>${Lab.L(f.mix)}</span></div>` : ''}`;
+}
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel;
+  if (k.startsWith('r:')){
+    box.innerHTML = `${ridgePanel(k)}
+      <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+      <div class="nav"><button id="pPrev">${Lab.L(o('◀ All ranges','◀ 山脉总览'))}</button></div>`;
+    Lab.$('#speakBtn').onclick = () => speakPanel(box);
+    Lab.$('#pPrev').onclick = () => App.select('mtn');
+    return;
+  }
+  const i = FEAT_ORDER.indexOf(k);
+  box.innerHTML = `${landformPanel(k)}
     <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${Lab.L(UIS.prev)}</button><button id="pNext">${Lab.L(UIS.next)}</button></div>`;
-  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(f.name), Lab.L(f.elev), ...Lab.L(f.facts), f.type === 'mtn' ? '' : Lab.L(f.hint)].filter(Boolean).join('。 '));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box);
   Lab.$('#pPrev').onclick = () => App.select(FEAT_ORDER[(i - 1 + FEAT_ORDER.length) % FEAT_ORDER.length]);
   Lab.$('#pNext').onclick = () => App.select(FEAT_ORDER[(i + 1) % FEAT_ORDER.length]);
 }
+readPanelItems('#info', FEAT_ORDER, landformPanel, PANEL_PARTS);
+readPanelItems('#info', TER.RIDGES.map(r => 'r:' + r.k), ridgePanel, PANEL_PARTS);
+readPanelItems('#stage .lab-caption', STORY, Lab.L);
 function renderChips(){
   Lab.$('#chips').innerHTML = FEAT_ORDER.map(k => { const f = FEATS[k], c = /^s[123]$/.test(k) ? TER.STEPC[k[1]] : TYPEC[f.type];
     return `<button class="chip ${App.sel === k ? 'on' : ''}" data-k="${k}"><i style="background:${c}"></i>${Lab.L(f.name)}</button>`; }).join('') +
@@ -547,11 +634,13 @@ Lab.onLang(() => setLat(App.lat));
     [4000, o('Step 2 is under. Only Step 1, the Tibetan Plateau, still stands above the water.','第二级阶梯也没入水中，只剩第一级阶梯——青藏高原。')],
     [5001, o('Even now the highest parts of the “Roof of the World” are dry, higher than any peak in the lower 48 states (Mt Whitney, 4,421 m).','水位这么高，“世界屋脊”上最高的地方仍在水面之上，比美国本土最高峰惠特尼山（4421 米）还高。')]
   ];
+  const floodNote = note => Lab.L(note[1]);
+  readPanelItems('#fMsg', NOTES, floodNote);
   function render(){
     const lv = +inp.value;
     Lab.$('#fOut').textContent = lv ? (Lab.lang === 'zh' ? `+${lv} 米` : `+${lv.toLocaleString('en')} m · ${(Math.round(lv * 3.28084 / 10) * 10).toLocaleString('en')} ft`) : (Lab.lang === 'zh' ? '0 米' : '0 m');
     if (cells) paint();
-    Lab.$('#fMsg').textContent = Lab.L((NOTES.find(n => lv <= n[0]) || NOTES[NOTES.length - 1])[1]);
+    Lab.$('#fMsg').textContent = floodNote(NOTES.find(n => lv <= n[0]) || NOTES[NOTES.length - 1]);
     Lab.$('#fBars').innerHTML = [3, 2, 1].map(st => `<div class="row"><span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${TER.STEPC[st]};margin-right:5px"></i>${Lab.L([null, o('Step 1','第一级'), o('Step 2','第二级'), o('Step 3','第三级')][st])}</span><div class="bar"><i style="width:${pct[st].toFixed(0)}%"></i></div><b>${pct[st].toFixed(0)}%</b></div>`).join('') +
       `<div class="row"><span>${Lab.L(o('All of China','全国'))}</span><div class="bar"><i style="width:${pct[0].toFixed(0)}%"></i></div><b>${pct[0].toFixed(0)}%</b></div>`;
     draw();
@@ -591,6 +680,13 @@ LabPhotos.render(Lab.$('#gallery'), [
   const G = { mode:'lf', items:[], sel:null, ok:0, bad:0, done:{}, show:false, msg:null };
   const MODES = [['lf', o('Landform regions','地形区')], ['mt', o('Mountain ranges','山脉')]];
   let relief = null, view = null, failed = false;
+  const LABEL_RESULTS = {
+    pin:o('Now tap its numbered pin on the map.','现在点击地图上对应的编号。'),
+    name:o('Tap a name first, then the pin.','先点一个名称，再点编号。'),
+    done:o('🎉 All labelled! Great map skills.','🎉 全部贴对！读图能力满分。'),
+    correct:o('✅ Correct!','✅ 正确！')
+  };
+  readPanelItems('#gMsg', Object.values(LABEL_RESULTS), Lab.L);
   function start(){
     const list = G.mode === 'lf' ? ['qz','nmg','ht','yg','tlm','zge','cdm','sc','db','hb','cj'].map(k => ({ k, name:FEATS[k].name, at:FEATS[k].at }))
       : TER.RIDGES.filter(R => R.d).map(R => ({ k:R.k, name:R.name, at:R.mid }));
@@ -601,7 +697,7 @@ LabPhotos.render(Lab.$('#gallery'), [
     Lab.$$('#gMode button').forEach(b => b.onclick = () => { G.mode = b.dataset.m; start(); });
     const pool = [...G.items].sort((a, b) => Lab.L(a.name).localeCompare(Lab.L(b.name)));
     Lab.$('#gPool').innerHTML = pool.map(it => `<span class="chip ${G.sel === it.k ? 'sel' : ''} ${G.done[it.k] ? 'done' : ''}" data-k="${it.k}">${Lab.L(it.name)}</span>`).join('');
-    Lab.$$('#gPool .chip').forEach(c => c.onclick = () => { G.sel = G.sel === c.dataset.k ? null : c.dataset.k; G.msg = G.sel ? { t:o('Now tap its numbered pin on the map.','现在点击地图上对应的编号。'), c:'' } : null; render(); });
+    Lab.$$('#gPool .chip').forEach(c => c.onclick = () => { G.sel = G.sel === c.dataset.k ? null : c.dataset.k; G.msg = G.sel ? { t:LABEL_RESULTS.pin, c:'' } : null; render(); });
     Lab.$('#gOk').textContent = G.ok; Lab.$('#gBad').textContent = G.bad;
     Lab.$('#gBar').style.width = (G.ok / Math.max(1, G.items.length) * 100) + '%'; Lab.$('#gCount').textContent = Lab.lang === 'zh' ? `已贴对 ${G.ok} / ${G.items.length}` : `${G.ok} of ${G.items.length} labelled`;
     const m = Lab.$('#gMsg'); m.textContent = G.msg ? Lab.L(G.msg.t) : Lab.L(o('Tap a name first.','先点一个名称。')); m.className = 'result ' + (G.msg ? G.msg.c : '');
@@ -640,10 +736,10 @@ LabPhotos.render(Lab.$('#gallery'), [
     if (!relief) return; const b = cv.getBoundingClientRect(), px = (e.clientX - b.left) * view.dpr, py = (e.clientY - b.top) * view.dpr;
     const hit = G.items.find(it => { const [x, y] = view.toS(it.at); return Math.hypot(px - x, py - y) < 15 * view.dpr; });
     if (!hit) return;
-    if (!G.sel){ G.msg = { t:o('Tap a name first, then the pin.','先点一个名称，再点编号。'), c:'bad' }; render(); return; }
+    if (!G.sel){ G.msg = { t:LABEL_RESULTS.name, c:'bad' }; render(); return; }
     if (G.done[hit.k]) return;
     if (hit.k === G.sel){ G.done[hit.k] = 1; G.ok++; G.sel = null;
-      G.msg = Object.keys(G.done).length === G.items.length ? { t:o('🎉 All labelled! Great map skills.','🎉 全部贴对！读图能力满分。'), c:'good' } : { t:o('✅ Correct!','✅ 正确！'), c:'good' };
+      G.msg = Object.keys(G.done).length === G.items.length ? { t:LABEL_RESULTS.done, c:'good' } : { t:LABEL_RESULTS.correct, c:'good' };
     } else { G.bad++; G.msg = { t:o(`❌ Pin ${hit.n} is not ${Lab.L(G.items.find(i => i.k === G.sel).name)}. Look again!`, `❌ ${hit.n} 号不是${G.items.find(i => i.k === G.sel).name.zh}，再看看！`), c:'bad' }; }
     render(); draw();
   });

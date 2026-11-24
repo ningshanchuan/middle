@@ -336,10 +336,37 @@ function renderInfo(){
     ${p.mix ? `<div class="mix"><b>${T('⚠️ Common mix-up:','⚠️ 容易混淆：')}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
     <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${T('◀ Previous','◀ 上一个')}</button><button id="pNext">${T('Next ▶','下一个 ▶')}</button></div>`;
-  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. '));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box);
   Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
   Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
 }
+// the panel's texts as recorded clips: name, short job, each fact, memory tip, mix-up (the Listen button used to join
+// them into one long string, which has no recording)
+const PANEL_PARTS = 'h3,.job,li,.memory,.mix';
+function panelUnits(el){ const out = []; if (!Lab.readUnits) return out;
+  el.querySelectorAll(PANEL_PARTS).forEach(n => { const u = Lab.readUnits(n); if (u) u.parts.forEach(t => out.push([t, u.lang])); });
+  return out; }
+function speakPanel(el){
+  const parts = panelUnits(el); let i = 0;
+  const next = ok => { if (ok === false || i >= parts.length) return; const [t, l] = parts[i++]; Lab.speak(t, { lang: l, inner: true, onend: next }); };
+  next();
+}
+// every projection's panel for the read-aloud crawler: the page shows one projection at a time (the globe on load), so
+// the others were never recorded (the user, 2026-11-22: Mercator, Robinson, Gall-Peters panels had no audio)
+if (Lab.readAll) Lab.readAll(() => {
+  const host = Lab.$('#info'); if (!host || !host.parentElement) return [];
+  const tmp = document.createElement('div'); tmp.style.cssText = 'position:absolute;left:-10000px;top:0;width:' + (host.offsetWidth || 360) + 'px';
+  host.parentElement.appendChild(tmp); const out = [];
+  try {
+    ORDER.forEach(k => { const p = PROJ[k];
+      tmp.innerHTML = `<h3>${Lab.L(p.name)}</h3><div class="job">${Lab.L(p.job)}</div><ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>`
+        + `<div class="memory"><b>${T('💡 Memory hint','💡 记忆小窍门')}</b>${Lab.L(p.hint)}</div>`
+        + (p.mix ? `<div class="mix"><b>${T('⚠️ Common mix-up:','⚠️ 容易混淆：')}</b><span>${Lab.L(p.mix)}</span></div>` : '');
+      out.push(...panelUnits(tmp));
+    });
+  } finally { tmp.remove(); }
+  return out;
+});
 function renderChips(){
   Lab.$('#chips').innerHTML = ORDER.map(k => `<button class="chip ${App.sel === k ? 'on' : ''}" data-k="${k}"><i style="background:${PROJ[k].color}"></i>${Lab.L(PROJ[k].name)}</button>`).join('');
   Lab.$$('#chips .chip').forEach(c => c.onclick = () => App.select(c.dataset.k));

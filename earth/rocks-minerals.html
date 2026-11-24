@@ -266,6 +266,71 @@ const STORY = [
 /* ===== Info panel / selection ===== */
 const App = window.RM = { sel:null, three:null, u:0 };
 App.select = (k, from3D) => { App.sel = k; renderInfo(); renderChips(); if (!from3D && App.three) App.three.focus(k); };
+// Use the same read-aloud units for the crawler and the panel's Listen button.
+const PANEL_PARTS = '.tag,h3,h4,.job,p,li,.memory,.mix,figcaption,.quote';
+function panelUnits(el, selector = PANEL_PARTS, visibleOnly = false){
+  const nodes = selector ? el.querySelectorAll(selector) : [el];
+  const out = [];
+  for (const node of nodes){
+    if (visibleOnly && !node.getClientRects().length) continue;
+    const unit = Lab.readUnits(node);
+    if (!unit) continue;
+    const style = node.closest('[data-read-style]');
+    for (const text of unit.parts){
+      out.push(style ? [text, unit.lang, {style:style.dataset.readStyle, work:style.dataset.work}] : [text, unit.lang]);
+    }
+  }
+  return out;
+}
+function speakPanel(el, selector){
+  const parts = panelUnits(el, selector, true);
+  let i = 0;
+  const next = ok => {
+    if (ok === false || i >= parts.length) return;
+    const [text, lang] = parts[i++];
+    Lab.speak(text, {lang, inner:true, onend:next});
+  };
+  next();
+}
+function collectPanelTexts(host, items, render, selector){
+  if (!host?.parentElement) return [];
+  const tmp = host.cloneNode(false);
+  tmp.removeAttribute('id');
+  tmp.removeAttribute('aria-live');
+  tmp.style.cssText = 'position:absolute;left:-10000px;top:0;box-sizing:border-box;width:' + (host.offsetWidth || 360) + 'px';
+  host.after(tmp);
+  const out = [];
+  try {
+    for (const item of items){
+      render(tmp, item);
+      out.push(...panelUnits(tmp, selector));
+    }
+  } finally { tmp.remove(); }
+  return out;
+}
+function registerPanelValues(host, items, value){
+  Lab.readAll(() => collectPanelTexts(Lab.$(host), items, (tmp, item) => { tmp.textContent = value(item); }, null));
+}
+function registerStoryTexts(steps){
+  Lab.readAll(() => collectPanelTexts(Lab.$('#stage .lab-caption') || Lab.$('#stage'), steps, (tmp, step) => {
+    tmp.textContent = Lab.L(step);
+  }, null));
+}
+function registerPanelTexts(host, items, markup, selector){
+  Lab.readAll(() => collectPanelTexts(Lab.$(host), items, (tmp, item) => { tmp.innerHTML = markup(item); }, selector));
+}
+function infoMarkup(k){
+  const p = PARTS[k];
+  return `<div class="lab-mode"></div><span class="tag">${Lab.L(o('Rock cycle','岩石循环'))}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    ${p.photo ? LabPhotos.figure(p.photo) : ''}
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}`;
+}
+registerPanelTexts('#info', ORDER, infoMarkup);
+registerStoryTexts(STORY);
 function renderInfo(){
   const box = Lab.$('#info'), k = App.sel;
   if (!k){
@@ -277,17 +342,11 @@ function renderInfo(){
     Lab.$('#startBtn').onclick = () => App.select('magma');
     Lab.modes(box); return;
   }
-  const p = PARTS[k], i = ORDER.indexOf(k);
-  box.innerHTML = `<div class="lab-mode"></div><span class="tag">${Lab.L(o('Rock cycle','岩石循环'))}</span>
-    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
-    <div class="job">${Lab.L(p.job)}</div>
-    ${p.photo ? LabPhotos.figure(p.photo) : ''}
-    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
-    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(p.hint)}</div>
-    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+  const i = ORDER.indexOf(k);
+  box.innerHTML = infoMarkup(k) + `
     <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
-  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. '));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box);
   Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
   Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
   Lab.modes(box);
@@ -370,7 +429,9 @@ Lab.onLang(() => { renderInfo(); renderChips(); App.renderTime(); });
     { q:o('Turn <b>shale into slate</b>: bury it until it is about 200–400 °C.','把<b>页岩变成板岩</b>：把它埋到约 200~400 °C 的地方。'), ok:() => Tz() >= 200 && Tz() < 400 },
     { q:o('Keep the heating rate at <b>25 °C per km</b>. Find the shallowest depth where rock starts to <b>melt</b> (about 700 °C).','保持地温梯度为<b>每千米 25 °C</b>，找出岩石开始<b>熔化</b>（约 700 °C）的最浅深度。'), ok:() => A.g === 25 && Tz() >= 685 && Tz() <= 720 },
     { q:o('Near a magma body the ground heats up <b>40 °C per km</b>. How deep must rock go to become <b>gneiss</b> (about 600–700 °C)?','靠近岩浆体的地方每千米升温 <b>40 °C</b>。岩石要埋多深才能变成<b>片麻岩</b>（约 600~700 °C）？'), ok:() => A.g === 40 && Tz() >= 600 && Tz() < 700 } ];
-  function task(){ $('#rmTask').innerHTML = (zh() ? `第 ${A.task + 1} 题（共 ${TASKS.length} 题）：` : `Task ${A.task + 1} of ${TASKS.length}: `) + Lab.L(TASKS[A.task].q); }
+  const taskMarkup = i => (zh() ? `第 ${i + 1} 题（共 ${TASKS.length} 题）：` : `Task ${i + 1} of ${TASKS.length}: `) + Lab.L(TASKS[i].q);
+  registerPanelTexts('#rmTask', [...TASKS.keys()], taskMarkup, null);
+  function task(){ $('#rmTask').innerHTML = taskMarkup(A.task); }
   $('#rmCheck').onclick = () => { const m = $('#rmMsg'), T = TASKS[A.task];
     if (T.ok()){ m.textContent = Lab.L(o('✅ Yes! ','✅ 对了！')) + (A.task < 3 ? Lab.fmt(o('Cooling took about {t}.','冷却用了约 {t}。'), { t:fmtT(tYr()) }) : Lab.fmt(o('At {h} km the rock is about {T} °C.','在 {h} 千米深处，岩石约 {T} °C。'), { h:nf(A.h, 1), T:nf(Tz()) })) + ' ' + Lab.L(o('Press “Next task”.','按“换一题”继续。')); m.className = 'result good'; }
     else { m.textContent = A.task < 3 ? Lab.fmt(o('❌ Not yet: your magma body cools in about {t}. {d}','❌ 还不对：你的岩浆体约 {t} 冷却。{d}'), { t:fmtT(tYr()), d:Lab.L(tex().n).split(/[:：]/)[0] })
@@ -409,22 +470,47 @@ const TESTS = [
 ];
 (function(){
   let cur = null, lo = 1, hi = 10, done = {}, ok = 0, tests = 0, lastMsg = null, answered = false;
+  const mineralAnswer = cur => Lab.L(o('✅ Correct! It is ', '✅ 正确！它是')) + Lab.L(cur.name) + '. ' + (cur.note ? Lab.L(cur.note) : '');
+  registerPanelValues("#idMsg", MIN, mineralAnswer);
+  const compareMineral = g => Lab.L(o('❌ Not quite. Compare your notebook with ', '❌ 不对。把你的记录和')) + Lab.L(g.name) + Lab.L(o(': hardness ' + g.H + ', streak ' + g.streakName.en + '.', '比较一下:硬度 ' + g.H + ',条痕' + g.streakName.zh + '。'));
+  registerPanelValues("#idMsg", MIN, compareMineral);
   const sel = Lab.$('#idSel');
   function pick(){ const pool = MIN.filter(m => !cur || m.id !== cur.id); cur = pool[Math.random() * pool.length | 0]; lo = 1; hi = 10; done = {}; lastMsg = null; answered = false;
     Lab.$('#streak').style.width = '0'; Lab.$('#idMsg').textContent = ''; Lab.$('#idMsg').className = 'result'; if (App.crystal) App.crystal(cur.id); render(); }
-  const scr = (tool, T) => cur.H <= T ? (lo = lo, hi = Math.min(hi, T), o(`The ${tool} scratches it, so its hardness is less than ${T}.`, `${tool === 'fingernail' ? '指甲' : tool === 'copper coin' ? '铜币' : '钢钉'}能划动它,所以它的硬度小于 ${T}。`))
-                                  : (lo = Math.max(lo, T), o(`The ${tool} does not scratch it, so its hardness is more than ${T}.`, `${tool === 'fingernail' ? '指甲' : tool === 'copper coin' ? '铜币' : '钢钉'}划不动它,所以它的硬度大于 ${T}。`));
+  const scratchNote = (tool, T, scratches) => scratches ? o(`The ${tool} scratches it, so its hardness is less than ${T}.`, `${tool === 'fingernail' ? '指甲' : tool === 'copper coin' ? '铜币' : '钢钉'}能划动它,所以它的硬度小于 ${T}。`)
+    : o(`The ${tool} does not scratch it, so its hardness is more than ${T}.`, `${tool === 'fingernail' ? '指甲' : tool === 'copper coin' ? '铜币' : '钢钉'}划不动它,所以它的硬度大于 ${T}。`);
+  const SCRATCH_TOOLS = {fing:['fingernail', 2.5], coin:['copper coin', 3.5], nail:['steel nail', 5.5]};
+  registerPanelValues('#benchMsg', Object.values(SCRATCH_TOOLS).flatMap(args => [true, false].map(result => [...args, result])),
+    args => Lab.L(scratchNote(...args)));
+  const scr = (tool, T) => {
+    const scratches = cur.H <= T;
+    if (scratches) hi = Math.min(hi, T); else lo = Math.max(lo, T);
+    return scratchNote(tool, T, scratches);
+  };
+  function mineralTestNote(cur, id){
+    if (id === "streak") return o('Streak (color of the powder): ' + cur.streakName.en + '.', '条痕(粉末的颜色):' + cur.streakName.zh + '。');
+    if (id === 'luster') return o('Luster (how it reflects light): ' + cur.luster.en + '. Color: ' + cur.color.en + '.', '光泽(反射光的样子):' + cur.luster.zh + '。颜色:' + cur.color.zh + '。');
+    if (id === 'cleave') return o('When broken: ' + cur.cleave.en + '.', '敲开后:' + cur.cleave.zh + '。');
+    if (id === 'magnet') return cur.mag ? o('The magnet sticks to it! It is magnetic.','磁铁吸住了它！它有磁性。') : o('The magnet does not stick. Not magnetic.','磁铁吸不住它，没有磁性。');
+    if (id === 'acid') return cur.acid ? o('It fizzes! Bubbles of carbon dioxide gas form.','冒泡了！产生了二氧化碳气泡。') : o('No fizzing.','没有冒泡。');
+  }
+  const mineralTests = MIN.flatMap(mineral => ['streak','luster','cleave','magnet','acid'].map(test => [mineral, test]));
+  registerPanelValues('#benchMsg', mineralTests, args => Lab.L(mineralTestNote(...args)));
+  const GLASS_NOTES = [o('It leaves a scratch on the glass, so it is harder than 5.5.','它能在玻璃上划出痕迹，所以硬度大于 5.5。'), o('It cannot scratch the glass, so it is softer than 5.5.','它划不动玻璃，所以硬度小于 5.5。')];
+  registerPanelValues("#benchMsg", GLASS_NOTES, Lab.L);
   function run(id){
     if (!done[id]) tests++; done[id] = true; Lab.$('#streak').style.width = '0';
-    if (id === 'fing') lastMsg = scr('fingernail', 2.5);
-    if (id === 'coin') lastMsg = scr('copper coin', 3.5);
-    if (id === 'nail') lastMsg = scr('steel nail', 5.5);
-    if (id === 'glass') lastMsg = cur.H > 5.5 ? (lo = Math.max(lo, 5.5), o('It leaves a scratch on the glass, so it is harder than 5.5.','它能在玻璃上划出痕迹，所以硬度大于 5.5。')) : (hi = Math.min(hi, 5.5), o('It cannot scratch the glass, so it is softer than 5.5.','它划不动玻璃，所以硬度小于 5.5。'));
-    if (id === 'streak'){ if (cur.streak){ const s = Lab.$('#streak'); s.style.background = cur.streak; requestAnimationFrame(() => s.style.width = '90px'); } lastMsg = o('Streak (color of the powder): ' + cur.streakName.en + '.', '条痕(粉末的颜色):' + cur.streakName.zh + '。'); if (!cur.streak) lo = Math.max(lo, 6.5); }
-    if (id === 'luster') lastMsg = o('Luster (how it reflects light): ' + cur.luster.en + '. Color: ' + cur.color.en + '.', '光泽(反射光的样子):' + cur.luster.zh + '。颜色:' + cur.color.zh + '。');
-    if (id === 'cleave') lastMsg = o('When broken: ' + cur.cleave.en + '.', '敲开后:' + cur.cleave.zh + '。');
-    if (id === 'magnet') lastMsg = cur.mag ? o('The magnet sticks to it! It is magnetic.','磁铁吸住了它！它有磁性。') : o('The magnet does not stick. Not magnetic.','磁铁吸不住它，没有磁性。');
-    if (id === 'acid') lastMsg = cur.acid ? o('It fizzes! Bubbles of carbon dioxide gas form.','冒泡了！产生了二氧化碳气泡。') : o('No fizzing.','没有冒泡。');
+    if (SCRATCH_TOOLS[id]) lastMsg = scr(...SCRATCH_TOOLS[id]);
+    if (id === 'glass'){
+      const scratches = cur.H > 5.5;
+      if (scratches) lo = Math.max(lo, 5.5); else hi = Math.min(hi, 5.5);
+      lastMsg = GLASS_NOTES[scratches ? 0 : 1];
+    }
+    if (id === 'streak'){ if (cur.streak){ const s = Lab.$('#streak'); s.style.background = cur.streak; requestAnimationFrame(() => s.style.width = '90px'); } lastMsg = mineralTestNote(cur, id); if (!cur.streak) lo = Math.max(lo, 6.5); }
+    if (id === 'luster') lastMsg = mineralTestNote(cur, id);
+    if (id === 'cleave') lastMsg = mineralTestNote(cur, id);
+    if (id === 'magnet') lastMsg = mineralTestNote(cur, id);
+    if (id === 'acid') lastMsg = mineralTestNote(cur, id);
     render();
   }
   function render(){
@@ -447,8 +533,8 @@ const TESTS = [
   Lab.$('#idBtn').onclick = () => {
     const m = Lab.$('#idMsg'), v = sel.value; if (!v) return;
     if (Object.keys(done).length < 2){ m.textContent = Lab.L(o('Run at least two tests first. Scientists use evidence!','请先至少做两项测试。科学家要靠证据说话！')); m.className = 'result bad'; return; }
-    if (v === cur.id){ if (!answered) ok++; answered = true; m.textContent = Lab.L(o('✅ Correct! It is ', '✅ 正确！它是')) + Lab.L(cur.name) + '. ' + (cur.note ? Lab.L(cur.note) : ''); m.className = 'result good'; }
-    else { const g = MIN.find(x => x.id === v); m.textContent = Lab.L(o('❌ Not quite. Compare your notebook with ', '❌ 不对。把你的记录和')) + Lab.L(g.name) + Lab.L(o(': hardness ' + g.H + ', streak ' + g.streakName.en + '.', '比较一下:硬度 ' + g.H + ',条痕' + g.streakName.zh + '。')); m.className = 'result bad'; }
+    if (v === cur.id){ if (!answered) ok++; answered = true; m.textContent = mineralAnswer(cur); m.className = 'result good'; }
+    else { const g = MIN.find(x => x.id === v); m.textContent = compareMineral(g); m.className = 'result bad'; }
     render();
   };
   Lab.$('#newSample').onclick = pick;
@@ -492,20 +578,28 @@ const TESTS = [
   const nodeEls = {};
   for (const k in NODES){ const N = NODES[k], g = el('g', { class:'node' }); el('circle', { cx:N.x, cy:N.y, r:48, fill:N.c }, g); const t = el('text', { x:N.x, y:N.y + 5 }, g); nodeEls[k] = { g, t }; }
   function start(i){ ci = i % CH.length; cur = CH[ci].s; trail = []; finished = false; render(); Lab.$('#cycMsg').textContent = ''; Lab.$('#cycMsg').className = 'result'; }
+  function goalMarkup(ci){
+    const C = CH[ci];
+    return Lab.lang === 'zh' ? `第 ${ci + 1} 关:把 <b>${Lab.L(C.sr)}</b>(${Lab.L(NODES[C.s].n)})变成 <b>${Lab.L(C.gr)}</b>(${Lab.L(NODES[C.g].n)})` : `Challenge ${ci + 1}: turn <b>${Lab.L(C.sr)}</b> (${Lab.L(NODES[C.s].n)}) into <b>${Lab.L(C.gr)}</b> (${Lab.L(NODES[C.g].n)})`;
+  }
+  registerPanelTexts("#goalBox", [...CH.keys()], goalMarkup, null);
   function render(){
     const C = CH[ci];
     for (const k in nodeEls){ nodeEls[k].t.textContent = Lab.L(NODES[k].n); nodeEls[k].g.classList.toggle('cur', k === cur); nodeEls[k].g.classList.toggle('goal', k === C.g && k !== cur); }
     labels.forEach(([t, p]) => t.textContent = Lab.L(PROCS[p].n).replace(/^\S+\s/, ''));
-    Lab.$('#goalBox').innerHTML = Lab.lang === 'zh' ? `第 ${ci + 1} 关:把 <b>${Lab.L(C.sr)}</b>(${Lab.L(NODES[C.s].n)})变成 <b>${Lab.L(C.gr)}</b>(${Lab.L(NODES[C.g].n)})` : `Challenge ${ci + 1}: turn <b>${Lab.L(C.sr)}</b> (${Lab.L(NODES[C.s].n)}) into <b>${Lab.L(C.gr)}</b> (${Lab.L(NODES[C.g].n)})`;
+    Lab.$('#goalBox').innerHTML = goalMarkup(ci);
     Lab.$('#procs').innerHTML = Object.entries(PROCS).map(([k, p]) => `<button data-p="${k}" style="background:${p.c}">${Lab.L(p.n)}</button>`).join('');
     Lab.$$('#procs button').forEach(b => b.onclick = () => apply(b.dataset.p));
     Lab.$('#trail').innerHTML = `<span class="chip"><i style="background:${NODES[C.s].c}"></i>${Lab.L(NODES[C.s].n)}</span>` + trail.map(([p, n]) => `→ <span class="chip" title="${Lab.L(PROCS[p].n)}"><i style="background:${NODES[n].c}"></i>${Lab.L(NODES[n].n)}</span>`).join(' ');
     Lab.$('#cycScore').textContent = solved; Lab.$('#cycStars').textContent = stars;
   }
+  const invalidProcess = r => '❌ ' + Lab.L(r);
+  const invalidMoves = Object.keys(NODES).flatMap(from => Object.keys(PROCS).map(p => step(from, p))).filter(r => typeof r !== 'string');
+  registerPanelValues('#cycMsg', invalidMoves, invalidProcess);
   function apply(p){
     if (finished) return;
     const r = step(cur, p), m = Lab.$('#cycMsg');
-    if (typeof r !== 'string'){ m.textContent = '❌ ' + Lab.L(r); m.className = 'result bad'; return; }
+    if (typeof r !== 'string'){ m.textContent = invalidProcess(r); m.className = 'result bad'; return; }
     cur = r; trail.push([p, r]);
     if (cur === CH[ci].g){ finished = true; solved++; const best = trail.length <= CH[ci].min; if (best) stars++;
       m.textContent = best ? Lab.L(o(`🎉 Solved in ${trail.length} step(s), the fewest possible! ⭐`, `🎉 用 ${trail.length} 步完成,已是最少步数!⭐`)) : Lab.L(o(`✅ Solved in ${trail.length} steps. Can you do it in ${CH[ci].min}?`, `✅ 用 ${trail.length} 步完成。你能用 ${CH[ci].min} 步做到吗?`)); m.className = 'result good'; }

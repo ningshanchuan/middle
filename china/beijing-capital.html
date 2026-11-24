@@ -347,6 +347,90 @@ const LM = [
 const BJ = window.BJ = { LM, sel:null, d:0, three:null };
 BJ.byKey = k => LM.find(l => l.k === k);
 BJ.select = (k, from3D) => { BJ.sel = k; renderInfo(); renderChips(); if (BJ.three) BJ.three.onSelect(k, from3D); };
+const PANEL_PARTS = '.tag,h3,h4,.job,li,p,.memory,.mix,.quote,.usbox';
+function panelUnits(el, parts){
+  const out = [];
+  const nodes = parts ? el.querySelectorAll(parts) : [el];
+  for (const node of nodes){
+    const unit = Lab.readUnits(node);
+    if (!unit) continue;
+    const style = node.closest('[data-read-style]');
+    for (const text of unit.parts){
+      out.push(style ? [text, unit.lang, { style:style.dataset.readStyle, work:style.dataset.work }] : [text, unit.lang]);
+    }
+  }
+  return out;
+}
+function speakPanel(el){
+  const parts = panelUnits(el, PANEL_PARTS);
+  let i = 0;
+  function next(ok){
+    if (ok === false || i >= parts.length) return;
+    const [text, lang] = parts[i++];
+    Lab.speak(text, { lang, inner:true, onend:next });
+  }
+  next();
+}
+// The crawler loads this page once per language.
+const panelGroups = [];
+function readPanelItems(selector, items, render, parts, property = parts ? 'innerHTML' : 'textContent'){
+  panelGroups.push({ selector, items, render, parts, property });
+}
+Lab.readAll(() => {
+  const mounted = [];
+  try {
+    for (const { selector, items, render, parts, property } of panelGroups){
+      const host = Lab.$(selector) || (selector.endsWith(' .lab-caption') && Lab.$(selector.split(' ')[0]));
+      if (!host?.parentElement) continue;
+      const width = host.offsetWidth || host.parentElement.offsetWidth || 360;
+      const fragment = document.createDocumentFragment();
+      for (const item of items){
+        const tmp = document.createElement(host.localName);
+        tmp.className = host.matches('.stage') ? 'lab-caption show' : host.className;
+        tmp.style.cssText = 'position:absolute;left:-10000px;top:0;box-sizing:border-box;width:' + width + 'px';
+        tmp[property] = render(item);
+        // Keep each item in its own place-name annotation block.
+        const scope = document.createElement('section');
+        scope.style.display = 'contents';
+        scope.appendChild(tmp);
+        fragment.appendChild(scope);
+        mounted.push({ scope, tmp, parts });
+      }
+      host.after(fragment);
+    }
+    const collect = () => mounted.flatMap(({ tmp, parts }) => panelUnits(tmp, parts));
+    const clips = new Map();
+    const collectClips = () => {
+      for (const unit of collect()) clips.set(JSON.stringify(unit), unit);
+    };
+    collectClips();
+    // Match the units before and after the shared place-name annotations.
+    if (window.LabPlaces){
+      LabPlaces.refresh();
+      collectClips();
+      if (Lab.lang === 'zh' && window.LabPinyin){
+        LabPinyin.refresh();
+        LabPlaces.refresh();
+        collectClips();
+      }
+      if (window.LabGaz){
+        for (const { tmp } of mounted) LabGaz.scan(tmp);
+        LabPlaces.refresh();
+        collectClips();
+      }
+    }
+    return [...clips.values()];
+  } finally {
+    for (const { scope } of mounted) scope.remove();
+  }
+});
+function landmarkPanel(p){
+  return `<span class="tag">${Lab.L(p.side ? o('Beside the axis','中轴线两侧') : o('On the axis','中轴线上'))} · ${Lab.L(o(`≈ ${nf(p.d, 1)} km from Yongdingmen`, `距永定门约 ${nf(p.d, 1)} 千米`))}</span>
+    <h3>${p.icon} ${Lab.L(p.name)}</h3><div class="job"${p.k === 'taimiao' && Lab.lang === 'zh' ? ' data-read-style="wenyan" data-work="考工记"' : ''}>${Lab.L(p.job)}</div>
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆口诀'))}</b>${p.k === 'taimiao' && Lab.lang === 'zh' ? `<span class="quote" data-read-style="wenyan" data-work="考工记">${Lab.L(p.hint)}</span>` : Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 易错点：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}`;
+}
 function renderInfo(){
   const box = Lab.$('#info'), p = BJ.sel && BJ.byKey(BJ.sel);
   if (!p){ box.innerHTML = `<span class="tag">${Lab.L(o('3D Central Axis','3D 中轴线'))}</span><h3>${Lab.L(o('A 7.8 km line through history','穿越历史的 7.8 千米'))}</h3>
@@ -355,18 +439,19 @@ function renderInfo(){
     <div class="nav"><button id="startBtn">${Lab.L(o('Start at Yongdingmen ▶','从永定门出发 ▶'))}</button></div>`;
     Lab.$('#startBtn').onclick = () => BJ.select('yongdingmen'); return; }
   const i = LM.indexOf(p);
-  box.innerHTML = `<span class="tag">${Lab.L(p.side ? o('Beside the axis','中轴线两侧') : o('On the axis','中轴线上'))} · ${Lab.L(o(`≈ ${nf(p.d, 1)} km from Yongdingmen`, `距永定门约 ${nf(p.d, 1)} 千米`))}</span>
-    <h3>${p.icon} ${Lab.L(p.name)}</h3><div class="job"${p.k === 'taimiao' && Lab.lang === 'zh' ? ' data-read-style="wenyan" data-work="考工记"' : ''}>${Lab.L(p.job)}</div>
-    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
-    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆口诀'))}</b>${p.k === 'taimiao' && Lab.lang === 'zh' ? `<span class="quote" data-read-style="wenyan" data-work="考工记">${Lab.L(p.hint)}</span>` : Lab.L(p.hint)}</div>
-    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 易错点：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+  box.innerHTML = `${landmarkPanel(p)}
     <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${Lab.L(o('◀ South','◀ 往南'))}</button><button id="pNext">${Lab.L(o('North ▶','往北 ▶'))}</button></div>`;
-  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('。 '));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box);
   Lab.$('#pPrev').onclick = () => go(LM[Math.max(0, i - 1)]);
   Lab.$('#pNext').onclick = () => go(LM[Math.min(LM.length - 1, i + 1)]);
 }
 function go(p){ setWalk(p.d, true); BJ.select(p.k); }
+readPanelItems('#info', LM, landmarkPanel, PANEL_PARTS);
+BJ.walkCaptions = BJ.LM.map((p, i) => ({ en:`${i + 1} · ${p.name.en}: ${p.job.en}`, zh:`${i + 1} · ${p.name.zh}：${p.job.zh}` }));
+readPanelItems('#stage .lab-caption', BJ.walkCaptions, Lab.L);
+BJ.windCaption = o('The solid north wall and the closed backs of the buildings face the cold wind; the doors and windows open onto the sheltered, sunny courtyard.','厚实的北墙和房屋的后墙对着寒风，门窗都朝向背风、向阳的院子。');
+readPanelItems('#stage2 .lab-caption', [BJ.windCaption], Lab.L);
 function renderChips(){
   Lab.$('#chips').innerHTML = LM.map(p => `<button class="chip ${BJ.sel === p.k ? 'on' : ''}" data-k="${p.k}">${p.icon} ${Lab.L(p.name)}</button>`).join('');
   Lab.$$('#chips .chip').forEach(c => c.onclick = () => go(BJ.byKey(c.dataset.k)));
@@ -374,12 +459,16 @@ function renderChips(){
 /* walk slider */
 const wIn = Lab.$('#wIn'); let wTimer = null;
 function setWalk(d, quiet){ BJ.d = d; wIn.value = d; renderWalk(); if (BJ.three) BJ.three.walk(d); if (!quiet){ const at = [...LM].reverse().find(p => p.d <= d + .03); if (at && at.k !== BJ.sel) BJ.select(at.k, 'walk'); } }
+const nearbyLandmark = at => `📍 ${Lab.L(o('Now near: ','现在位置：'))}${at ? Lab.L(at.name) : ''}`;
+readPanelItems('#wNow', LM, nearbyLandmark, null, 'innerHTML');
+const WALK_FINISH = o('🎉 You reached the northern end of the axis!','🎉 你到达了中轴线的北端！');
+readPanelItems('#wNow', LM.slice(-1), p => nearbyLandmark(p) + `<small>${Lab.L(WALK_FINISH)}</small>`, null, 'innerHTML');
 function renderWalk(){
   const d = +wIn.value; Lab.$('#wOut').textContent = nf(d, 1) + (Lab.lang === 'zh' ? ' 千米' : ' km');
   Lab.$('#wMi').textContent = nf(d * .6214, 1); Lab.$('#wSteps').textContent = nf(Math.round(d * 1400 / 10) * 10);
   Lab.$('#wFields').textContent = nf(d * 1000 / 109.7); Lab.$('#wMin').textContent = nf(d / 4 * 60);
   const at = [...LM].reverse().find(p => p.d <= d + .03), nx = LM.find(p => p.d > d + .03 && !p.side);
-  Lab.$('#wNow').innerHTML = `📍 ${Lab.L(o('Now near: ','现在位置：'))}${at ? Lab.L(at.name) : ''}<small>${nx ? Lab.L(o(`Next on the axis: ${nx.name.en} in ≈ ${nf(nx.d - d, 2)} km`, `前方：${nx.name.zh}，还有约 ${nf(nx.d - d, 2)} 千米`)) : Lab.L(o('🎉 You reached the northern end of the axis!','🎉 你到达了中轴线的北端！'))}</small>`;
+  Lab.$('#wNow').innerHTML = nearbyLandmark(at) + `<small>${nx ? Lab.L(o(`Next on the axis: ${nx.name.en} in ≈ ${nf(nx.d - d, 2)} km`, `前方：${nx.name.zh}，还有约 ${nf(nx.d - d, 2)} 千米`)) : Lab.L(WALK_FINISH)}</small>`;
 }
 wIn.oninput = () => { clearInterval(wTimer); wTimer = null; Lab.$('#wPlay').textContent = '▶'; setWalk(+wIn.value); };
 Lab.$('#wPlay').onclick = () => { if (wTimer){ clearInterval(wTimer); wTimer = null; Lab.$('#wPlay').textContent = '▶'; return; } if (+wIn.value >= 7.8) setWalk(0); Lab.$('#wPlay').textContent = '⏸';
@@ -456,9 +545,11 @@ Lab.onLang(() => { renderInfo(); renderChips(); renderWalk(); });
     g.fillText(`${km} km (${nf(km * .6214, 1)} mi)`, 12 * dpr, H - 18 * dpr);
     g.textAlign = 'right'; g.fillText(Lab.L(o('Schematic map (示意图)','示意图')), W - 12 * dpr, H - 18 * dpr);
   }
+  const eraPanel = e => `<b>${Lab.L(e.t)}</b>${Lab.L(e.d)}`;
+  readPanelItems('#cTxt', ERAS, eraPanel, null, 'innerHTML');
   function render(){
     const y = +inp.value, e = era(y); Lab.$('#cOut').textContent = y;
-    Lab.$('#cTxt').innerHTML = `<b>${Lab.L(e.t)}</b>${Lab.L(e.d)}`;
+    Lab.$('#cTxt').innerHTML = eraPanel(e);
     const rings = RINGS.filter(r => y >= r.y), last = rings[rings.length - 1];
     Lab.$('#cRings').textContent = rings.length;
     let len, lab;
@@ -517,6 +608,8 @@ Lab.onLang(() => { renderInfo(); renderChips(); renderWalk(); });
     { k:'rooms', t:o('Click at least 4 different parts of the house.','点击至少 4 个不同的房间或部位。') },
     { k:'gate', t:o('Find the main gate and find out why it is in the corner.','找到大门，弄清它为什么开在角上。') }
   ];
+  const COURT_DONE = o('Mission 2 complete: master builder!','任务 2 完成：四合院小建筑师！');
+  readPanelItems('#t2Msg', [COURT_DONE], Lab.L);
   function check(){
     if (ST.season === 'w'){ ST.tried.add(ST.face); if (ST.tried.size >= 2 && ST.face === 'S') ST.done.add('winter'); }
     if (ST.season === 's' && ST.face === 'S' && Math.abs(ST.hour - 12) <= 1) ST.done.add('summer');
@@ -525,32 +618,43 @@ Lab.onLang(() => { renderInfo(); renderChips(); renderWalk(); });
     Lab.$('#tasks2').innerHTML = TASKS.map(t => `<li class="${ST.done.has(t.k) ? 'done' : ''}"><span class="ck">${ST.done.has(t.k) ? '✓' : ''}</span><span>${Lab.L(t.t)}</span></li>`).join('');
     const n = ST.done.size, s = n >= 4 ? 3 : n >= 3 ? 2 : n >= 2 ? 1 : 0;
     Lab.$('#t2Stars').textContent = '★'.repeat(s) + '☆'.repeat(3 - s);
-    Lab.$('#t2Msg').textContent = n >= 4 ? Lab.L(o('Mission 2 complete: master builder!','任务 2 完成：四合院小建筑师！')) : Lab.L(o(`${n} of 4 done`, `已完成 ${n} / 4`));
+    Lab.$('#t2Msg').textContent = n >= 4 ? Lab.L(COURT_DONE) : Lab.L(o(`${n} of 4 done`, `已完成 ${n} / 4`));
   }
   const hh = h => `${Math.floor(h)}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`.replace(':60', ':59');
+  const SUN_NOTES = {
+    below:o('🌙 The sun is below the horizon.','🌙 太阳在地平线以下。'),
+    behind:o('🌥️ The main hall’s windows are in shade right now: the sun is behind or beside the building.','🌥️ 此刻正房前窗晒不到太阳：太阳在房子的背后或侧面。'),
+    eaves:o('☂️ The sun is so high that the deep eaves shade the whole window: the room stays cool. (This is what happens around noon in summer.)','☂️ 太阳很高，宽大的屋檐把整扇窗都遮住了，屋里比较凉快（夏季正午就是这样）。')
+  };
+  const SUN_EXTRAS = { winter:o(' Winter noon: the sun is only about 27° high, so it shines deep into a south-facing room.',' 冬至正午太阳高度只有约 27°，阳光能照进朝南房间的深处。'), summer:o(' Summer noon: the sun is about 73° high, almost overhead.',' 夏至正午太阳高度约 73°，几乎在头顶。') };
+  const sunNote = (msg, extra) => Lab.L(msg) + (extra ? Lab.L(extra) : '');
+  readPanelItems('#sMsg', [[SUN_NOTES.below], [SUN_NOTES.below, SUN_EXTRAS.winter], [SUN_NOTES.behind], [SUN_NOTES.behind, SUN_EXTRAS.winter], [SUN_NOTES.eaves], [SUN_NOTES.eaves, SUN_EXTRAS.summer]], args => sunNote(...args));
   function render(){
     const s = ST.sun(ST.season, ST.hour), f = front(s, ST.face), altD = s.alt * 180 / Math.PI, hrs = hours(ST.season, ST.face);
     Lab.$('#hOut').textContent = hh(ST.hour); Lab.$('#sAlt').textContent = altD > 0 ? nf(altD, 0) + '°' : Lab.L(o('below','落山'));
     Lab.$('#sHrs').textContent = nf(hrs, 1) + (Lab.lang === 'zh' ? ' 小时' : ' h');
     let msg;
-    if (altD <= 0) msg = o('🌙 The sun is below the horizon.','🌙 太阳在地平线以下。');
-    else if (f <= .05) msg = o('🌥️ The main hall’s windows are in shade right now: the sun is behind or beside the building.','🌥️ 此刻正房前窗晒不到太阳：太阳在房子的背后或侧面。');
+    if (altD <= 0) msg = SUN_NOTES.below;
+    else if (f <= .05) msg = SUN_NOTES.behind;
     else { const tanP = Math.tan(s.alt) / f, shade = 3.3 - .9 * tanP, top = Math.min(2.6, shade), lit = Math.max(0, Math.min(1, (top - .4) / 2.2));
-      if (lit <= .02) msg = o('☂️ The sun is so high that the deep eaves shade the whole window: the room stays cool. (This is what happens around noon in summer.)','☂️ 太阳很高，宽大的屋檐把整扇窗都遮住了，屋里比较凉快（夏季正午就是这样）。');
+      if (lit <= .02) msg = SUN_NOTES.eaves;
       else msg = { en:`☀️ Sun on the windows: about ${nf(lit * 100)}% of the window is lit, and sunlight reaches about ${nf(Math.min(9, top / tanP), 1)} m (${nf(Math.min(9, top / tanP) * 3.28)} ft) into the room.`, zh:`☀️ 阳光照在窗上：约 ${nf(lit * 100)}% 的窗面被照亮，阳光照进屋内约 ${nf(Math.min(9, top / tanP), 1)} 米深。` }; }
-    const extra = ST.season === 'w' && ST.face === 'S' ? o(' Winter noon: the sun is only about 27° high, so it shines deep into a south-facing room.',' 冬至正午太阳高度只有约 27°，阳光能照进朝南房间的深处。') : ST.season === 's' && ST.face === 'S' && Math.abs(ST.hour - 12) < 1.5 ? o(' Summer noon: the sun is about 73° high, almost overhead.',' 夏至正午太阳高度约 73°，几乎在头顶。') : null;
-    Lab.$('#sMsg').textContent = Lab.L(msg) + (extra ? Lab.L(extra) : '');
+    const extra = ST.season === 'w' && ST.face === 'S' ? SUN_EXTRAS.winter : ST.season === 's' && ST.face === 'S' && Math.abs(ST.hour - 12) < 1.5 ? SUN_EXTRAS.summer : null;
+    Lab.$('#sMsg').textContent = sunNote(msg, extra);
     check(); ST.emit();
   }
   ST.render = render;
+  function roomPanel(r){
+    return `<span class="tag">${Lab.L(o('Courtyard house','四合院'))}</span><h3>${r.icon} ${Lab.L(r.name)}</h3><div class="job">${Lab.L(r.job)}</div><ul>${Lab.L(r.facts).map(f => `<li>${f}</li>`).join('')}</ul>`;
+  }
   function info(){
     const box = Lab.$('#info2'), r = ST.sel && ROOMS[ST.sel];
     if (!r){ box.innerHTML = `<span class="tag">${Lab.L(o('Courtyard house','四合院'))}</span><h3>${Lab.L(o('Four buildings, one courtyard','四面房屋围合一个院子'))}</h3>
       <p class="muted" style="margin:0">${Lab.L(o('Click a building, the gate or the courtyard. Then use the controls below the model to move the sun.','点击房屋、大门或院子；再用模型下方的控件移动太阳。'))}</p>
       <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(o('Sit in the north, face the south: warm winter sun in, hot summer sun and cold north wind out.','坐北朝南：冬天迎进阳光，夏天挡住烈日，背后挡住北风。'))}</div>`; return; }
-    box.innerHTML = `<span class="tag">${Lab.L(o('Courtyard house','四合院'))}</span><h3>${r.icon} ${Lab.L(r.name)}</h3><div class="job">${Lab.L(r.job)}</div><ul>${Lab.L(r.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    box.innerHTML = `${roomPanel(r)}
       <button class="speak" id="speak2">${Lab.L(Lab.UI.listen)}</button>`;
-    Lab.$('#speak2').onclick = () => Lab.speak([Lab.L(r.name), Lab.L(r.job), ...Lab.L(r.facts)].join('。 '));
+    Lab.$('#speak2').onclick = () => speakPanel(box);
   }
   ST.select = k => { ST.sel = k; if (k) ST.rooms.add(k); info(); check(); ST.emit(); };
   Lab.$$('#segSeason button').forEach(b => b.onclick = () => { ST.season = b.dataset.s; Lab.$$('#segSeason button').forEach(x => x.classList.toggle('on', x === b)); render(); });
@@ -558,6 +662,7 @@ Lab.onLang(() => { renderInfo(); renderChips(); renderWalk(); });
   const hIn = Lab.$('#hIn'); let ht = null;
   hIn.oninput = () => { clearInterval(ht); ht = null; ST.hour = +hIn.value; render(); };
   Lab.$('#hPlay').onclick = () => { if (ht){ clearInterval(ht); ht = null; return; } if (+hIn.value >= 19.4) hIn.value = 5; ht = setInterval(() => { hIn.value = Math.min(19.5, +hIn.value + .1); ST.hour = +hIn.value; render(); if (+hIn.value >= 19.5){ clearInterval(ht); ht = null; } }, 70); };
+  readPanelItems('#info2', Object.values(ROOMS), roomPanel, PANEL_PARTS);
   Lab.onLang(() => { info(); render(); });
 })();
 
@@ -647,6 +752,12 @@ Lab.sort(Lab.$('#sort'), {
   const sel = new Set(['yongdingmen', 'gugong', 'zhonglou']); let day = 'sat', mode = 'walk', best = 0;
   const RANKS = [['🧳', o('Tourist','游客')], ['🎒', o('Explorer','背包客')], ['🗺️', o('Junior guide','小导游')], ['🏆', o('Axis expert','中轴线专家')]];
   const T0 = 8 * 60, DL = 17 * 60, T1 = 19 * 60, clock = m => `${Math.floor(m / 60)}:${String(Math.round(m % 60)).padStart(2, '0')}`;
+  const PLAN_RESULTS = {
+    closed:o('Oops: the Forbidden City and the National Museum close on Mondays. Try Saturday!','糟糕：故宫和国家博物馆周一闭馆，换成星期六试试！'),
+    late:o('You ran out of time. Drop a long stop, or ride the subway for the long stretches.','时间不够了。去掉一个耗时长的景点，或者长距离路段改乘地铁。'),
+    perfect:o('Perfect plan: Axis expert!','完美的行程：中轴线专家！')
+  };
+  readPanelItems('#tMsg', Object.values(PLAN_RESULTS), Lab.L);
   function plan(){
     let t = T0, pos = 0, back = 0, walked = 0, pts = 0, lunch = false; const blocks = [], rows = [], notes = [];
     const addLunch = () => { if (!lunch && t >= 11.5 * 60){ blocks.push({ c:'lunch', a:t, b:t + 45, l:'🍜' }); rows.push([t, t + 45, o('Lunch','午饭'), '', '']); t += 45; lunch = true; } };
@@ -675,9 +786,9 @@ Lab.sort(Lab.$('#sort'), {
     const r = RANKS[stars];
     Lab.$('#tRank').innerHTML = `<span class="ico">${r[0]}</span><div><b>${Lab.L(r[1])} ${'★'.repeat(stars)}${'☆'.repeat(3 - stars)}</b><small>${Lab.L(o(`3★ at 80 points · 2★ at 60 · 1★ at 35 · best so far: ${best} (the best possible is 87)`, `80 分 3 星 · 60 分 2 星 · 35 分 1 星 · 你的最高分：${best}（满分可达 87）`))}</small></div>`;
     const m = Lab.$('#tMsg');
-    if (P.notes.length){ m.className = 'result bad'; m.textContent = Lab.L(o('Oops: the Forbidden City and the National Museum close on Mondays. Try Saturday!','糟糕：故宫和国家博物馆周一闭馆，换成星期六试试！')); }
-    else if (P.rows.some(x => x[3] === 'bad')){ m.className = 'result bad'; m.textContent = Lab.L(o('You ran out of time. Drop a long stop, or ride the subway for the long stretches.','时间不够了。去掉一个耗时长的景点，或者长距离路段改乘地铁。')); }
-    else if (stars === 3){ m.className = 'result good'; m.textContent = Lab.L(o('Perfect plan: Axis expert!','完美的行程：中轴线专家！')); }
+    if (P.notes.length){ m.className = 'result bad'; m.textContent = Lab.L(PLAN_RESULTS.closed); }
+    else if (P.rows.some(x => x[3] === 'bad')){ m.className = 'result bad'; m.textContent = Lab.L(PLAN_RESULTS.late); }
+    else if (stars === 3){ m.className = 'result good'; m.textContent = Lab.L(PLAN_RESULTS.perfect); }
     else { m.className = 'result'; m.textContent = P.t < DL - 60 ? Lab.L(o(`You still have about ${nf((DL - P.t) / 60, 1)} hours: add another stop?`, `还剩大约 ${nf((DL - P.t) / 60, 1)} 小时，再加一个景点？`)) : ''; }
     Lab.$('#tItin').innerHTML = P.rows.map(([a, b, n, cls, w]) => `<div class="${cls}"><b>${clock(a)}–${clock(b)}</b><span>${Lab.L(n)}${w ? ' · ' + Lab.L(w) : ''}</span></div>`).join('') +
       P.bonus.map(([p, n]) => `<div><b>🎁 +${p}</b><span>${Lab.L(n)}</span></div>`).join('');
@@ -819,7 +930,7 @@ const hip = (w, d, h, c, y) => { const m = new THREE.Mesh(new THREE.ConeGeometry
   Lab.$('#bBird').onclick = () => { follow = false; Lab.$('#bFollow').classList.remove('on'); ctx.flyToPose([9, 14, 6], [0, 0, -.4]); };
   let labelsOn = true; Lab.$('#bLabels').onclick = () => { labelsOn = !labelsOn; labels.forEach(L => L.visible = labelsOn); Lab.$('#bLabels').classList.toggle('on', labelsOn); };
   Lab.$('#bWall').onclick = () => { walls.visible = !walls.visible; wallLab.visible = walls.visible; Lab.$('#bWall').classList.toggle('on', walls.visible); if (walls.visible){ follow = false; Lab.$('#bFollow').classList.remove('on'); ctx.flyToPose([12, 15, 9], [0, 0, -.4]); } };
-  const story = Lab3D.story('#stage', BJ.LM.map((p, i) => ({ en:`${i + 1} · ${p.name.en}: ${p.job.en}`, zh:`${i + 1} · ${p.name.zh}：${p.job.zh}` })), i => { follow = true; Lab.$('#bFollow').classList.add('on'); const p = BJ.LM[i]; BJ.setWalk(p.d, true); BJ.select(p.k); });
+  const story = Lab3D.story('#stage', BJ.walkCaptions, i => { follow = true; Lab.$('#bFollow').classList.add('on'); const p = BJ.LM[i]; BJ.setWalk(p.d, true); BJ.select(p.k); });
   Lab.$('#bTour').onclick = () => story.start();
 }
 
@@ -902,7 +1013,7 @@ const hip = (w, d, h, c, y) => { const m = new THREE.Mesh(new THREE.ConeGeometry
   });
   ctx.hoverText(k => ST.ROOMS[k] ? ST.ROOMS[k].icon + ' ' + Lab.L(ST.ROOMS[k].name) : '');
   ctx.onPick(k => ST.select(k && ST.ROOMS[k] ? k : null));
-  Lab.$('#bWind').onclick = () => { Lab.$('#bWind').classList.toggle('on'); update(); if (Lab.$('#bWind').classList.contains('on')) ctx.caption(o('The solid north wall and the closed backs of the buildings face the cold wind; the doors and windows open onto the sheltered, sunny courtyard.','厚实的北墙和房屋的后墙对着寒风，门窗都朝向背风、向阳的院子。')); else ctx.caption(null); };
+  Lab.$('#bWind').onclick = () => { Lab.$('#bWind').classList.toggle('on'); update(); if (Lab.$('#bWind').classList.contains('on')) ctx.caption(BJ.windCaption); else ctx.caption(null); };
   let roomLabOn = true; Lab.$('#bRoomLab').onclick = () => { roomLabOn = !roomLabOn; roomLabels.forEach(([, L]) => L.visible = roomLabOn); Lab.$('#bRoomLab').classList.toggle('on', roomLabOn); };
   Lab.$('#bTop').onclick = () => ctx.flyToPose([0.1, 52, 4], [0, 0, 1]);
   ST.render();

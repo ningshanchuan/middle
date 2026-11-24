@@ -157,6 +157,83 @@
 <script>
 /* ============ DATA ============ */
 const o = (en, zh) => ({en, zh});
+const PANEL_PARTS = '.tag,h3,h4,.job,li,p,.memory,.mix,.quote,.usbox';
+function panelUnits(el, parts){
+  const out = [];
+  const nodes = parts ? el.querySelectorAll(parts) : [el];
+  for (const node of nodes){
+    const unit = Lab.readUnits(node);
+    if (!unit) continue;
+    const style = node.closest('[data-read-style]');
+    for (const text of unit.parts){
+      out.push(style ? [text, unit.lang, { style:style.dataset.readStyle, work:style.dataset.work }] : [text, unit.lang]);
+    }
+  }
+  return out;
+}
+function speakPanel(el){
+  const parts = panelUnits(el, PANEL_PARTS);
+  let i = 0;
+  function next(ok){
+    if (ok === false || i >= parts.length) return;
+    const [text, lang] = parts[i++];
+    Lab.speak(text, { lang, inner:true, onend:next });
+  }
+  next();
+}
+// The crawler loads this page once per language.
+const panelGroups = [];
+function readPanelItems(selector, items, render, parts, property = parts ? 'innerHTML' : 'textContent'){
+  panelGroups.push({ selector, items, render, parts, property });
+}
+Lab.readAll(() => {
+  const mounted = [];
+  try {
+    for (const { selector, items, render, parts, property } of panelGroups){
+      const host = Lab.$(selector) || (selector.endsWith(' .lab-caption') && Lab.$(selector.split(' ')[0]));
+      if (!host?.parentElement) continue;
+      const width = host.offsetWidth || host.parentElement.offsetWidth || 360;
+      const fragment = document.createDocumentFragment();
+      for (const item of items){
+        const tmp = document.createElement(host.localName);
+        tmp.className = host.matches('.stage') ? 'lab-caption show' : host.className;
+        tmp.style.cssText = 'position:absolute;left:-10000px;top:0;box-sizing:border-box;width:' + width + 'px';
+        tmp[property] = render(item);
+        // Keep each item in its own place-name annotation block.
+        const scope = document.createElement('section');
+        scope.style.display = 'contents';
+        scope.appendChild(tmp);
+        fragment.appendChild(scope);
+        mounted.push({ scope, tmp, parts });
+      }
+      host.after(fragment);
+    }
+    const collect = () => mounted.flatMap(({ tmp, parts }) => panelUnits(tmp, parts));
+    const clips = new Map();
+    const collectClips = () => {
+      for (const unit of collect()) clips.set(JSON.stringify(unit), unit);
+    };
+    collectClips();
+    // Match the units before and after the shared place-name annotations.
+    if (window.LabPlaces){
+      LabPlaces.refresh();
+      collectClips();
+      if (Lab.lang === 'zh' && window.LabPinyin){
+        LabPinyin.refresh();
+        LabPlaces.refresh();
+        collectClips();
+      }
+      if (window.LabGaz){
+        for (const { tmp } of mounted) LabGaz.scan(tmp);
+        LabPlaces.refresh();
+        collectClips();
+      }
+    }
+    return [...clips.values()];
+  } finally {
+    for (const { scope } of mounted) scope.remove();
+  }
+});
 Lab.ready(() => { const s = document.querySelector('.lab-footer p span[data-zh]'); if (s){ s.dataset.zh = '课标 / 教材章节'; s.dataset.en = 'Curriculum / textbook chapter'; } });
 const C = {  // cities: lon, lat, en, zh
   bj:[116.4,39.9,'Beijing','北京'], tj:[117.2,39.1,'Tianjin','天津'], sh:[121.47,31.23,'Shanghai','上海'], gz:[113.26,23.13,'Guangzhou','广州'], sz:[114.06,22.54,'Shenzhen','深圳'], hk:[114.17,22.3,'Hong Kong','香港'],
@@ -341,6 +418,20 @@ const LABELS = { hsr:'bj sh gz heb wlmq cd km xa wh zz lz sy hk nn', rail:'bj sh
 const nearLine = (V, x, y, list) => { let best = null, bd = 12; list.forEach(l => { for (let i = 1; i < l.p.length; i++){ const a = V.toS(l.p[i - 1]), b = V.toS(l.p[i]), dx = b[0] - a[0], dy = b[1] - a[1], t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / (dx * dx + dy * dy || 1))), d = Math.hypot(a[0] + t * dx - x, a[1] + t * dy - y); if (d < bd){ bd = d; best = l; } } }); return best; };
 const nearPt = (V, x, y, list, get, r) => { let best = null, bd = r || 16; list.forEach(it => { const s = V.toS(get(it)), d = Math.hypot(s[0] - x, s[1] - y); if (d < bd){ bd = d; best = it; } }); return best; };
 
+const railOpening = (r, s) => ({ en:`🚄 ${r.en} — opened ${s.y}. ${s.note ? s.note.en : ''}`, zh:`🚄 ${r.zh}——${s.y} 年通车。${s.note ? s.note.zh : ''}` });
+readPanelItems('#here', HSR, item => Lab.L(railOpening(route(item.s), item)));
+const hubNote = h => ({ en:'🔴 ' + h[1].en, zh:'🔴 ' + h[1].zh });
+readPanelItems('#here', HUBS, item => Lab.L(hubNote(item)));
+const railNote = (rt, r) => ({ en:`🚂 ${r.n.en}: ${rt.en}. ${r.t.en}`, zh:`🚂 ${r.n.zh}：${rt.zh}。${r.t.zh}` });
+readPanelItems('#here', RAIL, item => Lab.L(railNote(route(item.s), item)));
+const grainNote = gb => ({ en:`🟠 Commercial grain base: ${gb[2].en}. It grows far more grain than its people eat and sells the rest.`, zh:`🟠 商品粮基地：${gb[2].zh}。这里生产的粮食大量供应全国其他地区。` });
+readPanelItems('#here', GRAIN, item => Lab.L(grainNote(item)));
+const pastureNote = p => ({ en:`${p.e} ${p.n.en}. ${p.t.en}`, zh:`${p.e} ${p.n.zh}。${p.t.zh}` });
+readPanelItems('#here', Object.values(PAST), item => Lab.L(pastureNote(item)));
+const techNote = t => ({ en:'🟠 ' + t[1].en, zh:'🟠 ' + t[1].zh });
+readPanelItems('#here', TECH, item => Lab.L(techNote(item)));
+const industryNote = b => ({ en:`🏭 ${b.n.en} (${b.cities.en}). ${b.t.en}`, zh:`🏭 ${b.n.zh}（${b.cities.zh}）。${b.t.zh}` });
+readPanelItems('#here', BASES, item => Lab.L(industryNote(item)));
 const map = MapView(Lab.$('#stage'), {
   pad:(W) => [W < 520 ? 104 : 62, 8, 62, 8],
   under(c, V){
@@ -385,35 +476,40 @@ const map = MapView(Lab.$('#stage'), {
     if (App.quest && !App.quest.done) return questClick(lon, lat, x, y);
     const L = App.layer, V = map; App.pick = null; App.here = null; App.mark = null;
     if (L === 'hsr'){ const s = nearLine(V, x, y, HSR.filter(s => s.y <= App.year)), k = !s && App.plan ? nearLine(V, x, y, CORR) : null;
-      if (s){ App.pick = s; const r = route(s.s); App.here = { en:`🚄 ${r.en} — opened ${s.y}. ${s.note ? s.note.en : ''}`, zh:`🚄 ${r.zh}——${s.y} 年通车。${s.note ? s.note.zh : ''}` }; }
+      if (s){ App.pick = s; const r = route(s.s); App.here = railOpening(r, s); }
       else if (k) return pickCorr(k); }
     if (L === 'rail'){ const h = nearPt(V, x, y, HUBS, h => C[h[0]], 12), r = h ? null : nearLine(V, x, y, RAIL);
-      if (h){ App.here = { en:'🔴 ' + h[1].en, zh:'🔴 ' + h[1].zh }; App.sel = 'hubs'; }
-      else if (r){ App.pick = r; const rt = route(r.s); App.here = { en:`🚂 ${r.n.en}: ${rt.en}. ${r.t.en}`, zh:`🚂 ${r.n.zh}：${rt.zh}。${r.t.zh}` }; App.sel = 'rail'; } }
+      if (h){ App.here = hubNote(h); App.sel = 'hubs'; }
+      else if (r){ App.pick = r; const rt = route(r.s); App.here = railNote(rt, r); App.sel = 'rail'; } }
     if (L === 'farm'){ const gb = nearPt(V, x, y, GRAIN, g => g, 12), f = ChinaMap.hit(V.geo, lon, lat), code = f && f.properties.adcode;
-      if (gb){ App.here = { en:`🟠 Commercial grain base: ${gb[2].en}. It grows far more grain than its people eat and sells the rest.`, zh:`🟠 商品粮基地：${gb[2].zh}。这里生产的粮食大量供应全国其他地区。` }; App.sel = 'adapt'; }
-      else if (PAST[code]){ const p = PAST[code]; App.here = { en:`${p.e} ${p.n.en}. ${p.t.en}`, zh:`${p.e} ${p.n.zh}。${p.t.zh}` }; App.sel = 'pasture'; }
+      if (gb){ App.here = grainNote(gb); App.sel = 'adapt'; }
+      else if (PAST[code]){ const p = PAST[code]; App.here = pastureNote(p); App.sel = 'pasture'; }
       else if (code && ChinaMap.NAMES[code]){ const n = ChinaMap.NAMES[code], east = inPoly(lon, lat, EAST), south = inPoly(lon, lat, SOUTH); App.sel = east ? 'crops' : 'farm';
         App.here = !east ? { en:`📍 ${n.en} (${n.zh}): west of the 400 mm line — mostly grazing, with irrigated farming in oases and valleys.`, zh:`📍 ${n.zh}：位于 400 毫米年等降水量线以西，以畜牧业为主，绿洲和河谷有灌溉农业。` }
           : south ? { en:`📍 ${n.en} (${n.zh}): south of the Qinling–Huaihe Line — flooded paddies; rice is the main grain.`, zh:`📍 ${n.zh}：位于秦岭—淮河一线以南，以水田为主，主要粮食作物是水稻。` }
           : { en:`📍 ${n.en} (${n.zh}): north of the Qinling–Huaihe Line — dry fields; wheat is the main grain.`, zh:`📍 ${n.zh}：位于秦岭—淮河一线以北，以旱地为主，主要粮食作物是小麦。` }; } }
     if (L === 'ind'){ const t = nearPt(V, x, y, TECH, t => C[t[0]], 11), b = t ? null : BASES.find(b => Math.hypot((lon - b.p[0]) * .8, lat - b.p[1]) < b.r);
-      if (t){ App.here = { en:'🟠 ' + t[1].en, zh:'🟠 ' + t[1].zh }; App.sel = 'tech'; }
-      else if (b){ App.pick = b.k; App.here = { en:`🏭 ${b.n.en} (${b.cities.en}). ${b.t.en}`, zh:`🏭 ${b.n.zh}（${b.cities.zh}）。${b.t.zh}` }; App.sel = 'ind'; } }
+      if (t){ App.here = techNote(t); App.sel = 'tech'; }
+      else if (b){ App.pick = b.k; App.here = industryNote(b); App.sel = 'ind'; } }
     renderAll();
   }
 });
+const corridorNote = (k, r) => ({ en:`${k.d === 'v' ? '↕ North–south' : '↔ East–west'} corridor “${k.n.en}”: ${r.en}.`, zh:`${k.d === 'v' ? '↕ 纵向' : '↔ 横向'}“${k.n.zh}”：${r.zh}。` });
+readPanelItems('#here', CORR, k => Lab.L(corridorNote(k, route(k.s))));
 function pickCorr(k){ App.corr = App.corr === k ? null : k; const r = k && route(k.s); App.pick = null;
-  App.here = App.corr ? { en:`${k.d === 'v' ? '↕ North–south' : '↔ East–west'} corridor “${k.n.en}”: ${r.en}.`, zh:`${k.d === 'v' ? '↕ 纵向' : '↔ 横向'}“${k.n.zh}”：${r.zh}。` } : null; renderAll(); }
+  App.here = App.corr ? corridorNote(k, r) : null; renderAll(); }
 
 /* ---- strip: caption, legend, corridor chips ---- */
+const LAYER_CAPTIONS = {
+  rail:o('The classic network: five north–south lines and three east–west lines. Red dots are hubs where lines cross.','普通铁路干线“五纵三横”：五条南北向、三条东西向。红点是干线交会的铁路枢纽。'),
+  farm:o('Two lines explain Chinese farming: the 400 mm rainfall line (crops | herds) and the Qinling–Huaihe Line (wheat | rice).','两条线读懂我国农业：400 毫米年等降水量线（东耕西牧）和秦岭—淮河线（南稻北麦）。'),
+  ind:o('Factories follow transport: the coast, the Yangtze River and the main railways. Circles are the four great industrial bases.','工业沿海、沿江、沿铁路线分布。圆圈是四大工业基地。')
+};
+readPanelItems('#cap', Object.values(LAYER_CAPTIONS), Lab.L);
 function renderStrip(){
   const L = App.layer, sw = (c, t) => `<span><i style="background:${c}"></i>${t}</span>`, y = App.year, km = KM[y];
   const fresh = HSR.filter(s => s.y === y).map(s => { const a = s.s.split(' '); return Lab.lang === 'zh' ? C[a[0]][3] + '—' + C[a[a.length - 1]][3] : C[a[0]][2] + '–' + C[a[a.length - 1]][2]; }).join(Lab.lang === 'zh' ? '、' : ', ');
-  Lab.$('#cap').textContent = L === 'hsr' ? Lab.L(o(`${y}: about ${km.toLocaleString('en')} km (${(Math.round(km * .621 / 100) * 100).toLocaleString('en')} mi) of high-speed rail. New this year: ${fresh}.`, `${y} 年：全国高铁里程约 ${km} 千米。当年新通车：${fresh}。`))
-    : L === 'rail' ? Lab.L(o('The classic network: five north–south lines and three east–west lines. Red dots are hubs where lines cross.','普通铁路干线“五纵三横”：五条南北向、三条东西向。红点是干线交会的铁路枢纽。'))
-    : L === 'farm' ? Lab.L(o('Two lines explain Chinese farming: the 400 mm rainfall line (crops | herds) and the Qinling–Huaihe Line (wheat | rice).','两条线读懂我国农业：400 毫米年等降水量线（东耕西牧）和秦岭—淮河线（南稻北麦）。'))
-    : Lab.L(o('Factories follow transport: the coast, the Yangtze River and the main railways. Circles are the four great industrial bases.','工业沿海、沿江、沿铁路线分布。圆圈是四大工业基地。'));
+  Lab.$('#cap').textContent = L === 'hsr' ? Lab.L(o(`${y}: about ${km.toLocaleString('en')} km (${(Math.round(km * .621 / 100) * 100).toLocaleString('en')} mi) of high-speed rail. New this year: ${fresh}.`, `${y} 年：全国高铁里程约 ${km} 千米。当年新通车：${fresh}。`)) : Lab.L(LAYER_CAPTIONS[L]);
   Lab.$('#legend').innerHTML = L === 'hsr' ? sw(COL.fresh, Lab.L(o('opened this year','当年新通车'))) + sw(COL.old, Lab.L(o('opened earlier','此前已通车'))) + (App.plan ? sw(COL.v, Lab.L(o('8 north–south corridors (plan)','“八纵”通道（规划）'))) + sw(COL.h, Lab.L(o('8 east–west corridors (plan)','“八横”通道（规划）'))) : '')
     : L === 'rail' ? sw(COL.v, Lab.L(o('north–south (“vertical”) line','纵向干线'))) + sw(COL.h, Lab.L(o('east–west (“horizontal”) line','横向干线'))) + sw('#e0475b', Lab.L(o('hub','铁路枢纽')))
     : L === 'farm' ? sw(COL.past, Lab.L(o('four pastoral regions','四大牧区'))) + sw(COL.wheat, Lab.L(o('dry fields: wheat','旱地：小麦'))) + sw(COL.rice, Lab.L(o('paddies: rice','水田：水稻'))) + sw('#c98a22', Lab.L(o('commercial grain base','商品粮基地')))
@@ -454,19 +550,32 @@ const TASKS = [
   ['rail', o('Click the western end city of the Lanxin line.','点击兰新线西端的城市。'), near('wlmq', 3), o('Urumqi, capital of Xinjiang.','新疆的乌鲁木齐。')],
   ['rail', o('Click the southern end of the Jingguang line.','点击京广线的南端终点。'), near('gz'), o('Guangzhou (广州):“guang” in Jingguang.','广州：京广线的“广”。')]
 ];
+const questResult = (t, good) => ({ en:(good ? '✅ Yes! ' : '❌ Not quite. ') + t[3].en, zh:(good ? '✅ 正确！' : '❌ 不对。') + t[3].zh });
+readPanelItems('#here', TASKS.flatMap(t => [true, false].map(good => [t, good])), args => Lab.L(questResult(...args)));
+const questPrompt = task => Lab.L(task[1]);
+readPanelItems('#qText', TASKS, questPrompt);
 function questStart(){ stopPlay(); App.quest = { list:Lab.shuffle(TASKS).slice(0, 8), i:0, ok:0, done:false, wait:false }; App.pick = null; App.here = null; App.mark = null; setLayer(App.quest.list[0][0]); renderQuest(); }
 function questClick(lon, lat){ const q = App.quest; if (q.wait) return; const t = q.list[q.i], good = !!t[2](lon, lat); if (good) q.ok++; q.wait = true;
-  App.mark = { p:[lon, lat], good }; App.here = { en:(good ? '✅ Yes! ' : '❌ Not quite. ') + t[3].en, zh:(good ? '✅ 正确！' : '❌ 不对。') + t[3].zh }; renderStrip(); map.redraw(); renderQuest(); }
+  App.mark = { p:[lon, lat], good }; App.here = questResult(t, good); renderStrip(); map.redraw(); renderQuest(); }
 function questNext(){ const q = App.quest; q.i++; q.wait = false; App.mark = null; App.here = null; if (q.i >= q.list.length){ q.done = true; renderStrip(); map.redraw(); } else setLayer(q.list[q.i][0]); renderQuest(); }
 function renderQuest(){ const q = App.quest, on = q && !q.done;
   Lab.$('#qProg').hidden = !q; Lab.$('#qBar').style.width = q ? (q.i + (q.wait ? 1 : 0)) / q.list.length * 100 + '%' : '0';
   Lab.$('#qBtn').textContent = Lab.L(!q ? o('🎯 Map challenge','🎯 地图挑战') : q.done ? o('↺ Play again','↺ 再玩一次') : q.wait ? o('Next ▶','下一题 ▶') : o('✕ Quit','✕ 退出'));
-  Lab.$('#qText').textContent = !q ? Lab.L(o('8 places to find — can you click them all?','找出 8 个地方，你能全部点对吗？')) : q.done ? Lab.L(o(`Finished: ${q.ok} of ${q.list.length} found!`, `完成：${q.list.length} 题答对 ${q.ok} 题！`)) : `${q.i + 1}/${q.list.length} · ` + Lab.L(q.list[q.i][1]);
+  Lab.$('#qText').textContent = !q ? Lab.L(o('8 places to find — can you click them all?','找出 8 个地方，你能全部点对吗？')) : q.done ? Lab.L(o(`Finished: ${q.ok} of ${q.list.length} found!`, `完成：${q.list.length} 题答对 ${q.ok} 题！`)) : `${q.i + 1}/${q.list.length} · ` + questPrompt(q.list[q.i]);
   Lab.$('#qScore').textContent = on ? Lab.L(o(`Score ${q.ok}`, `得分 ${q.ok}`)) : ''; }
 Lab.$('#qBtn').onclick = () => { const q = App.quest; if (!q || q.done) return questStart(); if (q.wait) return questNext(); App.quest = null; App.mark = null; App.here = null; renderQuest(); renderStrip(); map.redraw(); };
 
 /* ---- info panel + chips ---- */
 App.select = k => { App.sel = k; if (!(App.quest && !App.quest.done)) setLayer(TOPICS[k].layer); renderInfo(); renderChips(); };
+function topicPanel(k){
+  const p = TOPICS[k];
+  return `<span class="tag">${Lab.L(p.tag)}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L(o('💡 Memory hook','💡 记忆口诀'))}</b>${Lab.L(p.hint)}</div>
+    <div class="mix"><b>${Lab.L(o('⚠️ Common mistake:','⚠️ 易错点：'))}</b><span>${Lab.L(p.mix)}</span></div>`;
+}
 function renderInfo(){
   const box = Lab.$('#info'), k = App.sel;
   if (!k){ box.innerHTML = `<span class="tag">${Lab.L(o('Economy map','经济地图'))}</span>
@@ -475,19 +584,15 @@ function renderInfo(){
       <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(o('East: dense transport, crops and factories. West: sparse transport and herding. Geography explains why.','东部：交通稠密、种植业和工业集中；西部：交通稀疏、以畜牧业为主。'))}</div>
       <div class="nav"><button id="startBtn">${Lab.L(o('Start ▶','开始学习 ▶'))}</button></div>`;
     Lab.$('#startBtn').onclick = () => App.select(ORDER[0]); return; }
-  const p = TOPICS[k], i = ORDER.indexOf(k);
-  box.innerHTML = `<span class="tag">${Lab.L(p.tag)}</span>
-    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
-    <div class="job">${Lab.L(p.job)}</div>
-    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
-    <div class="memory"><b>${Lab.L(o('💡 Memory hook','💡 记忆口诀'))}</b>${Lab.L(p.hint)}</div>
-    <div class="mix"><b>${Lab.L(o('⚠️ Common mistake:','⚠️ 易错点：'))}</b><span>${Lab.L(p.mix)}</span></div>
+  const i = ORDER.indexOf(k);
+  box.innerHTML = `${topicPanel(k)}
     <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
-  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts), Lab.L(p.hint)].join(Lab.lang === 'zh' ? '。' : '. '));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box);
   Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
   Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
 }
+readPanelItems('#info', ORDER, topicPanel, PANEL_PARTS);
 function renderChips(){
   Lab.$('#chips').innerHTML = ORDER.map(k => `<button class="chip ${App.sel === k ? 'on' : ''}" data-k="${k}"><i style="background:${TOPICS[k].color}"></i>${Lab.L(TOPICS[k].name)}</button>`).join('');
   Lab.$$('#chips .chip').forEach(c => c.onclick = () => App.select(c.dataset.k));
@@ -525,15 +630,19 @@ GEO.then(geo => { mapState = 'ok'; showMsg(); map.setGeo(geo); }).catch(() => { 
   ];
   const KEYS = Object.keys(MODES); let deck = [], i = 0, ok = 0, streak = 0, ans = null;
   function modeCards(){ Lab.$('#modes').innerHTML = KEYS.map(k => { const m = MODES[k]; return `<details class="card"><summary><span class="e">${m.e}</span>${Lab.L(m.n)}<small>${Lab.L(m.s)}</small></summary><p>${Lab.L(m.d)}</p></details>`; }).join(''); }
+  const transportPrompt = c => Lab.L(c[1]);
+  readPanelItems('#tScen', SC, transportPrompt);
+  const transportResult = (c, ans) => (ans === c[0] ? '✅ ' : '❌ ') + Lab.L(c[2]);
+  readPanelItems('#tMsg', SC, c => transportResult(c, c[0]));
   function start(){ deck = Lab.shuffle(SC).slice(0, 8); i = 0; ok = 0; streak = 0; ans = null; render(); }
   function render(){
     const fin = i >= deck.length, c = deck[i];
     Lab.$('#tBar').style.width = (fin ? 100 : (i + (ans ? 1 : 0)) / deck.length * 100) + '%';
     Lab.$('#tCount').textContent = fin ? '' : Lab.L(o(`Customer ${i + 1} of ${deck.length}`, `第 ${i + 1} / ${deck.length} 位客户`));
-    Lab.$('#tScen').textContent = fin ? Lab.L(o(`All delivered: ${ok} of ${deck.length} correct!`, `全部完成：${deck.length} 题答对 ${ok} 题！`)) : Lab.L(c[1]);
+    Lab.$('#tScen').textContent = fin ? Lab.L(o(`All delivered: ${ok} of ${deck.length} correct!`, `全部完成：${deck.length} 题答对 ${ok} 题！`)) : transportPrompt(c);
     Lab.$('#tPick').innerHTML = fin ? '' : KEYS.map(k => `<button data-k="${k}" class="${ans ? (k === c[0] ? 'right' : k === ans ? 'wrong' : '') : ''}" ${ans ? 'disabled' : ''}><span class="e">${MODES[k].e}</span>${Lab.L(MODES[k].n)}</button>`).join('');
     Lab.$$('#tPick button').forEach(b => b.onclick = () => { ans = b.dataset.k; if (ans === c[0]){ ok++; streak++; } else streak = 0; render(); });
-    const m = Lab.$('#tMsg'); m.textContent = ans && !fin ? (ans === c[0] ? '✅ ' : '❌ ') + Lab.L(c[2]) : ''; m.className = 'result ' + (ans === (c && c[0]) ? 'good' : 'bad');
+    const m = Lab.$('#tMsg'); m.textContent = ans && !fin ? transportResult(c, ans) : ''; m.className = 'result ' + (ans === (c && c[0]) ? 'good' : 'bad');
     Lab.$('#tOk').textContent = ok; Lab.$('#tStreak').textContent = streak;
     const n = Lab.$('#tNext'); n.hidden = !(ans || fin); n.textContent = Lab.L(fin ? o('Play again ↺','再玩一次 ↺') : o('Next customer ▶','下一位客户 ▶'));
   }

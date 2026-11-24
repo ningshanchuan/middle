@@ -259,34 +259,95 @@ const DIVE = [
 const App = window.OCEAN = { sel:null, view:'floor', three:null };
 const order = () => App.view === 'floor' ? ORDER_F : ORDER_C;
 App.select = (k, from3D) => { App.sel = k; renderInfo(); renderChips(); if (!from3D && App.three) App.three.focus(k); };
-function renderInfo(){
-  const box = Lab.$('#info'), k = App.sel, floor = App.view === 'floor';
-  if (!k){
-    box.innerHTML = floor ? `<span class="tag">${Lab.L({en:'Ocean floor',zh:'海底地形'})}</span>
-      <h3>${Lab.L({en:'The sea floor is not flat',zh:'海底并不平坦'})}</h3>
-      <p class="muted" style="margin:0">${Lab.L({en:'If you drained the ocean you would see wide plains, the longest mountain chain on Earth and trenches deeper than Everest is tall. Click a feature, or take the sea-floor dive.',zh:'如果把海水抽干，你会看到宽广的平原、地球上最长的山脉，以及比珠穆朗玛峰还深的海沟。点击一种地形，或者开始“海底之旅”。'})}</p>
-      <div class="memory"><b>${Lab.L({en:'💡 Memory hint',zh:'💡 记忆小窍门'})}</b>${Lab.L({en:'From the coast out: “Some Sharks Rarely Prefer Real Treats”: Shelf, Slope, Rise, Plain, Ridge, Trench.',zh:'从海岸往外：大陆架 → 大陆坡 → 大陆隆 → 深海平原 → 大洋中脊 → 海沟。'})}</div>
-      <div class="nav"><button id="startBtn">${Lab.L({en:'Start at the coast ▶',zh:'从海岸开始 ▶'})}</button></div>`
-    : `<span class="tag">${Lab.L({en:'Surface currents',zh:'表层洋流'})}</span>
-      <h3>${Lab.L({en:'Rivers in the sea',zh:'海洋中的“河流”'})}</h3>
-      <p class="muted" style="margin:0">${Lab.L({en:'Winds push the ocean’s surface into great currents. Red currents carry warm water away from the equator; blue currents bring cold water toward it. The moving arrows show the direction. Click a current.',zh:'风推动海洋表面形成巨大的洋流。红色的暖流把温暖的海水带离赤道，蓝色的寒流把冷水带向赤道，移动的箭头表示流向。点击一条洋流。'})}</p>
-      <div class="memory"><b>${Lab.L({en:'💡 Memory hint',zh:'💡 记忆小窍门'})}</b>${Lab.L({en:'North = clockwise, South = counterclockwise.',zh:'北半球顺时针，南半球逆时针。'})}</div>
-      <div class="nav"><button id="startBtn">${Lab.L({en:'Start with the Gulf Stream ▶',zh:'从墨西哥湾暖流开始 ▶'})}</button></div>`;
-    Lab.$('#startBtn').onclick = () => App.select(floor ? 'shelf' : 'gulf');
-    return;
+// Use the same read-aloud units for the crawler and the panel's Listen button.
+const PANEL_PARTS = '.tag,h3,h4,.job,p,li,.memory,.mix,figcaption,.quote';
+function panelUnits(el, selector = PANEL_PARTS, visibleOnly = false){
+  const nodes = selector ? el.querySelectorAll(selector) : [el];
+  const out = [];
+  for (const node of nodes){
+    if (visibleOnly && !node.getClientRects().length) continue;
+    const unit = Lab.readUnits(node);
+    if (!unit) continue;
+    const style = node.closest('[data-read-style]');
+    for (const text of unit.parts){
+      out.push(style ? [text, unit.lang, {style:style.dataset.readStyle, work:style.dataset.work}] : [text, unit.lang]);
+    }
   }
-  const p = PARTS[k], ord = ORDER_F.includes(k) ? ORDER_F : ORDER_C, i = ord.indexOf(k);
+  return out;
+}
+function speakPanel(el, selector){
+  const parts = panelUnits(el, selector, true);
+  let i = 0;
+  const next = ok => {
+    if (ok === false || i >= parts.length) return;
+    const [text, lang] = parts[i++];
+    Lab.speak(text, {lang, inner:true, onend:next});
+  };
+  next();
+}
+function collectPanelTexts(host, items, render, selector){
+  if (!host?.parentElement) return [];
+  const tmp = host.cloneNode(false);
+  tmp.removeAttribute('id');
+  tmp.removeAttribute('aria-live');
+  tmp.style.cssText = 'position:absolute;left:-10000px;top:0;box-sizing:border-box;width:' + (host.offsetWidth || 360) + 'px';
+  host.after(tmp);
+  const out = [];
+  try {
+    for (const item of items){
+      render(tmp, item);
+      out.push(...panelUnits(tmp, selector));
+    }
+  } finally { tmp.remove(); }
+  return out;
+}
+function registerStoryTexts(steps){
+  Lab.readAll(() => collectPanelTexts(Lab.$('#stage .lab-caption') || Lab.$('#stage'), steps, (tmp, step) => {
+    tmp.textContent = Lab.L(step);
+  }, null));
+}
+function registerPanelTexts(host, items, markup, selector){
+  Lab.readAll(() => collectPanelTexts(Lab.$(host), items, (tmp, item) => { tmp.innerHTML = markup(item); }, selector));
+}
+function infoMarkup(k){
+  const p = PARTS[k];
   const tag = ORDER_F.includes(k) ? {en:'Ocean-floor feature',zh:'海底地形'} : p.warm ? {en:'Warm current',zh:'暖流'} : k === 'gyre' ? {en:'How currents work',zh:'洋流的成因'} : {en:'Cold current',zh:'寒流'};
-  box.innerHTML = `<span class="tag">${Lab.L(tag)}</span>
+  return `<span class="tag">${Lab.L(tag)}</span>
     <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
     <div class="job">${Lab.L(p.job)}</div>
     ${p.photo ? LabPhotos.figure(p.photo) : ''}
     <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
     <div class="memory"><b>${Lab.L({en:'💡 Memory hint',zh:'💡 记忆小窍门'})}</b>${Lab.L(p.hint)}</div>
-    ${p.mix ? `<div class="mix"><b>${Lab.L({en:'⚠️ Common mix-up:',zh:'⚠️ 容易混淆：'})}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+    ${p.mix ? `<div class="mix"><b>${Lab.L({en:'⚠️ Common mix-up:',zh:'⚠️ 容易混淆：'})}</b><span>${Lab.L(p.mix)}</span></div>` : ''}`;
+}
+registerPanelTexts('#info', [...ORDER_F, ...ORDER_C], infoMarkup);
+registerStoryTexts(DIVE);
+function overviewMarkup(floor){
+  return floor ? `<span class="tag">${Lab.L({en:'Ocean floor',zh:'海底地形'})}</span>
+      <h3>${Lab.L({en:'The sea floor is not flat',zh:'海底并不平坦'})}</h3>
+      <p class="muted" style="margin:0">${Lab.L({en:'If you drained the ocean you would see wide plains, the longest mountain chain on Earth and trenches deeper than Everest is tall. Click a feature, or take the sea-floor dive.',zh:'如果把海水抽干，你会看到宽广的平原、地球上最长的山脉，以及比珠穆朗玛峰还深的海沟。点击一种地形，或者开始“海底之旅”。'})}</p>
+      <div class="memory"><b>${Lab.L({en:'💡 Memory hint',zh:'💡 记忆小窍门'})}</b>${Lab.L({en:'From the coast out: “Some Sharks Rarely Prefer Real Treats”: Shelf, Slope, Rise, Plain, Ridge, Trench.',zh:'从海岸往外：大陆架 → 大陆坡 → 大陆隆 → 深海平原 → 大洋中脊 → 海沟。'})}</div>`
+    : `<span class="tag">${Lab.L({en:'Surface currents',zh:'表层洋流'})}</span>
+      <h3>${Lab.L({en:'Rivers in the sea',zh:'海洋中的“河流”'})}</h3>
+      <p class="muted" style="margin:0">${Lab.L({en:'Winds push the ocean’s surface into great currents. Red currents carry warm water away from the equator; blue currents bring cold water toward it. The moving arrows show the direction. Click a current.',zh:'风推动海洋表面形成巨大的洋流。红色的暖流把温暖的海水带离赤道，蓝色的寒流把冷水带向赤道，移动的箭头表示流向。点击一条洋流。'})}</p>
+      <div class="memory"><b>${Lab.L({en:'💡 Memory hint',zh:'💡 记忆小窍门'})}</b>${Lab.L({en:'North = clockwise, South = counterclockwise.',zh:'北半球顺时针，南半球逆时针。'})}</div>`;
+}
+registerPanelTexts('#info', [true, false], overviewMarkup);
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel, floor = App.view === 'floor';
+  if (!k){
+    box.innerHTML = overviewMarkup(floor) + (floor ? `
+      <div class="nav"><button id="startBtn">${Lab.L({en:'Start at the coast ▶',zh:'从海岸开始 ▶'})}</button></div>`
+    : `
+      <div class="nav"><button id="startBtn">${Lab.L({en:'Start with the Gulf Stream ▶',zh:'从墨西哥湾暖流开始 ▶'})}</button></div>`);
+    Lab.$('#startBtn').onclick = () => App.select(floor ? 'shelf' : 'gulf');
+    return;
+  }
+  const ord = ORDER_F.includes(k) ? ORDER_F : ORDER_C, i = ord.indexOf(k);
+  box.innerHTML = infoMarkup(k) + `
     <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${Lab.L({en:'◀ Previous',zh:'◀ 上一个'})}</button><button id="pNext">${Lab.L({en:'Next ▶',zh:'下一个 ▶'})}</button></div>`;
-  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. '));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box);
   Lab.$('#pPrev').onclick = () => App.select(ord[(i - 1 + ord.length) % ord.length]);
   Lab.$('#pNext').onclick = () => App.select(ord[(i + 1) % ord.length]);
 }

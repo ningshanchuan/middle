@@ -263,6 +263,93 @@ const STORY = [
 /* ===== 信息面板 ===== */
 const App = window.INV = { sel:null, three:null };
 App.select = (k, from3D) => { App.sel = k; renderInfo(); renderChips(); if (!from3D && App.three) App.three.focus(k); };
+const PANEL_PARTS = '.tag,h3,h4,.job,li,p,.memory,.mix,.quote,.usbox';
+function panelUnits(el, parts){
+  const out = [];
+  const nodes = parts ? el.querySelectorAll(parts) : [el];
+  for (const node of nodes){
+    const unit = Lab.readUnits(node);
+    if (!unit) continue;
+    const style = node.closest('[data-read-style]');
+    for (const text of unit.parts){
+      out.push(style ? [text, unit.lang, { style:style.dataset.readStyle, work:style.dataset.work }] : [text, unit.lang]);
+    }
+  }
+  return out;
+}
+function speakPanel(el){
+  const parts = panelUnits(el, PANEL_PARTS);
+  let i = 0;
+  function next(ok){
+    if (ok === false || i >= parts.length) return;
+    const [text, lang] = parts[i++];
+    Lab.speak(text, { lang, inner:true, onend:next });
+  }
+  next();
+}
+// The crawler loads this page once per language.
+const panelGroups = [];
+function readPanelItems(selector, items, render, parts, property = parts ? 'innerHTML' : 'textContent'){
+  panelGroups.push({ selector, items, render, parts, property });
+}
+Lab.readAll(() => {
+  const mounted = [];
+  try {
+    for (const { selector, items, render, parts, property } of panelGroups){
+      const host = Lab.$(selector) || (selector.endsWith(' .lab-caption') && Lab.$(selector.split(' ')[0]));
+      if (!host?.parentElement) continue;
+      const width = host.offsetWidth || host.parentElement.offsetWidth || 360;
+      const fragment = document.createDocumentFragment();
+      for (const item of items){
+        const tmp = document.createElement(host.localName);
+        tmp.className = host.matches('.stage') ? 'lab-caption show' : host.className;
+        tmp.style.cssText = 'position:absolute;left:-10000px;top:0;box-sizing:border-box;width:' + width + 'px';
+        tmp[property] = render(item);
+        // Keep each item in its own place-name annotation block.
+        const scope = document.createElement('section');
+        scope.style.display = 'contents';
+        scope.appendChild(tmp);
+        fragment.appendChild(scope);
+        mounted.push({ scope, tmp, parts });
+      }
+      host.after(fragment);
+    }
+    const collect = () => mounted.flatMap(({ tmp, parts }) => panelUnits(tmp, parts));
+    const clips = new Map();
+    const collectClips = () => {
+      for (const unit of collect()) clips.set(JSON.stringify(unit), unit);
+    };
+    collectClips();
+    // Match the units before and after the shared place-name annotations.
+    if (window.LabPlaces){
+      LabPlaces.refresh();
+      collectClips();
+      if (Lab.lang === 'zh' && window.LabPinyin){
+        LabPinyin.refresh();
+        LabPlaces.refresh();
+        collectClips();
+      }
+      if (window.LabGaz){
+        for (const { tmp } of mounted) LabGaz.scan(tmp);
+        LabPlaces.refresh();
+        collectClips();
+      }
+    }
+    return [...clips.values()];
+  } finally {
+    for (const { scope } of mounted) scope.remove();
+  }
+});
+function partPanel(k){
+  const p = PARTS[k], i = ORDER.indexOf(k);
+  return `<span class="tag">${Lab.L(o('Four Great Inventions','四大发明'))} · ${i + 1}/${ORDER.length}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    <b style="font-size:13px;color:var(--ink-2)">${Lab.L(o('KEY FACTS','知识要点'))}</b>
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆口诀'))}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 易错点：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}`;
+}
 function renderInfo(){
   const box = Lab.$('#info'), k = App.sel;
   if (!k){
@@ -274,20 +361,24 @@ function renderInfo(){
     Lab.$('#startBtn').onclick = () => App.select('sinan');
     return;
   }
-  const p = PARTS[k], i = ORDER.indexOf(k);
-  box.innerHTML = `<span class="tag">${Lab.L(o('Four Great Inventions','四大发明'))} · ${i + 1}/${ORDER.length}</span>
-    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
-    <div class="job">${Lab.L(p.job)}</div>
-    <b style="font-size:13px;color:var(--ink-2)">${Lab.L(o('KEY FACTS','知识要点'))}</b>
-    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
-    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆口诀'))}</b>${Lab.L(p.hint)}</div>
-    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 易错点：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+  const i = ORDER.indexOf(k);
+  box.innerHTML = `${partPanel(k)}
     <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
-  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts), Lab.L(p.hint)].join('。'));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box);
   Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
   Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
 }
+readPanelItems('#info', ORDER, partPanel, PANEL_PARTS);
+readPanelItems('#stage .lab-caption', STORY, Lab.L);
+const PSTEP = [null, o('① Soak & cut','①浸泡切碎'), o('② Pound to pulp','②舂捣成浆'), o('③ Lift with screen','③竹帘抄纸'), o('④ Press & dry','④压干晒纸'), o('⑤ Peel off paper','⑤揭纸成纸')];
+const PCAP = [null, o('Step 1: soak bark, hemp ends, rags and old nets, then cut them up.','第1步：把树皮、麻头、破布、旧渔网浸泡、切碎。'), o('Step 2: pound the fibres in a stone mortar into a soft pulp.','第2步：在石臼里舂捣，把纤维捣成纸浆。'), o('Step 3: dip the bamboo screen into the vat and lift out a thin wet layer of fibres.','第3步：把竹帘浸入纸浆槽，捞起一层薄薄的湿纸膜。'), o('Step 4: press out the water and dry the sheets on a warm wall.','第4步：压出水分，把湿纸贴在墙上晒干（焙干）。'), o('Step 5: peel off the dry sheets: paper is ready!','第5步：揭下干纸，纸就做成了！')];
+const SPIN_CAPTION = o('Watch: the spoon slows down and its handle settles pointing SOUTH.','观察：勺子慢慢停下，勺柄最终指向南方。');
+const PRINT_CAPTION = o('Set the mirrored type in the iron frame → ink → press paper → a correctly-reading print.','把反字活字排进铁范 → 刷墨 → 覆纸压印 → 得到正字。');
+const PRINT_DONE_CAPTION = o('Printed! The mirrored type gives a correctly-reading page. The type can be reused.','印好了！反字活字印出了正字，活字还能拆下来重复使用。');
+readPanelItems('#paperL', PSTEP.slice(1), Lab.L);
+readPanelItems('#stage .lab-caption', PCAP.slice(1), Lab.L);
+readPanelItems('#stage .lab-caption', [SPIN_CAPTION, PRINT_CAPTION, PRINT_DONE_CAPTION], Lab.L);
 function renderChips(){
   Lab.$('#chips').innerHTML = ORDER.map(k => `<button class="chip ${App.sel === k ? 'on' : ''}" data-k="${k}"><i style="background:${PARTS[k].color}"></i>${Lab.L(PARTS[k].name)}</button>`).join('');
   Lab.$$('#chips .chip').forEach(c => c.onclick = () => App.select(c.dataset.k));
@@ -598,17 +689,23 @@ const lesson = MathAnim.lesson({ el:'#player', scene:S,
   }
 
   /* ---------- panels ---------- */
+  const spreadCard = (v, m) => `<h4>${v.ic} ${Lab.L(v.n)}</h4>
+        ${m ? `<span class="when" style="color:${v.c}">${Lab.L(m.d)}</span><p>${Lab.L(m.t)}</p>` : `<p>${Lab.L(o('Not invented yet. Keep dragging!','还没有出现，继续拖动！'))}</p>`}`;
+  readPanelItems('#spCards', MS, m => spreadCard(INV[m.k], m), 'h4,.when,p');
+  readPanelItems('#spCards', KEYS, k => spreadCard(INV[k], null), 'h4,p');
+  const dynastyText = dynasty => Lab.L(o('In China: ','中国：')) + Lab.L(dynasty);
+  readPanelItems('#spDyn', DY, row => dynastyText(row[2]));
+  readPanelItems('#spWorld', WORLD, row => Lab.L(row[2]));
   function render(){
     const Y = A.year, c = curY();
     $('#spYr').value = Y; $('#spOut').textContent = yr(Y);
-    $('#spDyn').textContent = Lab.L(o('In China: ','中国：')) + Lab.L(band(DY, Y));
+    $('#spDyn').textContent = dynastyText(band(DY, Y));
     $('#spWorld').textContent = Lab.L(band(WORLD, Y));
     const done = MS.filter(m => m.y <= Y).length;
     $('#spCount').textContent = Lab.L(o(`Events so far: ${done} / ${MS.length}`, `已发生的大事：${done} / ${MS.length}`));
     $('#spCards').innerHTML = KEYS.map(k => { const all = MS.filter(m => m.k === k), past = all.filter(m => m.y <= Y), m = past[past.length - 1], v = INV[k];
       return `<button type="button" class="sc ${m ? '' : 'off'} ${m && m.y === c ? 'new' : ''}" data-k="${k}" style="border-left-color:${v.c};text-align:left" title="${Lab.L(o('Click: jump to this invention’s next step','点击：跳到这项发明的下一步'))}">
-        <h4>${v.ic} ${Lab.L(v.n)}</h4>
-        ${m ? `<span class="when" style="color:${v.c}">${Lab.L(m.d)}</span><p>${Lab.L(m.t)}</p>` : `<p>${Lab.L(o('Not invented yet. Keep dragging!','还没有出现，继续拖动！'))}</p>`}
+        ${spreadCard(v, m)}
         <small>${Lab.L(o(`step ${past.length} of ${all.length}`, `第 ${past.length} / ${all.length} 步`))}${past.length < all.length ? ' · ' + Lab.L(o('click for the next ▸','点击看下一步 ▸')) : ' ✓'}</small></button>`; }).join('');
     Lab.$$('#spCards .sc').forEach(b => b.onclick = () => { const nx = MS.find(m => m.k === b.dataset.k && m.y > A.year); if (nx){ A.pick = nx.pl; go(nx.y); } });
     $('#spLayers').innerHTML = KEYS.map(k => `<button type="button" class="chip ${A.on[k] ? '' : 'off'}" data-k="${k}" aria-pressed="${A.on[k]}"><i style="background:${INV[k].c}"></i>${Lab.L(INV[k].n)}</button>`).join('') +
@@ -621,9 +718,17 @@ const lesson = MathAnim.lesson({ el:'#player', scene:S,
     const el = $('#spTip'), pk = A.pick;
     if (!pk){ el.textContent = Lab.L(o('Click a place on the map to see what had arrived there, and when.','点击地图上的地点，看看哪些发明已经传到那里、是什么时候。')); return; }
     const got = MS.filter(m => (m.pl === pk || m.also === pk) && m.y <= A.year);
-    el.innerHTML = `<b style="color:var(--ink)">${Lab.L(PL[pk].n)}</b> — ` + (got.length ? got.map(m => `<span style="color:${INV[m.k].c};font-weight:800">${INV[m.k].ic} ${Lab.L(INV[m.k].n)}</span> ${Lab.L(m.d)}`).join(' · ')
-      : Lab.L(o(`none of the four inventions is here yet in ${yr(A.year)}.`, `${yr(A.year)}时，四大发明都还没有传到这里。`)));
+    el.innerHTML = spreadTip(pk, got, A.year);
   }
+  function spreadTip(pk, got, year){
+    return `<b style="color:var(--ink)">${Lab.L(PL[pk].n)}</b> — ` + (got.length ? got.map(m => `<span style="color:${INV[m.k].c};font-weight:800">${INV[m.k].ic} ${Lab.L(INV[m.k].n)}</span> ${Lab.L(m.d)}`).join(' · ')
+      : Lab.L(o(`none of the four inventions is here yet in ${yr(year)}.`, `${yr(year)}时，四大发明都还没有传到这里。`)));
+  }
+  const arrivals = Object.keys(PL).flatMap(k => {
+    const events = MS.filter(m => m.pl === k || m.also === k);
+    return [...new Set(events.map(m => m.y))].map(y => [k, events.filter(m => m.y <= y)]);
+  });
+  readPanelItems('#spTip', arrivals, ([k, got]) => spreadTip(k, got), null, 'innerHTML');
   function stop(){ if (A.timer){ clearInterval(A.timer); A.timer = null; } }
   function go(y, keep){ A.year = Math.max(-400, Math.min(1500, Math.round(y))); if (!keep) stop(); render(); }
   $('#spYr').oninput = e => go(+e.target.value);
@@ -665,9 +770,19 @@ const lesson = MathAnim.lesson({ el:'#player', scene:S,
     $('#mtPaper').innerHTML = `<span class="muted" style="font-family:Nunito,sans-serif;font-size:15px">${Lab.L(o('(blank paper)','（空白的纸）'))}</span>`;
     msg(''); render();
   }
+  const wordMeaning = word => word.p + ' · ' + Lab.L(word.m);
+  readPanelItems('#mtMean', WORDS, wordMeaning);
+  readPanelItems('#mtTarget', WORDS, word => word.w);
+  const PRINT_RESULTS = {
+    backwards:o('❌ Careful! This block is carved the normal way, so it would print BACKWARDS. Type must be carved in mirror image.','❌ 小心！这块字刻成了正字，印出来会是反的。活字必须刻成反字！'),
+    allSet:o('✅ All type set! Now ink it and print.','✅ 排好了！现在刷墨、印刷。'),
+    next:o('Good, next character.','对了，排下一个字。'),
+    printed:o('🎉 Printed! The mirrored type made a correctly-reading word. After printing, the type can be removed and reused.','🎉 印好了！反字的活字印出了正字。印完后活字可以拆下来重复使用。')
+  };
+  readPanelItems('#mtMsg', Object.values(PRINT_RESULTS), Lab.L);
   function render(){
     if (!cur) return;
-    $('#mtTarget').textContent = cur.w; $('#mtMean').textContent = cur.p + ' · ' + Lab.L(cur.m);
+    $('#mtTarget').textContent = cur.w; $('#mtMean').textContent = wordMeaning(cur);
     const n = cur.w.length;
     $('#mtFrame').innerHTML = Array.from({ length:n }, (_, i) => set[i] ? `<div class="slot"><span class="${set[i].mir ? 'mir' : ''}">${set[i].c}</span></div>` : `<div class="slot empty">${i + 1}</div>`).join('');
     $('#mtCase').innerHTML = tiles.map(t => `<button class="type" data-id="${t.id}" ${t.used ? 'disabled' : ''} title="${Lab.L(o('clay type','泥活字'))}"><span class="${t.mir ? 'mir' : ''}">${t.c}</span></button>`).join('');
@@ -679,13 +794,13 @@ const lesson = MathAnim.lesson({ el:'#player', scene:S,
     const t = tiles.find(x => x.id === id), need = cur.w[set.length];
     if (!t || t.used || set.length >= cur.w.length) return;
     if (t.c !== need){ bad++; msg(Lab.lang === 'zh' ? `❌ 第 ${set.length + 1} 个字应该是“${need}”，不是“${t.c}”。` : `❌ Character ${set.length + 1} should be “${need}”, not “${t.c}”.`, false); render(); return; }
-    if (!t.mir){ bad++; msg(Lab.L(o('❌ Careful! This block is carved the normal way, so it would print BACKWARDS. Type must be carved in mirror image.','❌ 小心！这块字刻成了正字，印出来会是反的。活字必须刻成反字！')), false); render(); return; }
-    t.used = true; set.push(t); msg(set.length === cur.w.length ? Lab.L(o('✅ All type set! Now ink it and print.','✅ 排好了！现在刷墨、印刷。')) : '✅ ' + Lab.L(o('Good, next character.','对了，排下一个字。')), true); render();
+    if (!t.mir){ bad++; msg(Lab.L(PRINT_RESULTS.backwards), false); render(); return; }
+    t.used = true; set.push(t); msg(set.length === cur.w.length ? Lab.L(PRINT_RESULTS.allSet) : '✅ ' + Lab.L(PRINT_RESULTS.next), true); render();
   }
   $('#mtPrint').onclick = () => {
     const p = $('#mtPaper'); p.classList.add('press');
     setTimeout(() => { p.classList.remove('press'); p.innerHTML = set.map(t => `<span class="${t.mir ? '' : 'bad'}">${t.c}</span>`).join(''); ok++;
-      msg(Lab.L(o('🎉 Printed! The mirrored type made a correctly-reading word. After printing, the type can be removed and reused.','🎉 印好了！反字的活字印出了正字。印完后活字可以拆下来重复使用。')), true);
+      msg(Lab.L(PRINT_RESULTS.printed), true);
       set = []; tiles.forEach(t => t.used = false); $('#mtPrint').disabled = true; render(); setTimeout(() => { if (!set.length) newWord(); }, 2200); }, 550);
   };
   $('#mtUndo').onclick = () => { const t = set.pop(); if (t){ t.used = false; msg(''); render(); } };
@@ -832,8 +947,6 @@ const drying = [0, 1, 2].map(i => { const s = add(wall, new THREE.PlaneGeometry(
 const stackG = grp('papermaking', -10.8, 0, 6);
 const sheets = Array.from({ length:8 }, (_, i) => { const s = add(stackG, new THREE.BoxGeometry(1.5, .05, 1.1), M('papermaking', '#fbf7ec'), (i % 2) * .03, .03 + i * .055, 0); s.visible = false; return s; });
 let paperStep = 1;
-const PSTEP = [null, o('① Soak & cut','①浸泡切碎'), o('② Pound to pulp','②舂捣成浆'), o('③ Lift with screen','③竹帘抄纸'), o('④ Press & dry','④压干晒纸'), o('⑤ Peel off paper','⑤揭纸成纸')];
-const PCAP = [null, o('Step 1: soak bark, hemp ends, rags and old nets, then cut them up.','第1步：把树皮、麻头、破布、旧渔网浸泡、切碎。'), o('Step 2: pound the fibres in a stone mortar into a soft pulp.','第2步：在石臼里舂捣，把纤维捣成纸浆。'), o('Step 3: dip the bamboo screen into the vat and lift out a thin wet layer of fibres.','第3步：把竹帘浸入纸浆槽，捞起一层薄薄的湿纸膜。'), o('Step 4: press out the water and dry the sheets on a warm wall.','第4步：压出水分，把湿纸贴在墙上晒干（焙干）。'), o('Step 5: peel off the dry sheets: paper is ready!','第5步：揭下干纸，纸就做成了！')];
 function setPaper(s, cap = true){ paperStep = s; Lab.$('#paper').value = s; Lab.$('#paperL').textContent = Lab.L(PSTEP[s]); if (cap) ctx.caption(PCAP[s]); }
 
 /* ---------- printing: woodblock + movable type ---------- */
@@ -898,10 +1011,10 @@ const fricIn = Lab.$('#fric');
 const fricTxt = () => { const f = fricIn.value / 100; Lab.$('#fricL').textContent = Lab.L(f < .34 ? o('smooth','光滑') : f < .67 ? o('medium','较粗糙') : o('rough','很粗糙')); };
 fricIn.oninput = fricTxt;
 function spin(){ sinanSt.w = (Math.random() < .5 ? -1 : 1) * (9 + Math.random() * 5); needleSt.w = (Math.random() < .5 ? -1 : 1) * (6 + Math.random() * 4);
-  ctx.caption(o('Watch: the spoon slows down and its handle settles pointing SOUTH.','观察：勺子慢慢停下，勺柄最终指向南方。')); }
+  ctx.caption(SPIN_CAPTION); }
 Lab.$('#spinBtn').onclick = () => { App.select('sinan', true); spin(); };
 Lab.$('#paper').oninput = e => { setPaper(+e.target.value); if (App.sel !== 'papermaking') App.select('papermaking', true); };
-function runPrint(){ pr = 0; printed.visible = false; ctx.caption(o('Set the mirrored type in the iron frame → ink → press paper → a correctly-reading print.','把反字活字排进铁范 → 刷墨 → 覆纸压印 → 得到正字。')); }
+function runPrint(){ pr = 0; printed.visible = false; ctx.caption(PRINT_CAPTION); }
 Lab.$('#printBtn').onclick = () => { App.select('frame', true); ctx.flyToPose([6, 7, 4], [7, .3, -3]); runPrint(); };
 const FOCUS = {
   sinan:[[0, 6.5, 7], [0, .4, .3]], dipan:[[2, 9, 5], [0, 0, 0]], needle:[[-2.6, 4, 0], [-4.6, .4, -4.2]], material:[[-8.4, 5, 3.5], [-11.2, .3, -.8]],
@@ -952,7 +1065,7 @@ ctx.onFrame((dt, t) => {
     const p = sm((pr - .68) / .1), q = sm((pr - .84) / .12);
     sheet.visible = pr > .66 && pr < .97; sheet.position.set(FX, 3 - 2.42 * p + 2.6 * q, FZ + q * 3.4);
     if (pr > .95){ printed.visible = true; }
-    if (pr >= 1){ pr = -1; ctx.caption(o('Printed! The mirrored type gives a correctly-reading page. The type can be reused.','印好了！反字活字印出了正字，活字还能拆下来重复使用。')); }
+    if (pr >= 1){ pr = -1; ctx.caption(PRINT_DONE_CAPTION); }
   }
   flame.visible = App.sel === 'firearm'; if (flame.visible){ flame.scale.set(1, .8 + .4 * Math.random(), 1); }
   const sel = App.sel;

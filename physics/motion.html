@@ -229,6 +229,70 @@ LabPhotos.render('#gallery', [PHOTOS[0], PHOTOS[1], PHOTOS[3], PHOTOS[4], PHOTOS
 PARTS.speed.photo = PHOTOS[0]; PARTS.distance.photo = PHOTOS[2];
 /* ===== end real photos ===== */
 
+// Use the same read-aloud units for the crawler and the panel's Listen button.
+const PANEL_PARTS = '.tag,h3,h4,.job,p,li,.memory,.mix,figcaption,.quote';
+function panelUnits(el, selector = PANEL_PARTS, visibleOnly = false){
+  const nodes = selector ? el.querySelectorAll(selector) : [el];
+  const out = [];
+  for (const node of nodes){
+    if (visibleOnly && !node.getClientRects().length) continue;
+    const unit = Lab.readUnits(node);
+    if (!unit) continue;
+    const style = node.closest('[data-read-style]');
+    for (const text of unit.parts){
+      out.push(style ? [text, unit.lang, {style:style.dataset.readStyle, work:style.dataset.work}] : [text, unit.lang]);
+    }
+  }
+  return out;
+}
+function speakPanel(el, selector){
+  const parts = panelUnits(el, selector, true);
+  let i = 0;
+  const next = ok => {
+    if (ok === false || i >= parts.length) return;
+    const [text, lang] = parts[i++];
+    Lab.speak(text, {lang, inner:true, onend:next});
+  };
+  next();
+}
+function collectPanelTexts(host, items, render, selector){
+  if (!host?.parentElement) return [];
+  const tmp = host.cloneNode(false);
+  tmp.removeAttribute('id');
+  tmp.removeAttribute('aria-live');
+  tmp.style.cssText = 'position:absolute;left:-10000px;top:0;box-sizing:border-box;width:' + (host.offsetWidth || 360) + 'px';
+  host.after(tmp);
+  const out = [];
+  try {
+    for (const item of items){
+      render(tmp, item);
+      out.push(...panelUnits(tmp, selector));
+    }
+  } finally { tmp.remove(); }
+  return out;
+}
+function registerPanelValues(host, items, value){
+  Lab.readAll(() => collectPanelTexts(Lab.$(host), items, (tmp, item) => { tmp.textContent = value(item); }, null));
+}
+function registerStoryTexts(steps){
+  Lab.readAll(() => collectPanelTexts(Lab.$('#stage .lab-caption') || Lab.$('#stage'), steps, (tmp, step) => {
+    tmp.textContent = Lab.L(step);
+  }, null));
+}
+function registerPanelTexts(host, items, markup, selector){
+  Lab.readAll(() => collectPanelTexts(Lab.$(host), items, (tmp, item) => { tmp.innerHTML = markup(item); }, selector));
+}
+function infoMarkup(k){
+  const p = PARTS[k];
+  return `<span class="tag">${Lab.L(o('Describing motion','描述运动'))}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    ${p.photo ? LabPhotos.figure(p.photo) : ''}
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}`;
+}
+registerPanelTexts('#info', ORDER, infoMarkup);
 function renderInfo(){
   const box = Lab.$('#info'), k = App.sel;
   if (!k){
@@ -241,17 +305,11 @@ function renderInfo(){
     Lab.$('#startBtn').onclick = () => App.select('distance');
     return;
   }
-  const p = PARTS[k], i = ORDER.indexOf(k);
-  box.innerHTML = `<span class="tag">${Lab.L(o('Describing motion','描述运动'))}</span>
-    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
-    <div class="job">${Lab.L(p.job)}</div>
-    ${p.photo ? LabPhotos.figure(p.photo) : ''}
-    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
-    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(p.hint)}</div>
-    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+  const i = ORDER.indexOf(k);
+  box.innerHTML = infoMarkup(k) + `
     <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
-  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. '));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box);
   Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
   Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
 }
@@ -445,6 +503,7 @@ const CHAL = [
       return Math.abs(App.pass.x - 50) <= 1 ? [true, o(`Overtook at ${n1(App.pass.x)} m! A needs 5 s to reach 50 m, so ½a·5² = 50 → a = 4 m/s². At that moment B is twice as fast (20 m/s).`, `在 ${n1(App.pass.x)} m 处超车！A 车 5 s 到达 50 m，所以 ½a·5² = 50 → a = 4 m/s²。这一刻 B 车的速度是 A 车的两倍（20 m/s）。`)]
         : [false, o(`Overtook at ${n1(App.pass.x)} m. ${App.pass.x > 50 ? 'More acceleration.' : 'Less acceleration.'} Hint: they meet when 10t = ½at².`, `在 ${n1(App.pass.x)} m 处超车。${App.pass.x > 50 ? '加速度再大些。' : '加速度小些。'}提示：相遇时 10t = ½at²。`)]; } }
 ];
+registerPanelValues('#aChQ', CHAL, c => Lab.L(c.q));
 let chI = 0;
 Lab.$('#aChNew').onclick = () => { chI = (chI + 1) % CHAL.length; renderAdv(); };
 function renderAdv(){
@@ -496,6 +555,7 @@ const TOUR = [
   {en:'4 · Distance vs displacement: reversing is now allowed. Car A goes 80 m forward, then rolls back to the start at t = 16 s. Distance traveled = 160 m, but displacement = 0 m!', zh:'4 · 路程与位移：现在允许倒车。A 车向前 80 m 后又倒回起点（t = 16 s）。路程 = 160 m，位移却 = 0 m!'},
   {en:'5 · Reading graphs: on a distance–time graph the slope is the speed; on a speed–time graph the slope is the acceleration. Now design your own race with the sliders!', zh:'5 · 读图：路程–时间图像的斜率是速度；速度–时间图像的斜率是加速度。现在用滑块设计你自己的比赛吧！'}
 ];
+registerStoryTexts(TOUR);
 const tour = Lab3D.story('#stage', TOUR, i => {
   const set = (a, b, rev) => { CARS[0].v0 = a[0]; CARS[0].a = a[1]; CARS[1].v0 = b[0]; CARS[1].a = b[1]; App.reverse = rev; Lab.$('#revChk').checked = rev; renderCards(); resetRun(); App.run(); };
   if (i === 0){ set([10, 0], [5, 0], false); App.select('speed', true); }
@@ -524,6 +584,7 @@ const Match = (function(){
     {name:o('Speeding up','越走越快'), f:t => 1 + .08 * t * t, desc:o('Start slowly at 1 m and keep speeding up so you reach 9 m at 10 s (the line curves upward).','从 1 m 处慢慢出发，越走越快，10 s 时到达 9 m（曲线向上弯）。')},
     {name:o('Fast, then slow','先快后慢'), f:t => t < 3 ? 9 - 2 * t : 3 - (t - 3) * 2 / 7, desc:o('Start far away at 9 m, walk quickly toward the sensor to 3 m in 3 s, then slowly to 1 m.','从 9 m 远处出发，3 s 内快速走向传感器到 3 m，再慢慢走到 1 m。')}
   ];
+  registerPanelValues('#targetDesc', TG, g => Lab.L(g.desc));
   const st = { k:0, pos:1, mode:'idle', t:0, trace:[], ghost:false, best:{}, done:new Set(), drag:false, keys:{} };
   const cv = Lab.$('#matchCv'), slider = Lab.$('#walkPos');
   function renderTargets(){

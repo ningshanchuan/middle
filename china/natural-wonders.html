@@ -385,6 +385,94 @@ const map = MapView(Lab.$('#stage'), {
   click(x, y){ let best = null, bd = 26; ORDER.forEach(k => { const s = map.toS(W[k].ll), d = Math.hypot(s[0] - x, s[1] - y); if (d < bd){ bd = d; best = k; } }); if (best) select(best); }
 });
 function select(k, noClock){ App.sel = k; App.seen.add(k); renderInfo(); renderChips(); map.redraw(); if (!noClock) GC.setWonder(k); renderHero(); }
+const PANEL_PARTS = '.tag,h3,h4,.job,li,p,.memory,.mix,.quote,.usbox';
+function panelUnits(el, parts){
+  const out = [];
+  const nodes = parts ? el.querySelectorAll(parts) : [el];
+  for (const node of nodes){
+    const unit = Lab.readUnits(node);
+    if (!unit) continue;
+    const style = node.closest('[data-read-style]');
+    for (const text of unit.parts){
+      out.push(style ? [text, unit.lang, { style:style.dataset.readStyle, work:style.dataset.work }] : [text, unit.lang]);
+    }
+  }
+  return out;
+}
+function speakPanel(el){
+  const parts = panelUnits(el, PANEL_PARTS);
+  let i = 0;
+  function next(ok){
+    if (ok === false || i >= parts.length) return;
+    const [text, lang] = parts[i++];
+    Lab.speak(text, { lang, inner:true, onend:next });
+  }
+  next();
+}
+// The crawler loads this page once per language.
+const panelGroups = [];
+function readPanelItems(selector, items, render, parts, property = parts ? 'innerHTML' : 'textContent'){
+  panelGroups.push({ selector, items, render, parts, property });
+}
+Lab.readAll(() => {
+  const mounted = [];
+  try {
+    for (const { selector, items, render, parts, property } of panelGroups){
+      const host = Lab.$(selector) || (selector.endsWith(' .lab-caption') && Lab.$(selector.split(' ')[0]));
+      if (!host?.parentElement) continue;
+      const width = host.offsetWidth || host.parentElement.offsetWidth || 360;
+      const fragment = document.createDocumentFragment();
+      for (const item of items){
+        const tmp = document.createElement(host.localName);
+        tmp.className = host.matches('.stage') ? 'lab-caption show' : host.className;
+        tmp.style.cssText = 'position:absolute;left:-10000px;top:0;box-sizing:border-box;width:' + width + 'px';
+        tmp[property] = render(item);
+        // Keep each item in its own place-name annotation block.
+        const scope = document.createElement('section');
+        scope.style.display = 'contents';
+        scope.appendChild(tmp);
+        fragment.appendChild(scope);
+        mounted.push({ scope, tmp, parts });
+      }
+      host.after(fragment);
+    }
+    const collect = () => mounted.flatMap(({ tmp, parts }) => panelUnits(tmp, parts));
+    const clips = new Map();
+    const collectClips = () => {
+      for (const unit of collect()) clips.set(JSON.stringify(unit), unit);
+    };
+    collectClips();
+    // Match the units before and after the shared place-name annotations.
+    if (window.LabPlaces){
+      LabPlaces.refresh();
+      collectClips();
+      if (Lab.lang === 'zh' && window.LabPinyin){
+        LabPinyin.refresh();
+        LabPlaces.refresh();
+        collectClips();
+      }
+      if (window.LabGaz){
+        for (const { tmp } of mounted) LabGaz.scan(tmp);
+        LabPlaces.refresh();
+        collectClips();
+      }
+    }
+    return [...clips.values()];
+  } finally {
+    for (const { scope } of mounted) scope.remove();
+  }
+});
+function wonderPanel(k){
+  const w = W[k], t = TYPES[w.type], i = ORDER.indexOf(k);
+  return `<span class="tag">${Lab.L(t.n)}</span>
+    <h3><span class="dot" style="background:${t.c}"></span>${i + 1}. ${Lab.L(w.name)}</h3>
+    <div class="job">${Lab.L(w.job)}</div>
+    <ul>${Lab.L(w.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="usbox">🇺🇸 ${Lab.L(w.us)}</div>
+    <p class="muted" style="font-size:14px;margin:4px 0">🏛️ ${Lab.L(w.unesco)}</p>
+    <div class="memory"><b>${Lab.L(o('💡 Memory hook','💡 记忆口诀'))}</b>${Lab.L(w.hint)}</div>
+    <div class="mix"><b>${Lab.L(o('⚠️ Common mistake:','⚠️ 易错点：'))}</b><span>${Lab.L(w.mix)}</span></div>`;
+}
 function renderInfo(){
   const box = Lab.$('#info'), k = App.sel;
   if (!k){ box.innerHTML = `<span class="tag">${Lab.L(o('Wonder map','奇观地图'))}</span>
@@ -393,22 +481,16 @@ function renderInfo(){
       <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(o('Inside forces build up, outside forces carve down.','内力作用使地表起伏，外力作用削高填低。'))}</div>
       <div class="nav"><button id="startBtn">${Lab.L(o('Start with Guilin ▶','从桂林开始 ▶'))}</button></div>`;
     Lab.$('#startBtn').onclick = () => select(ORDER[0]); return; }
-  const w = W[k], t = TYPES[w.type], i = ORDER.indexOf(k);
-  box.innerHTML = `<span class="tag">${Lab.L(t.n)}</span>
-    <h3><span class="dot" style="background:${t.c}"></span>${i + 1}. ${Lab.L(w.name)}</h3>
-    <div class="job">${Lab.L(w.job)}</div>
-    <ul>${Lab.L(w.facts).map(f => `<li>${f}</li>`).join('')}</ul>
-    <div class="usbox">🇺🇸 ${Lab.L(w.us)}</div>
-    <p class="muted" style="font-size:14px;margin:4px 0">🏛️ ${Lab.L(w.unesco)}</p>
-    <div class="memory"><b>${Lab.L(o('💡 Memory hook','💡 记忆口诀'))}</b>${Lab.L(w.hint)}</div>
-    <div class="mix"><b>${Lab.L(o('⚠️ Common mistake:','⚠️ 易错点：'))}</b><span>${Lab.L(w.mix)}</span></div>
+  const i = ORDER.indexOf(k);
+  box.innerHTML = `${wonderPanel(k)}
     <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pClock">${Lab.L(o('⏱ Geology clock','⏱ 地质时钟'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
-  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(w.name), Lab.L(w.job), ...Lab.L(w.facts), Lab.L(w.hint)].join(Lab.lang === 'zh' ? '。' : '. '));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box);
   Lab.$('#pPrev').onclick = () => select(ORDER[(i + 7) % 8]);
   Lab.$('#pNext').onclick = () => select(ORDER[(i + 1) % 8]);
   Lab.$('#pClock').onclick = () => { GC.setWonder(k); Lab.$('#clock').scrollIntoView({ behavior:'smooth' }); };
 }
+readPanelItems('#info', ORDER, wonderPanel, PANEL_PARTS);
 function renderChips(){
   Lab.$('#chips').innerHTML = ORDER.map((k, i) => `<button class="chip ${App.sel === k ? 'on' : ''}" data-k="${k}"><i style="background:${TYPES[W[k].type].c}"></i>${i + 1}. ${Lab.L(W[k].name).split(/[(（,，]/)[0].trim()}</button>`).join('');
   Lab.$$('#chips .chip').forEach(c => c.onclick = () => select(c.dataset.k));
@@ -551,21 +633,37 @@ const MISSMSG = { water:o('Without water nothing dissolves or cuts the rock — 
   uplift:o('Without uplift the rock stays down where it formed — below the sea or deep in a basin — and can’t be carved.','没有地壳抬升，岩石就一直待在形成它的地方（海底或盆地深处），无法被雕刻。'),
   wind:o('Without wind the dry lake bed just sits there, flat.','没有风，干涸的湖床只会平平地躺在那里。'),
   ice:o('Without ice the mountain still rises, but it stays a broad hump: no sharp horn, no bowl-shaped cirques.','没有冰川，山照样升高，但只是一个宽大的“山包”：没有尖尖的角峰，也没有围椅状的冰斗。') };
+const stageTitle = st => Lab.L({ dep:o('Laying down the rock','岩石形成'), up:o('Uplift','地壳抬升'), dry:o('The climate dries','气候变干'), sc:o('Carving','雕刻') }[st.ph]);
+readPanelItems('#gTitle', ORDER.flatMap(k => W[k].stages), stageTitle);
+readPanelItems('#gText', ORDER.flatMap(k => W[k].stages), Lab.L);
+const recipeResult = w => '✅ ' + Lab.L(o(`Recipe cracked: ${w.need.map(a => Lab.L(AG[a])).join(' + ')}${w.help.length ? ' (with a little help from ' + w.help.map(a => Lab.L(AG[a])).join(', ') + ')' : ''}.`, `配方破解：${w.need.map(a => Lab.L(AG[a])).join(' + ')}${w.help.length ? '（' + w.help.map(a => Lab.L(AG[a])).join('、') + '起辅助作用）' : ''}。`));
+readPanelItems('#gRes', ORDER.map(k => W[k]), recipeResult);
+const stagePhase = (w, i, count) => Lab.L(o(`STAGE ${i + 1} OF ${count}`, `第 ${i + 1} / ${count} 步`)) + ' · ' + Lab.L(w.name);
+readPanelItems('#gPhase', ORDER.flatMap(k => W[k].stages.map((_, i) => [W[k], i, W[k].stages.length])), args => stagePhase(...args));
+const missingAgents = agents => '❌ ' + agents.map(a => Lab.L(MISSMSG[a])).join(' ');
+const agentSubsets = agents => agents.reduce((sets, agent) => [...sets, ...sets.map(set => [...set, agent])], [[]]).slice(1);
+const missingSets = ORDER.flatMap(k => agentSubsets(W[k].need));
+readPanelItems('#gRes', missingSets, missingAgents);
+const extraAgents = agents => '🔍 ' + Lab.L(o(`It worked — but ${agents.map(a => Lab.L(AG[a])).join(', ')} isn’t a main sculptor here. Switch off the extras to crack the exact recipe.`, `成功了——但${agents.map(a => Lab.L(AG[a])).join('、')}在这里不是主要的“雕刻师”。关掉多余的，才能破解准确配方。`));
+const extraSets = ORDER.flatMap(k => agentSubsets(Object.keys(AG).filter(a => !W[k].need.includes(a) && !W[k].help.includes(a))));
+readPanelItems('#gRes', extraSets, extraAgents);
+const CLOCK_PROMPT = o('Drag the slider to “today” to see the result.','把滑块拖到“今天”，看看结果。');
+readPanelItems('#gRes', [CLOCK_PROMPT], Lab.L);
 function renderClock(){
   const D = GC.derive(), w = D.w, st = D.S[D.i];
   Lab.$('#gOut').textContent = Lab.L(fmtT(D.t)).replace(' million years ago', 'M yrs ago').replace(' years ago', ' yrs ago').replace('≈ ', '');
-  Lab.$('#gPhase').textContent = Lab.L(o(`STAGE ${D.i + 1} OF ${D.N}`, `第 ${D.i + 1} / ${D.N} 步`)) + ' · ' + Lab.L(w.name);
-  Lab.$('#gTitle').textContent = Lab.L({ dep:o('Laying down the rock','岩石形成'), up:o('Uplift','地壳抬升'), dry:o('The climate dries','气候变干'), sc:o('Carving','雕刻') }[st.ph]);
+  Lab.$('#gPhase').textContent = stagePhase(w, D.i, D.N);
+  Lab.$('#gTitle').textContent = stageTitle(st);
   Lab.$('#gText').textContent = Lab.L(st);
   Lab.$$('#agents .tbtn').forEach(b => b.classList.toggle('on', GC.on[b.dataset.a]));
   Lab.$$('#wSeg button').forEach(b => b.classList.toggle('on', b.dataset.k === GC.k));
   const r = Lab.$('#gRes'); let msg = '', good = false;
-  if (D.miss.length && D.u >= D.S.findIndex(s => s.ph === 'sc') - 1) msg = '❌ ' + D.miss.map(a => Lab.L(MISSMSG[a])).join(' ');
+  if (D.miss.length && D.u >= D.S.findIndex(s => s.ph === 'sc') - 1) msg = missingAgents(D.miss);
   else if (GC.v >= 1000){
-    if (D.extra.length) msg = '🔍 ' + Lab.L(o(`It worked — but ${D.extra.map(a => Lab.L(AG[a])).join(', ')} isn’t a main sculptor here. Switch off the extras to crack the exact recipe.`, `成功了——但${D.extra.map(a => Lab.L(AG[a])).join('、')}在这里不是主要的“雕刻师”。关掉多余的，才能破解准确配方。`));
-    else { good = true; const fresh = !App.recipes.has(GC.k); App.recipes.add(GC.k); msg = '✅ ' + Lab.L(o(`Recipe cracked: ${w.need.map(a => Lab.L(AG[a])).join(' + ')}${w.help.length ? ' (with a little help from ' + w.help.map(a => Lab.L(AG[a])).join(', ') + ')' : ''}.`, `配方破解：${w.need.map(a => Lab.L(AG[a])).join(' + ')}${w.help.length ? '（' + w.help.map(a => Lab.L(AG[a])).join('、') + '起辅助作用）' : ''}。`)) + (fresh ? ' ⭐' : '');
+    if (D.extra.length) msg = extraAgents(D.extra);
+    else { good = true; const fresh = !App.recipes.has(GC.k); App.recipes.add(GC.k); msg = recipeResult(w) + (fresh ? ' ⭐' : '');
       if (fresh){ renderHero(); map.redraw(); } }
-  } else msg = Lab.L(o('Drag the slider to “today” to see the result.','把滑块拖到“今天”，看看结果。'));
+  } else msg = Lab.L(CLOCK_PROMPT);
   r.textContent = msg; r.className = 'result' + (msg.startsWith('❌') ? ' bad' : good ? ' good' : '');
   GC.kick();
 }
@@ -709,18 +807,24 @@ function renderLinks(){ Lab.$('#links').innerHTML = LINKS.map(([u, n, d]) => `<a
   function newRound(){ const d = F.deck[F.i]; if (!d) return render();
     const others = Lab.shuffle(Object.keys(TYPES).filter(t => t !== d.t));
     F.picks = { a:Lab.shuffle([d.t, ...others.slice(0, 3)]), b:Lab.shuffle([d.t, ...others.slice(3, 5)]) }; F.step = 0; F.done = false; render(); }
+  const fieldQuestion = step => step === 0 ? o('Step 1: What type of landform is this?','第 1 步：这是哪种地貌？') : o('Step 2: How did it form?','第 2 步：它是怎样形成的？');
+  readPanelItems('#fQ', [0, 1], step => Lab.L(fieldQuestion(step)));
+  const fieldCredit = (p, revealed) => `📷 ${p.credit} · ${p.license} · <a href="${p.page}" target="_blank" rel="noopener">${Lab.L(o('source','来源'))}</a>${revealed ? ' — ' + Lab.L(p) : ''}`;
+  readPanelItems('#fCredit', Object.values(FIELD).map(keys => keys.find(k => PH[k])).filter(Boolean), k => fieldCredit(PH[k], true), null, 'innerHTML');
+  const rankText = rank => Lab.L(o('Rank: ','等级：')) + Lab.L(rank);
+  readPanelItems('#fRank', RANKS, ([, rank]) => rankText(rank));
   function render(msg, good){
     const d = F.deck[F.i], fin = F.i >= F.deck.length, img = Lab.$('#fImg');
     Lab.$('#fBar').style.width = (fin ? 100 : (F.i + F.step / 2) / F.deck.length * 100) + '%';
     Lab.$('#fScore').textContent = F.score; Lab.$('#fStreak').textContent = F.streak;
-    Lab.$('#fRank').textContent = Lab.L(o('Rank: ','等级：')) + Lab.L(rankOf(F.score));
+    Lab.$('#fRank').textContent = rankText(rankOf(F.score));
     if (fin){ Lab.$('#fCount').textContent = ''; Lab.$('#fQ').textContent = Lab.L(o(`Field trip complete! Score ${F.score}. Rank: `, `考察完成！得分 ${F.score}。等级：`)) + Lab.L(rankOf(F.score));
       Lab.$('#fOpts').innerHTML = ''; Lab.$('#fNext').textContent = Lab.L(o('New field trip ↺','再考察一次 ↺')); Lab.$('#fNext').hidden = false;
       if (F.score >= App.best){ App.best = F.score; App.bestRank = rankOf(F.score); renderHero(); } return; }
     const p = PH[d.p]; img.src = p.src; img.alt = Lab.L(o('Mystery landform photo','待鉴定的地貌照片')); img.onclick = () => LabPhotos.open(p);
-    Lab.$('#fCredit').innerHTML = `📷 ${p.credit} · ${p.license} · <a href="${p.page}" target="_blank" rel="noopener">${Lab.L(o('source','来源'))}</a>${F.step === 2 || F.done ? ' — ' + Lab.L(p) : ''}`;
+    Lab.$('#fCredit').innerHTML = fieldCredit(p, F.step === 2 || F.done);
     Lab.$('#fCount').textContent = Lab.L(o(`Stop ${F.i + 1} of ${F.deck.length} · step ${Math.min(2, F.step + 1)} of 2`, `第 ${F.i + 1} / ${F.deck.length} 站 · 第 ${Math.min(2, F.step + 1)} / 2 步`));
-    const q = F.step === 0 ? o('Step 1: What type of landform is this?','第 1 步：这是哪种地貌？') : o('Step 2: How did it form?','第 2 步：它是怎样形成的？');
+    const q = fieldQuestion(F.step);
     Lab.$('#fQ').textContent = Lab.L(q);
     const list = F.step === 0 ? F.picks.a : F.picks.b;
     Lab.$('#fOpts').innerHTML = list.map(t => `<button data-t="${t}">${Lab.L(F.step === 0 ? TYPES[t].n : TYPES[t].how)}</button>`).join('');
@@ -729,10 +833,14 @@ function renderLinks(){ Lab.$('#links').innerHTML = LINKS.map(([u, n, d]) => `<a
     Lab.$('#fNext').hidden = !F.lock; Lab.$('#fNext').textContent = Lab.L(F.step === 0 ? o('Step 2 ▶','第 2 步 ▶') : o('Next stop ▶','下一站 ▶'));
     const m = Lab.$('#fMsg'); if (msg !== undefined){ m.textContent = msg; m.className = 'result ' + (good ? 'good' : 'bad'); } else { m.textContent = ''; m.className = 'result'; }
   }
+  const fieldResult = (d, w, step) => step === 0 ? Lab.L(o(`It’s ${Lab.L(TYPES[d.t].n)} — ${Lab.L(w.name)}.`, `这是${TYPES[d.t].n.zh}——${w.name.zh}。`)) : Lab.L(TYPES[d.t].how);
+  const fieldTypes = Object.keys(TYPES).filter(t => FIELD[t].some(k => PH[k]));
+  const fieldWonder = type => Object.values(W).find(w => w.type === type);
+  readPanelItems('#fMsg', fieldTypes.flatMap(t => [0, 1].map(step => [t, step])), ([t, step]) => fieldResult({ t }, fieldWonder(t), step));
   function answer(b){ const d = F.deck[F.i], ok = b.dataset.t === d.t; F.lock = b.dataset.t;
     if (ok){ F.streak++; F.score += 10 + (F.streak >= 2 ? 5 : 0); } else F.streak = 0;
-    const w = Object.values(W).find(x => x.type === d.t);
-    const msg = (ok ? '✅ ' + (F.streak >= 2 ? Lab.L(o(`+15 (streak ${F.streak}!) `, `+15（连对 ${F.streak}！）`)) : '+10 ') : '❌ ') + (F.step === 0 ? Lab.L(o(`It’s ${Lab.L(TYPES[d.t].n)} — ${Lab.L(w.name)}.`, `这是${TYPES[d.t].n.zh}——${w.name.zh}。`)) : Lab.L(TYPES[d.t].how));
+    const w = fieldWonder(d.t);
+    const msg = (ok ? '✅ ' + (F.streak >= 2 ? Lab.L(o(`+15 (streak ${F.streak}!) `, `+15（连对 ${F.streak}！）`)) : '+10 ') : '❌ ') + (fieldResult(d, w, F.step));
     if (F.step === 1) F.done = true;
     F.lastMsg = [msg, ok]; render(msg, ok); }
   Lab.$('#fNext').onclick = () => { if (F.i >= F.deck.length) return start(); F.lock = null;

@@ -159,8 +159,8 @@ table.lab.tladv td,table.lab.tladv th{padding:5px 8px;font-size:13.5px}
           <div class="counter"><b id="tsReal">—</b><span data-zh="实际能分辨的最细细节">finest detail you really get</span></div>
         </div>
         <div class="fml" id="tsF"></div>
-        <div><b data-zh="🎯 挑战">🎯 Challenge</b> <span id="tsChQ"></span> <button class="btn ghost sm" id="tsChNew" data-zh="换一个 ↻">New ↻</button> <button class="btn sm" id="tsChk" data-zh="检查">Check</button></div>
-        <div class="result" id="tsCh"></div>
+        <div><b data-zh="🎯 挑战">🎯 Challenge</b> <span class="pline" id="tsChQ"></span> <button class="btn ghost sm" id="tsChNew" data-zh="换一个 ↻">New ↻</button> <button class="btn sm" id="tsChk" data-zh="检查">Check</button></div>
+        <div class="result pline" id="tsCh"></div>
       </div>
       <div>
         <h3 style="font-size:17px;margin:0 0 6px" data-zh="🔭 真实望远镜的分辨率 θ = 1.22 λ ÷ D">🔭 Real telescopes: resolution θ = 1.22 λ ÷ D</h3>
@@ -189,7 +189,7 @@ table.lab.tladv td,table.lab.tladv th{padding:5px 8px;font-size:13.5px}
     <p data-zh="1054 年，中国宋朝的天文学家记录了一颗白天也能看见的“客星”。那是一颗恒星的超新星爆发，它的残骸就是今天的蟹状星云，离我们约 6500 光年。拖动滑块，用六种不同的“眼睛”看它。">In the year 1054, astronomers in Song-dynasty China recorded a “guest star” bright enough to see in daylight. It was a star exploding as a supernova, and its wreckage is the Crab Nebula, about 6,500 light-years away. Drag the slider to look at it with six different kinds of “eyes”.</p>
   </div>
   <div class="sim">
-    <div class="simbox card" id="xfBox" style="background:#000"><canvas id="xfCv" aria-label="Crab Nebula in different wavelengths"></canvas><span class="simlbl" id="xfLbl"></span></div>
+    <div class="simbox card" id="xfBox" style="background:#000"><canvas id="xfCv" aria-label="Crab Nebula in different wavelengths"></canvas><span class="simlbl pline" id="xfLbl"></span></div>
     <div class="card simside">
       <h3 id="xfTitle"></h3>
       <div class="bandbtns" id="xfBtns"></div>
@@ -357,26 +357,71 @@ const SP = { l:-6.26, phase:0, vis:true, playing:false, last:performance.now() }
 const lamEl = Lab.$('#lam');
 function specReadouts(){ const l = SP.l, m = Math.pow(10, l), f = 2.998e8 / m, eV = 1239.84e-9 / m;
   return { m, f, eV, T:atmT(l), l }; }
+// Use the same read-aloud units for the live panel and the crawler.
+const PANEL_PARTS = 'h3,h4,p,li,.job,.memory,.mix,.pline,figcaption';
+function panelUnits(panel){
+  const nodes = [...panel.querySelectorAll(PANEL_PARTS)];
+  if (panel.matches(PANEL_PARTS)) nodes.unshift(panel);
+  return nodes.flatMap(node => {
+    if (node.closest('[data-noread]')) return [];
+    const units = Lab.readUnits(node);
+    return units ? units.parts.map(text => [text, units.lang]) : [];
+  });
+}
+function speakPanel(panel){
+  const parts = panelUnits(panel);
+  let i = 0;
+  const next = ok => {
+    if (ok === false || i >= parts.length) return;
+    const [text, lang] = parts[i++];
+    Lab.speak(text, { lang, inner:true, onend:next });
+  };
+  next();
+}
+function registerPanels(host, items, markup, plain = false){
+  Lab.readAll(() => {
+    const panel = host.cloneNode(false);
+    panel.removeAttribute('id');
+    panel.removeAttribute('aria-live');
+    panel.setAttribute('aria-hidden', 'true');
+    panel.style.cssText = 'position:absolute;left:-10000px;top:0;width:' + (host.offsetWidth || 360) + 'px';
+    host.parentElement.appendChild(panel);
+    try {
+      return items.flatMap((item, index) => {
+        if (plain) panel.textContent = markup(item, index);
+        else panel.innerHTML = markup(item, index);
+        return panelUnits(panel);
+      });
+    } finally {
+      panel.remove();
+    }
+  });
+}
+function spectrumMarkup(b, live = ''){
+  return `<span class="tag pline">${Lab.L(o('Band of the spectrum','波段'))}</span>
+    <h3><span class="dot" style="background:${b.col}"></span>${Lab.L(b.name)}</h3>
+    <div class="job">${Lab.L(b.range)}</div>
+    ${live}
+    <div><b style="font-size:14px">${Lab.L(o('What gives off this light','什么会发出这种光'))}</b><div class="muted pline" style="font-size:15px">${Lab.L(b.src)}</div></div>
+    <ul>${Lab.L(b.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(b.hint)}</div>
+    <div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(b.mix)}</span></div>`;
+}
+registerPanels(Lab.$('#specInfo'), BANDS, b => spectrumMarkup(b));
 function renderSpecInfo(){
   const b = bandOf(SP.l), r = specReadouts(), i = BANDS.indexOf(b);
   const sees = SCOPES.filter(s => SP.l >= s.lo && SP.l <= s.hi);
   const stat = (l, v, cls = '') => `<div class="stat ${cls}"><small>${Lab.L(l)}</small>${v}</div>`;
   const tPct = Math.round(r.T * 100), stop = stopHeight(SP.l);
-  Lab.$('#specInfo').innerHTML = `<span class="tag">${Lab.L(o('Band of the spectrum','波段'))}</span>
-    <h3><span class="dot" style="background:${b.col}"></span>${Lab.L(b.name)}</h3>
-    <div class="job">${Lab.L(b.range)}</div>
-    <div class="stats">${stat(o('Wavelength','波长'), fmtLen(r.m))}${stat(o('Frequency (waves per second)','频率（每秒的波数）'), fmtFreq(r.f))}
+  const live = `<div class="stats">${stat(o('Wavelength','波长'), fmtLen(r.m))}${stat(o('Frequency (waves per second)','频率（每秒的波数）'), fmtFreq(r.f))}
       ${stat(o('Energy of one photon','一个光子的能量'), fmtE(r.eV))}${stat(o('One wave is about the size of','一个波约有多大'), Lab.L(SIZE[String(Math.round(SP.l))] || SIZE['0']))}
       ${stat(o('Reaches the ground (approx.)','到达地面（约）'), `${tPct}%${stop ? ' · ' + Lab.L(stop) : ''}`, 'wide' + (tPct < 20 ? ' warn' : ''))}</div>
     <div><b style="font-size:14px">${Lab.L(o('Telescopes that see this light','能看到这种光的望远镜'))}</b><div class="scopes" style="margin-top:6px">${sees.length ? sees.map(s => `<span>${WHERE[s.w]} ${Lab.L(s.n)}</span>`).join('') : `<span>${Lab.L(o('none in our list','列表中没有'))}</span>`}</div>
-      <div class="figcap">${Lab.L(o('🛰 in space · 🏔 on a mountain · 🌍 on the ground · ✈ on an airplane','🛰 太空 · 🏔 高山 · 🌍 地面 · ✈ 飞机上'))}</div></div>
-    <div><b style="font-size:14px">${Lab.L(o('What gives off this light','什么会发出这种光'))}</b><div class="muted" style="font-size:15px">${Lab.L(b.src)}</div></div>
-    <ul>${Lab.L(b.facts).map(f => `<li>${f}</li>`).join('')}</ul>
-    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(b.hint)}</div>
-    <div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(b.mix)}</span></div>
+      <div class="figcap">${Lab.L(o('🛰 in space · 🏔 on a mountain · 🌍 on the ground · ✈ on an airplane','🛰 太空 · 🏔 高山 · 🌍 地面 · ✈ 飞机上'))}</div></div>`;
+  Lab.$('#specInfo').innerHTML = spectrumMarkup(b, live) + `
     <button class="speak" id="specSpeak">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="bPrev">${Lab.L(o('◀ Longer waves','◀ 更长的波'))}</button><button id="bNext">${Lab.L(o('Shorter waves ▶','更短的波 ▶'))}</button></div>`;
-  Lab.$('#specSpeak').onclick = () => Lab.speak([Lab.L(b.name), Lab.L(b.range), ...Lab.L(b.facts), Lab.L(b.hint)].join('. '));
+  Lab.$('#specSpeak').onclick = () => speakPanel(Lab.$('#specInfo'));
   Lab.$('#bPrev').onclick = () => setBand(Math.min(BANDS.length - 1, i + 1));
   Lab.$('#bNext').onclick = () => setBand(Math.max(0, i - 1));
   Lab.$('#bPrev').disabled = i === BANDS.length - 1; Lab.$('#bNext').disabled = i === 0;
@@ -783,13 +828,29 @@ function drawXF(){
   g.globalAlpha = 1; g.drawImage(CRAB.imgs[a], dx, dy, side, side);
   if (f > .001 && b !== a && CRAB.ok[b]){ g.globalAlpha = f; g.drawImage(CRAB.imgs[b], dx, dy, side, side); g.globalAlpha = 1; }
 }
+const xfTitleText = (d, i) => Lab.L(o('The Crab Nebula in ','蟹状星云：')) + Lab.L([o('radio waves','射电波段'), o('infrared','红外波段'), o('visible light','可见光波段'), o('ultraviolet','紫外波段'), o('X-rays','X 射线波段'), o('gamma rays','伽马射线波段')][i]);
+registerPanels(Lab.$('#xfTitle'), XF, xfTitleText, true);
+const xfTextText = (d, i) => Lab.L(d.x);
+registerPanels(Lab.$('#xfText'), XF, xfTextText, true);
+const xfLblText = (d, i) => Lab.L(d.n) + ' · ' + Lab.L(d.t);
+registerPanels(Lab.$('#xfLbl'), XF, xfLblText, true);
+function xfStatsMarkup(d){
+  const stat = (l, v) => `<div class="stat pline"><small>${Lab.L(l)}</small>${v}</div>`;
+  return stat(o('Telescope','望远镜'), Lab.L(d.t)) + stat(o('Where','位置'), `${WHERE[d.w]} ${Lab.L(d.w === 'space' ? o('in space','太空') : o('on the ground','地面'))}`) + stat(o('Wavelength','波长'), Lab.L(d.lam)) + stat(o('Size of the nebula','星云大小'), Lab.L(o('≈ 10 light-years across (estimates differ)','约 10 光年宽（估计值不一）')));
+}
+registerPanels(Lab.$('#xfStats'), XF, xfStatsMarkup);
+function xfCreditMarkup(i){
+  const c = RP['c' + i];
+  return `${Lab.L(o('Image: ','图片：'))}${c.credit} · ${c.license} · <a href="${c.page}" target="_blank" rel="noopener">${Lab.L(o('source','来源'))}</a>`;
+}
+Lab.$('#xfCredit').classList.add('pline');
+registerPanels(Lab.$('#xfCredit'), XF, (_, i) => xfCreditMarkup(i));
 function xfText(){ const i = Math.round(CRAB.v), d = XF[i];
-  Lab.$('#xfTitle').textContent = Lab.L(o('The Crab Nebula in ','蟹状星云：')) + Lab.L([o('radio waves','射电波段'), o('infrared','红外波段'), o('visible light','可见光波段'), o('ultraviolet','紫外波段'), o('X-rays','X 射线波段'), o('gamma rays','伽马射线波段')][i]);
-  Lab.$('#xfText').textContent = Lab.L(d.x);
-  Lab.$('#xfLbl').textContent = Lab.L(d.n) + ' · ' + Lab.L(d.t);
-  const stat = (l, v) => `<div class="stat"><small>${Lab.L(l)}</small>${v}</div>`;
-  Lab.$('#xfStats').innerHTML = stat(o('Telescope','望远镜'), Lab.L(d.t)) + stat(o('Where','位置'), `${WHERE[d.w]} ${Lab.L(d.w === 'space' ? o('in space','太空') : o('on the ground','地面'))}`) + stat(o('Wavelength','波长'), Lab.L(d.lam)) + stat(o('Size of the nebula','星云大小'), Lab.L(o('≈ 10 light-years across (estimates differ)','约 10 光年宽（估计值不一）')));
-  const c = RP['c' + i]; Lab.$('#xfCredit').innerHTML = `${Lab.L(o('Image: ','图片：'))}${c.credit} · ${c.license} · <a href="${c.page}" target="_blank" rel="noopener">${Lab.L(o('source','来源'))}</a>`;
+  Lab.$('#xfTitle').textContent = xfTitleText(d, i);
+  Lab.$('#xfText').textContent = xfTextText(d, i);
+  Lab.$('#xfLbl').textContent = xfLblText(d, i);
+  Lab.$('#xfStats').innerHTML = xfStatsMarkup(d);
+  Lab.$('#xfCredit').innerHTML = xfCreditMarkup(i);
   Lab.$$('#xfBtns .tbtn').forEach((b, k) => b.classList.toggle('on', k === i)); }
 function renderXFBtns(){ Lab.$('#xfBtns').innerHTML = XF.map((d, k) => `<button class="tbtn" data-k="${k}">${Lab.L(d.n)}</button>`).join('');
   Lab.$$('#xfBtns .tbtn').forEach(b => b.onclick = () => xfAnimate(+b.dataset.k)); }
@@ -824,24 +885,33 @@ const MATCH = [
 ];
 const MG = { order:[], i:0, score:0, pickL:null, pickP:null, res:[] };
 /* photo without its caption until the question is answered (captions would give the answer away) */
+const matchBrief = t => `<h3>${Lab.L(t.n)}</h3><div class="where pline">${Lab.L(t.d)}</div>`;
+const matchExplanation = t => Lab.L(t.x);
+const matchPhotoCaption = it => `<b class="pline" style="display:block;margin-bottom:4px">${Lab.L(it)}</b>`;
+const matchFinishedTitle = () => `<h3>${Lab.L(o('🎉 Finished!','🎉 完成！'))}</h3>`;
+const matchFinishNotes = [o('Observatory director level! You know why each telescope lives where it does.','天文台台长水平！你知道每台望远镜为什么要建在那里。'), o('Great work. Look back at the atmosphere figure for the ones you missed.','很棒！错了的几题可以回头看看大气窗口图。'), o('Tip: check the atmosphere figure. If the light can’t reach the ground, the telescope must go to space.','提示：看看大气窗口图。如果这种光到不了地面，望远镜就必须去太空。')];
+const matchFinish = index => `<p class="mexp">${Lab.L(matchFinishNotes[index])}</p>`;
+registerPanels(Lab.$('#mCard'), MATCH, t => matchBrief(t) + '<p class="mexp">' + matchExplanation(t) + '</p>');
+registerPanels(Lab.$('#mPhoto'), MATCH.filter(t => RP[t.id]), t => matchPhotoCaption(RP[t.id]));
+registerPanels(Lab.$('#mCard'), matchFinishNotes.map((_, i) => i), i => matchFinishedTitle() + matchFinish(i));
 function quietFig(it, reveal){
   return `<div class="card" style="overflow:hidden;padding:0"><div style="aspect-ratio:4/3;background:#0e1422;overflow:hidden;position:relative;${reveal ? 'cursor:zoom-in' : ''}" ${reveal ? 'id="mZoom"' : ''}>
     <img loading="lazy" referrerpolicy="no-referrer" src="${it.src}" alt="" style="width:100%;height:100%;object-fit:cover;display:block">${reveal && it.kind ? `<span class="lp-kind">${Lab.L(it.kind)}</span>` : ''}</div>
-    <div style="padding:10px 12px;font-size:14px">${reveal ? `<b style="display:block;margin-bottom:4px">${Lab.L(it)}</b>` : ''}<small style="display:block;color:var(--ink-2);font-size:11px">${Lab.L(o('Photo: ','图片：'))}${it.credit} · ${it.license} · <a href="${it.page}" target="_blank" rel="noopener">${Lab.L(o('source','来源'))}</a></small></div></div>`; }
+    <div style="padding:10px 12px;font-size:14px">${reveal ? `${matchPhotoCaption(it)}` : ''}<small style="display:block;color:var(--ink-2);font-size:11px">${Lab.L(o('Photo: ','图片：'))}${it.credit} · ${it.license} · <a href="${it.page}" target="_blank" rel="noopener">${Lab.L(o('source','来源'))}</a></small></div></div>`; }
 function mgStart(){ MG.order = Lab.shuffle(MATCH.map((_, k) => k)); MG.i = 0; MG.score = 0; MG.res = []; MG.pickL = MG.pickP = null; mgRender(); }
 function mgRender(){
   const card = Lab.$('#mCard'), n = MATCH.length;
   const prog = `<div class="mprog">${MATCH.map((_, k) => `<i class="${MG.res[k] === 2 ? 'ok' : MG.res[k] === 1 ? 'half' : MG.res[k] === 0 ? 'no' : ''} ${k === MG.i ? 'now' : ''}"></i>`).join('')}</div>`;
   if (MG.i >= n){ Lab.$('#mPhoto').innerHTML = '';
-    card.innerHTML = `${prog}<h3>${Lab.L(o('🎉 Finished!','🎉 完成！'))}</h3><div class="counter" style="background:var(--surface-2);border-radius:14px;padding:12px"><b style="font-family:Fredoka;font-size:32px">${MG.score} / 16</b><span class="muted">${Lab.L(o('points','分'))}</span></div>
-      <p class="mexp">${Lab.L(MG.score >= 14 ? o('Observatory director level! You know why each telescope lives where it does.','天文台台长水平！你知道每台望远镜为什么要建在那里。') : MG.score >= 10 ? o('Great work. Look back at the atmosphere figure for the ones you missed.','很棒！错了的几题可以回头看看大气窗口图。') : o('Tip: check the atmosphere figure. If the light can’t reach the ground, the telescope must go to space.','提示：看看大气窗口图。如果这种光到不了地面，望远镜就必须去太空。'))}</p>
+    card.innerHTML = `${prog}${matchFinishedTitle()}<div class="counter" style="background:var(--surface-2);border-radius:14px;padding:12px"><b style="font-family:Fredoka;font-size:32px">${MG.score} / 16</b><span class="muted">${Lab.L(o('points','分'))}</span></div>
+      ${matchFinish(MG.score >= 14 ? 0 : MG.score >= 10 ? 1 : 2)}
       <button class="btn" id="mAgain">${Lab.L(Lab.UI.again)}</button>`;
     Lab.$('#mAgain').onclick = mgStart; return; }
   const t = MATCH[MG.order[MG.i]], done = MG.pickL != null && MG.pickP != null;
   const ph = RP[t.id], showPh = rev => { Lab.$('#mPhoto').innerHTML = ph ? quietFig(ph, rev) : ''; if (rev && ph) Lab.$('#mZoom').onclick = () => LabPhotos.open(ph); };
   showPh(done);
   card.innerHTML = `${prog}<span class="tag">${Lab.L(o(`Telescope ${MG.i + 1} of ${n}`, `第 ${MG.i + 1} 台，共 ${n} 台`))} · ${Lab.L(o('score','得分'))} ${MG.score}</span>
-    <h3>${Lab.L(t.n)}</h3><div class="where">${Lab.L(t.d)}</div>
+    ${matchBrief(t)}
     <div class="mq">${Lab.L(o('1 · Which light does it mainly see?','1 · 它主要观测哪种光？'))}</div>
     <div class="mopts" id="mL">${LIGHTS.map(([k, l]) => `<button data-k="${k}">${Lab.L(l)}</button>`).join('')}</div>
     <div class="mq">${Lab.L(o('2 · Where does it have to be?','2 · 它必须建在哪里？'))}</div>
@@ -853,7 +923,7 @@ function mgRender(){
     Lab.$$('#mP button').forEach(b => { b.disabled = MG.pickP != null; if (MG.pickP != null){ if (b.dataset.k === t.P) b.classList.add('right'); else if (b.dataset.k === MG.pickP) b.classList.add('wrong'); } });
     if (MG.pickL != null && MG.pickP != null){ const pts = (t.L.includes(MG.pickL) ? 1 : 0) + (MG.pickP === t.P ? 1 : 0);
       const r = Lab.$('#mRes'); r.textContent = pts === 2 ? Lab.L(o('✅ Both right! +2','✅ 两项都对！+2')) : pts === 1 ? Lab.L(o('🟡 One of two right: +1','🟡 对了一项：+1')) : Lab.L(o('❌ Not this time: +0','❌ 这次没答对：+0')); r.className = 'result ' + (pts ? 'good' : 'bad');
-      Lab.$('#mExp').textContent = Lab.L(t.x); Lab.$('#mNext').hidden = false; showPh(true); } };
+      Lab.$('#mExp').textContent = matchExplanation(t); Lab.$('#mNext').hidden = false; showPh(true); } };
   Lab.$$('#mL button').forEach(b => b.onclick = () => { if (MG.pickL != null) return; MG.pickL = b.dataset.k; if (t.L.includes(MG.pickL)) MG.score++; settle(); mark(); });
   Lab.$$('#mP button').forEach(b => b.onclick = () => { if (MG.pickP != null) return; MG.pickP = b.dataset.k; if (MG.pickP === t.P) MG.score++; settle(); mark(); });
   const settle = () => { if (MG.pickL != null && MG.pickP != null) MG.res[MG.i] = (t.L.includes(MG.pickL) ? 1 : 0) + (MG.pickP === t.P ? 1 : 0); };
@@ -945,16 +1015,19 @@ lamEl.value = SP.l; scopeAll(); tlAll(); loadCrab(); mgStart();
   const CH = [
     { q:o('Split the “Double Double” star ε Lyrae, whose stars are about 2.3″ apart, in visible light, using the smallest aperture you can (within 6 mm).','用可见光分开“双双星”天琴座 ε（两颗星相距约 2.3″），口径要尽量小（误差 6 毫米以内）。'),
       ok:c => vis(c) && c.real <= 2.3 && c.D * 1000 <= 1.22 * c.l / (2.3 / RAD) * 1000 + 6, good:o('About 60 mm is the smallest that splits 2.3″ (if the air is steady enough).','约 60 毫米就是能分开 2.3″ 的最小口径（前提是空气足够稳定）。'),
-      hint:c => !vis(c) ? o('Use visible light (about 550 nm).','用可见光（约 550 纳米）。') : c.real > 2.3 ? (c.s > 2.3 ? o('The air is too shaky: lower the seeing.','空气抖得太厉害：把视宁度调小。') : o('Not sharp enough yet: make the aperture bigger.','还不够清晰：加大口径。')) : o('It works, but a smaller aperture would too. Shrink it.','可以分开，但更小的口径也行。把它调小。') },
+      hints:[o('Use visible light (about 550 nm).','用可见光（约 550 纳米）。'), o('The air is too shaky: lower the seeing.','空气抖得太厉害：把视宁度调小。'), o('Not sharp enough yet: make the aperture bigger.','还不够清晰：加大口径。'), o('It works, but a smaller aperture would too. Shrink it.','可以分开，但更小的口径也行。把它调小。')], hint(c){ return !vis(c) ? this.hints[0] : c.real > 2.3 ? (c.s > 2.3 ? this.hints[1] : this.hints[2]) : this.hints[3]; } },
     { q:o('Set the seeing to 1.0″, then find the aperture where the diffraction limit equals the seeing (within 5%), in visible light. Beyond that, a bigger mirror alone stops making things sharper.','把视宁度设为 1.0″，再用可见光找出“衍射极限 = 视宁度”的口径（误差 5% 以内）。再大的镜子单靠自己就不会更清晰了。'),
       ok:c => vis(c) && Math.abs(c.s - 1) < .051 && Math.abs(c.d - 1) <= .05, good:o('About 14 cm! That is why giant telescopes need adaptive optics or must go to space.','约 14 厘米！所以巨型望远镜必须用自适应光学，或者干脆上太空。'),
-      hint:c => !vis(c) ? o('Use visible light (about 550 nm).','用可见光（约 550 纳米）。') : Math.abs(c.s - 1) >= .051 ? o('Set the seeing slider to 1.0″ first.','先把视宁度设为 1.0″。') : c.d > 1 ? o('The diffraction limit is still bigger than 1″: increase the aperture.','衍射极限还大于 1″：加大口径。') : o('Too big: shrink the aperture until the two match.','太大了：缩小口径，直到两者相等。') },
+      hints:[o('Use visible light (about 550 nm).','用可见光（约 550 纳米）。'), o('Set the seeing slider to 1.0″ first.','先把视宁度设为 1.0″。'), o('The diffraction limit is still bigger than 1″: increase the aperture.','衍射极限还大于 1″：加大口径。'), o('Too big: shrink the aperture until the two match.','太大了：缩小口径，直到两者相等。')], hint(c){ return !vis(c) ? this.hints[0] : Math.abs(c.s - 1) >= .051 ? this.hints[1] : c.d > 1 ? this.hints[2] : this.hints[3]; } },
     { q:o('See craters only 2 km wide on the Moon (look at the formula box).','看清月球上宽仅 2 千米的环形山（看公式框）。'), ok:c => c.crater <= 2,
-      good:o('You need about 1″ of detail: a mirror of 13 cm or more AND steady air.','需要约 1″ 的分辨率：口径 13 厘米以上，而且空气要稳定。'), hint:c => c.d > c.s ? o('Limited by the telescope: bigger aperture or shorter wavelength.','受望远镜限制：加大口径或用更短的波长。') : o('Limited by the air: better seeing (or go to space).','受大气限制：改善视宁度（或者去太空）。') }
+      good:o('You need about 1″ of detail: a mirror of 13 cm or more AND steady air.','需要约 1″ 的分辨率：口径 13 厘米以上，而且空气要稳定。'), hints:[o('Limited by the telescope: bigger aperture or shorter wavelength.','受望远镜限制：加大口径或用更短的波长。'), o('Limited by the air: better seeing (or go to space).','受大气限制：改善视宁度（或者去太空）。')], hint(c){ return c.d > c.s ? this.hints[0] : this.hints[1]; } }
   ];
-  function newCh(){ let i; do { i = Math.random() * CH.length | 0; } while (i === A.ch); A.ch = i; chText(); $('#tsCh').className = 'result'; $('#tsCh').textContent = ''; }
+  const challengeFeedback = (text, ok) => (ok ? Lab.L(o('✅ Done! ','✅ 成功！')) : '❌ ') + Lab.L(text);
+  registerPanels($('#tsChQ'), CH, ch => Lab.L(ch.q), true);
+  registerPanels($('#tsCh'), CH.flatMap(ch => [[ch.good, true], ...ch.hints.map(text => [text, false])]), ([text, ok]) => challengeFeedback(text, ok), true);
+  function newCh(){ let i; do { i = Math.random() * CH.length | 0; } while (i === A.ch); A.ch = i; chText(); $('#tsCh').className = 'result pline'; $('#tsCh').textContent = ''; }
   function chText(){ $('#tsChQ').textContent = Lab.L(CH[A.ch].q); }
-  $('#tsChk').onclick = () => { const c = calc(), ch = CH[A.ch], ok = ch.ok(c), el = $('#tsCh'); el.className = 'result ' + (ok ? 'good' : 'bad'); el.textContent = ok ? Lab.L(o('✅ Done! ','✅ 成功！')) + Lab.L(ch.good) : '❌ ' + Lab.L(ch.hint(c)); };
+  $('#tsChk').onclick = () => { const c = calc(), ch = CH[A.ch], ok = ch.ok(c), el = $('#tsCh'); el.className = 'result pline ' + (ok ? 'good' : 'bad'); el.textContent = challengeFeedback(ok ? ch.good : ch.hint(c), ok); };
   $('#tsChNew').onclick = newCh;
   $('#tsSee').addEventListener('input', () => { live(); drawView(); });
   $('#tsLam').addEventListener('input', live);

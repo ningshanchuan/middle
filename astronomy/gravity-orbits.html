@@ -69,7 +69,7 @@
 <section class="wrap" id="explore" data-nav="3D orbit sandbox" data-nav-zh="3D 轨道实验">
   <div class="lab-mode" style="margin-bottom:10px"></div>
   <div class="explorer">
-    <div class="stage card space" id="stage" data-3d>
+    <div class="stage card space" id="stage" data-3d><div class="lab-caption pline"></div>
       <div class="toolbar">
         <button class="tbtn go" id="fireBtn" data-zh="🚀 发射">🚀 Launch</button>
         <button class="tbtn" id="storyBtn" data-zh="🎬 牛顿的炮弹（故事）">🎬 Newton’s cannonball (story)</button>
@@ -100,8 +100,8 @@
           <div class="counter"><b id="gaT">—</b><span data-zh="绕一圈的时间（周期）">time for one orbit (period)</span></div>
         </div>
         <div class="fml" id="gaF"></div>
-        <div><b data-zh="🎯 挑战">🎯 Challenge</b> <span id="gaChQ"></span> <button class="btn ghost sm" id="gaChNew" data-zh="换一个 ↻">New ↻</button></div>
-        <div class="result" id="gaCh"></div>
+        <div><b data-zh="🎯 挑战">🎯 Challenge</b> <span class="pline" id="gaChQ"></span> <button class="btn ghost sm" id="gaChNew" data-zh="换一个 ↻">New ↻</button></div>
+        <div class="result pline" id="gaCh"></div>
       </div>
       <div>
         <div class="vgr" data-nofs><canvas id="gaCv" aria-label="Circular-orbit speed and escape speed against height above the planet, with real satellites"></canvas></div>
@@ -340,6 +340,71 @@ function liveHTML(){
     ${statRow(o('Result','结果'), res, true)}</div>`;
 }
 function updateLive(){ const el = Lab.$('#live'); if (el) el.innerHTML = liveHTML(); }
+// Use the same read-aloud units for the live panel and the crawler.
+const PANEL_PARTS = 'h3,h4,p,li,.job,.memory,.mix,.pline,figcaption';
+function panelUnits(panel){
+  const nodes = [...panel.querySelectorAll(PANEL_PARTS)];
+  if (panel.matches(PANEL_PARTS)) nodes.unshift(panel);
+  return nodes.flatMap(node => {
+    if (node.closest('[data-noread]')) return [];
+    const units = Lab.readUnits(node);
+    return units ? units.parts.map(text => [text, units.lang]) : [];
+  });
+}
+function speakPanel(panel){
+  const parts = panelUnits(panel);
+  let i = 0;
+  const next = ok => {
+    if (ok === false || i >= parts.length) return;
+    const [text, lang] = parts[i++];
+    Lab.speak(text, { lang, inner:true, onend:next });
+  };
+  next();
+}
+function registerPanels(host, items, markup, plain = false){
+  Lab.readAll(() => {
+    const panel = host.cloneNode(false);
+    panel.removeAttribute('id');
+    panel.removeAttribute('aria-live');
+    panel.setAttribute('aria-hidden', 'true');
+    panel.style.cssText = 'position:absolute;left:-10000px;top:0;width:' + (host.offsetWidth || 360) + 'px';
+    host.parentElement.appendChild(panel);
+    const template = document.createElement('template');
+    try {
+      return items.flatMap((item, index) => {
+        if (plain) panel.textContent = markup(item, index);
+        else {
+          template.innerHTML = markup(item, index);
+          template.content.querySelectorAll('img,button').forEach(node => node.remove());
+          panel.replaceChildren(template.content);
+        }
+        return panelUnits(panel);
+      });
+    } finally {
+      panel.remove();
+    }
+  });
+}
+const STEPS = [
+  { v:3, m:1, w:2, en:'1 · A slow launch (3 km/s): gravity pulls the ball down and it lands close to the mountain.', zh:'1 · 慢速发射（3 千米/秒）：引力把炮弹拉下来，它落在山脚附近。' },
+  { v:6.2, m:1, w:2, en:'2 · Faster (6.2 km/s): it lands much farther away, because the planet’s surface curves away beneath it.', zh:'2 · 更快（6.2 千米/秒）：它落得远多了，因为行星表面在它下方向下弯曲。' },
+  { v:7.3, m:1, w:2, en:'3 · About 7.3 km/s: the ground curves away as fast as the ball falls. It falls around the planet forever: a circular orbit!', zh:'3 · 约 7.3 千米/秒：地面弯下去的速度和炮弹下落的速度一样快。它永远绕着行星下落：圆形轨道！' },
+  { v:9, m:1, w:4, en:'4 · 9 km/s: an ellipse. Watch it slow down when it is far away and speed up as it swoops back in.', zh:'4 · 9 千米/秒：椭圆轨道。注意它远离时变慢，飞回来时变快。' },
+  { v:11, m:1, w:4, en:'5 · 11 km/s: faster than escape speed (about 10.3 km/s from this height). Gravity can never pull it back.', zh:'5 · 11 千米/秒：超过了逃逸速度（从这个高度约 10.3 千米/秒）。引力再也拉不回它了。' },
+  { v:7.3, m:2, w:2, en:'6 · The same 7.3 km/s, but the planet has twice the mass. Stronger gravity pulls the ball down: more mass → more gravity.', zh:'6 · 同样是 7.3 千米/秒，但行星质量变成 2 倍。更强的引力把炮弹拉了下来：质量越大，引力越大。' }
+];
+registerPanels(Lab.$('#stage .lab-caption'), STEPS, Lab.L, true);
+function infoMarkup(k, live = ''){
+  const d = PARTS[k], outcome = !PART_ORDER.includes(k);
+  return `<span class="tag pline">${Lab.L(outcome ? o('Result of your launch','发射结果') : o('Part of the model','模型的组成部分'))}</span>
+    <h3><span class="dot" style="background:${d.color}"></span>${Lab.L(d.name)}</h3>
+    <div class="job">${Lab.L(d.job)}</div>
+    ${live}
+    <ul>${Lab.L(d.facts).map(f => `<li>${f}</li>`).join('')}</ul>${realFig(k)}
+    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(d.hint)}</div>
+    ${d.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(d.mix)}</span></div>` : ''}`;
+}
+registerPanels(Lab.$('#info'), Object.keys(PARTS), k => infoMarkup(k));
 function renderInfo(){
   const box = Lab.$('#info'), k = App.sel;
   if (!k){
@@ -352,17 +417,11 @@ function renderInfo(){
     Lab.$('#startBtn').onclick = () => App.select('planet');
     return;
   }
-  const d = PARTS[k], i = PART_ORDER.indexOf(k), outcome = i < 0;
-  box.innerHTML = `<span class="tag">${Lab.L(outcome ? o('Result of your launch','发射结果') : o('Part of the model','模型的组成部分'))}</span>
-    <h3><span class="dot" style="background:${d.color}"></span>${Lab.L(d.name)}</h3>
-    <div class="job">${Lab.L(d.job)}</div>
-    <div id="live">${liveHTML()}</div>
-    <ul>${Lab.L(d.facts).map(f => `<li>${f}</li>`).join('')}</ul>${realFig(k)}
-    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(d.hint)}</div>
-    ${d.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(d.mix)}</span></div>` : ''}
+  const i = PART_ORDER.indexOf(k), outcome = i < 0;
+  box.innerHTML = infoMarkup(k, `<div id="live">${liveHTML()}</div>`) + `
     <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
-  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(d.name), Lab.L(d.job), ...Lab.L(d.facts), Lab.L(d.hint)].join('. '));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box);
   const j = outcome ? -1 : i, n = PART_ORDER.length;
   Lab.$('#pPrev').onclick = () => App.select(PART_ORDER[(j - 1 + n) % n]); Lab.$('#pNext').onclick = () => App.select(PART_ORDER[(j + 1) % n]);
 }
@@ -514,6 +573,10 @@ Lab.onLang(drawSpd);
 const WORLDS = [[o('Mercury','水星'), 3.7, '#b9a99a'], [o('Venus','金星'), 8.87, '#e8c98a'], [o('Earth','地球'), 9.81, '#4f8fe8'], [o('Moon','月球'), 1.62, '#cfcfd4'], [o('Mars','火星'), 3.71, '#e0704a'],
   [o('Jupiter','木星'), 24.79, '#d9b48a'], [o('Saturn','土星'), 10.44, '#e6d29a'], [o('Uranus','天王星'), 8.87, '#9fe3e6'], [o('Neptune','海王星'), 11.15, '#6b8cf5'], [o('Pluto','冥王星'), .62, '#c9b29a']];
 let wSel = 4;
+function weightMarkup(w, pct = Math.round(w[1] / 9.81 * 100)){
+  return `<b class="pline">${Lab.L(w[0])}</b><span class="pline">${zh() ? `表面引力 ${w[1]} 米/秒²,是地球的 ${pct}%。` : `Surface gravity ${w[1]} m/s², ${pct}% of Earth’s.`}</span>`;
+}
+registerPanels(Lab.$('#wcard'), WORLDS, w => weightMarkup(w));
 function renderWeights(){
   const me = +Lab.$('#me').value; Lab.$('#meOut').textContent = zh() ? `${me} 千克` : `${me} kg`;
   Lab.$('#wlist').innerHTML = WORLDS.map((w, i) => { const N = me * w[1], feels = N / 9.81;
@@ -524,7 +587,7 @@ function renderWeights(){
   const w = WORLDS[wSel], N = me * w[1], pct = Math.round(w[1] / 9.81 * 100), jump = .5 * 9.81 / w[1];
   Lab.$('#wN').textContent = Math.round(N).toLocaleString('en-US');
   Lab.$('#wJump').textContent = jump < 10 ? `${jump.toFixed(2)} m` : `${jump.toFixed(1)} m`;
-  Lab.$('#wcard').innerHTML = `<b>${Lab.L(w[0])}</b>` + (zh() ? `表面引力 ${w[1]} 米/秒²,是地球的 ${pct}%。你的质量仍然是 ${me} 千克,但体重计会显示约 ${Math.round(N / 9.81)} 千克。` : `Surface gravity ${w[1]} m/s², ${pct}% of Earth’s. Your mass is still ${me} kg, but a bathroom scale would read about ${Math.round(N / 9.81)} kg.`);
+  Lab.$('#wcard').innerHTML = weightMarkup(w, pct) + (zh() ? `你的质量仍然是 ${me} 千克,但体重计会显示约 ${Math.round(N / 9.81)} 千克。` : ` Your mass is still ${me} kg, but a bathroom scale would read about ${Math.round(N / 9.81)} kg.`);
 }
 Lab.$('#me').oninput = renderWeights;
 Lab.onLang(renderWeights);
@@ -625,6 +688,17 @@ renderInfo(); renderChips(); sandboxOutputs(); lawUpdate(); kepNote(); renderWei
       g.fillText(isZh() ? `放大 ${zt}：${Lab.L(s.a)}` : `Zoom ${zt}: ${Lab.L(s.a)}`, ix, iy + ri + 14);
     }
   }
+  const baryQuestion = s => isZh() ? `猜一猜：${Lab.L(s.n)}的质心在${Lab.L(s.a)}的里面还是外面？` : `Guess: is the ${Lab.L(s.n)} barycenter inside or outside ${the(s)}?`;
+  function baryResult(s, r1 = r1Of(s), pct = r1 / s.R1 * 100){
+    const inside = pct < 100, ex = s.example ? Lab.L(o(' (example pair)','（示例）')) : '';
+    return (isZh() ? `质心在${Lab.L(s.a)}的${inside ? '里面' : '外面'}：离中心 ${fmtKm(r1)}，是半径的 ${pct >= 10 ? Math.round(pct) : pct.toFixed(2)}%。` : `The barycenter is ${inside ? "inside" : "outside"} ${the(s)}: ${fmtKm(r1)} from its center, ${pct >= 10 ? Math.round(pct) : pct.toFixed(2)}% of its radius.`) + ex;
+  }
+  const baryFeedback = ok => (ok ? Lab.L(o('✅ Right! ','✅ 猜对了！')) : Lab.L(o('❌ Surprise! ','❌ 出乎意料吧！')));
+  $('#baryGQ').classList.add('pline');
+  $('#baryMsg').classList.add('pline');
+  const baryPairs = KEYS.map(k => SYS[k]).filter(s => !s.custom);
+  registerPanels($('#baryGQ'), baryPairs, baryQuestion, true);
+  registerPanels($('#baryMsg'), baryPairs.flatMap(s => [[s, true], [s, false]]), ([s, ok]) => baryFeedback(ok) + baryResult(s), true);
   function readout(){
     table();
     const s = SYS[st.k], r1 = r1Of(s), pct = r1 / s.R1 * 100, v = 2 * Math.PI * r1 / (s.P * 86400) * 1000, known = st.guessed[st.k] || s.custom;
@@ -635,17 +709,16 @@ renderInfo(); renderChips(); sandboxOutputs(); lawUpdate(); kepNote(); renderWei
     $('#baryV').textContent = v >= 1000 ? `${(v / 1000).toFixed(1)} ${isZh() ? "千米/秒" : "km/s"}` : `${v.toFixed(v < 1 ? 2 : v < 100 ? 1 : 0)} ${isZh() ? "米/秒" : "m/s"}`;
     $('#baryScore').textContent = `${st.right} / ${st.made}`;
     $('#baryGuess').hidden = !!known;
-    $('#baryGQ').textContent = isZh() ? `猜一猜：${Lab.L(s.n)}的质心在${Lab.L(s.a)}的里面还是外面？` : `Guess: is the ${Lab.L(s.n)} barycenter inside or outside ${the(s)}?`;
+    $('#baryGQ').textContent = baryQuestion(s);
     const m = $('#baryMsg');
-    if (!known){ m.textContent = ''; m.className = 'result'; return; }
-    const inside = pct < 100, ex = s.example ? Lab.L(o(' (example pair)','（示例）')) : '';
-    m.textContent = (isZh() ? `质心在${Lab.L(s.a)}的${inside ? '里面' : '外面'}：离中心 ${fmtKm(r1)}，是半径的 ${pct >= 10 ? Math.round(pct) : pct.toFixed(2)}%。` : `The barycenter is ${inside ? "inside" : "outside"} ${the(s)}: ${fmtKm(r1)} from its center, ${pct >= 10 ? Math.round(pct) : pct.toFixed(2)}% of its radius.`) + ex;
-    m.className = 'result good';
+    if (!known){ m.textContent = ''; m.className = 'result pline'; return; }
+    m.textContent = baryResult(s, r1, pct);
+    m.className = 'result pline good';
   }
   Lab.$$('#baryGuess button').forEach(b => b.onclick = () => {
     const s = SYS[st.k], inside = r1Of(s) < s.R1, ok = (b.dataset.g === 'in') === inside;
     st.guessed[st.k] = true; st.made++; if (ok) st.right++; readout();
-    const m = $('#baryMsg'); m.textContent = (ok ? Lab.L(o('✅ Right! ','✅ 猜对了！')) : Lab.L(o('❌ Surprise! ','❌ 出乎意料吧！'))) + m.textContent; m.className = 'result ' + (ok ? 'good' : 'bad');
+    const m = $('#baryMsg'); m.textContent = baryFeedback(ok) + m.textContent; m.className = 'result pline ' + (ok ? 'good' : 'bad');
   });
   $('#baryQ').oninput = () => { const q = +$('#baryQ').value, c = SYS.cus; c.q = q; c.R2 = c.R1 / Math.cbrt(q); $('#baryQOut').textContent = q; readout(); draw(); };
   $('#baryT').oninput = () => { setRun(false); st.ph = +$('#baryT').value / 1000; readout(); draw(); };
@@ -718,27 +791,30 @@ renderInfo(); renderChips(); sandboxOutputs(); lawUpdate(); kepNote(); renderWei
   const CH = [
     { q:o('Make a near-circular orbit: eccentricity under 0.02.','做出几乎是正圆的轨道：偏心率小于 0.02。'),
       ok:P => P.k === 'orbit' && P.e < .02, good:o('A circle needs a flat launch (0°) at exactly v = √(GM/r).','正圆需要水平发射（0°），速度正好是 v = √(GM/r)。'),
-      hint:P => P.k !== 'orbit' ? o('First it has to stay in orbit.','先要让它留在轨道上。') : P.deg ? o('A tilted launch can never give a circle: set the angle to 0°.','斜着发射永远得不到正圆：把角度调到 0°。') : o(`e = ${P.e.toFixed(3)}: get closer to the circular speed shown below.`, `e = ${P.e.toFixed(3)}：再靠近下面算出的圆轨道速度。`) },
+      hints:[o('First it has to stay in orbit.','先要让它留在轨道上。'), o('A tilted launch can never give a circle: set the angle to 0°.','斜着发射永远得不到正圆：把角度调到 0°。')], hint(P){ return P.k !== 'orbit' ? this.hints[0] : P.deg ? this.hints[1] : o(`e = ${P.e.toFixed(3)}: get closer to the circular speed shown below.`, `e = ${P.e.toFixed(3)}：再靠近下面算出的圆轨道速度。`); } },
     { q:o('Make an orbit that takes 3 hours (±5 minutes).','做出周期为 3 小时（误差 ±5 分钟）的轨道。'),
       ok:P => P.k === 'orbit' && Math.abs(P.T - 10800) <= 300, good:o('Bigger orbits take longer: T² ∝ a³ (Kepler’s third law).','轨道越大，周期越长：T² ∝ a³（开普勒第三定律）。'),
-      hint:P => P.k !== 'orbit' ? o('First it has to stay in orbit.','先要让它留在轨道上。') : P.T < 10800 ? o(`T = ${tm(P.T)}: too short. A bigger orbit takes longer, so launch a bit faster.`, `T = ${tm(P.T)}：太短。轨道越大周期越长，发射得快一点。`) : o(`T = ${tm(P.T)}: too long. Launch a bit slower.`, `T = ${tm(P.T)}：太长。发射得慢一点。`) },
+      hints:[o('First it has to stay in orbit.','先要让它留在轨道上。')], hint(P){ return P.k !== 'orbit' ? this.hints[0] : P.T < 10800 ? o(`T = ${tm(P.T)}: too short. A bigger orbit takes longer, so launch a bit faster.`, `T = ${tm(P.T)}：太短。轨道越大周期越长，发射得快一点。`) : o(`T = ${tm(P.T)}: too long. Launch a bit slower.`, `T = ${tm(P.T)}：太长。发射得慢一点。`); } },
     { q:o('Reach GPS height: make the highest point 19,000–21,000 km above the ground, and stay in orbit.','到达 GPS 卫星的高度：让最高点离地面 19,000–21,000 千米，并且留在轨道上。'),
       ok:P => P.k === 'orbit' && Math.abs((P.ra - 1) * RE - 20000) <= 1000, good:o('Real GPS satellites circle at about 20,200 km and take about 12 hours per orbit.','真实的 GPS 卫星在约 20,200 千米高处绕行，大约 12 小时绕一圈。'),
-      hint:P => P.k !== 'orbit' ? o('First it has to stay in orbit.','先要让它留在轨道上。') : (P.ra - 1) * RE < 20000 ? o('Not high enough yet: launch faster.','还不够高：发射得快一点。') : o('Too high: launch a little slower.','太高了：发射得慢一点。') },
+      hints:[o('First it has to stay in orbit.','先要让它留在轨道上。'), o('Not high enough yet: launch faster.','还不够高：发射得快一点。'), o('Too high: launch a little slower.','太高了：发射得慢一点。')], hint(P){ return P.k !== 'orbit' ? this.hints[0] : (P.ra - 1) * RE < 20000 ? this.hints[1] : this.hints[2]; } },
     { q:o('Launch at exactly 20° above horizontal and still go all the way around without crashing.','以正好高于水平 20° 的角度发射，并且绕完一整圈不撞地。'),
       ok:P => P.deg === 20 && P.k === 'orbit', good:o('Steeper than about 23° it can never orbit from this mountain: the lowest point of the ellipse always dips under the ground. That’s why rockets turn sideways soon after launch.','从这座山上，发射角陡于约 23° 就永远绕不成：椭圆的最低点总会钻到地面以下。所以火箭升空后很快就要转向水平飞行。'),
-      hint:P => P.deg !== 20 ? o('Set the launch angle to 20° first.','先把发射角设为 20°。') : P.k === 'fall' ? o('Its lowest point is under the ground. Go faster, but stay below escape speed.','它的最低点在地面以下。再快一些，但不要超过逃逸速度。') : o('Too fast: it escaped. Slow down a little.','太快了，它逃逸了。慢一点。') },
+      hints:[o('Set the launch angle to 20° first.','先把发射角设为 20°。'), o('Its lowest point is under the ground. Go faster, but stay below escape speed.','它的最低点在地面以下。再快一些，但不要超过逃逸速度。'), o('Too fast: it escaped. Slow down a little.','太快了，它逃逸了。慢一点。')], hint(P){ return P.deg !== 20 ? this.hints[0] : P.k === 'fall' ? this.hints[1] : this.hints[2]; } },
     { q:o('Set the planet mass to 1.5 × Earth and escape with the slowest launch you can: no more than 0.3 km/s above escape speed.','把行星质量设为地球的 1.5 倍，用尽量慢的速度逃逸：最多比逃逸速度快 0.3 千米/秒。'),
       ok:P => P.m === 1.5 && P.k === 'escape' && P.v - P.ve <= .3, good:o('Escape speed grows with √M: 1.5 × the mass needs √1.5 ≈ 1.22 × the speed.','逃逸速度随 √M 增大：质量变成 1.5 倍，速度要变成 √1.5 ≈ 1.22 倍。'),
-      hint:P => P.m !== 1.5 ? o('Set the planet mass to 1.5 × Earth first.','先把行星质量设为地球的 1.5 倍。') : P.k !== 'escape' ? o(`Not fast enough: escape speed here is ${ks(P.ve)}.`, `还不够快：这里的逃逸速度是 ${ks(P.ve)}。`) : o('It escaped, but you used more speed than needed. Go slower.','逃逸了，但速度比需要的多。再慢一点。') }
+      hints:[o('Set the planet mass to 1.5 × Earth first.','先把行星质量设为地球的 1.5 倍。'), o('It escaped, but you used more speed than needed. Go slower.','逃逸了，但速度比需要的多。再慢一点。')], hint(P){ return P.m !== 1.5 ? this.hints[0] : P.k !== 'escape' ? o(`Not fast enough: escape speed here is ${ks(P.ve)}.`, `还不够快：这里的逃逸速度是 ${ks(P.ve)}。`) : this.hints[1]; } }
   ];
-  function newCh(){ let i; do { i = Math.random() * CH.length | 0; } while (i === A.ch && CH.length > 1); A.ch = i; chText(); const el = $('#gaCh'); el.className = 'result'; el.textContent = Lab.L(o('Set it up, then press 🚀 Launch.','设置好后，按“🚀 发射”。')); }
+  const challengeFeedback = (text, ok) => (ok ? Lab.L(o('✅ Done! ','✅ 成功！')) : '❌ ') + Lab.L(text);
+  registerPanels($('#gaChQ'), CH, ch => Lab.L(ch.q), true);
+  registerPanels($('#gaCh'), CH.flatMap(ch => [[ch.good, true], ...ch.hints.map(text => [text, false])]), ([text, ok]) => challengeFeedback(text, ok), true);
+  function newCh(){ let i; do { i = Math.random() * CH.length | 0; } while (i === A.ch && CH.length > 1); A.ch = i; chText(); const el = $('#gaCh'); el.className = 'result pline'; el.textContent = Lab.L(o('Set it up, then press 🚀 Launch.','设置好后，按“🚀 发射”。')); }
   function chText(){ $('#gaChQ').textContent = Lab.L(CH[A.ch].q); }
   function judge(){
     if (!Lab.adv() || A.ch == null) return;
     const P = pred(), c = CH[A.ch], el = $('#gaCh'), ok = c.ok(P);
-    el.className = 'result ' + (ok ? 'good' : 'bad');
-    el.textContent = ok ? Lab.L(o('✅ Done! ','✅ 成功！')) + Lab.L(c.good) : '❌ ' + Lab.L(c.hint(P));
+    el.className = 'result pline ' + (ok ? 'good' : 'bad');
+    el.textContent = challengeFeedback(ok ? c.good : c.hint(P), ok);
   }
   App.onLaunch = () => judge();
   /* graph: circular and escape speed against height */
@@ -900,14 +976,6 @@ function focus(k){
 }
 
 /* ---------- guided story: Newton's thought experiment ---------- */
-const STEPS = [
-  { v:3, m:1, w:2, en:'1 · A slow launch (3 km/s): gravity pulls the ball down and it lands close to the mountain.', zh:'1 · 慢速发射（3 千米/秒）：引力把炮弹拉下来，它落在山脚附近。' },
-  { v:6.2, m:1, w:2, en:'2 · Faster (6.2 km/s): it lands much farther away, because the planet’s surface curves away beneath it.', zh:'2 · 更快（6.2 千米/秒）：它落得远多了，因为行星表面在它下方向下弯曲。' },
-  { v:7.3, m:1, w:2, en:'3 · About 7.3 km/s: the ground curves away as fast as the ball falls. It falls around the planet forever: a circular orbit!', zh:'3 · 约 7.3 千米/秒：地面弯下去的速度和炮弹下落的速度一样快。它永远绕着行星下落：圆形轨道！' },
-  { v:9, m:1, w:4, en:'4 · 9 km/s: an ellipse. Watch it slow down when it is far away and speed up as it swoops back in.', zh:'4 · 9 千米/秒：椭圆轨道。注意它远离时变慢，飞回来时变快。' },
-  { v:11, m:1, w:4, en:'5 · 11 km/s: faster than escape speed (about 10.3 km/s from this height). Gravity can never pull it back.', zh:'5 · 11 千米/秒：超过了逃逸速度（从这个高度约 10.3 千米/秒）。引力再也拉不回它了。' },
-  { v:7.3, m:2, w:2, en:'6 · The same 7.3 km/s, but the planet has twice the mass. Stronger gravity pulls the ball down: more mass → more gravity.', zh:'6 · 同样是 7.3 千米/秒，但行星质量变成 2 倍。更强的引力把炮弹拉了下来：质量越大，引力越大。' }
-];
 const story = Lab3D.story('#stage', STEPS, (i, st) => {
   if (i === 0) clearTrails();
   spdEl.value = st.v; massEl.value = st.m; warpEl.value = st.w; sandboxOutputs();

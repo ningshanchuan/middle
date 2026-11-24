@@ -68,7 +68,7 @@
 <section class="wrap" id="explore" data-nav="3D Sun & stars" data-nav-zh="3D 太阳与恒星">
   <div class="lab-mode" style="margin-bottom:10px"></div>
   <div class="explorer">
-    <div class="stage card space" id="stage" data-3d data-mode="sun">
+    <div class="stage card space" id="stage" data-3d data-mode="sun"><div class="lab-caption pline"></div>
       <div class="toolbar">
         <div class="seg" id="modeSeg"><button data-m="sun" class="on" data-zh="☀ 太阳内部">☀ Inside the Sun</button><button data-m="life" data-zh="✨ 恒星的一生">✨ Life of a star</button></div>
         <button class="tbtn" id="storyBtn"></button>
@@ -102,9 +102,9 @@
           <div class="counter"><b id="aM">—</b><span data-zh="每秒变成能量的质量（E = mc²）">mass turned into energy each second (E = mc²)</span></div>
         </div>
         <div class="fml" id="aF"></div>
-        <div><b data-zh="🎯 挑战">🎯 Challenge</b> <span id="aChQ"></span></div>
+        <div><b data-zh="🎯 挑战">🎯 Challenge</b> <span class="pline" id="aChQ"></span></div>
         <div class="btnrow"><button class="btn sm" id="aChk" data-zh="检查 ✓">Check ✓</button><button class="btn ghost sm" id="aChNew" data-zh="换一个 ↻">New ↻</button></div>
-        <div class="result" id="aCh"></div>
+        <div class="result pline" id="aCh"></div>
       </div>
       <div>
         <div class="advplot" data-nofs><canvas id="aCv" aria-label="blackbody spectrum"></canvas></div>
@@ -143,7 +143,7 @@
     <div class="card simside">
       <div class="seg" id="hrSeg" style="align-self:flex-start"><button data-m="explore" class="on" data-zh="🔍 探索">🔍 Explore</button><button data-m="game" data-zh="🎯 放置恒星">🎯 Place the star</button></div>
       <div class="starcard" id="hrCard"></div>
-      <div class="result" id="hrMsg"></div>
+      <div class="result pline" id="hrMsg"></div>
       <div class="counters">
         <div class="counter"><b id="hrOk">0</b><span data-zh="放对了">placed correctly</span></div>
         <div class="counter"><b id="hrTry">0</b><span data-zh="尝试次数">attempts</span></div>
@@ -198,7 +198,7 @@
         <div class="counter"><b id="wKp">–</b><span data-zh="Kp 地磁指数（0–9，粗略估计）">Kp storm level (0–9, rough)</span></div>
         <div class="counter"><b id="wLat">–</b><span data-zh="极光最南可见（地磁纬度，粗略）">aurora seen as far south as (magnetic latitude, rough)</span></div>
       </div>
-      <div class="result" id="wWhere"></div>
+      <div class="result pline" id="wWhere"></div>
       <div class="mix"><b data-zh="⚠️ 容易混淆：">⚠️ Common mix-up:</b><span data-zh="极光不是阳光的反射，也不是太阳风直接“照亮”天空。是高速粒子撞击约 100–300 千米高处的氧和氮，让它们发光：氧发绿光和红光，氮发蓝紫光。">An aurora is not reflected sunlight, and the solar wind does not light the sky directly. Fast particles hit oxygen and nitrogen about 100–300 km up and make them glow: oxygen gives green and red, nitrogen blue-purple.</span></div>
     </div>
   </div>
@@ -382,7 +382,8 @@ const zh = () => Lab.lang === 'zh';
 /* ===== App state ===== */
 const App = window.STAR = { mode:'sun', sel:null, massIdx:1, stage:2, three:null, LAYERS, STAGES, MASSES };
 App.mass = () => MASSES[App.massIdx].m;
-App.track = () => { const m = App.mass(); return m < 8 ? ['nebula','protostar','main','giant','pnebula','whitedwarf'] : ['nebula','protostar','main','supergiant','supernova', m < 20 ? 'neutron' : 'blackhole']; };
+const starTrack = m => m < 8 ? ['nebula','protostar','main','giant','pnebula','whitedwarf'] : ['nebula','protostar','main','supergiant','supernova', m < 20 ? 'neutron' : 'blackhole'];
+App.track = () => starTrack(App.mass());
 App.fate = () => { const m = App.mass(); return m < 8 ? STAGES.whitedwarf.name : m < 20 ? STAGES.neutron.name : STAGES.blackhole.name; };
 App.select = (k, from3D) => { App.sel = k; renderInfo(); renderChips(); if (!from3D && App.three) App.three.focus(k); };
 App.setStage = (i, from3D) => { App.stage = Math.max(0, Math.min(5, i)); Lab.$('#stg').value = App.stage; App.sel = App.track()[App.stage]; renderInfo(); renderChips(); renderTrack(); if (!from3D && App.three) App.three.stage(App.stage); };
@@ -402,6 +403,91 @@ function massStats(){
   const M = MASSES[App.massIdx];
   return statGrid([[o('Mass','质量'), o(`${M.m} × the Sun`, `太阳的 ${M.m} 倍`)], [o('Main-sequence color','主序星颜色'), M.cname], [o('Surface temperature','表面温度'), M.temp], [o('Main-sequence life','主序阶段寿命'), M.life], [o('Final fate','最终结局'), App.fate()]]);
 }
+// Use the same read-aloud units for the live panel and the crawler.
+const PANEL_PARTS = 'h3,h4,p,li,.job,.memory,.mix,.pline,figcaption';
+function panelUnits(panel){
+  const nodes = [...panel.querySelectorAll(PANEL_PARTS)];
+  if (panel.matches(PANEL_PARTS)) nodes.unshift(panel);
+  return nodes.flatMap(node => {
+    if (node.closest('[data-noread]')) return [];
+    const units = Lab.readUnits(node);
+    return units ? units.parts.map(text => [text, units.lang]) : [];
+  });
+}
+function speakPanel(panel){
+  const parts = panelUnits(panel);
+  let i = 0;
+  const next = ok => {
+    if (ok === false || i >= parts.length) return;
+    const [text, lang] = parts[i++];
+    Lab.speak(text, { lang, inner:true, onend:next });
+  };
+  next();
+}
+function registerPanels(host, items, markup, plain = false){
+  Lab.readAll(() => {
+    const panel = host.cloneNode(false);
+    panel.removeAttribute('id');
+    panel.removeAttribute('aria-live');
+    panel.setAttribute('aria-hidden', 'true');
+    panel.style.cssText = 'position:absolute;left:-10000px;top:0;width:' + (host.offsetWidth || 360) + 'px';
+    host.parentElement.appendChild(panel);
+    const template = document.createElement('template');
+    try {
+      return items.flatMap((item, index) => {
+        if (plain) panel.textContent = markup(item, index);
+        else {
+          template.innerHTML = markup(item, index);
+          template.content.querySelectorAll('img,button').forEach(node => node.remove());
+          panel.replaceChildren(template.content);
+        }
+        return panelUnits(panel);
+      });
+    } finally {
+      panel.remove();
+    }
+  });
+}
+const SUN_STEPS = [
+  { en:'1 · Core: hydrogen nuclei fuse into helium at about 15 million °C, releasing energy.', zh:'1 · 核心：氢原子核在约 1500 万 °C 下聚变成氦，释放能量。' },
+  { en:'2 · Radiative zone: the energy travels as light, zig-zagging for tens of thousands of years.', zh:'2 · 辐射层：能量以光的形式曲折前进，要走几万年。' },
+  { en:'3 · Convection zone: rising and sinking hot gas carries the energy up, like boiling soup.', zh:'3 · 对流层：上升、下沉的热气体像沸腾的汤一样把能量向上搬运。' },
+  { en:'4 · Photosphere: the light escapes into space. This is the surface we see.', zh:'4 · 光球层：光从这里逃逸到太空，这就是我们看到的表面。' },
+  { en:'5 · Space: sunlight crosses 150 million km and reaches Earth in about 8 minutes 20 seconds.', zh:'5 · 太空：阳光穿过 1.5 亿千米，大约 8 分 20 秒后到达地球。' }
+];
+const LCAP = {
+  nebula:{ en:'A nebula: gravity starts pulling gas and dust together.', zh:'星云：引力开始把气体和尘埃聚拢。' },
+  protostar:{ en:'A protostar heats up as it collapses; fusion has not started yet.', zh:'原恒星在塌缩中升温，核聚变还没有开始。' },
+  main:{ en:'Fusion begins! A main-sequence star: gravity pulling in = pressure pushing out.', zh:'核聚变开始了！主序星：向内的引力 = 向外的压力。' },
+  giant:{ en:'Core hydrogen runs out; the star swells into a cool, red giant.', zh:'核心的氢耗尽，恒星膨胀成表面较冷的红巨星。' },
+  pnebula:{ en:'The outer layers drift away as a glowing planetary nebula.', zh:'外层气体飘散开，形成发光的行星状星云。' },
+  whitedwarf:{ en:'Left behind: an Earth-sized white dwarf that slowly cools.', zh:'留下来的是地球大小、慢慢冷却的白矮星。' },
+  supergiant:{ en:'A massive star swells into a red supergiant, fusing elements up to iron.', zh:'大质量恒星膨胀成红超巨星，聚变出直到铁的元素。' },
+  supernova:{ en:'The iron core collapses: SUPERNOVA! New elements scatter into space.', zh:'铁核塌缩：超新星爆发！新元素被抛向太空。' },
+  neutron:{ en:'Left behind: a spinning neutron star (pulsar) only about 20 km wide.', zh:'留下来的是一颗飞速旋转、直径只有约 20 千米的中子星（脉冲星）。' },
+  blackhole:{ en:'The core is so massive that it collapses into a black hole.', zh:'核心质量太大，塌缩成了黑洞。' }
+};
+const lifeCaption = (k, i) => ({ en:`${i + 1} · ${LCAP[k].en}`, zh:`${i + 1} · ${LCAP[k].zh}` });
+registerPanels(Lab.$('#stage .lab-caption'), SUN_STEPS, Lab.L, true);
+registerPanels(Lab.$('#stage .lab-caption'), [.5, 10, 25].flatMap(m => starTrack(m).map(lifeCaption)), Lab.L, true);
+function starMarkup(k, isSun, mass, i, stats = ''){
+  const d = isSun ? LAYERS[k] : STAGES[k];
+  const tag = isSun ? o('Part of the Sun','太阳的结构') : o(`Stage ${i + 1} of 6 · ${mass.m}-solar-mass star`, `第 ${i + 1} / 6 阶段 · ${mass.m} 倍太阳质量的恒星`);
+  let extra = '';
+  if (mass && mass.m < .8 && i >= 3) extra = `<div class="mix"><b>⏳</b><span>${Lab.L(o('A star this small lives longer than the universe has existed (13.8 billion years), so no star like it has reached this stage yet.','这么小的恒星寿命比宇宙现在的年龄（138 亿年）还长，所以还没有这样的恒星走到这个阶段。'))}</span></div>`;
+  if (mass && k === 'main') extra += `<div class="memory"><b>${Lab.L(o('⏱ This star’s main-sequence life','⏱ 这颗恒星的主序寿命'))}</b>${Lab.L(mass.life)}</div>`;
+  return `<span class="tag pline">${Lab.L(tag)}</span>
+    <h3><span class="dot" style="background:${mass && k === 'main' ? mass.col : d.color}"></span>${Lab.L(d.name)}</h3>
+    <div class="job">${Lab.L(d.job)}</div>
+    ${stats}
+    <ul>${Lab.L(d.facts).map(f => `<li>${f}</li>`).join('')}</ul>${realFig(k)}
+    ${extra}
+    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(d.hint)}</div>
+    ${d.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(d.mix)}</span></div>` : ''}`;
+}
+registerPanels(Lab.$('#info'), LAYER_ORDER, k => starMarkup(k, true));
+const lifePanels = MASSES.flatMap(mass => starTrack(mass.m).map((key, i) => ({ mass, key, i })));
+registerPanels(Lab.$('#info'), lifePanels, ({ mass, key, i }) => starMarkup(key, false, mass, i));
 function renderInfo(){
   const box = Lab.$('#info'), k = App.sel;
   if (App.mode === 'sun' && !k){
@@ -414,22 +500,11 @@ function renderInfo(){
     Lab.$('#startBtn').onclick = () => App.select('core');
     return;
   }
-  const isSun = App.mode === 'sun', d = isSun ? LAYERS[k] : STAGES[k], list = isSun ? LAYER_ORDER : App.track(), i = list.indexOf(k);
-  const tag = isSun ? o('Part of the Sun','太阳的结构') : o(`Stage ${i + 1} of 6 · ${App.mass()}-solar-mass star`, `第 ${i + 1} / 6 阶段 · ${App.mass()} 倍太阳质量的恒星`);
-  let extra = '';
-  if (!isSun && App.mass() < .8 && i >= 3) extra = `<div class="mix"><b>⏳</b><span>${Lab.L(o('A star this small lives longer than the universe has existed (13.8 billion years), so no star like it has reached this stage yet.','这么小的恒星寿命比宇宙现在的年龄（138 亿年）还长，所以还没有这样的恒星走到这个阶段。'))}</span></div>`;
-  if (!isSun && k === 'main') extra += `<div class="memory"><b>${Lab.L(o('⏱ This star’s main-sequence life','⏱ 这颗恒星的主序寿命'))}</b>${Lab.L(MASSES[App.massIdx].life)}</div>`;
-  box.innerHTML = `<span class="tag">${Lab.L(tag)}</span>
-    <h3><span class="dot" style="background:${!isSun && k === 'main' ? MASSES[App.massIdx].col : d.color}"></span>${Lab.L(d.name)}</h3>
-    <div class="job">${Lab.L(d.job)}</div>
-    ${isSun ? '' : massStats()}
-    <ul>${Lab.L(d.facts).map(f => `<li>${f}</li>`).join('')}</ul>${realFig(k)}
-    ${extra}
-    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(d.hint)}</div>
-    ${d.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(d.mix)}</span></div>` : ''}
+  const isSun = App.mode === 'sun', list = isSun ? LAYER_ORDER : App.track(), i = list.indexOf(k);
+  box.innerHTML = starMarkup(k, isSun, isSun ? null : MASSES[App.massIdx], i, isSun ? '' : massStats()) + `
     <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
-  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(d.name), Lab.L(d.job), ...Lab.L(d.facts), Lab.L(d.hint)].join('. '));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box);
   const go = j => isSun ? App.select(list[(j + list.length) % list.length]) : App.setStage((j + 6) % 6);
   Lab.$('#pPrev').onclick = () => go(i - 1); Lab.$('#pNext').onclick = () => go(i + 1);
 }
@@ -515,15 +590,25 @@ function drawHR(){
     g.strokeStyle = HR.guess.ok ? '#3ed596' : '#ff6b7f'; g.lineWidth = 3; g.beginPath(); g.arc(HR.guess.x, HR.guess.y, 9, 0, 7); g.stroke();
     g.strokeStyle = '#ffe08a'; g.beginPath(); g.arc(tx, ty, 13, 0, 7); g.stroke(); }
 }
+const hrBrief = t => `<small>${Lab.L(o('Where does this star go?','这颗恒星应该放在哪里？'))}</small><b style="color:${tempColor(t.T)};text-shadow:0 0 1px #000">${Lab.L(t.n)}</b>${zh() ? `表面温度约 ${fmtT(t.T)} °C · 亮度是太阳的 ${fmtL(t.L)} 倍` : `Surface ≈ ${fmtT(t.T)} °C · ${fmtL(t.L)} × the Sun’s brightness`}`;
+Lab.$('#hrCard').classList.add('pline');
+registerPanels(Lab.$('#hrCard'), HR_STARS, hrBrief);
 function hrCard(){
   const c = Lab.$('#hrCard');
   if (HR.mode === 'game'){ const t = HR.target;
-    c.innerHTML = `<small>${Lab.L(o('Where does this star go?','这颗恒星应该放在哪里？'))}</small><b style="color:${tempColor(t.T)};text-shadow:0 0 1px #000">${Lab.L(t.n)}</b>${zh() ? `表面温度约 ${fmtT(t.T)} °C · 亮度是太阳的 ${fmtL(t.L)} 倍` : `Surface ≈ ${fmtT(t.T)} °C · ${fmtL(t.L)} × the Sun’s brightness`}`; return; }
+    c.innerHTML = hrBrief(t); return; }
   if (!HR.mark){ c.innerHTML = `<small>${Lab.L(o('Explore','探索'))}</small>${Lab.L(o('Click anywhere on the diagram to read the temperature, brightness and type of star found there.','点击图上任意位置，读出那里的温度、亮度和恒星类型。'))}`; return; }
   const {T, L} = HR.mark, near = HR_STARS.find(s => Math.hypot(X(s.T) - HR.mark.x, Y(s.L) - HR.mark.y) < 14);
   c.innerHTML = `<small>${Lab.L(o('Reading','读数'))}</small><b style="color:${tempColor(T)};text-shadow:0 0 1px #000">${near ? Lab.L(near.n) : Lab.L(TYPES[classify(T, L)])}</b>` +
     (zh() ? `约 ${fmtT(T)} °C(${Lab.L(tempName(T))})· 亮度是太阳的 ${fmtL(L)} 倍 · ${Lab.L(TYPES[classify(T, L)])}` : `≈ ${fmtT(T)} °C (${Lab.L(tempName(T))}) · ${fmtL(L)} × the Sun’s brightness · ${Lab.L(TYPES[classify(T, L)])}`);
 }
+const hrDirections = [o('it is hotter than you placed it (move LEFT)','它比你放的位置更热（往左）'), o('it is cooler than you placed it (move RIGHT)','它比你放的位置更冷（往右）'), o('it is brighter (move UP)','它更亮（往上）'), o('it is dimmer (move DOWN)','它更暗（往下）')];
+function hrResult(t, ok, tips = []){
+  const type = Lab.L(TYPES[t.type]);
+  return ok ? (zh() ? `✅ 放对了!${Lab.L(t.n)}是一颗${type}。` : `✅ Spot on! ${Lab.L(t.n)} is a ${type}.`) : (zh() ? `❌ 差一点。${Lab.L(t.n)}是一颗${type}:` : `❌ Not quite. ${Lab.L(t.n)} is a ${type}: `) + tips.map(Lab.L).join(zh() ? ',' : ', ') + (zh() ? '。黄圈是正确位置。' : '. The yellow ring shows where it belongs.');
+}
+const hrTipSets = [[], [hrDirections[0]], [hrDirections[1]]].flatMap(horizontal => [[], [hrDirections[2]], [hrDirections[3]]].map(vertical => [...horizontal, ...vertical]));
+registerPanels(Lab.$('#hrMsg'), HR_STARS.flatMap(t => [[t, true, []], ...hrTipSets.map(tips => [t, false, tips])]), args => hrResult(...args), true);
 function newTarget(){ let t; do t = HR_STARS[Math.random() * HR_STARS.length | 0]; while (t === HR.target); HR.target = t; HR.guess = null; Lab.$('#hrMsg').textContent = ''; hrCard(); drawHR(); }
 Lab.$('#hrCv').addEventListener('click', e => {
   const b = e.currentTarget.getBoundingClientRect(), x = e.clientX - b.left, y = e.clientY - b.top;
@@ -533,13 +618,13 @@ Lab.$('#hrCv').addEventListener('click', e => {
   const t = HR.target, dx = (x - X(t.T)) / (HR.W - HR.pad.l - HR.pad.r), dy = (y - Y(t.L)) / (HR.H - HR.pad.t - HR.pad.b), ok = Math.hypot(dx, dy) < .075;
   HR.guess = { x, y, ok }; HR.tries++; if (ok) HR.ok++;
   Lab.$('#hrOk').textContent = HR.ok; Lab.$('#hrTry').textContent = HR.tries;
-  const m = Lab.$('#hrMsg'), type = Lab.L(TYPES[t.type]);
-  if (ok) m.textContent = zh() ? `✅ 放对了!${Lab.L(t.n)}是一颗${type}。` : `✅ Spot on! ${Lab.L(t.n)} is a ${type}.`;
+  const m = Lab.$('#hrMsg');
+  if (ok) m.textContent = hrResult(t, true);
   else { const tips = [];
-    if (Math.abs(dx) > .05) tips.push(dx > 0 ? o('it is hotter than you placed it (move LEFT)','它比你放的位置更热（往左）') : o('it is cooler than you placed it (move RIGHT)','它比你放的位置更冷（往右）'));
-    if (Math.abs(dy) > .05) tips.push(dy > 0 ? o('it is brighter (move UP)','它更亮（往上）') : o('it is dimmer (move DOWN)','它更暗（往下）'));
-    m.textContent = (zh() ? `❌ 差一点。${Lab.L(t.n)}是一颗${type}:` : `❌ Not quite. ${Lab.L(t.n)} is a ${type}: `) + tips.map(Lab.L).join(zh() ? ',' : ', ') + (zh() ? '。黄圈是正确位置。' : '. The yellow ring shows where it belongs.'); }
-  m.className = 'result ' + (ok ? 'good' : 'bad'); drawHR();
+    if (Math.abs(dx) > .05) tips.push(dx > 0 ? hrDirections[0] : hrDirections[1]);
+    if (Math.abs(dy) > .05) tips.push(dy > 0 ? hrDirections[2] : hrDirections[3]);
+    m.textContent = hrResult(t, false, tips); }
+  m.className = 'result pline ' + (ok ? 'good' : 'bad'); drawHR();
 });
 Lab.$$('#hrSeg button').forEach(b => b.onclick = () => { HR.mode = b.dataset.m; Lab.$$('#hrSeg button').forEach(x => x.classList.toggle('on', x === b));
   Lab.$('#hrNext').style.display = HR.mode === 'game' ? '' : 'none'; Lab.$('#hrMsg').textContent = ''; if (HR.mode === 'game') newTarget(); else { hrCard(); drawHR(); } });
@@ -697,6 +782,8 @@ function standoff(){ // magnetopause nose distance in Earth radii: ~10 Re for ty
   return 10 * Math.pow(n * v * v / (400 * 400), -1 / 6);
 }
 function tripTxt(v){ const h = AU / v / 3600; return h < 48 ? (zh() ? `约 ${h.toFixed(0)} 小时` : `≈ ${h.toFixed(0)} hours`) : (zh() ? `约 ${(h / 24).toFixed(1)} 天` : `≈ ${(h / 24).toFixed(1)} days`); }
+const auroraNote = w => '🌌 ' + Lab.L(w[1]);
+registerPanels(Lab.$('#wWhere'), WHERE, auroraNote, true);
 function renderWindRead(){
   const kp = kpNow(), lat = auroraLat(kp);
   Lab.$('#wvOut').textContent = `${S.v} km/s`; Lab.$('#cvOut').textContent = `${S.vc} km/s`;
@@ -705,7 +792,7 @@ function renderWindRead(){
   Lab.$('#wKp').textContent = (kp).toFixed(0) + (kp >= 5 ? (zh() ? ' · 磁暴' : ' · storm') : '');
   Lab.$('#wLat').textContent = `≈ ${lat.toFixed(0)}°`;
   const w = WHERE.find(x => kp < x[0]) || WHERE[WHERE.length - 1], el = Lab.$('#wWhere');
-  el.textContent = '🌌 ' + Lab.L(w[1]); el.className = 'result ' + (kp >= 5 ? 'good' : '');
+  el.textContent = auroraNote(w); el.className = 'result pline ' + (kp >= 5 ? 'good' : '');
 }
 function renderWindTable(){
   const rows = [
@@ -834,10 +921,13 @@ addEventListener('labtheme', () => { renderCycle(); });
     { q:o('A white dwarf is about 25,000 K but only 1/50 as luminous as the Sun. Set T = 25,000 K and find its size.','一颗白矮星温度约 25,000 K，光度却只有太阳的 1/50。把 T 设为 25,000 K，求它的大小。'),
       ok:() => Math.abs(st.T / 25000 - 1) < .04 && Math.abs(Math.log10(lum() * 50)) < .1, done:() => o(`Yes! R ≈ ${num(st.R, 2)} R☉ ≈ ${num(st.R * 696000, 2)} km: about the size of Earth (6,371 km)!`, `对了！R ≈ ${num(st.R, 2)} R☉ ≈ ${num(st.R * 696000, 2)} 千米：和地球（6,371 千米）差不多大！`) }
   ];
+  registerPanels(el('aChQ'), CH, item => Lab.L(item.q), true);
+  const starChallengeSuccess = item => '✅ ' + Lab.L(item.done());
+  registerPanels(el('aCh'), [CH[3]], starChallengeSuccess, true);
   let ch = 0;
-  function newCh(){ let k; do k = Math.random() * CH.length | 0; while (k === ch); ch = k; el('aCh').textContent = ''; el('aCh').className = 'result'; el('aChQ').textContent = Lab.L(CH[ch].q); }
-  function check(){ const c = CH[ch], r = el('aCh'), good = c.ok(); r.className = 'result ' + (good ? 'good' : 'bad');
-    r.textContent = good ? '✅ ' + Lab.L(c.done()) : Lab.L(o(`❌ Not yet: now L = ${sci(lum())} L☉, λmax = ${num(WIEN / st.T)} nm, sunlight here = ${sci(1361 * lum() / st.d / st.d)} W/m². Adjust and check again.`, `❌ 还不对：现在 L = ${sci(lum())} L☉，λmax = ${num(WIEN / st.T)} 纳米，此处光强 = ${sci(1361 * lum() / st.d / st.d)} W/m²。调整后再检查。`)); }
+  function newCh(){ let k; do k = Math.random() * CH.length | 0; while (k === ch); ch = k; el('aCh').textContent = ''; el('aCh').className = 'result pline'; el('aChQ').textContent = Lab.L(CH[ch].q); }
+  function check(){ const c = CH[ch], r = el('aCh'), good = c.ok(); r.className = 'result pline ' + (good ? 'good' : 'bad');
+    r.textContent = good ? starChallengeSuccess(c) : Lab.L(o(`❌ Not yet: now L = ${sci(lum())} L☉, λmax = ${num(WIEN / st.T)} nm, sunlight here = ${sci(1361 * lum() / st.d / st.d)} W/m². Adjust and check again.`, `❌ 还不对：现在 L = ${sci(lum())} L☉，λmax = ${num(WIEN / st.T)} 纳米，此处光强 = ${sci(1361 * lum() / st.d / st.d)} W/m²。调整后再检查。`)); }
   function planck(lnm, T){ const x = 1.4388e7 / (lnm * T); return x > 700 ? 0 : Math.pow(lnm, -5) / Math.expm1(x); }
   function draw(){
     if (!Lab.adv()) return;
@@ -1174,13 +1264,6 @@ function focus(k){
 }
 App.three = { focus, ctx, mode:setMode, stage:i => { uTarget = i; texts(); }, mass:() => texts() };
 
-const SUN_STEPS = [
-  { en:'1 · Core: hydrogen nuclei fuse into helium at about 15 million °C, releasing energy.', zh:'1 · 核心：氢原子核在约 1500 万 °C 下聚变成氦，释放能量。' },
-  { en:'2 · Radiative zone: the energy travels as light, zig-zagging for tens of thousands of years.', zh:'2 · 辐射层：能量以光的形式曲折前进，要走几万年。' },
-  { en:'3 · Convection zone: rising and sinking hot gas carries the energy up, like boiling soup.', zh:'3 · 对流层：上升、下沉的热气体像沸腾的汤一样把能量向上搬运。' },
-  { en:'4 · Photosphere: the light escapes into space. This is the surface we see.', zh:'4 · 光球层：光从这里逃逸到太空，这就是我们看到的表面。' },
-  { en:'5 · Space: sunlight crosses 150 million km and reaches Earth in about 8 minutes 20 seconds.', zh:'5 · 太空：阳光穿过 1.5 亿千米，大约 8 分 20 秒后到达地球。' }
-];
 const sunStory = Lab3D.story('#stage', SUN_STEPS, i => {
   if (A < 1){ cutEl.value = 55; buildCut(.55 * 2.6); }
   pathLine.visible = photon.visible = true; earth.visible = beam.visible = i === 4;
@@ -1191,21 +1274,9 @@ const sunStory = Lab3D.story('#stage', SUN_STEPS, i => {
   else ctx.flyToPose([3.4, 2.6, 9.2], [2.2, 0, .3]);
 }, () => { pathLine.visible = photon.visible = earth.visible = beam.visible = false; App.select(null, true); faceSel(null); ctx.flyToPose(...SUN_POSE); });
 
-const LCAP = {
-  nebula:{ en:'A nebula: gravity starts pulling gas and dust together.', zh:'星云：引力开始把气体和尘埃聚拢。' },
-  protostar:{ en:'A protostar heats up as it collapses; fusion has not started yet.', zh:'原恒星在塌缩中升温，核聚变还没有开始。' },
-  main:{ en:'Fusion begins! A main-sequence star: gravity pulling in = pressure pushing out.', zh:'核聚变开始了！主序星：向内的引力 = 向外的压力。' },
-  giant:{ en:'Core hydrogen runs out; the star swells into a cool, red giant.', zh:'核心的氢耗尽，恒星膨胀成表面较冷的红巨星。' },
-  pnebula:{ en:'The outer layers drift away as a glowing planetary nebula.', zh:'外层气体飘散开，形成发光的行星状星云。' },
-  whitedwarf:{ en:'Left behind: an Earth-sized white dwarf that slowly cools.', zh:'留下来的是地球大小、慢慢冷却的白矮星。' },
-  supergiant:{ en:'A massive star swells into a red supergiant, fusing elements up to iron.', zh:'大质量恒星膨胀成红超巨星，聚变出直到铁的元素。' },
-  supernova:{ en:'The iron core collapses: SUPERNOVA! New elements scatter into space.', zh:'铁核塌缩：超新星爆发！新元素被抛向太空。' },
-  neutron:{ en:'Left behind: a spinning neutron star (pulsar) only about 20 km wide.', zh:'留下来的是一颗飞速旋转、直径只有约 20 千米的中子星（脉冲星）。' },
-  blackhole:{ en:'The core is so massive that it collapses into a black hole.', zh:'核心质量太大，塌缩成了黑洞。' }
-};
 const lifeStories = {};
 for (const [id, keys] of Object.entries({ low:['nebula','protostar','main','giant','pnebula','whitedwarf'], ns:['nebula','protostar','main','supergiant','supernova','neutron'], bh:['nebula','protostar','main','supergiant','supernova','blackhole'] }))
-  lifeStories[id] = Lab3D.story('#stage', keys.map((k, i) => ({ en:`${i + 1} · ${LCAP[k].en}`, zh:`${i + 1} · ${LCAP[k].zh}` })), i => { if (i === 0) u = 0; App.setStage(i); }, () => {});
+  lifeStories[id] = Lab3D.story('#stage', keys.map(lifeCaption), i => { if (i === 0) u = 0; App.setStage(i); }, () => {});
 Lab.$('#storyBtn').onclick = () => {
   stopStories();
   if (App.mode === 'sun') return sunStory.start();

@@ -56,7 +56,7 @@
 
 <section class="wrap" id="explore" data-nav="3D Earth" data-nav-zh="3D 地球">
   <div class="explorer">
-    <div class="stage card space" id="stage" data-3d>
+    <div class="stage card space" id="stage" data-3d><div class="lab-caption pline"></div>
       <div class="toolbar">
         <button class="tbtn" id="playBtn" data-zh="▶ 播放时间">▶ Play time</button>
         <button class="tbtn" id="nowBtn" data-zh="🕒 现在">🕒 Now</button>
@@ -304,25 +304,81 @@ const offStr = n => n === 0 ? 'UTC±0' : 'UTC' + (n > 0 ? '+' : '−') + Math.ab
 const hhmm = h => { h = ((h % 24) + 24) % 24; const H = Math.floor(h), M = Math.floor((h - H) * 60); return String(H).padStart(2, '0') + ':' + String(M).padStart(2, '0'); };
 function renderZoneLive(){ const z = App.zone, el = Lab.$('#zoneLive'); if (!z || !el) return; const s = SUN.at(App.time), e = SUN.elev(z.lat, z.lon, App.time);
   el.innerHTML = `${T('Sun time here: ','此地的太阳时：')}<b>${hhmm(s.h + z.lon / 15)}</b> · ${T('zone clock: ','时区时间：')}<b>${hhmm(s.h + Math.round(z.lon / 15))}</b> · ${sky(e)} ${e > 0 ? T('day','白天') : e > -6 ? T('twilight','晨昏') : T('night','夜晚')}`; }
-function renderInfo(){
-  const box = Lab.$('#info'), k = App.sel;
-  if (k === '@z'){
-    const z = App.zone, n = Math.abs(z.lon) > 172.5 ? 12 : Math.round(z.lon / 15), w = GEO.where(z.lat, z.lon), c0 = n === 12 ? 180 : n * 15;
-    const place = GEO.feats ? GEO.placeName(w) : '';
-    box.innerHTML = `<span class="tag">${T('Time zone','时区')}</span>
-      <div class="bigclock">${n === 12 ? 'UTC±12' : offStr(n)}</div>
+// Use the same read-aloud units for the live panel and the crawler.
+const PANEL_PARTS = 'h3,h4,p,li,.job,.memory,.mix,.pline,figcaption';
+function panelUnits(panel){
+  const nodes = [...panel.querySelectorAll(PANEL_PARTS)];
+  if (panel.matches(PANEL_PARTS)) nodes.unshift(panel);
+  return nodes.flatMap(node => {
+    if (node.closest('[data-noread]')) return [];
+    const units = Lab.readUnits(node);
+    return units ? units.parts.map(text => [text, units.lang]) : [];
+  });
+}
+function speakPanel(panel){
+  const parts = panelUnits(panel);
+  let i = 0;
+  const next = ok => {
+    if (ok === false || i >= parts.length) return;
+    const [text, lang] = parts[i++];
+    Lab.speak(text, { lang, inner:true, onend:next });
+  };
+  next();
+}
+function registerPanels(host, items, markup, plain = false){
+  Lab.readAll(() => {
+    const panel = host.cloneNode(false);
+    panel.removeAttribute('id');
+    panel.removeAttribute('aria-live');
+    panel.setAttribute('aria-hidden', 'true');
+    panel.style.cssText = 'position:absolute;left:-10000px;top:0;width:' + (host.offsetWidth || 360) + 'px';
+    host.parentElement.appendChild(panel);
+    try {
+      return items.flatMap((item, index) => {
+        if (plain) panel.textContent = markup(item, index);
+        else panel.innerHTML = markup(item, index);
+        return panelUnits(panel);
+      });
+    } finally {
+      panel.remove();
+    }
+  });
+}
+registerPanels(Lab.$('#stage .lab-caption'), STORY, Lab.L, true);
+function infoMarkup(k){
+  const p = PARTS[k], i = ORDER.indexOf(k);
+  return `<span class="tag pline">${T('Key idea','核心概念')} ${i + 1}/${ORDER.length}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${T('💡 Memory hint','💡 记忆小窍门')}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${T('⚠️ Common mix-up:','⚠️ 容易混淆：')}</b><span>${Lab.L(p.mix)}</span></div>` : ''}`;
+}
+registerPanels(Lab.$('#info'), ORDER, k => infoMarkup(k));
+function zoneMarkup(n, z, place){
+  const c0 = n === 12 ? 180 : n * 15, live = !!z;
+  return `<span class="tag pline">${T('Time zone','时区')}</span>
+      <div class="bigclock pline">${n === 12 ? 'UTC±12' : offStr(n)}</div>
       <div class="job">${T(`Centered on ${GEO.fmtLon(c0, 0)} · covers about ${GEO.fmtLon(Math.max(-180, c0 - 7.5), 1)} to ${GEO.fmtLon(Math.min(180, c0 + 7.5), 1)}`, `中央经线 ${GEO.fmtLon(c0, 0)} · 范围约 ${GEO.fmtLon(Math.max(-180, c0 - 7.5), 1)} 至 ${GEO.fmtLon(Math.min(180, c0 + 7.5), 1)}`)}</div>
-      <div class="memory" id="zoneLive"></div>
+      ${live ? `<div class="memory" id="zoneLive"></div>` : ''}
       <ul>
-        <li>${T('You clicked: ','你点击的位置：')}${GEO.fmtLL(z.lat, z.lon)}${place ? ' · ' + place : ''}</li>
+        ${live ? `<li>${T('You clicked: ','你点击的位置：')}${GEO.fmtLL(z.lat, z.lon)}${place ? ' · ' + place : ''}</li>` : ''}
         <li>${n === 12 ? T('This band is split by the International Date Line: the west side is UTC+12, the east side UTC−12 — same clock time, different dates!', '这个时区被国际日期变更线一分为二：西侧是 UTC+12，东侧是 UTC−12——钟点相同，日期不同！') : n > 0 ? T(`This zone is ${n} hour${n > 1 ? 's' : ''} AHEAD of UTC (east of the prime meridian).`, `这个时区比 UTC 早 ${n} 小时(在本初子午线以东)。`) : n < 0 ? T(`This zone is ${-n} hour${n < -1 ? 's' : ''} BEHIND UTC (west of the prime meridian).`, `这个时区比 UTC 晚 ${-n} 小时(在本初子午线以西)。`) : T('This is the zone of the prime meridian: its time is UTC.', '这是本初子午线所在的时区,它的时间就是 UTC。')}</li>
         <li>${T('“Sun time” changes 4 minutes for every 1° of longitude. Zone clocks jump in whole hours so neighbors share one time.','“太阳时”经度每差 1° 相差 4 分钟。而时区时间按整小时跳变，让相邻地区使用同一个时间。')}</li>
         <li>${T('Official clocks may differ: countries choose their own zones (all of China uses UTC+8).','官方时间可能不同：各国自己选择时区（例如全中国统一使用 UTC+8）。')}</li>
-      </ul>
+      </ul>`;
+}
+registerPanels(Lab.$('#info'), Array.from({ length:24 }, (_, i) => i - 11), n => zoneMarkup(n));
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel;
+  if (k === '@z'){
+    const z = App.zone, n = Math.abs(z.lon) > 172.5 ? 12 : Math.round(z.lon / 15), w = GEO.where(z.lat, z.lon);
+    const place = GEO.feats ? GEO.placeName(w) : '';
+    box.innerHTML = zoneMarkup(n, z, place) + `
       <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
       <div class="nav"><button id="pBack">${T('◀ Key ideas','◀ 核心概念')}</button></div>`;
     renderZoneLive();
-    Lab.$('#speakBtn').onclick = () => Lab.speak(box.querySelector('.bigclock').textContent + '. ' + box.querySelector('ul').textContent);
+    Lab.$('#speakBtn').onclick = () => speakPanel(box);
     Lab.$('#pBack').onclick = () => App.select('deg15');
     return;
   }
@@ -335,16 +391,11 @@ function renderInfo(){
     Lab.$('#startBtn').onclick = () => App.select('rotation');
     return;
   }
-  const p = PARTS[k], i = ORDER.indexOf(k);
-  box.innerHTML = `<span class="tag">${T('Key idea','核心概念')} ${i + 1}/${ORDER.length}</span>
-    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
-    <div class="job">${Lab.L(p.job)}</div>
-    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
-    <div class="memory"><b>${T('💡 Memory hint','💡 记忆小窍门')}</b>${Lab.L(p.hint)}</div>
-    ${p.mix ? `<div class="mix"><b>${T('⚠️ Common mix-up:','⚠️ 容易混淆：')}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+  const i = ORDER.indexOf(k);
+  box.innerHTML = infoMarkup(k) + `
     <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${T('◀ Previous','◀ 上一个')}</button><button id="pNext">${T('Next ▶','下一个 ▶')}</button></div>`;
-  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. '));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box);
   Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
   Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
 }
@@ -389,22 +440,28 @@ GEO.ready.then(() => { if (App.sel === '@z') renderInfo(); });
     const seen = new Set(), opts = []; for (const c of cand){ const k = c.join(); if (!seen.has(k) && opts.length < 4){ seen.add(k); opts.push(c); } }
     S.q = { a, b, day, hour, diff, ok }; S.opts = Lab.shuffle(opts.map(c => ({ c, good:c.join() === ok.join() }))); S.pick = null; render(); line();
   }
+  const quizTip = () => T('Tip: look at the number line — is the second city to the east (right) or west (left)?','提示：看数轴——第二座城市在东边（右）还是西边（左）?');
+  const W2 = Lab.$('#tzWork');
+  W2.classList.add('pline');
+  registerPanels(W2, [null], quizTip, true);
   function render(){
     const { a, b, day, hour } = S.q, o = Lab.$('#tzOpts');
     Lab.$('#tzQ').innerHTML = `<small>${T('Standard time','标准时间')}</small>${T(`It is <b>${fmt([day, hour])}</b> in ${Lab.L(a.name)} (${offStr(a.off)}). What time is it in ${Lab.L(b.name)} (${offStr(b.off)})?`, `${Lab.L(a.name)}(${offStr(a.off)})现在是<b>${fmt([day, hour])}</b>。${Lab.L(b.name)}(${offStr(b.off)})现在是几点?`)}`;
     o.innerHTML = S.opts.map((x, i) => `<button data-i="${i}" class="${S.pick == null ? '' : x.good ? 'right' : i === S.pick ? 'wrong' : ''}" ${S.pick == null ? '' : 'disabled'}>${fmt(x.c)}</button>`).join('');
     Lab.$$('#tzOpts button').forEach(btn => btn.onclick = () => choose(+btn.dataset.i));
     Lab.$('#tzScore').textContent = S.score; Lab.$('#tzStreak').textContent = S.streak;
-    const W2 = Lab.$('#tzWork');
-    if (S.pick == null){ W2.textContent = T('Tip: look at the number line — is the second city to the east (right) or west (left)?','提示：看数轴——第二座城市在东边（右）还是西边（左）?'); return; }
+    if (S.pick == null){ W2.textContent = quizTip(); return; }
     const { diff, ok } = S.q, dayChange = ok[0] !== day;
     W2.innerHTML = T(`${offStr(b.off)} − (${offStr(a.off)}) = <b>${diff > 0 ? '+' : '−'}${Math.abs(diff)} h</b>. ${Lab.L(b.name)} is ${diff > 0 ? 'east (ahead), so ADD' : 'west (behind), so SUBTRACT'} ${Math.abs(diff)} hours: ${fmt([day, hour])} → <b>${fmt(ok)}</b>${dayChange ? ' (the date changed!)' : ''}.`,
       `${offStr(b.off)} − (${offStr(a.off)}) = <b>${diff > 0 ? '+' : '−'}${Math.abs(diff)} 小时</b>。${Lab.L(b.name)}在${diff > 0 ? '东边(更早),所以要加' : '西边(更晚),所以要减'} ${Math.abs(diff)} 小时:${fmt([day, hour])} → <b>${fmt(ok)}</b>${dayChange ? '(日期变了!)' : ''}。`);
   }
+  const quizFeedback = index => [T('✅ Correct!','✅ 正确！'), T('❌ Not quite — check the steps below.','❌ 不对——看看下面的步骤。')][index];
+  Lab.$('#tzMsg').classList.add('pline');
+  registerPanels(Lab.$('#tzMsg'), [0, 1], quizFeedback, true);
   function choose(i){
     if (S.pick != null) return; S.pick = i; const good = S.opts[i].good, m = Lab.$('#tzMsg');
-    if (good){ S.score++; S.streak++; m.textContent = T('✅ Correct!','✅ 正确！') + (S.streak >= 3 ? T(` 🔥 ${S.streak} in a row!`, ` 🔥 连续答对 ${S.streak} 题!`) : ''); m.className = 'result good'; }
-    else { S.streak = 0; m.textContent = T('❌ Not quite — check the steps below.','❌ 不对——看看下面的步骤。'); m.className = 'result bad'; }
+    if (good){ S.score++; S.streak++; m.textContent = quizFeedback(0) + (S.streak >= 3 ? T(` 🔥 ${S.streak} in a row!`, ` 🔥 连续答对 ${S.streak} 题!`) : ''); m.className = 'result pline good'; }
+    else { S.streak = 0; m.textContent = quizFeedback(1); m.className = 'result pline bad'; }
     render(); line();
   }
   Lab.$('#tzNext').onclick = () => { Lab.$('#tzMsg').textContent = ''; newQ(); };

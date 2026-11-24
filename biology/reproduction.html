@@ -274,10 +274,79 @@ const App = window.REP = { sel:null, three:null, view:'all', p:0, phases:{} };
 App.select = (k, from3D) => { App.sel = k; renderInfo(); renderChips(); if (!from3D && App.three) App.three.focus(k); };
 App.setView = v => { App.view = v; renderView(); if (App.three) App.three.view(v); };
 App.phaseTick = () => { const box = Lab.$('#phaseNow'); if (box) box.innerHTML = phaseHTML(); };
+const phaseLine = (s, phase) => `<div><b style="color:${STN[s].color}">${Lab.L(STN[s].name)}:</b> ${Lab.L(phase.t)}</div>`;
 function phaseHTML(){
   const st = App.sel ? PARTS[App.sel].st : null, list = st ? [st] : ['fission', 'budding', 'flower'];
-  return list.map(s => `<div><b style="color:${STN[s].color}">${Lab.L(STN[s].name)}:</b> ${Lab.L(PHASES[s][Math.max(0, phaseOf(s, App.p))].t)}</div>`).join('');
+  return list.map(s => phaseLine(s, PHASES[s][Math.max(0, phaseOf(s, App.p))])).join('');
 }
+// Use the same read-aloud units for the crawler and the panel's Listen button.
+const PANEL_PARTS = '.tag,h3,h4,.job,p,li,.memory,.mix,figcaption,.quote';
+function panelUnits(el, selector = PANEL_PARTS, visibleOnly = false){
+  const nodes = selector ? el.querySelectorAll(selector) : [el];
+  const out = [];
+  for (const node of nodes){
+    if (visibleOnly && !node.getClientRects().length) continue;
+    const unit = Lab.readUnits(node);
+    if (!unit) continue;
+    const style = node.closest('[data-read-style]');
+    for (const text of unit.parts){
+      out.push(style ? [text, unit.lang, {style:style.dataset.readStyle, work:style.dataset.work}] : [text, unit.lang]);
+    }
+  }
+  return out;
+}
+function speakPanel(el, selector){
+  const parts = panelUnits(el, selector, true);
+  let i = 0;
+  const next = ok => {
+    if (ok === false || i >= parts.length) return;
+    const [text, lang] = parts[i++];
+    Lab.speak(text, {lang, inner:true, onend:next});
+  };
+  next();
+}
+function collectPanelTexts(host, items, render, selector){
+  if (!host?.parentElement) return [];
+  const tmp = host.cloneNode(false);
+  tmp.removeAttribute('id');
+  tmp.removeAttribute('aria-live');
+  tmp.style.cssText = 'position:absolute;left:-10000px;top:0;box-sizing:border-box;width:' + (host.offsetWidth || 360) + 'px';
+  host.after(tmp);
+  const out = [];
+  try {
+    for (const item of items){
+      render(tmp, item);
+      out.push(...panelUnits(tmp, selector));
+    }
+  } finally { tmp.remove(); }
+  return out;
+}
+function registerPanelValues(host, items, value){
+  Lab.readAll(() => collectPanelTexts(Lab.$(host), items, (tmp, item) => { tmp.textContent = value(item); }, null));
+}
+function registerStoryTexts(steps){
+  Lab.readAll(() => collectPanelTexts(Lab.$('#stage .lab-caption') || Lab.$('#stage'), steps, (tmp, step) => {
+    tmp.textContent = Lab.L(step);
+  }, null));
+}
+function registerPanelTexts(host, items, markup, selector){
+  Lab.readAll(() => collectPanelTexts(Lab.$(host), items, (tmp, item) => { tmp.innerHTML = markup(item); }, selector));
+}
+const REPRO_PARTS = PANEL_PARTS + ',.now>div';
+function infoMarkup(k, phase){
+  const p = PARTS[k], S = STN[p.st];
+  return `<span class="tag" style="color:${S.color};background:color-mix(in srgb,${S.color} 15%,transparent)">${Lab.L(S.type)} · ${Lab.L(S.name)}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>${window.REALFIG && REALFIG[k] ? LabPhotos.figure(REALFIG[k]) : ''}
+    ${DEEP[k] ? `<div class="adv adv-box"><b>${Lab.L({en:'🔬 Zoom deeper',zh:'🔬 深入一层'})}</b><ul style="margin:6px 0 0">${Lab.L(DEEP[k]).map(f => `<li>${f}</li>`).join('')}</ul></div>` : ''}
+    ${phase === undefined ? '' : `<div class="now" id="phaseNow">${phase}</div>`}
+    <div class="memory"><b>${Lab.L({en:'💡 Memory hint',zh:'💡 记忆小窍门'})}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${Lab.L({en:'⚠️ Common mix-up:',zh:'⚠️ 容易混淆：'})}</b><span>${Lab.L(p.mix)}</span></div>` : ''}`;
+}
+registerPanelTexts('#info', ORDER, infoMarkup);
+const phaseItems = Object.entries(PHASES).flatMap(([s, phases]) => phases.map(phase => [s, phase]));
+registerPanelTexts('#info', phaseItems, args => phaseLine(...args), 'div');
 function renderInfo(){
   const box = Lab.$('#info'), k = App.sel;
   if (!k){
@@ -290,18 +359,11 @@ function renderInfo(){
     Lab.$('#startBtn').onclick = () => App.select('fission');
     return;
   }
-  const p = PARTS[k], i = ORDER.indexOf(k), S = STN[p.st];
-  box.innerHTML = `<span class="tag" style="color:${S.color};background:color-mix(in srgb,${S.color} 15%,transparent)">${Lab.L(S.type)} · ${Lab.L(S.name)}</span>
-    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
-    <div class="job">${Lab.L(p.job)}</div>
-    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>${window.REALFIG && REALFIG[k] ? LabPhotos.figure(REALFIG[k]) : ''}
-    ${DEEP[k] ? `<div class="adv adv-box"><b>${Lab.L({en:'🔬 Zoom deeper',zh:'🔬 深入一层'})}</b><ul style="margin:6px 0 0">${Lab.L(DEEP[k]).map(f => `<li>${f}</li>`).join('')}</ul></div>` : ''}
-    <div class="now" id="phaseNow">${phaseHTML()}</div>
-    <div class="memory"><b>${Lab.L({en:'💡 Memory hint',zh:'💡 记忆小窍门'})}</b>${Lab.L(p.hint)}</div>
-    ${p.mix ? `<div class="mix"><b>${Lab.L({en:'⚠️ Common mix-up:',zh:'⚠️ 容易混淆：'})}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+  const i = ORDER.indexOf(k);
+  box.innerHTML = infoMarkup(k, phaseHTML()) + `
     <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${Lab.L({en:'◀ Previous',zh:'◀ 上一个'})}</button><button id="pNext">${Lab.L({en:'Next ▶',zh:'下一个 ▶'})}</button></div>`;
-  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts), Lab.L(p.hint)].join('. '));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box, REPRO_PARTS);
   Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
   Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
 }
@@ -323,6 +385,7 @@ const SP = {
   dog:{ icon:'🐕', name:o('🐕 Dogs: smaller size','🐕 狗：体形更小'), unit:'kg', base:3, k:1.9, f0:.85, goal:10, dir:-1, max:45, trait:o('body mass','体重'),
     goalT:o('Goal: breed wolf-sized dogs (about 35 kg) down to an average of 10 kg or less. Tap the 2–4 smallest dogs to be parents.','目标：把像狼一样大的狗（约 35 千克）培育到平均 10 千克或更轻。点选最小的 2~4 只作为亲本。') }
 };
+registerPanelValues('#goalText', Object.values(SP), s => Lab.L(s.goalT));
 const NL = 10, NPOP = 16;
 const SB = { sp:'corn', gen:0, pop:[], sel:[], hist:[], prev:null, start:0, done:false, lastRandom:false };
 const rnd = () => Math.random();
@@ -481,6 +544,15 @@ Lab.sort(Lab.$('#sort'), {
     {en:'Sea turtles hatch from fertilized eggs',zh:'海龟从受精卵中孵出',bin:'s'},{en:'A human baby develops from a zygote',zh:'人类婴儿由受精卵发育而来',bin:'s'}
   ]
 });
+const STEPS = [
+  {en:'1 · Binary fission: the bacterium copies its single loop of DNA and grows longer.', zh:'1 · 二分裂：细菌复制它唯一的环状 DNA，同时伸长。'},
+  {en:'2 · It pinches in two. Result: 2 identical daughter cells (clones). Only 1 parent, no sex cells.', zh:'2 · 它从中间缢裂成两半，得到 2 个完全相同的子细胞（克隆）。只有 1 个亲本，不需要生殖细胞。'},
+  {en:'3 · Budding: the hydra grows a bud that develops tentacles and breaks off as an identical little hydra.', zh:'3 · 出芽生殖：水螅长出芽体，芽体长出触手后脱落，成为一只相同的小水螅。'},
+  {en:'4 · Sexual reproduction: a bee carries pollen from a blue flower to the stigma of the pink flower (pollination).', zh:'4 · 有性生殖：蜜蜂把蓝色花朵的花粉带到粉色花朵的柱头上（传粉）。'},
+  {en:'5 · The pollen grows a tube down the style. A sperm cell travels through it to the egg inside an ovule.', zh:'5 · 花粉沿花柱长出花粉管，精子通过花粉管到达胚珠里的卵细胞。'},
+  {en:'6 · Fertilization: sperm + egg → zygote. The ovule becomes a seed with genes from BOTH parents: variation!', zh:'6 · 受精：精子 + 卵细胞 → 受精卵。胚珠发育成种子，它的基因来自双亲：产生了变异！'}
+];
+registerStoryTexts(STEPS);
 </script>
 <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
 <script type="module">
@@ -680,14 +752,6 @@ timeEl.oninput = () => { story.stop(); setPlay(false); spd = 2.5; tgt.p = timeEl
 Lab.$('#resetBtn').onclick = () => { story.stop(); setGenes(false); st.p = tgt.p = 0; setPlay(true); App.select(null); App.setView('all'); };
 
 /* ---------- story ---------- */
-const STEPS = [
-  {en:'1 · Binary fission: the bacterium copies its single loop of DNA and grows longer.', zh:'1 · 二分裂：细菌复制它唯一的环状 DNA，同时伸长。'},
-  {en:'2 · It pinches in two. Result: 2 identical daughter cells (clones). Only 1 parent, no sex cells.', zh:'2 · 它从中间缢裂成两半，得到 2 个完全相同的子细胞（克隆）。只有 1 个亲本，不需要生殖细胞。'},
-  {en:'3 · Budding: the hydra grows a bud that develops tentacles and breaks off as an identical little hydra.', zh:'3 · 出芽生殖：水螅长出芽体，芽体长出触手后脱落，成为一只相同的小水螅。'},
-  {en:'4 · Sexual reproduction: a bee carries pollen from a blue flower to the stigma of the pink flower (pollination).', zh:'4 · 有性生殖：蜜蜂把蓝色花朵的花粉带到粉色花朵的柱头上（传粉）。'},
-  {en:'5 · The pollen grows a tube down the style. A sperm cell travels through it to the egg inside an ovule.', zh:'5 · 花粉沿花柱长出花粉管，精子通过花粉管到达胚珠里的卵细胞。'},
-  {en:'6 · Fertilization: sperm + egg → zygote. The ovule becomes a seed with genes from BOTH parents: variation!', zh:'6 · 受精：精子 + 卵细胞 → 受精卵。胚珠发育成种子，它的基因来自双亲：产生了变异！'}
-];
 const story = Lab3D.story('#stage', STEPS, i => {
   setPlay(false); spd = .22;
   const go = (v, from, to, sel) => { App.view = v; renderView(); view(v); if (from != null) st.p = from; tgt.p = to; App.select(sel, true); };

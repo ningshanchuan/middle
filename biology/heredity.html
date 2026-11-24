@@ -296,6 +296,70 @@ function nowLine(k){
   if (k === 'dominant' || k === 'recessive' || k === 'gene') return `${Lab.L(G.name)}: <b>${t}</b> = ${Lab.L(G.dom)}, <b>${t.toLowerCase()}</b> = ${Lab.L(G.rec)}`;
   return '';
 }
+// Use the same read-aloud units for the crawler and the panel's Listen button.
+const PANEL_PARTS = '.tag,h3,h4,.job,p,li,.memory,.mix,figcaption,.quote';
+function panelUnits(el, selector = PANEL_PARTS, visibleOnly = false){
+  const nodes = selector ? el.querySelectorAll(selector) : [el];
+  const out = [];
+  for (const node of nodes){
+    if (visibleOnly && !node.getClientRects().length) continue;
+    const unit = Lab.readUnits(node);
+    if (!unit) continue;
+    const style = node.closest('[data-read-style]');
+    for (const text of unit.parts){
+      out.push(style ? [text, unit.lang, {style:style.dataset.readStyle, work:style.dataset.work}] : [text, unit.lang]);
+    }
+  }
+  return out;
+}
+function speakPanel(el, selector){
+  const parts = panelUnits(el, selector, true);
+  let i = 0;
+  const next = ok => {
+    if (ok === false || i >= parts.length) return;
+    const [text, lang] = parts[i++];
+    Lab.speak(text, {lang, inner:true, onend:next});
+  };
+  next();
+}
+function collectPanelTexts(host, items, render, selector){
+  if (!host?.parentElement) return [];
+  const tmp = host.cloneNode(false);
+  tmp.removeAttribute('id');
+  tmp.removeAttribute('aria-live');
+  tmp.style.cssText = 'position:absolute;left:-10000px;top:0;box-sizing:border-box;width:' + (host.offsetWidth || 360) + 'px';
+  host.after(tmp);
+  const out = [];
+  try {
+    for (const item of items){
+      render(tmp, item);
+      out.push(...panelUnits(tmp, selector));
+    }
+  } finally { tmp.remove(); }
+  return out;
+}
+function registerPanelValues(host, items, value){
+  Lab.readAll(() => collectPanelTexts(Lab.$(host), items, (tmp, item) => { tmp.textContent = value(item); }, null));
+}
+function registerStoryTexts(steps){
+  Lab.readAll(() => collectPanelTexts(Lab.$('#stage .lab-caption') || Lab.$('#stage'), steps, (tmp, step) => {
+    tmp.textContent = Lab.L(step);
+  }, null));
+}
+function registerPanelTexts(host, items, markup, selector){
+  Lab.readAll(() => collectPanelTexts(Lab.$(host), items, (tmp, item) => { tmp.innerHTML = markup(item); }, selector));
+}
+function infoMarkup(k, now){
+  const p = PARTS[k];
+  return `<span class="tag">${Lab.L({en:'Heredity model',zh:'遗传模型'})}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>${window.REALFIG && REALFIG[k] ? LabPhotos.figure(REALFIG[k]) : ''}
+    ${now ? `<div class="now">${now}</div>` : ''}
+    <div class="memory"><b>${Lab.L({en:'💡 Memory hint',zh:'💡 记忆小窍门'})}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${Lab.L({en:'⚠️ Common mix-up:',zh:'⚠️ 容易混淆：'})}</b><span>${Lab.L(p.mix)}</span></div>` : ''}`;
+}
+registerPanelTexts('#info', ORDER, infoMarkup);
 function renderInfo(){
   const box = Lab.$('#info'), k = App.sel;
   if (!k){
@@ -308,17 +372,11 @@ function renderInfo(){
     Lab.$('#startBtn').onclick = () => App.select('chromosome');
     return;
   }
-  const p = PARTS[k], i = ORDER.indexOf(k), now = nowLine(k);
-  box.innerHTML = `<span class="tag">${Lab.L({en:'Heredity model',zh:'遗传模型'})}</span>
-    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
-    <div class="job">${Lab.L(p.job)}</div>
-    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>${window.REALFIG && REALFIG[k] ? LabPhotos.figure(REALFIG[k]) : ''}
-    ${now ? `<div class="now">${now}</div>` : ''}
-    <div class="memory"><b>${Lab.L({en:'💡 Memory hint',zh:'💡 记忆小窍门'})}</b>${Lab.L(p.hint)}</div>
-    ${p.mix ? `<div class="mix"><b>${Lab.L({en:'⚠️ Common mix-up:',zh:'⚠️ 容易混淆：'})}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+  const i = ORDER.indexOf(k);
+  box.innerHTML = infoMarkup(k, nowLine(k)) + `
     <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${Lab.L({en:'◀ Previous',zh:'◀ 上一个'})}</button><button id="pNext">${Lab.L({en:'Next ▶',zh:'下一个 ▶'})}</button></div>`;
-  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts), Lab.L(p.hint)].join('. '));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box);
   Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
   Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
 }
@@ -469,7 +527,14 @@ const PBCH = [
   { t:o('Choose one trait and parents so that EVERY offspring is heterozygous.','选一种性状和亲本，使所有后代都是杂合子。'), ok:() => !PB.two && !PB.isSex() && PB.trait !== 'C' && PB.grid().flat().every(g => g[0] !== g[1]),
     why:o('Cross two different homozygous parents, e.g. TT × tt: every offspring gets one of each allele.','让两个不同的纯合亲本杂交，例如 TT × tt：每个后代都各得到一个不同的等位基因。') }
 ];
+const pbTaskFeedback = (challenge, ok) => ok ? '✅ ' + Lab.L(challenge.why) : Lab.L(o('Not yet. Keep changing the parents.','还没有，继续改变亲本试试。'));
+registerPanelValues('#pbChTask', PBCH, c => Lab.L(c.t));
+registerPanelValues('#pbChMsg', PBCH, c => pbTaskFeedback(c, true));
 let pbCh = 0, pbSolved = false;
+const PB_RULES = {two:o('Law of independent assortment (Mendel’s 2nd law): genes on different chromosomes are inherited separately, so the chances multiply: P(A and B) = P(A) × P(B).','自由组合定律（孟德尔第二定律）：位于不同染色体上的基因各自独立遗传，所以概率相乘:P(A 且 B) = P(A) × P(B)。'),
+  sex:o('Every egg has an X. Half of the sperm carry X and half carry Y, so P(girl) = P(boy) = ½ for every baby.','每个卵细胞都带 X；精子一半带 X、一半带 Y，所以每个孩子是女孩或男孩的概率都是 ½。'),
+  single:o('Law of segregation (Mendel’s 1st law): the two alleles separate when gametes form, so each gamete gets one, with a ½ chance each from a heterozygous parent.','分离定律（孟德尔第一定律）：形成配子时两个等位基因彼此分离，每个配子只得到一个；杂合亲本给出每个等位基因的概率各为 ½。')};
+registerPanelValues("#pbRule", [...Object.values(PB_RULES), ...Object.values(ADVT).map(t => t.rule)], Lab.L);
 function renderPBAdv(hide){
   const seg = Lab.$('#pbAdvTrait');
   seg.innerHTML = Object.keys(ADVT).map(k => `<button data-k="${k}" class="${!PB.two && PB.trait === k ? 'on' : ''}" ${PB.two ? 'disabled' : ''}>${Lab.L(ADVT[k].name)}</button>`).join('');
@@ -487,13 +552,11 @@ function renderPBAdv(hide){
     math.innerHTML = h;
   }
   const AT = PB.AT();
-  Lab.$('#pbRule').textContent = Lab.L(AT ? AT.rule : PB.two ? o('Law of independent assortment (Mendel’s 2nd law): genes on different chromosomes are inherited separately, so the chances multiply: P(A and B) = P(A) × P(B).','自由组合定律（孟德尔第二定律）：位于不同染色体上的基因各自独立遗传，所以概率相乘:P(A 且 B) = P(A) × P(B)。')
-    : PB.isSex() ? o('Every egg has an X. Half of the sperm carry X and half carry Y, so P(girl) = P(boy) = ½ for every baby.','每个卵细胞都带 X；精子一半带 X、一半带 Y，所以每个孩子是女孩或男孩的概率都是 ½。')
-    : o('Law of segregation (Mendel’s 1st law): the two alleles separate when gametes form, so each gamete gets one, with a ½ chance each from a heterozygous parent.','分离定律（孟德尔第一定律）：形成配子时两个等位基因彼此分离，每个配子只得到一个；杂合亲本给出每个等位基因的概率各为 ½。'));
+  Lab.$('#pbRule').textContent = Lab.L(AT ? AT.rule : PB_RULES[PB.two ? 'two' : PB.isSex() ? 'sex' : 'single']);
   const C = PBCH[pbCh], ok = !hide && C.ok();
   Lab.$('#pbChTask').textContent = Lab.L(C.t);
   const m = Lab.$('#pbChMsg');
-  m.textContent = ok ? '✅ ' + Lab.L(C.why) : Lab.L(o('Not yet. Keep changing the parents.','还没有，继续改变亲本试试。'));
+  m.textContent = pbTaskFeedback(C, ok);
   m.className = 'result' + (ok ? ' good' : '');
 }
 Lab.$('#pbChNext').onclick = () => { pbCh = (pbCh + 1) % PBCH.length; renderPB(); };
@@ -617,6 +680,14 @@ Lab.sort(Lab.$('#sort'), {
     {en:'Brown eyes',zh:'棕色眼睛',bin:'p'},{en:'Curly hair',zh:'卷发',bin:'p'}
   ]
 });
+const STEPS = [
+  {en:'1 · Each parent pea plant has a pair of matching (homologous) chromosomes: one came from each of its own parents.', zh:'1 · 每株豌豆亲本都有一对同源染色体：一条来自它自己的父方，一条来自母方。'},
+  {en:'2 · Look at the height gene. Both parents are Tt: T (tall) is dominant and hides t (short), so both plants are tall.', zh:'2 · 看株高基因。两个亲本都是 Tt:T（高茎）是显性的，遮盖了 t（矮茎），所以两株都是高茎。'},
+  {en:'3 · To make pollen and egg cells, each chromosome pair separates. Every gamete gets only ONE allele: T or t.', zh:'3 · 形成花粉和卵细胞时，每对同源染色体分开。每个配子只得到一个等位基因：T 或 t。'},
+  {en:'4 · Fertilization: one allele from each parent joins. The Punnett square shows all 4 combinations: TT, Tt, Tt, tt.', zh:'4 · 受精：来自双亲的等位基因各一个结合在一起。庞氏方格列出全部 4 种组合：TT、Tt、Tt、tt。'},
+  {en:'5 · Surprise! 1 in 4 offspring (tt) is short, even though both parents are tall. The recessive allele was hidden, not lost.', zh:'5 · 想不到吧！尽管两个亲本都是高茎，但 1/4 的后代（tt）是矮茎。隐性等位基因只是被隐藏了，并没有消失。'}
+];
+registerStoryTexts(STEPS);
 </script>
 <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
 <script type="module">
@@ -753,13 +824,6 @@ function update(){
 Lab.onLang(update);
 
 /* ---------- story: how a trait is passed on ---------- */
-const STEPS = [
-  {en:'1 · Each parent pea plant has a pair of matching (homologous) chromosomes: one came from each of its own parents.', zh:'1 · 每株豌豆亲本都有一对同源染色体：一条来自它自己的父方，一条来自母方。'},
-  {en:'2 · Look at the height gene. Both parents are Tt: T (tall) is dominant and hides t (short), so both plants are tall.', zh:'2 · 看株高基因。两个亲本都是 Tt:T（高茎）是显性的，遮盖了 t（矮茎），所以两株都是高茎。'},
-  {en:'3 · To make pollen and egg cells, each chromosome pair separates. Every gamete gets only ONE allele: T or t.', zh:'3 · 形成花粉和卵细胞时，每对同源染色体分开。每个配子只得到一个等位基因：T 或 t。'},
-  {en:'4 · Fertilization: one allele from each parent joins. The Punnett square shows all 4 combinations: TT, Tt, Tt, tt.', zh:'4 · 受精：来自双亲的等位基因各一个结合在一起。庞氏方格列出全部 4 种组合：TT、Tt、Tt、tt。'},
-  {en:'5 · Surprise! 1 in 4 offspring (tt) is short, even though both parents are tall. The recessive allele was hidden, not lost.', zh:'5 · 想不到吧！尽管两个亲本都是高茎，但 1/4 的后代（tt）是矮茎。隐性等位基因只是被隐藏了，并没有消失。'}
-];
 const st = { cross:0, sep:0 }, tgt = { cross:0, sep:0 };
 const story = Lab3D.story('#stage', STEPS, i => {
   if (i === 0){ App.trait = 'T'; App.g[0].T = 'Tt'; App.g[1].T = 'Tt'; App.changed(); tgt.sep = 0; tgt.cross = 0; App.select('homologous', true); ctx.home(); }

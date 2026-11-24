@@ -267,6 +267,40 @@ const USMap = (() => {
 })();
 
 /* ================= Data ================= */
+// Read the same units from the live panel and from each crawler-only render.
+const PANEL_PARTS = 'h3,h4,p,li,.job,.memory,.mix,.pline';
+function panelUnits(el){
+  if (!Lab.readUnits) return [];
+  const nodes = [...el.querySelectorAll(PANEL_PARTS)];
+  if (el.matches(PANEL_PARTS)) nodes.unshift(el);
+  return nodes.flatMap(node => {
+    const u = Lab.readUnits(node);
+    return u ? u.parts.map(t => [t, u.lang]) : [];
+  });
+}
+function speakPanel(el){
+  const parts = panelUnits(el); let i = 0;
+  const next = ok => {
+    if (ok === false || i >= parts.length) return;
+    const [t, lang] = parts[i++];
+    Lab.speak(t, { lang, inner:true, onend:next });
+  };
+  next();
+}
+function registerPanels(host, items, markup){
+  if (!Lab.readAll) return;
+  Lab.readAll(() => {
+    const tmp = host.cloneNode(false);
+    tmp.removeAttribute('id');
+    tmp.removeAttribute('aria-live');
+    tmp.setAttribute('aria-hidden', 'true');
+    tmp.style.cssText = 'position:absolute;left:-10000px;top:0;width:' + (host.offsetWidth || 360) + 'px';
+    host.parentElement.appendChild(tmp);
+    try {
+      return items.flatMap((item, i) => { tmp.innerHTML = markup(item, i); return panelUnits(tmp); });
+    } finally { tmp.remove(); }
+  });
+}
 const o = (en, zh) => ({en, zh});
 const fmt = n => n.toLocaleString('en-US');
 const C = { rail:'#7a4b2a', city:'#1d4ed8', trail:'#b7791f', gate:'#0f9d8a' };
@@ -429,6 +463,16 @@ function keyAt(x, y){
 }
 const tip = m => Lab.$('#mapTip').textContent = Lab.L(m || o('Click a line, dot or ship · drag the year', '点击线、点或轮船 · 拖动年份'));
 function select(k){ App.sel = k; renderInfo(); M.draw(); }
+function mapPanel(p){
+  return `<span class="tag pline">${Lab.L(p.tag)}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="date pline">${Lab.L(p.date)}</div>
+    ${p.job && p.type !== 'rail' ? `<div class="job">${Lab.L(p.job)}</div>` : ''}
+    <b class="kh">${Lab.L(o('📌 KEY FACTS','📌 要点'))}</b>
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    ${p.rhyme ? `<div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(p.rhyme)}</div>` : ''}
+    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Don’t mix up:','⚠️ 易错点：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}`;
+}
 function renderInfo(){
   const box = Lab.$('#info'), k = App.sel;
   if (!k){
@@ -444,20 +488,18 @@ function renderInfo(){
     return;
   }
   const p = PL[k], i = PORDER.indexOf(k);
-  box.innerHTML = `<span class="tag">${Lab.L(p.tag)}</span>
-    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
-    <div class="date">${Lab.L(p.date)}</div>
-    ${p.job && p.type !== 'rail' ? `<div class="job">${Lab.L(p.job)}</div>` : ''}
-    <b class="kh">${Lab.L(o('📌 KEY FACTS','📌 要点'))}</b>
-    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
-    ${p.rhyme ? `<div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(p.rhyme)}</div>` : ''}
-    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Don’t mix up:','⚠️ 易错点：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+  box.innerHTML = mapPanel(p) + `
     <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
-  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.date), ...Lab.L(p.facts)].join(Lab.lang === 'zh' ? '。' : '. '));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box);
   const jump = d => { const n = PORDER[((i < 0 ? 0 : i) + d + PORDER.length) % PORDER.length]; if (App.year < PL[n].y0) go(PL[n].y0); select(n); };
   Lab.$('#pPrev').onclick = () => jump(-1); Lab.$('#pNext').onclick = () => jump(1);
 }
+registerPanels(Lab.$('#info'), Object.values(PL), mapPanel);
+const usEvent = e => `<div class="ev"><h4>${e.y} · ${Lab.L(e.t)}</h4><p>${Lab.L(e.b)}</p></div>`;
+const chinaEvent = e => `<div class="cn"><h4>${e.y} · ${Lab.L(e.t)}</h4><p>${Lab.L(e.b)}</p></div>`;
+registerPanels(Lab.$('#ycUS'), EV, usEvent);
+registerPanels(Lab.$('#ycCN'), CN, chinaEvent);
 function renderYear(){
   const y = App.year; Lab.$('#yr').value = y; Lab.$('#yrOut').textContent = y;
   Lab.$('#cRail').textContent = fmt(Math.round(lerp(RM, y) / 100) * 100);
@@ -465,8 +507,8 @@ function renderYear(){
   Lab.$('#cUrb').textContent = Math.round(lerp(URB, y)) + '%';
   const d = IMM[Math.min(IMM.length - 1, Math.max(0, Math.floor((y - 1841) / 10)))]; Lab.$('#cImm').textContent = Lab.lang === 'zh' ? Math.round(d[1] * 100) + ' 万' : d[1].toFixed(1) + ' M';
   const pick = (L) => { const past = L.filter(e => e.y <= y); return past.slice(-2).reverse(); };
-  Lab.$('#ycUS').innerHTML = pick(EV).map(e => `<div class="ev"><h4>${e.y} · ${Lab.L(e.t)}</h4><p>${Lab.L(e.b)}</p></div>`).join('');
-  Lab.$('#ycCN').innerHTML = pick(CN).map(e => `<div class="cn"><h4>${e.y} · ${Lab.L(e.t)}</h4><p>${Lab.L(e.b)}</p></div>`).join('');
+  Lab.$('#ycUS').innerHTML = pick(EV).map(usEvent).join('');
+  Lab.$('#ycCN').innerHTML = pick(CN).map(chinaEvent).join('');
   Lab.$('#playBtn').textContent = App.timer ? '⏸' : '▶';
   M.draw();
 }
@@ -496,16 +538,27 @@ const RANKS = [ [0,o('Apprentice','学徒')], [60,o('Mechanic','机械师')], [1
 (function(){
   const G = { round:1, score:0, rs:0, set:[], placed:[], tried:false, badY:null, msg:null, imp:null };
   const rankIdx = () => RANKS.reduce((a, r, i) => G.score >= r[0] ? i : a, 0);
+  const inventionCard = (e) => `<div class="card-i pline"><small>${e.y}</small>${e.ico} ${Lab.L(e.n)}</div>`;
+  const impactTitle = (e) => `<div class="impact"><h4>${e.ico} ${Lab.L(o('What did it change?', '它改变了什么？'))} — ${Lab.L(e.n)}</h4>`;
+  const orderedMessage = ev => o(`✅ ${ev.n.en} — ${ev.y}.`, `✅ ${ev.n.zh}——${ev.y}年。`);
+  const earlyMessage = ev => o(`❌ ${ev.n.en} came in ${ev.y}. Something earlier is still waiting.`, `❌ ${ev.n.zh}出现在${ev.y}年，还有更早的发明。`);
+  const impactCorrection = e => o(`❌ Not quite. ${e.n.en}: ${e.ok.en}.`, `❌ 不对。${e.n.zh}：${e.ok.zh}。`);
+  const IMPACT_RIGHT = o('✅ Right — that is what it changed.', '✅ 对！这就是它带来的改变。');
+  const messageText = (msg, live) => live ? Lab.L(msg) : `<span class="pline">${Lab.L(msg)}</span>`;
+  registerPanels(Lab.$('#gLane'), INV, inventionCard);
+  registerPanels(Lab.$('#gImpact'), INV, e => impactTitle(e) + '</div>');
+  registerPanels(Lab.$('#gMsg'), INV, e => [orderedMessage(e), earlyMessage(e), impactCorrection(e)].map(msg => messageText(msg)).join(''));
+  registerPanels(Lab.$('#gMsg'), [IMPACT_RIGHT], msg => messageText(msg));
   function newRound(){ G.set = Lab.shuffle(INV).slice(0, 6); G.placed = []; G.tried = false; G.badY = null; G.msg = null; G.imp = null; G.rs = 0; render(); }
   function render(){
     const lane = Lab.$('#gLane'); lane.dataset.hint = Lab.L(o('Earliest invention first →', '从最早的发明开始 →'));
-    lane.innerHTML = G.placed.map(e => `<div class="card-i"><small>${e.y}</small>${e.ico} ${Lab.L(e.n)}</div>`).join('');
+    lane.innerHTML = G.placed.map(inventionCard).join('');
     const left = G.set.filter(e => !G.placed.includes(e));
     const pool = Lab.$('#gPool'); pool.innerHTML = G.imp ? '' : left.map(e => `<button class="inv ${G.badY === e.y ? 'bad' : ''}" data-y="${e.y}"><span class="ico">${e.ico}</span>${Lab.L(e.n)}</button>`).join('');
     Lab.$$('#gPool .inv').forEach(b => b.onclick = () => pick(+b.dataset.y));
     const ib = Lab.$('#gImpact');
     if (G.imp){ const e = G.imp.e;
-      ib.innerHTML = `<div class="impact"><h4>${e.ico} ${Lab.L(o('What did it change?', '它改变了什么？'))} — ${Lab.L(e.n)}</h4><div class="opts2">${G.imp.opts.map((x, i) => `<button data-i="${i}" ${G.imp.done ? 'disabled' : ''} class="${G.imp.done ? (x === e.ok ? 'right' : (G.imp.pick === i ? 'wrong' : '')) : ''}">${Lab.L(x)}</button>`).join('')}</div>
+      ib.innerHTML = impactTitle(e) + `<div class="opts2">${G.imp.opts.map((x, i) => `<button data-i="${i}" ${G.imp.done ? 'disabled' : ''} class="${G.imp.done ? (x === e.ok ? 'right' : (G.imp.pick === i ? 'wrong' : '')) : ''}">${Lab.L(x)}</button>`).join('')}</div>
         ${G.imp.done ? `<div class="btnrow" style="margin-top:10px"><button class="btn" id="gCont">${Lab.L(o('Continue ▶', '继续 ▶'))}</button></div>` : ''}</div>`;
       Lab.$$('#gImpact .opts2 button').forEach(b => b.onclick = () => answer(+b.dataset.i));
       const c = Lab.$('#gCont'); if (c) c.onclick = () => { G.imp = null; G.msg = G.placed.length === G.set.length ? endMsg() : null; render(); };
@@ -514,20 +567,20 @@ const RANKS = [ [0,o('Apprentice','学徒')], [60,o('Mechanic','机械师')], [1
     const st = G.rs >= 100 ? 3 : G.rs >= 80 ? 2 : G.rs >= 50 ? 1 : 0; Lab.$('#gStars').textContent = '★'.repeat(st) + '☆'.repeat(3 - st);
     Lab.$('#gBar').style.width = (G.placed.length / G.set.length * 100) + '%';
     const ri = rankIdx(); Lab.$('#gRanks').innerHTML = RANKS.map((r, i) => `<span class="${i === ri ? 'on' : ''}">${i <= ri ? '🏅' : '🔒'} ${Lab.L(r[1])}</span>`).join('');
-    const m = Lab.$('#gMsg'); m.textContent = G.msg ? Lab.L(G.msg.t) : ''; m.className = 'result ' + (G.msg ? G.msg.c : '');
+    const m = Lab.$('#gMsg'); m.innerHTML = G.msg ? messageText(G.msg.t, G.msg.live) : ''; m.className = 'result ' + (G.msg ? G.msg.c : '');
   }
-  const endMsg = () => ({ c:'good', t:o(`🎉 Round done: ${G.rs}/120 points this round. Rank: ${RANKS[rankIdx()][1].en}. Press “Next round”.`, `🎉 本轮完成：本轮得 ${G.rs}/120 分。等级：${RANKS[rankIdx()][1].zh}。点击“下一轮”。`) });
+  const endMsg = () => ({ c:'good', live:true, t:o(`🎉 Round done: ${G.rs}/120 points this round. Rank: ${RANKS[rankIdx()][1].en}. Press “Next round”.`, `🎉 本轮完成：本轮得 ${G.rs}/120 分。等级：${RANKS[rankIdx()][1].zh}。点击“下一轮”。`) });
   function pick(y){
     const left = G.set.filter(e => !G.placed.includes(e)), next = left.reduce((a, b) => a.y < b.y ? a : b), ev = G.set.find(e => e.y === y);
     if (y === next.y){ G.placed.push(ev); if (!G.tried){ G.score += 10; G.rs += 10; } G.tried = false; G.badY = null;
-      G.msg = { c:'good', t:o(`✅ ${ev.n.en} — ${ev.y}.`, `✅ ${ev.n.zh}——${ev.y}年。`) };
+      G.msg = { c:'good', t:orderedMessage(ev) };
       G.imp = { e:ev, opts:Lab.shuffle([ev.ok, ...ev.no]), done:false };
-    } else { G.tried = true; G.badY = y; G.msg = { c:'bad', t:o(`❌ ${ev.n.en} came in ${ev.y}. Something earlier is still waiting.`, `❌ ${ev.n.zh}出现在${ev.y}年，还有更早的发明。`) }; }
+    } else { G.tried = true; G.badY = y; G.msg = { c:'bad', t:earlyMessage(ev) }; }
     render();
   }
   function answer(i){ const I = G.imp; if (I.done) return; I.done = true; I.pick = i; const right = I.opts[i] === I.e.ok;
-    if (right){ G.score += 10; G.rs += 10; G.msg = { c:'good', t:o('✅ Right — that is what it changed.', '✅ 对！这就是它带来的改变。') }; }
-    else G.msg = { c:'bad', t:o(`❌ Not quite. ${I.e.n.en}: ${I.e.ok.en}.`, `❌ 不对。${I.e.n.zh}：${I.e.ok.zh}。`) };
+    if (right){ G.score += 10; G.rs += 10; G.msg = { c:'good', t:IMPACT_RIGHT }; }
+    else G.msg = { c:'bad', t:impactCorrection(I.e) };
     render(); }
   Lab.$('#gNext').onclick = () => { G.round++; newRound(); };
   Lab.onLang(() => { if (G.set.length) render(); });
@@ -564,21 +617,33 @@ const EJ = [
 (function(){
   const S = { i:0, pts:0, held:0, ans:null };
   const box = Lab.$('#ejScene');
+  const ellisBrief = (s) => `<div class="sc-ico">${s.ico}</div><h3>${Lab.L(s.h)}</h3><p style="margin:0">${Lab.L(s.p)}</p>`;
+  const ellisChalk = s => s.chalk ? `<div class="chalk">${[['E',o('eyes','眼睛')],['H',o('heart','心脏')],['L',o('lameness','跛行')],['CT',o('trachoma','沙眼')]].map(c => `<div class="pline"><b>${c[0]}</b>${Lab.L(c[1])}</div>`).join('')}</div>` : '';
+  const ellisFeedback = (choice, i) => `<div class="fb pline ${choice.s > 0 || i === 0 ? 'good' : 'bad'}">${Lab.L(choice.f)}</div>`;
+  const ellisNote = () => `<div class="fb note pline">${Lab.L(o('Remember: on the West Coast, Chinese arrivals at Angel Island faced the Exclusion Act and were often held for weeks. The same country could be a very different door depending on where you came from.', '记住：在西海岸的天使岛，华人因《排华法案》常被扣留数周。同一个国家，从哪里来，面对的大门可能完全不同。'))}</div>`;
+  const ellisTitle = () => `<div class="sc-ico">🗽</div><h3>${Lab.L(o('Welcome to America!', '欢迎来到美国！'))}</h3>`;
+  function ellisResult(points, held){
+    const score = points == null ? '' : Lab.L(o(`Journey score: ${points}/45. `, `旅程得分：${points}/45。`));
+    const delay = held ? Lab.L(o(`You were pulled aside ${held} time(s), which cost you time — but like 98% of arrivals, you got in.`, `你被拉到一边检查了${held}次，耽误了时间——但和98%的人一样，你最终入境了。`)) : '';
+    return `<p>${score || delay ? `<span data-noread>${score}${delay}</span>` : ''}${held ? '' : Lab.L(o('You sailed through in about 4 hours, like most arrivals.', '你像大多数人一样，大约4小时就办完了手续。'))}</p>`;
+  }
+  registerPanels(box, EJ, (s, i) => ellisBrief(s) + ellisChalk(s) + s.c.map(c => ellisFeedback(c, i)).join(''));
+  registerPanels(box, [null], () => ellisTitle() + ellisResult() + ellisNote());
   function render(){
     const steps = EJ.map((s, j) => `<span class="${j < S.i ? 'done' : j === S.i ? 'now' : ''}">${Lab.L(s.st)}</span>`).join('');
     if (S.i >= EJ.length){ const st = S.pts >= 45 ? 3 : S.pts >= 30 ? 2 : 1;
-      box.innerHTML = `<div class="steps">${steps}</div><div class="sc-ico">🗽</div><h3>${Lab.L(o('Welcome to America!', '欢迎来到美国！'))}</h3>
+      box.innerHTML = `<div class="steps">${steps}</div>${ellisTitle()}
         <div class="stars">${'★'.repeat(st)}${'☆'.repeat(3 - st)}</div>
-        <p>${Lab.L(o(`Journey score: ${S.pts}/45. ${S.held ? `You were pulled aside ${S.held} time(s), which cost you time — but like 98% of arrivals, you got in.` : 'You sailed through in about 4 hours, like most arrivals.'}`, `旅程得分：${S.pts}/45。${S.held ? `你被拉到一边检查了${S.held}次，耽误了时间——但和98%的人一样，你最终入境了。` : '你像大多数人一样，大约4小时就办完了手续。'}`))}</p>
-        <div class="fb note">${Lab.L(o('Remember: on the West Coast, Chinese arrivals at Angel Island faced the Exclusion Act and were often held for weeks. The same country could be a very different door depending on where you came from.', '记住：在西海岸的天使岛，华人因《排华法案》常被扣留数周。同一个国家，从哪里来，面对的大门可能完全不同。'))}</div>
+        ${ellisResult(S.pts, S.held)}
+        ${ellisNote()}
         <div class="btnrow"><button class="btn" id="ejAgain">${Lab.L(o('↻ Try another path', '↻ 换一条路再试'))}</button></div>`;
       Lab.$('#ejAgain').onclick = () => { S.i = 0; S.pts = 0; S.held = 0; S.ans = null; S.ordFor = -1; render(); };
       return; }
     const s = EJ[S.i]; if (S.ordFor !== S.i){ S.ord = Lab.shuffle(s.c.map((c, j) => j)); S.ordFor = S.i; }
-    box.innerHTML = `<div class="steps">${steps}</div><div class="sc-ico">${s.ico}</div><h3>${Lab.L(s.h)}</h3><p style="margin:0">${Lab.L(s.p)}</p>
-      ${s.chalk ? `<div class="chalk">${[['E',o('eyes','眼睛')],['H',o('heart','心脏')],['L',o('lameness','跛行')],['CT',o('trachoma','沙眼')]].map(c => `<div><b>${c[0]}</b>${Lab.L(c[1])}</div>`).join('')}</div>` : ''}
+    box.innerHTML = `<div class="steps">${steps}</div>${ellisBrief(s)}
+      ${ellisChalk(s)}
       <div class="choices">${S.ord.map(j => `<button data-j="${j}" ${S.ans != null ? "disabled" : ""} class="${S.ans === j ? "picked" : ""}">${Lab.L(s.c[j].t)}</button>`).join('')}</div>
-      ${S.ans != null ? `<div class="fb ${s.c[S.ans].s > 0 || S.i === 0 ? 'good' : 'bad'}">${Lab.L(s.c[S.ans].f)}</div><div class="btnrow">${s.c[S.ans].map ? `<button class="btn ghost" id="ejMap">${Lab.L(o('📍 Show on map', '📍 在地图上看'))}</button>` : ''}<button class="btn" id="ejNext">${Lab.L(o('Next station ▶', '下一站 ▶'))}</button></div>` : ''}
+      ${S.ans != null ? `${ellisFeedback(s.c[S.ans], S.i)}<div class="btnrow">${s.c[S.ans].map ? `<button class="btn ghost" id="ejMap">${Lab.L(o('📍 Show on map', '📍 在地图上看'))}</button>` : ''}<button class="btn" id="ejNext">${Lab.L(o('Next station ▶', '下一站 ▶'))}</button></div>` : ''}
       <div class="muted" style="font-size:14px">${Lab.L(o(`Journey points: ${S.pts}`, `旅程得分：${S.pts}`))}</div>`;
     Lab.$$('#ejScene .choices button').forEach(b => b.onclick = () => { const j = +b.dataset.j; S.ans = j; S.pts += s.c[j].s; if (S.i >= 2 && S.i <= 4 && !s.c[j].s) S.held++; render(); });
     const n = Lab.$('#ejNext'); if (n) n.onclick = () => { S.i++; S.ans = null; render(); };
@@ -590,6 +655,8 @@ const EJ = [
 /* ================= Data figure ================= */
 (function(){
   const cv = Lab.$('#chartCv'), g = cv.getContext('2d'); let mode = 'imm';
+  const chartSrcMarkup = (mode) => Lab.L(mode === 'imm' ? o('Millions of people obtaining legal permanent residence per decade, rounded. Source: US Dept. of Homeland Security, Yearbook of Immigration Statistics. The 1901–10 peak is almost 9 million.', '每十年获得永久居留的移民人数（百万，约数）。来源：美国国土安全部《移民统计年鉴》。1901—1910年的高峰接近900万。') : o('Thousands of miles of railroad track, rounded. Source: Historical Statistics of the United States. Track grew about 28 times in 70 years.', '铁路里程（千英里，约数）。来源：《美国历史统计》。70年里铁路增长了约28倍。'));
+  registerPanels(Lab.$('#chartSrc'), ['imm', 'rail'], chartSrcMarkup);
   const RAILD = Object.keys(RM).map(k => [k, RM[k] / 1000]);
   function draw(){
     const r = cv.parentElement.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!r.width) return;
@@ -603,7 +670,7 @@ const EJ = [
       g.fillStyle = col; g.beginPath(); g.roundRect ? g.roundRect(x, y, bw * .7, h, [4, 4, 0, 0]) : g.rect(x, y, bw * .7, h); g.fill();
       g.fillStyle = ink; g.textAlign = 'center'; g.font = '700 11px Nunito, sans-serif'; g.fillText(mode === 'imm' ? dv[1].toFixed(1) : Math.round(dv[1]), x + bw * .35, y - 8);
       g.fillStyle = ink2; g.font = '11px Nunito, sans-serif'; g.save(); g.translate(x + bw * .35, T + H + 14); if (r.width < 420) g.rotate(-.5); g.fillText(dv[0], 0, 0); g.restore(); });
-    Lab.$('#chartSrc').textContent = Lab.L(mode === 'imm' ? o('Millions of people obtaining legal permanent residence per decade, rounded. Source: US Dept. of Homeland Security, Yearbook of Immigration Statistics. The 1901–10 peak is almost 9 million.', '每十年获得永久居留的移民人数（百万，约数）。来源：美国国土安全部《移民统计年鉴》。1901—1910年的高峰接近900万。') : o('Thousands of miles of railroad track, rounded. Source: Historical Statistics of the United States. Track grew about 28 times in 70 years.', '铁路里程（千英里，约数）。来源：《美国历史统计》。70年里铁路增长了约28倍。'));
+    Lab.$('#chartSrc').textContent = chartSrcMarkup(mode);
   }
   Lab.$$('[data-chart]').forEach(b => b.onclick = () => { mode = b.dataset.chart; Lab.$$('[data-chart]').forEach(x => x.classList.toggle('on', x === b)); draw(); });
   new ResizeObserver(() => requestAnimationFrame(draw)).observe(cv.parentElement);

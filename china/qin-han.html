@@ -228,6 +228,126 @@ const UNI_STEPS = [
 /* ===== info panel ===== */
 const App = window.QH = { sel:null, three:null };
 App.select = (k, from3D) => { App.sel = k; renderInfo(); renderChips(); if (!from3D && App.three) App.three.focus(k); };
+// Use the same read-aloud units for the crawler and the panel's Listen button.
+const PANEL_PARTS = '.tag,h3,h4,.job,p,li,.memory,.mix,figcaption,.quote';
+function panelUnits(el, selector = PANEL_PARTS, visibleOnly = false){
+  const nodes = selector ? el.querySelectorAll(selector) : [el];
+  const out = [];
+  for (const node of nodes){
+    if (visibleOnly && !node.getClientRects().length) continue;
+    const unit = Lab.readUnits(node);
+    if (!unit) continue;
+    const style = node.closest('[data-read-style]');
+    for (const text of unit.parts){
+      out.push(style ? [text, unit.lang, {style:style.dataset.readStyle, work:style.dataset.work}] : [text, unit.lang]);
+    }
+  }
+  return out;
+}
+function speakPanel(el, selector){
+  const parts = panelUnits(el, selector, true);
+  let i = 0;
+  const next = ok => {
+    if (ok === false || i >= parts.length) return;
+    const [text, lang] = parts[i++];
+    Lab.speak(text, {lang, inner:true, onend:next});
+  };
+  next();
+}
+function offscreenPanel(host){
+  const tmp = host.cloneNode(false);
+  tmp.removeAttribute('id');
+  tmp.removeAttribute('aria-live');
+  tmp.style.cssText = 'position:absolute;left:-10000px;top:0;box-sizing:border-box;width:' + (host.offsetWidth || 360) + 'px';
+  return tmp;
+}
+function collectPanelTexts(host, items, render, selector){
+  if (!host?.parentElement) return [];
+  const tmp = offscreenPanel(host);
+  host.after(tmp);
+  const out = [];
+  try {
+    for (const item of items){
+      render(tmp, item);
+      out.push(...panelUnits(tmp, selector));
+    }
+  } finally { tmp.remove(); }
+  return out;
+}
+// Place-name glosses are inserted by the shared observer after a panel is rendered.
+function registerHistoryTexts(getHost, items, render, selector){
+  let glossed = [];
+  Lab.onLang(() => {
+    glossed = [];
+    const lang = Lab.lang;
+    setTimeout(async () => {
+      const host = getHost();
+      if (!host?.parentElement || !window.LabPlaces || Lab.lang !== lang) return;
+      const copies = [];
+      try {
+        const pinyinModes = lang === 'zh' ? [true, false] : [true];
+        for (const pinyin of pinyinModes){
+          for (const item of items){
+            const tmp = offscreenPanel(host);
+            const scope = document.createElement('div');
+            scope.className = 'card';
+            scope.style.cssText = 'position:absolute;left:-10000px;top:0;pointer-events:none';
+            scope.setAttribute('aria-hidden', 'true');
+            if (!pinyin) scope.setAttribute('data-nopy', '');
+            tmp.style.left = '0';
+            scope.appendChild(tmp);
+            copies.push([scope, tmp]);
+            host.after(scope);
+            render(tmp, item);
+          }
+        }
+        const collectGlosses = () => copies.flatMap(([,tmp]) => tmp.querySelector('.lp-jin') ? panelUnits(tmp, selector) : []);
+        const afterPaint = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+        await afterPaint();
+        if (Lab.lang !== lang) return;
+        const first = collectGlosses();
+        // The place-link observer also runs after a short debounce and can expose another gloss.
+        await new Promise(resolve => setTimeout(resolve, 350));
+        await afterPaint();
+        if (Lab.lang === lang) glossed = first.concat(collectGlosses());
+      } finally {
+        for (const [scope] of copies) scope.remove();
+      }
+    }, 80);
+  });
+  Lab.readAll(() => {
+    const raw = collectPanelTexts(getHost(), items, render, selector);
+    const seen = new Set(raw.map(([text, lang]) => lang + '|' + text));
+    return raw.concat(glossed.filter(([text, lang]) => {
+      const key = lang + '|' + text;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }));
+  });
+}
+function registerPanelValues(host, items, value){
+  registerHistoryTexts(() => Lab.$(host), items, (tmp, item) => { tmp.textContent = value(item); }, null);
+}
+function registerStoryTexts(steps){
+  Lab.readAll(() => collectPanelTexts(Lab.$('#stage .lab-caption') || Lab.$('#stage'), steps, (tmp, step) => {
+    tmp.textContent = Lab.L(step);
+  }, null));
+}
+function registerPanelTexts(host, items, markup, selector){
+  registerHistoryTexts(() => Lab.$(host), items, (tmp, item) => { tmp.innerHTML = markup(item); }, selector);
+}
+function infoMarkup(k){
+  const p = PARTS[k];
+  return `<span class="tag">${Lab.L(k === 'wuzhu' ? {en:'Han measure',zh:'汉朝措施'} : {en:'Qin unification',zh:'秦的统一措施'})}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L({en:'💡 Memory hook',zh:'💡 记忆口诀'})}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${Lab.L({en:'⚠️ Common mix-up:',zh:'⚠️ 易错点：'})}</b><span>${Lab.L(p.mix)}</span></div>` : ''}`;
+}
+registerPanelTexts('#info', ORDER, infoMarkup);
+registerStoryTexts(UNI_STEPS);
 function renderInfo(){
   const box = Lab.$('#info'), k = App.sel;
   if (!k){
@@ -244,16 +364,11 @@ function renderInfo(){
     Lab.$('#startBtn').onclick = () => App.select('six');
     return;
   }
-  const p = PARTS[k], i = ORDER.indexOf(k);
-  box.innerHTML = `<span class="tag">${Lab.L(k === 'wuzhu' ? {en:'Han measure',zh:'汉朝措施'} : {en:'Qin unification',zh:'秦的统一措施'})}</span>
-    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
-    <div class="job">${Lab.L(p.job)}</div>
-    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
-    <div class="memory"><b>${Lab.L({en:'💡 Memory hook',zh:'💡 记忆口诀'})}</b>${Lab.L(p.hint)}</div>
-    ${p.mix ? `<div class="mix"><b>${Lab.L({en:'⚠️ Common mix-up:',zh:'⚠️ 易错点：'})}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+  const i = ORDER.indexOf(k);
+  box.innerHTML = infoMarkup(k) + `
     <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${Lab.L({en:'◀ Previous',zh:'◀ 上一个'})}</button><button id="pNext">${Lab.L({en:'Next ▶',zh:'下一个 ▶'})}</button></div>`;
-  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('。'));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box);
   Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
   Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
 }
@@ -357,29 +472,24 @@ function TimeMap(cfg){
     text(L(cfg.note || { en:'Schematic map · grey lines: today’s provinces', zh:'示意图 · 灰线为今天的省级行政区界线' }), 8, V.H - 11, { a:'left', s:11, c:ink2, w:700 });
   }
   function eraOf(){ let k = 0; eras.forEach((e, i) => { if (S.t >= e.from) k = i; }); return k; }
+  const eraMarkup = (e, k) => `<div class="tm-step">${tx('Stop', '第')} ${k + 1}${tx(' of ', ' / ')}${eras.length}${tx('', ' 站')}</div><h3>${L(e.name)}</h3><p>${L(e.text)}</p>` +
+      (e.world ? `<p class="tm-world"><b>${tx('🌍 Meanwhile, elsewhere:', '🌍 同一时期的世界：')}</b> ${L(e.world)}</p>` : '');
   function renderEra(force){
     const k = eraOf(); if (k === S.era && !force) return; S.era = k; const e = eras[k]; if (!e) return;
-    eraEl.innerHTML = `<div class="tm-step">${tx('Stop', '第')} ${k + 1}${tx(' of ', ' / ')}${eras.length}${tx('', ' 站')}</div><h3>${L(e.name)}</h3><p>${L(e.text)}</p>` +
-      (e.world ? `<p class="tm-world"><b>${tx('🌍 Meanwhile, elsewhere:', '🌍 同一时期的世界：')}</b> ${L(e.world)}</p>` : '') +
+    eraEl.innerHTML = eraMarkup(e, k) +
       `<div class="btnrow"><button class="btn ghost" data-j="-1"${k ? '' : ' disabled'}>${tx('◀ Back', '◀ 上一站')}</button><button class="btn" data-j="1"${k < eras.length - 1 ? '' : ' disabled'}>${tx('Next ▶', '下一站 ▶')}</button></div>`;
     eraEl.querySelectorAll('button').forEach(b => b.onclick = () => { play(false); setT(eras[S.era + +b.dataset.j].from); });
   }
-  // every stop's texts exactly as a double-click reads them: the crawler sees only the stop on screen (2026-11-21)
-  if (window.Lab && Lab.readAll) Lab.readAll(() => {
-    if (!Lab.readUnits || !eraEl.parentElement) return [];
-    const box = document.createElement('div'); box.style.cssText = 'position:absolute;left:-10000px;top:0;width:' + (eraEl.offsetWidth || 400) + 'px';
-    eraEl.parentElement.appendChild(box); const out = [];
-    try {
-      eras.forEach(e => {
-        box.innerHTML = `<h3>${L(e.name)}</h3><p>${L(e.text)}</p>` + (e.world ? `<p class="tm-world"><b>${tx('🌍 Meanwhile, elsewhere:', '🌍 同一时期的世界：')}</b> ${L(e.world)}</p>` : '');
-        box.querySelectorAll('h3,p').forEach(n => { const u = Lab.readUnits(n); if (u) u.parts.forEach(t => out.push([t, u.lang])); });
-      });
-    } finally { box.remove(); }
-    return out;
-  });
+  registerHistoryTexts(() => eraEl, [...eras.entries()], (tmp, [k, e]) => {
+    tmp.innerHTML = eraMarkup(e, k);
+  }, '.tm-step,h3,p');
+  const placeMarkup = s => `<h4><i style="background:${s.color || 'var(--brand)'}"></i>${L(s.name)}</h4>${s.date ? `<div class="yr">${L(s.date)}</div>` : ''}<p>${L(s.info)}</p>`;
+  registerHistoryTexts(() => cardEl, [...sites, ...regions.filter(r => r.info)], (tmp, s) => {
+    tmp.innerHTML = placeMarkup(s);
+  }, 'h4,.yr,p');
   function renderCard(){
     const s = S.sel;
-    cardEl.innerHTML = (s ? `<h4><i style="background:${s.color || 'var(--brand)'}"></i>${L(s.name)}</h4>${s.date ? `<div class="yr">${L(s.date)}</div>` : ''}<p>${L(s.info)}</p>`
+    cardEl.innerHTML = (s ? placeMarkup(s)
       : `<p class="muted">${tx('👆 Click a dot or a coloured area on the map to find out what it is.', '👆 点击地图上的圆点或色块，看看它是什么。')}</p>`) +
       `<div class="tm-prog"><span>${tx('Places explored', '已探索的地点')} <b>${S.seen.size}/${total}</b>${S.seen.size === total ? ' 🎉' : ''}</span><div class="tm-bar"><i style="width:${S.seen.size / total * 100}%"></i></div></div>`;
   }
@@ -807,6 +917,16 @@ HMapBase.ready.then(() => {});
     if (path[path.length - 1] === 'daqin'){ const W = path.map(id => GM.P(N[id].p)), f = (t / 8) % 1, seg = f * (W.length - 1), i = Math.floor(seg), r = seg - i, a = W[i], b = W[Math.min(i + 1, W.length - 1)];
       ctx.font = `${18 * k}px "Segoe UI Emoji", sans-serif`; ctx.textAlign = 'center'; ctx.fillText('🐫', S.sx(a[0] + (b[0] - a[0]) * r), S.sy(a[1] + (b[1] - a[1]) * r) - 10 * k); }
   }, { z:50 });
+  function routeError(cur, decoy, visited){
+    const nexts = NEXT[cur].map(n => Lab.L(N[n].n)).join(Lab.lang === 'zh' ? '或' : ' or ');
+    return '❌ ' + (decoy ? Lab.L(decoy) : visited ? Lab.L({en:'You have already passed there.',zh:'这里已经走过了。'}) : Lab.L({en:`Not yet — from ${Lab.L(N[cur].n)} you can only go one step further west/along the road.`,zh:`还没到那里——从${Lab.L(N[cur].n)}只能沿着道路走到相邻的下一站。`}))
+        + (Lab.lang === 'zh' ? ` 提示：下一站是${nexts}。` : ` Hint: next is ${nexts}.`);
+  }
+  const decoys = Object.values(N).filter(stop => stop.decoy).map(stop => stop.decoy);
+  const routeErrors = Object.keys(NEXT).filter(stop => NEXT[stop].length).flatMap(stop => [
+    [stop, null, false], [stop, null, true], ...decoys.map(decoy => [stop, decoy, false])
+  ]);
+  registerPanelValues('#routeMsg', routeErrors, args => routeError(...args));
   function pick(id){
     const cur = path[path.length - 1], nd = N[id], msg = Lab.$('#routeMsg'); if (!nd || cur === 'daqin') return;
     if (NEXT[cur].includes(id)){
@@ -816,9 +936,7 @@ HMapBase.ready.then(() => {});
       else { msg.textContent = Lab.L({en:'✅ Correct! Where next?',zh:'✅ 正确！下一站去哪里？'}); msg.className = 'result good'; }
     } else {
       bad++; flash = { id, ok:false, t:performance.now() / 1000 };
-      const nexts = NEXT[cur].map(n => Lab.L(N[n].n)).join(Lab.lang === 'zh' ? '或' : ' or ');
-      msg.textContent = '❌ ' + (nd.decoy ? Lab.L(nd.decoy) : path.includes(id) ? Lab.L({en:'You have already passed there.',zh:'这里已经走过了。'}) : Lab.L({en:`Not yet — from ${Lab.L(N[cur].n)} you can only go one step further west/along the road.`,zh:`还没到那里——从${Lab.L(N[cur].n)}只能沿着道路走到相邻的下一站。`}))
-        + (Lab.lang === 'zh' ? ` 提示：下一站是${nexts}。` : ` Hint: next is ${nexts}.`);
+      msg.textContent = routeError(cur, nd.decoy, path.includes(id));
       msg.className = 'result bad';
       const b = Lab.$(`#cityBtns button[data-id="${id}"]`); if (b){ b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); }
     }
@@ -832,6 +950,7 @@ HMapBase.ready.then(() => {});
     Lab.$('#cityBtns').innerHTML = ids.map(id => `<button data-id="${id}" class="${path.includes(id) ? 'done' : ''}">${Lab.L(N[id].n)}</button>`).join('');
     Lab.$$('#cityBtns button').forEach(b => b.onclick = () => pick(b.dataset.id));
   }
+  registerPanelValues('#routeFact', Object.values(N).filter(stop => stop.f), stop => Lab.L(stop.f));
   const cv = G.cv; cv.style.cursor = 'pointer';
   cv.addEventListener('click', e => { const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top; let best = null, bd = 18 * GM.u();
     for (const id in N){ const [x, y] = GM.P(N[id].p), d = Math.hypot(G.sx(x) - mx, G.sy(y) - my); if (d < bd){ bd = d; best = id; } } if (best && best !== 'changan') pick(best); });

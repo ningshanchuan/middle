@@ -151,6 +151,83 @@
 <script>
 /* ============ DATA ============ */
 const o = (en, zh) => ({en, zh});
+const PANEL_PARTS = '.tag,h3,h4,.job,li,p,.memory,.mix,.quote,.usbox';
+function panelUnits(el, parts){
+  const out = [];
+  const nodes = parts ? el.querySelectorAll(parts) : [el];
+  for (const node of nodes){
+    const unit = Lab.readUnits(node);
+    if (!unit) continue;
+    const style = node.closest('[data-read-style]');
+    for (const text of unit.parts){
+      out.push(style ? [text, unit.lang, { style:style.dataset.readStyle, work:style.dataset.work }] : [text, unit.lang]);
+    }
+  }
+  return out;
+}
+function speakPanel(el){
+  const parts = panelUnits(el, PANEL_PARTS);
+  let i = 0;
+  function next(ok){
+    if (ok === false || i >= parts.length) return;
+    const [text, lang] = parts[i++];
+    Lab.speak(text, { lang, inner:true, onend:next });
+  }
+  next();
+}
+// The crawler loads this page once per language.
+const panelGroups = [];
+function readPanelItems(selector, items, render, parts, property = parts ? 'innerHTML' : 'textContent'){
+  panelGroups.push({ selector, items, render, parts, property });
+}
+Lab.readAll(() => {
+  const mounted = [];
+  try {
+    for (const { selector, items, render, parts, property } of panelGroups){
+      const host = Lab.$(selector) || (selector.endsWith(' .lab-caption') && Lab.$(selector.split(' ')[0]));
+      if (!host?.parentElement) continue;
+      const width = host.offsetWidth || host.parentElement.offsetWidth || 360;
+      const fragment = document.createDocumentFragment();
+      for (const item of items){
+        const tmp = document.createElement(host.localName);
+        tmp.className = host.matches('.stage') ? 'lab-caption show' : host.className;
+        tmp.style.cssText = 'position:absolute;left:-10000px;top:0;box-sizing:border-box;width:' + width + 'px';
+        tmp[property] = render(item);
+        // Keep each item in its own place-name annotation block.
+        const scope = document.createElement('section');
+        scope.style.display = 'contents';
+        scope.appendChild(tmp);
+        fragment.appendChild(scope);
+        mounted.push({ scope, tmp, parts });
+      }
+      host.after(fragment);
+    }
+    const collect = () => mounted.flatMap(({ tmp, parts }) => panelUnits(tmp, parts));
+    const clips = new Map();
+    const collectClips = () => {
+      for (const unit of collect()) clips.set(JSON.stringify(unit), unit);
+    };
+    collectClips();
+    // Match the units before and after the shared place-name annotations.
+    if (window.LabPlaces){
+      LabPlaces.refresh();
+      collectClips();
+      if (Lab.lang === 'zh' && window.LabPinyin){
+        LabPinyin.refresh();
+        LabPlaces.refresh();
+        collectClips();
+      }
+      if (window.LabGaz){
+        for (const { tmp } of mounted) LabGaz.scan(tmp);
+        LabPlaces.refresh();
+        collectClips();
+      }
+    }
+    return [...clips.values()];
+  } finally {
+    for (const { scope } of mounted) scope.remove();
+  }
+});
 Lab.ready(() => { const s = document.querySelector('.lab-footer p span[data-zh]'); if (s){ s.dataset.zh = '课标 / 教材章节'; s.dataset.en = 'Curriculum / textbook chapter'; } });
 const F = c => Math.round(c * 9 / 5 + 32);
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -350,6 +427,8 @@ function windAt(x, y, m){ const s = SUMMER[m - 1], w = WINTER[m - 1];
   if (s >= w){ const a = Math.max(0, Math.min(1, (x - 102) / 8)); return [(.7 * (1 - a) - .6 * a) * s, (.7 * (1 - a) + .8 * a) * s, s, 1]; }
   const a = Math.max(0, Math.min(1, (y - 24) / 9)); return [(-.5 * (1 - a) + .8 * a) * w, (-.85 * (1 - a) - .6 * a) * w, w, 0]; }
 
+const riverPinText = best => ({ en:`📍 ${best.n.en} — ${best.t.en}`, zh:`📍 ${best.n.zh}——${best.t.zh}` });
+readPanelItems('#here', RPTS, pin => Lab.L(riverPinText(pin)));
 const map = MapView(Lab.$('#stage'), {
   pad:(W) => [W < 520 ? 104 : 62, 8, 62, 8],
   under(c, V){
@@ -397,7 +476,7 @@ const map = MapView(Lab.$('#stage'), {
   },
   click(lon, lat, x, y){
     if (App.layer === 'rivers'){ let best = null, bd = 22; RPTS.forEach(p => { const s = map.toS(p.p), d = Math.hypot(s[0] - x, s[1] - y); if (d < bd){ bd = d; best = p; } });
-      if (best){ App.pin = best.p; App.here = { en:`📍 ${best.n.en} — ${best.t.en}`, zh:`📍 ${best.n.zh}——${best.t.zh}` }; App.select(best.r, true); } else { App.pin = null; App.here = null; }
+      if (best){ App.pin = best.p; App.here = riverPinText(best); App.select(best.r, true); } else { App.pin = null; App.here = null; }
       renderStrip(); map.redraw(); return; }
     const f = ChinaMap.hit(map.geo, lon, lat);
     if (!f || !ChinaMap.NAMES[f.properties.adcode]){ App.pin = null; App.here = o('That is outside China’s land area — click on the land.','这里不在我国陆地范围内，请点击陆地。'); }
@@ -410,9 +489,11 @@ const map = MapView(Lab.$('#stage'), {
 });
 
 /* ---- strip under the map: caption, legend, clicked place ---- */
+const layerCaption = (L, month) => Lab.L(L === 'temp' ? TEMPCAP(month) : L === 'rain' ? RAINCAP(month) : L === 'zones' ? o('Temperature zones are set by how much warmth plants get in a year. They do not change with the month.','温度带按一年中作物能得到的热量多少来划分，不随月份变化。') : o('Click a dot on either river. Red dots divide the upper, middle and lower reaches.','点击河上的圆点。红点是上、中、下游的分界点。'));
+readPanelItems('#cap', ['temp','rain'].flatMap(layer => MONTHS.map((_, i) => [layer, i + 1])).concat([['zones'], ['rivers']]), ([layer, month]) => layerCaption(layer, month));
 function renderStrip(){
   const L = App.layer, sw = (c, t) => `<span><i style="background:${c}"></i>${t}</span>`;
-  Lab.$('#cap').textContent = Lab.L(L === 'temp' ? TEMPCAP(App.m) : L === 'rain' ? RAINCAP(App.m) : L === 'zones' ? o('Temperature zones are set by how much warmth plants get in a year. They do not change with the month.','温度带按一年中作物能得到的热量多少来划分，不随月份变化。') : o('Click a dot on either river. Red dots divide the upper, middle and lower reaches.','点击河上的圆点。红点是上、中、下游的分界点。'));
+  Lab.$('#cap').textContent = layerCaption(L, App.m);
   Lab.$('#legend').innerHTML = L === 'temp' ? TCOL.map((c, i) => sw(c, i === 0 ? '<' + TB[0] : i === TB.length ? '>' + TB[i - 1] : TB[i - 1] + '~' + TB[i])).join('') + `<span>${Lab.L(o('°C (0 °C = 32 °F)','℃'))}</span>`
     : L === 'rain' ? WET.map(w => sw(w.c, Lab.L(w.n))).join('') + sw('rgba(28,62,150,.6)', Lab.L(o('rain belt this month','本月雨带'))) + `<span>${Lab.L(o('┅ monsoon boundary · 800 mm ≈ 31 in','┅ 季风区界线'))}</span>`
     : L === 'zones' ? Object.values(ZONES).map(z => sw(z.c, Lab.L(z.n))).join('')
@@ -434,6 +515,15 @@ Lab.$('#playBtn').onclick = () => { if (App.playing) return stopPlay(); App.play
 
 /* ---- info panel + chips ---- */
 App.select = (k, keepMap) => { App.sel = k; const t = TOPICS[k]; if (t && !keepMap){ App.pin = null; App.here = null; setLayer(t.layer, t.m); } renderInfo(); renderChips(); };
+function topicPanel(k){
+  const p = TOPICS[k];
+  return `<span class="tag">${Lab.L(p.tag)}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L(o('💡 Memory hook','💡 记忆口诀'))}</b>${Lab.L(p.hint)}</div>
+    <div class="mix"><b>${Lab.L(o('⚠️ Common mistake:','⚠️ 易错点：'))}</b><span>${Lab.L(p.mix)}</span></div>`;
+}
 function renderInfo(){
   const box = Lab.$('#info'), k = App.sel;
   if (!k){ box.innerHTML = `<span class="tag">${Lab.L(o('Climate map','气候地图'))}</span>
@@ -442,19 +532,15 @@ function renderInfo(){
       <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(o('Monsoon climate rules the east: hot, rainy summers and cold, dry winters.','季风气候显著：夏季高温多雨，冬季寒冷干燥，雨热同期。'))}</div>
       <div class="nav"><button id="startBtn">${Lab.L(o('Start ▶','开始学习 ▶'))}</button></div>`;
     Lab.$('#startBtn').onclick = () => App.select(ORDER[0]); return; }
-  const p = TOPICS[k], i = ORDER.indexOf(k);
-  box.innerHTML = `<span class="tag">${Lab.L(p.tag)}</span>
-    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
-    <div class="job">${Lab.L(p.job)}</div>
-    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
-    <div class="memory"><b>${Lab.L(o('💡 Memory hook','💡 记忆口诀'))}</b>${Lab.L(p.hint)}</div>
-    <div class="mix"><b>${Lab.L(o('⚠️ Common mistake:','⚠️ 易错点：'))}</b><span>${Lab.L(p.mix)}</span></div>
+  const i = ORDER.indexOf(k);
+  box.innerHTML = `${topicPanel(k)}
     <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
-  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts), Lab.L(p.hint)].join(Lab.lang === 'zh' ? '。' : '. '));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box);
   Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
   Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
 }
+readPanelItems('#info', ORDER, topicPanel, PANEL_PARTS);
 function renderChips(){
   Lab.$('#chips').innerHTML = ORDER.map(k => `<button class="chip ${App.sel === k ? 'on' : ''}" data-k="${k}"><i style="background:${TOPICS[k].color}"></i>${Lab.L(TOPICS[k].name)}</button>`).join('');
   Lab.$$('#chips .chip').forEach(c => c.onclick = () => App.select(c.dataset.k));
@@ -522,12 +608,19 @@ Lab.onLang(showMsg);
       g.font = '14px sans-serif'; g.fillText('🏠', ix + 16, gy - 8); g.fillText('🏠', ix + iw - 16, gy - 8);
       g.fillStyle = ink; g.font = '800 11px Nunito,"Microsoft YaHei",sans-serif'; g.fillText(Lab.L(o('River above the rooftops','河床高于两岸地面')), m, iy + 11); g.fillStyle = ink2; g.fillText(Lab.L(o('levee','大堤')), m - 62, gy - 30); }
   }
+  const reachText = (rv, d, cur) => Lab.L(d < rv.cuts[0] ? o('UPPER REACHES · steep · hydropower','上游 · 落差大 · 水能丰富') : d < rv.cuts[1] ? (cur === 'cj' ? o('MIDDLE REACHES · winding · floods','中游 · 河道弯曲 · 易洪涝') : o('MIDDLE REACHES · Loess Plateau · silt','中游 · 黄土高原 · 泥沙多')) : (cur === 'cj' ? o('LOWER REACHES · wide and deep · shipping','下游 · 江阔水深 · 航运发达') : o('LOWER REACHES · above-ground river','下游 · “地上河”')));
+  readPanelItems('#reach', Object.entries(R).flatMap(([key, river]) => [0, ...river.cuts].map(d => [river, d, key])), args => reachText(...args));
+  const stops = Object.values(R).flatMap(river => river.stops);
+  const stopName = stop => Lab.L(stop[1]);
+  const stopNote = stop => Lab.L(stop[2]);
+  readPanelItems('#stopName', stops, stopName);
+  readPanelItems('#stopNote', stops, stopNote);
   function update(){
     const rv = R[cur], e = elAt(d), km = Math.round(d), st = rv.stops.filter(s => s[0] <= d).pop(), zh = Lab.lang === 'zh';
     Lab.$('#dOut').textContent = zh ? km + ' 千米' : km.toLocaleString('en') + ' km'; Lab.$('#eOut').textContent = zh ? Math.round(e) + ' 米' : Math.round(e).toLocaleString('en') + ' m';
     Lab.$('#dOut').title = Math.round(km * .621) + ' mi'; Lab.$('#eOut').title = Math.round(e * 3.281) + ' ft';
-    Lab.$('#reach').textContent = Lab.L(d < rv.cuts[0] ? o('UPPER REACHES · steep · hydropower','上游 · 落差大 · 水能丰富') : d < rv.cuts[1] ? (cur === 'cj' ? o('MIDDLE REACHES · winding · floods','中游 · 河道弯曲 · 易洪涝') : o('MIDDLE REACHES · Loess Plateau · silt','中游 · 黄土高原 · 泥沙多')) : (cur === 'cj' ? o('LOWER REACHES · wide and deep · shipping','下游 · 江阔水深 · 航运发达') : o('LOWER REACHES · above-ground river','下游 · “地上河”')));
-    Lab.$('#stopName').textContent = Lab.L(st[1]); Lab.$('#stopNote').textContent = Lab.L(st[2]);
+    Lab.$('#reach').textContent = reachText(rv, d, cur);
+    Lab.$('#stopName').textContent = stopName(st); Lab.$('#stopNote').textContent = stopNote(st);
     Lab.$$('#rivSeg button').forEach(b2 => b2.classList.toggle('on', b2.dataset.r === cur)); draw();
   }
   const stop = () => { clearInterval(timer); timer = 0; Lab.$('#sailBtn').textContent = Lab.L(o('▶ Sail','▶ 自动漂流')); };
@@ -568,19 +661,23 @@ Lab.onLang(showMsg);
     click(lon, lat){ let yl = 33.7; for (let j = 1; j < QH.length; j++) if (lon >= QH[j - 1][0] && lon <= QH[j][0]) yl = QH[j - 1][1] + (lon - QH[j - 1][0]) / (QH[j][0] - QH[j - 1][0]) * (QH[j][1] - QH[j - 1][1]); if (lon > 120.4) yl = 34.1; answer(lat > yl ? 'N' : 'S'); }
   });
   window.GM = gm;
+  const cardFact = c => Lab.L(c[1]);
+  readPanelItems('#gFact', CARDS, cardFact);
   function start(){ deck = Lab.shuffle(CARDS).slice(0, 10); i = 0; ok = 0; streak = 0; done = false; flash = null; render(); gm.redraw(); }
   function render(msg, good){
     const c = deck[i], fin = i >= deck.length;
     Lab.$('#gBar').style.width = (fin ? 100 : (i + (done ? 1 : 0)) / deck.length * 100) + '%';
     Lab.$('#gCount').textContent = fin ? '' : Lab.L(o(`Card ${i + 1} of ${deck.length}`, `第 ${i + 1} / ${deck.length} 张`));
-    Lab.$('#gFact').textContent = fin ? Lab.L(o(`Finished: ${ok} of ${deck.length} correct!`, `完成：${deck.length} 张答对 ${ok} 张！`)) : Lab.L(c[1]);
+    Lab.$('#gFact').textContent = fin ? Lab.L(o(`Finished: ${ok} of ${deck.length} correct!`, `完成：${deck.length} 张答对 ${ok} 张！`)) : cardFact(c);
     Lab.$('#gOk').textContent = ok; Lab.$('#gStreak').textContent = streak;
     Lab.$('#gN').disabled = Lab.$('#gS').disabled = done || fin; Lab.$('#gNext').hidden = !(done || fin);
     Lab.$('#gNext').textContent = Lab.L(fin ? o('Play again ↺','再玩一次 ↺') : o('Next ▶','下一张 ▶'));
     const m = Lab.$('#gMsg'); if (msg !== undefined){ m.textContent = msg; m.className = 'result ' + (good ? 'good' : 'bad'); } else if (!done){ m.textContent = fin ? '' : Lab.L(o('Click the map north or south of the red line.','在地图上点击红线的北边或南边。')); m.className = 'result'; }
   }
+  const cardResult = (c, good) => (good ? '✅ ' : '❌ ') + Lab.L(c[0] === 'S' ? o('South. ','南方。') : o('North. ','北方。')) + Lab.L(c[2]);
+  readPanelItems('#gMsg', CARDS, c => cardResult(c, true));
   function answer(side){ if (done || i >= deck.length) return; const c = deck[i], good = side === c[0]; done = true; if (good){ ok++; streak++; } else streak = 0; flash = { side:c[0], good }; gm.redraw();
-    render((good ? '✅ ' : '❌ ') + Lab.L(c[0] === 'S' ? o('South. ','南方。') : o('North. ','北方。')) + Lab.L(c[2]), good); }
+    render(cardResult(c, good), good); }
   Lab.$('#gN').onclick = () => answer('N'); Lab.$('#gS').onclick = () => answer('S');
   Lab.$('#gNext').onclick = () => { if (i >= deck.length) return start(); i++; done = false; flash = null; gm.redraw(); render(); };
   Lab.onLang(() => { if (deck.length) render(done ? Lab.$('#gMsg').textContent : undefined, Lab.$('#gMsg').classList.contains('good')); });

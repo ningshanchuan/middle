@@ -497,6 +497,70 @@ LabPhotos.render('#gallery', [PHOTOS[0], PHOTOS[2], PHOTOS[3], PHOTOS[4], PHOTOS
 PARTS.balanced.photo = PHOTOS[0]; PARTS.net.photo = PHOTOS[1]; PARTS.applied.photo = PHOTOS[2]; PARTS.friction.photo = PHOTOS[3]; PARTS.gravity.photo = PHOTOS[4];
 /* ===== end real photos ===== */
 
+// Use the same read-aloud units for the crawler and the panel's Listen button.
+const PANEL_PARTS = '.tag,h3,h4,.job,p,li,.memory,.mix,figcaption,.quote';
+function panelUnits(el, selector = PANEL_PARTS, visibleOnly = false){
+  const nodes = selector ? el.querySelectorAll(selector) : [el];
+  const out = [];
+  for (const node of nodes){
+    if (visibleOnly && !node.getClientRects().length) continue;
+    const unit = Lab.readUnits(node);
+    if (!unit) continue;
+    const style = node.closest('[data-read-style]');
+    for (const text of unit.parts){
+      out.push(style ? [text, unit.lang, {style:style.dataset.readStyle, work:style.dataset.work}] : [text, unit.lang]);
+    }
+  }
+  return out;
+}
+function speakPanel(el, selector){
+  const parts = panelUnits(el, selector, true);
+  let i = 0;
+  const next = ok => {
+    if (ok === false || i >= parts.length) return;
+    const [text, lang] = parts[i++];
+    Lab.speak(text, {lang, inner:true, onend:next});
+  };
+  next();
+}
+function collectPanelTexts(host, items, render, selector){
+  if (!host?.parentElement) return [];
+  const tmp = host.cloneNode(false);
+  tmp.removeAttribute('id');
+  tmp.removeAttribute('aria-live');
+  tmp.style.cssText = 'position:absolute;left:-10000px;top:0;box-sizing:border-box;width:' + (host.offsetWidth || 360) + 'px';
+  host.after(tmp);
+  const out = [];
+  try {
+    for (const item of items){
+      render(tmp, item);
+      out.push(...panelUnits(tmp, selector));
+    }
+  } finally { tmp.remove(); }
+  return out;
+}
+function registerPanelValues(host, items, value){
+  Lab.readAll(() => collectPanelTexts(Lab.$(host), items, (tmp, item) => { tmp.textContent = value(item); }, null));
+}
+function registerStoryTexts(steps){
+  Lab.readAll(() => collectPanelTexts(Lab.$('#stage .lab-caption') || Lab.$('#stage'), steps, (tmp, step) => {
+    tmp.textContent = Lab.L(step);
+  }, null));
+}
+function registerPanelTexts(host, items, markup, selector){
+  Lab.readAll(() => collectPanelTexts(Lab.$(host), items, (tmp, item) => { tmp.innerHTML = markup(item); }, selector));
+}
+function infoMarkup(k){
+  const p = PARTS[k];
+  return `<span class="tag">${Lab.L(p.st === 1 ? o('Tug-of-war','拔河') : o('Block on a ramp','斜面上的木块'))}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    ${p.photo ? LabPhotos.figure(p.photo) : ''}
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}`;
+}
+registerPanelTexts('#info', ORDER, infoMarkup);
 function renderInfo(){
   const box = Lab.$('#info'), k = F.sel;
   if (!k){
@@ -509,20 +573,11 @@ function renderInfo(){
     Lab.$('#startBtn').onclick = () => F.select('applied');
     return;
   }
-  const p = PARTS[k], i = ORDER.indexOf(k);
-  box.innerHTML = `<span class="tag">${Lab.L(p.st === 1 ? o('Tug-of-war','拔河') : o('Block on a ramp','斜面上的木块'))}</span>
-    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
-    <div class="job">${Lab.L(p.job)}</div>
-    ${p.photo ? LabPhotos.figure(p.photo) : ''}
-    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
-    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(p.hint)}</div>
-    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+  const i = ORDER.indexOf(k);
+  box.innerHTML = infoMarkup(k) + `
     <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
-  Lab.$('#speakBtn').onclick = () => {
-    const stop = Lab.lang === 'zh' ? '。' : '. ';
-    Lab.speak(Lab.L(p.name) + stop + Lab.L(p.job) + stop + Lab.L(p.facts).join(' '));
-  };
+  Lab.$('#speakBtn').onclick = () => speakPanel(box);
   Lab.$('#pPrev').onclick = () => F.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
   Lab.$('#pNext').onclick = () => F.select(ORDER[(i + 1) % ORDER.length]);
 }
@@ -655,6 +710,7 @@ function translateTourControls(){
   if (replay) replay.title = Lab.L(o('Replay','重播'));
   if (close) close.title = Lab.L(o('Close','关闭'));
 }
+registerStoryTexts(TOUR);
 const tour = Lab3D.story('#stage', TOUR, i => {
   translateTourControls();
   if (i < 2){ F.setMode(1); T.L = 500; T.R = i ? 700 : 500; renderBench(); resetTug(); T.run = true; F.select(i ? 'net' : 'balanced', true); }
@@ -701,6 +757,9 @@ const SCEN = [
   {icon:'💡', name:o('Lamp hanging from a cord','吊在电线上的灯'), desc:o('A lamp hangs at rest from a cord in the ceiling. Ignore air buoyancy.','一盏灯静止地吊在天花板的电线上。忽略空气浮力。'), forces:[['gravity','down',30],['tension','up',30],['normal','up',30]], ok:['gravity','tension'],
    explain:o('The cord’s tension (30 N up) balances gravity (30 N down). Net force 0 → at rest.','电线的拉力（30 N 向上）与重力（30 N 向下）平衡，合力为 0 → 静止。')}
 ];
+const fbdExplanation = (scenario, good) => (good ? '✅ ' : '') + Lab.L(scenario.explain);
+registerPanelValues('#fbdDesc', SCEN, s => Lab.L(s.desc));
+registerPanelValues('#fbdMsg', SCEN, s => fbdExplanation(s, true));
 const FB = { k:0, on:new Set(), solved:new Set(), tries:0, feedback:null };
 function fbdRender(){
   const sc = SCEN[FB.k];
@@ -724,7 +783,7 @@ function fbdRender(){
     const wrong = extra.map(k => Lab.L(FT[k].name)).join(Lab.lang === 'zh' ? '、' : ', ');
     msg.textContent = '❌ ' + (extra.length ? Lab.fmt(o('Remove {forces}. ', '请去掉这些力：{forces}。'), {forces:wrong}) : '') +
       (missing.length ? Lab.fmt(o('Still missing: {n}.', '还缺 {n} 个力。'), {n:missing.length}) : '');
-  } else msg.textContent = FB.feedback ? (FB.feedback === 'good' ? '✅ ' : '') + Lab.L(sc.explain) : '';
+  } else msg.textContent = FB.feedback ? fbdExplanation(sc, FB.feedback === 'good') : '';
   msg.className = 'result ' + (FB.feedback === 'good' || FB.feedback === 'bad' ? FB.feedback : '');
   Lab.$('#fbdCheck').disabled = FB.feedback === 'shown';
   // SVG
@@ -1240,6 +1299,9 @@ Lab.sort(Lab.$('#sort'), {
       boxes:[[85,66,155,72]], forces:[[96,102,5],[240,102,5]], conditions:[true,true,false,true],
       why:o('Both pulls point right. They add to 10 N to the right.','两股拉力同向，合力为 10 N，方向向右。')}
   ];
+  registerPanelValues('#equilibrium-case', cases, c => L(c.name));
+  registerPanelValues('#equilibrium-caption', cases, c => L(c.caption));
+  registerPanelValues('#equilibrium-feedback', cases, c => L(c.why));
   const checks = Lab.$$('#equilibrium-checklist input');
   const checkButton = $('#equilibrium-check'), nextButton = $('#equilibrium-next'), resetButton = $('#equilibrium-reset');
   const solved = new Set();

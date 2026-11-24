@@ -284,6 +284,92 @@ const colorOf = k => ITEMS[k].color || REG[ITEMS[k].reg].color;
 /* ===== Info panel / selection ===== */
 const App = window.RG = { sel:null, three:null, geo:null };
 App.select = (k, from3D) => { App.sel = k; renderInfo(); renderChips(); if (App.three) App.three.onSelect(k, from3D); };
+const PANEL_PARTS = '.tag,h3,h4,.job,li,p,.memory,.mix,.quote,.usbox';
+function panelUnits(el, parts){
+  const out = [];
+  const nodes = parts ? el.querySelectorAll(parts) : [el];
+  for (const node of nodes){
+    const unit = Lab.readUnits(node);
+    if (!unit) continue;
+    const style = node.closest('[data-read-style]');
+    for (const text of unit.parts){
+      out.push(style ? [text, unit.lang, { style:style.dataset.readStyle, work:style.dataset.work }] : [text, unit.lang]);
+    }
+  }
+  return out;
+}
+function speakPanel(el){
+  const parts = panelUnits(el, PANEL_PARTS);
+  let i = 0;
+  function next(ok){
+    if (ok === false || i >= parts.length) return;
+    const [text, lang] = parts[i++];
+    Lab.speak(text, { lang, inner:true, onend:next });
+  }
+  next();
+}
+// The crawler loads this page once per language.
+const panelGroups = [];
+function readPanelItems(selector, items, render, parts, property = parts ? 'innerHTML' : 'textContent'){
+  panelGroups.push({ selector, items, render, parts, property });
+}
+Lab.readAll(() => {
+  const mounted = [];
+  try {
+    for (const { selector, items, render, parts, property } of panelGroups){
+      const host = Lab.$(selector) || (selector.endsWith(' .lab-caption') && Lab.$(selector.split(' ')[0]));
+      if (!host?.parentElement) continue;
+      const width = host.offsetWidth || host.parentElement.offsetWidth || 360;
+      const fragment = document.createDocumentFragment();
+      for (const item of items){
+        const tmp = document.createElement(host.localName);
+        tmp.className = host.matches('.stage') ? 'lab-caption show' : host.className;
+        tmp.style.cssText = 'position:absolute;left:-10000px;top:0;box-sizing:border-box;width:' + width + 'px';
+        tmp[property] = render(item);
+        // Keep each item in its own place-name annotation block.
+        const scope = document.createElement('section');
+        scope.style.display = 'contents';
+        scope.appendChild(tmp);
+        fragment.appendChild(scope);
+        mounted.push({ scope, tmp, parts });
+      }
+      host.after(fragment);
+    }
+    const collect = () => mounted.flatMap(({ tmp, parts }) => panelUnits(tmp, parts));
+    const clips = new Map();
+    const collectClips = () => {
+      for (const unit of collect()) clips.set(JSON.stringify(unit), unit);
+    };
+    collectClips();
+    // Match the units before and after the shared place-name annotations.
+    if (window.LabPlaces){
+      LabPlaces.refresh();
+      collectClips();
+      if (Lab.lang === 'zh' && window.LabPinyin){
+        LabPinyin.refresh();
+        LabPlaces.refresh();
+        collectClips();
+      }
+      if (window.LabGaz){
+        for (const { tmp } of mounted) LabGaz.scan(tmp);
+        LabPlaces.refresh();
+        collectClips();
+      }
+    }
+    return [...clips.values()];
+  } finally {
+    for (const { scope } of mounted) scope.remove();
+  }
+});
+function regionPanel(k){
+  const p = ITEMS[k];
+  return `<span class="tag">${Lab.L(p.tag)}</span>
+    <h3><span class="dot" style="background:${colorOf(k)}"></span>${Lab.L(p.name)}</h3>
+    <div class="job"${k === 'shuixiang' && Lab.lang === 'zh' ? ' data-read-style="verse" data-work="天净沙·秋思"' : ''}>${p.icon} ${Lab.L(p.job)}</div>
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L(o('💡 Memory rhyme','💡 记忆口诀'))}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mistake:','⚠️ 易错点：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}`;
+}
 function renderInfo(){
   const box = Lab.$('#info'), k = App.sel;
   if (!k){
@@ -296,19 +382,25 @@ function renderInfo(){
     Lab.$('#startBtn').onclick = () => App.select('north');
     return;
   }
-  const p = ITEMS[k], i = ORDER.indexOf(k);
-  box.innerHTML = `<span class="tag">${Lab.L(p.tag)}</span>
-    <h3><span class="dot" style="background:${colorOf(k)}"></span>${Lab.L(p.name)}</h3>
-    <div class="job"${k === 'shuixiang' && Lab.lang === 'zh' ? ' data-read-style="verse" data-work="天净沙·秋思"' : ''}>${p.icon} ${Lab.L(p.job)}</div>
-    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
-    <div class="memory"><b>${Lab.L(o('💡 Memory rhyme','💡 记忆口诀'))}</b>${Lab.L(p.hint)}</div>
-    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mistake:','⚠️ 易错点：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+  const i = ORDER.indexOf(k);
+  box.innerHTML = `${regionPanel(k)}
     <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
-  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts), Lab.L(p.hint)].join('。 '));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box);
   Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
   Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
 }
+readPanelItems('#info', ORDER, regionPanel, PANEL_PARTS);
+const STEPS = [
+  {en:'1 · China is divided into four geographic regions by location and by natural and human features.', zh:'1 · 根据地理位置和自然、人文特点，我国划分为四大地理区域。'},
+  {en:'2 · The Qinling–Huaihe line (≈0 °C in January, ≈800 mm of rain) separates North from South.', zh:'2 · 秦岭—淮河一线（约 1 月 0℃、800 毫米）把北方和南方分开。'},
+  {en:'3 · Northern Region: temperate monsoon, dry fields of wheat and maize, Loess Plateau cave dwellings, black-soil Northeast Plain.', zh:'3 · 北方地区：温带季风气候，旱地种小麦玉米；黄土高原有窑洞，东北平原黑土肥沃。'},
+  {en:'4 · Southern Region: hot, rainy summers, paddy rice, water towns, the Yangtze and Pearl River Deltas, Hong Kong, Macao and Taiwan.', zh:'4 · 南方地区：夏季高温多雨，水田种水稻；江南水乡、长三角、珠三角和港澳台都在这里。'},
+  {en:'5 · Northwest Region: DRY. Grassland in the east, desert in the west; oases and karez wells live on snowmelt.', zh:'5 · 西北地区：干旱。东部草原、西部荒漠；绿洲和坎儿井依靠冰雪融水。'},
+  {en:'6 · Qinghai–Tibet Region: HIGH and COLD, above 4000 m; yaks, barley and Lhasa, the “City of Sunlight”.', zh:'6 · 青藏地区：高寒，海拔 4000 米以上；牦牛、青稞和“日光城”拉萨。'},
+  {en:'7 · Sanjiangyuan: the source of the Yangtze, Yellow and Lancang Rivers — “China’s Water Tower”.', zh:'7 · 三江源：长江、黄河、澜沧江的源头——“中华水塔”。'}
+];
+readPanelItems('#stage .lab-caption', STEPS, Lab.L);
 function renderChips(){
   Lab.$('#chips').innerHTML = ORDER.map(k => `<button class="chip ${App.sel===k?'on':''}" data-k="${k}"><i style="background:${colorOf(k)}"></i>${ITEMS[k].icon} ${Lab.L(ITEMS[k].name)}</button>`).join('');
   Lab.$$('#chips .chip').forEach(c => c.onclick = () => App.select(c.dataset.k));
@@ -453,6 +545,13 @@ LabPhotos.render(Lab.$('#gallery'), [
       cx.font = `800 ${15 * dpr}px sans-serif`; cx.textAlign = 'center'; cx.lineWidth = 4 * dpr; cx.strokeStyle = '#fff'; cx.strokeText(Lab.L(REG[focus].name), x, y); cx.fillStyle = '#14213d'; cx.fillText(Lab.L(REG[focus].name), x, y); }
   }
   App.drawMini = drawMini;
+  const clueMarkup = c => `<span class="e">${c.e}</span><span>${Lab.L(c.t)}</span>`;
+  readPanelItems('#gClue', CLUES, clueMarkup, null, 'innerHTML');
+  const clueWhy = c => Lab.L(c.why);
+  readPanelItems('#gWhy', CLUES, clueWhy);
+  const clueResult = (c, good) => good ? Lab.L(o('✅ Correct!','✅ 答对了！')) : Lab.L(o('❌ Not quite — it is the ','❌ 不对，正确答案是')) + Lab.L(REG[c.a].name);
+  readPanelItems('#gMsg', REG_IDS.map(a => ({ a })), c => clueResult(c, false));
+  readPanelItems('#gMsg', [CLUES[0]], c => clueResult(c, true));
   function start(){ list = Lab.shuffle(CLUES).slice(0, 10); i = 0; ok = 0; streak = 0; answered = null; render(); }
   function render(){
     Lab.$('#gOk').textContent = ok; Lab.$('#gStreak').textContent = streak;
@@ -462,11 +561,11 @@ LabPhotos.render(Lab.$('#gallery'), [
     }
     const c = list[i];
     Lab.$('#gBar').style.width = (i / list.length * 100) + '%'; Lab.$('#gProg').textContent = Lab.L(o(`CLUE ${i + 1} OF ${list.length}`, `第 ${i + 1} 题 / 共 ${list.length} 题`));
-    Lab.$('#gClue').innerHTML = `<span class="e">${c.e}</span><span>${Lab.L(c.t)}</span>`;
+    Lab.$('#gClue').innerHTML = clueMarkup(c);
     Lab.$('#gBtns').innerHTML = REG_IDS.map(id => `<button data-r="${id}" style="--c:${REG[id].color}" ${answered ? 'disabled' : ''} class="${answered && id === c.a ? 'right' : ''}">${Lab.L(REG[id].name)}</button>`).join('');
     Lab.$$('#gBtns button').forEach(b => b.onclick = () => pick(b.dataset.r));
     const m = Lab.$('#gMsg');
-    if (answered){ const good = answered === c.a; m.textContent = good ? Lab.L(o('✅ Correct!','✅ 答对了！')) : Lab.L(o('❌ Not quite — it is the ','❌ 不对，正确答案是')) + Lab.L(REG[c.a].name); m.className = 'result ' + (good ? 'good' : 'bad'); Lab.$('#gWhy').textContent = Lab.L(c.why); }
+    if (answered){ const good = answered === c.a; m.textContent = clueResult(c, good); m.className = 'result ' + (good ? 'good' : 'bad'); Lab.$('#gWhy').textContent = clueWhy(c); }
     else { m.textContent = ''; m.className = 'result'; Lab.$('#gWhy').textContent = ''; }
     Lab.$('#gNext').hidden = !answered;
     drawMini();
@@ -643,15 +742,6 @@ Lab.$('#rotBtn').onclick = () => { ctx.controls.autoRotate = !ctx.controls.autoR
 Lab.$('#resetBtn').onclick = () => { story.stop(); App.select(null); setLines(true); ctx.home(); };
 
 /* ---------- guided tour ---------- */
-const STEPS = [
-  {en:'1 · China is divided into four geographic regions by location and by natural and human features.', zh:'1 · 根据地理位置和自然、人文特点，我国划分为四大地理区域。'},
-  {en:'2 · The Qinling–Huaihe line (≈0 °C in January, ≈800 mm of rain) separates North from South.', zh:'2 · 秦岭—淮河一线（约 1 月 0℃、800 毫米）把北方和南方分开。'},
-  {en:'3 · Northern Region: temperate monsoon, dry fields of wheat and maize, Loess Plateau cave dwellings, black-soil Northeast Plain.', zh:'3 · 北方地区：温带季风气候，旱地种小麦玉米；黄土高原有窑洞，东北平原黑土肥沃。'},
-  {en:'4 · Southern Region: hot, rainy summers, paddy rice, water towns, the Yangtze and Pearl River Deltas, Hong Kong, Macao and Taiwan.', zh:'4 · 南方地区：夏季高温多雨，水田种水稻；江南水乡、长三角、珠三角和港澳台都在这里。'},
-  {en:'5 · Northwest Region: DRY. Grassland in the east, desert in the west; oases and karez wells live on snowmelt.', zh:'5 · 西北地区：干旱。东部草原、西部荒漠；绿洲和坎儿井依靠冰雪融水。'},
-  {en:'6 · Qinghai–Tibet Region: HIGH and COLD, above 4000 m; yaks, barley and Lhasa, the “City of Sunlight”.', zh:'6 · 青藏地区：高寒，海拔 4000 米以上；牦牛、青稞和“日光城”拉萨。'},
-  {en:'7 · Sanjiangyuan: the source of the Yangtze, Yellow and Lancang Rivers — “China’s Water Tower”.', zh:'7 · 三江源：长江、黄河、澜沧江的源头——“中华水塔”。'}
-];
 const story = Lab3D.story('#stage', STEPS, i => {
   ctx.controls.autoRotate = false; Lab.$('#rotBtn').classList.remove('on'); setLines(true);
   const key = [null, 'qhline', 'north', 'south', 'nw', 'qz', 'sjy'][i];

@@ -154,12 +154,12 @@
         <div class="counter"><b id="eSpm">0</b><span data-zh="每分钟冲程">strokes per minute</span></div>
         <div class="counter"><b id="eEff">—</b><span data-zh="热效率（约数）">efficiency (approx.)</span></div>
       </div>
-      <div class="readout" id="engRead"></div>
+      <div class="readout pline" id="engRead"></div>
       <details class="peek"><summary data-zh="为什么瓦特蒸汽机这么重要？">Why did Watt’s engine matter so much?</summary><p data-zh="纽科门机只能在煤矿边抽水，因为它太费煤。瓦特的分离式冷凝器大约只用四分之一的煤；1781年后的行星齿轮又把上下运动变成转动，能带动纺纱机、织布机。从此工厂不必建在河边靠水车了——1785年瓦特改良的蒸汽机投入使用，人类进入“蒸汽时代”。">Newcomen engines burned so much coal that they only made sense next to coal mines, pumping out water. Watt’s separate condenser used roughly a quarter of the coal, and after 1781 his sun-and-planet gear turned up-and-down motion into spinning motion that could drive spinning and weaving machines. Factories no longer had to sit beside rivers for water wheels — the “Age of Steam” began (China’s textbook marks 1785, when Watt’s improved engine went into use).</p></details>
       <h3 data-zh="📊 数据：英国年产煤量">📊 Data: Britain’s coal output</h3>
       <div class="chart" style="height:220px"><canvas id="coalCv"></canvas></div>
       <p class="src" data-zh="单位：百万吨/年（约数）。来源：英国煤炭工业史研究的常用估计（弗林、丘奇等），1850年为近似值。点击柱子查看。">Million tons per year (approx.). Source: standard estimates from histories of the British coal industry (Flinn, Church and others); 1850 is approximate. Click a bar.</p>
-      <div class="readout" id="coalRead"></div>
+      <div class="readout pline" id="coalRead"></div>
     </div>
   </div>
 </section>
@@ -312,6 +312,40 @@ const WMap = (() => {
   return { create, css, ZH };
 })();
 /* ===== shared helpers for the worldhistory lessons ===== */
+// Read the same units from the live panel and from each crawler-only render.
+const PANEL_PARTS = 'h3,h4,p,li,.job,.memory,.mix,.pline';
+function panelUnits(el){
+  if (!Lab.readUnits) return [];
+  const nodes = [...el.querySelectorAll(PANEL_PARTS)];
+  if (el.matches(PANEL_PARTS)) nodes.unshift(el);
+  return nodes.flatMap(node => {
+    const u = Lab.readUnits(node);
+    return u ? u.parts.map(t => [t, u.lang]) : [];
+  });
+}
+function speakPanel(el){
+  const parts = panelUnits(el); let i = 0;
+  const next = ok => {
+    if (ok === false || i >= parts.length) return;
+    const [t, lang] = parts[i++];
+    Lab.speak(t, { lang, inner:true, onend:next });
+  };
+  next();
+}
+function registerPanels(host, items, markup){
+  if (!Lab.readAll) return;
+  Lab.readAll(() => {
+    const tmp = host.cloneNode(false);
+    tmp.removeAttribute('id');
+    tmp.removeAttribute('aria-live');
+    tmp.setAttribute('aria-hidden', 'true');
+    tmp.style.cssText = 'position:absolute;left:-10000px;top:0;width:' + (host.offsetWidth || 360) + 'px';
+    host.parentElement.appendChild(tmp);
+    try {
+      return items.flatMap((item, i) => { tmp.innerHTML = markup(item, i); return panelUnits(tmp); });
+    } finally { tmp.remove(); }
+  });
+}
 const o = (en, zh) => ({en, zh});
 const css = WMap.css;
 const stars = n => '★'.repeat(n) + '☆'.repeat(3 - n);
@@ -412,6 +446,13 @@ const M = WMap.create('#mapStage', '#mapCv', { extent:[[-100,0],[125,62]], exten
 function keyAt(x, y){ let best = null, bd = 15; const ins = M.inBox(x, y), V = ins ? M.I : M; PORDER.forEach(k => { if (!visible(k) || EU.includes(k) !== ins) return; const p = V.xy(PL[k].ll); if (!p) return; const d = Math.hypot(p[0] - x, p[1] - y); if (d < bd){ bd = d; best = k; } }); return best; }
 const tip = m => Lab.$('#mapTip').textContent = Lab.L(m || o('Click a dot · drag the year', '点击圆点 · 拖动年份'));
 function select(k){ App.sel = k; renderInfo(); M.draw(); }
+function mapPanel(p){
+  return `<span class="tag pline">${Lab.L({sci:o('Scientific Revolution','科学革命'),pol:o('Political revolution','政治革命'),ind:o('Industrial Revolution','工业革命'),cn:o('Meanwhile in China','同一时期的中国')}[p.layer])}</span>
+    <h3><span class="dot" style="background:${C[p.layer]}"></span>${Lab.L(p.name)}</h3><div class="date pline">${Lab.L(p.date)}</div><div class="job">${Lab.L(p.job)}</div>
+    <b class="kh">${Lab.L(o('📌 KEY FACTS','📌 要点'))}</b><ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(p.rhyme)}</div>
+    <div class="mix"><b>${Lab.L(o('⚠️ Don’t mix up:','⚠️ 易错点：'))}</b><span>${Lab.L(p.mix)}</span></div>`;
+}
 function renderInfo(){
   const box = Lab.$('#info'), k = App.sel;
   if (!k){
@@ -425,17 +466,14 @@ function renderInfo(){
     Lab.$('#startBtn').onclick = () => { go(1543); select('copern'); }; return;
   }
   const p = PL[k], i = PORDER.indexOf(k);
-  box.innerHTML = `<span class="tag">${Lab.L({sci:o('Scientific Revolution','科学革命'),pol:o('Political revolution','政治革命'),ind:o('Industrial Revolution','工业革命'),cn:o('Meanwhile in China','同一时期的中国')}[p.layer])}</span>
-    <h3><span class="dot" style="background:${C[p.layer]}"></span>${Lab.L(p.name)}</h3><div class="date">${Lab.L(p.date)}</div><div class="job">${Lab.L(p.job)}</div>
-    <b class="kh">${Lab.L(o('📌 KEY FACTS','📌 要点'))}</b><ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
-    <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(p.rhyme)}</div>
-    <div class="mix"><b>${Lab.L(o('⚠️ Don’t mix up:','⚠️ 易错点：'))}</b><span>${Lab.L(p.mix)}</span></div>
+  box.innerHTML = mapPanel(p) + `
     <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
-  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.date), ...Lab.L(p.facts)].join(Lab.lang === 'zh' ? '。' : '. '));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box);
   const jump = d => { const n = PORDER[(i + d + PORDER.length) % PORDER.length], q = PL[n]; if (App.year < q.y0) go(q.y0); if (!App.layers[q.layer]){ App.layers[q.layer] = true; Lab.$(`[data-layer="${q.layer}"]`).classList.add('on'); } select(n); };
   Lab.$('#pPrev').onclick = () => jump(-1); Lab.$('#pNext').onclick = () => jump(1);
 }
+registerPanels(Lab.$('#info'), PORDER.map(k => PL[k]), mapPanel);
 function renderYear(){
   const y = App.year; Lab.$('#yr').value = y; Lab.$('#yrOut').textContent = y;
   const c = lerp(COAL, y), r = lerp(RAIL, y), p = lerp(POP, y);
@@ -513,10 +551,14 @@ chinaStrip('#cnStrip', CNS);
     if (!E.run){ g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(0, 0, 600, 340); g.fillStyle = '#fff'; g.font = '800 22px Nunito, "Microsoft YaHei", sans-serif'; g.fillText(Lab.L(o('▶ Click to start the engine','▶ 点击启动蒸汽机')), 300, 175); }
     Lab.$('#engPhase').textContent = Lab.L(PH[E.mode][E.ph < .5 ? 0 : E.ph < .62 ? 1 : 2]);
   }
+  const engineReadout = mode => {
+    const per = mode === 'watt' ? 1 : 4;
+    return `<b>${per}</b> ${Lab.L(o(per > 1 ? 'shovels of coal per stroke (model).' : 'shovel of coal per stroke (model).', '铲煤/冲程（模型）。'))} ${Lab.L(mode === 'watt' ? o('Same work for about ¼ of the coal — now steam engines make sense far from coal mines.', '同样的功只用约四分之一的煤——蒸汽机终于可以在远离煤矿的地方使用了。') : o('Most of the heat goes into re-warming the cylinder after each cold spray.', '大部分热量都花在每次喷冷水后重新加热汽缸上了。'))}`;
+  };
+  registerPanels(Lab.$('#engRead'), ['new', 'watt'], engineReadout);
   function updateRead(){
     Lab.$('#eStrokes').textContent = E.strokes; Lab.$('#eCoal').textContent = E.coal; Lab.$('#eEff').textContent = Lab.L(EFF[E.mode]);
-    const per = E.mode === 'watt' ? 1 : 4;
-    Lab.$('#engRead').innerHTML = `<b>${per}</b> ${Lab.L(o(per > 1 ? 'shovels of coal per stroke (model).' : 'shovel of coal per stroke (model).', '铲煤/冲程（模型）。'))} ${Lab.L(E.mode === 'watt' ? o('Same work for about ¼ of the coal — now steam engines make sense far from coal mines.', '同样的功只用约四分之一的煤——蒸汽机终于可以在远离煤矿的地方使用了。') : o('Most of the heat goes into re-warming the cylinder after each cold spray.', '大部分热量都花在每次喷冷水后重新加热汽缸上了。'))}`;
+    Lab.$('#engRead').innerHTML = engineReadout(E.mode);
   }
   cv.addEventListener('click', () => { E.run = !E.run; });
   Lab.$$('#engSeg button').forEach(b => b.onclick = () => { E.mode = b.dataset.k; Lab.$$('#engSeg button').forEach(x => x.classList.toggle('on', x === b)); E.strokes = 0; E.coal = 0; E.heat = 1; E.run = true; updateRead(); });
@@ -527,6 +569,8 @@ chinaStrip('#cnStrip', CNS);
 (function(){
   const cv = Lab.$('#coalCv'), g = cv.getContext('2d'), yrs = Object.keys(COAL).map(Number); let sel = 1800, bars = [];
   const NOTE = {1700:o('Coal mostly heats homes; pumps use horses.','煤主要用于家庭取暖，矿井抽水靠马。'),1750:o('Newcomen engines pump water from deeper mines.','纽科门机为更深的矿井抽水。'),1775:o('Watt and Boulton start building engines (1775).','瓦特与博尔顿合作制造蒸汽机（1775年）。'),1800:o('Steam-powered cotton mills spread across Lancashire.','蒸汽动力棉纺厂遍布兰开夏郡。'),1815:o('Steam ships and the first locomotives appear.','汽船和最早的火车机车出现。'),1830:o('The Liverpool–Manchester railway opens.','利物浦—曼彻斯特铁路通车。'),1850:o('Britain is the “workshop of the world”.','英国成为“世界工厂”。')};
+  const coalReadMarkup = (sel) => `<b>${sel}</b> · ${COAL[sel]} ${Lab.L(o('million tons','百万吨'))} — ${Lab.L(NOTE[sel])}`;
+  registerPanels(Lab.$('#coalRead'), yrs, coalReadMarkup);
   function draw(){
     const r = cv.parentElement.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!r.width) return;
     cv.width = r.width * d; cv.height = r.height * d; g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, r.width, r.height);
@@ -535,7 +579,7 @@ chinaStrip('#cnStrip', CNS);
     [0, 10, 20, 30, 40, 50].forEach(t => { const y = T + H - t / 55 * H; g.strokeStyle = css('--line'); g.beginPath(); g.moveTo(L, y); g.lineTo(L + W, y); g.stroke(); g.fillStyle = css('--ink-2'); g.textAlign = 'right'; g.fillText(t, L - 4, y); });
     bars = yrs.map((y, i) => { const v = COAL[y], h = v / 55 * H, x = L + i * bw + bw * .15, on = y === sel; g.fillStyle = on ? css('--accent') : C.ind; g.globalAlpha = on ? 1 : .75; g.fillRect(x, T + H - h, bw * .7, h); g.globalAlpha = 1;
       g.fillStyle = css('--ink'); g.textAlign = 'center'; g.font = `${on ? 800 : 600} 11px Nunito, sans-serif`; g.fillText(v, x + bw * .35, T + H - h - 7); g.fillStyle = css('--ink-2'); g.fillText(y, x + bw * .35, T + H + 12); return { y, x0:L + i * bw, x1:L + (i + 1) * bw }; });
-    Lab.$('#coalRead').innerHTML = `<b>${sel}</b> · ${COAL[sel]} ${Lab.L(o('million tons','百万吨'))} — ${Lab.L(NOTE[sel])}`;
+    Lab.$('#coalRead').innerHTML = coalReadMarkup(sel);
   }
   cv.addEventListener('click', e => { const x = e.clientX - cv.getBoundingClientRect().left, b = bars.find(b => x >= b.x0 && x < b.x1); if (b){ sel = b.y; draw(); } });
   new ResizeObserver(() => requestAnimationFrame(draw)).observe(cv.parentElement);
@@ -561,24 +605,34 @@ const KR = [ [0,o('Apprentice','学徒')], [60,o('Pamphlet writer','小册子作
 (function(){
   const G = { total:0, run:0, streak:0, ci:0, step:0, miss:false, tiles:[], done:false, order:Lab.shuffle([0, 1, 2, 3, 4]) };
   const box = Lab.$('#kBox');
+  const chainSlots = (ch, step) => `<div class="chain">${SLOTN.map((s, i) => `${i ? '<div class="arrow">↓</div>' : ''}<div class="slot ${i < step ? 'ok pline' : ''}"><small>${Lab.L(s)}</small>${i < step ? Lab.L(ch.k[i]) : '❔'}</div>`).join('')}</div>`;
+  const chainTitle = (ch) => `<h3 style="color:${ch.c}">${Lab.L(ch.t)}</h3>`;
+  const chainExplanation = (ch) => `<div class="fb good pline">✅ ${Lab.L(ch.why)}</div>`;
+  const chainPrompt = (step) => `<p class="muted" style="margin:0 0 8px">${Lab.L(step < 4 ? o(`Tap the ${SLOTN[step].en.toLowerCase()}:`, `请点出“${SLOTN[step].zh}”：`) : o('Chain complete!', '链条完成！'))}</p>`;
+  const chainEnding = (st, score) => `<h3>${Lab.L(o('All five chains built!','五条链全部完成！'))}</h3>${st == null ? '' : `<p class="stars" style="margin:0">${stars(st)}</p>`}<p style="margin:0">${score == null ? '' : `<span data-noread>${Lab.L(o(`This round: ${score}/200. `, `本轮得分：${score}/200。`))}</span>`}${Lab.L(o(`Notice how each revolution fed the next: science → Enlightenment ideas → political revolutions; coal + inventions → industry.`, `注意每场革命是怎样推动下一场的：科学 → 启蒙思想 → 政治革命；煤炭 + 发明 → 工业。`))}</p>`;
+  const CHAIN_ERRORS = [o('❌ That card belongs to a different revolution.', '❌ 这张卡属于另一场革命。'), o('❌ Right revolution, wrong order — what comes first?', '❌ 革命对了，顺序不对——哪个先发生？')];
+  registerPanels(box, CHAINS, ch => `<div class="scard">${chainTitle(ch)}<div class="chainbox">${chainSlots(ch, 4)}</div>${chainExplanation(ch)}</div>`);
+  registerPanels(box, [0, 1, 2, 3, 4], chainPrompt);
+  registerPanels(box, CHAIN_ERRORS, msg => `<div class="result bad pline">${Lab.L(msg)}</div>`);
+  registerPanels(box, [null], () => chainEnding());
   function deal(){ const ch = CHAINS[G.order[G.ci]], others = CHAINS.filter(x => x !== ch); const dis = Lab.shuffle(others.flatMap(x => x.k)).slice(0, 2);
     G.tiles = Lab.shuffle([...ch.k.map((t, i) => ({ t, i })), ...dis.map(t => ({ t, i:-1 }))]); G.step = 0; G.miss = false; }
   function render(){
     Lab.$('#kScore').textContent = G.total; Lab.$('#kRun').textContent = G.run + '/200'; Lab.$('#kStreak').textContent = G.streak;
     const st = G.run >= 180 ? 3 : G.run >= 140 ? 2 : G.run >= 90 ? 1 : 0; Lab.$('#kStars').textContent = stars(st);
     Lab.$('#kRanks').innerHTML = ranksHTML(KR, G.total); Lab.$('#kBar').style.width = ((G.ci + (G.step >= 4 ? 1 : 0)) / 5 * 100) + '%';
-    if (G.done){ box.innerHTML = `<div class="scard"><h3>${Lab.L(o('All five chains built!','五条链全部完成！'))}</h3><p class="stars" style="margin:0">${stars(st)}</p><p style="margin:0">${Lab.L(o(`This round: ${G.run}/200. Notice how each revolution fed the next: science → Enlightenment ideas → political revolutions; coal + inventions → industry.`, `本轮得分：${G.run}/200。注意每场革命是怎样推动下一场的：科学 → 启蒙思想 → 政治革命；煤炭 + 发明 → 工业。`))}</p><div class="btnrow"><button class="btn" id="kAgain">${Lab.L(o('Play again ▶','再玩一轮 ▶'))}</button></div></div>`;
+    if (G.done){ box.innerHTML = `<div class="scard">${chainEnding(st, G.run)}<div class="btnrow"><button class="btn" id="kAgain">${Lab.L(o('Play again ▶','再玩一轮 ▶'))}</button></div></div>`;
       Lab.$('#kAgain').onclick = () => { G.run = 0; G.ci = 0; G.done = false; G.order = Lab.shuffle([0, 1, 2, 3, 4]); deal(); render(); }; return; }
     const ch = CHAINS[G.order[G.ci]];
-    box.innerHTML = `<div class="scard"><div class="when">${Lab.L(o('Chain', '链条'))} ${G.ci + 1}/5</div><h3 style="color:${ch.c}">${Lab.L(ch.t)}</h3>
-      <div class="chainbox"><div class="chain">${SLOTN.map((s, i) => `${i ? '<div class="arrow">↓</div>' : ''}<div class="slot ${i < G.step ? 'ok' : ''}"><small>${Lab.L(s)}</small>${i < G.step ? Lab.L(ch.k[i]) : '❔'}</div>`).join('')}</div>
-      <div><p class="muted" style="margin:0 0 8px">${Lab.L(G.step < 4 ? o(`Tap the ${SLOTN[G.step].en.toLowerCase()}:`, `请点出“${SLOTN[G.step].zh}”：`) : o('Chain complete!', '链条完成！'))}</p>
+    box.innerHTML = `<div class="scard"><div class="when">${Lab.L(o('Chain', '链条'))} ${G.ci + 1}/5</div>${chainTitle(ch)}
+      <div class="chainbox">${chainSlots(ch, G.step)}
+      <div>${chainPrompt(G.step)}
       <div class="tiles">${G.tiles.map((x, j) => `<button data-j="${j}" ${x.used ? 'disabled' : ''}>${Lab.L(x.t)}</button>`).join('')}</div></div></div>
-      <div class="result" id="kMsg"></div>
-      ${G.step >= 4 ? `<div class="fb good">✅ ${Lab.L(ch.why)}</div><div class="btnrow"><button class="btn" id="kNext">${Lab.L(G.ci < 4 ? o('Next chain ▶','下一条 ▶') : o('Finish ▶','完成 ▶'))}</button></div>` : ''}</div>`;
+      <div class="result pline" id="kMsg"></div>
+      ${G.step >= 4 ? `${chainExplanation(ch)}<div class="btnrow"><button class="btn" id="kNext">${Lab.L(G.ci < 4 ? o('Next chain ▶','下一条 ▶') : o('Finish ▶','完成 ▶'))}</button></div>` : ''}</div>`;
     Lab.$$('#kBox .tiles button').forEach(b => b.onclick = () => { if (G.step >= 4) return; const x = G.tiles[+b.dataset.j];
       if (x.i === G.step){ x.used = true; const pts = G.miss ? 5 : 10; G.run += pts; G.total += pts; G.streak = G.miss ? 0 : G.streak + 1; G.step++; G.miss = false; render(); }
-      else { G.miss = true; G.streak = 0; b.classList.add('bad'); const m = Lab.$('#kMsg'); m.className = 'result bad'; m.textContent = Lab.L(x.i < 0 ? o('❌ That card belongs to a different revolution.', '❌ 这张卡属于另一场革命。') : o('❌ Right revolution, wrong order — what comes first?', '❌ 革命对了，顺序不对——哪个先发生？')); setTimeout(() => b.classList.remove('bad'), 400); } });
+      else { G.miss = true; G.streak = 0; b.classList.add('bad'); const m = Lab.$('#kMsg'); m.className = 'result bad pline'; m.textContent = Lab.L(CHAIN_ERRORS[x.i < 0 ? 0 : 1]); setTimeout(() => b.classList.remove('bad'), 400); } });
     const n = Lab.$('#kNext'); if (n) n.onclick = () => { if (G.ci < 4){ G.ci++; deal(); } else G.done = true; render(); };
   }
   deal(); Lab.onLang(render);

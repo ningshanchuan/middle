@@ -162,7 +162,7 @@
     <div class="card">
       <h3 data-zh="🧩 新政配对">🧩 New Deal match-up</h3>
       <p class="muted" style="margin:0" data-zh="先点左边的问题，再点右边能解决它的机构。罗斯福总统（FDR）说：“我们唯一需要恐惧的就是恐惧本身。”">Tap a problem on the left, then the agency that tackled it. President Franklin D. Roosevelt (FDR): “The only thing we have to fear is fear itself.”</p>
-      <div class="result" id="mMsg"></div>
+      <div class="result pline" id="mMsg"></div>
       <div class="match"><div class="col" id="mProb"></div><div class="col" id="mAg"></div></div>
       <div class="btnrow"><span class="pill"><span data-zh="配对">Matched</span> <b id="mScore">0/6</b></span><button class="btn ghost" id="mReset" data-zh="↻ 重来">↻ Reset</button></div>
     </div>
@@ -263,6 +263,40 @@ const USMap = (() => {
 })();
 
 /* ================= Data ================= */
+// Read the same units from the live panel and from each crawler-only render.
+const PANEL_PARTS = 'h3,h4,p,li,.job,.memory,.mix,.pline';
+function panelUnits(el){
+  if (!Lab.readUnits) return [];
+  const nodes = [...el.querySelectorAll(PANEL_PARTS)];
+  if (el.matches(PANEL_PARTS)) nodes.unshift(el);
+  return nodes.flatMap(node => {
+    const u = Lab.readUnits(node);
+    return u ? u.parts.map(t => [t, u.lang]) : [];
+  });
+}
+function speakPanel(el){
+  const parts = panelUnits(el); let i = 0;
+  const next = ok => {
+    if (ok === false || i >= parts.length) return;
+    const [t, lang] = parts[i++];
+    Lab.speak(t, { lang, inner:true, onend:next });
+  };
+  next();
+}
+function registerPanels(host, items, markup){
+  if (!Lab.readAll) return;
+  Lab.readAll(() => {
+    const tmp = host.cloneNode(false);
+    tmp.removeAttribute('id');
+    tmp.removeAttribute('aria-live');
+    tmp.setAttribute('aria-hidden', 'true');
+    tmp.style.cssText = 'position:absolute;left:-10000px;top:0;width:' + (host.offsetWidth || 360) + 'px';
+    host.parentElement.appendChild(tmp);
+    try {
+      return items.flatMap((item, i) => { tmp.innerHTML = markup(item, i); return panelUnits(tmp); });
+    } finally { tmp.remove(); }
+  });
+}
 const o = (en, zh) => ({en, zh});
 const C = { mig:'#b45309', dust:'#a16207', nd:'#0f9d8a', war:'#1d4ed8' };
 const CITY = { chi:[-87.63,41.88], det:[-83.05,42.33], nyc:[-73.94,40.81], phl:[-75.17,39.95], cle:[-81.69,41.5], la:[-118.24,34.05], oak:[-122.27,37.8] };
@@ -414,6 +448,15 @@ function keyAt(x, y){
 }
 const tip = m => Lab.$('#mapTip').textContent = Lab.L(m || o('Click a dot, arrow or region · drag the year', '点击圆点、箭头或区域 · 拖动年份'));
 function select(k){ App.sel = k; renderInfo(); M.draw(); }
+function mapPanel(p){
+  return `<span class="tag pline">${Lab.L(p.tag)}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="date pline">${Lab.L(p.date)}</div><div class="job">${Lab.L(p.job)}</div>
+    <b class="kh">${Lab.L(o('📌 KEY FACTS','📌 要点'))}</b>
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(p.rhyme)}</div>
+    <div class="mix"><b>${Lab.L(o('⚠️ Don’t mix up:','⚠️ 易错点：'))}</b><span>${Lab.L(p.mix)}</span></div>`;
+}
 function renderInfo(){
   const box = Lab.$('#info'), k = App.sel;
   if (!k){
@@ -429,19 +472,20 @@ function renderInfo(){
     return;
   }
   const p = PL[k], i = PORDER.indexOf(k);
-  box.innerHTML = `<span class="tag">${Lab.L(p.tag)}</span>
-    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
-    <div class="date">${Lab.L(p.date)}</div><div class="job">${Lab.L(p.job)}</div>
-    <b class="kh">${Lab.L(o('📌 KEY FACTS','📌 要点'))}</b>
-    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
-    <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(p.rhyme)}</div>
-    <div class="mix"><b>${Lab.L(o('⚠️ Don’t mix up:','⚠️ 易错点：'))}</b><span>${Lab.L(p.mix)}</span></div>
+  box.innerHTML = mapPanel(p) + `
     <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
-  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.date), ...Lab.L(p.facts)].join(Lab.lang === 'zh' ? '。' : '. '));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box);
   const jump = d => { const n = PORDER[(i + d + PORDER.length) % PORDER.length], q = PL[n]; if (App.year < q.y0 || (q.y1 && App.year > q.y1)) go(q.y0 + (n === 'dust' ? 4 : 0)); if (!App.layers[q.layer]){ App.layers[q.layer] = true; Lab.$(`[data-layer="${q.layer}"]`).classList.add('on'); } select(n); };
   Lab.$('#pPrev').onclick = () => jump(-1); Lab.$('#pNext').onclick = () => jump(1);
 }
+registerPanels(Lab.$('#info'), PORDER.map(k => PL[k]), mapPanel);
+const usEvent = e => `<div class="ev"><h4>${e.y} · ${Lab.L(e.t)}</h4><p>${Lab.L(e.b)}</p></div>`;
+const chinaEvent = e => `<div class="cn"><h4>${e.y} · ${Lab.L(e.t)}</h4><p>${Lab.L(e.b)}</p></div>`;
+registerPanels(Lab.$('#ycUS'), EV, usEvent);
+registerPanels(Lab.$('#ycCN'), CN, chinaEvent);
+const chinaBeforeTimeline = () => `<p class="muted">${Lab.L(o('1911: the Qing dynasty is about to fall.', '1911年：清朝即将灭亡。'))}</p>`;
+registerPanels(Lab.$('#ycCN'), [null], chinaBeforeTimeline);
 function renderYear(){
   const y = App.year; Lab.$('#yr').value = y; Lab.$('#yrOut').textContent = y;
   const mg = lerp(MIG, y); Lab.$('#cMig').textContent = mg < .05 ? '0' : Lab.lang === 'zh' ? Math.round(mg * 100) + ' 万' : mg.toFixed(1) + ' M';
@@ -450,8 +494,8 @@ function renderYear(){
   Lab.$('#cWar').textContent = Lab.L(warStatus(y));
   Lab.$('#era').innerHTML = ERAS.map(e => `<span class="${y >= e[0] && y <= e[1] ? 'on' : ''}">${Lab.L(e[2])} ${e[0]}–${e[1]}</span>`).join('');
   const pick = L => L.filter(e => e.y <= y).slice(-2).reverse();
-  Lab.$('#ycUS').innerHTML = pick(EV).map(e => `<div class="ev"><h4>${e.y} · ${Lab.L(e.t)}</h4><p>${Lab.L(e.b)}</p></div>`).join('');
-  Lab.$('#ycCN').innerHTML = pick(CN).map(e => `<div class="cn"><h4>${e.y} · ${Lab.L(e.t)}</h4><p>${Lab.L(e.b)}</p></div>`).join('') || `<p class="muted">${Lab.L(o('1911: the Qing dynasty is about to fall.', '1911年：清朝即将灭亡。'))}</p>`;
+  Lab.$('#ycUS').innerHTML = pick(EV).map(usEvent).join('');
+  Lab.$('#ycCN').innerHTML = pick(CN).map(chinaEvent).join('') || chinaBeforeTimeline();
   Lab.$('#playBtn').textContent = App.timer ? '⏸' : '▶';
   M.draw();
 }
@@ -507,6 +551,14 @@ const HRANKS = [ [0,o('Scrap collector','废品收集员')], [60,o('Victory gard
 (function(){
   const G = { round:1, score:0, rs:0, deck:[], i:0, ans:null, m:[50,50,50] };
   const rankIdx = () => HRANKS.reduce((a, r, i) => G.score >= r[0] ? i : a, 0);
+  const homeBrief = (s) => `<div class="scard"><div class="when pline">${s.w}</div><h3>${Lab.L(s.h)}</h3><p style="margin:0">${Lab.L(s.p)}</p>`;
+  const homeFeedback = (choice, good) => `<div class="fb pline ${good ? 'good' : 'bad'}">${good ? '✅ ' : '🤔 '}${Lab.L(choice.f)}</div>`;
+  const homeEnding = (score) => `<div class="scard"><div class="when">1945</div><h3>${Lab.L(o('Victory! The war is over.', '胜利了！战争结束了。'))}</h3>
+        ${score ? `<p style="margin:0" data-noread>${score}</p>` : ''}
+        <p class="muted" style="margin:0">${Lab.L(o('About 16 million Americans served in uniform; more than 400,000 died. On the home front, everyone’s small choices added up.', '约1600万美国人参军，40多万人牺牲。在后方，每个人的小选择汇聚成了巨大的力量。'))}</p>`;
+  const box = Lab.$('#hCard');
+  registerPanels(box, SC, s => homeBrief(s) + s.c.map(c => homeFeedback(c, c.s === Math.max(...s.c.map(x => x.s)))).join('') + '</div>');
+  registerPanels(box, [null], () => homeEnding() + '</div>');
   function newRound(){ G.deck = Lab.shuffle(SC).slice(0, 8).sort((a, b) => a.w - b.w); G.i = 0; G.ans = null; G.rs = 0; G.m = [50, 50, 50]; render(); }
   function render(){
     Lab.$('#hScore').textContent = G.score; Lab.$('#hDone').textContent = Math.min(G.i + (G.ans != null ? 1 : 0), 8) + '/8'; Lab.$('#hRound').textContent = G.round;
@@ -514,16 +566,13 @@ const HRANKS = [ [0,o('Scrap collector','废品收集员')], [60,o('Victory gard
     Lab.$('#hBar').style.width = ((G.i + (G.ans != null ? 1 : 0)) / 8 * 100) + '%';
     const ri = rankIdx(); Lab.$('#hRanks').innerHTML = HRANKS.map((r, i) => `<span class="${i === ri ? 'on' : ''}">${i <= ri ? '🏅' : '🔒'} ${Lab.L(r[1])}</span>`).join('');
     Lab.$('#hMeters').innerHTML = MET.map((n, j) => `<div class="meter"><b>${Lab.L(n)} · ${G.m[j]}</b><div class="mbar"><i style="width:${G.m[j]}%;background:${MCOL[j]}"></i></div></div>`).join('');
-    const box = Lab.$('#hCard');
-    if (G.i >= G.deck.length){ box.innerHTML = `<div class="scard"><div class="when">1945</div><h3>${Lab.L(o('Victory! The war is over.', '胜利了！战争结束了。'))}</h3>
-        <p style="margin:0">${Lab.L(o(`This round: ${G.rs}/120. Your meters: production ${G.m[0]}, supplies ${G.m[1]}, spirit ${G.m[2]}. Rank: ${HRANKS[ri][1].en}.`, `本轮得分：${G.rs}/120。指标：生产 ${G.m[0]}，物资 ${G.m[1]}，社区精神 ${G.m[2]}。等级：${HRANKS[ri][1].zh}。`))}</p>
-        <p class="muted" style="margin:0">${Lab.L(o('About 16 million Americans served in uniform; more than 400,000 died. On the home front, everyone’s small choices added up.', '约1600万美国人参军，40多万人牺牲。在后方，每个人的小选择汇聚成了巨大的力量。'))}</p>
+    if (G.i >= G.deck.length){ box.innerHTML = `${homeEnding(Lab.L(o(`This round: ${G.rs}/120. Your meters: production ${G.m[0]}, supplies ${G.m[1]}, spirit ${G.m[2]}. Rank: ${HRANKS[ri][1].en}.`, `本轮得分：${G.rs}/120。指标：生产 ${G.m[0]}，物资 ${G.m[1]}，社区精神 ${G.m[2]}。等级：${HRANKS[ri][1].zh}。`)))}
         <div class="btnrow"><button class="btn" id="hNext">${Lab.L(o('Play another round ▶', '再玩一轮 ▶'))}</button></div></div>`;
       Lab.$('#hNext').onclick = () => { G.round++; newRound(); }; return; }
     const s = G.deck[G.i], best = Math.max(...s.c.map(c => c.s)); if (!G.ord || G.ordFor !== s){ G.ord = Lab.shuffle(s.c.map((c, j) => j)); G.ordFor = s; }
-    box.innerHTML = `<div class="scard"><div class="when">${s.w}</div><h3>${Lab.L(s.h)}</h3><p style="margin:0">${Lab.L(s.p)}</p>
+    box.innerHTML = homeBrief(s) + `
       <div class="choices">${G.ord.map(j => { const c = s.c[j]; return `<button data-j="${j}" ${G.ans != null ? "disabled" : ""} class="${G.ans != null ? (c.s === best ? 'best' : G.ans === j ? 'meh' : '') : ''}">${Lab.L(c.t)}</button>`; }).join('')}</div>
-      ${G.ans != null ? `<div class="fb ${s.c[G.ans].s === best ? 'good' : 'bad'}">${s.c[G.ans].s === best ? '✅ ' : '🤔 '}${Lab.L(s.c[G.ans].f)}</div><div class="btnrow"><button class="btn" id="hGo">${Lab.L(o('Next card ▶', '下一张 ▶'))}</button></div>` : ''}</div>`;
+      ${G.ans != null ? `${homeFeedback(s.c[G.ans], s.c[G.ans].s === best)}<div class="btnrow"><button class="btn" id="hGo">${Lab.L(o('Next card ▶', '下一张 ▶'))}</button></div>` : ''}</div>`;
     Lab.$$('#hCard .choices button').forEach(b => b.onclick = () => { const j = +b.dataset.j, c = s.c[j]; G.ans = j; G.score += c.s; G.rs += c.s; c.d.forEach((v, k) => G.m[k] = Math.max(0, Math.min(100, G.m[k] + v * 6))); render(); });
     const n = Lab.$('#hGo'); if (n) n.onclick = () => { G.i++; G.ans = null; render(); };
   }
@@ -536,6 +585,8 @@ const YNOTE = {1929:o('October: the stock market crashes.','10月，股市崩溃
 (function(){
   const cv = Lab.$('#chartCv'), g = cv.getContext('2d'); let sel = 1933, bars = [];
   const yrs = Object.keys(YNOTE).map(Number);
+  const yrInfoMarkup = (sel) => `<b>${sel}</b> · ${UNEMP[sel]}% ${Lab.L(o('jobless', '失业'))}<br><span class="pline">${Lab.L(YNOTE[sel])}</span>`;
+  registerPanels(Lab.$('#yrInfo'), yrs, yrInfoMarkup);
   function draw(){
     const r = cv.parentElement.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!r.width) return;
     cv.width = r.width * d; cv.height = r.height * d; g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, r.width, r.height);
@@ -549,7 +600,7 @@ const YNOTE = {1929:o('October: the stock market crashes.','10月，股市崩溃
       if (on || r.width > 520){ g.fillStyle = ink; g.textAlign = 'center'; g.font = `${on ? 800 : 600} ${on ? 12 : 10}px Nunito, sans-serif`; g.fillText(v.toFixed(v < 10 ? 1 : 0), x + bw * .36, top - 7); }
       if (i % (r.width < 480 ? 4 : 2) === 0 || on){ g.fillStyle = on ? ink : ink2; g.font = `${on ? 800 : 600} 11px Nunito, sans-serif`; g.fillText("'" + String(y).slice(2), x + bw * .36, T + H + 12); }
       return { y, x0:L + i * bw, x1:L + (i + 1) * bw }; });
-    Lab.$('#yrInfo').innerHTML = `<b>${sel}</b> · ${UNEMP[sel]}% ${Lab.L(o('jobless', '失业'))}<br>${Lab.L(YNOTE[sel])}`;
+    Lab.$('#yrInfo').innerHTML = yrInfoMarkup(sel);
   }
   cv.addEventListener('click', e => { const x = e.clientX - cv.getBoundingClientRect().left, b = bars.find(b => x >= b.x0 && x < b.x1); if (b){ sel = b.y; draw(); } });
   new ResizeObserver(() => requestAnimationFrame(draw)).observe(cv.parentElement);
@@ -566,17 +617,26 @@ const ND = [
 ];
 (function(){
   let selP = null, done = new Set(), msg = null, probs = [], ags = [];
+  const MATCH_MESSAGES = [
+    o('First tap a problem on the left.', '先点左边的一个问题。'),
+    o('❌ Not that one — think about what the agency actually did.', '❌ 不对——想想这个机构具体做了什么。'),
+    o('🎉 All six matched! Did the New Deal end the Depression? It helped a lot — but full recovery came with World War II production (see the chart).', '🎉 六个全部配对！新政结束大萧条了吗？它帮了很大的忙，但真正完全复苏是靠二战的战时生产（看图表）。')
+  ];
+  const matchCorrect = n => o('✅ ' + n.f.en, '✅ ' + n.f.zh);
+  const matchMessage = msg => Lab.L(msg);
+  registerPanels(Lab.$('#mMsg'), ND, n => matchMessage(matchCorrect(n)));
+  registerPanels(Lab.$('#mMsg'), MATCH_MESSAGES, matchMessage);
   function reset(){ selP = null; done = new Set(); msg = null; probs = Lab.shuffle(ND); ags = Lab.shuffle(ND); render(); }
   function render(){
     Lab.$('#mProb').innerHTML = probs.map(n => `<button data-k="${n.k}" class="${done.has(n.k) ? 'done' : selP === n.k ? 'sel' : ''}">${done.has(n.k) ? '✅ ' : '❓ '}${Lab.L(n.p)}</button>`).join('');
     Lab.$('#mAg').innerHTML = ags.map(n => `<button data-a="${n.k}" class="${done.has(n.k) ? 'done' : ''}">${Lab.L(n.a)}</button>`).join('');
     Lab.$$('#mProb button').forEach(b => b.onclick = () => { if (done.has(b.dataset.k)) return; selP = b.dataset.k; msg = null; render(); });
     Lab.$$('#mAg button').forEach(b => b.onclick = () => { const k = b.dataset.a; if (done.has(k)) return;
-      if (!selP){ msg = { c:'bad', t:o('First tap a problem on the left.', '先点左边的一个问题。') }; render(); return; }
-      if (k === selP){ done.add(k); const n = ND.find(x => x.k === k); msg = { c:'good', t:o('✅ ' + n.f.en, '✅ ' + n.f.zh) }; selP = null; if (done.size === ND.length) msg = { c:'good', t:o('🎉 All six matched! Did the New Deal end the Depression? It helped a lot — but full recovery came with World War II production (see the chart).', '🎉 六个全部配对！新政结束大萧条了吗？它帮了很大的忙，但真正完全复苏是靠二战的战时生产（看图表）。') }; render(); }
-      else { msg = { c:'bad', t:o('❌ Not that one — think about what the agency actually did.', '❌ 不对——想想这个机构具体做了什么。') }; render(); b.classList.add('bad'); } });
+      if (!selP){ msg = { c:'bad', t:MATCH_MESSAGES[0] }; render(); return; }
+      if (k === selP){ done.add(k); const n = ND.find(x => x.k === k); msg = { c:'good', t:matchCorrect(n) }; selP = null; if (done.size === ND.length) msg = { c:'good', t:MATCH_MESSAGES[2] }; render(); }
+      else { msg = { c:'bad', t:MATCH_MESSAGES[1] }; render(); b.classList.add('bad'); } });
     Lab.$('#mScore').textContent = done.size + '/' + ND.length;
-    const m = Lab.$('#mMsg'); m.textContent = msg ? Lab.L(msg.t) : ''; m.className = 'result ' + (msg ? msg.c : '');
+    const m = Lab.$('#mMsg'); m.textContent = msg ? matchMessage(msg.t) : ''; m.className = 'result pline ' + (msg ? msg.c : '');
   }
   Lab.$('#mReset').onclick = reset; Lab.onLang(() => { if (probs.length) render(); }); reset();
 })();

@@ -302,36 +302,124 @@ App.select = (k, from3D) => {
   App.sel = k; renderInfo(); renderChips();
   if (App.three) App.three.onSelect(k, !!from3D);
 };
-function renderInfo(){
-  const box = Lab.$('#info'), k = App.sel;
-  if (typeof k === 'number'){
-    const p = BY[k], ty = TYPES[p.t], i = p.i;
-    box.innerHTML = `<span class="tag" style="background:${ty.color}22;color:${ty.color}">${Lab.L(ty.name)}</span>
-      <h3><span class="dot" style="background:${ty.color}"></span>${pname(p)}</h3>
-      <div class="job">${Lab.L(UIS.short)}${Lab.lang === "zh" ? ":" : ": "}<b style="font-size:22px;color:var(--brand)">${p.short}</b> <span class="muted">(${p.py})</span> · ${Lab.L(UIS.seat)}${Lab.lang === "zh" ? ":" : ": "}<b>${Lab.L(p.cap)}</b></div>
-      <ul>${Lab.lang === 'zh' ? `<li>全称：${p.zh}</li>` : `<li>Chinese name: ${p.zh}</li>`}<li>${Lab.L(p.fact)}</li></ul>
-      <div class="memory"><b>${Lab.L(UIS.origin)}</b>${Lab.L(p.hint)}</div>
-      ${p.mix ? `<div class="mix"><b>${Lab.L(UIS.mix)}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
-      <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
-      <div class="nav"><button id="pPrev">${Lab.L(UIS.prev)}</button><button id="pNext">${Lab.L(UIS.next)}</button></div>`;
-    Lab.$('#speakBtn').onclick = () => Lab.speak(Lab.lang === 'zh' ? `${p.zh}，简称${p.short}，行政中心${p.cap.zh}。${p.fact.zh}` : `${p.en}. Short name ${p.short}. Capital: ${p.cap.en}. ${p.fact.en}`);
-    Lab.$('#pPrev').onclick = () => App.select(PROV[(i - 1 + PROV.length) % PROV.length].c);
-    Lab.$('#pNext').onclick = () => App.select(PROV[(i + 1) % PROV.length].c);
-    return;
+const PANEL_PARTS = '.tag,h3,h4,.job,li,p,.memory,.mix,.quote,.usbox';
+function panelUnits(el, parts){
+  const out = [];
+  const nodes = parts ? el.querySelectorAll(parts) : [el];
+  for (const node of nodes){
+    const unit = Lab.readUnits(node);
+    if (!unit) continue;
+    const style = node.closest('[data-read-style]');
+    for (const text of unit.parts){
+      out.push(style ? [text, unit.lang, { style:style.dataset.readStyle, work:style.dataset.work }] : [text, unit.lang]);
+    }
   }
-  const t = TOPIC[k], i = TOPICS.indexOf(k);
-  box.innerHTML = `<span class="tag">${Lab.L(UIS.key)}</span>
+  return out;
+}
+function speakPanel(el){
+  const parts = panelUnits(el, PANEL_PARTS);
+  let i = 0;
+  function next(ok){
+    if (ok === false || i >= parts.length) return;
+    const [text, lang] = parts[i++];
+    Lab.speak(text, { lang, inner:true, onend:next });
+  }
+  next();
+}
+// The crawler loads this page once per language.
+const panelGroups = [];
+function readPanelItems(selector, items, render, parts, property = parts ? 'innerHTML' : 'textContent'){
+  panelGroups.push({ selector, items, render, parts, property });
+}
+Lab.readAll(() => {
+  const mounted = [];
+  try {
+    for (const { selector, items, render, parts, property } of panelGroups){
+      const host = Lab.$(selector) || (selector.endsWith(' .lab-caption') && Lab.$(selector.split(' ')[0]));
+      if (!host?.parentElement) continue;
+      const width = host.offsetWidth || host.parentElement.offsetWidth || 360;
+      const fragment = document.createDocumentFragment();
+      for (const item of items){
+        const tmp = document.createElement(host.localName);
+        tmp.className = host.matches('.stage') ? 'lab-caption show' : host.className;
+        tmp.style.cssText = 'position:absolute;left:-10000px;top:0;box-sizing:border-box;width:' + width + 'px';
+        tmp[property] = render(item);
+        // Keep each item in its own place-name annotation block.
+        const scope = document.createElement('section');
+        scope.style.display = 'contents';
+        scope.appendChild(tmp);
+        fragment.appendChild(scope);
+        mounted.push({ scope, tmp, parts });
+      }
+      host.after(fragment);
+    }
+    const collect = () => mounted.flatMap(({ tmp, parts }) => panelUnits(tmp, parts));
+    const clips = new Map();
+    const collectClips = () => {
+      for (const unit of collect()) clips.set(JSON.stringify(unit), unit);
+    };
+    collectClips();
+    // Match the units before and after the shared place-name annotations.
+    if (window.LabPlaces){
+      LabPlaces.refresh();
+      collectClips();
+      if (Lab.lang === 'zh' && window.LabPinyin){
+        LabPinyin.refresh();
+        LabPlaces.refresh();
+        collectClips();
+      }
+      if (window.LabGaz){
+        for (const { tmp } of mounted) LabGaz.scan(tmp);
+        LabPlaces.refresh();
+        collectClips();
+      }
+    }
+    return [...clips.values()];
+  } finally {
+    for (const { scope } of mounted) scope.remove();
+  }
+});
+function provincePanel(k){
+  const p = BY[k], ty = TYPES[p.t];
+  return `<span class="tag" style="background:${ty.color}22;color:${ty.color}">${Lab.L(ty.name)}</span>
+    <h3><span class="dot" style="background:${ty.color}"></span>${pname(p)}</h3>
+    <div class="job">${Lab.L(UIS.short)}${Lab.lang === "zh" ? ":" : ": "}<b style="font-size:22px;color:var(--brand)">${p.short}</b> <span class="muted">(${p.py})</span> · ${Lab.L(UIS.seat)}${Lab.lang === "zh" ? ":" : ": "}<b>${Lab.L(p.cap)}</b></div>
+    <ul>${Lab.lang === 'zh' ? `<li>全称：${p.zh}</li>` : `<li>Chinese name: ${p.zh}</li>`}<li>${Lab.L(p.fact)}</li></ul>
+    <div class="memory"><b>${Lab.L(UIS.origin)}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${Lab.L(UIS.mix)}</b><span>${Lab.L(p.mix)}</span></div>` : ''}`;
+}
+function topicPanel(k){
+  const t = TOPIC[k];
+  return `<span class="tag">${Lab.L(UIS.key)}</span>
     <h3><span class="dot" style="background:var(--brand)"></span>${t.icon} ${Lab.L(t.name)}</h3>
     <div class="job">${Lab.L(t.job)}</div>
     <ul>${Lab.L(t.facts).map(f => `<li>${f}</li>`).join('')}</ul>
     <div class="memory"><b>${Lab.L(UIS.memo)}</b>${Lab.L(t.hint)}</div>
-    <div class="mix"><b>${Lab.L(UIS.mix)}</b><span>${Lab.L(t.mix)}</span></div>
+    <div class="mix"><b>${Lab.L(UIS.mix)}</b><span>${Lab.L(t.mix)}</span></div>`;
+}
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel;
+  if (typeof k === 'number'){
+    const i = BY[k].i;
+    box.innerHTML = `${provincePanel(k)}
+      <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
+      <div class="nav"><button id="pPrev">${Lab.L(UIS.prev)}</button><button id="pNext">${Lab.L(UIS.next)}</button></div>`;
+    Lab.$('#speakBtn').onclick = () => speakPanel(box);
+    Lab.$('#pPrev').onclick = () => App.select(PROV[(i - 1 + PROV.length) % PROV.length].c);
+    Lab.$('#pNext').onclick = () => App.select(PROV[(i + 1) % PROV.length].c);
+    return;
+  }
+  const i = TOPICS.indexOf(k);
+  box.innerHTML = `${topicPanel(k)}
     <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${Lab.L(UIS.prev)}</button><button id="pNext">${Lab.L(UIS.next)}</button></div>`;
-  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(t.name), Lab.L(t.job), ...Lab.L(t.facts), Lab.L(t.hint)].join('。 '));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box);
   Lab.$('#pPrev').onclick = () => App.select(TOPICS[(i - 1 + TOPICS.length) % TOPICS.length]);
   Lab.$('#pNext').onclick = () => App.select(TOPICS[(i + 1) % TOPICS.length]);
 }
+readPanelItems('#info', TOPICS, topicPanel, PANEL_PARTS);
+readPanelItems('#info', PROV.map(p => p.c), provincePanel, PANEL_PARTS);
+readPanelItems('#stage .lab-caption', STORY, Lab.L);
 function renderChips(){
   const tc = TOPICS.map(k => `<button class="chip ${App.sel === k ? 'on' : ''}" data-k="${k}">${TOPIC[k].icon} ${Lab.L(TOPIC[k].name)}</button>`).join('');
   const pc = typeof App.sel === 'number' ? `<button class="chip on"><i style="background:${TYPES[BY[App.sel].t].color}"></i>${pname(BY[App.sel])}</button>` : '';
@@ -378,16 +466,18 @@ Lab.onLang(() => { renderInfo(); renderChips(); renderToolbar(); });
   const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
   function start(){ G.order = Lab.shuffle(PROV.map(p => p.c)); G.i = 0; G.ok = G.bad = G.streak = G.tries = 0; G.done = {}; G.reveal = null; G.msg = null; render(); draw(); }
   const cur = () => BY[G.order[G.i]];
-  function promptHTML(){
-    const p = cur(); if (!p) return Lab.L(o('🎉 All 34 found! Press Restart to play again.','🎉 34 个全部找到了！点“重新开始”再玩一次。'));
-    if (G.mode === 'short') return Lab.lang === 'zh' ? `简称 <span class="big">${p.short}</span> 是哪里？` : `Where is <span class="big">${p.short}</span> <small>(${p.py})</small>?`;
-    if (G.mode === 'seat') return Lab.lang === 'zh' ? `行政中心 <span class="big">${p.cap.zh}</span> 在哪个省级行政区？` : `Which division has <span class="big">${p.cap.en}</span> as its capital?`;
+  function promptHTML(p, mode){
+    if (!p) return Lab.L(o('🎉 All 34 found! Press Restart to play again.','🎉 34 个全部找到了！点“重新开始”再玩一次。'));
+    if (mode === 'short') return Lab.lang === 'zh' ? `简称 <span class="big">${p.short}</span> 是哪里？` : `Where is <span class="big">${p.short}</span> <small>(${p.py})</small>?`;
+    if (mode === 'seat') return Lab.lang === 'zh' ? `行政中心 <span class="big">${p.cap.zh}</span> 在哪个省级行政区？` : `Which division has <span class="big">${p.cap.en}</span> as its capital?`;
     return Lab.lang === 'zh' ? `找到 <span class="big">${p.zh}</span>` : `Find <span class="big">${p.en}</span> <small>(${p.zh})</small>`;
   }
+  const prompts = PROV.flatMap(p => MODES.map(([mode]) => [p, mode]));
+  readPanelItems('#gPrompt', [...prompts, [null]], args => promptHTML(...args), null, 'innerHTML');
   function render(){
     Lab.$('#gMode').innerHTML = MODES.map(([k, n]) => `<button data-m="${k}" class="${G.mode === k ? 'on' : ''}">${Lab.L(n)}</button>`).join('');
     Lab.$$('#gMode button').forEach(b => b.onclick = () => { G.mode = b.dataset.m; start(); });
-    Lab.$('#gPrompt').innerHTML = promptHTML();
+    Lab.$('#gPrompt').innerHTML = promptHTML(cur(), G.mode);
     Lab.$('#gOk').textContent = G.ok; Lab.$('#gBad').textContent = G.bad; Lab.$('#gLeft').textContent = PROV.length - G.i; Lab.$('#gStreak').textContent = G.streak; Lab.$('#gBar').style.width = (G.i / PROV.length * 100) + '%';
     const m = Lab.$('#gMsg'); m.textContent = G.msg ? Lab.L(G.msg.t) : ''; m.className = 'result ' + (G.msg ? G.msg.c : '');
   }
@@ -433,6 +523,18 @@ Lab.onLang(() => { renderInfo(); renderChips(); renderToolbar(); });
       g.font = `800 ${(SMALL.includes(p.c) ? 11 : 14) * view.dpr}px "Microsoft YaHei", Nunito, sans-serif`; g.lineWidth = 3 * view.dpr; g.strokeStyle = 'rgba(255,255,255,.85)'; g.strokeText(p.short.split('/')[0], x, y); g.fillStyle = '#14213d'; g.fillText(p.short.split('/')[0], x, y); });
   }
   function next(){ G.i++; G.tries = 0; G.reveal = null; render(); draw(); }
+  const CLICK_SEA = o('That is the sea — try clicking on land.','那里是海洋，请点在陆地上。');
+  readPanelItems('#gMsg', [CLICK_SEA], Lab.L);
+  const correctProvince = target => o(`✅ Correct! ${target.en}: short name ${target.short}, capital ${target.cap.en}.`, `✅ 正确！${target.zh}：简称${target.short}，行政中心${target.cap.zh}。`);
+  readPanelItems('#gMsg', PROV, p => Lab.L(correctProvince(p)));
+  const wrongProvince = w => o(`❌ That is ${w.en} (${w.short}).`, `❌ 这是${w.zh}(${w.short})。`);
+  readPanelItems('#gMsg', PROV, p => Lab.L(wrongProvince(p)));
+  const revealProvince = target => o(`The answer is ${target.en} (${target.short}). Moving on…`, `答案是${target.zh}(${target.short})，看看它在哪里。`);
+  readPanelItems('#gMsg', PROV, p => Lab.L(revealProvince(p)));
+  const skipProvince = p => o(`It was ${p.en} (${p.short}).`, `答案是${p.zh}(${p.short})。`);
+  readPanelItems('#gMsg', PROV, p => Lab.L(skipProvince(p)));
+  const provinceHint = p => o(`Hint: ${Lab.L(p.fact)}`, `提示：${p.fact.zh}`);
+  readPanelItems('#gMsg', PROV, p => Lab.L(provinceHint(p)));
   function click(e){
     if (!geo || !cur()) return;
     const b = cv.getBoundingClientRect(), px = (e.clientX - b.left) * view.dpr, py = (e.clientY - b.top) * view.dpr;
@@ -440,23 +542,23 @@ Lab.onLang(() => { renderInfo(); renderChips(); renderToolbar(); });
     let f = ChinaMap.hit(geo, lon, lat), c = f && BY[f.properties.adcode] ? f.properties.adcode : null;
     const target = cur();
     if (c !== target.c && SMALL.includes(target.c)){ const [x, y] = view.toS(target.cl); if (Math.hypot(px - x, py - y) < 16 * view.dpr) c = target.c; }
-    if (c == null){ G.msg = { t:o('That is the sea — try clicking on land.','那里是海洋，请点在陆地上。'), c:'bad' }; render(); return; }
+    if (c == null){ G.msg = { t:CLICK_SEA, c:'bad' }; render(); return; }
     if (c === target.c){
       G.done[c] = 1; G.ok++; G.streak++;
-      G.msg = { t:o(`✅ Correct! ${target.en}: short name ${target.short}, capital ${target.cap.en}.`, `✅ 正确！${target.zh}：简称${target.short}，行政中心${target.cap.zh}。`), c:'good' };
+      G.msg = { t:correctProvince(target), c:'good' };
       next();
     } else {
       G.bad++; G.streak = 0; G.tries++; const w = BY[c];
       G.flash = { c }; setTimeout(() => { G.flash = null; draw(); }, 700);
-      G.msg = { t:o(`❌ That is ${w.en} (${w.short}).`, `❌ 这是${w.zh}(${w.short})。`), c:'bad' };
-      if (G.tries >= 3){ G.reveal = target.c; G.msg = { t:o(`The answer is ${target.en} (${target.short}). Moving on…`, `答案是${target.zh}(${target.short})，看看它在哪里。`), c:'bad' }; render(); draw(); setTimeout(next, 1600); return; }
+      G.msg = { t:wrongProvince(w), c:'bad' };
+      if (G.tries >= 3){ G.reveal = target.c; G.msg = { t:revealProvince(target), c:'bad' }; render(); draw(); setTimeout(next, 1600); return; }
       render(); draw();
     }
   }
   cv.addEventListener('click', click);
   Lab.$('#gNew').onclick = start;
-  Lab.$('#gSkip').onclick = () => { if (!cur()) return; G.reveal = cur().c; G.streak = 0; G.msg = { t:o(`It was ${cur().en} (${cur().short}).`, `答案是${cur().zh}(${cur().short})。`), c:'' }; render(); draw(); setTimeout(next, 1300); };
-  Lab.$('#gHint').onclick = () => { const p = cur(); if (!p) return; G.msg = { t:o(`Hint: ${Lab.L(p.fact)}`, `提示：${p.fact.zh}`), c:'' }; render(); };
+  Lab.$('#gSkip').onclick = () => { if (!cur()) return; G.reveal = cur().c; G.streak = 0; G.msg = { t:skipProvince(cur()), c:'' }; render(); draw(); setTimeout(next, 1300); };
+  Lab.$('#gHint').onclick = () => { const p = cur(); if (!p) return; G.msg = { t:provinceHint(p), c:'' }; render(); };
   new ResizeObserver(() => { fit(); draw(); }).observe(box);
   window.addEventListener('labtheme', draw); matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
   Lab.onLang(() => { render(); draw(); });
@@ -504,12 +606,14 @@ Lab.onLang(() => { renderInfo(); renderChips(); renderToolbar(); });
     USC.forEach(([n, lon, lat, minor]) => { if (small && minor) return; const [x, y] = sh([lon, lat]); dot(x, y, css('--ink'), Lab.L(n), true); });
     const [lx, ly] = sh([-98, 51.2]); g.textAlign = 'center'; g.font = '800 13px Nunito, "Microsoft YaHei", sans-serif'; g.fillStyle = brand; g.fillText(Lab.L(o('USA (lower 48 states)','美国本土（48 个州）')), Math.min(W - 80, Math.max(80, lx)), ly);
   }
+  const alignmentNote = (done, v) => Lab.L(done ? o('Lined up! China is a little bigger than the lower 48: it reaches farther north (53°N) and much farther south. Add Alaska and Hawaii and the two countries are almost the same size.','对齐了！中国比美国本土 48 州略大，向北（约 53°N）、向南都伸得更远。算上阿拉斯加和夏威夷，两国面积差不多。')
+      : v > 0 ? o('Keep going: the USA is crossing the Pacific along its own latitudes…','继续拖：美国正沿着自己的纬度横渡太平洋……') : o('Drag the slider (or press ▶) to bring the USA over.','拖动滑块（或点 ▶），把美国“搬”过来。'));
+  readPanelItems('#cMsg', [0, 1, 100], v => alignmentNote(v >= 100, v));
   function render(){
     const v = +inp.value, done = v >= 100;
     Lab.$('#cOut').textContent = done ? '✓' : Math.round(off()) + '°';
     const m = Lab.$('#cMsg'); m.className = 'result ' + (done ? 'good' : '');
-    m.textContent = Lab.L(done ? o('Lined up! China is a little bigger than the lower 48: it reaches farther north (53°N) and much farther south. Add Alaska and Hawaii and the two countries are almost the same size.','对齐了！中国比美国本土 48 州略大，向北（约 53°N）、向南都伸得更远。算上阿拉斯加和夏威夷，两国面积差不多。')
-      : v > 0 ? o('Keep going: the USA is crossing the Pacific along its own latitudes…','继续拖：美国正沿着自己的纬度横渡太平洋……') : o('Drag the slider (or press ▶) to bring the USA over.','拖动滑块（或点 ▶），把美国“搬”过来。'));
+    m.textContent = alignmentNote(done, v);
     draw();
   }
   inp.oninput = () => { clearInterval(timer); timer = null; render(); };

@@ -84,7 +84,7 @@
   </div>
   <div class="lab-mode" style="margin-bottom:10px"></div>
   <div class="explorer">
-    <div class="stage card space" id="stage" data-3d>
+    <div class="stage card space" id="stage" data-3d><div class="lab-caption pline"></div>
       <div class="toolbar">
         <button class="tbtn on" id="playBtn" data-zh="⏸ 暂停">⏸ Pause</button>
         <button class="tbtn" id="storyBtn" data-zh="🎬 凌星是怎么回事（故事）">🎬 How a transit works (story)</button>
@@ -122,8 +122,8 @@
           <div class="counter"><b id="xK">—</b><span data-zh="恒星被拉动的速度 K">star’s wobble speed K</span></div>
         </div>
         <div class="fml" id="xF"></div>
-        <div><b data-zh="🎯 挑战">🎯 Challenge</b> <span id="xChQ"></span> <button class="btn ghost sm" id="xChNew" data-zh="换一个 ↻">New ↻</button> <button class="btn sm" id="xChk" data-zh="检查">Check</button></div>
-        <div class="result" id="xCh"></div>
+        <div><b data-zh="🎯 挑战">🎯 Challenge</b> <span class="pline" id="xChQ"></span> <button class="btn ghost sm" id="xChNew" data-zh="换一个 ↻">New ↻</button> <button class="btn sm" id="xChk" data-zh="检查">Check</button></div>
+        <div class="result pline" id="xCh"></div>
       </div>
       <div>
         <div class="mrv" data-nofs><canvas id="xCv" aria-label="Mass–radius diagram with lines of equal density and real planets"></canvas></div>
@@ -332,17 +332,71 @@ function trLiveHTML(G){
   return `<div class="stats">${statRow(o('Dip depth','下陷深度'), fmtDepth(G.depth))}${statRow(o('Year (period)','一年（周期）'), fmtP(G.P))}
     ${statRow(o('Transit lasts','凌星持续'), fmtH(G.dur))}${statRow(o('Chance the orbit lines up','轨道恰好对准我们的概率'), `${sig(100 / G.aRs, 2)}%`)}</div>`;
 }
-function renderInfo(){
-  const k = TR.sel, d = INFO[k], box = Lab.$('#info'), G = trGeom();
-  box.innerHTML = `<span class="tag">${Lab.L(PRESETS.includes(k) ? o('Real example','真实例子') : o('Part of the model','模型的组成部分'))}</span>
+// Use the same read-aloud units for the live panel and the crawler.
+const PANEL_PARTS = 'h3,h4,p,li,.job,.memory,.mix,.pline,figcaption';
+function panelUnits(panel){
+  const nodes = [...panel.querySelectorAll(PANEL_PARTS)];
+  if (panel.matches(PANEL_PARTS)) nodes.unshift(panel);
+  return nodes.flatMap(node => {
+    if (node.closest('[data-noread]')) return [];
+    const units = Lab.readUnits(node);
+    return units ? units.parts.map(text => [text, units.lang]) : [];
+  });
+}
+function speakPanel(panel){
+  const parts = panelUnits(panel);
+  let i = 0;
+  const next = ok => {
+    if (ok === false || i >= parts.length) return;
+    const [text, lang] = parts[i++];
+    Lab.speak(text, { lang, inner:true, onend:next });
+  };
+  next();
+}
+function registerPanels(host, items, markup, plain = false){
+  Lab.readAll(() => {
+    const panel = host.cloneNode(false);
+    panel.removeAttribute('id');
+    panel.removeAttribute('aria-live');
+    panel.setAttribute('aria-hidden', 'true');
+    panel.style.cssText = 'position:absolute;left:-10000px;top:0;width:' + (host.offsetWidth || 360) + 'px';
+    host.parentElement.appendChild(panel);
+    try {
+      return items.flatMap((item, index) => {
+        if (plain) panel.textContent = markup(item, index);
+        else panel.innerHTML = markup(item, index);
+        return panelUnits(panel);
+      });
+    } finally {
+      panel.remove();
+    }
+  });
+}
+const STEPS = [
+  { en:'1 · From light-years away we can’t see the planet, only the star’s total light. This is our view: the orbit is lined up edge-on with Earth.', zh:'1 · 在几光年之外我们看不到行星，只能看到恒星的总亮度。这是我们的视角：轨道恰好侧对地球。' },
+  { en:'2 · Each time the planet passes in front, it blocks a little light and the light curve below dips. Watch the dot in the graph.', zh:'2 · 每当行星从前面经过，它就挡住一点光，下面的光变曲线就会下陷。看图中的圆点。' },
+  { en:'3 · Shrink the planet to Neptune size (4 Earths wide): the dip gets much shallower. Depth depends on the planet’s AREA.', zh:'3 · 把行星缩小到海王星大小（4 个地球宽）：下陷浅了很多。深度取决于行星的“面积”。' },
+  { en:'4 · Move it farther out (0.2 AU): its year gets longer, so the dips are farther apart, and each one lasts longer.', zh:'4 · 把它移远一些（0.2 天文单位）：它的一年变长，下陷之间隔得更远，每次也持续得更久。' },
+  { en:'5 · Same planet, smaller star (0.4 Suns wide): the same shadow now covers a bigger part of the star, so the dip is deeper.', zh:'5 · 同样的行星，换成更小的恒星（太阳宽度的 0.4 倍）：同样的影子遮住了恒星更大的部分，下陷更深。' },
+  { en:'6 · Tilt the orbit by just 8°: the planet passes above the star and there is NO dip. That is why Kepler had to watch about 150,000 stars.', zh:'6 · 把轨道倾斜仅仅 8°：行星从恒星上方经过，没有下陷。这就是开普勒要同时盯着约 15 万颗恒星的原因。' }
+];
+registerPanels(Lab.$('#stage .lab-caption'), STEPS, Lab.L, true);
+function infoMarkup(k, live = ''){
+  const d = INFO[k];
+  return `<span class="tag pline">${Lab.L(PRESETS.includes(k) ? o('Real example','真实例子') : o('Part of the model','模型的组成部分'))}</span>
     <h3><span class="dot" style="background:${d.color}"></span>${Lab.L(d.name)}</h3><div class="job">${Lab.L(d.job)}</div>
-    <div id="trLive">${trLiveHTML(G)}</div>
+    ${live}
     <ul>${Lab.L(d.facts).map(f => `<li>${f}</li>`).join('')}</ul>
     <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(d.hint)}</div>
-    <div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(d.mix || INFO.planet.mix)}</span></div>
+    <div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(d.mix || INFO.planet.mix)}</span></div>`;
+}
+registerPanels(Lab.$('#info'), Object.keys(INFO), k => infoMarkup(k));
+function renderInfo(){
+  const k = TR.sel, box = Lab.$('#info');
+  box.innerHTML = infoMarkup(k, `<div id="trLive">${trLiveHTML(trGeom())}</div>`) + `
     <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
-  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(d.name), Lab.L(d.job), ...Lab.L(d.facts), Lab.L(d.hint)].join('. '));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box);
   const order = [...PRESETS, 'star', 'planet'], i = order.indexOf(k), n = order.length;
   Lab.$('#pPrev').onclick = () => selectInfo(order[(i - 1 + n) % n]); Lab.$('#pNext').onclick = () => selectInfo(order[(i + 1) % n]);
 }
@@ -489,21 +543,24 @@ Lab.$('#huntCv').addEventListener('click', e => {
 Lab.$$('#qN button').forEach(b => b.onclick = () => { HUNT.ans.n = +b.dataset.v; huntRender(); });
 Lab.$$('#qS button').forEach(b => b.onclick = () => { HUNT.ans.s = b.dataset.v; huntRender(); });
 Lab.$('#qP').oninput = () => HUNT.autoP = false;
+const HUNT_NOTES = [o('First choose how many planets you think it has.','先选一选你认为它有几颗行星。'), o('No planet! Those slow, smooth ups and downs are dark starspots turning with the star. Transits are short, sharp and repeat at exactly the same spacing.','没有行星！那些缓慢、平滑的起伏是随恒星自转的黑子。凌星是短促、陡峭的，并且以完全相同的间隔重复出现。'), o('No planet: just noise. Random low points do not repeat at regular times.','没有行星：只是噪声。随机的低点不会按固定的时间间隔重复出现。'), o('Tiny dips like these are easiest to find around small stars.','这么小的下陷，在小恒星周围最容易被发现。')];
+const huntNote = note => `<span class="pline">${Lab.L(note)}</span>`;
+registerPanels(Lab.$('#huntRes'), HUNT_NOTES, huntNote);
 Lab.$('#huntCheck').onclick = () => {
   const st = HUNT.stars[HUNT.i], res = Lab.$('#huntRes'), n = st.planets.length;
-  if (HUNT.ans.n == null){ res.className = 'result bad'; res.textContent = Lab.L(o('First choose how many planets you think it has.','先选一选你认为它有几颗行星。')); return; }
+  if (HUNT.ans.n == null){ res.className = 'result bad'; res.innerHTML = huntNote(HUNT_NOTES[0]); return; }
   let pts = 0, why = [];
   if (n === 0){ pts = HUNT.ans.n === 0 ? 3 : 0;
-    why.push(st.kind === 'spots' ? o('No planet! Those slow, smooth ups and downs are dark starspots turning with the star. Transits are short, sharp and repeat at exactly the same spacing.','没有行星！那些缓慢、平滑的起伏是随恒星自转的黑子。凌星是短促、陡峭的，并且以完全相同的间隔重复出现。')
-      : o('No planet: just noise. Random low points do not repeat at regular times.','没有行星：只是噪声。随机的低点不会按固定的时间间隔重复出现。')); }
+    why.push(st.kind === 'spots' ? HUNT_NOTES[1]
+      : HUNT_NOTES[2]); }
   else { const big = st.planets.reduce((a, b) => b.Rp > a.Rp ? b : a), cat = big.Rp < 2 ? 'e' : big.Rp < 6 ? 'n' : 'j', P = +Lab.$('#qP').value;
     if (HUNT.ans.n === n) pts++; if (P && Math.abs(P - big.P) / big.P < .06) pts++; if (HUNT.ans.s === cat) pts++;
     why.push(o(`${n === 2 ? 'Two planets' : 'One planet'}. The biggest: ${big.Rp} Earths wide, a year of ${big.P} days.`, `${n === 2 ? '两颗行星' : '一颗行星'}。最大的那颗：${big.Rp} 个地球宽，一年 ${big.P} 天。`));
     if (n === 2){ const s = st.planets.find(p => p !== big); why.push(o(`The second, smaller one: ${s.Rp} Earths, every ${s.P} days.`, `第二颗较小：${s.Rp} 个地球宽，每 ${s.P} 天一次。`)); }
-    if (st.kind === 'small') why.push(o('Tiny dips like these are easiest to find around small stars.','这么小的下陷，在小恒星周围最容易被发现。')); }
+    if (st.kind === 'small') why.push(HUNT_NOTES[3]); }
   HUNT.results[HUNT.i] = pts; HUNT.score += pts;
   res.className = 'result ' + (pts === 3 ? 'good' : 'bad');
-  res.textContent = Lab.L(o(`+${pts} of 3 points. `, `得 ${pts} / 3 分。`)) + why.map(Lab.L).join(' ') + (HUNT.results.filter(x => x != null).length === 6 ? Lab.L(o(` 🎉 All six done: ${HUNT.score} / 18!`, ` 🎉 6 颗全部完成：${HUNT.score} / 18！`)) : '');
+  res.innerHTML = Lab.L(o(`+${pts} of 3 points. `, `得 ${pts} / 3 分。`)) + why.map(note => HUNT_NOTES.includes(note) ? huntNote(note) : Lab.L(note)).join(' ') + (HUNT.results.filter(x => x != null).length === 6 ? Lab.L(o(` 🎉 All six done: ${HUNT.score} / 18!`, ` 🎉 6 颗全部完成：${HUNT.score} / 18！`)) : '');
   huntRender();
 };
 Lab.$('#huntNext').onclick = () => { HUNT.i = (HUNT.i + 1) % 6; huntLoad(); };
@@ -602,6 +659,9 @@ const HZ_SYS = {
 const HZ = { T:5772, L:1, M:1, sys:'sun', d:1, drag:false, game:null };
 const HZX = { lo:Math.log10(.004), hi:Math.log10(8), x0:70, x1:0 };
 function hzState(d = HZ.d){ const [a, b] = hzEdges(HZ.T, HZ.L); return d < a ? 'steam' : d > b ? 'ice' : 'liquid'; }
+const waterStates = [o('❓ Lock in your guess','❓ 确定你的猜测'), o('♨️ Too hot: water boils away into steam','♨️ 太热：水会沸腾变成水蒸气'), o('❄️ Too cold: water freezes into ice','❄️ 太冷：水会冻成冰'), o('💧 Just right: liquid water could exist','💧 刚刚好：可能存在液态水')];
+Lab.$('#hzWater').classList.add('pline');
+registerPanels(Lab.$('#hzWater'), waterStates, Lab.L, true);
 function hzOutputs(){
   const [a, b] = hzEdges(HZ.T, HZ.L), S = HZ.L / (HZ.d * HZ.d), Teq = 255 * Math.pow(S, .25), C = Teq - 273.15, Fh = C * 9 / 5 + 32, P = 365.25 * Math.sqrt(Math.pow(HZ.d, 3) / HZ.M), hide = HZ.game && !HZ.game.revealed;
   Lab.$('#hzTOut').textContent = `${nf(HZ.T)} K`;
@@ -609,7 +669,7 @@ function hzOutputs(){
     + statRow(o('Your planet’s distance','你的行星距离'), `${sig(HZ.d, 2)} AU`) + statRow(o('Starlight it gets','接收到的星光'), zh() ? `地球的 ${sig(S, 2)} 倍` : `${sig(S, 2)} × Earth’s`)
     + statRow(o('Equilibrium temperature','平衡温度'), `${nf(C)} °C / ${nf(Fh)} °F`) + statRow(o('Its year','它的一年'), fmtP(P));
   const w = hzState();
-  Lab.$('#hzWater').textContent = hide ? Lab.L(o('❓ Lock in your guess','❓ 确定你的猜测')) : Lab.L(w === 'steam' ? o('♨️ Too hot: water boils away into steam','♨️ 太热：水会沸腾变成水蒸气') : w === 'ice' ? o('❄️ Too cold: water freezes into ice','❄️ 太冷：水会冻成冰') : o('💧 Just right: liquid water could exist','💧 刚刚好：可能存在液态水'));
+  Lab.$('#hzWater').textContent = Lab.L(waterStates[hide ? 0 : w === 'steam' ? 1 : w === 'ice' ? 2 : 3]);
   Lab.$$('#hzPresets .chip').forEach(c => c.classList.toggle('on', c.dataset.k === HZ.sys));
 }
 function hzPresets(){ Lab.$('#hzPresets').innerHTML = Object.entries(HZ_SYS).map(([k, s]) => `<button class="chip ${HZ.sys === k ? 'on' : ''}" data-k="${k}">${Lab.L(s.n)}</button>`).join('');
@@ -870,15 +930,18 @@ selectInfo('hot'); huntNewSet(); rvPresets(); rvOutputs(); hzPresets(); hzOutput
   /* 🎯 challenges */
   const CH = [
     { q:o('Make a grazing transit: tilt the orbit so the planet only clips the edge of its star.','做出“擦边凌星”：倾斜轨道，让行星只擦过恒星的边缘。'), ok:c => c.graze,
-      good:o('Grazing transits give short, V-shaped dips: look at the light curve.','擦边凌星的下陷又短又呈 V 形：看看光变曲线。'), hint:c => !c.tr ? o('Too much tilt: no dip at all. Tilt less.','倾斜太多，根本没有下陷。少倾斜一点。') : o('It still crosses fully. Tilt a little more.','还是完整穿过。再多倾斜一点。') },
+      good:o('Grazing transits give short, V-shaped dips: look at the light curve.','擦边凌星的下陷又短又呈 V 形：看看光变曲线。'), hints:[o('Too much tilt: no dip at all. Tilt less.','倾斜太多，根本没有下陷。少倾斜一点。'), o('It still crosses fully. Tilt a little more.','还是完整穿过。再多倾斜一点。')], hint(c){ return !c.tr ? this.hints[0] : this.hints[1]; } },
     { q:o('Find the largest tilt that still gives a dip for the planet on screen (within 3%).','找出屏幕上这颗行星还能产生下陷的最大倾斜角（误差 3% 以内）。'), ok:c => c.tr && TR.tilt >= c.maxT * .97,
-      good:o('Farther planets allow only tiny tilts: Earth’s limit seen from afar is about 0.27°. That is why only a few percent of planets transit.','越远的行星，允许的倾斜越小：从远处看地球，极限只有约 0.27°。所以只有百分之几的行星会凌星。'), hint:c => !c.tr ? o('Too far: no dip. Tilt back a little.','过头了，没有下陷。往回调一点。') : o('There is still room: tilt more until the dip almost disappears.','还有余地：继续倾斜，直到下陷几乎消失。') },
+      good:o('Farther planets allow only tiny tilts: Earth’s limit seen from afar is about 0.27°. That is why only a few percent of planets transit.','越远的行星，允许的倾斜越小：从远处看地球，极限只有约 0.27°。所以只有百分之几的行星会凌星。'), hints:[o('Too far: no dip. Tilt back a little.','过头了，没有下陷。往回调一点。'), o('There is still room: tilt more until the dip almost disappears.','还有余地：继续倾斜，直到下陷几乎消失。')], hint(c){ return !c.tr ? this.hints[0] : this.hints[1]; } },
     { q:o('Build a rocky world (density 3.5–7 g/cm³) that transits inside its star’s habitable zone.','造一颗岩石行星（密度 3.5–7 g/cm³），它要会凌星，并且位于恒星的宜居带里。'), ok:c => c.tr && c.rho >= 3.5 && c.rho <= 7 && TR.a >= c.hz[0] && TR.a <= c.hz[1],
-      good:o('That is the kind of planet astronomers dream of: TRAPPIST-1 e and Kepler-452 b are candidates.','这正是天文学家梦寐以求的行星：TRAPPIST-1 e 和开普勒-452b 都是候选者。'), hint:c => !c.tr ? o('It must transit: keep the tilt small.','它要会凌星：倾斜要小。') : (c.rho < 3.5 || c.rho > 7) ? o('Adjust the mass (or radius) until the density is 3.5–7 g/cm³.','调节质量（或半径），让密度在 3.5–7 g/cm³ 之间。') : o('Move the orbit into the habitable zone shown in the formula box.','把轨道移到公式框里给出的宜居带范围内。') }
+      good:o('That is the kind of planet astronomers dream of: TRAPPIST-1 e and Kepler-452 b are candidates.','这正是天文学家梦寐以求的行星：TRAPPIST-1 e 和开普勒-452b 都是候选者。'), hints:[o('It must transit: keep the tilt small.','它要会凌星：倾斜要小。'), o('Adjust the mass (or radius) until the density is 3.5–7 g/cm³.','调节质量（或半径），让密度在 3.5–7 g/cm³ 之间。'), o('Move the orbit into the habitable zone shown in the formula box.','把轨道移到公式框里给出的宜居带范围内。')], hint(c){ return !c.tr ? this.hints[0] : (c.rho < 3.5 || c.rho > 7) ? this.hints[1] : this.hints[2]; } }
   ];
-  function newCh(){ let i; do { i = Math.random() * CH.length | 0; } while (i === A.ch); A.ch = i; chText(); $('#xCh').className = 'result'; $('#xCh').textContent = ''; }
+  const challengeFeedback = (text, ok) => (ok ? Lab.L(o('✅ Done! ','✅ 成功！')) : '❌ ') + Lab.L(text);
+  registerPanels($('#xChQ'), CH, ch => Lab.L(ch.q), true);
+  registerPanels($('#xCh'), CH.flatMap(ch => [[ch.good, true], ...ch.hints.map(text => [text, false])]), ([text, ok]) => challengeFeedback(text, ok), true);
+  function newCh(){ let i; do { i = Math.random() * CH.length | 0; } while (i === A.ch); A.ch = i; chText(); $('#xCh').className = 'result pline'; $('#xCh').textContent = ''; }
   function chText(){ $('#xChQ').textContent = Lab.L(CH[A.ch].q); }
-  $('#xChk').onclick = () => { const c = calc(), ch = CH[A.ch], ok = ch.ok(c), el = $('#xCh'); el.className = 'result ' + (ok ? 'good' : 'bad'); el.textContent = ok ? Lab.L(o('✅ Done! ','✅ 成功！')) + Lab.L(ch.good) : '❌ ' + Lab.L(ch.hint(c)); };
+  $('#xChk').onclick = () => { const c = calc(), ch = CH[A.ch], ok = ch.ok(c), el = $('#xCh'); el.className = 'result pline ' + (ok ? 'good' : 'bad'); el.textContent = challengeFeedback(ok ? ch.good : ch.hint(c), ok); };
   $('#xChNew').onclick = newCh;
   $('#xTilt').addEventListener('input', e => { TR.tilt = +e.target.value; TR.trace = []; live(); });
   $('#xM').addEventListener('input', () => live());
@@ -950,14 +1013,6 @@ E.three = { ctx };
 /* buttons */
 let side = false;
 Lab.$('#sideBtn').onclick = () => { side = !side; Lab.$('#sideBtn').classList.toggle('on', side); ctx.flyToPose(...(side ? POSE_SIDE() : POSE_TILT())); };
-const STEPS = [
-  { en:'1 · From light-years away we can’t see the planet, only the star’s total light. This is our view: the orbit is lined up edge-on with Earth.', zh:'1 · 在几光年之外我们看不到行星，只能看到恒星的总亮度。这是我们的视角：轨道恰好侧对地球。' },
-  { en:'2 · Each time the planet passes in front, it blocks a little light and the light curve below dips. Watch the dot in the graph.', zh:'2 · 每当行星从前面经过，它就挡住一点光，下面的光变曲线就会下陷。看图中的圆点。' },
-  { en:'3 · Shrink the planet to Neptune size (4 Earths wide): the dip gets much shallower. Depth depends on the planet’s AREA.', zh:'3 · 把行星缩小到海王星大小（4 个地球宽）：下陷浅了很多。深度取决于行星的“面积”。' },
-  { en:'4 · Move it farther out (0.2 AU): its year gets longer, so the dips are farther apart, and each one lasts longer.', zh:'4 · 把它移远一些（0.2 天文单位）：它的一年变长，下陷之间隔得更远，每次也持续得更久。' },
-  { en:'5 · Same planet, smaller star (0.4 Suns wide): the same shadow now covers a bigger part of the star, so the dip is deeper.', zh:'5 · 同样的行星，换成更小的恒星（太阳宽度的 0.4 倍）：同样的影子遮住了恒星更大的部分，下陷更深。' },
-  { en:'6 · Tilt the orbit by just 8°: the planet passes above the star and there is NO dip. That is why Kepler had to watch about 150,000 stars.', zh:'6 · 把轨道倾斜仅仅 8°：行星从恒星上方经过，没有下陷。这就是开普勒要同时盯着约 15 万颗恒星的原因。' }
-];
 const story = Lab3D.story('#stage', STEPS, i => {
   TR.tilt = 0; TR.playing = true; Lab.$('#playBtn').classList.add('on');
   if (i === 0){ E.selectInfo('hot'); side = true; Lab.$('#sideBtn').classList.add('on'); ctx.flyToPose(...POSE_SIDE()); }

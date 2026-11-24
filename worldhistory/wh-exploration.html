@@ -432,6 +432,55 @@ function sail(k){ stop(); const v = V[k], a = v.paths[0].a, b = v.paths[v.paths.
   App.sel = k; renderInfo();
   const step = now => { const t = Math.min(1, (now - t0) / dur); App.year = a + (b - a) * t; renderYear(); if (t < 1 && App.sail === step) requestAnimationFrame(step); };
   App.sail = step; requestAnimationFrame(step); }
+// Use the same read-aloud units for the live panel and the crawler.
+const PANEL_PARTS = 'h3,h4,p,li,.job,.memory,.mix,.pline,figcaption';
+function panelUnits(panel){
+  const nodes = [...panel.querySelectorAll(PANEL_PARTS)];
+  if (panel.matches(PANEL_PARTS)) nodes.unshift(panel);
+  return nodes.flatMap(node => {
+    if (node.closest('[data-noread]')) return [];
+    const units = Lab.readUnits(node);
+    return units ? units.parts.map(text => [text, units.lang]) : [];
+  });
+}
+function speakPanel(panel){
+  const parts = panelUnits(panel);
+  let i = 0;
+  const next = ok => {
+    if (ok === false || i >= parts.length) return;
+    const [text, lang] = parts[i++];
+    Lab.speak(text, { lang, inner:true, onend:next });
+  };
+  next();
+}
+function registerPanels(host, items, markup){
+  Lab.readAll(() => {
+    const panel = host.cloneNode(false);
+    panel.removeAttribute('id');
+    panel.removeAttribute('aria-live');
+    panel.setAttribute('aria-hidden', 'true');
+    panel.style.cssText = 'position:absolute;left:-10000px;top:0;width:' + (host.offsetWidth || 360) + 'px';
+    host.parentElement.appendChild(panel);
+    try {
+      return items.flatMap((item, index) => {
+        panel.innerHTML = markup(item, index);
+        return panelUnits(panel);
+      });
+    } finally {
+      panel.remove();
+    }
+  });
+}
+function infoMarkup(k){
+  const v = V[k];
+  return `<span class="tag pline">${Lab.L(v.date)}</span><h3><span class="dot" style="background:${v.c}"></span>${Lab.L(v.who)}</h3>
+    <div class="job">${Lab.L(v.job)}</div>
+    <div class="pill">${v.ships ? `🚢 ${k === 'zheng' ? '200+' : v.ships} · ` : ''}${v.crew ? `👥 ${k === 'zheng' ? '27,800' : '~' + v.crew} · ` : ''}📏 ${fmtKm(LEN[k])}</div>
+    <b class="kh">${Lab.L(o('📌 KEY FACTS','📌 要点'))}</b><ul>${Lab.L(v.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(v.rhyme)}</div>
+    <div class="mix"><b>${Lab.L(o('⚠️ Don’t mix up:','⚠️ 易错点：'))}</b><span>${Lab.L(v.mix)}</span></div>`;
+}
+registerPanels(Lab.$('#info'), ORDER, k => infoMarkup(k));
 function renderInfo(){
   const box = Lab.$('#info'), k = App.sel;
   if (!k){
@@ -443,17 +492,12 @@ function renderInfo(){
       <div class="nav"><button id="startBtn">${Lab.L(o('Start with Zheng He ▶','从郑和开始 ▶'))}</button></div>`;
     Lab.$('#startBtn').onclick = () => sail('zheng'); return;
   }
-  const v = V[k], i = ORDER.indexOf(k);
-  box.innerHTML = `<span class="tag">${Lab.L(v.date)}</span><h3><span class="dot" style="background:${v.c}"></span>${Lab.L(v.who)}</h3>
-    <div class="job">${Lab.L(v.job)}</div>
-    <div class="pill">${v.ships ? `🚢 ${k === 'zheng' ? '200+' : v.ships} · ` : ''}${v.crew ? `👥 ${k === 'zheng' ? '27,800' : '~' + v.crew} · ` : ''}📏 ${fmtKm(LEN[k])}</div>
-    <b class="kh">${Lab.L(o('📌 KEY FACTS','📌 要点'))}</b><ul>${Lab.L(v.facts).map(f => `<li>${f}</li>`).join('')}</ul>
-    <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(v.rhyme)}</div>
-    <div class="mix"><b>${Lab.L(o('⚠️ Don’t mix up:','⚠️ 易错点：'))}</b><span>${Lab.L(v.mix)}</span></div>
+  const i = ORDER.indexOf(k);
+  box.innerHTML = infoMarkup(k) + `
     <div class="btnrow"><button class="btn" id="sailBtn">${Lab.L(o('⛵ Sail this route','⛵ 播放这条航线'))}</button><button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button></div>
     <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
   Lab.$('#sailBtn').onclick = () => sail(k);
-  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(v.who), Lab.L(v.date), Lab.L(v.job), ...Lab.L(v.facts)].join(Lab.lang === 'zh' ? '。' : '. '));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box);
   Lab.$('#pPrev').onclick = () => { const n = ORDER[(i - 1 + ORDER.length) % ORDER.length]; if (App.year < V[n].paths[0].b) go(V[n].paths[V[n].paths.length - 1].b); select(n); };
   Lab.$('#pNext').onclick = () => { const n = ORDER[(i + 1) % ORDER.length]; if (App.year < V[n].paths[0].b) go(V[n].paths[V[n].paths.length - 1].b); select(n); };
 }
@@ -535,26 +579,33 @@ const DAYSEA = [ { n:o('Columbus 1492: Canaries → Bahamas','哥伦布1492年�
   }
   const add = s => { G.run += s; G.total += s; };
   function render(){ head(); if (G.leg === 0) legWind(); else if (G.leg === 1) legLat(); else if (G.leg === 2) legPac(); else finish(); }
+  const windBrief = s => `<div class="scard"><div class="when pline">${s.w}</div><h3>${Lab.L(s.h)}</h3><p style="margin:0">${Lab.L(s.p)}</p>`;
+  const windFeedback = c => `<div class="fb pline ${c.s === 10 ? 'good' : 'bad'}">${c.s === 10 ? '✅ ' : '🤔 '}${Lab.L(c.f)}</div>`;
+  registerPanels(box, WIND, s => windBrief(s) + '</div>');
+  registerPanels(box, WIND.flatMap(s => s.c), windFeedback);
   function legWind(){
     const s = WIND[G.card], best = 10;
     if (!G.ord || G.ordFor !== s){ G.ord = Lab.shuffle([0, 1, 2]); G.ordFor = s; }
-    box.innerHTML = `<div class="scard"><div class="when">${s.w}</div><h3>${Lab.L(s.h)}</h3><p style="margin:0">${Lab.L(s.p)}</p>
+    box.innerHTML = windBrief(s) + `
       <div class="choices">${G.ord.map(j => `<button data-j="${j}" ${G.ans != null ? 'disabled' : ''} class="${G.ans != null ? (s.c[j].s === best ? 'best' : G.ans === j ? 'meh' : '') : ''}">${Lab.L(s.c[j].t)}</button>`).join('')}</div>
-      ${G.ans != null ? `<div class="fb ${s.c[G.ans].s === best ? 'good' : 'bad'}">${s.c[G.ans].s === best ? '✅ ' : '🤔 '}${Lab.L(s.c[G.ans].f)}</div><div class="btnrow"><button class="btn" id="gGo">${Lab.L(o('Next ▶','下一步 ▶'))}</button></div>` : ''}</div>`;
+      ${G.ans != null ? `${windFeedback(s.c[G.ans])}<div class="btnrow"><button class="btn" id="gGo">${Lab.L(o('Next ▶','下一步 ▶'))}</button></div>` : ''}</div>`;
     Lab.$$('#gBox .choices button').forEach(b => b.onclick = () => { G.ans = +b.dataset.j; add(s.c[G.ans].s); render(); });
     const n = Lab.$('#gGo'); if (n) n.onclick = () => { G.ans = null; if (++G.card >= WIND.length){ G.leg = 1; G.card = 0; G.lat = 28; G.day = 0; G.log = []; G.fc = fcast(); } render(); };
   }
   const fcast = () => Math.round((Math.random() * 2.2 - 1.1) * 10) / 10;
+  const latitudeBrief = (day = '') => `<div class="scard"><div class="when pline">Sept 1492<span data-noread>${day}</span></div>
+      <h3>${Lab.L(o('Leg 2: hold 28°N by the North Star','第2段：用北极星保持北纬28°'))}</h3>
+      <p style="margin:0">${Lab.L(o('The height of the North Star (Polaris) above the horizon equals your latitude. Columbus “ran down” about 28°N from the Canaries. Each day, read your quadrant, check the current, then steer.','北极星离地平线的高度角，就等于你所在的纬度。哥伦布从加那利群岛出发，大致沿北纬28°向西航行。每天读一读象限仪，看看洋流，然后掌舵。'))}</p>`;
+  const latitudeHistory = () => `<span class="pline">${Lab.L(o('On 12 October 1492 Columbus’s lookout sighted an island in the Bahamas.','1492年10月12日，哥伦布的瞭望员看见了巴哈马群岛中的一座岛。'))}</span>`;
+  registerPanels(box, [null], () => latitudeBrief() + latitudeHistory() + '</div>');
   function legLat(){
     const off = G.lat - 28, sc = G.log.reduce((s, x) => s + x, 0);
-    box.innerHTML = `<div class="scard"><div class="when">Sept 1492 · ${Lab.L(o('day', '第'))} ${Math.min(G.day + 1, 10)}${Lab.lang === 'zh' ? ' 天' : ''} / 10</div>
-      <h3>${Lab.L(o('Leg 2: hold 28°N by the North Star','第2段：用北极星保持北纬28°'))}</h3>
-      <p style="margin:0">${Lab.L(o('The height of the North Star (Polaris) above the horizon equals your latitude. Columbus “ran down” about 28°N from the Canaries. Each day, read your quadrant, check the current, then steer.','北极星离地平线的高度角，就等于你所在的纬度。哥伦布从加那利群岛出发，大致沿北纬28°向西航行。每天读一读象限仪，看看洋流，然后掌舵。'))}</p>
+    box.innerHTML = latitudeBrief(` · ${Lab.L(o('day', '第'))} ${Math.min(G.day + 1, 10)}${Lab.lang === 'zh' ? ' 天' : ''} / 10`) + `
       <div class="sky"><canvas id="skyCv"></canvas></div>
       <div class="readout">${Lab.L(o('Quadrant: Polaris at', '象限仪：北极星高度'))} <b>${(G.lat + (Math.random() - .5) * .2).toFixed(1)}°</b> → ${Lab.L(o('latitude ≈', '纬度约'))} ${G.lat.toFixed(1)}°N · ${Lab.L(o('target 28.0°N', '目标 北纬28.0°'))} · ${Lab.L(o('score', '得分'))} ${sc}/30<br>
         ${G.day < 10 ? `🌊 ${Lab.L(o(`Today’s wind & current will push you about ${Math.abs(G.fc).toFixed(1)}° ${G.fc >= 0 ? 'north' : 'south'} (give or take a little).`, `今天的风和洋流大约会把你推向${G.fc >= 0 ? '北' : '南'} ${Math.abs(G.fc).toFixed(1)}°（会有一点误差）。`))}` : ''}</div>
       ${G.day < 10 ? `<div class="tiles" id="steer">${[[1, '⬆ 1° N', '⬆ 向北 1°'], [.5, '↑ ½° N', '↑ 向北 ½°'], [0, '⏺ hold', '⏺ 保持'], [-.5, '↓ ½° S', '↓ 向南 ½°'], [-1, '⬇ 1° S', '⬇ 向南 1°']].map(s => `<button data-s="${s[0]}">${Lab.lang === 'zh' ? s[2] : s[1]}</button>`).join('')}</div>`
-        : `<div class="fb ${sc >= 22 ? 'good' : 'bad'}">${Lab.L(o(`Landfall! You kept close to 28°N on ${G.log.filter(x => x >= 3).length} of 10 days. On 12 October 1492 Columbus’s lookout sighted an island in the Bahamas.`, `看见陆地了！10天中你有 ${G.log.filter(x => x >= 3).length} 天紧贴北纬28°。1492年10月12日，哥伦布的瞭望员看见了巴哈马群岛中的一座岛。`))}</div><div class="btnrow"><button class="btn" id="gGo">${Lab.L(o('Next leg ▶','下一段 ▶'))}</button></div>`}</div>`;
+        : `<div class="fb ${sc >= 22 ? 'good' : 'bad'}">${Lab.L(o(`Landfall! You kept close to 28°N on ${G.log.filter(x => x >= 3).length} of 10 days. `, `看见陆地了！10天中你有 ${G.log.filter(x => x >= 3).length} 天紧贴北纬28°。`))}${latitudeHistory()}</div><div class="btnrow"><button class="btn" id="gGo">${Lab.L(o('Next leg ▶','下一段 ▶'))}</button></div>`}</div>`;
     drawSky();
     Lab.$$('#steer button').forEach(b => b.onclick = () => { const real = G.fc + (Math.random() - .5) * .5; G.lat = Math.round((G.lat + +b.dataset.s + real) * 100) / 100;
       const d = Math.abs(G.lat - 28), pts = d <= .5 ? 3 : d <= 1 ? 2 : d <= 1.5 ? 1 : 0; G.log.push(pts); add(pts); G.day++; G.fc = fcast(); render(); });
@@ -576,10 +627,14 @@ const DAYSEA = [ { n:o('Columbus 1492: Canaries → Bahamas','哥伦布1492年�
     g.fillText(Lab.L(o('★ Polaris', '★ 北极星')), sx + 8, sy - 4); g.fillStyle = '#9fe6a8'; g.fillText(Lab.L(o('target 28°', '目标 28°')), ox + Math.cos(.489) * R0 * .7, hy - Math.sin(.489) * R0 * .7 + 16);
     g.fillStyle = '#c9d6ee'; g.fillText(Lab.L(o('horizon (north)', '地平线（正北）')), ox, hy + 18);
   }
+  const pacificBrief = () => `<div class="scard"><div class="when pline">Nov 1520</div><h3>${Lab.L(o('Leg 3: pack for the unknown ocean','第3段：为未知的大洋备粮'))}</h3>
+      <p style="margin:0">${Lab.L(o(`Magellan’s ships leave the strait into a huge, unknown ocean. The best maps of 1520 say Asia is only a few weeks away. Your holds have ${SLOTS} slots. Each slot of water or biscuit feeds the crew for 1 week. Fresh fruit stops scurvy, but rots after about 3 weeks. Empty slots carry trade goods for profit.`, `麦哲伦的船队驶出海峡，进入一片巨大而陌生的大洋。1520年最好的地图说，几个星期就能到亚洲。你的货舱有${SLOTS}格：每格淡水或饼干够全体船员吃1周；新鲜水果能防坏血病，但大约3周就会烂掉；剩下的格子装货物，可以赚钱。`))}</p>`;
+  const pacificFigure = () => `<p class="src">${Lab.L(o('Data figure: days out of sight of land on three famous voyages (approx., from the voyage logs as summarised by historians). Dashed line ≈ 6 weeks, about when scurvy (坏血病, lack of vitamin C) starts without fresh food.', '数据图：三次著名航行中看不到陆地的天数（约数，依据历史学家整理的航海日志）。虚线约为6周——没有新鲜食物时，坏血病（缺乏维生素C）大约在这时开始出现。'))}</p>`;
+  const pacificHistory = () => `<span class="pline">${Lab.L(o('The real crew ate leather from the rigging and sawdust; about 19 died (Pigafetta).','真实的船员吃过帆索上的皮革和木屑，据皮加费塔记载约19人死亡。'))}</span>`;
+  registerPanels(box, [null], () => pacificBrief() + pacificFigure() + pacificHistory() + '</div>');
   function legPac(){
     const used = G.W + G.F + G.Fr, Gd = SLOTS - used, res = G.res;
-    box.innerHTML = `<div class="scard"><div class="when">Nov 1520</div><h3>${Lab.L(o('Leg 3: pack for the unknown ocean','第3段：为未知的大洋备粮'))}</h3>
-      <p style="margin:0">${Lab.L(o(`Magellan’s ships leave the strait into a huge, unknown ocean. The best maps of 1520 say Asia is only a few weeks away. Your holds have ${SLOTS} slots. Each slot of water or biscuit feeds the crew for 1 week. Fresh fruit stops scurvy, but rots after about 3 weeks. Empty slots carry trade goods for profit.`, `麦哲伦的船队驶出海峡，进入一片巨大而陌生的大洋。1520年最好的地图说，几个星期就能到亚洲。你的货舱有${SLOTS}格：每格淡水或饼干够全体船员吃1周；新鲜水果能防坏血病，但大约3周就会烂掉；剩下的格子装货物，可以赚钱。`))}</p>
+    box.innerHTML = pacificBrief() + `
       <div class="prov">
         <label>💧 ${Lab.L(o('Water (weeks)','淡水（周）'))}: <b>${G.W}</b><input type="range" min="0" max="20" value="${G.W}" data-k="W" ${res ? 'disabled' : ''}></label>
         <label>🍞 ${Lab.L(o('Ship’s biscuit & salt meat (weeks)','饼干和咸肉（周）'))}: <b>${G.F}</b><input type="range" min="0" max="20" value="${G.F}" data-k="F" ${res ? 'disabled' : ''}></label>
@@ -587,16 +642,16 @@ const DAYSEA = [ { n:o('Columbus 1492: Canaries → Bahamas','哥伦布1492年�
         <label>📦 ${Lab.L(o('Trade goods (slots left)','货物（剩余格数）'))}: <b style="color:${Gd < 0 ? 'var(--bad)' : 'inherit'}">${Gd}</b><span class="muted" style="font-size:12.5px">${Lab.L(o('Over the limit? Take something out.','超出了？请减少一些。'))}</span></label>
       </div>
       <div class="chart" style="height:210px"><canvas id="pacCv"></canvas></div>
-      <p class="src">${Lab.L(o('Data figure: days out of sight of land on three famous voyages (approx., from the voyage logs as summarised by historians). Dashed line ≈ 6 weeks, about when scurvy (坏血病, lack of vitamin C) starts without fresh food.', '数据图：三次著名航行中看不到陆地的天数（约数，依据历史学家整理的航海日志）。虚线约为6周——没有新鲜食物时，坏血病（缺乏维生素C）大约在这时开始出现。'))}</p>
-      ${res ? `<div class="fb ${res.pts >= 24 ? 'good' : 'bad'}">${Lab.L(res.msg)}</div><div class="btnrow"><button class="btn" id="gGo">${Lab.L(o('See your voyage result ▶','查看航行结果 ▶'))}</button></div>`
+      ${pacificFigure()}
+      ${res ? `<div class="fb ${res.pts >= 24 ? 'good' : 'bad'}">${Lab.L(res.msg)}${pacificHistory()}</div><div class="btnrow"><button class="btn" id="gGo">${Lab.L(o('See your voyage result ▶','查看航行结果 ▶'))}</button></div>`
         : `<div class="btnrow"><button class="btn" id="gSail" ${Gd < 0 ? 'disabled' : ''}>${Lab.L(o('⛵ Sail into the Pacific','⛵ 驶入太平洋'))}</button></div>`}</div>`;
     Lab.$$('#gBox .prov input').forEach(inp => inp.oninput = () => { G[inp.dataset.k] = +inp.value; inp.previousElementSibling.textContent = inp.value;
       const left = SLOTS - G.W - G.F - G.Fr, gb = Lab.$$('#gBox .prov label b')[3]; gb.textContent = left; gb.style.color = left < 0 ? 'var(--bad)' : 'inherit'; const sb = Lab.$('#gSail'); if (sb) sb.disabled = left < 0; });
     drawPac();
     const s = Lab.$('#gSail'); if (s) s.onclick = () => { const h = voyageHealth(G.W, G.F, G.Fr), goods = Math.max(0, Math.min(SLOTS - G.W - G.F - G.Fr, 5)), pts = Math.round(30 * (h + 2 * goods) / BEST);
       const scurvyDay = 42 + 7 * Math.min(G.Fr, 3), short = 7 * Math.min(G.W, G.F);
-      G.res = { pts, h, msg:o(`Day 98: land at last (Guam)! Crew health ${Math.round(h)}/100. ${short < DAYS ? `Your ${G.W < G.F ? 'water' : 'food'} would have run out on day ${short}, so the crew went on short rations. ` : 'You never ran out of water or food. '}Scurvy began around day ${Math.min(scurvyDay, 98)}. Points: ${pts}/30. The real crew ate leather from the rigging and sawdust; about 19 died (Pigafetta).`,
-        `第98天，终于看见陆地（关岛）！船员健康度 ${Math.round(h)}/100。${short < DAYS ? `你的${G.W < G.F ? '淡水' : '食物'}本来第${short}天就会吃完，所以船员只能减量配给。` : '你的淡水和食物一直没有断。'}坏血病大约从第${Math.min(scurvyDay, 98)}天开始。得分：${pts}/30。真实的船员吃过帆索上的皮革和木屑，据皮加费塔记载约19人死亡。`) };
+      G.res = { pts, h, msg:o(`Day 98: land at last (Guam)! Crew health ${Math.round(h)}/100. ${short < DAYS ? `Your ${G.W < G.F ? 'water' : 'food'} would have run out on day ${short}, so the crew went on short rations. ` : 'You never ran out of water or food. '}Scurvy began around day ${Math.min(scurvyDay, 98)}. Points: ${pts}/30. `,
+        `第98天，终于看见陆地（关岛）！船员健康度 ${Math.round(h)}/100。${short < DAYS ? `你的${G.W < G.F ? '淡水' : '食物'}本来第${short}天就会吃完，所以船员只能减量配给。` : '你的淡水和食物一直没有断。'}坏血病大约从第${Math.min(scurvyDay, 98)}天开始。得分：${pts}/30。`) };
       add(pts); render(); };
     const n = Lab.$('#gGo'); if (n) n.onclick = () => { G.leg = 3; render(); };
   }
@@ -610,10 +665,13 @@ const DAYSEA = [ { n:o('Columbus 1492: Canaries → Bahamas','哥伦布1492年�
     g.setLineDash([5, 4]); g.strokeStyle = css('--bad'); g.lineWidth = 1.5; g.beginPath(); g.moveTo(X(42), 4); g.lineTo(X(42), r.height - 18); g.stroke(); g.setLineDash([]);
     g.fillStyle = css('--bad'); g.font = '800 11px Nunito, "Microsoft YaHei", sans-serif'; g.textAlign = 'center'; g.fillText(Lab.L(o('~42 days: scurvy risk', '约42天：坏血病风险')), X(42), r.height - 5);
   }
+  const homeBrief = () => `<div class="scard"><div class="when pline">Sept 1522</div><h3>${Lab.L(o('Home: the Victoria reaches Spain','回到家乡：“维多利亚号”抵达西班牙'))}</h3>`;
+  const homeHistory = () => `<span class="pline">${Lab.L(o('Only 18 of about 270 men made it all the way round — but they proved that all the oceans are connected.','约270人中只有18人完成了环球航行——但他们证明了世界各大洋是连在一起的。'))}</span>`;
+  registerPanels(box, [null], () => homeBrief() + homeHistory() + '</div>');
   function finish(){
     const st = G.run >= 68 ? 3 : G.run >= 50 ? 2 : G.run >= 30 ? 1 : 0;
-    box.innerHTML = `<div class="scard"><div class="when">Sept 1522</div><h3>${Lab.L(o('Home: the Victoria reaches Spain','回到家乡：“维多利亚号”抵达西班牙'))}</h3>
-      <p class="stars" style="margin:0">${stars(st)}</p><p style="margin:0">${Lab.L(o(`This voyage: ${G.run}/80. Only 18 of about 270 men made it all the way round — but they proved that all the oceans are connected.`, `本次航行：${G.run}/80。约270人中只有18人完成了环球航行——但他们证明了世界各大洋是连在一起的。`))}</p>
+    box.innerHTML = homeBrief() + `
+      <p class="stars" style="margin:0">${stars(st)}</p><p style="margin:0"><span data-noread>${Lab.L(o(`This voyage: ${G.run}/80. `, `本次航行：${G.run}/80。`))}</span>${homeHistory()}</p>
       <div class="btnrow"><button class="btn" id="gAgain">${Lab.L(o('Sail again ▶','再航行一次 ▶'))}</button></div></div>`;
     Lab.$('#gAgain').onclick = () => { G.n++; G.run = 0; G.leg = 0; G.card = 0; G.ans = null; G.res = null; G.W = 10; G.F = 10; G.Fr = 2; render(); };
   }

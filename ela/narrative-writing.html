@@ -300,18 +300,72 @@ function missionBoard(el, { key, list, ranks }){
   };
 }
 /* Info panel with key ideas: T = {key:{color, name, job, facts:{en:[],zh:[]}, hint, mix}} */
+// Use the same read-aloud units for the crawler and the panel's Listen button.
+const PANEL_PARTS = '.tag,h3,h4,.job,p,li,.memory,.mix,figcaption,.quote';
+function panelUnits(el, selector = PANEL_PARTS, visibleOnly = false){
+  const nodes = selector ? el.querySelectorAll(selector) : [el];
+  const out = [];
+  for (const node of nodes){
+    if (visibleOnly && !node.getClientRects().length) continue;
+    const unit = Lab.readUnits(node);
+    if (!unit) continue;
+    const style = node.closest('[data-read-style]');
+    for (const text of unit.parts){
+      out.push(style ? [text, unit.lang, {style:style.dataset.readStyle, work:style.dataset.work}] : [text, unit.lang]);
+    }
+  }
+  return out;
+}
+function speakPanel(el, selector){
+  const parts = panelUnits(el, selector, true);
+  let i = 0;
+  const next = ok => {
+    if (ok === false || i >= parts.length) return;
+    const [text, lang] = parts[i++];
+    Lab.speak(text, {lang, inner:true, onend:next});
+  };
+  next();
+}
+function collectPanelTexts(host, items, render, selector){
+  if (!host?.parentElement) return [];
+  const tmp = host.cloneNode(false);
+  tmp.removeAttribute('id');
+  tmp.removeAttribute('aria-live');
+  tmp.style.cssText = 'position:absolute;left:-10000px;top:0;box-sizing:border-box;width:' + (host.offsetWidth || 360) + 'px';
+  host.after(tmp);
+  const out = [];
+  try {
+    for (const item of items){
+      render(tmp, item);
+      out.push(...panelUnits(tmp, selector));
+    }
+  } finally { tmp.remove(); }
+  return out;
+}
+function registerPanelValues(host, items, value){
+  Lab.readAll(() => collectPanelTexts(Lab.$(host), items, (tmp, item) => { tmp.textContent = value(item); }, null));
+}
+function registerPanelTexts(host, items, markup, selector){
+  Lab.readAll(() => collectPanelTexts(Lab.$(host), items, (tmp, item) => { tmp.innerHTML = markup(item); }, selector));
+}
 function infoPanel(box, chips, T, order){
   let sel = order[0];
-  function render(){
-    const d = T[sel], i = order.indexOf(sel), n = order.length;
-    box.innerHTML = `<span class="tag">${L(o('Key idea', '核心概念'))} ${i + 1} / ${n}</span>
+  const n = order.length;
+  function markup(k){
+    const d = T[k], i = order.indexOf(k);
+    return `<span class="tag">${L(o('Key idea', '核心概念'))} ${i + 1} / ${n}</span>
       <h3><span class="dot" style="background:${d.color}"></span>${L(d.name)}</h3><div class="job">${L(d.job)}</div>
       <ul>${L(d.facts).map(f => `<li>${f}</li>`).join('')}</ul>
       <div class="memory"><b>${L(o('💡 Memory hint', '💡 记忆小窍门'))}</b>${L(d.hint)}</div>
-      <div class="mix"><b>${L(o('⚠️ Common mix-up:', '⚠️ 易错点：'))}</b><span>${L(d.mix)}</span></div>
+      <div class="mix"><b>${L(o('⚠️ Common mix-up:', '⚠️ 易错点：'))}</b><span>${L(d.mix)}</span></div>`;
+  }
+  Lab.readAll(() => collectPanelTexts(box, order, (tmp, k) => { tmp.innerHTML = markup(k); }));
+  function render(){
+    const i = order.indexOf(sel);
+    box.innerHTML = markup(sel) + `
       <button class="speak">${L(Lab.UI.listen)}</button>
       <div class="nav"><button data-d="-1">${L(o('◀ Previous', '◀ 上一个'))}</button><button data-d="1">${L(o('Next ▶', '下一个 ▶'))}</button></div>`;
-    box.querySelector('.speak').onclick = () => Lab.speak([L(d.name), L(d.job), ...L(d.facts), L(d.hint), L(d.mix)].join('. ').replace(/<[^>]+>/g, ''));
+    box.querySelector('.speak').onclick = () => speakPanel(box);
     box.querySelectorAll('.nav button').forEach(b => b.onclick = () => { sel = order[(i + +b.dataset.d + n) % n]; render(); });
     chips.innerHTML = order.map(k => `<button class="chip ${k === sel ? 'on' : ''}" data-k="${k}"><i style="background:${T[k].color}"></i>${L(T[k].name)}</button>`).join('');
     chips.querySelectorAll('.chip').forEach(c => c.onclick = () => { sel = c.dataset.k; render(); });
@@ -404,14 +458,18 @@ const HOOKS = [
 ];
 const hk = { order:[], i:0, score:0, answered:false, pick:null };
 function hkStart(){ hk.order = Lab.shuffle(HOOKS.map((_, i) => i)); hk.i = 0; hk.score = 0; hk.answered = false; hk.pick = null; hkRender(); }
+const hookMarkup = it => `${esc(it.en)}<small>— ${esc(it.src === 'Original example' ? L(o('Original example', '原创例句')) : it.src)}${zh() ? `　${it.zh}` : ''}</small>`;
+registerPanelTexts('#hkText', HOOKS, hookMarkup, null);
+const hookFeedback = (it, ok) => ok ? L(o('✅ Yes! ', '✅ 对！')) + L(HTYPES[it.a]) : L(o('❌ This one is: ', '❌ 这一个是：')) + L(HTYPES[it.a]);
+registerPanelValues('#hkFb', HOOKS.flatMap(it => [[it,true],[it,false]]), args => hookFeedback(...args));
 function hkRender(){
   const done = hk.i >= HOOKS.length, it = done ? null : HOOKS[hk.order[hk.i]];
   Lab.$('#hkScore').innerHTML = `<span>${zh() ? `第 ${Math.min(hk.i + 1, 8)} / 8 个` : `Opening ${Math.min(hk.i + 1, 8)} / 8`}</span><span>✅ ${hk.score}</span>`;
-  Lab.$('#hkText').innerHTML = done ? L(o(`Done: ${hk.score} / 8 hooks named.`, `完成：认出 ${hk.score} / 8 个钩子。`)) : `${esc(it.en)}<small>— ${esc(it.src === 'Original example' ? L(o('Original example', '原创例句')) : it.src)}${zh() ? `　${it.zh}` : ''}</small>`;
+  Lab.$('#hkText').innerHTML = done ? L(o(`Done: ${hk.score} / 8 hooks named.`, `完成：认出 ${hk.score} / 8 个钩子。`)) : hookMarkup(it);
   Lab.$('#hkBtns').innerHTML = done ? '' : Object.keys(HTYPES).map(k => `<button class="choice ${hk.answered ? (k === it.a ? 'right' : k === hk.pick ? 'wrong' : '') : ''}" data-k="${k}" ${hk.answered ? 'disabled' : ''}>${L(HTYPES[k])}</button>`).join('');
   Lab.$('#hkNext').textContent = done ? L(o('Play again ↺', '再玩一次 ↺')) : L(o('Next ▶', '下一个 ▶'));
   Lab.$('#hkNext').disabled = !done && !hk.answered;
-  const fb = Lab.$('#hkFb'); if (!hk.answered){ fb.textContent = ''; fb.className = 'fbk'; } else { const ok = hk.pick === it.a; fb.className = 'fbk ' + (ok ? 'good' : 'bad'); fb.textContent = ok ? L(o('✅ Yes! ', '✅ 对！')) + L(HTYPES[it.a]) : L(o('❌ This one is: ', '❌ 这一个是：')) + L(HTYPES[it.a]); }
+  const fb = Lab.$('#hkFb'); if (!hk.answered){ fb.textContent = ''; fb.className = 'fbk'; } else { const ok = hk.pick === it.a; fb.className = 'fbk ' + (ok ? 'good' : 'bad'); fb.textContent = hookFeedback(it, ok); }
   Lab.$$('#hkBtns .choice').forEach(b => b.onclick = () => { if (hk.answered) return; hk.answered = true; hk.pick = b.dataset.k; if (hk.pick === it.a) hk.score++; INFO.select('hook'); hkRender(); });
 }
 Lab.$('#hkNext').onclick = () => { if (hk.i >= HOOKS.length) return hkStart(); hk.i++; hk.answered = false; hk.pick = null;
@@ -455,18 +513,25 @@ const SBNOTE = {
   climax:p => p >= 20 ? o('Slowed down moment by moment, with senses. That’s a climax!', '一刻一刻放慢，还有感官细节，这才是高潮！') : o('Rushed: the biggest moment got one tiny sentence.', '太仓促：最重要的时刻只用了一小句。'),
   ending:p => p >= 18 ? o('Connects back to the conflict and shows what changed.', '呼应了冲突，也写出了变化。') : o('“It was all a dream” cancels the whole story.', '“原来是一场梦”让整个故事作废了。')
 };
+const storyNote = (k, p) => L(SBW[k]) + (zh() ? '：' : ': ') + L(SBNOTE[k](p));
+const storyChoices = SEEDS.flatMap(s => Object.keys(SB).flatMap(k => s[k].map(choice => [k, choice])));
+registerPanelTexts('#sbStory', storyChoices, ([,choice]) => esc(choice.en), null);
+registerPanelTexts('#sbFb', storyChoices, ([k,choice]) => storyNoteMarkup(storyNote(k, choice.p)), 'li');
+const storyChoiceMarkup = p => `${p.t && p.t !== 'weak' ? `<span class="htype">${L(HTYPES[p.t])}</span><br>` : ''}${esc(p.en)}${zh() ? `<small>${p.zh}</small>` : ''}`;
+registerPanelTexts('#sbSteps', storyChoices, ([,choice]) => `<div class="choice">${storyChoiceMarkup(choice)}</div>`, '.choice');
+const storyNoteMarkup = note => `<li>${esc(note)}</li>`;
 function sbRender(){
   const S = SEEDS[seed];
   Lab.$('#seedSeg').innerHTML = SEEDS.map((x, i) => `<button class="${i === seed ? 'on' : ''}" data-i="${i}">${L(x.name)}</button>`).join('');
   Lab.$$('#seedSeg button').forEach(b => b.onclick = () => { seed = +b.dataset.i; Object.keys(SB).forEach(k => SB[k] = null); sbRender(); });
-  const step = (n, k, title) => `<div class="step"><h4><span class="stepnum">${n}</span>${L(title)}</h4><div class="choices">${S[k].map((p, i) => `<button class="choice ${SB[k] === i ? 'on' : ''}" data-k="${k}" data-i="${i}">${p.t && p.t !== 'weak' ? `<span class="htype">${L(HTYPES[p.t])}</span><br>` : ''}${esc(p.en)}${zh() ? `<small>${p.zh}</small>` : ''}</button>`).join('')}</div></div>`;
+  const step = (n, k, title) => `<div class="step"><h4><span class="stepnum">${n}</span>${L(title)}</h4><div class="choices">${S[k].map((p, i) => `<button class="choice ${SB[k] === i ? 'on' : ''}" data-k="${k}" data-i="${i}">${storyChoiceMarkup(p)}</button>`).join('')}</div></div>`;
   Lab.$('#sbSteps').innerHTML = step(1, 'hook', o('Pick a hook', '选一个开头')) + step(2, 'conflict', o('Add the conflict', '加入冲突')) + step(3, 'climax', o('Write the climax', '写高潮')) + step(4, 'ending', o('Choose an ending', '选择结尾'));
   Lab.$$('#sbSteps .choice').forEach(b => b.onclick = () => { SB[b.dataset.k] = +b.dataset.i; INFO.select({ hook:'hook', conflict:'conflict', climax:'pacing', ending:'ending' }[b.dataset.k]); sbRender(); });
   let total = 0; const notes = [];
-  Lab.$('#sbRubric').innerHTML = Object.keys(SB).map(k => { const p = SB[k] != null ? S[k][SB[k]].p : 0; total += p; if (SB[k] != null) notes.push(L(SBW[k]) + (zh() ? '：' : ': ') + L(SBNOTE[k](p)));
+  Lab.$('#sbRubric').innerHTML = Object.keys(SB).map(k => { const p = SB[k] != null ? S[k][SB[k]].p : 0; total += p; if (SB[k] != null) notes.push(storyNote(k, p));
     return `<div><span>${L(SBW[k])}</span><div class="meter"><i style="width:${p / SBMAX[k] * 100}%"></i></div><em>${p}</em></div>`; }).join('');
   Lab.$('#sbTotal').innerHTML = `<span>${L(o('Reader grip', '读者吸引力'))}${zh() ? '：' : ': '}${total} / 100</span>`;
-  Lab.$('#sbFb').innerHTML = notes.map(n => `<li>${esc(n)}</li>`).join('') || `<li>${L(o('Make a choice on the left.', '在左边做出选择。'))}</li>`;
+  Lab.$('#sbFb').innerHTML = notes.map(storyNoteMarkup).join('') || `<li>${L(o('Make a choice on the left.', '在左边做出选择。'))}</li>`;
   const parts = Object.keys(SB).filter(k => SB[k] != null).map(k => S[k][SB[k]].en);
   Lab.$('#sbStory').innerHTML = parts.length ? esc(parts.join(' ')) : `<span class="muted">${L(o('Your story appears here.', '你的故事会出现在这里。'))}</span>`;
   if (Object.values(SB).every(v => v != null)) MB.award('build', total >= 100 ? 3 : total >= 80 ? 2 : total >= 60 ? 1 : 0);
@@ -484,10 +549,15 @@ const DLG = [
 const MARKS = ['“', '”', ',', '.', '?', '!'];
 const dl = { i:0, gaps:[], mark:'“', tries:0, firstRight:0, solved:{} };
 function dlLoad(){ dl.gaps = DLG[dl.i].g.map(() => ''); dl.tries = 0; dlRender(); Lab.$('#dFb').textContent = ''; Lab.$('#dFb').className = 'fbk'; }
+function dialogueMarkup(D, gap = () => ''){
+  return D.w.map((w, k) => gap(k) + ' ' + `<span>${esc(w)}</span>` + ' ').join('') + gap(D.w.length);
+}
+const dialogueRule = (D, shown) => (shown ? '💡 ' : '✅ ') + L(D.rule);
+registerPanelTexts('#dLine', DLG, dialogueMarkup, null);
+registerPanelValues('#dFb', DLG, D => dialogueRule(D, false));
 function dlRender(check){
   const D = DLG[dl.i];
-  let h = ''; D.w.forEach((w, k) => { h += gapBtn(k, check) + ' ' + `<span>${esc(w)}</span>` + ' '; }); h += gapBtn(D.w.length, check);
-  Lab.$('#dLine').innerHTML = h;
+  Lab.$('#dLine').innerHTML = dialogueMarkup(D, k => gapBtn(k, check));
   Lab.$('#dScore').innerHTML = `<span>${zh() ? `第 ${dl.i + 1} / 5 句` : `Line ${dl.i + 1} / 5`}</span><span>✅ ${L(o('First-try fixes', '一次做对'))}${zh() ? '：' : ': '}${dl.firstRight}</span>`;
   Lab.$('#dPal').innerHTML = MARKS.map(m => `<button class="${dl.mark === m ? 'on' : ''}" data-m="${m}" aria-label="${m}">${m}</button>`).join('') + `<button class="erase ${dl.mark === '' ? 'on' : ''}" data-m="">⌫ ${L(o('Eraser', '橡皮擦'))}</button>`;
   Lab.$$('#dPal button').forEach(b => b.onclick = () => { dl.mark = b.dataset.m; dlRender(); });
@@ -496,10 +566,10 @@ function dlRender(check){
     return `<button class="gap ${cls}" data-k="${k}" aria-label="gap ${k + 1}">${v ? esc(v) : '·'}</button>`; }
 }
 Lab.$('#dCheck').onclick = () => { const D = DLG[dl.i], wrong = D.g.filter((x, k) => dl.gaps[k] !== x).length, fb = Lab.$('#dFb'); dl.tries++; dlRender(true); INFO.select('dialogue');
-  if (!wrong){ fb.className = 'fbk good'; fb.textContent = '✅ ' + L(D.rule); if (!dl.solved[dl.i]){ dl.solved[dl.i] = true; if (dl.tries === 1) dl.firstRight++;
+  if (!wrong){ fb.className = 'fbk good'; fb.textContent = dialogueRule(D, false); if (!dl.solved[dl.i]){ dl.solved[dl.i] = true; if (dl.tries === 1) dl.firstRight++;
       if (Object.keys(dl.solved).length === DLG.length) MB.award('dlg', Math.min(3, Math.floor(dl.firstRight / 2) + (dl.firstRight === 5 ? 1 : 0))); dlRender(true); } }
   else { fb.className = 'fbk bad'; fb.textContent = L(o(`${wrong} gap(s) need fixing (red). Hint: `, `有 ${wrong} 个空格不对（红色）。提示：`)) + L(D.rule); } };
-Lab.$('#dShow').onclick = () => { dl.gaps = DLG[dl.i].g.slice(); dl.tries = 99; dlRender(true); Lab.$('#dFb').className = 'fbk'; Lab.$('#dFb').textContent = '💡 ' + L(DLG[dl.i].rule); };
+Lab.$('#dShow').onclick = () => { dl.gaps = DLG[dl.i].g.slice(); dl.tries = 99; dlRender(true); Lab.$('#dFb').className = 'fbk'; Lab.$('#dFb').textContent = dialogueRule(DLG[dl.i], true); };
 Lab.$('#dNext').onclick = () => { dl.i = (dl.i + 1) % DLG.length; dlLoad(); };
 
 /* ===================== 4. Pacing ===================== */
@@ -529,11 +599,15 @@ const MOMENTS = [
 let mIdx = 0; const paceDone = {};
 const words = s => s.trim().split(/\s+/).length, readSecs = s => words(s) / 200 * 60;
 const fmtT = s => s >= 120 ? (zh() ? `${Math.round(s / 60)} 分钟` : `${Math.round(s / 60)} min`) : (zh() ? `${Math.round(s)} 秒` : `${Math.round(s)} s`);
+const pacingMarkup = txt => esc(txt) + (zh() ? `<small>${L(o('', '（英文原文。滑块越往右，写得越细、越慢。）'))}</small>` : '');
+registerPanelTexts('#paceText', MOMENTS.flatMap(m => m.v), pacingMarkup, null);
+const pacingFeedback = (moment, ok) => (ok ? '🎬 ' : L(o('✂️ Not quite: ', '✂️ 还不太对：'))) + L(moment.why);
+registerPanelValues('#paceFb', MOMENTS.flatMap(m => [[m,true],[m,false]]), args => pacingFeedback(...args));
 function paceRender(){
   const M = MOMENTS[mIdx], lv = +Lab.$('#paceR').value, txt = M.v[lv - 1], rs = readSecs(txt), ratio = rs / M.secs;
   Lab.$('#paceSeg').innerHTML = MOMENTS.map((x, i) => `<button class="${i === mIdx ? 'on' : ''}" data-i="${i}">${paceDone[i] ? '✅ ' : ''}${L(x.name)}</button>`).join('');
   Lab.$$('#paceSeg button').forEach(b => b.onclick = () => { mIdx = +b.dataset.i; Lab.$('#paceR').value = 1; Lab.$('#paceFb').textContent = ''; Lab.$('#paceFb').className = 'fbk'; paceRender(); });
-  Lab.$('#paceText').innerHTML = esc(txt) + (zh() ? `<small>${L(o('', '（英文原文。滑块越往右，写得越细、越慢。）'))}</small>` : '');
+  Lab.$('#paceText').innerHTML = pacingMarkup(txt);
   Lab.$('#paceRead').innerHTML = `<div><small>${L(o('Words', '词数'))}</small><b>${words(txt)}</b></div><div><small>${L(o('Time in the story', '故事里的时间'))}</small><b>${L(M.storyTime)}</b></div><div><small>${L(o('Reading time', '阅读时间'))}</small><b>${fmtT(rs)}</b></div>`;
   paceFig.draw();
 }
@@ -554,7 +628,7 @@ const paceFig = { draw(){
 } };
 Lab.$('#paceR').oninput = paceRender;
 Lab.$('#paceGo').onclick = () => { const M = MOMENTS[mIdx], lv = +Lab.$('#paceR').value, ok = M.best.includes(lv), fb = Lab.$('#paceFb'); INFO.select('pacing');
-  fb.className = 'fbk ' + (ok ? 'good' : 'bad'); fb.textContent = (ok ? '🎬 ' : L(o('✂️ Not quite: ', '✂️ 还不太对：'))) + L(M.why);
+  fb.className = 'fbk ' + (ok ? 'good' : 'bad'); fb.textContent = pacingFeedback(M, ok);
   if (ok){ paceDone[mIdx] = true; const n = Object.keys(paceDone).length; MB.award('pace', n); paceRender(); } };
 new ResizeObserver(() => requestAnimationFrame(paceFig.draw)).observe(Lab.$('#paceFig')); addEventListener('labtheme', paceFig.draw);
 
@@ -589,12 +663,17 @@ const shuffledCards = SHOWS.map(s => Lab.shuffle(s.cards.map((_, i) => i)));
 function showScore(){ const S = SHOWS[sIdx], ks = sPick[sIdx].map(i => S.cards[i].k);
   let p = 0; ks.forEach(k => p += (k === 'tell' ? -25 : k === 'cliche' ? 10 : 30)); const kinds = new Set(ks.filter(k => k !== 'tell' && k !== 'cliche')).size;
   if (kinds >= 3) p += 10; return clamp(p, 0, 100); }
+const tellingMarkup = S => `${L(o('Telling:', '告诉：'))} <b>${esc(S.tell)}</b>${zh() ? `<small>${S.tellZh}</small>` : ''}`;
+registerPanelTexts('#showTell', SHOWS, tellingMarkup, null);
+registerPanelTexts('#showOut', SHOWS.flatMap(s => s.cards), card => esc(card.en), null);
+const showChoiceMarkup = c => `${esc(c.en)}${zh() ? `<small>${c.zh}</small>` : ''}`;
+registerPanelTexts('#showCards', SHOWS.flatMap(s => s.cards), c => `<div class="choice">${showChoiceMarkup(c)}</div>`, '.choice');
 function showRender(){
   const S = SHOWS[sIdx], pick = sPick[sIdx];
   Lab.$('#showSeg').innerHTML = SHOWS.map((x, i) => `<button class="${i === sIdx ? 'on' : ''}" data-i="${i}">${sDone[i] ? '✅ ' : ''}“${esc(x.tell)}”</button>`).join('');
   Lab.$$('#showSeg button').forEach(b => b.onclick = () => { sIdx = +b.dataset.i; showRender(); });
-  Lab.$('#showTell').innerHTML = `${L(o('Telling:', '告诉：'))} <b>${esc(S.tell)}</b>${zh() ? `<small>${S.tellZh}</small>` : ''}`;
-  Lab.$('#showCards').innerHTML = shuffledCards[sIdx].map(i => { const c = S.cards[i]; return `<button class="choice ${pick.includes(i) ? 'on' : ''}" data-i="${i}">${esc(c.en)}${zh() ? `<small>${c.zh}</small>` : ''}</button>`; }).join('');
+  Lab.$('#showTell').innerHTML = tellingMarkup(S);
+  Lab.$('#showCards').innerHTML = shuffledCards[sIdx].map(i => { const c = S.cards[i]; return `<button class="choice ${pick.includes(i) ? 'on' : ''}" data-i="${i}">${showChoiceMarkup(c)}</button>`; }).join('');
   Lab.$$('#showCards .choice').forEach(b => b.onclick = () => { const i = +b.dataset.i; sPick[sIdx] = pick.includes(i) ? pick.filter(x => x !== i) : [...pick, i].slice(-3); INFO.select('show'); showRender(); });
   const p = showScore(), ks = pick.map(i => S.cards[i].k), fb = Lab.$('#showFb');
   Lab.$('#showMeter').style.width = p + '%';

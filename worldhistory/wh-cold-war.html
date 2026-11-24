@@ -135,7 +135,7 @@
       <h3 data-zh="📊 数据：联合国会员国数量">📊 Data: number of UN member states</h3>
       <div class="chart" style="height:230px"><canvas id="unCv"></canvas></div>
       <p class="src" data-zh="来源：联合国“会员国增长”统计（1945—1991年）。1960年一年就有17个非洲国家独立并加入联合国，被称为“非洲独立年”。点击柱子查看。">Source: United Nations, “Growth in UN membership” (1945–1991). In 1960 alone 17 African countries became independent and joined — the “Year of Africa”. Click a bar.</p>
-      <div class="readout" id="unRead"></div>
+      <div class="readout pline" id="unRead"></div>
     </div>
     <div class="card cnstrip" id="cnStrip" style="margin-top:0"></div>
   </div>
@@ -174,7 +174,7 @@
       <h3 data-zh="🧱 分裂的柏林">🧱 Divided Berlin</h3>
       <div class="seg" id="berSeg"><button class="on" data-k="48" data-zh="1948 空运">1948 airlift</button><button data-k="61" data-zh="1961 建墙">1961 wall</button><button data-k="89" data-zh="1989 墙倒">1989 opening</button></div>
       <div class="berlin"><svg id="berSvg" viewBox="0 0 640 440" role="img" aria-label="Divided Berlin"></svg></div>
-      <div class="readout" id="berRead" aria-live="polite"></div>
+      <div class="readout pline" id="berRead" aria-live="polite"></div>
     </div>
   </div>
 </section>
@@ -309,6 +309,40 @@ const WMap = (() => {
   return { create, css, ZH };
 })();
 /* ===== shared helpers for the worldhistory lessons ===== */
+// Read the same units from the live panel and from each crawler-only render.
+const PANEL_PARTS = 'h3,h4,p,li,.job,.memory,.mix,.pline';
+function panelUnits(el){
+  if (!Lab.readUnits) return [];
+  const nodes = [...el.querySelectorAll(PANEL_PARTS)];
+  if (el.matches(PANEL_PARTS)) nodes.unshift(el);
+  return nodes.flatMap(node => {
+    const u = Lab.readUnits(node);
+    return u ? u.parts.map(t => [t, u.lang]) : [];
+  });
+}
+function speakPanel(el){
+  const parts = panelUnits(el); let i = 0;
+  const next = ok => {
+    if (ok === false || i >= parts.length) return;
+    const [t, lang] = parts[i++];
+    Lab.speak(t, { lang, inner:true, onend:next });
+  };
+  next();
+}
+function registerPanels(host, items, markup){
+  if (!Lab.readAll) return;
+  Lab.readAll(() => {
+    const tmp = host.cloneNode(false);
+    tmp.removeAttribute('id');
+    tmp.removeAttribute('aria-live');
+    tmp.setAttribute('aria-hidden', 'true');
+    tmp.style.cssText = 'position:absolute;left:-10000px;top:0;width:' + (host.offsetWidth || 360) + 'px';
+    host.parentElement.appendChild(tmp);
+    try {
+      return items.flatMap((item, i) => { tmp.innerHTML = markup(item, i); return panelUnits(tmp); });
+    } finally { tmp.remove(); }
+  });
+}
 const o = (en, zh) => ({en, zh});
 const css = WMap.css;
 const stars = n => '★'.repeat(n) + '☆'.repeat(3 - n);
@@ -422,6 +456,11 @@ function descr(n){ if (App.layer === 'indep'){ const y = INDEP[n]; return y ? (A
 function keyAt(h){ if (!h) return null; const V = M.view(h); let best = null, bd = 15; EORDER.forEach(k => { const e = EV[k]; if (App.year < e.y || !!e.eu !== !!h.inset) return; const p = V.xy(e.ll); if (!p) return; const d = Math.hypot(p[0] - h.x, p[1] - h.y); if (d < bd){ bd = d; best = k; } }); return best; }
 const tip = m => Lab.$('#mapTip').textContent = Lab.L(m || o('Click a dot or a country · drag the year', '点击圆点或国家 · 拖动年份'));
 function select(k){ App.sel = k; renderInfo(); M.draw(); }
+function mapPanel(e){
+  return `<span class="tag pline">${Lab.L(e.date)}</span><h3><span class="dot" style="background:${e.c}"></span>${Lab.L(e.name)}</h3>
+    <b class="kh">${Lab.L(o('📌 KEY FACTS','📌 要点'))}</b><ul>${Lab.L(e.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(e.rhyme)}</div><div class="mix"><b>${Lab.L(o('⚠️ Don’t mix up:','⚠️ 易错点：'))}</b><span>${Lab.L(e.mix)}</span></div>`;
+}
 function renderInfo(){
   const box = Lab.$('#info'), k = App.sel;
   if (!k){ box.innerHTML = `<span class="tag">${Lab.L(o('Cold War','冷战'))}</span><h3>${Lab.L(o('Why “cold”?','为什么叫“冷”战？'))}</h3>
@@ -430,15 +469,14 @@ function renderInfo(){
       <div class="nav"><button id="startBtn">${Lab.L(o('Start with India 1947 ▶','从1947年印度开始 ▶'))}</button></div>`;
     Lab.$('#startBtn').onclick = () => { go(1947); select('india'); }; return; }
   const e = EV[k], i = EORDER.indexOf(k);
-  box.innerHTML = `<span class="tag">${Lab.L(e.date)}</span><h3><span class="dot" style="background:${e.c}"></span>${Lab.L(e.name)}</h3>
-    <b class="kh">${Lab.L(o('📌 KEY FACTS','📌 要点'))}</b><ul>${Lab.L(e.facts).map(f => `<li>${f}</li>`).join('')}</ul>
-    <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(e.rhyme)}</div><div class="mix"><b>${Lab.L(o('⚠️ Don’t mix up:','⚠️ 易错点：'))}</b><span>${Lab.L(e.mix)}</span></div>
+  box.innerHTML = mapPanel(e) + `
     <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
-  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(e.name), Lab.L(e.date), ...Lab.L(e.facts)].join(Lab.lang === 'zh' ? '。' : '. '));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box);
   const jump = d => { const n = EORDER[(i + d + EORDER.length) % EORDER.length]; go(EV[n].y); select(n); };
   Lab.$('#pPrev').onclick = () => jump(-1); Lab.$('#pNext').onclick = () => jump(1);
 }
+registerPanels(Lab.$('#info'), EORDER.map(k => EV[k]), mapPanel);
 function renderYear(){
   const y = App.year; Lab.$('#yr').value = y; Lab.$('#yrOut').textContent = y;
   Lab.$('#cNato').textContent = Object.values(NATOJ).filter(v => y >= v).length;
@@ -459,13 +497,15 @@ chinaStrip('#cnStrip', CNS);
 (function(){
   const cv = Lab.$('#unCv'), g = cv.getContext('2d'), yrs = [1945,1950,1955,1960,1965,1970,1975,1980,1985,1991]; let sel = 1960, bars = [];
   const NOTE = {1945:o('51 founding members.','51个创始会员国。'),1950:o('A few new Asian states join (e.g., Indonesia, Israel).','一些亚洲新国家加入（如印度尼西亚、以色列）。'),1955:o('16 countries join together in 1955.','1955年一次加入16个国家。'),1960:o('Year of Africa: 17 African countries become independent.','“非洲独立年”：17个非洲国家独立。'),1965:o('More African and Caribbean states (Kenya, Jamaica…).','更多非洲和加勒比国家加入（肯尼亚、牙买加等）。'),1970:o('Gulf and Pacific states start to join.','海湾国家和太平洋岛国开始加入。'),1975:o('Portugal’s African colonies win independence.','葡萄牙的非洲殖民地获得独立。'),1980:o('Zimbabwe joins in 1980.','津巴布韦1980年加入。'),1985:o('Almost all colonies are now independent.','几乎所有殖民地都已独立。'),1991:o('After the Cold War: the Baltic states and both Koreas join.','冷战结束后：波罗的海三国和朝鲜半岛南北双方加入。')};
+  const unReadMarkup = (sel) => `<b>${sel}</b> · ${Math.round(lerp(UN, sel))} ${Lab.L(o('members','个会员国'))} — ${Lab.L(NOTE[sel])}`;
+  registerPanels(Lab.$('#unRead'), yrs, unReadMarkup);
   function draw(){ const r = cv.parentElement.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!r.width) return;
     cv.width = r.width * d; cv.height = r.height * d; g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, r.width, r.height);
     const L = 30, B = 22, T = 14, W = r.width - L - 6, H = r.height - T - B, bw = W / yrs.length;
     [0, 50, 100, 150].forEach(t => { const y = T + H - t / 175 * H; g.strokeStyle = css('--line'); g.beginPath(); g.moveTo(L, y); g.lineTo(L + W, y); g.stroke(); g.fillStyle = css('--ink-2'); g.font = '11px Nunito, sans-serif'; g.textAlign = 'right'; g.textBaseline = 'middle'; g.fillText(t, L - 4, y); });
     bars = yrs.map((y, i) => { const v = Math.round(lerp(UN, y)), h = v / 175 * H, x = L + i * bw + bw * .15, on = y === sel; g.fillStyle = on ? css('--accent') : '#16a34a'; g.globalAlpha = on ? 1 : .75; g.fillRect(x, T + H - h, bw * .7, h); g.globalAlpha = 1;
       g.fillStyle = css('--ink'); g.textAlign = 'center'; g.font = `${on ? 800 : 600} 11px Nunito, sans-serif`; g.fillText(v, x + bw * .35, T + H - h - 7); g.fillStyle = css('--ink-2'); g.fillText("'" + String(y).slice(2), x + bw * .35, T + H + 11); return { y, x0:L + i * bw, x1:L + (i + 1) * bw }; });
-    Lab.$('#unRead').innerHTML = `<b>${sel}</b> · ${Math.round(lerp(UN, sel))} ${Lab.L(o('members','个会员国'))} — ${Lab.L(NOTE[sel])}`; }
+    Lab.$('#unRead').innerHTML = unReadMarkup(sel); }
   cv.addEventListener('click', e => { const x = e.clientX - cv.getBoundingClientRect().left, b = bars.find(b => x >= b.x0 && x < b.x1); if (b){ sel = b.y; draw(); } });
   new ResizeObserver(() => requestAnimationFrame(draw)).observe(cv.parentElement);
   new MutationObserver(() => setTimeout(draw, 60)).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme'] });
@@ -511,17 +551,22 @@ const GR = [ [0,o('Clerk','办事员')], [40,o('Analyst','分析员')], [100,o('
 (function(){
   const G = { total:0, run:0, i:0, ans:null, ten:0, over:false };
   const box = Lab.$('#gBox'), DC = ['#16a34a','#65a30d','#ca8a04','#ea580c','#dc2626'];
+  const crisisBrief = (s) => `<div class="scard"><div class="when pline">${s.w}</div><h3>${Lab.L(s.h)}</h3><p style="margin:0">${Lab.L(s.p)}</p>`;
+  const crisisFeedback = (choice, good) => `<div class="fb pline ${good ? 'good' : 'bad'}">${good ? '✅ ' : '🤔 '}${Lab.L(choice.f)}</div>`;
+  const crisisEnd = (boom, st, score) => `<h3>${Lab.L(boom ? o('DEFCON 1 — the simulation stops here','DEFCON 1——模拟到此停止') : o('1991: the Cold War is over','1991年：冷战结束'))}</h3>${st == null ? '' : `<p class="stars" style="margin:0">${stars(st)}</p>`}<p style="margin:0">${boom ? Lab.L(o('This is exactly the outcome everyone feared. In real life, leaders on both sides stepped back from the edge. Try again!', '这正是全世界最害怕的结局。在真实历史中，双方领导人都在悬崖边停了下来。再试一次！')) : `${score == null ? '' : `<span data-noread>${Lab.L(o(`This round: ${score}/80. `, `本轮得分：${score}/80。`))}</span>`}${Lab.L(o(`The Cold War ended without the two superpowers ever fighting each other directly — partly through luck, partly through leaders who chose talks over force.`, `冷战结束时，两个超级大国始终没有直接交战——一部分靠运气，一部分靠领导人选择了谈判而不是武力。`))}`}</p>`;
+  registerPanels(box, CR, s => crisisBrief(s) + s.c.map(c => crisisFeedback(c, c.s === 10)).join('') + '</div>');
+  registerPanels(box, [false, true], boom => `<div class="scard">${crisisEnd(boom)}</div>`);
   function render(){
     Lab.$('#gScore').textContent = G.total; Lab.$('#gRun').textContent = G.run + '/80'; Lab.$('#gDone').textContent = Math.min(G.i + (G.ans != null ? 1 : 0), 8) + '/8';
     const st = G.run >= 72 ? 3 : G.run >= 56 ? 2 : G.run >= 40 ? 1 : 0; Lab.$('#gStars').textContent = stars(st); Lab.$('#gRanks').innerHTML = ranksHTML(GR, G.total);
     Lab.$('#defcon').innerHTML = [5, 4, 3, 2, 1].map((n, j) => `<span class="${4 - G.ten === n - 1 ? 'on' : ''}" style="${4 - G.ten === n - 1 ? 'background:' + DC[j] : ''}">DEFCON ${n}</span>`).join('');
     if (G.over || G.i >= CR.length){ const boom = G.over;
-      box.innerHTML = `<div class="scard"><h3>${Lab.L(boom ? o('DEFCON 1 — the simulation stops here','DEFCON 1——模拟到此停止') : o('1991: the Cold War is over','1991年：冷战结束'))}</h3><p class="stars" style="margin:0">${stars(st)}</p><p style="margin:0">${Lab.L(boom ? o('This is exactly the outcome everyone feared. In real life, leaders on both sides stepped back from the edge. Try again!', '这正是全世界最害怕的结局。在真实历史中，双方领导人都在悬崖边停了下来。再试一次！') : o(`This round: ${G.run}/80. The Cold War ended without the two superpowers ever fighting each other directly — partly through luck, partly through leaders who chose talks over force.`, `本轮得分：${G.run}/80。冷战结束时，两个超级大国始终没有直接交战——一部分靠运气，一部分靠领导人选择了谈判而不是武力。`))}</p><div class="btnrow"><button class="btn" id="gAgain">${Lab.L(o('Play again ▶','再玩一轮 ▶'))}</button></div></div>`;
+      box.innerHTML = `<div class="scard">${crisisEnd(boom, st, G.run)}<div class="btnrow"><button class="btn" id="gAgain">${Lab.L(o('Play again ▶','再玩一轮 ▶'))}</button></div></div>`;
       Lab.$('#gAgain').onclick = () => { G.run = 0; G.i = 0; G.ans = null; G.ten = 0; G.over = false; render(); }; return; }
     const s = CR[G.i]; if (!G.ord || G.ordFor !== s){ G.ord = Lab.shuffle([0, 1, 2]); G.ordFor = s; }
-    box.innerHTML = `<div class="scard"><div class="when">${s.w}</div><h3>${Lab.L(s.h)}</h3><p style="margin:0">${Lab.L(s.p)}</p>
+    box.innerHTML = crisisBrief(s) + `
       <div class="choices">${G.ord.map(j => `<button data-j="${j}" ${G.ans != null ? 'disabled' : ''} class="${G.ans != null ? (s.c[j].s === 10 ? 'best' : G.ans === j ? 'meh' : '') : ''}">${Lab.L(s.c[j].t)}</button>`).join('')}</div>
-      ${G.ans != null ? `<div class="fb ${s.c[G.ans].s === 10 ? 'good' : 'bad'}">${s.c[G.ans].s === 10 ? '✅ ' : '🤔 '}${Lab.L(s.c[G.ans].f)}</div><div class="btnrow"><button class="btn" id="gGo">${Lab.L(o('Next crisis ▶','下一场危机 ▶'))}</button></div>` : ''}</div>`;
+      ${G.ans != null ? `${crisisFeedback(s.c[G.ans], s.c[G.ans].s === 10)}<div class="btnrow"><button class="btn" id="gGo">${Lab.L(o('Next crisis ▶','下一场危机 ▶'))}</button></div>` : ''}</div>`;
     Lab.$$('#gBox .choices button').forEach(b => b.onclick = () => { const c = s.c[+b.dataset.j]; G.ans = +b.dataset.j; G.run += c.s; G.total += c.s; G.ten = Math.max(0, Math.min(4, G.ten + c.d)); render(); });
     const n = Lab.$('#gGo'); if (n) n.onclick = () => { G.ans = null; if (G.ten >= 4) G.over = true; else G.i++; render(); };
   }
@@ -548,6 +593,12 @@ const SPACE = [
 const WHO = { us:o('🇺🇸 USA','🇺🇸 美国'), su:o('☭ USSR','☭ 苏联'), cn:o('🇨🇳 China','🇨🇳 中国'), both:o('🤝 Both together','🤝 美苏合作') }, WCOL = { us:'#2563eb', su:'#dc2626', cn:'#d97706', both:'#7c3aed' };
 (function(){
   const S = { i:0, ok:0, ans:null, done:[] }, cv = Lab.$('#tlCv'), g = cv.getContext('2d');
+  const spaceBrief = (e, i) => `<div class="scard"><div class="when">${Math.floor(e.y)} · ${i + 1}/${SPACE.length}</div><h3>${Lab.L(e.t)}</h3>`;
+  const spaceAnswer = (e, good) => `<div class="result pline ${good ? 'good' : 'bad'}">${good ? '✅ ' : '❌ '}${Lab.L(WHO[e.who])}</div>`;
+  const spaceEnd = (correct) => `<div class="fb good pline">${correct == null ? '' : `<span data-noread>${Lab.L(o(`You got ${correct}/${SPACE.length}. `, `你猜对了 ${correct}/${SPACE.length} 个。`))}</span>`}${Lab.L(o(`The USSR won most early “firsts”; the USA won the race to the Moon. In 1975 the rivals shook hands in orbit — and today astronauts from many countries, and China’s own Tiangong station, keep exploring.`, `苏联赢得了大部分早期的“第一”；美国赢得了登月竞赛。1975年两个对手在太空握手——今天，许多国家的宇航员和中国自己的天宫空间站仍在继续探索。`))}</div>`;
+  const box = Lab.$('#sBox');
+  registerPanels(box, SPACE, (e, i) => spaceBrief(e, i) + spaceAnswer(e, true) + '</div>');
+  registerPanels(box, [null], () => spaceEnd());
   function tl(){ const r = cv.parentElement.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!r.width) return;
     cv.width = r.width * d; cv.height = r.height * d; g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, r.width, r.height);
     const X = y => 14 + (y - 1957) / 19 * (r.width - 28), ym = r.height / 2; g.strokeStyle = css('--line'); g.lineWidth = 3; g.beginPath(); g.moveTo(X(1957), ym); g.lineTo(X(1976), ym); g.stroke();
@@ -555,13 +606,13 @@ const WHO = { us:o('🇺🇸 USA','🇺🇸 美国'), su:o('☭ USSR','☭ 苏�
     S.done.forEach((e, j) => { g.beginPath(); g.arc(X(e.y), ym + (j % 2 ? 14 : -14), 7, 0, 7); g.fillStyle = WCOL[e.who]; g.fill(); g.strokeStyle = css('--surface'); g.lineWidth = 2; g.stroke(); }); }
   function render(){
     Lab.$('#sUS').textContent = S.done.filter(e => e.who === 'us').length; Lab.$('#sSU').textContent = S.done.filter(e => e.who === 'su').length; Lab.$('#sOK').textContent = S.ok + '/' + SPACE.length;
-    tl(); const box = Lab.$('#sBox');
-    if (S.i >= SPACE.length){ box.innerHTML = `<div class="fb good">${Lab.L(o(`You got ${S.ok}/${SPACE.length}. The USSR won most early “firsts”; the USA won the race to the Moon. In 1975 the rivals shook hands in orbit — and today astronauts from many countries, and China’s own Tiangong station, keep exploring.`, `你猜对了 ${S.ok}/${SPACE.length} 个。苏联赢得了大部分早期的“第一”；美国赢得了登月竞赛。1975年两个对手在太空握手——今天，许多国家的宇航员和中国自己的天宫空间站仍在继续探索。`))}</div><div class="btnrow"><button class="btn ghost" id="sAgain">${Lab.L(o('↻ Again','↻ 再来'))}</button></div>`;
+    tl();
+    if (S.i >= SPACE.length){ box.innerHTML = `${spaceEnd(S.ok)}<div class="btnrow"><button class="btn ghost" id="sAgain">${Lab.L(o('↻ Again','↻ 再来'))}</button></div>`;
       Lab.$('#sAgain').onclick = () => { S.i = 0; S.ok = 0; S.ans = null; S.done = []; render(); }; return; }
     const e = SPACE[S.i];
-    box.innerHTML = `<div class="scard"><div class="when">${Math.floor(e.y)} · ${S.i + 1}/${SPACE.length}</div><h3>${Lab.L(e.t)}</h3>
+    box.innerHTML = spaceBrief(e, S.i) + `
       <div class="flagbtns">${Object.keys(WHO).map(k => `<button data-k="${k}" ${S.ans ? 'disabled' : ''} style="${S.ans && k === e.who ? 'border-color:var(--good)' : S.ans === k ? 'border-color:var(--bad)' : ''}">${Lab.L(WHO[k])}</button>`).join('')}</div>
-      ${S.ans ? `<div class="result ${S.ans === e.who ? 'good' : 'bad'}">${S.ans === e.who ? '✅ ' : '❌ '}${Lab.L(WHO[e.who])}</div><div class="btnrow"><button class="btn" id="sNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>` : ''}</div>`;
+      ${S.ans ? `${spaceAnswer(e, S.ans === e.who)}<div class="btnrow"><button class="btn" id="sNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>` : ''}</div>`;
     Lab.$$('#sBox .flagbtns button').forEach(b => b.onclick = () => { S.ans = b.dataset.k; if (S.ans === e.who) S.ok++; S.done.push(e); render(); });
     const n = Lab.$('#sNext'); if (n) n.onclick = () => { S.ans = null; S.i++; render(); };
   }
@@ -575,6 +626,8 @@ const WHO = { us:o('🇺🇸 USA','🇺🇸 美国'), su:o('☭ USSR','☭ 苏�
   const TXT = { '48':o('1948–49: Berlin lies 160 km (100 miles) inside the Soviet zone. With roads and railways blocked, Allied planes land in West Berlin every few minutes along three air corridors.','1948—1949年：柏林位于苏占区内160千米（100英里）处。公路和铁路被封锁后，盟军飞机沿三条空中走廊，每隔几分钟就在西柏林降落一架。'),
     '61':o('1961: East Germany builds a wall right around West Berlin — about 155 km long — with a guarded “death strip” behind it. Checkpoint Charlie becomes the famous crossing for foreigners.','1961年：东德沿西柏林四周修建了约155千米长的墙，墙后是有人看守的“死亡地带”。查理检查站成为外国人通行的著名关口。'),
     '89':o('9 November 1989: the gates open and Berliners from both sides meet on the wall. Within a year Germany is one country again (3 October 1990).','1989年11月9日：大门打开，东西柏林人在墙上相聚。不到一年，德国重新统一（1990年10月3日）。') };
+  const berReadMarkup = (k) => Lab.L(TXT[k]);
+  registerPanels(Lab.$('#berRead'), Object.keys(TXT), berReadMarkup);
   const WB = 'M408,150 L470,140 L500,170 L495,215 L470,250 L420,252 L395,215 Z';
   function draw(){
     const ink2 = css('--ink-2');
@@ -593,7 +646,7 @@ const WHO = { us:o('🇺🇸 USA','🇺🇸 美国'), su:o('☭ USSR','☭ 苏�
     if (k === '89'){ h += `<path d="${WB}" fill="none" stroke="#111827" stroke-width="6" stroke-dasharray="14 12"/>`; for (let j = 0; j < 14; j++){ const a = j / 14 * Math.PI * 2; h += `<circle r="3.5" fill="#7c3aed"><animate attributeName="cx" values="${455 + Math.cos(a) * 30};${455 + Math.cos(a + 1) * 75};${455 + Math.cos(a) * 30}" dur="${3 + j % 3}s" repeatCount="indefinite"/><animate attributeName="cy" values="${200 + Math.sin(a) * 25};${200 + Math.sin(a + 1) * 60};${200 + Math.sin(a) * 25}" dur="${3 + j % 3}s" repeatCount="indefinite"/></circle>`; }
       h += `<text x="320" y="410" text-anchor="middle">${Lab.L(o('9 Nov 1989: gates open · 3 Oct 1990: one Germany','1989年11月9日开放 · 1990年10月3日统一'))}</text>`; }
     h += `<text x="20" y="436" style="font-size:10px;font-weight:700">${Lab.L(o('Schematic, not to scale','示意图，不按比例'))}</text>`;
-    svg.innerHTML = h; Lab.$('#berRead').textContent = Lab.L(TXT[k]);
+    svg.innerHTML = h; Lab.$('#berRead').textContent = berReadMarkup(k);
   }
   Lab.$$('#berSeg button').forEach(b => b.onclick = () => { k = b.dataset.k; Lab.$$('#berSeg button').forEach(x => x.classList.toggle('on', x === b)); draw(); });
   new MutationObserver(() => setTimeout(draw, 60)).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme'] });

@@ -124,10 +124,10 @@
     </div>
     <div class="card">
       <div class="counters">
-        <div class="counter"><b id="wDate">June 1914</b><span data-zh="日期">date</span></div>
+        <div class="counter"><b id="wDate" class="pline">June 1914</b><span data-zh="日期">date</span></div>
         <div class="counter"><b id="wAt">0</b><span data-zh="参战国家">countries at war</span></div>
       </div>
-      <div class="readout" id="webRead" aria-live="polite"></div>
+      <div class="readout pline" id="webRead" aria-live="polite"></div>
       <div class="legend2"><span><i style="background:#2563eb"></i><span data-zh="协约国/协约国一方">Allies (Entente)</span></span><span><i style="background:#6b7280"></i><span data-zh="同盟国">Central Powers</span></span><span><i style="background:#dc2626"></i><span data-zh="宣战">declaration of war</span></span></div>
       <details class="peek"><summary data-zh="一战的根本原因（MAIN）">The deep causes (remember “MAIN”)</summary><p data-zh="M 军国主义（军备竞赛，如英德海军竞赛）；A 同盟体系（两大军事集团）；I 帝国主义（争夺殖民地和市场）；N 民族主义（如巴尔干的塞尔维亚民族主义）。萨拉热窝事件只是导火线。">M — Militarism (arms races, like the British–German navy race); A — Alliances (two armed camps); I — Imperialism (competition for colonies and markets); N — Nationalism (e.g., Serbian nationalism in the Balkans). The Sarajevo assassination was only the spark.</p></details>
     </div>
@@ -194,7 +194,7 @@
       <h3 data-zh="📊 数据：二战中部分国家的死亡人数（军人和平民）">📊 Data: World War II deaths, selected countries (military + civilian)</h3>
       <div class="chart" style="height:320px"><canvas id="deathCv"></canvas></div>
       <p class="src" data-zh="单位：百万人。图中用约数表示死亡人数。点击柱子查看估计范围。">Figures show approximate deaths in millions. Tap a bar for the estimated range.</p>
-      <div class="readout" id="deathRead"></div>
+      <div class="readout pline" id="deathRead"></div>
     </div>
     <div class="card solemn">
       <h3 data-zh="🕯️ 大屠杀与南京大屠杀">🕯️ The Holocaust and the Nanjing Massacre</h3>
@@ -353,6 +353,40 @@ const WMap = (() => {
   return { create, css, ZH };
 })();
 /* ===== shared helpers for the worldhistory lessons ===== */
+// Read the same units from the live panel and from each crawler-only render.
+const PANEL_PARTS = 'h3,h4,p,li,.job,.memory,.mix,.pline';
+function panelUnits(el){
+  if (!Lab.readUnits) return [];
+  const nodes = [...el.querySelectorAll(PANEL_PARTS)];
+  if (el.matches(PANEL_PARTS)) nodes.unshift(el);
+  return nodes.flatMap(node => {
+    const u = Lab.readUnits(node);
+    return u ? u.parts.map(t => [t, u.lang]) : [];
+  });
+}
+function speakPanel(el){
+  const parts = panelUnits(el); let i = 0;
+  const next = ok => {
+    if (ok === false || i >= parts.length) return;
+    const [t, lang] = parts[i++];
+    Lab.speak(t, { lang, inner:true, onend:next });
+  };
+  next();
+}
+function registerPanels(host, items, markup){
+  if (!Lab.readAll) return;
+  Lab.readAll(() => {
+    const tmp = host.cloneNode(false);
+    tmp.removeAttribute('id');
+    tmp.removeAttribute('aria-live');
+    tmp.setAttribute('aria-hidden', 'true');
+    tmp.style.cssText = 'position:absolute;left:-10000px;top:0;width:' + (host.offsetWidth || 360) + 'px';
+    host.parentElement.appendChild(tmp);
+    try {
+      return items.flatMap((item, i) => { tmp.innerHTML = markup(item, i); return panelUnits(tmp); });
+    } finally { tmp.remove(); }
+  });
+}
 const o = (en, zh) => ({en, zh});
 const css = WMap.css;
 const stars = n => '★'.repeat(n) + '☆'.repeat(3 - n);
@@ -385,6 +419,10 @@ const STEPS = [
 ];
 (function(){
   const svg = Lab.$('#webSvg'); let i = 0;
+  const wDateMarkup = s => Lab.L(s.d);
+  registerPanels(Lab.$('#wDate'), STEPS, wDateMarkup);
+  const webReadMarkup = (s, i) => `<span data-noread><b>${i}/${STEPS.length - 1}</b> · </span>${Lab.L(s.t)}`;
+  registerPanels(Lab.$('#webRead'), STEPS, webReadMarkup);
   const NS = 'http://www.w3.org/2000/svg', el = (n, a) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); return e; };
   function draw(){
     const s = STEPS[i], at = new Set(); s.war.forEach(([a, b]) => { at.add(a); at.add(b); }); if (s.end) STEPS[i - 1].war.forEach(([a, b]) => { at.add(a); at.add(b); });
@@ -401,8 +439,8 @@ const STEPS = [
       const t = el('text', { x, y:y + 44, 'text-anchor':'middle' }); t.textContent = Lab.L(NODES[k][3]); g.appendChild(t);
       const ic = el('text', { x, y:y + 5, 'text-anchor':'middle', style:'stroke:none;fill:' + (war ? '#fff' : col) }); ic.textContent = war ? '⚔' : sd === 'e' ? (Lab.lang === 'zh' ? '协' : 'E') : (Lab.lang === 'zh' ? '同' : 'C'); g.appendChild(ic); svg.appendChild(g); });
     if (s.spark){ const t = el('text', { x:520, y:330, 'text-anchor':'middle', style:'font-size:22px' }); t.textContent = '💥'; svg.appendChild(t); const t2 = el('text', { x:520, y:312, 'text-anchor':'middle' }); t2.textContent = Lab.L(o('Sarajevo','萨拉热窝')); svg.appendChild(t2); }
-    Lab.$('#wDate').textContent = Lab.L(s.d); Lab.$('#wAt').textContent = s.end ? '—' : at.size;
-    Lab.$('#webRead').innerHTML = `<b>${i}/${STEPS.length - 1}</b> · ${Lab.L(s.t)}`;
+    Lab.$('#wDate').textContent = wDateMarkup(s); Lab.$('#wAt').textContent = s.end ? '—' : at.size;
+    Lab.$('#webRead').innerHTML = webReadMarkup(s, i);
     Lab.$('#webNext').disabled = i >= STEPS.length - 1; Lab.$('#webBack').disabled = i <= 0;
   }
   Lab.$('#webNext').onclick = () => { if (i < STEPS.length - 1){ i++; draw(); } };
@@ -434,9 +472,27 @@ function planScore(B, p){ const wire = Math.min(1, ({ none:0, short:.4, long:.6 
   if (p.creep && p.tanks === 'many' && sur >= .7) s += 10; return s; }
 const bestScore = B => { let b = 0; B.bomb.forEach(bo => B.tanks.forEach(t => [false, B.creep].forEach(c => [false, true].forEach(a => b = Math.max(b, planScore(B, { bomb:bo, tanks:t, creep:c, air:a })))))); return b; };
 const TR = [ [0,o('Private','列兵')], [40,o('Corporal','下士')], [100,o('Sergeant','中士')], [170,o('Lieutenant','中尉')], [250,o('Captain','上尉')], [350,o('General','将军')] ];
+const BATTLE_TIPS = [
+  o('A week of shelling told the enemy exactly where you would attack — and churned the ground into mud.', '一周的炮击等于告诉敌人你要在哪里进攻，还把地面炸成了烂泥。'),
+  o('Without shells or tanks to break it, the barbed wire stopped your troops in no man’s land.', '没有炮火或坦克破坏铁丝网，你的士兵被挡在了无人区。'),
+  o('Without a creeping barrage, the defenders had time to climb out of their dugouts to their machine guns.', '没有徐进弹幕，守军有时间从掩蔽部爬出来操作机枪。'),
+  o('Good combination: surprise and teamwork.', '很好的组合：突然性加协同作战。')
+];
 (function(){
   const G = { total:0, run:0, bi:0, plan:{ bomb:'short', tanks:'none', creep:false, air:false }, res:null, anim:0, done:false };
   const cv = Lab.$('#trCv'), g = cv.getContext('2d'), box = Lab.$('#tBox');
+  const battleBrief = (B) => `<div class="scard"><div class="when pline">${Lab.L(B.n)}</div><p style="margin:0">${Lab.L(B.brief)}</p>`;
+  const armisticeTitle = () => `<div class="scard"><div class="when pline">11 Nov 1918</div><h3>${Lab.L(o('Armistice','停战'))}</h3>`;
+  const armisticeLesson = () => Lab.L(o(`The lesson armies learned the hard way: no single wonder weapon won — surprise plus infantry, artillery, tanks and aircraft working together finally broke the stalemate.`, `各国军队付出巨大代价才明白：没有哪一种“神奇武器”能单独取胜——突然性加上步兵、炮兵、坦克和飞机的协同作战，才最终打破了僵局。`));
+  const armisticeText = (score = '') => `<p style="margin:0">${score ? `<span data-noread>${score}</span>` : ''}${armisticeLesson()}</p>`;
+  const battleHistory = B => `<div class="readout pline">📜 ${Lab.L(B.hist)}</div>`;
+  const battleFeedback = (tip, good, summary = '') => `<div class="fb pline ${good ? 'good' : 'bad'}">${summary ? `<span data-noread>${summary} </span>` : ''}${Lab.L(tip)}</div>`;
+  const tankNote = () => `<span class="muted pline" style="font-size:12.5px"> ${Lab.L(o('(not invented yet)','（还没有发明）'))}</span>`;
+  const barrageNote = () => `<span class="muted pline">${Lab.L(o('Not developed until 1916','1916年才发展出来'))}</span>`;
+  registerPanels(box, BATTLES, B => battleBrief(B) + battleHistory(B) + '</div>');
+  registerPanels(box, BATTLE_TIPS, tip => battleFeedback(tip, false));
+  registerPanels(box, [null], () => armisticeTitle() + armisticeText() + '</div>');
+  registerPanels(box, [tankNote, barrageNote], note => note());
   function drawTrench(){
     const r = cv.parentElement.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!r.width) return;
     cv.width = r.width * d; cv.height = r.height * d; const k = r.width / 700; g.setTransform(d * k, 0, 0, d * k, 0, 0);
@@ -468,22 +524,22 @@ const TR = [ [0,o('Private','列兵')], [40,o('Corporal','下士')], [100,o('Ser
   function render(){
     head(); drawTrench();
     if (G.done){ const st = G.run >= 85 ? 3 : G.run >= 65 ? 2 : G.run >= 40 ? 1 : 0;
-      box.innerHTML = `<div class="scard"><div class="when">11 Nov 1918</div><h3>${Lab.L(o('Armistice','停战'))}</h3><p class="stars" style="margin:0">${stars(st)}</p><p style="margin:0">${Lab.L(o(`Campaign score: ${G.run}/100. The lesson armies learned the hard way: no single wonder weapon won — surprise plus infantry, artillery, tanks and aircraft working together finally broke the stalemate.`, `战役得分：${G.run}/100。各国军队付出巨大代价才明白：没有哪一种“神奇武器”能单独取胜——突然性加上步兵、炮兵、坦克和飞机的协同作战，才最终打破了僵局。`))}</p><div class="btnrow"><button class="btn" id="tAgain">${Lab.L(o('Play again ▶','再玩一次 ▶'))}</button></div></div>`;
+      box.innerHTML = armisticeTitle() + `<p class="stars" style="margin:0">${stars(st)}</p>${armisticeText(Lab.L(o(`Campaign score: ${G.run}/100. `, `战役得分：${G.run}/100。`)))}<div class="btnrow"><button class="btn" id="tAgain">${Lab.L(o('Play again ▶','再玩一次 ▶'))}</button></div></div>`;
       Lab.$('#tAgain').onclick = () => { G.run = 0; G.bi = 0; G.res = null; G.done = false; G.plan = { bomb:'short', tanks:'none', creep:false, air:false }; render(); }; return; }
     const B = BATTLES[G.bi], p = G.plan, res = G.res, seg = (key, list, names) => `<div class="seg" data-key="${key}">${list.map(v => `<button data-v="${v}" class="${p[key] === v ? 'on' : ''}" ${res ? 'disabled' : ''}>${Lab.L(names[v])}</button>`).join('')}</div>`;
-    box.innerHTML = `<div class="scard"><div class="when">${Lab.L(B.n)}</div><p style="margin:0">${Lab.L(B.brief)}</p>
+    box.innerHTML = battleBrief(B) + `
       <div class="opts2">
         <div class="og"><b>💥 ${Lab.L(o('Artillery bombardment','炮火准备'))}</b>${seg('bomb', B.bomb, BOMB)}</div>
-        <div class="og"><b>🛡️ ${Lab.L(o('Tanks','坦克'))}</b>${seg('tanks', ['none', 'few', 'many'].filter(v => B.tanks.includes(v)), TANK)}${B.tanks.length === 1 ? `<span class="muted" style="font-size:12.5px"> ${Lab.L(o('(not invented yet)','（还没有发明）'))}</span>` : ''}</div>
-        <div class="og"><b>🌫️ ${Lab.L(o('Creeping barrage (a curtain of shells that moves just ahead of your troops)','徐进弹幕（在步兵前方逐步推进的炮火幕）'))}</b>${B.creep ? seg('creep', [false, true], { false:o('Off','不用'), true:o('On','使用') }) : `<span class="muted">${Lab.L(o('Not developed until 1916','1916年才发展出来'))}</span>`}</div>
+        <div class="og"><b>🛡️ ${Lab.L(o('Tanks','坦克'))}</b>${seg('tanks', ['none', 'few', 'many'].filter(v => B.tanks.includes(v)), TANK)}${B.tanks.length === 1 ? tankNote() : ''}</div>
+        <div class="og"><b>🌫️ ${Lab.L(o('Creeping barrage (a curtain of shells that moves just ahead of your troops)','徐进弹幕（在步兵前方逐步推进的炮火幕）'))}</b>${B.creep ? seg('creep', [false, true], { false:o('Off','不用'), true:o('On','使用') }) : barrageNote()}</div>
         <div class="og"><b>✈️ ${Lab.L(o('Aircraft spotting for the guns','飞机为炮兵侦察校射'))}</b>${seg('air', [false, true], { false:o('Off','不用'), true:o('On','使用') })}</div>
       </div>
-      ${res ? `<div class="fb ${res.pts >= 20 ? 'good' : 'bad'}">${Lab.L(o(`Your plan: about ${res.km.toFixed(1)} km gained (model). Points ${res.pts}/25.`, `你的计划：约推进 ${res.km.toFixed(1)} 千米（模型）。得分 ${res.pts}/25。`))} ${Lab.L(res.tip)}</div><div class="readout">📜 ${Lab.L(B.hist)}</div><div class="btnrow"><button class="btn" id="tNext">${Lab.L(G.bi < 3 ? o('Next battle ▶','下一场战役 ▶') : o('Finish the war ▶','结束战争 ▶'))}</button></div>`
+      ${res ? `${battleFeedback(res.tip, res.pts >= 20, Lab.L(o(`Your plan: about ${res.km.toFixed(1)} km gained (model). Points ${res.pts}/25.`, `你的计划：约推进 ${res.km.toFixed(1)} 千米（模型）。得分 ${res.pts}/25。`)))}${battleHistory(B)}<div class="btnrow"><button class="btn" id="tNext">${Lab.L(G.bi < 3 ? o('Next battle ▶','下一场战役 ▶') : o('Finish the war ▶','结束战争 ▶'))}</button></div>`
         : `<div class="btnrow"><button class="btn" id="tGo">${Lab.L(o('🎯 Launch the attack','🎯 发起进攻'))}</button></div>`}</div>`;
     Lab.$$('#tBox .seg').forEach(sg => sg.querySelectorAll('button').forEach(b => b.onclick = () => { const k = sg.dataset.key, v = b.dataset.v; G.plan[k] = v === 'true' ? true : v === 'false' ? false : v; render(); }));
     const go = Lab.$('#tGo'); if (go) go.onclick = () => { const s = planScore(B, p), best = bestScore(B), pts = Math.round(25 * s / best);
       const wire = Math.min(1, ({ none:0, short:.4, long:.6 })[p.bomb] + ({ none:0, few:.25, many:.6 })[p.tanks]);
-      const tip = p.bomb === 'long' ? o('A week of shelling told the enemy exactly where you would attack — and churned the ground into mud.', '一周的炮击等于告诉敌人你要在哪里进攻，还把地面炸成了烂泥。') : (wire < .3 ? o('Without shells or tanks to break it, the barbed wire stopped your troops in no man’s land.', '没有炮火或坦克破坏铁丝网，你的士兵被挡在了无人区。') : (B.creep && !p.creep ? o('Without a creeping barrage, the defenders had time to climb out of their dugouts to their machine guns.', '没有徐进弹幕，守军有时间从掩蔽部爬出来操作机枪。') : o('Good combination: surprise and teamwork.', '很好的组合：突然性加协同作战。')));
+      const tip = p.bomb === 'long' ? BATTLE_TIPS[0] : (wire < .3 ? BATTLE_TIPS[1] : (B.creep && !p.creep ? BATTLE_TIPS[2] : BATTLE_TIPS[3]));
       G.res = { pts, wire, frac:Math.min(.98, s / 100), km:B.maxKm * s / 100, tip }; G.run += pts; G.total += pts;
       const t0 = performance.now(); const step = now => { G.anim = Math.min(1, (now - t0) / 2600); drawTrench(); if (G.anim < 1) requestAnimationFrame(step); }; requestAnimationFrame(step); render(); };
     const nx = Lab.$('#tNext'); if (nx) nx.onclick = () => { G.res = null; G.anim = 0; if (G.bi < 3) G.bi++; else G.done = true; render(); };
@@ -592,6 +648,11 @@ const statusName = s => s === 'axis' ? o('Axis power','轴心国') : s === 'occ'
 function keyAt(h){ if (!h) return null; const V = M.view(h), t = tOf(App.m); let best = null, bd = 15; WORDER.forEach(k => { const w = WM[k]; if (t < w.t || !!w.eu !== !!h.inset) return; const p = V.xy(w.ll); if (!p) return; const d = Math.hypot(p[0] - h.x, p[1] - h.y); if (d < bd){ bd = d; best = k; } }); return best; }
 const tip = m => Lab.$('#mapTip').textContent = Lab.L(m || o('Click a dot or a country · drag the month', '点击圆点或国家 · 拖动月份'));
 function select(k){ App.sel = k; renderInfo(); M.draw(); }
+function mapPanel(w){
+  return `<span class="tag pline">${Lab.L(w.date)}</span><h3><span class="dot" style="background:${w.c}"></span>${Lab.L(w.name)}</h3>
+    <b class="kh">${Lab.L(o('📌 KEY FACTS','📌 要点'))}</b><ul>${Lab.L(w.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(w.rhyme)}</div><div class="mix"><b>${Lab.L(o('⚠️ Don’t mix up:','⚠️ 易错点：'))}</b><span>${Lab.L(w.mix)}</span></div>`;
+}
 function renderInfo(){
   const box = Lab.$('#info'), k = App.sel;
   if (!k){ box.innerHTML = `<span class="tag">${Lab.L(o('How to read the map','怎样看地图'))}</span><h3>${Lab.L(o('Two wars that became one','两场战争汇成一场世界大战'))}</h3>
@@ -600,15 +661,14 @@ function renderInfo(){
       <div class="nav"><button id="startBtn">${Lab.L(o('Start at the Marco Polo Bridge ▶','从卢沟桥开始 ▶'))}</button></div>`;
     Lab.$('#startBtn').onclick = () => { go(0); select('lugou'); }; return; }
   const w = WM[k], i = WORDER.indexOf(k);
-  box.innerHTML = `<span class="tag">${Lab.L(w.date)}</span><h3><span class="dot" style="background:${w.c}"></span>${Lab.L(w.name)}</h3>
-    <b class="kh">${Lab.L(o('📌 KEY FACTS','📌 要点'))}</b><ul>${Lab.L(w.facts).map(f => `<li>${f}</li>`).join('')}</ul>
-    <div class="memory"><b>${Lab.L(o('🎵 Memory hook','🎵 记忆口诀'))}</b>${Lab.L(w.rhyme)}</div><div class="mix"><b>${Lab.L(o('⚠️ Don’t mix up:','⚠️ 易错点：'))}</b><span>${Lab.L(w.mix)}</span></div>
+  box.innerHTML = mapPanel(w) + `
     <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
-  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(w.name), Lab.L(w.date), ...Lab.L(w.facts)].join(Lab.lang === 'zh' ? '。' : '. '));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box);
   const jump = d => { const n = WORDER[(i + d + WORDER.length) % WORDER.length]; go(Math.max(0, Math.round((WM[n].t - 1937.5) * 12))); select(n); };
   Lab.$('#pPrev').onclick = () => jump(-1); Lab.$('#pNext').onclick = () => jump(1);
 }
+registerPanels(Lab.$('#info'), WORDER.map(k => WM[k]), mapPanel);
 function renderYear(){
   const t = tOf(App.m); Lab.$('#mo').value = App.m; Lab.$('#moOut').textContent = fmtT(t);
   Lab.$('#cDays').textContent = Math.max(0, Math.round((t - 1937.515) * 365.25)).toLocaleString('en-US');
@@ -628,13 +688,15 @@ const DEATHS = [ { n:o('Soviet Union','苏联'), v:26, r:'24–27' }, { n:o('Chi
   { n:o('Japan','日本'), v:2.9, r:'2.6–3.1' }, { n:o('Yugoslavia','南斯拉夫'), v:1.0, r:'≈1' }, { n:o('France','法国'), v:.57, r:'≈0.55–0.6' }, { n:o('United Kingdom','英国'), v:.45, r:'≈0.45' }, { n:o('United States','美国'), v:.42, r:'≈0.42' } ];
 (function(){
   const cv = Lab.$('#deathCv'), g = cv.getContext('2d'); let sel = 1, rows = [];
+  const deathReadMarkup = it => `<b>${Lab.L(it.n)}</b> · ${Lab.L(o(`about ${it.r} million deaths (estimates vary)`, `约 ${it.r} 百万人死亡（各方估计不同）`))}`;
+  registerPanels(Lab.$('#deathRead'), DEATHS, deathReadMarkup);
   function draw(){ const r = cv.parentElement.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); if (!r.width) return;
     cv.width = r.width * d; cv.height = r.height * d; g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, r.width, r.height);
     const L = r.width < 420 ? 92 : 120, W = r.width - L - 40, h = r.height / DEATHS.length;
     rows = DEATHS.map((it, i) => { const y = i * h, w = it.v / 27 * W, on = i === sel; g.fillStyle = on ? css('--accent') : (i === 1 ? '#c0392b' : '#64748b'); g.globalAlpha = on ? 1 : .8; g.fillRect(L, y + h * .2, Math.max(2, w), h * .6); g.globalAlpha = 1;
       g.fillStyle = css('--ink'); g.font = `${on ? 800 : 700} 12.5px Nunito, "Microsoft YaHei", sans-serif`; g.textAlign = 'right'; g.textBaseline = 'middle'; g.fillText(Lab.L(it.n), L - 6, y + h / 2);
       g.textAlign = 'left'; g.fillText(it.v + (Lab.lang === 'zh' ? '' : ' M'), L + Math.max(2, w) + 5, y + h / 2); return { i, y0:y, y1:y + h }; });
-    const it = DEATHS[sel]; Lab.$('#deathRead').innerHTML = `<b>${Lab.L(it.n)}</b> · ${Lab.L(o(`about ${it.r} million deaths (estimates vary)`, `约 ${it.r} 百万人死亡（各方估计不同）`))}`; }
+    const it = DEATHS[sel]; Lab.$('#deathRead').innerHTML = deathReadMarkup(it); }
   cv.addEventListener('click', e => { const y = e.clientY - cv.getBoundingClientRect().top, rr = rows.find(q => y >= q.y0 && y < q.y1); if (rr){ sel = rr.i; draw(); } });
   new ResizeObserver(() => requestAnimationFrame(draw)).observe(cv.parentElement);
   new MutationObserver(() => setTimeout(draw, 60)).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme'] });

@@ -255,38 +255,128 @@ const TOUR = [
 const App = window.MQ = { sel:null, scene:'ship', three:null };
 App.select = (k, from3D) => { App.sel = k; renderInfo(); renderChips(); if (!from3D && App.three) App.three.focus(k); };
 const L = Lab.L;
-function renderInfo(){
-  const box = Lab.$('#info'), k = App.sel;
-  if (!k){
-    if (App.scene === 'ship') box.innerHTML = `<span class="tag">${L(o('Ming foreign relations','明朝的对外关系'))}</span>
-      <h3>${L(o('Zheng He’s treasure fleet','郑和的宝船船队'))}</h3>
-      <p class="muted" style="margin:0">${L(o('Why could the Ming send such a fleet? A strong, rich state; advanced shipbuilding and navigation; and Zheng He’s own skill and experience. Click the ship to explore.','明朝为什么能派出这样的船队？国力强盛；造船技术和航海技术先进；郑和本人具有杰出的才能和丰富的经验。点击宝船去探索。'))}</p>
-      <div class="memory"><b>${L(o('💡 Big idea','💡 核心概念'))}</b>${L(o('Purpose: to strengthen ties with overseas countries. Significance: a feat in world navigation history.','目的：加强与海外各国的联系；意义：世界航海史上的壮举。'))}</div>
-      <div class="nav"><button id="startBtn">${L(o('Start ▶','开始 ▶'))}</button></div>`;
-    else box.innerHTML = `<span class="tag">${L(o('Ming architecture','明朝的建筑'))}</span>
-      <h3><span class="dot" style="background:${PALACE.color}"></span>${L(PALACE.name)}</h3>
-      <ul>${L(PALACE.facts).map(f => `<li>${f}</li>`).join('')}</ul>
-      <div class="mix"><b>${L(o('⚠️ Common mix-up:','⚠️ 易错点：'))}</b><span>${L(PALACE.mix)}</span></div>
-      <button class="speak" id="speakBtn">${L(Lab.UI.listen)}</button>
-      <div class="nav"><button id="startBtn">${L(o('Start at the south gate ▶','从南门开始 ▶'))}</button></div>`;
-    Lab.$('#startBtn').onclick = () => App.select(ORDER[App.scene][0]);
-    const sp = Lab.$('#speakBtn'); if (sp) sp.onclick = () => Lab.speak([L(PALACE.name), ...L(PALACE.facts)].join('。'));
-    return;
+const PANEL_PARTS = '.tag,h3,h4,.job,li,p,.memory,.mix,.quote,.usbox';
+function panelUnits(el, parts){
+  const out = [];
+  const nodes = parts ? el.querySelectorAll(parts) : [el];
+  for (const node of nodes){
+    const unit = Lab.readUnits(node);
+    if (!unit) continue;
+    const style = node.closest('[data-read-style]');
+    for (const text of unit.parts){
+      out.push(style ? [text, unit.lang, { style:style.dataset.readStyle, work:style.dataset.work }] : [text, unit.lang]);
+    }
   }
+  return out;
+}
+function speakPanel(el){
+  const parts = panelUnits(el, PANEL_PARTS);
+  let i = 0;
+  function next(ok){
+    if (ok === false || i >= parts.length) return;
+    const [text, lang] = parts[i++];
+    Lab.speak(text, { lang, inner:true, onend:next });
+  }
+  next();
+}
+// The crawler loads this page once per language.
+const panelGroups = [];
+function readPanelItems(selector, items, render, parts, property = parts ? 'innerHTML' : 'textContent'){
+  panelGroups.push({ selector, items, render, parts, property });
+}
+Lab.readAll(() => {
+  const mounted = [];
+  try {
+    for (const { selector, items, render, parts, property } of panelGroups){
+      const host = Lab.$(selector) || (selector.endsWith(' .lab-caption') && Lab.$(selector.split(' ')[0]));
+      if (!host?.parentElement) continue;
+      const width = host.offsetWidth || host.parentElement.offsetWidth || 360;
+      const fragment = document.createDocumentFragment();
+      for (const item of items){
+        const tmp = document.createElement(host.localName);
+        tmp.className = host.matches('.stage') ? 'lab-caption show' : host.className;
+        tmp.style.cssText = 'position:absolute;left:-10000px;top:0;box-sizing:border-box;width:' + width + 'px';
+        tmp[property] = render(item);
+        // Keep each item in its own place-name annotation block.
+        const scope = document.createElement('section');
+        scope.style.display = 'contents';
+        scope.appendChild(tmp);
+        fragment.appendChild(scope);
+        mounted.push({ scope, tmp, parts });
+      }
+      host.after(fragment);
+    }
+    const collect = () => mounted.flatMap(({ tmp, parts }) => panelUnits(tmp, parts));
+    const clips = new Map();
+    const collectClips = () => {
+      for (const unit of collect()) clips.set(JSON.stringify(unit), unit);
+    };
+    collectClips();
+    // Match the units before and after the shared place-name annotations.
+    if (window.LabPlaces){
+      LabPlaces.refresh();
+      collectClips();
+      if (Lab.lang === 'zh' && window.LabPinyin){
+        LabPinyin.refresh();
+        LabPlaces.refresh();
+        collectClips();
+      }
+      if (window.LabGaz){
+        for (const { tmp } of mounted) LabGaz.scan(tmp);
+        LabPlaces.refresh();
+        collectClips();
+      }
+    }
+    return [...clips.values()];
+  } finally {
+    for (const { scope } of mounted) scope.remove();
+  }
+});
+function shipIntroPanel(){
+  return `<span class="tag">${L(o('Ming foreign relations','明朝的对外关系'))}</span>
+    <h3>${L(o('Zheng He’s treasure fleet','郑和的宝船船队'))}</h3>
+    <p class="muted" style="margin:0">${L(o('Why could the Ming send such a fleet? A strong, rich state; advanced shipbuilding and navigation; and Zheng He’s own skill and experience. Click the ship to explore.','明朝为什么能派出这样的船队？国力强盛；造船技术和航海技术先进；郑和本人具有杰出的才能和丰富的经验。点击宝船去探索。'))}</p>
+    <div class="memory"><b>${L(o('💡 Big idea','💡 核心概念'))}</b>${L(o('Purpose: to strengthen ties with overseas countries. Significance: a feat in world navigation history.','目的：加强与海外各国的联系；意义：世界航海史上的壮举。'))}</div>`;
+}
+function palaceIntroPanel(){
+  return `<span class="tag">${L(o('Ming architecture','明朝的建筑'))}</span>
+    <h3><span class="dot" style="background:${PALACE.color}"></span>${L(PALACE.name)}</h3>
+    <ul>${L(PALACE.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="mix"><b>${L(o('⚠️ Common mix-up:','⚠️ 易错点：'))}</b><span>${L(PALACE.mix)}</span></div>`;
+}
+function partPanel(k){
   const p = PARTS[k], list = ORDER[p.scene], i = list.indexOf(k);
-  box.innerHTML = `<span class="tag">${L(p.scene === 'ship' ? o('Zheng He’s fleet','郑和船队') : o('Forbidden City','紫禁城'))} · ${i + 1}/${list.length}</span>
+  return `<span class="tag">${L(p.scene === 'ship' ? o('Zheng He’s fleet','郑和船队') : o('Forbidden City','紫禁城'))} · ${i + 1}/${list.length}</span>
     <h3><span class="dot" style="background:${p.color}"></span>${L(p.name)}</h3>
     <div class="job">${L(p.job)}</div>
     <b style="font-size:13px;color:var(--ink-2)">${L(o('KEY FACTS','知识要点'))}</b>
     <ul>${L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
     <div class="memory"><b>${L(o('💡 Memory hint','💡 记忆口诀'))}</b>${L(p.hint)}</div>
-    ${p.mix ? `<div class="mix"><b>${L(o('⚠️ Common mix-up:','⚠️ 易错点：'))}</b><span>${L(p.mix)}</span></div>` : ''}
+    ${p.mix ? `<div class="mix"><b>${L(o('⚠️ Common mix-up:','⚠️ 易错点：'))}</b><span>${L(p.mix)}</span></div>` : ''}`;
+}
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel;
+  if (!k){
+    if (App.scene === 'ship') box.innerHTML = `${shipIntroPanel()}
+      <div class="nav"><button id="startBtn">${L(o('Start ▶','开始 ▶'))}</button></div>`;
+    else box.innerHTML = `${palaceIntroPanel()}
+      <button class="speak" id="speakBtn">${L(Lab.UI.listen)}</button>
+      <div class="nav"><button id="startBtn">${L(o('Start at the south gate ▶','从南门开始 ▶'))}</button></div>`;
+    Lab.$('#startBtn').onclick = () => App.select(ORDER[App.scene][0]);
+    const sp = Lab.$('#speakBtn'); if (sp) sp.onclick = () => speakPanel(box);
+    return;
+  }
+  const p = PARTS[k], list = ORDER[p.scene], i = list.indexOf(k);
+  box.innerHTML = `${partPanel(k)}
     <button class="speak" id="speakBtn">${L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${L(o('Next ▶','下一个 ▶'))}</button></div>`;
-  Lab.$('#speakBtn').onclick = () => Lab.speak([L(p.name), L(p.job), ...L(p.facts), L(p.hint)].join('。'));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box);
   Lab.$('#pPrev').onclick = () => App.select(list[(i - 1 + list.length) % list.length]);
   Lab.$('#pNext').onclick = () => App.select(list[(i + 1) % list.length]);
 }
+readPanelItems('#info', ['ship', 'palace'], scene => scene === 'ship' ? shipIntroPanel() : palaceIntroPanel(), PANEL_PARTS);
+readPanelItems('#info', [...ORDER.ship, ...ORDER.palace], partPanel, PANEL_PARTS);
+readPanelItems('#stage .lab-caption', TOUR, Lab.L);
 function renderChips(){
   Lab.$('#chips').innerHTML = ORDER[App.scene].map(k => `<button class="chip ${App.sel === k ? 'on' : ''}" data-k="${k}"><i style="background:${PARTS[k].color}"></i>${L(PARTS[k].name)}</button>`).join('');
   Lab.$$('#chips .chip').forEach(c => c.onclick = () => App.select(c.dataset.k));
@@ -528,30 +618,40 @@ G.custom(HMap.layer(G, PA, {}), { z:-10 });
 G.text(o('Schematic map · route of the voyages (main ports of all seven trips joined into one line)','示意图 · 把七次航行的主要港口连成一条航线'), -7.8, 4.65, { size:.24, color:C.grey, align:'left' });
 const gDots = SEQ.map(id => { const [x, y] = PA(PORTS[id].lon, PORTS[id].lat); return G.dot(x, y, { color:id === 'liujiagang' ? C.red : '#e8eef8', r:.11 }); });
 G.text(PORTS.liujiagang.name, ...PA(121.1, 33.2), { size:.24, color:'#ffb3ab' });
+const portPrompt = nx => nx ? Lab.L(o('Next stop: ','下一站：')) + '<b>' + Lab.L(PORTS[nx].name) + '</b>' : Lab.L(o('🎉 Voyage complete!','🎉 航行完成！'));
+readPanelItems('#gNext', [...SEQ.slice(1), null], portPrompt, null, 'innerHTML');
 function gRender(){
   const nx = SEQ[gs.i];
-  Lab.$('#gNext').innerHTML = nx ? Lab.L(o('Next stop: ','下一站：')) + '<b>' + Lab.L(PORTS[nx].name) + '</b>' : Lab.L(o('🎉 Voyage complete!','🎉 航行完成！'));
+  Lab.$('#gNext').innerHTML = portPrompt(nx);
   Lab.$('#gStops').innerHTML = SEQ.map((id, k) => `<span class="${k < gs.i ? 'done' : k === gs.i ? 'cur' : ''}">${k < gs.i || k === gs.i ? Lab.L(PORTS[id].name) : '?'}</span>`).join('');
   Lab.$('#gOk').textContent = gs.ok + '/' + (SEQ.length - 1); Lab.$('#gScore').textContent = gs.score; Lab.$('#gBar').style.width = (gs.ok / (SEQ.length - 1) * 100) + '%'; Lab.$('#gBad').textContent = gs.bad;
 }
+const portResult = nx => '✅ ' + Lab.L(PORTS[nx].name) + (Lab.lang === 'zh' ? '：' : ': ') + Lab.L(PORTS[nx].note);
+readPanelItems('#gMsg', SEQ.slice(1, -1), portResult);
+const portHint = nx => '💡 ' + Lab.L(PORTS[nx].note);
+readPanelItems('#gMsg', SEQ.slice(1), portHint);
+const wrongPort = best => '❌ ' + Lab.L(o('That is ','那是')) + Lab.L(PORTS[best].name) + Lab.L(o(', not yet!','，还没到呢！'));
+readPanelItems('#gMsg', SEQ.slice(2), wrongPort);
+const VOYAGE_FEEDBACK = { empty:o('❌ There is no port there. Look for a white dot.','❌ 那里没有港口，找找白色圆点。'), visited:o('❌ The fleet has already been there.','❌ 船队已经到过那里了。') };
+readPanelItems('#gMsg', Object.values(VOYAGE_FEEDBACK), Lab.L);
 const gMsg = (t, good) => { const m = Lab.$('#gMsg'); m.textContent = t; m.className = 'result ' + (good === true ? 'good' : good === false ? 'bad' : ''); };
 G.cv.addEventListener('pointerdown', e => {
   const nx = SEQ[gs.i]; if (!nx) return;
   const b = G.cv.getBoundingClientRect(), wx = G.wx(e.clientX - b.left), wy = G.wy(e.clientY - b.top);
   let best = null, bd = 1e9; SEQ.forEach(id => { const [x, y] = PA(PORTS[id].lon, PORTS[id].lat), d = Math.hypot(wx - x, wy - y); if (d < bd){ bd = d; best = id; } });
-  if (bd > .45){ gs.bad++; gs.miss = true; gMsg(Lab.L(o('❌ There is no port there. Look for a white dot.','❌ 那里没有港口，找找白色圆点。')), false); gRender(); return; }
-  if (best !== nx){ gs.bad++; gs.miss = true; gMsg(best === 'liujiagang' || SEQ.indexOf(best) < gs.i ? Lab.L(o('❌ The fleet has already been there.','❌ 船队已经到过那里了。')) : '❌ ' + Lab.L(o('That is ','那是')) + Lab.L(PORTS[best].name) + Lab.L(o(', not yet!','，还没到呢！')), false); gRender(); return; }
+  if (bd > .45){ gs.bad++; gs.miss = true; gMsg(Lab.L(VOYAGE_FEEDBACK.empty), false); gRender(); return; }
+  if (best !== nx){ gs.bad++; gs.miss = true; gMsg(best === 'liujiagang' || SEQ.indexOf(best) < gs.i ? Lab.L(VOYAGE_FEEDBACK.visited) : wrongPort(best), false); gRender(); return; }
   const prev = SEQ[gs.i - 1], path = G.path(pp(PA, [[PORTS[prev].lon, PORTS[prev].lat], ...LEGS[nx]]), { color:C.gold, width:3, z:2 });
   G.create(path, .8).catch(() => {});
   const [x, y] = PA(PORTS[nx].lon, PORTS[nx].lat), t = G.text(PORTS[nx].name, x, y + (nx === 'malindi' || nx === 'mogadishu' ? -.3 : .3), { size:.24, color:C.yellow, z:3 });
   gDots[gs.i].fill = C.gold; gs.marks.push(path, t); G.pop(t, .3).catch(() => {});
   gs.ok++; gs.i++; gs.score += gs.miss ? 5 : 10; gs.miss = false;
-  gMsg('✅ ' + Lab.L(PORTS[nx].name) + (Lab.lang === 'zh' ? '：' : ': ') + Lab.L(PORTS[nx].note), true);
+  gMsg(portResult(nx), true);
   if (gs.i >= SEQ.length) gMsg(Lab.fmt(o('🎉 You reached the east coast of Africa and the Red Sea coast! Score {s} of {t}, wrong turns: {m}.','🎉 你到达了非洲东海岸和红海沿岸！得分 {s}/{t}，走错 {m} 次。'), { m:gs.bad, s:gs.score, t:(SEQ.length - 1) * 10 }), true);
   gRender();
 });
 Lab.$('#gNew').onclick = () => { gs.marks.splice(0).forEach(m => G.remove(m)); gDots.forEach((d, k) => d.fill = k ? '#e8eef8' : C.red); Object.assign(gs, { i:1, ok:0, bad:0, score:0, miss:false }); gMsg(''); gRender(); };
-Lab.$('#gHint').onclick = () => { const nx = SEQ[gs.i]; if (!nx) return; gs.miss = true; gMsg('💡 ' + Lab.L(PORTS[nx].note)); G.flash(gDots[gs.i], C.yellow, .8).catch(() => {}); const d = gDots[gs.i]; G.to(d, { r:.22 }, .3).then(() => G.to(d, { r:.11 }, .5)).catch(() => {}); };
+Lab.$('#gHint').onclick = () => { const nx = SEQ[gs.i]; if (!nx) return; gs.miss = true; gMsg(portHint(nx)); G.flash(gDots[gs.i], C.yellow, .8).catch(() => {}); const d = gDots[gs.i]; G.to(d, { r:.22 }, .3).then(() => G.to(d, { r:.11 }, .5)).catch(() => {}); };
 Lab.onLang(() => gRender());
 </script>
 <script>
@@ -679,14 +779,20 @@ const YWORLD = [
     text(Lab.L(o('Schematic map · base map: China today','示意图 · 底图为今日中国疆域')), V.ox + 8, V.H - V.oy - 10, { s:V.small ? 9 : 10.5, a:'left', c:ink2, w:700 });
   }
   const pct = y => ((y - Y0) / (Y1 - Y0) * 100).toFixed(2) + '%';
+  const eventPanel = e => `<h4>${e.y} · ${Lab.L(e.t)}</h4><p>${Lab.L(e.b)}</p>`;
+  readPanelItems('#yrEv', YEV, eventPanel, 'h4,p');
+  const worldPanel = w => `<b>${Lab.L(o('🌎 Meanwhile in the world','🌎 同一时期的世界'))} · ${w.y}${Lab.lang === 'zh' ? '年' : ''}</b><br>${Lab.L(w.t)}`;
+  readPanelItems('#yrWorld', YWORLD, worldPanel, null, 'innerHTML');
+  const dynastyText = ming => Lab.L(ming ? o('MING DYNASTY 明朝 · 1368–1644','明朝 · 1368—1644年') : o('QING DYNASTY 清朝 · 1644–1912','清朝 · 1644—1912年'));
+  readPanelItems('#yrDyn', [true, false], dynastyText);
   function render(){
-    const c0 = cur(), zh = Lab.lang === 'zh', ming = year < 1644;
+    const c0 = cur(), ming = year < 1644;
     Lab.$('#yr').value = year; Lab.$('#yrOut').textContent = year; Lab.$('#yrBig').textContent = year;
-    Lab.$('#yrDyn').textContent = Lab.L(ming ? o('MING DYNASTY 明朝 · 1368–1644','明朝 · 1368—1644年') : o('QING DYNASTY 清朝 · 1644–1912','清朝 · 1644—1912年'));
+    Lab.$('#yrDyn').textContent = dynastyText(ming);
     Lab.$('#yrNote').textContent = year === c0 ? '' : Lab.L(o(`Slider at ${year}. The latest big event was in ${c0}:`, `滑块在${year}年。最近的一件大事发生在${c0}年：`));
-    Lab.$('#yrEv').innerHTML = YEV.filter(e => e.y === c0).map(e => `<h4>${c0} · ${Lab.L(e.t)}</h4><p>${Lab.L(e.b)}</p>`).join('');
+    Lab.$('#yrEv').innerHTML = YEV.filter(e => e.y === c0).map(eventPanel).join('');
     let w = YWORLD[0]; YWORLD.forEach(x => { if (x.y <= year) w = x; });
-    Lab.$('#yrWorld').innerHTML = `<b>${Lab.L(o('🌎 Meanwhile in the world','🌎 同一时期的世界'))} · ${w.y}${zh ? '年' : ''}</b><br>${Lab.L(w.t)}`;
+    Lab.$('#yrWorld').innerHTML = worldPanel(w);
     const dots = (arr, cls) => arr.map(e => `<button data-y="${e.y}" class="${cls} ${e.y <= year ? 'past' : ''} ${cls ? '' : e.y === c0 ? 'now' : ''}" style="left:${pct(e.y)}" title="${e.y} · ${Lab.L(e.t).replace(/<[^>]+>/g, '').replace(/"/g, '&quot;')}" aria-label="${e.y}"></button>`).join('');
     Lab.$('#yrLanes').innerHTML = `<div class="lane"><span class="ll">🏯 <span>${Lab.L(o('China','中国'))}</span></span><div class="lt">${dots(YEV, '')}<i class="cur" style="left:${pct(year)}"></i></div></div>` +
       `<div class="lane"><span class="ll">🌎 <span>${Lab.L(o('World','世界'))}</span></span><div class="lt">${dots(YWORLD, 'w')}<i class="cur" style="left:${pct(year)}"></i></div></div>` +

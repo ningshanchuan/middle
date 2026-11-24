@@ -306,31 +306,95 @@ App.setMode = m => {
   if (App.three) App.three.setMode(m);
 };
 function renderStoryBtn(){ Lab.$('#storyBtn').textContent = Lab.L(App.mode === 'flower' ? o('🌸→🍎 Flower to fruit (story)','🌸→🍎 从花到果实（故事）') : o('💧 Water’s journey (story)','💧 水的旅程（故事）')); }
-function renderInfo(){
-  const box = Lab.$('#info'), k = App.sel, ORDER = ORDERS[App.mode];
-  if (!k){
-    const fl = App.mode === 'flower';
-    box.innerHTML = `<span class="tag">${Lab.L(fl ? o('Flower','花') : o('Whole plant','整株植物'))}</span>
+// Use the same read-aloud units for the crawler and the panel's Listen button.
+const PANEL_PARTS = '.tag,h3,h4,.job,p,li,.memory,.mix,figcaption,.quote';
+function panelUnits(el, selector = PANEL_PARTS, visibleOnly = false){
+  const nodes = selector ? el.querySelectorAll(selector) : [el];
+  const out = [];
+  for (const node of nodes){
+    if (visibleOnly && !node.getClientRects().length) continue;
+    const unit = Lab.readUnits(node);
+    if (!unit) continue;
+    const style = node.closest('[data-read-style]');
+    for (const text of unit.parts){
+      out.push(style ? [text, unit.lang, {style:style.dataset.readStyle, work:style.dataset.work}] : [text, unit.lang]);
+    }
+  }
+  return out;
+}
+function speakPanel(el, selector){
+  const parts = panelUnits(el, selector, true);
+  let i = 0;
+  const next = ok => {
+    if (ok === false || i >= parts.length) return;
+    const [text, lang] = parts[i++];
+    Lab.speak(text, {lang, inner:true, onend:next});
+  };
+  next();
+}
+function collectPanelTexts(host, items, render, selector){
+  if (!host?.parentElement) return [];
+  const tmp = host.cloneNode(false);
+  tmp.removeAttribute('id');
+  tmp.removeAttribute('aria-live');
+  tmp.style.cssText = 'position:absolute;left:-10000px;top:0;box-sizing:border-box;width:' + (host.offsetWidth || 360) + 'px';
+  host.after(tmp);
+  const out = [];
+  try {
+    for (const item of items){
+      render(tmp, item);
+      out.push(...panelUnits(tmp, selector));
+    }
+  } finally { tmp.remove(); }
+  return out;
+}
+function registerPanelValues(host, items, value){
+  Lab.readAll(() => collectPanelTexts(Lab.$(host), items, (tmp, item) => { tmp.textContent = value(item); }, null));
+}
+function registerStoryTexts(steps){
+  Lab.readAll(() => collectPanelTexts(Lab.$('#stage .lab-caption') || Lab.$('#stage'), steps, (tmp, step) => {
+    tmp.textContent = Lab.L(step);
+  }, null));
+}
+function registerPanelTexts(host, items, markup, selector){
+  Lab.readAll(() => collectPanelTexts(Lab.$(host), items, (tmp, item) => { tmp.innerHTML = markup(item); }, selector));
+}
+function infoMarkup(k){
+  const p = PARTS[k];
+  return `<span class="tag">${Lab.L(GRP[p.grp])}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>${window.REALFIG && REALFIG[k] ? LabPhotos.figure(REALFIG[k]) : ''}
+    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}`;
+}
+registerPanelTexts('#info', Object.values(ORDERS).flat(), infoMarkup);
+registerStoryTexts(FLOWER_STORY);
+registerStoryTexts(PLANT_STORY);
+function overviewMarkup(fl){
+  return `<span class="tag">${Lab.L(fl ? o('Flower','花') : o('Whole plant','整株植物'))}</span>
       <h3>${Lab.L(fl ? o('A flower makes seeds','花的使命：产生种子') : o('Roots, stems and leaves','根、茎、叶'))}</h3>
       <p class="muted" style="margin:0">${Lab.L(fl ? o('A flower is the reproductive organ of a flowering plant. Drag the Explode slider to take it apart, then click each part.','花是开花植物的生殖器官。拖动“拆开”滑块把它分解开，再点击每个部分。') : o('Vascular plants have tubes that move water and food. Watch blue water rise in the xylem and orange sugar flow in the phloem. Click the flower to open it.','维管植物体内有运输水和养料的管道。观察蓝色的水沿木质部上升，橙色的糖在韧皮部中流动。点击顶端的花可以打开花的模型。'))}</p>
       ${fl ? `<ul><li><b>${Lab.L(GRP.male)}</b>: ${Lab.L(o('anther + filament','花药 + 花丝'))}</li><li><b>${Lab.L(GRP.female)}</b>: ${Lab.L(o('stigma + style + ovary (with ovules)','柱头 + 花柱 + 子房（内有胚珠）'))}</li><li><b>${Lab.L(GRP.help)}</b>: ${Lab.L(o('petals and sepals','花瓣和萼片'))}</li></ul>`
            : `<ul><li>${Lab.L(o('Roots: anchor and absorb','根：固定和吸收'))}</li><li>${Lab.L(o('Stem: support and transport','茎：支撑和运输'))}</li><li>${Lab.L(o('Leaves: make food','叶：制造养料'))}</li></ul>`}
       <div class="memory"><b>${Lab.L(o('💡 Big idea','💡 核心概念'))}</b>${Lab.L(fl ? o('Each structure’s shape fits its job: sticky stigma, dusty anthers, bright petals.','每种结构的形状都适合它的功能：黏黏的柱头、满是花粉的花药、鲜艳的花瓣。') : o('Xylem moves water up; phloem moves food wherever it is needed.','木质部运水向上；韧皮部把养料运到需要的地方。'))}</div>
-      ${fl ? `<div class="adv adv-box"><b>${Lab.L(o('Zoom deeper: from pollen to seed','深入一层：从花粉到种子'))}</b><ul style="margin:6px 0 0;padding-left:18px">${Lab.L(o(['A pollen grain on the stigma grows a pollen tube down through the style to an ovule, sometimes in less than an hour.','Flowering plants use DOUBLE fertilization: one sperm joins the egg (→ embryo), a second sperm joins two other nuclei (→ endosperm, the seed’s food store).','So one ovule → one seed, and the ovary → the fruit. A watermelon with 500 seeds needed at least 500 pollen grains!'],['落在柱头上的花粉萌发出花粉管，穿过花柱伸到胚珠，有时不到一小时就能到达。','被子植物进行双受精：一个精子与卵细胞结合（→ 胚），另一个精子与两个极核结合（→ 胚乳，种子里储存营养的部分）。','所以一个胚珠 → 一粒种子，子房 → 果实。一个有 500 粒种子的西瓜，至少需要 500 粒花粉！'])).map(t => `<li>${t}</li>`).join('')}</ul></div>` : ''}
+      ${fl ? `<div class="adv adv-box"><b>${Lab.L(o('Zoom deeper: from pollen to seed','深入一层：从花粉到种子'))}</b><ul style="margin:6px 0 0;padding-left:18px">${Lab.L(o(['A pollen grain on the stigma grows a pollen tube down through the style to an ovule, sometimes in less than an hour.','Flowering plants use DOUBLE fertilization: one sperm joins the egg (→ embryo), a second sperm joins two other nuclei (→ endosperm, the seed’s food store).','So one ovule → one seed, and the ovary → the fruit. A watermelon with 500 seeds needed at least 500 pollen grains!'],['落在柱头上的花粉萌发出花粉管，穿过花柱伸到胚珠，有时不到一小时就能到达。','被子植物进行双受精：一个精子与卵细胞结合（→ 胚），另一个精子与两个极核结合（→ 胚乳，种子里储存营养的部分）。','所以一个胚珠 → 一粒种子，子房 → 果实。一个有 500 粒种子的西瓜，至少需要 500 粒花粉！'])).map(t => `<li>${t}</li>`).join('')}</ul></div>` : ''}`;
+}
+registerPanelTexts('#info', [true, false], overviewMarkup);
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel, ORDER = ORDERS[App.mode];
+  if (!k){
+    const fl = App.mode === 'flower';
+    box.innerHTML = overviewMarkup(fl) + `
       <div class="nav"><button id="startBtn">${Lab.L(o('Start the tour ▶','开始认识 ▶'))}</button></div>`;
     Lab.$('#startBtn').onclick = () => App.select(ORDER[0]);
     return;
   }
-  const p = PARTS[k], i = ORDER.indexOf(k);
-  box.innerHTML = `<span class="tag">${Lab.L(GRP[p.grp])}</span>
-    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
-    <div class="job">${Lab.L(p.job)}</div>
-    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>${window.REALFIG && REALFIG[k] ? LabPhotos.figure(REALFIG[k]) : ''}
-    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(p.hint)}</div>
-    ${p.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+  const i = ORDER.indexOf(k);
+  box.innerHTML = infoMarkup(k) + `
     <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
-  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(p.name), Lab.L(p.job), ...Lab.L(p.facts)].join('. '));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box);
   Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
   Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
 }
@@ -385,6 +449,18 @@ const onScreen = el => { const b = el.getBoundingClientRect(); return b.bottom >
 (function(){
   const cv = Lab.$('#pgCv'), box = Lab.$('#pgBox');
   const SP = [{c:'#f472b6', n:o('pink','粉色')}, {c:'#a78bfa', n:o('purple','紫色')}, {c:'#facc15', n:o('yellow','黄色')}];
+  const POLL_NOTES = {
+    nectar:o('Sipping nectar… sticky pollen grains cling to the bee’s hairy body!','正在吸花蜜……黏黏的花粉粘在了蜜蜂毛茸茸的身上！'),
+    sameFlower:o('Same flower! These plants need pollen from a different flower of the same kind (cross-pollination).','还是同一朵花！这些植物需要同种植物另一朵花的花粉（异花传粉）。'),
+    already:o('This flower is already pollinated, but the bee still gets nectar and new pollen.','这朵花已经传过粉了，不过蜜蜂还是吃到了花蜜，又沾上了新的花粉。')
+  };
+  const mismatchedPollen = (from, to) => ({ en:`✗ ${SP[from].n.en} pollen can’t fertilize a ${SP[to].n.en} flower. Different species!`, zh:`✗ ${SP[from].n.zh}花的花粉不能让${SP[to].n.zh}花受精,它们不是同一种植物!` });
+  const pollenSuccess = sp => ({ en:`✓ Pollinated! ${SP[sp].n.en} pollen landed on a ${SP[sp].n.en} stigma. This flower can now make seeds.`, zh:`✓ 传粉成功!${SP[sp].n.zh}花的花粉落在了${SP[sp].n.zh}花的柱头上,这朵花可以结种子了。` });
+  const pollinationNotes = [
+    ...Object.values(POLL_NOTES),
+    ...SP.flatMap((_, from) => SP.map((_, to) => from === to ? pollenSuccess(to) : mismatchedPollen(from, to)))
+  ];
+  registerPanelValues('#pgMsg', pollinationNotes, Lab.L);
   let F = [], bee, trips, waste, done, msgObj = null, msgGood = null;
   function reset(){
     const spots = Lab.shuffle([[.18,.42],[.42,.34],[.68,.4],[.88,.3],[.26,.75],[.52,.68],[.76,.78],[.92,.62]]);
@@ -400,11 +476,11 @@ const onScreen = el => { const b = el.getBoundingClientRect(); return b.bottom >
   }
   function arrive(f){
     const c = bee.carry, zh = Lab.lang === 'zh';
-    if (!c){ msgObj = o('Sipping nectar… sticky pollen grains cling to the bee’s hairy body!','正在吸花蜜……黏黏的花粉粘在了蜜蜂毛茸茸的身上！'); msgGood = null; }
-    else if (c.from === f.i){ msgObj = o('Same flower! These plants need pollen from a different flower of the same kind (cross-pollination).','还是同一朵花！这些植物需要同种植物另一朵花的花粉（异花传粉）。'); msgGood = null; }
-    else if (c.sp !== f.sp){ waste++; msgObj = { en:`✗ ${SP[c.sp].n.en} pollen can’t fertilize a ${SP[f.sp].n.en} flower. Different species!`, zh:`✗ ${SP[c.sp].n.zh}花的花粉不能让${SP[f.sp].n.zh}花受精,它们不是同一种植物!` }; msgGood = false; }
-    else if (f.pol){ msgObj = o('This flower is already pollinated, but the bee still gets nectar and new pollen.','这朵花已经传过粉了，不过蜜蜂还是吃到了花蜜，又沾上了新的花粉。'); msgGood = null; }
-    else { f.pol = true; done++; msgObj = { en:`✓ Pollinated! ${SP[f.sp].n.en} pollen landed on a ${SP[f.sp].n.en} stigma. This flower can now make seeds.`, zh:`✓ 传粉成功!${SP[f.sp].n.zh}花的花粉落在了${SP[f.sp].n.zh}花的柱头上,这朵花可以结种子了。` }; msgGood = true; }
+    if (!c){ msgObj = POLL_NOTES.nectar; msgGood = null; }
+    else if (c.from === f.i){ msgObj = POLL_NOTES.sameFlower; msgGood = null; }
+    else if (c.sp !== f.sp){ waste++; msgObj = mismatchedPollen(c.sp, f.sp); msgGood = false; }
+    else if (f.pol){ msgObj = POLL_NOTES.already; msgGood = null; }
+    else { f.pol = true; done++; msgObj = pollenSuccess(f.sp); msgGood = true; }
     if (done === F.length){ msgObj = { en:`🎉 All ${F.length} flowers pollinated in ${trips} trips! Fruits and seeds will grow.`, zh:`🎉 用 ${trips} 次飞行给全部 ${F.length} 朵花传了粉!它们将结出果实和种子。` }; msgGood = true; }
     bee.carry = { sp:f.sp, from:f.i }; ui();
   }
@@ -470,6 +546,8 @@ const onScreen = el => { const b = el.getBoundingClientRect(); return b.bottom >
     {e:'🍎', n:o('Fertilization & fruit','受精与结果'), d:o('Sperm joins egg in the ovule. Ovules become seeds; the ovary becomes a fruit.','精子与胚珠中的卵细胞结合。胚珠发育成种子，子房发育成果实。')},
     {e:'🌬️', n:o('Seed dispersal','种子传播'), d:o('Wind, water, animals or bursting pods carry seeds away to new places.','风、水、动物或豆荚炸裂把种子带到新的地方。')}
   ];
+  const lifeCycleNote = step => ({ en:`${step.e} ${step.n.en}: ${step.d.en}`, zh:`${step.e} ${step.n.zh}:${step.d.zh}` });
+  registerPanelValues('#lcDesc', ST, step => Lab.L(lifeCycleNote(step)));
   let pool, placed, msg;
   function reset(){ pool = Lab.shuffle(ST.map((_, i) => i)); placed = 0; msg = o('Which stage comes first?','哪个阶段在最前面？'); render(); }
   function render(){
@@ -479,7 +557,7 @@ const onScreen = el => { const b = el.getBoundingClientRect(); return b.bottom >
     Lab.$$('#lcPool .lc-card').forEach(b => b.onclick = () => pick(+b.dataset.i, b));
   }
   function pick(i, el){
-    if (i === placed){ pool = pool.filter(x => x !== i); placed++; msg = { en:`${ST[i].e} ${ST[i].n.en}: ${ST[i].d.en}`, zh:`${ST[i].e} ${ST[i].n.zh}:${ST[i].d.zh}` }; render(); }
+    if (i === placed){ pool = pool.filter(x => x !== i); placed++; msg = lifeCycleNote(ST[i]); render(); }
     else { el.classList.remove('badc'); void el.offsetWidth; el.classList.add('badc'); Lab.$('#lcDesc').textContent = Lab.L(o('Not yet! Think about what has to happen before that.','还不是这一步！想一想在它之前必须先发生什么。')); }
   }
   Lab.$('#lcReset').onclick = reset;
@@ -503,10 +581,13 @@ const onScreen = el => { const b = el.getBoundingClientRect(); return b.bottom >
     return { dS:angDiff(g.up0, tS), dR:angDiff(g.up0 + Math.PI, Math.PI / 2) };
   }
   function path(O, th0, d, L, k){ const pts = [[O.x, O.y, th0]]; let x = O.x, y = O.y; const N = Math.max(2, Math.round(L / 4)); for (let i = 1; i <= N; i++){ const s = i / N * L, th = th0 + d * Math.min(1, Math.pow(s / Math.max(1, k * L), 1.4)); x += Math.cos(th) * L / N; y += Math.sin(th) * L / N; pts.push([x, y, th]); } return pts; }
-  function respTxt(){
+  function respTxt(lightOn, tipped){
     const st = !lightOn ? (tipped ? o('Curves upward: negative gravitropism','向上弯曲：负向地性') : o('Grows straight up','笔直向上生长')) : o('Bends toward light: phototropism','弯向光源：向光性');
     return [st, o('Grows down: positive gravitropism','向下生长：正向地性')];
   }
+  const responses = [[false,false],[false,true],[true,false]];
+  registerPanelValues("#trStem", responses, args => Lab.L(respTxt(...args)[0]));
+  registerPanelValues("#trRoot", responses, args => Lab.L(respTxt(...args)[1]));
   let last = performance.now();
   function loop(now){
     requestAnimationFrame(loop); const dt = Math.min(.25, (now - last) / 1000); last = now;
@@ -549,7 +630,7 @@ const onScreen = el => { const b = el.getBoundingClientRect(); return b.bottom >
         (side === 0 ? [-1, 1] : [side]).forEach(s => { x.beginPath(); x.arc(a + nx * s * 6, b + ny * s * 6, 2.6, 0, 7); x.fill(); });
       });
     }
-    const [st, rt] = respTxt(); Lab.$('#trStem').textContent = Lab.L(st); Lab.$('#trRoot').textContent = Lab.L(rt);
+    const [st, rt] = respTxt(lightOn, tipped); Lab.$('#trStem').textContent = Lab.L(st); Lab.$('#trRoot').textContent = Lab.L(rt);
     Lab.$('#trStem').style.fontSize = Lab.$('#trRoot').style.fontSize = '16px';
   }
   const btnLbl = (b, en, zh) => { b.dataset.en = en; b.dataset.zh = zh; b.textContent = Lab.lang === 'zh' ? zh : en; };

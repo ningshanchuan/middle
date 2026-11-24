@@ -290,6 +290,79 @@ App.select = (k, from3D) => { App.sel = k; renderInfo(); renderChips(); if (!fro
 App.onSeen = k => { if (App.seen[k]) return; App.seen[k] = true; if (App.sel === k) renderInfo(); renderChips(); };
 App.onReset = k => { App.seen[k] = false; delete App.pred[k]; if (App.sel === k) renderInfo(); renderChips(); };
 const signChip = (s, state) => `<span class="sign ${state}">${SIGNS[s].ico} ${Lab.L(SIGNS[s])}</span>`;
+// Use the same read-aloud units for the crawler and the panel's Listen button.
+const PANEL_PARTS = '.tag,h3,h4,.job,p,li,.memory,.mix,figcaption,.quote';
+function panelUnits(el, selector = PANEL_PARTS, visibleOnly = false){
+  const nodes = selector ? el.querySelectorAll(selector) : [el];
+  const out = [];
+  for (const node of nodes){
+    if (visibleOnly && !node.getClientRects().length) continue;
+    const unit = Lab.readUnits(node);
+    if (!unit) continue;
+    const style = node.closest('[data-read-style]');
+    for (const text of unit.parts){
+      out.push(style ? [text, unit.lang, {style:style.dataset.readStyle, work:style.dataset.work}] : [text, unit.lang]);
+    }
+  }
+  return out;
+}
+function speakPanel(el, selector){
+  const parts = panelUnits(el, selector, true);
+  let i = 0;
+  const next = ok => {
+    if (ok === false || i >= parts.length) return;
+    const [text, lang] = parts[i++];
+    Lab.speak(text, {lang, inner:true, onend:next});
+  };
+  next();
+}
+function collectPanelTexts(host, items, render, selector){
+  if (!host?.parentElement) return [];
+  const tmp = host.cloneNode(false);
+  tmp.removeAttribute('id');
+  tmp.removeAttribute('aria-live');
+  tmp.style.cssText = 'position:absolute;left:-10000px;top:0;box-sizing:border-box;width:' + (host.offsetWidth || 360) + 'px';
+  host.after(tmp);
+  const out = [];
+  try {
+    for (const item of items){
+      render(tmp, item);
+      out.push(...panelUnits(tmp, selector));
+    }
+  } finally { tmp.remove(); }
+  return out;
+}
+function registerPanelValues(host, items, value){
+  Lab.readAll(() => collectPanelTexts(Lab.$(host), items, (tmp, item) => { tmp.textContent = value(item); }, null));
+}
+function registerStoryTexts(steps){
+  Lab.readAll(() => collectPanelTexts(Lab.$('#stage .lab-caption') || Lab.$('#stage'), steps, (tmp, step) => {
+    tmp.textContent = Lab.L(step);
+  }, null));
+}
+function registerPanelTexts(host, items, markup, selector){
+  Lab.readAll(() => collectPanelTexts(Lab.$(host), items, (tmp, item) => { tmp.innerHTML = markup(item); }, selector));
+}
+const EXPERIMENT_PARTS = PANEL_PARTS + ',.verdict,.signs + small';
+function infoMarkup(k, seen, pr, controls = false){
+  const e = EXP[k], ty = TYPE[e.type];
+  const signs = SIGN_KEYS.map(s => signChip(s, seen ? (e.signs.includes(s) ? 'on' : '') : 'unk')).join('');
+  const verdict = seen ? `<div class="verdict ${e.type}">${e.type === 'chem' ? '🧪' : '📏'} ${Lab.L({en:'Verdict: ',zh:'结论：'})}${Lab.L(ty)}${e.type === 'chem' ? Lab.L({en:', new substances formed.',zh:'，生成了新物质。'}) : Lab.L({en:', no new substance.',zh:'，没有生成新物质。'})}
+      ${pr ? `<br><span style="font-weight:700">${pr === e.type ? Lab.L({en:'✅ Your prediction was right!',zh:'✅ 你的预测正确！'}) : Lab.L({en:'❌ Your prediction was different. Look at the evidence again.',zh:'❌ 和你的预测不一样，再看看证据。'})}</span>` : ''}</div>`
+    : `<div class="predict">${Lab.L({en:'🤔 Predict first:',zh:'🤔 先预测：'})}${controls ? `<button data-p="phys" class="${pr==='phys'?'sel':''}">${Lab.L(TYPE.phys)}</button><button data-p="chem" class="${pr==='chem'?'sel':''}">${Lab.L(TYPE.chem)}</button>` : ''}</div>`;
+  return `<span class="tag" style="color:${seen ? ty.color : 'var(--ink-2)'};background:color-mix(in srgb,${seen ? ty.color : '#8899aa'} 15%,transparent)">${seen ? Lab.L(ty) : Lab.L({en:'Physical or chemical?',zh:'物理还是化学？'})}</span>
+    <h3><span class="dot" style="background:${e.color}"></span>${Lab.L(e.name)}</h3>
+    <div class="job">${seen ? Lab.L(e.job) : Lab.L({en:'Press ▶ Do it (or drag the time slider) and watch closely.',zh:'按“▶ 做实验”（或拖动时间滑块），仔细观察。'})}</div>
+    ${verdict}
+    <div><b style="font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)">${Lab.L({en:'Evidence of a chemical change',zh:'化学变化的证据'})}</b><div class="signs" style="margin-top:6px">${signs}</div>
+      ${seen && !e.signs.length ? `<small class="muted">${Lab.L({en:'None of the signs appeared.',zh:'没有出现任何化学变化的信号。'})}</small>` : ''}</div>
+    ${seen ? `<ul>${Lab.L(e.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    ${realFig(k)}
+    <div class="memory"><b>${Lab.L({en:'💡 Memory hint',zh:'💡 记忆小窍门'})}</b>${Lab.L(e.hint)}</div>
+    <div class="mix"><b>${Lab.L({en:'⚠️ Common mix-up:',zh:'⚠️ 容易混淆：'})}</b><span>${Lab.L(e.mix)}</span></div>` : ''}`;
+}
+registerStoryTexts(TOUR);
+registerPanelTexts('#info', ORDER.flatMap(k => [[k, false], [k, true], [k, true, EXP[k].type], [k, true, EXP[k].type === 'phys' ? 'chem' : 'phys']]), (args => infoMarkup(...args)), EXPERIMENT_PARTS);
 function renderInfo(){
   const box = Lab.$('#info'), k = App.sel;
   if (!k){
@@ -302,25 +375,12 @@ function renderInfo(){
     Lab.$('#startBtn').onclick = () => App.select('paper');
     return;
   }
-  const e = EXP[k], i = ORDER.indexOf(k), seen = !!App.seen[k], ty = TYPE[e.type], pr = App.pred[k];
-  const signs = SIGN_KEYS.map(s => signChip(s, seen ? (e.signs.includes(s) ? 'on' : '') : 'unk')).join('');
-  const verdict = seen ? `<div class="verdict ${e.type}">${e.type === 'chem' ? '🧪' : '📏'} ${Lab.L({en:'Verdict: ',zh:'结论：'})}${Lab.L(ty)}${e.type === 'chem' ? Lab.L({en:', new substances formed.',zh:'，生成了新物质。'}) : Lab.L({en:', no new substance.',zh:'，没有生成新物质。'})}
-      ${pr ? `<br><span style="font-weight:700">${pr === e.type ? Lab.L({en:'✅ Your prediction was right!',zh:'✅ 你的预测正确！'}) : Lab.L({en:'❌ Your prediction was different. Look at the evidence again.',zh:'❌ 和你的预测不一样，再看看证据。'})}</span>` : ''}</div>`
-    : `<div class="predict">${Lab.L({en:'🤔 Predict first:',zh:'🤔 先预测：'})}<button data-p="phys" class="${pr==='phys'?'sel':''}">${Lab.L(TYPE.phys)}</button><button data-p="chem" class="${pr==='chem'?'sel':''}">${Lab.L(TYPE.chem)}</button></div>`;
-  box.innerHTML = `<span class="tag" style="color:${seen ? ty.color : 'var(--ink-2)'};background:color-mix(in srgb,${seen ? ty.color : '#8899aa'} 15%,transparent)">${seen ? Lab.L(ty) : Lab.L({en:'Physical or chemical?',zh:'物理还是化学？'})}</span>
-    <h3><span class="dot" style="background:${e.color}"></span>${Lab.L(e.name)}</h3>
-    <div class="job">${seen ? Lab.L(e.job) : Lab.L({en:'Press ▶ Do it (or drag the time slider) and watch closely.',zh:'按“▶ 做实验”（或拖动时间滑块），仔细观察。'})}</div>
-    ${verdict}
-    <div><b style="font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)">${Lab.L({en:'Evidence of a chemical change',zh:'化学变化的证据'})}</b><div class="signs" style="margin-top:6px">${signs}</div>
-      ${seen && !e.signs.length ? `<small class="muted">${Lab.L({en:'None of the signs appeared.',zh:'没有出现任何化学变化的信号。'})}</small>` : ''}</div>
-    ${seen ? `<ul>${Lab.L(e.facts).map(f => `<li>${f}</li>`).join('')}</ul>
-    ${realFig(k)}
-    <div class="memory"><b>${Lab.L({en:'💡 Memory hint',zh:'💡 记忆小窍门'})}</b>${Lab.L(e.hint)}</div>
-    <div class="mix"><b>${Lab.L({en:'⚠️ Common mix-up:',zh:'⚠️ 容易混淆：'})}</b><span>${Lab.L(e.mix)}</span></div>` : ''}
+  const i = ORDER.indexOf(k);
+  box.innerHTML = infoMarkup(k, !!App.seen[k], App.pred[k], true) + `
     <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${Lab.L({en:'◀ Previous',zh:'◀ 上一个'})}</button><button id="pNext">${Lab.L({en:'Next ▶',zh:'下一个 ▶'})}</button></div>`;
   Lab.$$('#info .predict button').forEach(b => b.onclick = () => { App.pred[k] = b.dataset.p; renderInfo(); if (App.three) App.three.play(); });
-  Lab.$('#speakBtn').onclick = () => Lab.speak(seen ? [Lab.L(e.name), Lab.L(ty), Lab.L(e.job), ...Lab.L(e.facts)].join('. ') : [Lab.L(e.name), Lab.L({en:'Is it a physical or a chemical change? Make a prediction, then run the experiment.',zh:'这是物理变化还是化学变化？先预测，再做实验。'})].join('. '));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box, EXPERIMENT_PARTS);
   Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
   Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
 }
@@ -365,13 +425,19 @@ Lab.onLang(() => { renderInfo(); renderChips(); renderSignCards(); });
   const name = s => Lab.L(s.n) + (s.f ? ' ' + s.f : '');
   function setBox(b){ box = b; Lab.$$('#aBox button').forEach(x => x.classList.toggle('on', x.dataset.b === b)); render(); }
   Lab.$$('#aBox button').forEach(b => b.onclick = () => setBox(b.dataset.b));
+  const massQuestion = q => Lab.L({en:`${Lab.L(EXP[q.k].name)} in ${q.box === 'open' ? 'an OPEN' : 'a SEALED'} container: will the balance reading go up, go down or stay the same?`, zh:`${Lab.L(EXP[q.k].name)}，放在${q.box === 'open' ? '敞口' : '密闭'}容器中：天平读数会变大、变小，还是不变？`});
+  registerPanelValues("#aChQ", CH, massQuestion);
+  const massFeedback = (q, ok) => (ok ? '✅ ' : '❌ ') + Lab.L(ok ? {en:'Right! ', zh:'对了！'} : {en:'Not quite. ', zh:'不对。'}) + Lab.L(q.why) + ' ' + Lab.L({en:'Press ▶ Do it to watch the numbers.', zh:'按“▶ 做实验”看看数字的变化。'});
+  registerPanelValues("#aCh", CH.flatMap(q => [[q, true], [q, false]]), args => massFeedback(...args));
+  const massEquation = M => Lab.L(M.eq);
+  registerPanelTexts('#aEq', Object.values(MASS), massEquation, null);
   function render(){
     const k = App.sel, M = k && MASS[k];
     const q = CH[ci];
-    Lab.$('#aChQ').textContent = Lab.L({en:`${Lab.L(EXP[q.k].name)} in ${q.box === 'open' ? 'an OPEN' : 'a SEALED'} container: will the balance reading go up, go down or stay the same?`, zh:`${Lab.L(EXP[q.k].name)}，放在${q.box === 'open' ? '敞口' : '密闭'}容器中：天平读数会变大、变小，还是不变？`});
+    Lab.$('#aChQ').textContent = massQuestion(q);
     const r = Lab.$('#aCh');
     if (answered == null){ r.textContent = ''; r.className = 'result'; }
-    else { const ok = answered === q.ans; r.textContent = (ok ? '✅ ' : '❌ ') + Lab.L(ok ? {en:'Right! ', zh:'对了！'} : {en:'Not quite. ', zh:'不对。'}) + Lab.L(q.why) + ' ' + Lab.L({en:'Press ▶ Do it to watch the numbers.', zh:'按“▶ 做实验”看看数字的变化。'}); r.className = 'result ' + (ok ? 'good' : 'bad'); }
+    else { const ok = answered === q.ans; r.textContent = massFeedback(q, ok); r.className = 'result ' + (ok ? 'good' : 'bad'); }
     Lab.$$('#aChBtns button[data-a]').forEach(b => b.classList.toggle('on', b.dataset.a === answered));
     if (!M){ Lab.$('#aBal').textContent = '—'; Lab.$('#aDm').textContent = '—'; Lab.$('#aTab').innerHTML = ''; Lab.$('#aEq').textContent = Lab.L({en:'👆 Click an experiment on the bench to put it on the balance.', zh:'👆 点击实验台上的一个实验，把它放到天平上。'}); return; }
     const e = ext(App.three ? App.three.progress(k) : 0), now = M.s.map(s => s.a + (s.b - s.a) * e);
@@ -383,7 +449,7 @@ Lab.onLang(() => { renderInfo(); renderChips(); renderSignCards(); });
     Lab.$('#aTab').innerHTML = `<tr><th>${Lab.L({en:'Substance', zh:'物质'})}</th><th>${Lab.L({en:'start', zh:'开始'})}</th><th>${Lab.L({en:'now', zh:'现在'})}</th></tr>` +
       M.s.map((s, i) => `<tr><td>${name(s)}<small class="muted">${tag(s)}</small></td><td>${f2(s.a)} g</td><td><b>${f2(now[i])} g</b></td></tr>`).join('');
     const used = M.s.filter(s => s.b < s.a), made = M.s.filter(s => s.b > s.a), term = s => `${f2(Math.abs(s.b - s.a) * e)} g ${s.f || Lab.L(s.n)}`;
-    Lab.$('#aEq').innerHTML = `${Lab.L(M.eq)}<br>` + (EXP[k].type === 'chem'
+    Lab.$('#aEq').innerHTML = `${massEquation(M)}<br>` + (EXP[k].type === 'chem'
       ? `${Lab.L({en:'Reacted = formed:', zh:'参加反应的质量 = 生成物的质量：'})}<br>${used.map(term).join(' + ')} = ${made.map(term).join(' + ')}`
       : `${Lab.L({en:'Physical change: the same mass, just in a new form:', zh:'物理变化：质量相同，只是形态变了：'})} ${used.map(term).join(' + ')} → ${made.map(term).join(' + ')}`);
   }
@@ -414,6 +480,9 @@ Lab.onLang(() => { renderInfo(); renderChips(); renderSignCards(); });
     C('🔥','Hand warmer','暖宝宝','You open a hand-warmer packet. The iron powder inside reacts with air and it gets hot.','打开暖宝宝的包装，里面的铁粉与空气反应，变得很热。','chem',['temp'],'Iron reacts with oxygen (like fast rusting) and releases heat without any flame.','铁与氧气反应（就像快速生锈），不需要火焰就放出热量。'),
     C('🧊','Water freezing','水结冰','You put an ice tray in the freezer. The liquid water becomes solid ice cubes.','把冰格放进冰箱，液态的水变成了固态的冰块。','phys',[],'A freezer removes heat, so this temperature change is caused from outside. Ice is still H₂O.','是冰箱带走了热量，温度变化来自外界。冰仍然是 H₂O。')
   ];
+  registerPanelValues('#dTitle', CASES, c => Lab.L(c.t));
+  registerPanelValues('#dText', CASES, c => Lab.L(c.d));
+  registerPanelValues('#dExp', CASES, evidenceText);
   let order = [], idx = 0, ok = 0, streak = 0, picks = new Set(), answered = false, results = [], clueHit = 0, clueTot = 0;
   function start(){ order = Lab.shuffle(CASES.map((_, i) => i)); idx = 0; ok = 0; streak = 0; results = []; clueHit = 0; clueTot = 0; load(); }
   function load(){ picks = new Set(); answered = false; render(); }
@@ -442,8 +511,11 @@ Lab.onLang(() => { renderInfo(); renderChips(); renderSignCards(); });
     const right = results[idx], m = Lab.$('#dMsg');
     m.className = 'result ' + (right ? 'good' : 'bad');
     m.textContent = (right ? Lab.L({en:'✅ Correct: ',zh:'✅ 正确：'}) : Lab.L({en:'❌ Not quite. It is a ',zh:'❌ 不对。它是'})) + Lab.L(TYPE[c.type]) + (right ? '' : Lab.lang === 'zh' ? '。' : '.');
+    Lab.$('#dExp').textContent = evidenceText(c);
+  }
+  function evidenceText(c){
     const want = c.signs.length ? c.signs.map(s => SIGNS[s].ico + ' ' + Lab.L(SIGNS[s])).join(Lab.lang === 'zh' ? '、' : ', ') : Lab.L({en:'none',zh:'没有'});
-    Lab.$('#dExp').textContent = Lab.L({en:'Clues: ',zh:'线索：'}) + want + ' — ' + Lab.L(c.x);
+    return Lab.L({en:'Clues: ',zh:'线索：'}) + want + ' — ' + Lab.L(c.x);
   }
   function answer(type){
     if (answered || idx >= order.length) return;
