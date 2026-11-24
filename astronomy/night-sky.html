@@ -72,7 +72,7 @@
 <section class="wrap" id="explore" data-nav="3D Sky" data-nav-zh="3D 星空">
   <div class="lab-mode" style="margin-bottom:10px"></div>
   <div class="explorer">
-    <div class="stage card space" id="stage" data-3d>
+    <div class="stage card space" id="stage" data-3d><div class="lab-caption pline"></div>
       <div class="toolbar">
         <button class="tbtn on" id="viewIn" data-zh="👁 站在地面">👁 On the ground</button>
         <button class="tbtn" id="viewOut" data-zh="🌐 天球外">🌐 Outside view</button>
@@ -114,8 +114,8 @@
           <div class="counter"><b id="nsAlt">—</b><span data-zh="此刻的高度 · 方位">height now · direction</span></div>
         </div>
         <div class="fml" id="nsF"></div>
-        <div><b data-zh="🎯 挑战">🎯 Challenge</b> <span id="nsChQ"></span> <button class="btn ghost sm" id="nsChNew" data-zh="换一个 ↻">New ↻</button> <button class="btn sm" id="nsChk" data-zh="检查">Check</button></div>
-        <div class="result" id="nsCh"></div>
+        <div><b data-zh="🎯 挑战">🎯 Challenge</b> <span class="pline" id="nsChQ"></span> <button class="btn ghost sm" id="nsChNew" data-zh="换一个 ↻">New ↻</button> <button class="btn sm" id="nsChk" data-zh="检查">Check</button></div>
+        <div class="result pline" id="nsCh"></div>
       </div>
       <div>
         <div class="altg" data-nofs><canvas id="nsCv" aria-label="Height of the chosen star above the horizon through one night and day"></canvas></div>
@@ -223,7 +223,7 @@
   <div class="linkgrid">
     <a class="linkcard" href="https://stellarium-web.org/" target="_blank" rel="noopener"><b data-zh="Stellarium 网页版星图">Stellarium Web planetarium</b><span data-zh="输入你所在的城市和时间，看今晚天上有哪些星座和行星，还能快进到任何日期。">Set your town and time to see tonight’s constellations and planets, or fast-forward to any date.</span><small>stellarium-web.org ↗</small></a>
     <a class="linkcard" href="https://www.heavens-above.com/" target="_blank" rel="noopener"><b data-zh="Heavens-Above 过境预报">Heavens-Above</b><span data-zh="查出国际空间站和其他人造卫星什么时候从你家上空飞过，以及该往哪个方向看。">Find out when the Space Station and other satellites will pass over your home, and where to look.</span><small>heavens-above.com ↗</small></a>
-    <a class="linkcard" href="https://www.timeanddate.com/astronomy/night/" target="_blank" rel="noopener"><b data-zh="timeanddate 今晚夜空">timeanddate: Night sky tonight</b><span data-zh="查看你所在地今晚哪些行星可见、几点升起和落下。">See which planets are up tonight where you live, and when they rise and set.</span><small>timeanddate.com ↗</small></a>
+    <a class="linkcard" href="https://www.timeanddate.com/astronomy/night/" target="_blank" rel="noopener"><b data-zh="Time and Date 今晚夜空">Time and Date: Night sky tonight</b><span data-zh="查看你所在地今晚哪些行星可见、几点升起和落下。">See which planets are up tonight where you live, and when they rise and set.</span><small>timeanddate.com ↗</small></a>
     <a class="linkcard" href="https://in-the-sky.org/" target="_blank" rel="noopener"><b data-zh="In-The-Sky.org 天象日历">In-The-Sky.org sky calendar</b><span data-zh="浏览本月的天象：流星雨、行星相合、月亮经过亮星等，并查看星图。">Browse this month’s sky events (meteor showers, planet meet-ups, the Moon passing bright stars) with charts.</span><small>in-the-sky.org ↗</small></a>
     <a class="linkcard" href="https://globeatnight.org/" target="_blank" rel="noopener"><b data-zh="Globe at Night 夜空亮度调查">Globe at Night</b><span data-zh="参加公民科学：数一数你能看到星座里的几颗星，提交结果，帮助科学家测量光污染。">Citizen science: count the stars you can see in a constellation and report it to help measure light pollution.</span><small>globeatnight.org ↗</small></a>
     <a class="linkcard" href="https://www.lightpollutionmap.info/" target="_blank" rel="noopener"><b data-zh="光污染地图">Light pollution map</b><span data-zh="在地图上找到离你家最近的暗夜地点，计划一次观星旅行。">Find the darkest places near your home on a world map and plan a stargazing trip.</span><small>lightpollutionmap.info ↗</small></a>
@@ -396,6 +396,63 @@ const STORY = [
 /* ===== Info panel / selection ===== */
 SKY.select = (k, from3D) => { SKY.sel = k; renderInfo(); renderChips(); if (!from3D && SKY.three) SKY.three.focus(k); };
 function brightestOf(c){ return c.stars.slice().sort((a, b) => STARS[a][2] - STARS[b][2])[0]; }
+// Use the same read-aloud units for the live panel and the crawler.
+const PANEL_PARTS = 'h3,h4,p,li,.job,.memory,.mix,.pline,figcaption';
+function panelUnits(panel){
+  const nodes = [...panel.querySelectorAll(PANEL_PARTS)];
+  if (panel.matches(PANEL_PARTS)) nodes.unshift(panel);
+  return nodes.flatMap(node => {
+    if (node.closest('[data-noread]')) return [];
+    const units = Lab.readUnits(node);
+    return units ? units.parts.map(text => [text, units.lang]) : [];
+  });
+}
+function speakPanel(panel){
+  const parts = panelUnits(panel);
+  let i = 0;
+  const next = ok => {
+    if (ok === false || i >= parts.length) return;
+    const [text, lang] = parts[i++];
+    Lab.speak(text, { lang, inner:true, onend:next });
+  };
+  next();
+}
+function registerPanels(host, items, markup, plain = false){
+  Lab.readAll(() => {
+    const panel = host.cloneNode(false);
+    panel.removeAttribute('id');
+    panel.removeAttribute('aria-live');
+    panel.setAttribute('aria-hidden', 'true');
+    panel.style.cssText = 'position:absolute;left:-10000px;top:0;width:' + (host.offsetWidth || 360) + 'px';
+    host.parentElement.appendChild(panel);
+    const template = document.createElement('template');
+    try {
+      return items.flatMap((item, index) => {
+        if (plain) panel.textContent = markup(item, index);
+        else {
+          template.innerHTML = markup(item, index);
+          template.content.querySelectorAll('img,button').forEach(node => node.remove());
+          panel.replaceChildren(template.content);
+        }
+        return panelUnits(panel);
+      });
+    } finally {
+      panel.remove();
+    }
+  });
+}
+registerPanels(Lab.$('#stage .lab-caption'), STORY, Lab.L, true);
+function infoMarkup(k){
+  const c = CONS[k], se = SEASON[c.season], b = brightestOf(c);
+  const tag = c.season === 'all' ? Lab.L(o('Circumpolar (from Georgia)','拱极（从佐治亚州看）')) : Lab.L(se.n) + Lab.L(o(' evenings',' 夜晚'));
+  return `<span class="tag pline">${tag}</span>
+    <h3><span class="dot" style="background:${se.c}"></span>${Lab.L(c.name)}</h3>
+    <div class="job">${Lab.L(c.job)}${STAR_NAMES[b] && k !== 'polaris' ? ' · ' + Lab.L(o('brightest: ','最亮星：')) + Lab.L(STAR_NAMES[b]) : ''}</div>
+    <ul>${Lab.L(c.facts).map(f => `<li>${f}</li>`).join('')}</ul>${realFig(k)}
+    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(c.hint)}</div>
+    ${c.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(c.mix)}</span></div>` : ''}`;
+}
+registerPanels(Lab.$('#info'), ORDER, k => infoMarkup(k));
 function renderInfo(){
   const box = Lab.$('#info'), k = SKY.sel;
   if (!k){
@@ -408,17 +465,11 @@ function renderInfo(){
     Lab.$('#startBtn').onclick = () => SKY.select('polaris');
     return;
   }
-  const c = CONS[k], i = ORDER.indexOf(k), se = SEASON[c.season], b = brightestOf(c);
-  const tag = c.season === 'all' ? Lab.L(o('Circumpolar (from Georgia)','拱极（从佐治亚州看）')) : Lab.L(se.n) + Lab.L(o(' evenings',' 夜晚'));
-  box.innerHTML = `<span class="tag">${tag}</span>
-    <h3><span class="dot" style="background:${se.c}"></span>${Lab.L(c.name)}</h3>
-    <div class="job">${Lab.L(c.job)}${STAR_NAMES[b] && k !== 'polaris' ? ' · ' + Lab.L(o('brightest: ','最亮星：')) + Lab.L(STAR_NAMES[b]) : ''}</div>
-    <ul>${Lab.L(c.facts).map(f => `<li>${f}</li>`).join('')}</ul>${realFig(k)}
-    <div class="memory"><b>${Lab.L(o('💡 Memory hint','💡 记忆小窍门'))}</b>${Lab.L(c.hint)}</div>
-    ${c.mix ? `<div class="mix"><b>${Lab.L(o('⚠️ Common mix-up:','⚠️ 容易混淆：'))}</b><span>${Lab.L(c.mix)}</span></div>` : ''}
+  const i = ORDER.indexOf(k);
+  box.innerHTML = infoMarkup(k) + `
     <div class="btnrow"><button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button><span class="muted" id="altTxt" style="font-size:13px;font-weight:700;align-self:center"></span></div>
     <div class="nav"><button id="pPrev">${Lab.L(o('◀ Previous','◀ 上一个'))}</button><button id="pNext">${Lab.L(o('Next ▶','下一个 ▶'))}</button></div>`;
-  Lab.$('#speakBtn').onclick = () => Lab.speak([Lab.L(c.name), Lab.L(c.job), ...Lab.L(c.facts)].join('. '));
+  Lab.$('#speakBtn').onclick = () => speakPanel(box);
   Lab.$('#pPrev').onclick = () => SKY.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
   Lab.$('#pNext').onclick = () => SKY.select(ORDER[(i + 1) % ORDER.length]);
   updateAltTxt();
@@ -500,11 +551,21 @@ Lab.onLang(() => { renderInfo(); renderChips(); fillSelects(); if (SKY.three) SK
     if (S.sel){ const p = P(S.sel); g.strokeStyle = '#facc15'; g.lineWidth = 2; g.beginPath(); g.arc(p.px, p.py, 13 + 2 * Math.sin(t / 150), 0, 7); g.stroke(); }
     if (S.complete){ g.fillStyle = good; g.font = '700 22px Fredoka, sans-serif'; g.textAlign = 'center'; g.fillText('✨ ' + Lab.L(CONS[PUZ[S.i]].name) + ' ✨', W / 2, 30); }
   }
-  function msg(t, ok){ const m = Lab.$('#dMsg'); m.textContent = t; m.className = 'result ' + (ok === true ? 'good' : ok === false ? 'bad' : ''); }
+  const dotClue = (key, lines) => Lab.lang === 'zh' ? `把星星连成${Lab.L(SHAPE[key])}。一共需要 ${lines} 条线。` : `Join the stars to make ${Lab.L(SHAPE[key])}. You need ${lines} lines.`;
+  const dotFinished = key => Lab.lang === 'zh' ? `🎉 完成了!这就是${Lab.L(CONS[key].name)}。点“下一个星座”继续。` : `🎉 Complete! That’s ${Lab.L(CONS[key].name)}. Press “Next constellation” to keep going.`;
+  Lab.$('#dotName').classList.add('pline');
+  Lab.$('#dotClue').classList.add('pline');
+  Lab.$('#dMsg').classList.add('pline');
+  registerPanels(Lab.$('#dotName'), PUZ, key => Lab.L(CONS[key].name), true);
+  registerPanels(Lab.$('#dotClue'), PUZ, key => dotClue(key, CONS[key].lines.length), true);
+  registerPanels(Lab.$('#dMsg'), PUZ, dotFinished, true);
+  const dotFeedback = [o('✅ Nice! That line is part of the pattern.','✅ 很好！这条线是图案的一部分。'), o('You already joined those two stars.','这两颗星已经连过了。'), o('❌ That faint star is not part of this constellation.','❌ 那颗暗星不属于这个星座。'), o('❌ Those two stars are not joined in this pattern.','❌ 在这个图案里，这两颗星不直接相连。')];
+  registerPanels(Lab.$('#dMsg'), dotFeedback, Lab.L, true);
+  function msg(t, ok){ const m = Lab.$('#dMsg'); m.textContent = t; m.className = 'result pline ' + (ok === true ? 'good' : ok === false ? 'bad' : ''); }
   function render(){
     const c = CONS[PUZ[S.i]];
     Lab.$('#dotName').textContent = Lab.L(c.name);
-    Lab.$('#dotClue').textContent = Lab.lang === 'zh' ? `把星星连成${Lab.L(SHAPE[PUZ[S.i]])}。一共需要 ${S.target.size} 条线。` : `Join the stars to make ${Lab.L(SHAPE[PUZ[S.i]])}. You need ${S.target.size} lines.`;
+    Lab.$('#dotClue').textContent = dotClue(PUZ[S.i], S.target.size);
     Lab.$('#dFound').textContent = S.found.size + '/' + S.target.size;
     Lab.$('#dWrong').textContent = S.wrong; Lab.$('#dDone').textContent = S.done; Lab.$('#dStreak').textContent = S.streak;
   }
@@ -515,11 +576,11 @@ Lab.onLang(() => { renderInfo(); renderChips(); fillSelects(); if (SKY.three) SK
     if (!best){ S.sel = null; return; }
     if (!S.sel || S.sel === best.id){ S.sel = S.sel === best.id ? null : best.id; return; }
     const k = key(S.sel, best.id), now = performance.now();
-    if (S.target.has(k) && !S.found.has(k)){ S.found.add(k); S.streak++; msg(Lab.L(o('✅ Nice! That line is part of the pattern.','✅ 很好！这条线是图案的一部分。')), true); }
-    else if (S.found.has(k)) msg(Lab.L(o('You already joined those two stars.','这两颗星已经连过了。')));
-    else { S.wrong++; S.streak = 0; S.flash = { a:P(S.sel), b:best, until:now + 600 }; msg(best.fake || P(S.sel).fake ? Lab.L(o('❌ That faint star is not part of this constellation.','❌ 那颗暗星不属于这个星座。')) : Lab.L(o('❌ Those two stars are not joined in this pattern.','❌ 在这个图案里，这两颗星不直接相连。')), false); }
+    if (S.target.has(k) && !S.found.has(k)){ S.found.add(k); S.streak++; msg(Lab.L(dotFeedback[0]), true); }
+    else if (S.found.has(k)) msg(Lab.L(dotFeedback[1]));
+    else { S.wrong++; S.streak = 0; S.flash = { a:P(S.sel), b:best, until:now + 600 }; msg(best.fake || P(S.sel).fake ? Lab.L(dotFeedback[2]) : Lab.L(dotFeedback[3]), false); }
     S.sel = best.id;
-    if (S.found.size === S.target.size){ S.complete = true; S.done++; S.sel = null; msg(Lab.lang === 'zh' ? `🎉 完成了!这就是${Lab.L(CONS[PUZ[S.i]].name)}。点“下一个星座”继续。` : `🎉 Complete! That’s ${Lab.L(CONS[PUZ[S.i]].name)}. Press “Next constellation” to keep going.`, true); }
+    if (S.found.size === S.target.size){ S.complete = true; S.done++; S.sel = null; msg(dotFinished(PUZ[S.i]), true); }
     render();
   });
   Lab.$('#dNext').onclick = () => { load(S.i + 1); msg(''); };
@@ -575,6 +636,13 @@ Lab.onLang(() => { renderInfo(); renderChips(); fillSelects(); if (SKY.three) SK
     BS.forEach(s => { g.fillStyle = s === S.s ? '#facc15' : 'rgba(207,216,255,.55)'; g.beginPath(); g.arc(X(s.d), y, 3.5, 0, 7); g.fill(); });
     g.fillStyle = '#facc15'; g.beginPath(); g.moveTo(X(S.D), y - 8); g.lineTo(X(S.D) - 7, y - 20); g.lineTo(X(S.D) + 7, y - 20); g.fill();
   }
+  function brightnessFact(star){
+    const L = Math.pow(10, -0.4 * (absMag(star) - 4.83));
+    return star.id === 'sun' ? Lab.L(o('The Sun is an ordinary star. It looks so bright only because it is so close. Move it to 8.6 light-years: it would look dimmer than Sirius!','太阳只是一颗普通的恒星，它看起来那么亮只是因为离我们太近。把它移到 8.6 光年远，它会比天狼星还暗！'))
+      : L < 1 ? (Lab.lang === 'zh' ? `${Lab.L(star.n)}实际发出的光只有太阳的约 ${fmtN(1 / L, 0)} 分之一,虽然它是离太阳最近的恒星,肉眼却看不见。` : `${Lab.L(star.n)} gives off only about 1/${fmtN(1 / L, 0)} of the Sun’s light. It is the nearest star to the Sun, yet too faint to see with your eyes.`)
+      : Lab.lang === 'zh' ? `${Lab.L(star.n)}实际发出的光大约是太阳的 ${fmtN(L, L < 10 ? 1 : 0)} 倍。` : `${Lab.L(star.n)} really gives off about ${fmtN(L, L < 10 ? 1 : 0)} times as much light as the Sun.`;
+  }
+  registerPanels(Lab.$('#bFact'), BS, brightnessFact, true);
   function update(){
     const m = appMag(S.s, S.D), ratio = Math.pow(10, -0.4 * (m - BS[2].m));
     Lab.$('#bDistTxt').textContent = distTxt(S.D) + (Math.abs(Math.log10(S.D / S.s.d)) < .01 ? Lab.L(o(' (real distance)',' （真实距离）')) : '');
@@ -586,10 +654,7 @@ Lab.onLang(() => { renderInfo(); renderChips(); fillSelects(); if (SKY.three) SK
     if (S.D < 0.01) yr.textContent = Lab.lang === 'zh' ? `${fmtN(S.D * 525960, 1)} 分钟前` : `${fmtN(S.D * 525960, 1)} minutes ago`;
     else if (S.D < 1) yr.textContent = Lab.lang === 'zh' ? `${fmtN(S.D * 365.25, 0)} 天前` : `${fmtN(S.D * 365.25, 0)} days ago`;
     else { const y = Math.round(2026 - S.D); yr.textContent = y > 0 ? (Lab.lang === 'zh' ? `公元 ${y} 年` : `the year ${y}`) : (Lab.lang === 'zh' ? `公元前 ${1 - y} 年` : `${1 - y} BC`); }
-    const L = Math.pow(10, -0.4 * (absMag(S.s) - 4.83));
-    Lab.$('#bFact').textContent = S.s.id === 'sun' ? Lab.L(o('The Sun is an ordinary star. It looks so bright only because it is so close. Move it to 8.6 light-years: it would look dimmer than Sirius!','太阳只是一颗普通的恒星，它看起来那么亮只是因为离我们太近。把它移到 8.6 光年远，它会比天狼星还暗！'))
-      : L < 1 ? (Lab.lang === 'zh' ? `${Lab.L(S.s.n)}实际发出的光只有太阳的约 ${fmtN(1 / L, 0)} 分之一,虽然它是离太阳最近的恒星,肉眼却看不见。` : `${Lab.L(S.s.n)} gives off only about 1/${fmtN(1 / L, 0)} of the Sun’s light. It is the nearest star to the Sun, yet too faint to see with your eyes.`)
-      : Lab.lang === 'zh' ? `${Lab.L(S.s.n)}实际发出的光大约是太阳的 ${fmtN(L, L < 10 ? 1 : 0)} 倍。` : `${Lab.L(S.s.n)} really gives off about ${fmtN(L, L < 10 ? 1 : 0)} times as much light as the Sun.`;
+    Lab.$('#bFact').textContent = brightnessFact(S.s);
     Lab.$('#bDist').value = Math.log10(S.D);
     Lab.$$('#starPick .chip').forEach(c => c.classList.toggle('on', c.dataset.id === S.s.id));
     draw();
@@ -818,17 +883,23 @@ Lab.onLang(() => { render(); renderTable(); });
   function newCh(){
     const types = Object.keys(POOL).filter(t => POOL[t].some(k => STARS[k])); let t, k;
     do { t = types[Math.random() * types.length | 0]; const p = POOL[t].filter(x => STARS[x]); k = p[Math.random() * p.length | 0]; } while (A.ch && A.ch.k === k);
-    A.ch = { t, k }; A.star = k; sel(); chText(); $('#nsCh').className = 'result'; $('#nsCh').textContent = ''; live(true);
+    A.ch = { t, k }; A.star = k; sel(); chText(); $('#nsCh').className = 'result pline'; $('#nsCh').textContent = ''; live(true);
   }
-  function chText(){ const c = A.ch, n = Lab.L(STAR_NAMES[c.k]);
-    $('#nsChQ').textContent = c.t === 'never' ? (isZh() ? `找出${n}永远不会升起的、最靠近赤道的北半球纬度（误差 1° 以内）。` : `Find the northern latitude closest to the equator where ${n} NEVER rises (within 1°).`)
+  function latitudeChallenge(c){ const n = Lab.L(STAR_NAMES[c.k]);
+    return c.t === 'never' ? (isZh() ? `找出${n}永远不会升起的、最靠近赤道的北半球纬度（误差 1° 以内）。` : `Find the northern latitude closest to the equator where ${n} NEVER rises (within 1°).`)
       : c.t === 'circ' ? (isZh() ? `找出${n}永不落下（拱极）的最低北纬（误差 1° 以内）。` : `Find the lowest northern latitude where ${n} never sets: it becomes circumpolar (within 1°).`)
       : (isZh() ? `把纬度调到让${n}正好从头顶（90°）经过（误差 1° 以内）。` : `Set the latitude so ${n} passes straight overhead, 90° up (within 1°).`); }
+  const latitudeChallenges = Object.entries(POOL).flatMap(([t, keys]) => keys.filter(k => STARS[k]).map(k => ({ t, k })));
+  registerPanels($('#nsChQ'), latitudeChallenges, latitudeChallenge, true);
+  const targetLatitude = (c, dec) => c.t === 'never' ? 90 + dec : c.t === 'circ' ? 90 - dec : dec;
+  const latitudeAnswer = (c, dec, ans) => (isZh() ? `✅ 对了！答案是 ${c.t === 'never' ? '90° + δ' : c.t === 'circ' ? '90° − δ' : 'φ = δ'} = ${ans.toFixed(1)}°（δ = ${dec.toFixed(1)}°）。` : `✅ Right! The answer is ${c.t === 'never' ? '90° + δ' : c.t === 'circ' ? '90° − δ' : 'φ = δ'} = ${ans.toFixed(1)}° (δ = ${dec.toFixed(1)}°).`);
+  registerPanels($('#nsCh'), latitudeChallenges, c => { const dec = STARS[c.k][1]; return latitudeAnswer(c, dec, targetLatitude(c, dec)); }, true);
+  function chText(){ $('#nsChQ').textContent = latitudeChallenge(A.ch); }
   $('#nsChk').onclick = () => {
-    const c = A.ch, dec = STARS[c.k][1], phi = SKY.lat(), K = kind(dec, phi), el = $('#nsCh'), ans = c.t === 'never' ? 90 + dec : c.t === 'circ' ? 90 - dec : dec;
+    const c = A.ch, dec = STARS[c.k][1], phi = SKY.lat(), K = kind(dec, phi), el = $('#nsCh'), ans = targetLatitude(c, dec);
     const ok = Math.abs(phi - ans) <= 1 && (c.t !== 'never' || K.k === 'never' || Math.abs(phi - ans) < .2) && (c.t !== 'circ' || K.k === 'circ' || Math.abs(phi - ans) < .2);
-    el.className = 'result ' + (ok ? 'good' : 'bad');
-    el.textContent = ok ? (isZh() ? `✅ 对了！答案是 ${c.t === 'never' ? '90° + δ' : c.t === 'circ' ? '90° − δ' : 'φ = δ'} = ${ans.toFixed(1)}°（δ = ${dec.toFixed(1)}°）。` : `✅ Right! The answer is ${c.t === 'never' ? '90° + δ' : c.t === 'circ' ? '90° − δ' : 'φ = δ'} = ${ans.toFixed(1)}° (δ = ${dec.toFixed(1)}°).`)
+    el.className = 'result pline ' + (ok ? 'good' : 'bad');
+    el.textContent = ok ? latitudeAnswer(c, dec, ans)
       : (isZh() ? `❌ 现在纬度 ${phi.toFixed(1)}°。看公式框里的“最高”和“最低”高度：${c.t === 'zen' ? '最高要等于 90°。' : c.t === 'circ' ? '最低刚好等于 0°。' : '最高刚好等于 0°。'}` : `❌ Latitude now ${phi.toFixed(1)}°. Watch the “highest” and “lowest” heights in the formula box: ${c.t === 'zen' ? 'highest must reach 90°.' : c.t === 'circ' ? 'lowest should be just 0°.' : 'highest should be just 0°.'}`);
   };
   $('#nsChNew').onclick = newCh;
