@@ -92,6 +92,7 @@ table.psq.two td .ph{font-size:10px}
         <div class="pill"><span style="color:#3f7fd6" data-zh="亲本 2">Parent 2</span><div class="gseg" id="g1"></div></div>
         <div class="tip" data-zh="拖动旋转 · 滚轮缩放 · 点击任意部分">Drag to rotate · Scroll to zoom · Click any part</div>
       </div>
+      <div class="lab-caption pline"></div>
     </div>
     <aside class="info card" id="info" aria-live="polite"></aside>
   </div>
@@ -141,7 +142,7 @@ table.psq.two td .ph{font-size:10px}
         <b data-zh="🧮 概率计算">🧮 The probability math</b>
         <div id="pbMath" style="font-size:14.5px;line-height:1.55;margin:6px 0"></div>
         <p class="muted" id="pbRule" style="margin:0 0 8px;font-size:14px"></p>
-        <div style="border-top:1px dashed var(--line);padding-top:8px"><b data-zh="🎯 挑战">🎯 Challenge</b> <span id="pbChTask"></span>
+        <div style="border-top:1px dashed var(--line);padding-top:8px"><b data-zh="🎯 挑战">🎯 Challenge</b> <span class="pline" id="pbChTask"></span>
           <div class="btnrow" style="margin-top:6px;align-items:center"><button class="tbtn" id="pbChNext" data-zh="换一题 ↻">Next challenge ↻</button><span class="result" id="pbChMsg" style="min-height:0"></span></div></div>
       </div>
       <div class="memory"><b data-zh="💡 记忆小窍门">💡 Memory hint</b><span data-zh="每个格子 = 上面的字母 + 左边的字母。一个 2×2 方格的每格代表 25% 的概率。">Each box = the letter above + the letter on the left. In a 2×2 square every box is a 25% chance.</span></div>
@@ -297,7 +298,7 @@ function nowLine(k){
   return '';
 }
 // Use the same read-aloud units for the crawler and the panel's Listen button.
-const PANEL_PARTS = '.tag,h3,h4,.job,p,li,.memory,.mix,figcaption,.quote';
+const PANEL_PARTS = 'h3,h4,.job,p,li,.memory,.mix,figcaption,.quote,.pline';
 function panelUnits(el, selector = PANEL_PARTS, visibleOnly = false){
   const nodes = selector ? el.querySelectorAll(selector) : [el];
   const out = [];
@@ -342,7 +343,7 @@ function registerPanelValues(host, items, value){
   Lab.readAll(() => collectPanelTexts(Lab.$(host), items, (tmp, item) => { tmp.textContent = value(item); }, null));
 }
 function registerStoryTexts(steps){
-  Lab.readAll(() => collectPanelTexts(Lab.$('#stage .lab-caption') || Lab.$('#stage'), steps, (tmp, step) => {
+  Lab.readAll(() => collectPanelTexts(Lab.$('#stage .lab-caption'), steps, (tmp, step) => {
     tmp.textContent = Lab.L(step);
   }, null));
 }
@@ -351,7 +352,7 @@ function registerPanelTexts(host, items, markup, selector){
 }
 function infoMarkup(k, now){
   const p = PARTS[k];
-  return `<span class="tag">${Lab.L({en:'Heredity model',zh:'遗传模型'})}</span>
+  return `<span class="tag pline">${Lab.L({en:'Heredity model',zh:'遗传模型'})}</span>
     <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
     <div class="job">${Lab.L(p.job)}</div>
     <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>${window.REALFIG && REALFIG[k] ? LabPhotos.figure(REALFIG[k]) : ''}
@@ -384,9 +385,10 @@ function renderChips(){
   Lab.$('#chips').innerHTML = ORDER.map(k => `<button class="chip ${App.sel === k ? 'on' : ''}" data-k="${k}"><i style="background:${PARTS[k].color};border:1px solid rgba(0,0,0,.15)"></i>${Lab.L(PARTS[k].name)}</button>`).join('');
   Lab.$$('#chips .chip').forEach(c => c.onclick = () => App.select(c.dataset.k));
 }
+const traitLabel = name => `<span class="pline">${Lab.L(name)}</span>`;
 function renderPickers(){
   const t = App.trait, U = t, l = t.toLowerCase();
-  Lab.$('#traitSeg').innerHTML = GK.map(k => `<button data-k="${k}" class="${k === t ? 'on' : ''}">${Lab.L(GENES[k].name)}</button>`).join('');
+  Lab.$('#traitSeg').innerHTML = GK.map(k => `<button data-k="${k}" class="${k === t ? 'on' : ''}">${traitLabel(GENES[k].name)}</button>`).join('');
   Lab.$$('#traitSeg button').forEach(b => b.onclick = () => { App.trait = b.dataset.k; App.changed(); });
   [0, 1].forEach(i => {
     Lab.$('#g' + i).innerHTML = [U + U, U + l, l + l].map(g => `<button class="${App.g[i][t] === g ? 'on' : ''}" data-g="${g}" title="${Lab.L(phenOf(t, g))}">${g}</button>`).join('');
@@ -427,6 +429,13 @@ const ADVT = {
       classOf:g => g.includes('Y') ? (g.includes('B') ? 'BN' : 'BC') : (g.includes('B') ? 'GN' : 'GC'),
       rule:o('The red-green color vision gene sits on the X chromosome; the Y chromosome has no copy. A boy has only one X (always from his mother), so a single b makes him color-blind. That is why about 7–8% of men but only about 0.5% of women are red-green color-blind.','红绿色觉基因位于 X 染色体上，Y 染色体上没有它的等位基因。男孩只有一条 X（一定来自母亲），一个 b 就会使他色盲。所以男性红绿色盲约占 7%，女性只约占 0.5%。') }
 };
+const PB_TRAIT_NAMES = { ...Object.fromEntries(GK.map(k => [k, GENES[k].name])), X:o('Boy or girl? (XY)','男孩还是女孩？(XY)') };
+const PB_TWO_NAME = o('Height (T) + flower color (P)','株高（T） + 花色（P）');
+registerPanelTexts('#pbTrait', [...Object.values(PB_TRAIT_NAMES), PB_TWO_NAME], traitLabel, '.pline');
+registerPanelTexts('#pbAdvTrait', Object.values(ADVT), trait => traitLabel(trait.name), '.pline');
+const phenotypeNames = [...GK.flatMap(k => [GENES[k].dom, GENES[k].rec]),
+  ...[SEXC, TWOC, ...Object.values(ADVT).map(trait => trait.classes)].flat().map(c => c.name)];
+registerPanelTexts('#pbBars', phenotypeNames, traitLabel, '.pline');
 PB.adv = { R:[['R','R'], ['r','r']], B:[['A','A'], ['B','B']], C:[['B','B'], ['B','Y']] };
 PB.AT = () => !PB.two && ADVT[PB.trait] ? ADVT[PB.trait] : null;
 const anorm = (T, s) => s.split('').sort((a, b) => T.ord.indexOf(a) - T.ord.indexOf(b)).join('');
@@ -453,9 +462,9 @@ function parentPheno(i){
 }
 function renderPB(){
   const seg = Lab.$('#pbTrait');
-  if (PB.two) seg.innerHTML = `<button class="on">${Lab.L(o('Height (T) + flower color (P)','株高（T） + 花色（P）'))}</button>`;
+  if (PB.two) seg.innerHTML = `<button class="on">${traitLabel(PB_TWO_NAME)}</button>`;
   else {
-    seg.innerHTML = ['T','P','Y','X'].map(k => `<button data-k="${k}" class="${PB.trait === k ? 'on' : ''}">${Lab.L(k === 'X' ? o('Boy or girl? (XY)','男孩还是女孩？(XY)') : GENES[k].name)}</button>`).join('');
+    seg.innerHTML = Object.keys(PB_TRAIT_NAMES).map(k => `<button data-k="${k}" class="${PB.trait === k ? 'on' : ''}">${traitLabel(PB_TRAIT_NAMES[k])}</button>`).join('');
     Lab.$$('#pbTrait button').forEach(b => b.onclick = () => {
       const k = b.dataset.k; if (k !== 'X') PB.a = PB.a.map(A => A.map(ch => ch === ch.toUpperCase() ? k : k.toLowerCase()));
       PB.trait = k; PB.changed();
@@ -506,7 +515,7 @@ function renderPB(){
   const counts = cls.map(c => cells.filter(g => PB.classOf(g) === c.id).length);
   Lab.$('#pbPheno').textContent = hide ? '?' : PB.two ? counts.join(' : ') : cls.map((c, i) => counts[i] ? `${counts[i]} ${Lab.L(c.name)}` : '').filter(Boolean).join(' : ');
   Lab.$('#pbBars').innerHTML = hide ? `<p class="muted">${Lab.L(o('Fill in all the boxes, then check to see the prediction.','先填满所有格子，再检查，就能看到预测结果。'))}</p>` :
-    cls.map((c, i) => `<div class="rbar"><span>${Lab.L(c.name)}</span><div class="track"><div style="width:${counts[i] / n * 100}%;background:${c.color}"></div></div><b>${Math.round(counts[i] / n * 1000) / 10}%</b></div>`).join('');
+    cls.map((c, i) => `<div class="rbar">${traitLabel(c.name)}<div class="track"><div style="width:${counts[i] / n * 100}%;background:${c.color}"></div></div><b>${Math.round(counts[i] / n * 1000) / 10}%</b></div>`).join('');
   renderPBAdv(hide);
 }
 /* 🚀 Advanced: pattern picker, fraction math, product rule and challenges */
@@ -537,7 +546,7 @@ const PB_RULES = {two:o('Law of independent assortment (Mendel’s 2nd law): gen
 registerPanelValues("#pbRule", [...Object.values(PB_RULES), ...Object.values(ADVT).map(t => t.rule)], Lab.L);
 function renderPBAdv(hide){
   const seg = Lab.$('#pbAdvTrait');
-  seg.innerHTML = Object.keys(ADVT).map(k => `<button data-k="${k}" class="${!PB.two && PB.trait === k ? 'on' : ''}" ${PB.two ? 'disabled' : ''}>${Lab.L(ADVT[k].name)}</button>`).join('');
+  seg.innerHTML = Object.keys(ADVT).map(k => `<button data-k="${k}" class="${!PB.two && PB.trait === k ? 'on' : ''}" ${PB.two ? 'disabled' : ''}>${traitLabel(ADVT[k].name)}</button>`).join('');
   Lab.$$('#pbAdvTrait button').forEach(b => b.onclick = () => { PB.trait = b.dataset.k; PB.changed(); });
   const math = Lab.$('#pbMath'), cls = PB.classes(), cells = PB.grid().flat(), n = cells.length, who = PB.who();
   if (hide) math.innerHTML = `<span class="muted">${Lab.L(o('Check your square first.','先检查你的方格。'))}</span>`;
@@ -557,18 +566,20 @@ function renderPBAdv(hide){
   Lab.$('#pbChTask').textContent = Lab.L(C.t);
   const m = Lab.$('#pbChMsg');
   m.textContent = pbTaskFeedback(C, ok);
-  m.className = 'result' + (ok ? ' good' : '');
+  m.className = 'result' + (ok ? ' good pline' : '');
 }
 Lab.$('#pbChNext').onclick = () => { pbCh = (pbCh + 1) % PBCH.length; renderPB(); };
 Lab.onMode(adv => { if (!adv && ADVT[PB.trait]){ PB.trait = PB.a[0][0].toUpperCase(); PB.changed(); } });
 Lab.$('#pbTwo').onclick = () => { PB.two = !PB.two; if (PB.two){ PB.trait = 'T'; PB.a = [['T','t'], ['T','t']]; PB.b = [['P','p'], ['P','p']]; } PB.changed(); };
 Lab.$('#pbQuiz').onclick = () => { PB.quiz = !PB.quiz; Lab.$('#pbMsg').textContent = ''; PB.changed(); };
 Lab.$('#pbClear').onclick = () => { PB.guess = []; Lab.$('#pbMsg').textContent = ''; renderPB(); };
+const PB_CORRECT = o('🎉 Perfect Punnett square! Here is the prediction.','🎉 方格完全正确！下面是预测结果。');
+registerPanelValues('#pbMsg', [PB_CORRECT], Lab.L);
 Lab.$('#pbCheck').onclick = () => {
   const cells = PB.grid().flat(), msg = Lab.$('#pbMsg');
   if (cells.some((_, i) => !PB.guess[i])){ msg.textContent = Lab.L(o('Fill in every box first (tap a box to change it).','请先填满每一个格子（点击格子可以切换）。')); msg.className = 'result bad'; return; }
   const ok = cells.filter((g, i) => PB.guess[i] === g).length;
-  if (ok === cells.length){ PB.checked = true; msg.textContent = Lab.L(o('🎉 Perfect Punnett square! Here is the prediction.','🎉 方格完全正确！下面是预测结果。')); msg.className = 'result good'; }
+  if (ok === cells.length){ PB.checked = true; msg.textContent = Lab.L(PB_CORRECT); msg.className = 'result good pline'; }
   else { PB.guess._marked = true; msg.textContent = Lab.lang === 'zh' ? `❌ 对了 ${ok}/4 格。红色的格子再想想:上方字母 + 左侧字母。` : `❌ ${ok} of 4 correct. Rethink the red boxes: letter on top + letter on the side.`; msg.className = 'result bad'; }
   renderPB();
 };
@@ -625,6 +636,12 @@ function drawBreed(){
   });
   g.fillStyle = surf2;
 }
+const BREED_RESULTS = {
+  small:o('With only a few offspring, chance can push results far from the prediction.','后代很少时，偶然性会让结果和预测差别很大。'),
+  close:o('✅ Very close to the Punnett square prediction! Large samples match probability better.','✅ 非常接近庞氏方格的预测！样本越大，结果越接近概率。'),
+  other:o('Keep breeding: the gap usually shrinks as the number grows.','继续繁殖：数量越多，差距通常越小。')
+};
+registerPanelValues('#breedMsg', Object.values(BREED_RESULTS), Lab.L);
 function breedInfo(){
   const exp = PB.expected();
   Lab.$('#breedCross').textContent = PB.genoOf(0) + ' × ' + PB.genoOf(1);
@@ -634,9 +651,11 @@ function breedInfo(){
   Lab.$('#bGap').textContent = gap == null ? '–' : gap.toFixed(1) + '%';
   const m = Lab.$('#breedMsg');
   if (!BR.total){ m.textContent = Lab.L(o('Press a button to breed offspring.','点击按钮开始繁殖后代。')); m.className = 'result'; }
-  else if (BR.total < 30){ m.textContent = Lab.L(o('With only a few offspring, chance can push results far from the prediction.','后代很少时，偶然性会让结果和预测差别很大。')); m.className = 'result'; }
-  else if (gap < 4){ m.textContent = Lab.L(o('✅ Very close to the Punnett square prediction! Large samples match probability better.','✅ 非常接近庞氏方格的预测！样本越大，结果越接近概率。')); m.className = 'result good'; }
-  else { m.textContent = Lab.L(o('Keep breeding: the gap usually shrinks as the number grows.','继续繁殖：数量越多，差距通常越小。')); m.className = 'result'; }
+  else {
+    const status = BR.total < 30 ? 'small' : gap < 4 ? 'close' : 'other';
+    m.textContent = Lab.L(BREED_RESULTS[status]);
+    m.className = 'result pline' + (status === 'close' ? ' good' : '');
+  }
   Lab.$('#breedLegend').innerHTML = PB.classes().map(c => `<span><i style="background:${c.color};border:1px solid rgba(0,0,0,.2)"></i>${Lab.L(c.name)}</span>`).join('') +
     `<span>▮ ${Lab.L(o('solid = observed','实心 = 实际结果'))}</span><span>┆ ${Lab.L(o('dashed = predicted','虚线 = 预测'))}</span>`;
 }

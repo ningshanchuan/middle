@@ -617,22 +617,27 @@ const EJ = [
 (function(){
   const S = { i:0, pts:0, held:0, ans:null };
   const box = Lab.$('#ejScene');
+  const ellisSteps = i => `<div class="steps pline">${EJ.map((s, j) => `<span class="${j < i ? 'done' : j === i ? 'now' : ''}">${Lab.L(s.st)}</span>`).join('')}</div>`;
   const ellisBrief = (s) => `<div class="sc-ico">${s.ico}</div><h3>${Lab.L(s.h)}</h3><p style="margin:0">${Lab.L(s.p)}</p>`;
+  const ellisChoice = choice => `<span class="pline">${Lab.L(choice.t)}</span>`;
   const ellisChalk = s => s.chalk ? `<div class="chalk">${[['E',o('eyes','眼睛')],['H',o('heart','心脏')],['L',o('lameness','跛行')],['CT',o('trachoma','沙眼')]].map(c => `<div class="pline"><b>${c[0]}</b>${Lab.L(c[1])}</div>`).join('')}</div>` : '';
   const ellisFeedback = (choice, i) => `<div class="fb pline ${choice.s > 0 || i === 0 ? 'good' : 'bad'}">${Lab.L(choice.f)}</div>`;
   const ellisNote = () => `<div class="fb note pline">${Lab.L(o('Remember: on the West Coast, Chinese arrivals at Angel Island faced the Exclusion Act and were often held for weeks. The same country could be a very different door depending on where you came from.', '记住：在西海岸的天使岛，华人因《排华法案》常被扣留数周。同一个国家，从哪里来，面对的大门可能完全不同。'))}</div>`;
   const ellisTitle = () => `<div class="sc-ico">🗽</div><h3>${Lab.L(o('Welcome to America!', '欢迎来到美国！'))}</h3>`;
   function ellisResult(points, held){
     const score = points == null ? '' : Lab.L(o(`Journey score: ${points}/45. `, `旅程得分：${points}/45。`));
-    const delay = held ? Lab.L(o(`You were pulled aside ${held} time(s), which cost you time — but like 98% of arrivals, you got in.`, `你被拉到一边检查了${held}次，耽误了时间——但和98%的人一样，你最终入境了。`)) : '';
-    return `<p>${score || delay ? `<span data-noread>${score}${delay}</span>` : ''}${held ? '' : Lab.L(o('You sailed through in about 4 hours, like most arrivals.', '你像大多数人一样，大约4小时就办完了手续。'))}</p>`;
+    const delay = held && points != null ? Lab.L(o(`You were pulled aside ${held} time(s), which cost you time — `, `你被拉到一边检查了${held}次，耽误了时间——`)) : '';
+    const result = held ? o('but like 98% of arrivals, you got in.', '但和98%的人一样，你最终入境了。')
+      : o('You sailed through in about 4 hours, like most arrivals.', '你像大多数人一样，大约4小时就办完了手续。');
+    return `<p>${score || delay ? `<span data-noread>${score}${delay}</span>` : ''}${Lab.L(result)}</p>`;
   }
-  registerPanels(box, EJ, (s, i) => ellisBrief(s) + ellisChalk(s) + s.c.map(c => ellisFeedback(c, i)).join(''));
-  registerPanels(box, [null], () => ellisTitle() + ellisResult() + ellisNote());
+  registerPanels(box, EJ, (s, i) => ellisBrief(s) + ellisChalk(s) +
+    s.c.map(c => ellisChoice(c) + ellisFeedback(c, i)).join(''));
+  registerPanels(box, [null], () => ellisSteps(0) + ellisTitle() + ellisResult() + ellisResult(undefined, true) + ellisNote());
   function render(){
-    const steps = EJ.map((s, j) => `<span class="${j < S.i ? 'done' : j === S.i ? 'now' : ''}">${Lab.L(s.st)}</span>`).join('');
+    const steps = ellisSteps(S.i);
     if (S.i >= EJ.length){ const st = S.pts >= 45 ? 3 : S.pts >= 30 ? 2 : 1;
-      box.innerHTML = `<div class="steps">${steps}</div>${ellisTitle()}
+      box.innerHTML = `${steps}${ellisTitle()}
         <div class="stars">${'★'.repeat(st)}${'☆'.repeat(3 - st)}</div>
         ${ellisResult(S.pts, S.held)}
         ${ellisNote()}
@@ -640,9 +645,9 @@ const EJ = [
       Lab.$('#ejAgain').onclick = () => { S.i = 0; S.pts = 0; S.held = 0; S.ans = null; S.ordFor = -1; render(); };
       return; }
     const s = EJ[S.i]; if (S.ordFor !== S.i){ S.ord = Lab.shuffle(s.c.map((c, j) => j)); S.ordFor = S.i; }
-    box.innerHTML = `<div class="steps">${steps}</div>${ellisBrief(s)}
+    box.innerHTML = `${steps}${ellisBrief(s)}
       ${ellisChalk(s)}
-      <div class="choices">${S.ord.map(j => `<button data-j="${j}" ${S.ans != null ? "disabled" : ""} class="${S.ans === j ? "picked" : ""}">${Lab.L(s.c[j].t)}</button>`).join('')}</div>
+      <div class="choices">${S.ord.map(j => `<button data-j="${j}" ${S.ans != null ? "disabled" : ""} class="${S.ans === j ? "picked" : ""}">${ellisChoice(s.c[j])}</button>`).join('')}</div>
       ${S.ans != null ? `${ellisFeedback(s.c[S.ans], S.i)}<div class="btnrow">${s.c[S.ans].map ? `<button class="btn ghost" id="ejMap">${Lab.L(o('📍 Show on map', '📍 在地图上看'))}</button>` : ''}<button class="btn" id="ejNext">${Lab.L(o('Next station ▶', '下一站 ▶'))}</button></div>` : ''}
       <div class="muted" style="font-size:14px">${Lab.L(o(`Journey points: ${S.pts}`, `旅程得分：${S.pts}`))}</div>`;
     Lab.$$('#ejScene .choices button').forEach(b => b.onclick = () => { const j = +b.dataset.j; S.ans = j; S.pts += s.c[j].s; if (S.i >= 2 && S.i <= 4 && !s.c[j].s) S.held++; render(); });

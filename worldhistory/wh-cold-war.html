@@ -343,6 +343,8 @@ function registerPanels(host, items, markup){
     } finally { tmp.remove(); }
   });
 }
+// decision-game choices: readable (hover 🔊) and registered for the read-aloud crawler, like the panel texts
+const choiceLabel = c => `<span class="pline">${Lab.L(c.t)}</span>`;
 const o = (en, zh) => ({en, zh});
 const css = WMap.css;
 const stars = n => '★'.repeat(n) + '☆'.repeat(3 - n);
@@ -554,7 +556,7 @@ const GR = [ [0,o('Clerk','办事员')], [40,o('Analyst','分析员')], [100,o('
   const crisisBrief = (s) => `<div class="scard"><div class="when pline">${s.w}</div><h3>${Lab.L(s.h)}</h3><p style="margin:0">${Lab.L(s.p)}</p>`;
   const crisisFeedback = (choice, good) => `<div class="fb pline ${good ? 'good' : 'bad'}">${good ? '✅ ' : '🤔 '}${Lab.L(choice.f)}</div>`;
   const crisisEnd = (boom, st, score) => `<h3>${Lab.L(boom ? o('DEFCON 1 — the simulation stops here','DEFCON 1——模拟到此停止') : o('1991: the Cold War is over','1991年：冷战结束'))}</h3>${st == null ? '' : `<p class="stars" style="margin:0">${stars(st)}</p>`}<p style="margin:0">${boom ? Lab.L(o('This is exactly the outcome everyone feared. In real life, leaders on both sides stepped back from the edge. Try again!', '这正是全世界最害怕的结局。在真实历史中，双方领导人都在悬崖边停了下来。再试一次！')) : `${score == null ? '' : `<span data-noread>${Lab.L(o(`This round: ${score}/80. `, `本轮得分：${score}/80。`))}</span>`}${Lab.L(o(`The Cold War ended without the two superpowers ever fighting each other directly — partly through luck, partly through leaders who chose talks over force.`, `冷战结束时，两个超级大国始终没有直接交战——一部分靠运气，一部分靠领导人选择了谈判而不是武力。`))}`}</p>`;
-  registerPanels(box, CR, s => crisisBrief(s) + s.c.map(c => crisisFeedback(c, c.s === 10)).join('') + '</div>');
+  registerPanels(box, CR, s => crisisBrief(s) + s.c.map(c => choiceLabel(c) + crisisFeedback(c, c.s === 10)).join('') + '</div>');
   registerPanels(box, [false, true], boom => `<div class="scard">${crisisEnd(boom)}</div>`);
   function render(){
     Lab.$('#gScore').textContent = G.total; Lab.$('#gRun').textContent = G.run + '/80'; Lab.$('#gDone').textContent = Math.min(G.i + (G.ans != null ? 1 : 0), 8) + '/8';
@@ -565,7 +567,7 @@ const GR = [ [0,o('Clerk','办事员')], [40,o('Analyst','分析员')], [100,o('
       Lab.$('#gAgain').onclick = () => { G.run = 0; G.i = 0; G.ans = null; G.ten = 0; G.over = false; render(); }; return; }
     const s = CR[G.i]; if (!G.ord || G.ordFor !== s){ G.ord = Lab.shuffle([0, 1, 2]); G.ordFor = s; }
     box.innerHTML = crisisBrief(s) + `
-      <div class="choices">${G.ord.map(j => `<button data-j="${j}" ${G.ans != null ? 'disabled' : ''} class="${G.ans != null ? (s.c[j].s === 10 ? 'best' : G.ans === j ? 'meh' : '') : ''}">${Lab.L(s.c[j].t)}</button>`).join('')}</div>
+      <div class="choices">${G.ord.map(j => `<button data-j="${j}" ${G.ans != null ? 'disabled' : ''} class="${G.ans != null ? (s.c[j].s === 10 ? 'best' : G.ans === j ? 'meh' : '') : ''}">${choiceLabel(s.c[j])}</button>`).join('')}</div>
       ${G.ans != null ? `${crisisFeedback(s.c[G.ans], s.c[G.ans].s === 10)}<div class="btnrow"><button class="btn" id="gGo">${Lab.L(o('Next crisis ▶','下一场危机 ▶'))}</button></div>` : ''}</div>`;
     Lab.$$('#gBox .choices button').forEach(b => b.onclick = () => { const c = s.c[+b.dataset.j]; G.ans = +b.dataset.j; G.run += c.s; G.total += c.s; G.ten = Math.max(0, Math.min(4, G.ten + c.d)); render(); });
     const n = Lab.$('#gGo'); if (n) n.onclick = () => { G.ans = null; if (G.ten >= 4) G.over = true; else G.i++; render(); };

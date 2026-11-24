@@ -68,6 +68,7 @@ table.lab td:first-child{font-weight:800}
         <div class="pill"><span class="projname" id="projName"></span></div>
         <div class="tip" data-zh="拖动旋转 · 滚轮缩放 · 点击国家查看真实面积">Drag to rotate · Scroll to zoom · Click a country to see its true size</div>
       </div>
+      <div class="lab-caption pline"></div>
     </div>
     <aside class="info card" id="info" aria-live="polite"></aside>
   </div>
@@ -86,7 +87,7 @@ table.lab td:first-child{font-weight:800}
   </div>
   <h3 style="margin:26px 0 12px;font-size:24px" data-zh="拖一拖：世界地图是怎样一步步变准的">Scrub through time: how world maps got better</h3>
   <div class="card tl-card">
-    <div class="timebar" id="tlBar"><button aria-label="play">▶</button><input type="range" min="0" max="7" step="1" value="0" aria-label="time"><output></output></div>
+    <div class="timebar" id="tlBar"><button aria-label="play">▶</button><input type="range" min="0" max="7" step="1" value="0" aria-label="time"><output class="pline"></output></div>
     <div class="tl-dots" id="tlDots"></div>
     <h3 id="tlTitle" style="margin:12px 0 4px"></h3>
     <p id="tlText" style="margin:0;color:var(--ink-2)"></p>
@@ -301,72 +302,89 @@ App.showCountry = (name, lat, lon) => { App.sel = '@c'; App.country = { name, la
 App.setMorph = m => { const was = App.morph >= .5; App.morph = m; renderProjName(); if (App.sel === '@c' && was !== (m >= .5)) renderInfo(); };
 const T = (en, zh) => Lab.lang === 'zh' ? zh : en;
 function renderProjName(){ const p = App.morph >= .5 ? PROJ[App.proj] : PROJ.globe; Lab.$('#projName').innerHTML = `<i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${p.color};margin-right:6px"></i>${Lab.L(p.name)}`; }
-function renderInfo(){
-  const box = Lab.$('#info'), k = App.sel;
-  if (k === '@c'){
-    const c = App.country, f = (GEO.feats || []).find(x => x.name === c.name); if (!f) return;
+function countryPanel(f, lon, p){
+    const flat = p !== 'globe';
     const area = GEO.area(f), big = f.polys.reduce((a, p) => (p.bbox[2] - p.bbox[0]) * (p.bbox[3] - p.bbox[1]) > (a.bbox[2] - a.bbox[0]) * (a.bbox[3] - a.bbox[1]) ? p : a), lat = (big.bbox[1] + big.bbox[3]) / 2;
-    const flat = App.morph >= .5, p = App.proj, fac = PM.areaFactor(p, lat), pn = Lab.L(PROJ[p].name), ga = area / 153910, af = 30.37e6 / area;
+    const fac = flat ? PM.areaFactor(p, lat) : 1, pn = Lab.L(PROJ[p].name), ga = area / 153910, af = 30.37e6 / area;
     let look;
     if (!flat) look = T('On the globe it is shown at its true size and shape.','在地球仪上，它以真实的大小和形状显示。');
     else if (p === 'peters') look = T(`On the ${pn} it is shown at its true relative size — but its shape is stretched.`, `在${pn}上,它的面积比例是真实的,但形状被拉伸了。`);
     else look = T(`On the ${pn}, at about ${Math.abs(lat).toFixed(0)}° latitude, it looks about ${fac.toFixed(1)}× bigger than the same area at the equator.`, `在${pn}上,它位于纬度约 ${Math.abs(lat).toFixed(0)}° 处,看起来比赤道上同样大的地区大约大 ${fac.toFixed(1)} 倍。`);
-    box.innerHTML = `<span class="tag">${T('Country','国家/地区')} · ${Lab.L(GEO.CONT[GEO.polyCont(f, big, c.lon)])}</span>
+    return `<span class="tag pline">${T('Country','国家/地区')} · ${Lab.L(GEO.CONT[GEO.polyCont(f, big, lon)])}</span>
       <h3><span class="dot" style="background:${flat && p !== 'peters' && fac > 1.6 ? '#e5484d' : '#2fb36d'}"></span>${GEO.cname(f.name)}</h3>
-      <div class="bigstat">${T('True area ≈ ','真实面积 ≈ ')}${fmtArea(area)}</div>
+      <div class="bigstat pline">${T('True area ≈ ','真实面积 ≈ ')}${fmtArea(area)}</div>
       <ul>
         <li>${look}</li>
         <li>${ga >= 1 ? T(`That is about ${ga.toFixed(ga < 10 ? 1 : 0)} times the size of the state of Georgia (USA).`, `大约是美国佐治亚州面积的 ${ga.toFixed(ga < 10 ? 1 : 0)} 倍。`) : T(`That is about ${(ga * 100).toFixed(0)}% of the size of the state of Georgia (USA).`, `大约是美国佐治亚州面积的 ${(ga * 100).toFixed(0)}%。`)}</li>
         ${f.cont !== 'africa' && af > 1.05 ? `<li>${T(`Africa is about ${af.toFixed(af < 10 ? 1 : 0)} times bigger.`, `非洲大约是它的 ${af.toFixed(af < 10 ? 1 : 0)} 倍。`)}</li>` : ''}
       </ul>
       <div class="memory"><b>${T('💡 Check with a globe','💡 用地球仪核对')}</b>${T('How big a country LOOKS depends on the projection. Only the globe (and equal-area maps) show true sizes.','一个国家“看起来”多大，取决于所用的投影。只有地球仪（以及等积投影）能显示真实的大小。')}</div>
-      <p class="muted" style="font-size:13px;margin:0">${T('Areas are calculated from a simplified 1:110 million outline, so they are approximate.','面积是根据简化的 1:1.1 亿轮廓计算的，只是近似值。')}</p>
+      <p class="muted" style="font-size:13px;margin:0">${T('Areas are calculated from a simplified 1:110 million outline, so they are approximate.','面积是根据简化的 1:1.1 亿轮廓计算的，只是近似值。')}</p>`;
+}
+function renderInfo(){
+  const box = Lab.$('#info'), k = App.sel;
+  if (k === '@c'){
+    const c = App.country, f = (GEO.feats || []).find(x => x.name === c.name); if (!f) return;
+    const p = App.morph >= .5 ? App.proj : 'globe';
+    box.innerHTML = countryPanel(f, c.lon, p) + `
       <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
-      <div class="nav"><button id="pBack">${T('◀ Back to ','◀ 返回')}${Lab.L(PROJ[flat ? p : 'globe'].name)}</button></div>`;
-    Lab.$('#speakBtn').onclick = () => Lab.speak(GEO.cname(f.name) + '. ' + fmtArea(area) + '. ' + look);
-    Lab.$('#pBack').onclick = () => App.select(flat ? p : 'globe', true);
+      <div class="nav"><button id="pBack">${T('◀ Back to ','◀ 返回')}${Lab.L(PROJ[p].name)}</button></div>`;
+    Lab.$('#speakBtn').onclick = () => speakPanel(box);
+    Lab.$('#pBack').onclick = () => App.select(p, true);
     return;
   }
-  const p = PROJ[k], i = ORDER.indexOf(k);
-  box.innerHTML = `<span class="tag">${k === 'globe' ? T('Model','模型') : T('Map projection','地图投影')} ${i + 1}/${ORDER.length}</span>
-    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
-    <div class="job">${Lab.L(p.job)}</div>
-    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
-    <div class="memory"><b>${T('💡 Memory hint','💡 记忆小窍门')}</b>${Lab.L(p.hint)}</div>
-    ${p.mix ? `<div class="mix"><b>${T('⚠️ Common mix-up:','⚠️ 容易混淆：')}</b><span>${Lab.L(p.mix)}</span></div>` : ''}
+  const i = ORDER.indexOf(k);
+  box.innerHTML = projectionPanel(k, i) + `
     <button class="speak" id="speakBtn">${Lab.L(Lab.UI.listen)}</button>
     <div class="nav"><button id="pPrev">${T('◀ Previous','◀ 上一个')}</button><button id="pNext">${T('Next ▶','下一个 ▶')}</button></div>`;
   Lab.$('#speakBtn').onclick = () => speakPanel(box);
   Lab.$('#pPrev').onclick = () => App.select(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
   Lab.$('#pNext').onclick = () => App.select(ORDER[(i + 1) % ORDER.length]);
 }
+function projectionPanel(k, i){
+  const p = PROJ[k];
+  return `<span class="tag pline">${k === 'globe' ? T('Model','模型') : T('Map projection','地图投影')} ${i + 1}/${ORDER.length}</span>
+    <h3><span class="dot" style="background:${p.color}"></span>${Lab.L(p.name)}</h3>
+    <div class="job">${Lab.L(p.job)}</div>
+    <ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="memory"><b>${T('💡 Memory hint','💡 记忆小窍门')}</b>${Lab.L(p.hint)}</div>
+    ${p.mix ? `<div class="mix"><b>${T('⚠️ Common mix-up:','⚠️ 容易混淆：')}</b><span>${Lab.L(p.mix)}</span></div>` : ''}`;
+}
 // the panel's texts as recorded clips: name, short job, each fact, memory tip, mix-up (the Listen button used to join
 // them into one long string, which has no recording)
-const PANEL_PARTS = 'h3,.job,li,.memory,.mix';
+const PANEL_PARTS = 'h3,p,.job,li,.memory,.mix,.pline';
 function panelUnits(el){ const out = []; if (!Lab.readUnits) return out;
-  el.querySelectorAll(PANEL_PARTS).forEach(n => { const u = Lab.readUnits(n); if (u) u.parts.forEach(t => out.push([t, u.lang])); });
+  const nodes = el.matches(PANEL_PARTS) ? [el] : el.querySelectorAll(PANEL_PARTS);
+  nodes.forEach(n => { const u = Lab.readUnits(n); if (u) u.parts.forEach(t => out.push([t, u.lang])); });
   return out; }
 function speakPanel(el){
   const parts = panelUnits(el); let i = 0;
   const next = ok => { if (ok === false || i >= parts.length) return; const [t, l] = parts[i++]; Lab.speak(t, { lang: l, inner: true, onend: next }); };
   next();
 }
-// every projection's panel for the read-aloud crawler: the page shows one projection at a time (the globe on load), so
-// the others were never recorded (the user, 2026-11-22: Mercator, Robinson, Gall-Peters panels had no audio)
-if (Lab.readAll) Lab.readAll(() => {
-  const host = Lab.$('#info'); if (!host || !host.parentElement) return [];
-  const tmp = document.createElement('div'); tmp.style.cssText = 'position:absolute;left:-10000px;top:0;width:' + (host.offsetWidth || 360) + 'px';
-  host.parentElement.appendChild(tmp); const out = [];
+function collectPanels(host, items, render){
+  const tmp = host.cloneNode(false);
+  tmp.removeAttribute('id');
+  tmp.removeAttribute('aria-live');
+  tmp.setAttribute('aria-hidden', 'true');
+  tmp.style.cssText = 'position:absolute;left:-10000px;top:0;box-sizing:border-box;width:' + (host.offsetWidth || 360) + 'px';
+  host.after(tmp);
   try {
-    ORDER.forEach(k => { const p = PROJ[k];
-      tmp.innerHTML = `<h3>${Lab.L(p.name)}</h3><div class="job">${Lab.L(p.job)}</div><ul>${Lab.L(p.facts).map(f => `<li>${f}</li>`).join('')}</ul>`
-        + `<div class="memory"><b>${T('💡 Memory hint','💡 记忆小窍门')}</b>${Lab.L(p.hint)}</div>`
-        + (p.mix ? `<div class="mix"><b>${T('⚠️ Common mix-up:','⚠️ 容易混淆：')}</b><span>${Lab.L(p.mix)}</span></div>` : '');
-      out.push(...panelUnits(tmp));
+    return items.flatMap((item, i) => {
+      render(tmp, item, i);
+      return panelUnits(tmp);
     });
   } finally { tmp.remove(); }
-  return out;
+}
+const infoHost = Lab.$('#info');
+Lab.readAll(() => collectPanels(infoHost, ORDER, (tmp, k, i) => { tmp.innerHTML = projectionPanel(k, i); }));
+Lab.readAll(() => {
+  const items = (GEO.feats || []).flatMap(f => ORDER.flatMap(k =>
+    (f.name === 'Russia' ? [30, 90] : [0]).map(lon => ({f, lon, k}))));
+  const units = collectPanels(infoHost, items, (tmp, {f, lon, k}) => { tmp.innerHTML = countryPanel(f, lon, k); });
+  return [...new Map(units.map(unit => [JSON.stringify(unit), unit])).values()];
 });
+Lab.readAll(() => collectPanels(Lab.$('#stage .lab-caption'), STORY, (tmp, step) => { tmp.textContent = Lab.L(step); }));
 function renderChips(){
   Lab.$('#chips').innerHTML = ORDER.map(k => `<button class="chip ${App.sel === k ? 'on' : ''}" data-k="${k}"><i style="background:${PROJ[k].color}"></i>${Lab.L(PROJ[k].name)}</button>`).join('');
   Lab.$$('#chips .chip').forEach(c => c.onclick = () => App.select(c.dataset.k));
@@ -458,7 +476,16 @@ Lab.onLang(() => { renderInfo(); renderChips(); renderProjName(); });
     }
   }
   const msg = (t, good) => { const m = Lab.$('#gaMsg'); m.textContent = t; m.className = 'result ' + (good === true ? 'good' : good === false ? 'bad' : ''); };
-  const purpose = t => Lab.$('#gaPurpose').textContent = t || '';
+  const purpose = (t, readable = false) => {
+    const el = Lab.$('#gaPurpose');
+    el.textContent = t || '';
+    el.classList.toggle('pline', readable);
+  };
+  const elementPurpose = k => '📌 ' + Lab.L(EL[k].name) + T(': ',':') + Lab.L(EL[k].why);
+  Lab.readAll(() => collectPanels(Lab.$('#gaPurpose'), KEYS, (tmp, k) => {
+    tmp.classList.add('pline');
+    tmp.textContent = elementPurpose(k);
+  }));
   function renderPool(){
     Lab.$('#gaPool').innerHTML = Lab.shuffle(KEYS).map(k => `<button data-k="${k}" class="${S.done[k] ? 'done' : ''} ${S.pick === k ? 'sel' : ''}" ${S.done[k] ? 'disabled' : ''}>${Lab.L(EL[k].name)}</button>`).join('');
     Lab.$$('#gaPool button').forEach(b => b.onclick = () => { S.pick = S.pick === b.dataset.k ? null : b.dataset.k; Lab.$$('#gaPool button').forEach(x => x.classList.toggle('sel', x.dataset.k === S.pick)); draw(); });
@@ -472,7 +499,7 @@ Lab.onLang(() => { renderInfo(); renderChips(); renderProjName(); });
       const k = KEYS.find(k => { const bx = EL[k].box; return x >= bx[0] - 18 && x <= bx[2] + 18 && y >= bx[1] - 18 && y <= bx[3] + 18; });
       if (!k) return; if (!S.pick) return msg(T('First tap a name on the right.','先在右边点一个名称。'));
       if (S.done[k]) return;
-      if (k === S.pick){ S.done[k] = true; S.okLabels++; msg(T('✅ Correct: ','✅ 正确：') + Lab.L(EL[k].name), true); purpose('📌 ' + Lab.L(EL[k].name) + T(': ',':') + Lab.L(EL[k].why)); S.pick = null; renderPool();
+      if (k === S.pick){ S.done[k] = true; S.okLabels++; msg(T('✅ Correct: ','✅ 正确：') + Lab.L(EL[k].name), true); purpose(elementPurpose(k), true); S.pick = null; renderPool();
         if (S.okLabels === 5) msg(T('🎉 All five map elements labeled!','🎉 五个地图要素全部标对了！'), true); }
       else msg(T(`❌ Number ${S.num[k]} is not the ${Lab.L(EL[S.pick].name).toLowerCase()}. Try another number.`, `❌ ${S.num[k]} 号不是“${Lab.L(EL[S.pick].name)}”,再试试别的编号。`), false);
       counters(); draw(); return;
@@ -552,9 +579,25 @@ const TL = [
   { y:o('1972','1972 年'), s:'1972', t:o('A photo of the whole Earth','一张完整的地球照片'), d:o('The Apollo 17 astronauts photograph the whole sunlit Earth on their way to the Moon: the “Blue Marble”. People can finally compare their maps with the real thing.','阿波罗 17 号的宇航员在飞往月球途中拍下了被阳光照亮的整个地球——“蓝色弹珠”。人们终于可以拿地图和真实的地球对照了。') },
   { y:o('2005','2005 年'), s:'2005', t:o('Maps on every screen','人人屏幕上都有地图'), d:o('Google Maps goes online. Web maps use a version of Mercator’s 1569 projection because it keeps streets and buildings the right shape when you zoom in.','谷歌地图上线。网络地图使用墨卡托 1569 年投影的一个变种，因为放大时街道和建筑的形状不会变形。') }
 ];
-function drawTL(){ const i = +$('#tlBar input').value, e = TL[i]; $('#tlBar output').textContent = Lab.L(e.y);
+const tlDate = $('#tlBar output'), tlTitle = $('#tlTitle'), tlText = $('#tlText');
+function renderMilestone(e, date, title, text){
+  date.textContent = Lab.L(e.y);
+  title.textContent = Lab.L(e.t);
+  text.textContent = Lab.L(e.d);
+}
+Lab.readAll(() => collectPanels(tlTitle.closest('.tl-card'), TL, (tmp, e) => {
+  const nodes = [tlDate, tlTitle, tlText].map(el => {
+    const copy = el.cloneNode(false);
+    copy.removeAttribute('id');
+    return copy;
+  });
+  tmp.replaceChildren(...nodes);
+  renderMilestone(e, ...nodes);
+}));
+function drawTL(){ const i = +$('#tlBar input').value;
   $('#tlDots').innerHTML = TL.map((x, k) => `<span class="${k === i ? 'on' : ''}">${x.s}</span>`).join('');
-  $('#tlTitle').textContent = Lab.L(e.t); $('#tlText').textContent = Lab.L(e.d); }
+  renderMilestone(TL[i], tlDate, tlTitle, tlText);
+}
 timebar('#tlBar', drawTL, 3500);
 /* Real media from Wikimedia Commons: URLs, credit and licence copied from the Commons API helper */
 LabPhotos.render($('#gallery'), [
